@@ -5,11 +5,8 @@ import {
     type ActionMeta,
     type ControlProps,
     type CSSObjectWithLabel,
-    type DropdownIndicatorProps,
     type GroupBase,
-    type IndicatorSeparatorProps,
     type InputActionMeta,
-    type MenuProps,
     type MultiValue,
     type MultiValueGenericProps,
     type MultiValueProps,
@@ -182,9 +179,9 @@ const MultiValueLabel = (props: MultiValueGenericProps<RuleOption, true, RuleOpt
     );
 };
 
-const DropdownIndicator = (_props: DropdownIndicatorProps<RuleOption, true, RuleOptionGroup>) => null;
-const IndicatorSeparator = (_props: IndicatorSeparatorProps<RuleOption, true, RuleOptionGroup>) => null;
-const Menu = (_props: MenuProps<RuleOption, true, RuleOptionGroup>) => null;
+const DropdownIndicator = () => null;
+const IndicatorSeparator = () => null;
+const Menu = () => null;
 
 export function RuleComposer({
     tokens,
@@ -262,10 +259,15 @@ export function RuleComposer({
     };
 
     const handleInputChange = (value: string, meta: InputActionMeta) => {
-        if (meta.action === "input-change" && /[\s,;]/.test(value)) {
+        if (meta.action !== "input-change") {
+            return inputValue;
+        }
+
+        if (/[\s,;]/.test(value)) {
             addTokens(splitRulesFromInput(value));
             return "";
         }
+
         setInputValue(value);
         return value;
     };
