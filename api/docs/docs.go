@@ -470,59 +470,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/auxiliary/logos": {
-            "post": {
-                "description": "Download brand logo(s) from Brandfetch. Accepts a list of domains and returns a JSON object mapping each domain to its logo as a base64-encoded data URL. Errors for each domain are also included.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auxiliary"
-                ],
-                "summary": "Download brand logo(s) from Brandfetch",
-                "parameters": [
-                    {
-                        "description": "Domains to fetch logos for",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/api.LogoRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Map of domains to base64-encoded logo data URLs and errors",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/blocklists": {
             "get": {
                 "security": [
@@ -2211,20 +2158,6 @@ const docTemplate = `{
                 },
                 "error": {
                     "type": "string"
-                }
-            }
-        },
-        "api.LogoRequest": {
-            "type": "object",
-            "required": [
-                "domains"
-            ],
-            "properties": {
-                "domains": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
