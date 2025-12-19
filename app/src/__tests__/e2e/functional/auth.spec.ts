@@ -84,3 +84,24 @@ test.describe('@functional Authentication', () => {
       .not.toBe('true');
   });
 });
+
+test.describe('@functional Root index redirects', () => {
+  test('unauthenticated visit to root redirects to /login', async ({ page }) => {
+    await registerMocks(page, { authenticated: false });
+    await page.goto('/');
+    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+  });
+
+  test('stale auth flag with expired session still redirects to /login', async ({ page }) => {
+    await registerMocks(page, { authenticated: false });
+    await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
+    await page.goto('/');
+    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+  });
+
+  test('valid session at root immediately navigates to /home', async ({ page }) => {
+    await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
+    await page.goto('/');
+    await expect.poll(async () => page.url()).toMatch(/\/home$/);
+  });
+});
