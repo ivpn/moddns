@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 // Compact mobile-only connection status bar (shown on /setup)
 export const MobileConnectionStatusBar: React.FC = () => {
     const { status } = useDnsConnectionStatus(7000, { enabled: true }); // slower poll mobile
-    const { badge, message, resolver, messageColor } = status as any;
+    const { badge, message, messageColor } = status;
 
     return (
         <div data-testid="conn-mobile-root" className="w-full max-w-[630px] rounded-md border border-[var(--shadcn-ui-app-border)] px-3 py-3">
@@ -15,7 +15,6 @@ export const MobileConnectionStatusBar: React.FC = () => {
             </div>
             <div className="flex flex-col gap-1 w-full">
                 <div data-testid="conn-mobile-message" className={`text-[12px] leading-5 font-['Roboto_Flex-Regular',Helvetica] ${messageColor} break-words`}>{message}</div>
-                <div data-testid="conn-mobile-resolver" className="font-normal text-[var(--tailwind-colors-slate-100)] text-[12px] leading-5 font-['Roboto_Flex-Regular',Helvetica] break-words">{resolver}</div>
             </div>
         </div>
     );

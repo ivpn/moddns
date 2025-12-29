@@ -30,14 +30,14 @@ test.describe('Mobile ConnectionStatusBar', () => {
     await expect(page.getByTestId('conn-header-root')).toHaveCount(0);
   });
 
-  test('resolver persists across poll transition', async ({ page }) => {
+  test('message persists across poll transition', async ({ page }) => {
     await mockDnsSequence(page, [
       { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' },
       { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org2', ip: '1.1.1.1' }
     ]);
     await page.reload();
-    const resolver = page.getByTestId('conn-mobile-resolver');
-    await expect(resolver).not.toHaveText('');
+    const message = page.getByTestId('conn-mobile-message');
+    await expect(message).not.toHaveText('');
   });
 
   test('disconnected 404 mobile', async ({ page }) => {

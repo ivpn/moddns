@@ -25,15 +25,15 @@ test.describe('Desktop ConnectionStatusHeader', () => {
     await page.goto('/setup');
   });
 
-  test('renders and shows non-empty resolver', async ({ page }) => {
+  test('renders and shows non-empty message', async ({ page }) => {
     await mockDnsSequence(page, [{ status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' }]);
     await page.reload();
     const root = page.getByTestId('conn-header-root');
     await expect(root).toBeVisible();
-    const resolver = page.getByTestId('conn-header-resolver');
-    await expect(resolver).toBeVisible();
+    const message = page.getByTestId('conn-header-message');
+    await expect(message).toBeVisible();
     // Poll until text populated (guards against race)
-    await expect.poll(async () => (await resolver.textContent())?.trim() || '').not.toEqual('');
+    await expect.poll(async () => (await message.textContent())?.trim() || '').not.toEqual('');
   });
 
   test('hide button collapses header', async ({ page }) => {

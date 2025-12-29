@@ -11,7 +11,7 @@ export default function ConnectionStatusHeader(): JSX.Element | null {
     const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
 
     const { status } = useDnsConnectionStatus(5000, { enabled: true });
-    const { badge, message, messageColor, resolver } = status;
+    const { badge, message, messageColor } = status;
 
     if (isCollapsed) return null;
 
@@ -36,7 +36,6 @@ export default function ConnectionStatusHeader(): JSX.Element | null {
             </Badge>
             <Separator data-testid="conn-header-separator" orientation="vertical" className="h-5" />
             <div data-testid="conn-header-message" className={`font-normal ${messageColor} text-xs leading-6 whitespace-nowrap font-['Roboto_Flex-Regular',Helvetica]`}>{message}</div>
-            <div data-testid="conn-header-resolver" className="font-normal text-[var(--tailwind-colors-slate-100)] text-xs leading-5 font-['Roboto_Flex-Regular',Helvetica]">{resolver}</div>
             <div className="flex-1" />
             <Button
                 variant="ghost"

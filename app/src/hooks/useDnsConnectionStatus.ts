@@ -15,7 +15,6 @@ interface StatusInfo {
   badge: { text: string; className: string };
   message: string;
   messageColor: string;
-  resolver: string; // Always non-empty for UI stability
   isCurrentProfile: boolean;
 }
 
@@ -52,8 +51,9 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
         setDnsCheckResponse(response.data);
         setIsLoading(false);
       }
-    } catch (err: any) {
-      if (err?.response?.status === 404 && err?.response?.data?.error === 'disconnected') {
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
+      if (axiosError?.response?.status === 404 && axiosError?.response?.data?.error === 'disconnected') {
         setDnsCheckResponse({
           status: 'disconnected',
           asn: '',
@@ -66,7 +66,6 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
       } else {
         setError('Failed to check DNS status');
         setIsLoading(false);
-        // eslint-disable-next-line no-console
         console.error('DNS check error:', err);
       }
     }
@@ -95,18 +94,18 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
     let current: StatusInfo | null = null;
     if (!isLoading) {
       if (error) {
-        current = { badge: { text: 'Error', className: 'bg-[var(--tailwind-colors-red-600)]' }, message: 'Unable to check DNS status.', messageColor: 'text-[var(--tailwind-colors-red-400)]', resolver: lastStableStatusRef.current?.resolver || 'Status check failed.', isCurrentProfile: false };
+        current = { badge: { text: 'Error', className: 'bg-[var(--tailwind-colors-red-600)]' }, message: `Unable to check DNS status.`, messageColor: 'text-[var(--tailwind-colors-red-400)]', isCurrentProfile: false };
       } else if (dnsCheckResponse.status === 'ok') {
         const isCurrentProfile = activeProfile?.profile_id === dnsCheckResponse.profile_id;
         if (isCurrentProfile) {
-          current = { badge: { text: 'Connected', className: 'bg-[var(--tailwind-colors-rdns-600)]' }, message: 'Good! This device is using modDNS.', messageColor: 'text-[var(--tailwind-colors-rdns-800)]', resolver: 'This device is currently using modDNS with this profile.', isCurrentProfile };
+          current = { badge: { text: 'Connected', className: 'bg-[var(--tailwind-colors-rdns-600)]' }, message: 'This device or browser is currently using modDNS with this profile.', messageColor: 'text-[var(--tailwind-colors-rdns-800)]', isCurrentProfile };
         } else {
-          current = { badge: { text: 'Different Profile', className: 'bg-[var(--tailwind-colors-orange-500)]' }, message: 'This device or browser is using modDNS with another profile.', messageColor: 'text-[var(--tailwind-colors-red-400)]', resolver: `This device is currently using ${getCurrentProfileName()} profile.`, isCurrentProfile };
+          current = { badge: { text: 'Different Profile', className: 'bg-[var(--tailwind-colors-orange-500)]' }, message: `This device or browser is using modDNS with profile: ${getCurrentProfileName()}`, messageColor: 'text-[var(--tailwind-colors-red-400)]', isCurrentProfile };
         }
       } else if (dnsCheckResponse.status === 'disconnected') {
-        current = { badge: { text: 'Disconnected', className: 'bg-[var(--tailwind-colors-red-600)]' }, message: 'This device or browser is not using modDNS.', messageColor: 'text-[var(--tailwind-colors-red-400)]', resolver: 'This device is not configured to use modDNS.', isCurrentProfile: false };
+        current = { badge: { text: 'Disconnected', className: 'bg-[var(--tailwind-colors-red-600)]' }, message: 'This device or browser is not using modDNS.', messageColor: 'text-[var(--tailwind-colors-red-400)]', isCurrentProfile: false };
       } else {
-        current = { badge: { text: 'Disconnected', className: 'bg-[var(--tailwind-colors-red-600)]' }, message: 'This device or browser is not using modDNS.', messageColor: 'text-[var(--tailwind-colors-red-400)]', resolver: `This device is currently using "${dnsCheckResponse.asn_organization || 'Unknown'}" as DNS resolver.`, isCurrentProfile: false };
+        current = { badge: { text: 'Checking...', className: 'bg-[var(--tailwind-colors-slate-800)]' }, message: 'Checking DNS configuration...', messageColor: 'text-[var(--tailwind-colors-slate-100)]', isCurrentProfile: false };
       }
       // Cache this stable status for reuse during transient loading frames
       lastStableStatusRef.current = current;
@@ -115,10 +114,10 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
 
     // Loading state: use previous stable status if available to avoid flicker
     if (lastStableStatusRef.current) {
-      return { ...lastStableStatusRef.current, badge: { text: 'Checking...', className: 'bg-[var(--tailwind-colors-yellow-600)]' } };
+      return { ...lastStableStatusRef.current, badge: { text: 'Checking...', className: 'bg-[var(--tailwind-colors-slate-800)]' } };
     }
-    // Initial load fallback (provide placeholder resolver string)
-    return { badge: { text: 'Checking...', className: 'bg-[var(--tailwind-colors-yellow-600)]' }, message: 'Checking DNS configuration...', messageColor: 'text-[var(--tailwind-colors-red-400)]', resolver: 'Determining DNS resolver...', isCurrentProfile: false };
+    // Initial load fallback for first render
+    return { badge: { text: 'Checking...', className: 'bg-[var(--tailwind-colors-slate-800)]' }, message: 'Checking DNS configuration...', messageColor: 'text-[var(--tailwind-colors-slate-100)]', isCurrentProfile: false };
   };
 
   return { dnsCheckResponse, isLoading, error, status: getStatusInfo(), refresh: executeDnsCheck, enabled };
