@@ -1,1 +1,3 @@
-dnscheck    test.moddns.net
+# Format: <IP-address> <hostname> [alias...]
+# dnscheck    test.moddns.net
+104.18.74.230 test.com

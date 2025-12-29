@@ -83,6 +83,7 @@ services:
     container_name: sdns
     volumes:
       - ./config/sdns.conf:/sdns.conf
+      - ./config/testhosts.txt:/testhosts.txt:ro
 
   # unbound:
   #   image: mvance/unbound:1.21.1

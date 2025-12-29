@@ -38,8 +38,8 @@ class TestCustomRules:
                 {"ads.wp.pl": "212.77.99.7"},
             ),  # do not block subdomains in custom rules by default (wildcard can be used for that case)
             (
-                "23.215.0.136",
-                {"example.com": "0.0.0.0"},
+                "104.18.74.230",  # Note: this IP is configured in testhosts.txt to resolve to
+                {"test.com": "0.0.0.0"},
             ),  # block if one of the IPs is blocked
             (
                 "2001:41d0:701:1100::29c8",
