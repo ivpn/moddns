@@ -29,7 +29,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const delCodeExpTime = 15 * time.Minute
+const (
+	delCodeExpTime   = 15 * time.Minute
+	firstProfileName = "Profile 01"
+)
 
 type AccountService struct {
 	ServiceCfg           config.ServiceConfig
@@ -197,7 +200,7 @@ func (a *AccountService) RegisterAccount(ctx context.Context, email, passwordPla
 	}
 
 	accountId := primitive.NewObjectID()
-	profile, err := a.ProfileService.CreateProfile(ctx, "My First Profile", accountId.Hex())
+	profile, err := a.ProfileService.CreateProfile(ctx, firstProfileName, accountId.Hex())
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +263,7 @@ func (a *AccountService) RegisterAccountWithActiveUntil(ctx context.Context, ema
 	}
 
 	accountId := primitive.NewObjectID()
-	profile, err := a.ProfileService.CreateProfile(ctx, "My First Profile", accountId.Hex())
+	profile, err := a.ProfileService.CreateProfile(ctx, firstProfileName, accountId.Hex())
 	if err != nil {
 		return nil, err
 	}
