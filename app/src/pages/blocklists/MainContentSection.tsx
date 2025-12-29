@@ -29,6 +29,7 @@ const INDIVIDUAL_LISTS = [
     { label: "Hagezi", tag: "hagezi" },
     { label: "Adguard", tag: "adguard" },
     { label: "OISD", tag: "oisd" },
+    { label: "Steven Black", tag: "steven_black" },
 ];
 
 const PREDEFINED_LISTS = [
