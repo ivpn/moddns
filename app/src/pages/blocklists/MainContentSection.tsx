@@ -226,7 +226,6 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
                         description={
                             <>
                                 <div>
-                                    Blocklists are collections of domains and IP addresses you can enable to block trackers, advertisers, and malicious actors.
                                     Enabling several large blocklists may degrade your browsing experience. Start with one of our predefined lists that fits your protection needs:
                                     <span className="inline-flex gap-2 ml-1 align-baseline">
                                         <span
