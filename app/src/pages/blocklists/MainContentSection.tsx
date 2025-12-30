@@ -16,9 +16,13 @@ import {
     ListFilterIcon,
     SearchIcon,
     ToggleLeftIcon,
-    Clock,
+    ArrowUpDown,
 } from "lucide-react";
-import type { ApiBlocklistsUpdates } from "@/api/client/api";
+import {
+    ApiV1BlocklistsGetSortByEnum,
+    type ApiBlocklistsUpdates,
+    type ModelBlocklist,
+} from "@/api/client/api";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { formatDistanceToNow, parseISO } from "date-fns";
@@ -43,8 +47,20 @@ const STATUS_FILTERS = [
     { label: "Disabled", value: "disabled" },
 ];
 
-interface MainContentSectionProps {
-}
+const SORT_OPTIONS: Array<{ label: string; value: ApiV1BlocklistsGetSortByEnum }> = [
+    {
+        label: "Recently updated",
+        value: ApiV1BlocklistsGetSortByEnum.Updated,
+    },
+    {
+        label: "Name A–Z",
+        value: ApiV1BlocklistsGetSortByEnum.Name,
+    },
+    {
+        label: "Most entries",
+        value: ApiV1BlocklistsGetSortByEnum.Entries,
+    },
+];
 
 export const formatUpdatedRelative = (isoDate?: string): string => {
     if (!isoDate) return "";
@@ -55,14 +71,14 @@ export const formatUpdatedRelative = (isoDate?: string): string => {
     return raw;
 };
 
-export default function MainContentSection({ }: MainContentSectionProps): JSX.Element {
+export default function MainContentSection(): JSX.Element {
     const [showAlert, setShowAlert] = useState(true);
-    const [blocklists, setBlocklists] = useState<any[]>([]);
+    const [blocklists, setBlocklists] = useState<ModelBlocklist[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
     const [searchValue, setSearchValue] = useState("");
     const [filterValue, setFilterValue] = useState("all");
-    const [sortValue, setSortValue] = useState("updated");
+    const [sortValue, setSortValue] = useState<ApiV1BlocklistsGetSortByEnum>(ApiV1BlocklistsGetSortByEnum.Updated);
 
     // Get activeProfile from the store
     const activeProfile = useAppStore((state) => state.activeProfile);
@@ -73,30 +89,35 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
         activeProfile?.settings?.privacy?.blocklists ?? [];
 
     useEffect(() => {
+        let isActive = true;
         const fetchBlocklists = async () => {
             setLoading(true);
             try {
-                const resp = await api.Client.blocklistsApi.apiV1BlocklistsGet();
+                const resp = await api.Client.blocklistsApi.apiV1BlocklistsGet(sortValue);
+                if (!isActive) return;
                 setBlocklists(resp.data || []);
-            } catch (error: any) {
-                if (axios.isAxiosError(error)) {
-                    // Handle rate limiting (429)
-                    if (error.response?.status === 429) {
-                        toast.error("Too many requests", {
-                            description: "Blocklists are temporarily unavailable. Please try again in a moment.",
-                        });
-                        setBlocklists([]);
-                        return;
-                    }
+            } catch (error: unknown) {
+                if (!isActive) return;
+                if (axios.isAxiosError(error) && error.response?.status === 429) {
+                    toast.error("Too many requests", {
+                        description: "Blocklists are temporarily unavailable. Please try again in a moment.",
+                    });
+                    setBlocklists([]);
+                } else {
+                    // For other errors, just set empty array (silent failure)
+                    setBlocklists([]);
                 }
-                // For other errors, just set empty array (silent failure)
-                setBlocklists([]);
             } finally {
-                setLoading(false);
+                if (isActive) {
+                    setLoading(false);
+                }
             }
         };
         fetchBlocklists();
-    }, []);
+        return () => {
+            isActive = false;
+        };
+    }, [sortValue]);
 
     // Handler to enable/disable a blocklist for the user
     const handleBlocklistSwitch = async (blocklistId: string, checked: boolean) => {
@@ -127,7 +148,7 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
                     }
                 );
             }
-        } catch (e) {
+        } catch {
             toast.error("Error", {
                 description: "Failed to update blocklist. Please try again.",
             });
@@ -172,7 +193,7 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
     });
 
     // Sort blocklists by last_modified (newest first) if "updated" is selected
-    if (sortValue === "updated") {
+    if (sortValue === ApiV1BlocklistsGetSortByEnum.Updated) {
         filteredBlocklists = filteredBlocklists.slice().sort((a, b) => {
             const aTime = a.last_modified ? new Date(a.last_modified).getTime() : 0;
             const bTime = b.last_modified ? new Date(b.last_modified).getTime() : 0;
@@ -210,7 +231,7 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
             toast.success("Blocklists enabled", {
                 description: "All filtered blocklists have been enabled successfully.",
             });
-        } catch (e) {
+        } catch {
             toast.error("Error", {
                 description: "Failed to enable blocklists. Please try again.",
             });
@@ -318,15 +339,19 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
                         </SelectContent>
                     </Select>
                     {/* Sort By */}
-                    <Select value={sortValue} onValueChange={setSortValue}>
-                        <SelectTrigger aria-label="Sort blocklists" className="h-11 md:h-9 min-h-11 md:min-h-0 flex-1 md:flex-none w-full md:w-auto md:min-w-[140px] md:max-w-[180px] px-2 md:px-3 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] rounded-lg flex">
+                    <Select value={sortValue} onValueChange={(value) => setSortValue(value as ApiV1BlocklistsGetSortByEnum)}>
+                        <SelectTrigger aria-label="Sort blocklists" className="h-11 md:h-9 min-h-11 md:min-h-0 flex-1 md:flex-none w-full md:w-auto md:min-w-[180px] md:max-w-[240px] px-2 md:px-3 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] rounded-lg flex">
                             <div className="flex items-center gap-1 w-full min-w-0">
-                                <Clock className="h-4 w-4 shrink-0" />
-                                <span className="text-sm truncate"><SelectValue placeholder="Updated" /></span>
+                                <ArrowUpDown className="h-4 w-4 shrink-0" />
+                                <span className="text-sm truncate"><SelectValue placeholder="Recently updated" /></span>
                             </div>
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="updated">Updated</SelectItem>
+                            {SORT_OPTIONS.map(({ label, value }) => (
+                                <SelectItem key={value} value={value}>
+                                    {label}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     {/* Enable Listed Button (mobile & desktop at end of row) */}
@@ -335,7 +360,7 @@ export default function MainContentSection({ }: MainContentSectionProps): JSX.El
                             aria-label="Enable listed blocklists"
                             variant="outline"
                             size="icon"
-                            className={`w-11 h-11 md:h-11 min-h-11 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive ? "opacity-100" : "opacity-50"}`}
+                            className={`w-11 h-11 md:h-11 lg:h-9 min-h-11 md:min-h-11 lg:min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive ? "opacity-100" : "opacity-50"}`}
                             disabled={!enableListedActive || updating === "all"}
                             onClick={handleEnableListed}
                             title="Enable currently listed blocklists"

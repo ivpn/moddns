@@ -10,7 +10,7 @@ import (
 func (p *ProfileService) createSettings(ctx context.Context, profileId string) (*model.ProfileSettings, error) {
 	// get list of default blocklists
 	fltr := map[string]any{"default": true}
-	defaultBlocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr)
+	defaultBlocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr, "")
 	if err != nil {
 		return nil, err
 	}

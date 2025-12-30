@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/rs/zerolog/log"
 )
@@ -18,6 +19,7 @@ type BlocklistsUpdates struct {
 // @Tags Blocklists
 // @Produce json
 // @Security ApiKeyAuth
+// @Param        sort_by    query     string  false  "field to sort by" Enums(updated,name,entries) default(updated)
 // @Success 200 {object} []model.Blocklist
 // @Failure 400 {object} ErrResponse
 // @Failure 404 {object} ErrResponse
@@ -25,6 +27,13 @@ type BlocklistsUpdates struct {
 // @Router /api/v1/blocklists [get]
 func (s *APIServer) getBlocklists() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
+		queryParams := requests.BlocklistsQueryParams{
+			SortBy: c.Query("sort_by", "updated"),
+		}
+		if err := s.Validator.Validator.Struct(queryParams); err != nil {
+			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		}
+
 		filter := make(map[string]any)
 		defaultBlocklist := c.Query("default")
 		if defaultBlocklist != "" {
@@ -36,7 +45,7 @@ func (s *APIServer) getBlocklists() fiber.Handler {
 			filter["default"] = boolDefault
 		}
 
-		blocklists, err := s.Service.GetBlocklist(c.Context(), filter)
+		blocklists, err := s.Service.GetBlocklist(c.Context(), filter, queryParams.SortBy)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to get blocklists")
 			return c.Status(500).JSON(fiber.Map{

@@ -39,8 +39,8 @@ func (_m *BlocklistRepository) EXPECT() *BlocklistRepository_Expecter {
 }
 
 // Get provides a mock function for the type BlocklistRepository
-func (_mock *BlocklistRepository) Get(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error) {
-	ret := _mock.Called(ctx, filter)
+func (_mock *BlocklistRepository) Get(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
+	ret := _mock.Called(ctx, filter, sortBy)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -48,18 +48,18 @@ func (_mock *BlocklistRepository) Get(ctx context.Context, filter map[string]any
 
 	var r0 []*model.Blocklist
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any) ([]*model.Blocklist, error)); ok {
-		return returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any, string) ([]*model.Blocklist, error)); ok {
+		return returnFunc(ctx, filter, sortBy)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any) []*model.Blocklist); ok {
-		r0 = returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any, string) []*model.Blocklist); ok {
+		r0 = returnFunc(ctx, filter, sortBy)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*model.Blocklist)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, map[string]any) error); ok {
-		r1 = returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, map[string]any, string) error); ok {
+		r1 = returnFunc(ctx, filter, sortBy)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,11 +74,12 @@ type BlocklistRepository_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - filter map[string]any
-func (_e *BlocklistRepository_Expecter) Get(ctx interface{}, filter interface{}) *BlocklistRepository_Get_Call {
-	return &BlocklistRepository_Get_Call{Call: _e.mock.On("Get", ctx, filter)}
+//   - sortBy string
+func (_e *BlocklistRepository_Expecter) Get(ctx interface{}, filter interface{}, sortBy interface{}) *BlocklistRepository_Get_Call {
+	return &BlocklistRepository_Get_Call{Call: _e.mock.On("Get", ctx, filter, sortBy)}
 }
 
-func (_c *BlocklistRepository_Get_Call) Run(run func(ctx context.Context, filter map[string]any)) *BlocklistRepository_Get_Call {
+func (_c *BlocklistRepository_Get_Call) Run(run func(ctx context.Context, filter map[string]any, sortBy string)) *BlocklistRepository_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -88,9 +89,14 @@ func (_c *BlocklistRepository_Get_Call) Run(run func(ctx context.Context, filter
 		if args[1] != nil {
 			arg1 = args[1].(map[string]any)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -101,7 +107,7 @@ func (_c *BlocklistRepository_Get_Call) Return(blocklists []*model.Blocklist, er
 	return _c
 }
 
-func (_c *BlocklistRepository_Get_Call) RunAndReturn(run func(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error)) *BlocklistRepository_Get_Call {
+func (_c *BlocklistRepository_Get_Call) RunAndReturn(run func(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error)) *BlocklistRepository_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -19,7 +19,7 @@ func (p *ProfileService) EnableBlocklists(ctx context.Context, accountId, profil
 	for _, blocklistID := range blocklistIds {
 		// check if blocklist already exists
 		fltr := map[string]any{"blocklist_id": blocklistID}
-		blocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr)
+		blocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr, "")
 		if err != nil {
 			return err
 		}
@@ -57,7 +57,7 @@ func (p *ProfileService) DisableBlocklists(ctx context.Context, accountId, profi
 	for _, blocklistID := range blocklistIds {
 		// check if blocklist already exists
 		fltr := map[string]any{"blocklist_id": blocklistID}
-		blocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr)
+		blocklists, err := p.BlocklistService.GetBlocklist(ctx, fltr, "")
 		if err != nil {
 			return err
 		}

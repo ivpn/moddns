@@ -8,5 +8,5 @@ import (
 
 // BlocklistRepository represents a blocklist repository
 type BlocklistRepository interface {
-	Get(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error)
+	Get(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error)
 }

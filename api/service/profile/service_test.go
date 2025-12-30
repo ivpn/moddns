@@ -197,7 +197,7 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 							Default: true,
 						},
 					}
-					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}).Return(defaultBlocklists, nil)
+					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
 
 					// Mock cache call for saving profile settings
 					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)

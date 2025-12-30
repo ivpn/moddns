@@ -13,6 +13,8 @@ type BlocklistService struct {
 	Cache               cache.Cache
 }
 
+const defaultBlocklistSort = "updated"
+
 // NewBlocklistService creates a new blocklist service
 func NewBlocklistService(db repository.BlocklistRepository, cache cache.Cache) *BlocklistService {
 	return &BlocklistService{
@@ -22,8 +24,12 @@ func NewBlocklistService(db repository.BlocklistRepository, cache cache.Cache) *
 }
 
 // Get returns blocklists based on filtering criteria
-func (p *BlocklistService) GetBlocklist(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error) {
-	blocklists, err := p.BlocklistRepository.Get(ctx, filter)
+func (p *BlocklistService) GetBlocklist(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
+	if sortBy == "" {
+		sortBy = defaultBlocklistSort
+	}
+
+	blocklists, err := p.BlocklistRepository.Get(ctx, filter, sortBy)
 	if err != nil {
 		return nil, err
 	}

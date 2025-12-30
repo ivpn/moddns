@@ -163,7 +163,7 @@ type AppleServicer interface {
 }
 
 type BlocklistServicer interface {
-	GetBlocklist(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error)
+	GetBlocklist(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error)
 }
 
 type SubscriptionServicer interface {

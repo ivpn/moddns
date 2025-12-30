@@ -3481,10 +3481,11 @@ export const BlocklistsApiAxiosParamCreator = function (configuration?: Configur
         /**
          * Get available blocklists data
          * @summary Get blocklists data
+         * @param {ApiV1BlocklistsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1BlocklistsGet: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1BlocklistsGet: async (sortBy?: ApiV1BlocklistsGetSortByEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/blocklists`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3496,6 +3497,10 @@ export const BlocklistsApiAxiosParamCreator = function (configuration?: Configur
             const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
+
+            if (sortBy !== undefined) {
+                localVarQueryParameter['sort_by'] = sortBy;
+            }
 
 
     
@@ -3521,11 +3526,12 @@ export const BlocklistsApiFp = function(configuration?: Configuration) {
         /**
          * Get available blocklists data
          * @summary Get blocklists data
+         * @param {ApiV1BlocklistsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1BlocklistsGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelBlocklist>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1BlocklistsGet(options);
+        async apiV1BlocklistsGet(sortBy?: ApiV1BlocklistsGetSortByEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelBlocklist>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1BlocklistsGet(sortBy, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['BlocklistsApi.apiV1BlocklistsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3543,11 +3549,12 @@ export const BlocklistsApiFactory = function (configuration?: Configuration, bas
         /**
          * Get available blocklists data
          * @summary Get blocklists data
+         * @param {ApiV1BlocklistsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1BlocklistsGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelBlocklist>> {
-            return localVarFp.apiV1BlocklistsGet(options).then((request) => request(axios, basePath));
+        apiV1BlocklistsGet(sortBy?: ApiV1BlocklistsGetSortByEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelBlocklist>> {
+            return localVarFp.apiV1BlocklistsGet(sortBy, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -3562,15 +3569,25 @@ export class BlocklistsApi extends BaseAPI {
     /**
      * Get available blocklists data
      * @summary Get blocklists data
+     * @param {ApiV1BlocklistsGetSortByEnum} [sortBy] field to sort by
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof BlocklistsApi
      */
-    public apiV1BlocklistsGet(options?: RawAxiosRequestConfig) {
-        return BlocklistsApiFp(this.configuration).apiV1BlocklistsGet(options).then((request) => request(this.axios, this.basePath));
+    public apiV1BlocklistsGet(sortBy?: ApiV1BlocklistsGetSortByEnum, options?: RawAxiosRequestConfig) {
+        return BlocklistsApiFp(this.configuration).apiV1BlocklistsGet(sortBy, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
+/**
+ * @export
+ */
+export const ApiV1BlocklistsGetSortByEnum = {
+    Updated: 'updated',
+    Name: 'name',
+    Entries: 'entries'
+} as const;
+export type ApiV1BlocklistsGetSortByEnum = typeof ApiV1BlocklistsGetSortByEnum[keyof typeof ApiV1BlocklistsGetSortByEnum];
 
 
 /**

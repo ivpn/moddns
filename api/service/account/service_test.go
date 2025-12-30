@@ -204,7 +204,7 @@ func (suite *AccountTestSuite) TestRegisterAccount() {
 							Default: true,
 						},
 					}
-					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}).Return(defaultBlocklists, nil)
+					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
 
 					// Mock profile creation in repository
 					suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
@@ -365,7 +365,7 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), mock.AnythingOfType("string")).Return([]model.Profile{}, nil)
 				// ID generator for profile
 				suite.mockIDGenerator.On("Generate").Return("profile123", nil)
-				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}).Return([]*model.Blocklist{{Name: "Default Blocklist", Default: true}}, nil)
+				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return([]*model.Blocklist{{Name: "Default Blocklist", Default: true}}, nil)
 				suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
 				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
 				suite.mockAccountRepo.On("CreateAccount", context.Background(), email, password, mock.AnythingOfType("string"), "profile123", mock.Anything).Return(&model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}, nil)

@@ -2092,8 +2092,8 @@ func (_c *Servicer_GetAccountMetrics_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // GetBlocklist provides a mock function for the type Servicer
-func (_mock *Servicer) GetBlocklist(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error) {
-	ret := _mock.Called(ctx, filter)
+func (_mock *Servicer) GetBlocklist(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
+	ret := _mock.Called(ctx, filter, sortBy)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBlocklist")
@@ -2101,18 +2101,18 @@ func (_mock *Servicer) GetBlocklist(ctx context.Context, filter map[string]any) 
 
 	var r0 []*model.Blocklist
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any) ([]*model.Blocklist, error)); ok {
-		return returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any, string) ([]*model.Blocklist, error)); ok {
+		return returnFunc(ctx, filter, sortBy)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any) []*model.Blocklist); ok {
-		r0 = returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]any, string) []*model.Blocklist); ok {
+		r0 = returnFunc(ctx, filter, sortBy)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*model.Blocklist)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, map[string]any) error); ok {
-		r1 = returnFunc(ctx, filter)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, map[string]any, string) error); ok {
+		r1 = returnFunc(ctx, filter, sortBy)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2127,11 +2127,12 @@ type Servicer_GetBlocklist_Call struct {
 // GetBlocklist is a helper method to define mock.On call
 //   - ctx context.Context
 //   - filter map[string]any
-func (_e *Servicer_Expecter) GetBlocklist(ctx interface{}, filter interface{}) *Servicer_GetBlocklist_Call {
-	return &Servicer_GetBlocklist_Call{Call: _e.mock.On("GetBlocklist", ctx, filter)}
+//   - sortBy string
+func (_e *Servicer_Expecter) GetBlocklist(ctx interface{}, filter interface{}, sortBy interface{}) *Servicer_GetBlocklist_Call {
+	return &Servicer_GetBlocklist_Call{Call: _e.mock.On("GetBlocklist", ctx, filter, sortBy)}
 }
 
-func (_c *Servicer_GetBlocklist_Call) Run(run func(ctx context.Context, filter map[string]any)) *Servicer_GetBlocklist_Call {
+func (_c *Servicer_GetBlocklist_Call) Run(run func(ctx context.Context, filter map[string]any, sortBy string)) *Servicer_GetBlocklist_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2141,9 +2142,14 @@ func (_c *Servicer_GetBlocklist_Call) Run(run func(ctx context.Context, filter m
 		if args[1] != nil {
 			arg1 = args[1].(map[string]any)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -2154,7 +2160,7 @@ func (_c *Servicer_GetBlocklist_Call) Return(blocklists []*model.Blocklist, err 
 	return _c
 }
 
-func (_c *Servicer_GetBlocklist_Call) RunAndReturn(run func(ctx context.Context, filter map[string]any) ([]*model.Blocklist, error)) *Servicer_GetBlocklist_Call {
+func (_c *Servicer_GetBlocklist_Call) RunAndReturn(run func(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error)) *Servicer_GetBlocklist_Call {
 	_c.Call.Return(run)
 	return _c
 }
