@@ -58,4 +58,17 @@ describe("RuleComposer", () => {
         ]);
         expect(input).toHaveValue("");
     });
+
+    it("submits tokens when Enter is pressed with an empty input", () => {
+        const onSubmit = vi.fn();
+        renderRuleComposer({
+            onSubmit,
+            tokens: [{ label: "example.com", value: "example.com" }],
+        });
+
+        const input = getEditableInput();
+        fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
 });

@@ -273,12 +273,17 @@ export function RuleComposer({
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        if (!inputValue.trim()) {
-            return;
-        }
         if (["Enter", "Tab", ","].includes(event.key)) {
-            event.preventDefault();
-            addTokens(splitRulesFromInput(inputValue));
+            if (inputValue.trim()) {
+                event.preventDefault();
+                addTokens(splitRulesFromInput(inputValue));
+                return;
+            }
+
+            if (event.key === "Enter" && hasValidTokens && !loading) {
+                event.preventDefault();
+                onSubmit();
+            }
         }
     };
 
