@@ -22,10 +22,12 @@ import (
 type stubQueryLogsRepository struct {
 	getCalls    int
 	deleteCalls int
+	lastSort    string
 }
 
-func (s *stubQueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search string, page, limit int) ([]model.QueryLog, error) {
+func (s *stubQueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error) {
 	s.getCalls++
+	s.lastSort = sortBy
 	return nil, nil
 }
 
@@ -51,7 +53,7 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			logs, err := svc.GetProfileQueryLogs(context.Background(), "profile-1", model.RetentionOneDay, "all", tc.timespan, "", "", 0, 0)
+			logs, err := svc.GetProfileQueryLogs(context.Background(), "profile-1", model.RetentionOneDay, "all", tc.timespan, "", "", "created", 0, 0)
 			if err == nil {
 				t.Fatalf("expected error for timespan %q, got nil", tc.timespan)
 			}
@@ -62,6 +64,22 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 				t.Fatalf("expected repository GetQueryLogs not to be called, got %d calls", mockRepo.getCalls)
 			}
 		})
+	}
+}
+
+func TestGetProfileQueryLogsSortForwarded(t *testing.T) {
+	mockRepo := &stubQueryLogsRepository{}
+	svc := NewQueryLogsService(mockRepo)
+
+	_, err := svc.GetProfileQueryLogs(context.Background(), "profile-1", model.RetentionOneDay, "all", model.LAST_1_DAY, "", "", "domain", 1, 10)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if mockRepo.getCalls != 1 {
+		t.Fatalf("expected repository to be called once, got %d", mockRepo.getCalls)
+	}
+	if mockRepo.lastSort != "domain" {
+		t.Fatalf("expected sort 'domain', got %q", mockRepo.lastSort)
 	}
 }
 
@@ -187,23 +205,24 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogs() {
 		timespan             string
 		deviceId             string
 		search               string
+		sortBy               string
 		page                 int
 		limit                int
 		wantCount            int
 		assertDomainContains string
 	}{
-		{"blocked search example within 1d", "blocked", "LAST_1_DAY", "", "example", 0, 0, 1, "example"},
+		{"blocked search example within 1d", "blocked", "LAST_1_DAY", "", "example", "created", 0, 0, 1, "example"},
 		// Only sub.example.com matches processed status; example.com is blocked. Expect 1 result.
-		{"processed search com within 1d", "processed", "LAST_1_DAY", "", "com", 0, 0, 1, "com"},
-		{"all no search within 1d", "all", "LAST_1_DAY", "", "", 0, 0, 3, ""}, // excludes old.chatgpt.com outside 1d
-		{"device filtered processed", "processed", "LAST_1_DAY", "tablet", "", 0, 0, 1, "example.org"},
-		{"pagination first page size 1", "processed", "LAST_1_DAY", "", "com", 1, 1, 1, "com"},
-		{"search miss returns empty", "blocked", "LAST_1_DAY", "", "nomatch", 0, 0, 0, ""},
+		{"processed search com within 1d", "processed", "LAST_1_DAY", "", "com", "created", 0, 0, 1, "com"},
+		{"all no search within 1d", "all", "LAST_1_DAY", "", "", "created", 0, 0, 3, ""}, // excludes old.chatgpt.com outside 1d
+		{"device filtered processed", "processed", "LAST_1_DAY", "tablet", "", "created", 0, 0, 1, "example.org"},
+		{"pagination first page size 1", "processed", "LAST_1_DAY", "", "com", "created", 1, 1, 1, "com"},
+		{"search miss returns empty", "blocked", "LAST_1_DAY", "", "nomatch", "created", 0, 0, 0, ""},
 	}
 
 	for _, tc := range cases {
 		s.Run(tc.name, func() {
-			logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, tc.status, tc.timespan, tc.deviceId, tc.search, tc.page, tc.limit)
+			logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, tc.status, tc.timespan, tc.deviceId, tc.search, tc.sortBy, tc.page, tc.limit)
 			s.Require().NoError(err, "service call should not error")
 			s.Equal(tc.wantCount, len(logs), "unexpected log count")
 			if tc.assertDomainContains != "" && tc.wantCount > 0 {
@@ -213,6 +232,33 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogs() {
 			}
 		})
 	}
+}
+
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogsSorting() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+
+	s.Run("domain ascending", func() {
+		logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, "all", "LAST_7_DAYS", "", "", "domain", 0, 0)
+		s.Require().NoError(err)
+		s.Equal(4, len(logs))
+		domains := []string{}
+		for _, l := range logs {
+			domains = append(domains, l.DNSRequest.Domain)
+		}
+		s.Equal([]string{"example.com", "example.org", "old.example.com", "sub.example.com"}, domains)
+	})
+
+	s.Run("client ip ascending", func() {
+		logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, "all", "LAST_7_DAYS", "", "", "client_ip", 0, 0)
+		s.Require().NoError(err)
+		s.Equal(4, len(logs))
+		ips := []string{}
+		for _, l := range logs {
+			ips = append(ips, l.ClientIP)
+		}
+		s.Equal([]string{"1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7"}, ips)
+	})
 }
 
 // TestDownloadProfileQueryLogs verifies that timespan filter is not applied (0) and all statuses returned.
@@ -273,7 +319,7 @@ func (s *QueryLogsServiceSuite) TestSearchRegexInjection() {
 
 	for _, tc := range cases {
 		s.Run(tc.name, func() {
-			logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, tc.status, tc.timespan, "", tc.search, 0, 0)
+			logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, tc.status, tc.timespan, "", tc.search, "created", 0, 0)
 			s.Require().NoError(err)
 			s.Equal(tc.wantCount, len(logs), "regex meta should be escaped; unexpected matches for %q", tc.search)
 		})

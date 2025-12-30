@@ -23,6 +23,7 @@ import (
 // @Param        timespan    query     string  false  "specify timespan for query" default("LAST_1_HOUR")
 // @Param        device_id    query     string  false  "specify device ID for filtering"
 // @Param        search    query     string  false  "substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)"
+// @Param        sort_by    query     string  false  "field to sort by" Enums(created,domain,client_ip) default(created)
 // @Success 200 {object} []model.QueryLog
 // @Failure 400 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
@@ -38,6 +39,7 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 			Status:   c.Query("status", "all"),
 			DeviceId: c.Query("device_id", ""),
 			Search:   c.Query("search", ""),
+			SortBy:   c.Query("sort_by", "created"),
 		}
 		err := s.Validator.Validator.Struct(queryParams)
 		if err != nil {
@@ -45,7 +47,7 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		queryLogs, err := s.Service.GetProfileQueryLogs(c.Context(), accountId, profileId, queryParams.Status, queryParams.Timespan, queryParams.DeviceId, queryParams.Search, queryParams.Page, queryParams.Limit)
+		queryLogs, err := s.Service.GetProfileQueryLogs(c.Context(), accountId, profileId, queryParams.Status, queryParams.Timespan, queryParams.DeviceId, queryParams.Search, queryParams.SortBy, queryParams.Page, queryParams.Limit)
 		if err != nil {
 			log.Error().Err(err).Msg(ErrFailedToGetQueryLogs.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogs.Error())

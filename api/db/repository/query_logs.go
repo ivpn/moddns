@@ -7,6 +7,6 @@ import (
 )
 
 type QueryLogsRepository interface {
-	GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search string, page, limit int) ([]model.QueryLog, error)
+	GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	DeleteQueryLogs(ctx context.Context, profileId string) error
 }

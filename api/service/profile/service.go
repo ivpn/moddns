@@ -160,7 +160,7 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 }
 
 // GetProfileQueryLogs returns profile DNS query logs
-func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search string, page, limit int) ([]model.QueryLog, error) {
+func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error) {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, pro
 		return nil, ErrQueryLogsRateLimited
 	}
 
-	return p.QueryLogsService.GetProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, status, timespan, deviceId, search, page, limit)
+	return p.QueryLogsService.GetProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, status, timespan, deviceId, search, sortBy, page, limit)
 }
 
 // DownloadProfileQueryLogs returns all existing profile DNS query logs

@@ -126,7 +126,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     filters.Status,
                     filters.Timespan.Value,
                     deviceIdValue || undefined,
-                    searchParam
+                    searchParam,
+                    sortValue
                 );
                 if (response.status === 200) {
                     const newLogs = response.data || [];

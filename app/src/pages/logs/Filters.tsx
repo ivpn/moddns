@@ -142,7 +142,7 @@ const Filters = ({
                     <SelectContent>
                         <SelectItem value="created">Created</SelectItem>
                         <SelectItem value="domain">Domain</SelectItem>
-                        <SelectItem value="ip">Client Source</SelectItem>
+                        <SelectItem value="client_ip">Client IP</SelectItem>
                     </SelectContent>
                 </Select>
 

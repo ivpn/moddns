@@ -63,7 +63,7 @@ func NewQueryLogsRepository(client *mongo.Client, dbName, collectionName string)
 // GetQueryLogs returns query logs for a profile with optional pagination.
 // Pagination applies only when pageSize > 0. Page is 1-based when pagination is active.
 // When pageSize <= 0, all matching logs are returned (no skip/limit applied).
-func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search string, page, pageSize int) ([]model.QueryLog, error) {
+func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, pageSize int) ([]model.QueryLog, error) {
 	start := time.Now()
 	coll := r.getCollObject(retention)
 
@@ -106,25 +106,19 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 		primitive.E{Key: "$match", Value: matchFilter},
 	}
 
-	sortBson := bson.D{
-		primitive.E{Key: "timestamp", Value: -1},
-	}
+	sortSpec := buildSortSpec(sortBy)
 	sortStage := bson.D{
-		primitive.E{Key: "$sort", Value: sortBson},
+		primitive.E{Key: "$sort", Value: sortSpec},
 	}
 
-	pipeline := mongo.Pipeline{matchStage}
+	pipeline := mongo.Pipeline{matchStage, sortStage}
 	if pageSize > 0 { // apply pagination only when pageSize is positive
 		if page <= 0 { // normalize page
 			page = 1
 		}
 		skipStage := bson.D{primitive.E{Key: "$skip", Value: (page - 1) * pageSize}}
-		pipeline = append(pipeline, skipStage)
-	}
-	pipeline = append(pipeline, sortStage)
-	if pageSize > 0 {
 		limitStage := bson.D{primitive.E{Key: "$limit", Value: pageSize}}
-		pipeline = append(pipeline, limitStage)
+		pipeline = append(pipeline, skipStage, limitStage)
 	}
 
 	cursor, err := coll.Aggregate(ctx, pipeline)
@@ -145,6 +139,7 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 			Bool("slow", true).
 			Str("retention", string(retention)).
 			Str("status", status).
+			Str("sort", sortBy).
 			Str("search", search).
 			Int("page", page).
 			Int("page_size", pageSize).
@@ -154,6 +149,23 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 	}
 
 	return results, nil
+}
+
+func buildSortSpec(sortBy string) bson.D {
+	switch sortBy {
+	case "domain":
+		return bson.D{
+			{Key: "dns_request.domain", Value: 1},
+			{Key: "timestamp", Value: -1},
+		}
+	case "client_ip":
+		return bson.D{
+			{Key: "client_ip", Value: 1},
+			{Key: "timestamp", Value: -1},
+		}
+	default:
+		return bson.D{{Key: "timestamp", Value: -1}}
+	}
 }
 
 // DeleteQueryLogs deletes query logs for the given profile ID

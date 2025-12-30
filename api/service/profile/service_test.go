@@ -1615,6 +1615,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 		status          string
 		timespan        string
 		deviceId        string
+		sortBy          string
 		page            int
 		limit           int
 		existingProfile *model.Profile
@@ -1631,6 +1632,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:    "all",
 			timespan:  "LAST_1_DAY",
 			deviceId:  "",
+			sortBy:    "created",
 			page:      0,
 			limit:     0,
 			existingProfile: &model.Profile{
@@ -1656,6 +1658,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:        "all",
 			timespan:      "LAST_1_DAY",
 			deviceId:      "",
+			sortBy:        "created",
 			repoError:     errors.New("not found"),
 			expectedError: "not found",
 		},
@@ -1666,6 +1669,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:    "all",
 			timespan:  "LAST_1_DAY",
 			deviceId:  "",
+			sortBy:    "created",
 			existingProfile: &model.Profile{
 				ProfileId: "profile123",
 				AccountId: "account456", // Different account
@@ -1680,6 +1684,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:    "all",
 			timespan:  "LAST_1_DAY",
 			deviceId:  "",
+			sortBy:    "created",
 			existingProfile: &model.Profile{
 				ProfileId: "profile123",
 				AccountId: "account123",
@@ -1700,6 +1705,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:    "all",
 			timespan:  "LAST_1_DAY",
 			deviceId:  "laptop",
+			sortBy:    "created",
 			page:      0,
 			limit:     0,
 			existingProfile: &model.Profile{
@@ -1724,6 +1730,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 			status:    "all",
 			timespan:  "LAST_1_DAY",
 			deviceId:  "",
+			sortBy:    "created",
 			page:      0,
 			limit:     0,
 			existingProfile: &model.Profile{
@@ -1760,15 +1767,15 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 					suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(incrVal, nil)
 					suite.mockCache.On("Get", context.Background(), mock.AnythingOfType("string")).Return(getVal, nil)
 					if tt.queryLogsError != nil {
-						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, tt.status, mock.AnythingOfType("int"), tt.deviceId, "", tt.page, tt.limit).Return(nil, tt.queryLogsError)
+						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, tt.status, mock.AnythingOfType("int"), tt.deviceId, "", tt.sortBy, tt.page, tt.limit).Return(nil, tt.queryLogsError)
 					} else if tt.expectedError == "" { // Only set successful expectation when not rate limited
-						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, tt.status, mock.AnythingOfType("int"), tt.deviceId, "", tt.page, tt.limit).Return(tt.expectedLogs, nil)
+						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, tt.status, mock.AnythingOfType("int"), tt.deviceId, "", tt.sortBy, tt.page, tt.limit).Return(tt.expectedLogs, nil)
 					}
 				}
 			}
 
 			// Call the method under test
-			logs, err := suite.service.GetProfileQueryLogs(context.Background(), tt.accountID, tt.profileID, tt.status, tt.timespan, tt.deviceId, "", tt.page, tt.limit)
+			logs, err := suite.service.GetProfileQueryLogs(context.Background(), tt.accountID, tt.profileID, tt.status, tt.timespan, tt.deviceId, "", tt.sortBy, tt.page, tt.limit)
 
 			// Assert results
 			if tt.expectedError != "" {
@@ -1858,9 +1865,9 @@ func (suite *ProfileTestSuite) TestDownloadProfileQueryLogs() {
 
 				if tt.existingProfile.AccountId == tt.accountID {
 					if tt.queryLogsError != nil {
-						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, "all", 0, "", "", tt.page, tt.limit).Return(nil, tt.queryLogsError)
+						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, "all", 0, "", "", "created", tt.page, tt.limit).Return(nil, tt.queryLogsError)
 					} else {
-						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, "all", 0, "", "", tt.page, tt.limit).Return(tt.expectedLogs, nil)
+						suite.mockQueryLogsRepo.On("GetQueryLogs", context.Background(), tt.profileID, tt.existingProfile.Settings.Logs.Retention, "all", 0, "", "", "created", tt.page, tt.limit).Return(tt.expectedLogs, nil)
 					}
 				}
 			}

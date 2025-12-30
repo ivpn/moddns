@@ -133,7 +133,7 @@ type ProfileServicer interface {
 	DeleteProfile(ctx context.Context, accountId, profileId string, removeLast bool) error
 
 	// Query logs
-	GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search string, page, limit int) ([]model.QueryLog, error)
+	GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	DownloadProfileQueryLogs(ctx context.Context, accountId, profileId string, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, accountId, profileId string) error
 
@@ -153,7 +153,7 @@ type ProfileServicer interface {
 // QueryLogsServicer defines the interface for managing query logs
 // Note: QueryLogsServicer is not part of the Servicer interface as ProfileServicer covers its operations
 type QueryLogsServicer interface {
-	GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status, timespan, deviceId, search string, page, limit int) ([]model.QueryLog, error)
+	GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	DownloadProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, profileId string) error
 }

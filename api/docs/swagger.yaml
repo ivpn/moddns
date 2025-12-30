@@ -1754,6 +1754,15 @@ paths:
         in: query
         name: search
         type: string
+      - default: created
+        description: field to sort by
+        enum:
+        - created
+        - domain
+        - client_ip
+        in: query
+        name: sort_by
+        type: string
       produces:
       - application/json
       responses:

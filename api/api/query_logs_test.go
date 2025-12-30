@@ -67,7 +67,7 @@ func (s *QueryLogsAPIShortSuite) auth(req *http.Request) {
 
 func (s *QueryLogsAPIShortSuite) TestGetLogsSuccess() {
 	logs := []model.QueryLog{{ProfileID: qlProfile, Status: "processed", Timestamp: time.Now(), DNSRequest: model.DNSRequest{Domain: "example.com"}}}
-	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "processed", "LAST_1_HOUR", "", "", 1, 25).Return(logs, nil)
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "processed", "LAST_1_HOUR", "", "", "created", 1, 25).Return(logs, nil)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=processed&timespan=LAST_1_HOUR", nil)
 	s.auth(req)
 	resp, err := s.server().App.Test(req, -1)
@@ -88,7 +88,7 @@ func (s *QueryLogsAPIShortSuite) TestGetLogsValidationError() {
 }
 
 func (s *QueryLogsAPIShortSuite) TestGetLogsServiceError() {
-	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", 1, 25).Return(nil, errors.New("boom"))
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", "created", 1, 25).Return(nil, errors.New("boom"))
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=all&timespan=LAST_1_HOUR", nil)
 	s.auth(req)
 	resp, err := s.server().App.Test(req, -1)
@@ -97,7 +97,7 @@ func (s *QueryLogsAPIShortSuite) TestGetLogsServiceError() {
 }
 
 func (s *QueryLogsAPIShortSuite) TestGetLogsRateLimited() {
-	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", 1, 25).Return(nil, prof.ErrQueryLogsRateLimited)
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", "created", 1, 25).Return(nil, prof.ErrQueryLogsRateLimited)
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=all&timespan=LAST_1_HOUR", nil)
 	s.auth(req)
 	resp, err := s.server().App.Test(req, -1)
@@ -106,13 +106,22 @@ func (s *QueryLogsAPIShortSuite) TestGetLogsRateLimited() {
 }
 
 func (s *QueryLogsAPIShortSuite) TestGetLogsSearchDevice() {
-	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "dev123", "exam", 2, 10).Return([]model.QueryLog{}, nil)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=2&limit=10&status=all&timespan=LAST_1_HOUR&device_id=dev123&search=exam", nil)
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "dev123", "exam", "domain", 2, 10).Return([]model.QueryLog{}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=2&limit=10&status=all&timespan=LAST_1_HOUR&device_id=dev123&search=exam&sort_by=domain", nil)
 	s.auth(req)
 	resp, err := s.server().App.Test(req, -1)
 	require.NoError(s.T(), err)
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
-	s.svc.AssertCalled(s.T(), "GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "dev123", "exam", 2, 10)
+	s.svc.AssertCalled(s.T(), "GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "dev123", "exam", "domain", 2, 10)
+}
+
+func (s *QueryLogsAPIShortSuite) TestGetLogsInvalidSort() {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&sort_by=random", nil)
+	s.auth(req)
+	resp, err := s.server().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
+	s.svc.AssertNotCalled(s.T(), "GetProfileQueryLogs")
 }
 
 func (s *QueryLogsAPIShortSuite) TestDownloadLogsSuccess() {
