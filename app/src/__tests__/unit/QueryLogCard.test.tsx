@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import QueryLogCard from '@/pages/logs/QueryLogCard';
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 import type { ModelQueryLog } from '@/api/client';
 
 // Helper to stub matchMedia with basic capability flags
@@ -77,6 +77,51 @@ describe('QueryLogCard truncation interactions', () => {
         fireEvent.click(truncatedDomainBtn);
         const fullDomainSpan = screen.getByTestId('querylog-domain-full');
         expect(fullDomainSpan).toHaveTextContent(longDomain);
+    });
+});
+
+describe('QueryLogCard quick rule button', () => {
+    beforeEach(() => {
+        (window as unknown as { innerWidth: number }).innerWidth = 1280;
+        stubDesktopMatchMedia(true);
+    });
+
+    test('fires callback with normalized domain', () => {
+        const onQuickRule = vi.fn();
+        const log: ModelQueryLog = {
+            profile_id: 'p3',
+            timestamp: new Date().toISOString(),
+            status: 'processed',
+            protocol: 'dns',
+            device_id: 'desktop-device',
+            client_ip: '10.0.0.3',
+            dns_request: { domain: 'Example.com.' }
+        };
+        render(<QueryLogCard log={log} onQuickRule={onQuickRule} />);
+        const button = screen.getByTestId('logs-quick-rule-button');
+        expect(button).toBeEnabled();
+        fireEvent.click(button);
+        expect(onQuickRule).toHaveBeenCalledTimes(1);
+        expect(onQuickRule).toHaveBeenCalledWith('Example.com');
+    });
+
+    test('disables button when domain missing', () => {
+        const onQuickRule = vi.fn();
+        const log: ModelQueryLog = {
+            profile_id: 'p4',
+            timestamp: new Date().toISOString(),
+            status: 'processed',
+            protocol: 'dns',
+            device_id: 'desktop-device',
+            client_ip: '10.0.0.4',
+            // Domain logging disabled
+            dns_request: undefined as unknown as ModelQueryLog['dns_request']
+        };
+        render(<QueryLogCard log={log} onQuickRule={onQuickRule} />);
+        const button = screen.getByTestId('logs-quick-rule-button');
+        expect(button).toBeDisabled();
+        fireEvent.click(button);
+        expect(onQuickRule).not.toHaveBeenCalled();
     });
 });
 
