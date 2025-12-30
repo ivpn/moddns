@@ -208,11 +208,14 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                 <div className="p-4 sm:p-6 flex-1 min-h-0 overflow-y-auto overscroll-contain" data-testid="setup-guide-content">
                     <div className="flex flex-col gap-6">
                         {/* Tags */}
-                        <div className="flex items-start gap-4 flex-wrap">
+                        <div className="flex items-start gap-2.5 flex-wrap">
                             {guide.badges?.map((badge: any, index: number) => (
                                 <Badge
                                     key={index}
-                                    className={`${index === 0 ? 'bg-[var(--tailwind-colors-rdns-800)]' : 'bg-[var(--tailwind-colors-slate-700)]'} text-[var(--tailwind-colors-slate-50)] px-2.5 py-0.5 rounded-sm text-xs`}
+                                    className={`cursor-default select-none tracking-[0.08em] uppercase text-[10px] font-semibold px-3 py-1 rounded-[2px] border ${index === 0
+                                        ? 'bg-[var(--tailwind-colors-slate-950)]/80 text-[var(--tailwind-colors-slate-50)] border-[var(--tailwind-colors-slate-600)] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                        : 'bg-transparent text-[var(--tailwind-colors-slate-300)] border-[var(--tailwind-colors-slate-600)]'
+                                        }`}
                                 >
                                     {badge.label}
                                 </Badge>
