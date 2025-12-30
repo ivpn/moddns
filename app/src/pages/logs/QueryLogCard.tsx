@@ -1,9 +1,10 @@
 import { useState, type JSX } from "react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { formatDistanceToNow, parseISO, format } from "date-fns";
-import { Clock } from "lucide-react";
+import { Clock, ShieldPlus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge"; // still used for Blocked status only
+import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { ModelQueryLog } from "@/api/client";
 
@@ -11,18 +12,39 @@ interface QueryLogCardProps {
     log: ModelQueryLog;
     isLast?: boolean;
     lastLogRef?: (node: HTMLDivElement | null) => void;
+    onQuickRule?: (domain?: string) => void;
 }
 
-const QueryLogCard = ({ log, isLast, lastLogRef }: QueryLogCardProps): JSX.Element | null => {
+const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProps): JSX.Element | null => {
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
-    let domain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
-    if (domain) {
-        const domainParts = domain.split(".");
-        if (domainParts.length > 2) {
-            domain = domainParts.slice(-2).join(".");
-        }
-    }
+    const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
+    const quickRuleAvailable = Boolean(normalizedDomain);
+    const quickRuleTooltip = quickRuleAvailable ? "Create a custom rule" : "Domain unavailable";
+    const handleQuickRule = () => {
+        if (!quickRuleAvailable) return;
+        onQuickRule?.(normalizedDomain);
+    };
+    const renderQuickRuleButton = (wrapperClassName: string) => (
+        <div className={wrapperClassName}>
+            <Tooltip content={quickRuleTooltip} side="top" align="center" delay={150}>
+                <span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        type="button"
+                        aria-label="Quick custom rule"
+                        onClick={handleQuickRule}
+                        disabled={!quickRuleAvailable}
+                        className="h-10 w-10 rounded-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] disabled:opacity-40"
+                        data-testid="logs-quick-rule-button"
+                    >
+                        <ShieldPlus className="w-4 h-4" />
+                    </Button>
+                </span>
+            </Tooltip>
+        </div>
+    );
 
     // Track timestamp expansion to increase card height smoothly on mobile
     const [timestampExpanded, setTimestampExpanded] = useState(false);
@@ -93,8 +115,11 @@ const QueryLogCard = ({ log, isLast, lastLogRef }: QueryLogCardProps): JSX.Eleme
                                             </Badge>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1 max-w-[200px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs text-right">
-                                        <span data-testid="querylog-device-id-full">{deviceIdOrIp}</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1 max-w-[200px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs text-right">
+                                            <span data-testid="querylog-device-id-full">{deviceIdOrIp}</span>
+                                        </div>
+                                        {renderQuickRuleButton("flex-shrink-0")}
                                     </div>
                                 </div>
                                 <div className={`flex gap-x-2 gap-y-2 min-w-0 flex-wrap transition-all duration-300 ease-out ${timestampExpanded ? 'items-start' : 'items-center'}`}>
@@ -162,6 +187,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef }: QueryLogCardProps): JSX.Eleme
                             </div>
                             <TimestampDisplay timestamp={log.timestamp} onToggle={setTimestampExpanded} />
                         </div>
+                        {renderQuickRuleButton("flex items-center justify-center")}
                     </div>
                 )}
             </div>

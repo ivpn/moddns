@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback, type JSX } from "react";
 import type { AxiosError } from "axios";
 
-interface NetworkError extends AxiosError { code?: string }
+interface NetworkError extends AxiosError { code?: string; }
+
 import { toast } from "sonner";
 
 import type { ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
@@ -9,6 +10,7 @@ import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
+import QuickRuleSheet from "./QuickRuleSheet";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 
@@ -28,6 +30,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Add trigger for forced refresh
     const [fadeClass, setFadeClass] = useState('opacity-100 transition-opacity duration-300 ease-in-out'); // Track fade animation state
+    const [isQuickRuleSheetOpen, setIsQuickRuleSheetOpen] = useState(false);
+    const [quickRuleDomain, setQuickRuleDomain] = useState<string | undefined>(undefined);
 
     // Search input (uncommitted while typing) and committed value that triggers requests
     const [searchInputValue, setSearchInputValue] = useState("");
@@ -50,6 +54,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     };
 
     const observer = useRef<IntersectionObserver | null>(null);
+    const previousProfileIdRef = useRef<string | undefined>(undefined);
     const lastLogRef = useCallback(
         (node: HTMLDivElement | null) => {
             if (loading) return;
@@ -84,6 +89,19 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         }
     }, [profiles, setActiveProfile]);
 
+    const handleOpenQuickRule = useCallback((domain?: string) => {
+        if (!domain) return;
+        setQuickRuleDomain(domain);
+        setIsQuickRuleSheetOpen(true);
+    }, []);
+
+    const handleQuickRuleSheetChange = useCallback((nextOpen: boolean) => {
+        setIsQuickRuleSheetOpen(nextOpen);
+        if (!nextOpen) {
+            setQuickRuleDomain(undefined);
+        }
+    }, []);
+
     // Reset logs, device IDs and page when committed filters change
     useEffect(() => {
         setLogs([]);
@@ -91,6 +109,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setHasMore(true);
         setAllAvailableDeviceIds([]);
     }, [committedSearchValue, filterValue, sortValue, timespanValue, deviceIdValue]);
+
+    useEffect(() => {
+        const currentId = activeProfile?.profile_id;
+        if (previousProfileIdRef.current && previousProfileIdRef.current !== currentId) {
+            setIsQuickRuleSheetOpen(false);
+            setQuickRuleDomain(undefined);
+        }
+        previousProfileIdRef.current = currentId;
+    }, [activeProfile?.profile_id]);
 
     const commitSearch = useCallback(() => {
         setCommittedSearchValue(prev => prev === searchInputValue ? prev : searchInputValue);
@@ -244,81 +271,82 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     </div>
                 </section>
 
-                <div className="flex w-full h-full flex-1 items-start relative min-h-0">
-                    <div className="flex flex-col flex-1 h-full w-full min-h-0">
-                        <div className="flex flex-col flex-1 items-start gap-3 relative self-stretch w-full min-h-[50vh] md:min-h-[60vh]">
-                            <Filters
-                                searchInputValue={searchInputValue}
-                                onSearchInputChange={setSearchInputValue}
-                                onSearchCommit={commitSearch}
-                                filterValue={filterValue}
-                                onFilterChange={setFilterValue}
-                                sortValue={sortValue}
-                                onSortChange={setSortValue}
-                                onRefresh={handleRefresh}
-                                timespanValue={timespanValue}
-                                onTimespanChange={setTimespanValue}
-                                isAutoRefreshing={isAutoRefreshing}
-                                onToggleAutoRefresh={handleToggleAutoRefresh}
-                                deviceIdValue={deviceIdValue}
-                                onDeviceIdChange={setDeviceIdValue}
-                                availableDeviceIds={allAvailableDeviceIds}
-                            />
+                <Filters
+                    searchInputValue={searchInputValue}
+                    onSearchInputChange={setSearchInputValue}
+                    onSearchCommit={commitSearch}
+                    filterValue={filterValue}
+                    onFilterChange={setFilterValue}
+                    sortValue={sortValue}
+                    onSortChange={setSortValue}
+                    onRefresh={handleRefresh}
+                    timespanValue={timespanValue}
+                    onTimespanChange={setTimespanValue}
+                    isAutoRefreshing={isAutoRefreshing}
+                    onToggleAutoRefresh={handleToggleAutoRefresh}
+                    deviceIdValue={deviceIdValue}
+                    onDeviceIdChange={setDeviceIdValue}
+                    availableDeviceIds={allAvailableDeviceIds}
+                />
 
-                            <div className="flex flex-col items-start gap-3 md:gap-4 relative flex-1 self-stretch w-full grow min-w-0 overflow-x-hidden">
-                                <div className="flex flex-col items-start gap-2 relative flex-1 self-stretch w-full grow rounded-md min-w-0 overflow-x-hidden">
-                                    {!logsEnabled && (
-                                        <div className="flex flex-col w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0">
-                                            <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
-                                                <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
-                                                    <LogsNotActive profile={activeProfile ?? profiles[0]} />
-                                                </div>
-                                            </div>
+                <div className="flex flex-col items-start gap-3 md:gap-4 relative flex-1 self-stretch w-full grow min-w-0 overflow-x-hidden">
+                    <div className="flex flex-col items-start gap-2 relative flex-1 self-stretch w-full grow rounded-md min-w-0 overflow-x-hidden">
+                        {!logsEnabled && (
+                            <div className="flex flex-col w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0">
+                                <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
+                                    <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
+                                        <LogsNotActive profile={activeProfile ?? profiles[0]} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {logsEnabled && logs.length === 0 && !loading && (
+                            <div className="flex flex-col w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0" data-testid="logs-empty-state">
+                                <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
+                                    <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
+                                        <NoLogs isSearchActive={committedSearchValue.trim().length > 0} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {logsEnabled && (
+                            <div className="relative flex-1 w-full h-full overflow-y-auto px-0" data-testid="logs-scroll-container">
+                                <div className={`flex flex-col gap-1.5 md:gap-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
+                                    {logs.map((log, index) => {
+                                        const isLast = index === logs.length - 1;
+                                        return (
+                                            <QueryLogCard
+                                                key={`${log.profile_id}-${log.timestamp}-${index}`}
+                                                log={log}
+                                                isLast={isLast}
+                                                lastLogRef={isLast ? lastLogRef : undefined}
+                                                onQuickRule={handleOpenQuickRule}
+                                            />
+                                        );
+                                    })}
+                                    {loading && (
+                                        <div className="w-full text-center py-4 text-[var(--tailwind-colors-slate-400)]">
+                                            Loading...
                                         </div>
                                     )}
-                                    {logsEnabled && logs.length === 0 && !loading && (
-                                        <div className="flex flex-col w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0" data-testid="logs-empty-state">
-                                            <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
-                                                <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
-                                                    <NoLogs isSearchActive={committedSearchValue.trim().length > 0} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {logsEnabled && (
-                                        <div className="relative flex-1 w-full h-full overflow-y-auto px-0" data-testid="logs-scroll-container">
-                                            <div className={`flex flex-col gap-1.5 md:gap-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
-                                                {logs.map((log, index) => {
-                                                    const isLast = index === logs.length - 1;
-                                                    return (
-                                                        <QueryLogCard
-                                                            key={`${log.profile_id}-${log.timestamp}-${index}`}
-                                                            log={log}
-                                                            isLast={isLast}
-                                                            lastLogRef={isLast ? lastLogRef : undefined}
-                                                        />
-                                                    );
-                                                })}
-                                                {loading && (
-                                                    <div className="w-full text-center py-4 text-[var(--tailwind-colors-slate-400)]">
-                                                        Loading...
-                                                    </div>
-                                                )}
-                                                {error && (
-                                                    <div className="w-full text-center py-4 text-[var(--tailwind-colors-red-500)]">
-                                                        {error}
-                                                    </div>
-                                                )}
-                                            </div>
+                                    {error && (
+                                        <div className="w-full text-center py-4 text-[var(--tailwind-colors-red-500)]">
+                                            {error}
                                         </div>
                                     )}
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
+
+            <QuickRuleSheet
+                open={isQuickRuleSheetOpen}
+                onOpenChange={handleQuickRuleSheetChange}
+                domain={quickRuleDomain}
+            />
         </div>
     );
 };
