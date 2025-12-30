@@ -1883,8 +1883,8 @@ func (_c *Db_GetProfilesByAccountId_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetQueryLogs provides a mock function for the type Db
-func (_mock *Db) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, page int, limit int) ([]model.QueryLog, error) {
-	ret := _mock.Called(ctx, profileId, retention, status, timespan, deviceId, search, page, limit)
+func (_mock *Db) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error) {
+	ret := _mock.Called(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetQueryLogs")
@@ -1892,18 +1892,18 @@ func (_mock *Db) GetQueryLogs(ctx context.Context, profileId string, retention m
 
 	var r0 []model.QueryLog
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, string, string, int, int) ([]model.QueryLog, error)); ok {
-		return returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, string, string, string, int, int) ([]model.QueryLog, error)); ok {
+		return returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, string, string, int, int) []model.QueryLog); ok {
-		r0 = returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, string, string, string, int, int) []model.QueryLog); ok {
+		r0 = returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.QueryLog)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, int, string, string, int, int) error); ok {
-		r1 = returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, int, string, string, string, int, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1923,13 +1923,14 @@ type Db_GetQueryLogs_Call struct {
 //   - timespan int
 //   - deviceId string
 //   - search string
+//   - sortBy string
 //   - page int
 //   - limit int
-func (_e *Db_Expecter) GetQueryLogs(ctx interface{}, profileId interface{}, retention interface{}, status interface{}, timespan interface{}, deviceId interface{}, search interface{}, page interface{}, limit interface{}) *Db_GetQueryLogs_Call {
-	return &Db_GetQueryLogs_Call{Call: _e.mock.On("GetQueryLogs", ctx, profileId, retention, status, timespan, deviceId, search, page, limit)}
+func (_e *Db_Expecter) GetQueryLogs(ctx interface{}, profileId interface{}, retention interface{}, status interface{}, timespan interface{}, deviceId interface{}, search interface{}, sortBy interface{}, page interface{}, limit interface{}) *Db_GetQueryLogs_Call {
+	return &Db_GetQueryLogs_Call{Call: _e.mock.On("GetQueryLogs", ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)}
 }
 
-func (_c *Db_GetQueryLogs_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, page int, limit int)) *Db_GetQueryLogs_Call {
+func (_c *Db_GetQueryLogs_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, sortBy string, page int, limit int)) *Db_GetQueryLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1959,13 +1960,17 @@ func (_c *Db_GetQueryLogs_Call) Run(run func(ctx context.Context, profileId stri
 		if args[6] != nil {
 			arg6 = args[6].(string)
 		}
-		var arg7 int
+		var arg7 string
 		if args[7] != nil {
-			arg7 = args[7].(int)
+			arg7 = args[7].(string)
 		}
 		var arg8 int
 		if args[8] != nil {
 			arg8 = args[8].(int)
+		}
+		var arg9 int
+		if args[9] != nil {
+			arg9 = args[9].(int)
 		}
 		run(
 			arg0,
@@ -1977,6 +1982,7 @@ func (_c *Db_GetQueryLogs_Call) Run(run func(ctx context.Context, profileId stri
 			arg6,
 			arg7,
 			arg8,
+			arg9,
 		)
 	})
 	return _c
@@ -1987,7 +1993,7 @@ func (_c *Db_GetQueryLogs_Call) Return(queryLogs []model.QueryLog, err error) *D
 	return _c
 }
 
-func (_c *Db_GetQueryLogs_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, page int, limit int) ([]model.QueryLog, error)) *Db_GetQueryLogs_Call {
+func (_c *Db_GetQueryLogs_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error)) *Db_GetQueryLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }

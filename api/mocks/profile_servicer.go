@@ -774,8 +774,8 @@ func (_c *ProfileServicer_GetProfile_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // GetProfileQueryLogs provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) GetProfileQueryLogs(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, page int, limit int) ([]model.QueryLog, error) {
-	ret := _mock.Called(ctx, accountId, profileId, status, timespan, deviceId, search, page, limit)
+func (_mock *ProfileServicer) GetProfileQueryLogs(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error) {
+	ret := _mock.Called(ctx, accountId, profileId, status, timespan, deviceId, search, sortBy, page, limit)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProfileQueryLogs")
@@ -783,18 +783,18 @@ func (_mock *ProfileServicer) GetProfileQueryLogs(ctx context.Context, accountId
 
 	var r0 []model.QueryLog
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, string, string, int, int) ([]model.QueryLog, error)); ok {
-		return returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, string, string, string, int, int) ([]model.QueryLog, error)); ok {
+		return returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, sortBy, page, limit)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, string, string, int, int) []model.QueryLog); ok {
-		r0 = returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, string, string, string, int, int) []model.QueryLog); ok {
+		r0 = returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, sortBy, page, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.QueryLog)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, string, string, int, int) error); ok {
-		r1 = returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, page, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, string, string, string, int, int) error); ok {
+		r1 = returnFunc(ctx, accountId, profileId, status, timespan, deviceId, search, sortBy, page, limit)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -814,13 +814,14 @@ type ProfileServicer_GetProfileQueryLogs_Call struct {
 //   - timespan string
 //   - deviceId string
 //   - search string
+//   - sortBy string
 //   - page int
 //   - limit int
-func (_e *ProfileServicer_Expecter) GetProfileQueryLogs(ctx interface{}, accountId interface{}, profileId interface{}, status interface{}, timespan interface{}, deviceId interface{}, search interface{}, page interface{}, limit interface{}) *ProfileServicer_GetProfileQueryLogs_Call {
-	return &ProfileServicer_GetProfileQueryLogs_Call{Call: _e.mock.On("GetProfileQueryLogs", ctx, accountId, profileId, status, timespan, deviceId, search, page, limit)}
+func (_e *ProfileServicer_Expecter) GetProfileQueryLogs(ctx interface{}, accountId interface{}, profileId interface{}, status interface{}, timespan interface{}, deviceId interface{}, search interface{}, sortBy interface{}, page interface{}, limit interface{}) *ProfileServicer_GetProfileQueryLogs_Call {
+	return &ProfileServicer_GetProfileQueryLogs_Call{Call: _e.mock.On("GetProfileQueryLogs", ctx, accountId, profileId, status, timespan, deviceId, search, sortBy, page, limit)}
 }
 
-func (_c *ProfileServicer_GetProfileQueryLogs_Call) Run(run func(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, page int, limit int)) *ProfileServicer_GetProfileQueryLogs_Call {
+func (_c *ProfileServicer_GetProfileQueryLogs_Call) Run(run func(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, sortBy string, page int, limit int)) *ProfileServicer_GetProfileQueryLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -850,13 +851,17 @@ func (_c *ProfileServicer_GetProfileQueryLogs_Call) Run(run func(ctx context.Con
 		if args[6] != nil {
 			arg6 = args[6].(string)
 		}
-		var arg7 int
+		var arg7 string
 		if args[7] != nil {
-			arg7 = args[7].(int)
+			arg7 = args[7].(string)
 		}
 		var arg8 int
 		if args[8] != nil {
 			arg8 = args[8].(int)
+		}
+		var arg9 int
+		if args[9] != nil {
+			arg9 = args[9].(int)
 		}
 		run(
 			arg0,
@@ -868,6 +873,7 @@ func (_c *ProfileServicer_GetProfileQueryLogs_Call) Run(run func(ctx context.Con
 			arg6,
 			arg7,
 			arg8,
+			arg9,
 		)
 	})
 	return _c
@@ -878,7 +884,7 @@ func (_c *ProfileServicer_GetProfileQueryLogs_Call) Return(queryLogs []model.Que
 	return _c
 }
 
-func (_c *ProfileServicer_GetProfileQueryLogs_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, page int, limit int) ([]model.QueryLog, error)) *ProfileServicer_GetProfileQueryLogs_Call {
+func (_c *ProfileServicer_GetProfileQueryLogs_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, status string, timespan string, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error)) *ProfileServicer_GetProfileQueryLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }
