@@ -14,5 +14,5 @@ type QueryLogsQueryParams struct {
 	Status   string `json:"status" validate:"omitempty,oneof=all blocked processed"`
 	DeviceId string `json:"device_id" validate:"omitempty"`
 	Search   string `json:"search" validate:"omitempty"`
-	SortBy   string `json:"sort_by" validate:"omitempty,oneof=created domain client_ip"`
+	SortBy   string `json:"sort_by" validate:"oneof=created domain client_ip"`
 }

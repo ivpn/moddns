@@ -1290,6 +1290,18 @@ const docTemplate = `{
                         "description": "substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)",
                         "name": "search",
                         "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "created",
+                            "domain",
+                            "client_ip"
+                        ],
+                        "type": "string",
+                        "default": "created",
+                        "description": "field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
                     }
                 ],
                 "responses": {

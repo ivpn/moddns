@@ -4433,11 +4433,11 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
          * @param {string} [search] substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
-         * @param {string} [sortBy] field to sort by (created|domain|client_ip)
+         * @param {ApiV1ProfilesIdLogsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdLogsGet: async (id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1ProfilesIdLogsGet: async (id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('apiV1ProfilesIdLogsGet', 'id', id)
             const localVarPath = `/api/v1/profiles/{id}/logs`
@@ -4538,11 +4538,11 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
          * @param {string} [search] substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
-         * @param {string} [sortBy] field to sort by (created|domain|client_ip)
+         * @param {ApiV1ProfilesIdLogsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelQueryLog>>> {
+        async apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelQueryLog>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['QueryLogsApi.apiV1ProfilesIdLogsGet']?.[localVarOperationServerIndex]?.url;
@@ -4588,11 +4588,11 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
          * @param {string} [search] substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
-         * @param {string} [sortBy] field to sort by (created|domain|client_ip)
+         * @param {ApiV1ProfilesIdLogsGetSortByEnum} [sortBy] field to sort by
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelQueryLog>> {
+        apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelQueryLog>> {
             return localVarFp.apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options).then((request) => request(axios, basePath));
         },
     };
@@ -4639,16 +4639,25 @@ export class QueryLogsApi extends BaseAPI {
      * @param {string} [timespan] specify timespan for query
      * @param {string} [deviceId] specify device ID for filtering
      * @param {string} [search] substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
-     * @param {string} [sortBy] field to sort by (created|domain|client_ip)
+     * @param {ApiV1ProfilesIdLogsGetSortByEnum} [sortBy] field to sort by
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof QueryLogsApi
      */
-    public apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: string, options?: RawAxiosRequestConfig) {
+    public apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: string, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options?: RawAxiosRequestConfig) {
         return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
+/**
+ * @export
+ */
+export const ApiV1ProfilesIdLogsGetSortByEnum = {
+    Created: 'created',
+    Domain: 'domain',
+    ClientIp: 'client_ip'
+} as const;
+export type ApiV1ProfilesIdLogsGetSortByEnum = typeof ApiV1ProfilesIdLogsGetSortByEnum[keyof typeof ApiV1ProfilesIdLogsGetSortByEnum];
 
 
 /**

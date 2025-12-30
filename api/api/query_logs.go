@@ -23,7 +23,7 @@ import (
 // @Param        timespan    query     string  false  "specify timespan for query" default("LAST_1_HOUR")
 // @Param        device_id    query     string  false  "specify device ID for filtering"
 // @Param        search    query     string  false  "substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)"
-// @Param        sort_by    query     string  false  "field to sort by: created|domain|client_ip" default(created)
+// @Param        sort_by    query     string  false  "field to sort by" Enums(created,domain,client_ip) default(created)
 // @Success 200 {object} []model.QueryLog
 // @Failure 400 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
