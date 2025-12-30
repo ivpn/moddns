@@ -201,14 +201,15 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                     ? subscriptionError
                     : formatDate(subscription?.active_until),
         },
-        {
-            label: "Subscription type",
-            value: subscriptionLoading
-                ? 'Loading…'
-                : subscriptionError
-                    ? '—'
-                    : normalizeType(subscription?.type),
-        },
+        // TODO: Uncomment when subscription types are supported
+        // {
+        //     label: "Subscription type",
+        //     value: subscriptionLoading
+        //         ? 'Loading…'
+        //         : subscriptionError
+        //             ? '—'
+        //             : normalizeType(subscription?.type),
+        // },
     ];
 
     // Section data
