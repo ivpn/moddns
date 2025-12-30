@@ -485,6 +485,20 @@ const docTemplate = `{
                     "Blocklists"
                 ],
                 "summary": "Get blocklists data",
+                "parameters": [
+                    {
+                        "enum": [
+                            "updated",
+                            "name",
+                            "entries"
+                        ],
+                        "type": "string",
+                        "default": "updated",
+                        "description": "field to sort by",
+                        "name": "sort_by",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",

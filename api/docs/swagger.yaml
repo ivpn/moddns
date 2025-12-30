@@ -1211,6 +1211,16 @@ paths:
   /api/v1/blocklists:
     get:
       description: Get available blocklists data
+      parameters:
+      - default: updated
+        description: field to sort by
+        enum:
+        - updated
+        - name
+        - entries
+        in: query
+        name: sort_by
+        type: string
       produces:
       - application/json
       responses:
