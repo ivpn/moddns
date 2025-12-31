@@ -19,6 +19,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
     const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
+    const displayDomain = normalizedDomain ?? rawDomain;
     const quickRuleAvailable = Boolean(normalizedDomain);
     const quickRuleTooltip = quickRuleAvailable ? "Create a custom rule" : "Domain unavailable";
     const handleQuickRule = () => {
@@ -64,12 +65,12 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     const MOBILE_EXPANDED_DOMAIN_LIMIT = 50;
     const TIMESTAMP_COLLAPSED_MAX_HEIGHT = 24;
     const TIMESTAMP_EXPANDED_MAX_HEIGHT = 48;
-    const isDomainTruncatable = rawDomain ? rawDomain.length > DOMAIN_TRUNCATE_THRESHOLD : false;
-    const truncatedDomain = rawDomain && isDomainTruncatable ? rawDomain.slice(0, DOMAIN_TRUNCATE_THRESHOLD) + '…' : rawDomain;
-    const mobileExpandedDomain = rawDomain
-        ? rawDomain.length > MOBILE_EXPANDED_DOMAIN_LIMIT
-            ? rawDomain.slice(0, MOBILE_EXPANDED_DOMAIN_LIMIT) + '…'
-            : rawDomain
+    const isDomainTruncatable = displayDomain ? displayDomain.length > DOMAIN_TRUNCATE_THRESHOLD : false;
+    const truncatedDomain = displayDomain && isDomainTruncatable ? displayDomain.slice(0, DOMAIN_TRUNCATE_THRESHOLD) + '…' : displayDomain;
+    const mobileExpandedDomain = displayDomain
+        ? displayDomain.length > MOBILE_EXPANDED_DOMAIN_LIMIT
+            ? displayDomain.slice(0, MOBILE_EXPANDED_DOMAIN_LIMIT) + '…'
+            : displayDomain
         : undefined;
     const isBlocked = log.status === "blocked";
     const protocolLabel = log?.protocol ? log.protocol.toUpperCase() : '—';
@@ -86,13 +87,13 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                             <div className="inline-flex items-center gap-2 relative min-w-0 flex-1">
                                 <div className="relative flex flex-col gap-1 min-w-0">
                                     <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-white text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[480px] lg:max-w-[560px]">
-                                        {rawDomain ? (
-                                            <Tooltip content={rawDomain} side="top" align="start" delay={150}>
+                                        {displayDomain ? (
+                                            <Tooltip content={displayDomain} side="top" align="start" delay={150}>
                                                 <span
                                                     className="truncate"
                                                     data-testid={!isDomainTruncatable ? 'querylog-domain-full' : 'querylog-domain-truncated-desktop'}
                                                 >
-                                                    {isDomainTruncatable ? truncatedDomain : rawDomain}
+                                                    {isDomainTruncatable ? truncatedDomain : displayDomain}
                                                 </span>
                                             </Tooltip>
                                         ) : (
@@ -125,7 +126,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                 <div className={`flex gap-x-2 gap-y-2 min-w-0 flex-wrap transition-all duration-300 ease-out ${timestampExpanded ? 'items-start' : 'items-center'}`}>
                                     <div className="flex items-center gap-2 min-w-0 flex-1 order-1 transition-all duration-300 ease-out">
                                         <div className="relative flex flex-1 items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-white text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-full text-left min-w-0">
-                                            {rawDomain ? (
+                                            {displayDomain ? (
                                                 timestampExpanded ? (
                                                     <span
                                                         className="truncate whitespace-nowrap"
@@ -141,10 +142,10 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                                         className="truncate focus:outline-none active:scale-[0.98] transition-transform text-left"
                                                         data-testid={showFullDomainMobile ? 'querylog-domain-full' : 'querylog-domain-truncated'}
                                                     >
-                                                        {showFullDomainMobile ? rawDomain : truncatedDomain}
+                                                        {showFullDomainMobile ? displayDomain : truncatedDomain}
                                                     </button>
                                                 ) : (
-                                                    <span className="truncate" data-testid="querylog-domain-full">{rawDomain}</span>
+                                                    <span className="truncate" data-testid="querylog-domain-full">{displayDomain}</span>
                                                 )
                                             ) : (
                                                 '-'
