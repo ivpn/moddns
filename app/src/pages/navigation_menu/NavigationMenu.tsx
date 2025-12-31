@@ -12,7 +12,7 @@ import {
     X,
 } from "lucide-react";
 import modDNSLogo from '@/assets/logos/modDNS.svg'
-import modDNSLogoCollapsed from '@/assets/logos/favicon-32x32.png'
+import modDNSLogoCollapsed from '@/assets/logos/o_white_250.png';
 import { type JSX, useContext, useState } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
