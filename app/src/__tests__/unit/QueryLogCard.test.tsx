@@ -54,6 +54,23 @@ describe('QueryLogCard truncation interactions', () => {
         expect(fullEl).toHaveTextContent(deviceId);
     });
 
+    test('desktop domain display strips trailing dot', () => {
+        stubDesktopMatchMedia(true);
+        const log: ModelQueryLog = {
+            profile_id: 'p-dot',
+            timestamp: new Date().toISOString(),
+            status: 'blocked',
+            protocol: 'dns',
+            device_id: 'device-with-dot',
+            client_ip: '10.0.0.55',
+            dns_request: { domain: 'blocked.example.com.' }
+        };
+        render(<QueryLogCard log={log} />);
+        const domainSpan = screen.getByTestId('querylog-domain-full');
+        expect(domainSpan).toHaveTextContent('blocked.example.com');
+        expect(domainSpan).not.toHaveTextContent(/\.$/);
+    });
+
     test('mobile tap expands truncated domain (threshold 65)', () => {
         stubDesktopMatchMedia(false);
         // Override viewport width for mobile simulation
