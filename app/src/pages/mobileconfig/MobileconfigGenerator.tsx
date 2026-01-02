@@ -193,10 +193,10 @@ export default function MobileconfigGenerator(): JSX.Element {
                             </div>
                         </div>
                         <div>
-                            <CardTitle className="text-2xl font-bold bg-[var(--variable-collection-surface)] text-[var(--tailwind-colors-slate-50)]">
+                            <CardTitle className="text-xl sm:text-2xl font-bold bg-[var(--variable-collection-surface)] text-[var(--tailwind-colors-slate-50)] text-balance text-center px-2">
                                 Set up modDNS on Apple devices
                             </CardTitle>
-                            <p className="text-[var(--tailwind-colors-slate-400)] mt-2">
+                            <p className="text-[var(--tailwind-colors-slate-400)] mt-2 text-sm sm:text-base text-balance text-center px-4">
                                 Generate a configuration profile (.mobileconfig) and install on any Apple device to set up modDNS on all networks.
                             </p>
                         </div>
