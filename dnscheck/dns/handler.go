@@ -72,10 +72,10 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			record.ASNOrganization = lookupData.ASNOrganization
 
 			// decide whether IP address or ASN is from modDNS
-			log.Trace().Bool("isOurIPRange", strings.HasPrefix(IPAddress, h.srv.Config.Server.OurIPRange)).
-				Bool("isOurASN", lookupData.ASN == h.srv.Config.Server.OurASN).
+			log.Trace().Bool("isOurIPRange", strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange)).
+				Bool("isOurASN", lookupData.ASN == h.srv.Config.Server.ASN).
 				Msg("Checking if IP address or ASN is from our range")
-			if strings.HasPrefix(IPAddress, h.srv.Config.Server.OurIPRange) || lookupData.ASN == h.srv.Config.Server.OurASN {
+			if strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange) || lookupData.ASN == h.srv.Config.Server.ASN {
 				profileId := h.extractConfiguredProfileId(r)
 				record.Status = StatusConfigured
 				record.ProfileId = profileId
