@@ -9,18 +9,18 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server          *ServerConfig
+	Server          *AuthoritativeDNSServerConfig
 	API             *APIConfig
 	Cache           *CacheConfig
 	GeoLookupConfig *GeoLookupConfig
 }
 
-// ServerConfig represents the server configuration
-type ServerConfig struct {
-	Domain     string
-	IPAddress  string
-	OurASN     uint
-	OurIPRange string
+// AuthoritativeDNSServerConfig represents the authoritative DNS server configuration
+type AuthoritativeDNSServerConfig struct {
+	Domain    string
+	IPAddress string
+	ASN       uint
+	IPRange   string
 }
 
 // APIConfig represents the API configuration
@@ -65,18 +65,18 @@ func New() (*Config, error) {
 		ttl = 1 * time.Minute
 	}
 
-	asn := os.Getenv("SERVER_OUR_ASN")
+	asn := os.Getenv("DNS_AUTH_SERVER_ASN")
 	asnUint, err := strconv.ParseUint(asn, 0, 32)
 	if err != nil {
 		asnUint = 123456 // non-existent ASN
 	}
 
 	return &Config{
-		Server: &ServerConfig{
-			Domain:     os.Getenv("SERVER_DOMAIN"),
-			IPAddress:  os.Getenv("SERVER_IP_ADDRESS"),
-			OurASN:     uint(asnUint),
-			OurIPRange: os.Getenv("SERVER_OUR_IP_RANGE"),
+		Server: &AuthoritativeDNSServerConfig{
+			Domain:    os.Getenv("DNS_AUTH_SERVER_DOMAIN"),
+			IPAddress: os.Getenv("DNS_AUTH_SERVER_IP_ADDRESS"),
+			ASN:       uint(asnUint),
+			IPRange:   os.Getenv("DNS_AUTH_SERVER_IP_RANGE"),
 		},
 		API: &APIConfig{
 			Port:           os.Getenv("API_PORT"),
