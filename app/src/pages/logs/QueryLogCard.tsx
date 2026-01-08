@@ -37,7 +37,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                         aria-label="Quick custom rule"
                         onClick={handleQuickRule}
                         disabled={!quickRuleAvailable}
-                        className="h-10 w-10 rounded-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] disabled:opacity-40"
+                        className="h-9 w-9 min-h-0 p-0 aspect-square rounded-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] disabled:opacity-40"
                         data-testid="logs-quick-rule-button"
                     >
                         <ShieldPlus className="w-4 h-4" />
@@ -106,7 +106,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                         {isMobile && (
                             <div className="md:hidden flex flex-col gap-2">
                                 <div className="flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2.5 text-[10px] uppercase font-semibold tracking-wide text-[var(--tailwind-colors-rdns-600)]">
+                                    <div className="flex items-center gap-3 text-[10px] uppercase font-semibold tracking-wide text-[var(--tailwind-colors-rdns-600)]">
                                         <span>{protocolLabel}</span>
                                         {isBlocked && (
                                             <Badge
@@ -116,7 +116,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                             </Badge>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1 max-w-[200px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs text-right">
                                             <span data-testid="querylog-device-id-full">{deviceIdOrIp}</span>
                                         </div>
@@ -168,7 +168,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                     </div>
                 </div>
                 {!isMobile && (
-                    <div className="flex items-stretch md:items-center gap-3 md:gap-2.5 relative flex-[0_0_auto] min-w-0">
+                    <div className="flex items-stretch md:items-center gap-3.5 md:gap-3 relative flex-[0_0_auto] min-w-0">
                         <div className="hidden md:flex flex-col md:flex-row items-start md:items-center md:gap-2.5 gap-1 flex-shrink-0">
                             <div className="relative w-[60px] md:w-[100px] font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] text-[var(--tailwind-colors-rdns-600)] text-left md:text-center tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase order-0 md:order-1">
                                 {protocolLabel}

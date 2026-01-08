@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { ShieldBan, ShieldCheck } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -154,10 +154,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain }: QuickRuleSheetProps) => 
                 className="max-w-[480px] w-full border-l border-[var(--tailwind-colors-slate-800)] bg-[var(--variable-collection-surface)] p-0 gap-0"
             >
                 <SheetHeader className="gap-1 px-6 pt-6 pb-2 text-left">
-                    <SheetTitle>Quick custom rule</SheetTitle>
-                    <SheetDescription>
-                        Add a domain to the {ACTION_LABEL[action]} without leaving your logs.
-                    </SheetDescription>
+                    <SheetTitle>Add custom rule</SheetTitle>
                 </SheetHeader>
 
                 <div className="flex flex-col gap-6 px-6 py-6">
