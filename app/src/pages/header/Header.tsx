@@ -1,4 +1,4 @@
-import { PanelLeftClose, PanelLeftOpen, Settings2, LogOutIcon, Menu, Activity } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Settings2, LogOutIcon, Menu } from "lucide-react";
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
@@ -105,8 +105,7 @@ export default function Header({
                             data-testid="conn-header-show"
                             aria-label="Show DNS connection status"
                         >
-                            <Activity className="w-3.5 h-3.5 text-[var(--tailwind-colors-rdns-600)]" />
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.08em]">Show DNS status</span>
+                            <span className="text-[11px] font-semibold tracking-[0.08em]">DNS Status</span>
                         </Button>
                     )}
                     {showLogoutButton ? (

@@ -4,7 +4,6 @@ import { Separator } from "@/components/ui/separator";
 import { type JSX, useState } from "react";
 import { useAppStore } from "@/store/general";
 import { useDnsConnectionStatus } from "@/hooks/useDnsConnectionStatus";
-import { EyeOff, ChevronUp } from "lucide-react";
 
 export default function ConnectionStatusHeader(): JSX.Element | null {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -44,10 +43,8 @@ export default function ConnectionStatusHeader(): JSX.Element | null {
                 onClick={handleHide}
                 aria-label="Hide connection status bar"
             >
-                <span className="flex items-center gap-1.5 text-xs leading-5 font-medium">
-                    <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="flex items-center text-xs leading-5 font-medium">
                     <span data-testid="conn-header-hide">Hide status</span>
-                    <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
             </Button>
         </div>
