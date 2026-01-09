@@ -44,7 +44,7 @@ export default function ConnectionStatusHeader(): JSX.Element | null {
                 aria-label="Hide connection status bar"
             >
                 <span className="flex items-center text-xs leading-5 font-medium">
-                    <span data-testid="conn-header-hide">Hide status</span>
+                    <span data-testid="conn-header-hide">Hide</span>
                 </span>
             </Button>
         </div>
