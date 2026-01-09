@@ -1,6 +1,5 @@
-import { PanelLeftClose, PanelLeftOpen, Settings2, LogOutIcon, Menu } from "lucide-react";
+import { Settings2, LogOutIcon, Menu } from "lucide-react";
 import React, { useState, useContext, useEffect } from "react";
-import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { Button } from "@/components/ui/button";
 import type { ModelProfile } from "@/api/client/api";
@@ -33,7 +32,6 @@ export default function Header({
     showConnectionStatusRestoreButton = false,
     onRestoreConnectionStatus,
 }: HeaderProps): React.JSX.Element {
-    const { collapsed, toggleCollapse } = useNavigationCollapse();
     const { navDesktop } = useScreenDetector();
     const navigate = useNavigate();
     const location = useLocation();
@@ -79,15 +77,8 @@ export default function Header({
     if (navDesktop) {
         return (
             <div className="flex items-center gap-6 px-8 py-4 bg-[var(--shadcn-ui-app-background)]">
-                {/* Left: Panel close/open button and page name */}
+                {/* Left: page name (sidebar auto-collapses based on width) */}
                 <div className="flex items-center gap-3">
-                    <Button variant="ghost" className="p-0 -ml-3" onClick={toggleCollapse}>
-                        {collapsed ? (
-                            <PanelLeftOpen className="size-6" strokeWidth={1.5} />
-                        ) : (
-                            <PanelLeftClose className="size-6" strokeWidth={1.5} />
-                        )}
-                    </Button>
                     {currentPageName && (
                         <h2 className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8">
                             {currentPageName}
