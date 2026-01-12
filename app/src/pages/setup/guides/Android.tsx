@@ -2,7 +2,7 @@ import { CodeBlock } from '@/components/setup/CodeBlock';
 
 export const androidBadges = [
     { label: "Android 9 or newer" },
-    { label: "Private DNS" },
+    { label: "DNS over TLS" },
 ];
 
 interface AndroidDeps {

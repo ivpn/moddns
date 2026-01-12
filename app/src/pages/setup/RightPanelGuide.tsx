@@ -6,8 +6,7 @@ import {
     Smartphone,
     Router,
     Gamepad2,
-    Tv2,
-    Zap
+    Tv2
 } from "lucide-react";
 import React, { type JSX, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +26,24 @@ import BrowsersGuide, { createBrowsersSteps, browsersBadges } from "./guides/Bro
 import { androidBadges, createAndroidSteps } from "./guides/Android";
 
 const AndroidGuide = { badges: androidBadges };
+
+const macOSBadges = [
+    { label: "macOS" },
+    { label: "DNS over HTTPS" },
+    { label: "DNS over TLS" },
+];
+
+const iosBadges = [
+    { label: "iOS" },
+    { label: "DNS over HTTPS" },
+    { label: "DNS over TLS" },
+];
+
+const routersBadges = [
+    { label: "Routers" },
+    { label: "DNS over HTTPS" },
+    { label: "DNS over TLS" },
+];
 
 interface SetupGuidePanelProps {
     platform: string;
@@ -52,6 +69,9 @@ const platformGuides: { [key: string]: any } = {
     "Windows": WindowsGuide,
     "Linux": LinuxGuide,
     "Android": AndroidGuide,
+    "macOS": { badges: macOSBadges },
+    "iOS": { badges: iosBadges },
+    "Routers": { badges: routersBadges },
     "Browsers": BrowsersGuide,
     "Device Identification": null, // Handle dynamically
 };
