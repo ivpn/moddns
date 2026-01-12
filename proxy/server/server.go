@@ -198,17 +198,9 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		}
 
 		if sendDoBit {
-			// Create an OPT record (with DNSSEC support)
-			opt := &dns.OPT{Hdr: dns.RR_Header{
-				Name:   ".",
-				Rrtype: dns.TypeOPT,
-				Class:  dns.ClassANY,
-				Ttl:    0,
-			}}
-
-			// Set the DNSSEC OK (DO) bit
-			opt.SetDo(true)
-			dctx.Req.Extra = append(dctx.Req.Extra, opt)
+			// Enable EDNS0 with a reasonable UDP buffer size and DO=1
+			// This sets a proper OPT RR instead of constructing one manually.
+			dctx.Req.SetEdns0(2048, true)
 		}
 	}
 
