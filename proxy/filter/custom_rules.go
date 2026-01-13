@@ -28,6 +28,8 @@ const (
 //   - "ads.com"      => matches only ads.com
 //   - "*.ads.com"    => matches ads.com and all its subdomains
 //   - ".ads.com"     => treated as "*.ads.com" (same as above)
+//   - "ads.*"        => matches ads.<any TLD>, but not the bare "ads" and not subdomains (e.g. sub.ads.com)
+//   - "*ads*"        => matches any domain containing "ads" as a substring
 func (f *DomainFilter) matchDomain(domain, pattern string) bool {
 	domain = strings.ToLower(domain)
 	pattern = strings.ToLower(pattern)
@@ -61,15 +63,12 @@ func (f *DomainFilter) matchDomain(domain, pattern string) bool {
 
 	// Fast path for suffix wildcard like "example.*"; matches base plus any TLD
 	// but not the bare base and not subdomains of the base.
-	if strings.HasSuffix(pattern, ".*") && strings.Count(pattern, WILDCARD) == 1 {
+	if strings.HasSuffix(pattern, ".*") {
 		base := strings.TrimSuffix(pattern, ".*")
-		if base == "" {
+		if base == "" || strings.Contains(base, WILDCARD) {
 			return false
 		}
-		if strings.HasPrefix(domain, base+".") {
-			return true
-		}
-		return false
+		return strings.HasPrefix(domain, base+".")
 	}
 
 	// Fast path for contains wildcard like "*example*" when the only wildcards
