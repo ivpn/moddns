@@ -27,6 +27,7 @@ export default function ProfileDropdown({
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editProfile, setEditProfile] = useState<ModelProfile | null>(null);
     const [loading, setLoading] = useState(false);
+    const [selectOpen, setSelectOpen] = useState(false);
 
     // Helper to fetch and update profiles
     const fetchProfilesAndUpdate = async (selectProfileId?: string) => {
@@ -63,6 +64,7 @@ export default function ProfileDropdown({
 
     const handleProfileSwitch = (profile: ModelProfile) => {
         setActiveProfile(profile);
+        setSelectOpen(false);
         toast.info(`Switched to profile: ${profile.name}`);
     };
 
@@ -86,6 +88,8 @@ export default function ProfileDropdown({
         <div className={`flex flex-col items-start ${className}`}>
             <Select
                 value={currentProfile?.profile_id ?? ""}
+                open={selectOpen}
+                onOpenChange={setSelectOpen}
                 onValueChange={val => {
                     const selected = profiles.find(p => p.profile_id === val);
                     if (selected) setActiveProfile(selected);
@@ -133,8 +137,10 @@ export default function ProfileDropdown({
                                 {isSelected && (
                                     <Settings
                                         className="relative w-4 h-4 text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-rdns-600)] cursor-pointer"
+                                        data-testid="edit-profile-settings"
                                         onClick={e => {
                                             e.stopPropagation();
+                                            setSelectOpen(false);
                                             setEditProfile(profile);
                                             setShowEditDialog(true);
                                         }}
@@ -147,7 +153,10 @@ export default function ProfileDropdown({
                     <div
                         className="flex min-w-32 items-center gap-2 pl-2.5 pr-2 py-1.5 w-full bg-[var(--tailwind-colors-slate-950)] cursor-pointer
                             hover:bg-[var(--tailwind-colors-slate-800)] transition-colors duration-100 rounded-[4px]"
-                        onClick={() => setShowCreateDialog(true)}
+                        onClick={() => {
+                            setSelectOpen(false);
+                            setShowCreateDialog(true);
+                        }}
                     >
                         <Plus className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
                         <div className="flex-1 mt-[-1.00px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-rdns-600)] text-[14px] leading-[20px]

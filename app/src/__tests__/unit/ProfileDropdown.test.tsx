@@ -1,4 +1,5 @@
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import ProfileDropdown from '@/pages/header/ProfileDropdown';
 import { MemoryRouter } from 'react-router-dom';
@@ -16,6 +17,16 @@ describe('ProfileDropdown truncation', () => {
                 addEventListener: () => { },
                 removeEventListener: () => { }
             });
+        }
+        // Radix Select reads PointerEvent APIs that jsdom does not implement
+        if (!Element.prototype.hasPointerCapture) {
+            Element.prototype.hasPointerCapture = () => false;
+        }
+        if (!Element.prototype.releasePointerCapture) {
+            Element.prototype.releasePointerCapture = () => { };
+        }
+        if (!Element.prototype.scrollIntoView) {
+            Element.prototype.scrollIntoView = () => { };
         }
     });
     const baseProfile = { profile_id: 'id1', name: 'ShortName' } as any;
@@ -56,5 +67,55 @@ describe('ProfileDropdown truncation', () => {
         setup(longProfile);
         const truncated = screen.getByTestId('profile-name-truncated');
         expect(truncated).toHaveTextContent(longProfile.name.slice(0, 20) + '…');
+    });
+
+    test('select closes when opening Create Profile dialog', async () => {
+        (window.matchMedia as any) = (q: string) => ({ matches: q === '(min-width: 768px)', media: q, addEventListener: () => { }, removeEventListener: () => { } });
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter>
+                <ProfileDropdown
+                    profiles={[baseProfile, longProfile]}
+                    currentProfile={baseProfile}
+                    setActiveProfile={noop as any}
+                    setProfiles={noop as any}
+                />
+            </MemoryRouter>
+        );
+
+        const trigger = screen.getByRole('combobox');
+        await user.click(trigger);
+        await user.click(screen.getByText('Create profile'));
+
+        await waitFor(() => {
+            expect(document.querySelector('[data-slot="select-content"]')).not.toBeInTheDocument();
+        });
+        expect(screen.getByPlaceholderText('Type a name')).toBeInTheDocument();
+    });
+
+    test('select closes when opening Edit Profile dialog', async () => {
+        (window.matchMedia as any) = (q: string) => ({ matches: q === '(min-width: 768px)', media: q, addEventListener: () => { }, removeEventListener: () => { } });
+        const user = userEvent.setup();
+        render(
+            <MemoryRouter>
+                <ProfileDropdown
+                    profiles={[baseProfile, longProfile]}
+                    currentProfile={baseProfile}
+                    setActiveProfile={noop as any}
+                    setProfiles={noop as any}
+                />
+            </MemoryRouter>
+        );
+
+        const trigger = screen.getByRole('combobox');
+        await user.click(trigger);
+        // Click settings icon for selected profile
+        const editButton = await screen.findByTestId('edit-profile-settings');
+        await user.click(editButton);
+
+        await waitFor(() => {
+            expect(document.querySelector('[data-slot="select-content"]')).not.toBeInTheDocument();
+        });
+        expect(screen.getByText('Edit profile')).toBeInTheDocument();
     });
 });
