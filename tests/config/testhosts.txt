@@ -1,3 +1,4 @@
 # Format: <IP-address> <hostname> [alias...]
 # dnscheck    test.moddns.net
 104.18.74.230 test.com
+212.77.99.7 ads.wp.pl
