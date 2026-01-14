@@ -11,6 +11,7 @@ import (
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/api/responses"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/service/apple"
 )
 
 // @Summary Generate configuration profile for Apple devices
@@ -114,11 +115,14 @@ func (s *APIServer) downloadMobileConfigFromLink() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		code := c.Params("code")
 
-		// Get the data for this short URL
-		data, err := s.Shortener.GetData(code)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		dataStr, err := s.Cache.Get(ctx, apple.MobileConfigCacheKey(code))
 		if err != nil {
 			return c.Status(fiber.StatusNotFound).SendString("Configuration not found or expired")
 		}
+		data := []byte(dataStr)
 
 		// Extract profile_id from the data (format: profile_id|mobileconfig_data)
 		profileId := "profile"

@@ -17,11 +17,14 @@ import (
 
 	"github.com/fullsailor/pkcs7"
 	"github.com/ivpn/dns/api/api/requests"
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/ivpn/dns/libs/urlshort"
 )
+
+const mobileConfigCacheKeyPrefix = "mobileconfig:"
 
 var mobileTemplate = template.Must(template.New("mobileconfig").Funcs(template.FuncMap{
 	// urlquery escapes a string for inclusion in a URL path segment using %20 for spaces.
@@ -60,9 +63,9 @@ var mobileTemplate = template.Must(template.New("mobileconfig").Funcs(template.F
 
 // Constants for validation
 const (
-	maxDomainLength    = 255
-	maxNetworkLength   = 64
-	maxDomainsCount    = 100
+	// maxDomainLength    = 255
+	maxNetworkLength = 64
+	// maxDomainsCount    = 100
 	maxNetworksCount   = 50
 	maxProfileIdLength = 64
 )
@@ -74,9 +77,10 @@ type AppleService struct {
 	PrivateKeyPath  string
 	CertPath        string
 	Shortener       *urlshort.URLShortener
+	Cache           cache.Cache
 }
 
-func NewAppleService(cfg *config.Config, shortener *urlshort.URLShortener) *AppleService {
+func NewAppleService(cfg *config.Config, cache cache.Cache, shortener *urlshort.URLShortener) *AppleService {
 	return &AppleService{
 		DnsServerDomain: cfg.Server.DnsDomain,
 		ServerAddresses: cfg.Server.ServerAddresses,
@@ -84,7 +88,12 @@ func NewAppleService(cfg *config.Config, shortener *urlshort.URLShortener) *Appl
 		PrivateKeyPath:  cfg.Service.MobileConfigPrivateKeyPath,
 		CertPath:        cfg.Service.MobileConfigCertPath,
 		Shortener:       shortener,
+		Cache:           cache,
 	}
+}
+
+func MobileConfigCacheKey(token string) string {
+	return mobileConfigCacheKeyPrefix + token
 }
 
 func (a *AppleService) GenerateMobileConfig(ctx context.Context, req requests.MobileConfigReq, accountId string, genLink bool) (data []byte, link string, err error) {
@@ -135,10 +144,15 @@ func (a *AppleService) GenerateMobileConfig(ctx context.Context, req requests.Mo
 		// Format: profile_id|mobileconfig_data
 		dataWithMetadata := append([]byte(validatedReq.ProfileId+"|"), data...)
 
-		urlToken, err := a.Shortener.ShortenWithData(origURL, dataWithMetadata)
+		urlToken, entry, err := a.Shortener.ShortenWithData(origURL, dataWithMetadata)
 		if err != nil {
 			return nil, "", err
 		}
+
+		if err := a.Cache.Set(ctx, MobileConfigCacheKey(urlToken), dataWithMetadata, entry.TTL); err != nil {
+			return nil, "", err
+		}
+
 		link = fmt.Sprintf("%s/short/%s", a.FrontendDomain, urlToken)
 		log.Info().Str("link", link).Msg("Generated short link for mobileconfig")
 	}

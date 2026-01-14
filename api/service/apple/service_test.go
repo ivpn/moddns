@@ -3,8 +3,11 @@ package apple
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ivpn/dns/libs/deviceid"
 
@@ -13,8 +16,87 @@ import (
 
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/config"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/libs/urlshort"
 )
+
+type fakeCacheEntry struct {
+	value     string
+	expiresAt time.Time
+	hasExpiry bool
+}
+
+type fakeCache struct {
+	store map[string]fakeCacheEntry
+}
+
+func newFakeCache() *fakeCache {
+	return &fakeCache{store: make(map[string]fakeCacheEntry)}
+}
+
+func (f *fakeCache) Set(_ context.Context, key string, value any, expiration time.Duration) error {
+	val := ""
+	switch v := value.(type) {
+	case string:
+		val = v
+	case []byte:
+		val = string(v)
+	default:
+		val = fmt.Sprint(v)
+	}
+	entry := fakeCacheEntry{value: val}
+	if expiration > 0 {
+		entry.expiresAt = time.Now().Add(expiration)
+		entry.hasExpiry = true
+	}
+	f.store[key] = entry
+	return nil
+}
+
+func (f *fakeCache) Get(_ context.Context, key string) (string, error) {
+	entry, ok := f.store[key]
+	if !ok {
+		return "", errors.New("not found")
+	}
+	if entry.hasExpiry && time.Now().After(entry.expiresAt) {
+		delete(f.store, key)
+		return "", errors.New("not found")
+	}
+	return entry.value, nil
+}
+
+func (f *fakeCache) Del(_ context.Context, key string) error {
+	delete(f.store, key)
+	return nil
+}
+
+func (f *fakeCache) Incr(_ context.Context, _ string, _ time.Duration) (int64, error) {
+	return 0, nil
+}
+
+// The following methods satisfy the cache.Cache interface but are unused in these tests.
+func (f *fakeCache) AddBlocklist(_ context.Context, _ string, _ []byte) error { return nil }
+func (f *fakeCache) CreateOrUpdateProfileSettings(_ context.Context, _ *model.ProfileSettings, _ bool) error {
+	return nil
+}
+func (f *fakeCache) AddCustomRule(_ context.Context, _ string, _ *model.CustomRule) error { return nil }
+func (f *fakeCache) RemoveCustomRule(_ context.Context, _ string, _ string) error         { return nil }
+func (f *fakeCache) DeleteProfileSettings(_ context.Context, _ string) error              { return nil }
+func (f *fakeCache) SetTOTPSecret(_ context.Context, _ string, _ string, _ time.Duration) error {
+	return nil
+}
+func (f *fakeCache) GetTOTPSecret(_ context.Context, _ string) (string, error) { return "", nil }
+func (f *fakeCache) AppendBlocklistsToProfileSettings(_ context.Context, _ string, _ ...string) error {
+	return nil
+}
+func (f *fakeCache) RemoveBlocklistsFromProfileSettings(_ context.Context, _ string, _ ...string) error {
+	return nil
+}
+func (f *fakeCache) AddSubscription(_ context.Context, _ string, _ string, _ time.Duration) error {
+	return nil
+}
+func (f *fakeCache) GetSubscription(_ context.Context, _ string) (string, error) { return "", nil }
+func (f *fakeCache) RemoveSubscription(_ context.Context, _ string) error        { return nil }
 
 func TestAppleService_validate(t *testing.T) {
 	tests := []struct {
@@ -181,8 +263,8 @@ func TestAppleService_validate(t *testing.T) {
 				},
 				Service: &config.ServiceConfig{},
 			}
-			shortener := &urlshort.URLShortener{}
-			service := NewAppleService(cfg, shortener)
+			shortener := urlshort.NewURLShortener()
+			service := NewAppleService(cfg, newFakeCache(), shortener)
 
 			got, err := service.validate(tt.req)
 
@@ -296,7 +378,7 @@ func TestGenerateMobileConfig_Security(t *testing.T) {
 				},
 			}
 			shortener := urlshort.NewURLShortener()
-			service := NewAppleService(cfg, shortener)
+			service := NewAppleService(cfg, newFakeCache(), shortener)
 
 			ctx := context.Background()
 
@@ -329,6 +411,39 @@ func TestGenerateMobileConfig_Security(t *testing.T) {
 	}
 }
 
+func TestGenerateMobileConfig_StoresPayloadInCache(t *testing.T) {
+	cfg := &config.Config{
+		Server: &config.ServerConfig{
+			DnsDomain:      "dns.com",
+			FrontendDomain: "frontend.com",
+		},
+		Service: &config.ServiceConfig{
+			MobileConfigCertPath:       "../../../certs/certificate.pem",
+			MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+		},
+	}
+	cache := newFakeCache()
+	shortener := urlshort.NewURLShortener(urlshort.WithDefaultTTL(2 * time.Minute))
+	service := NewAppleService(cfg, cache, shortener)
+
+	req := requests.MobileConfigReq{ProfileId: "profile1", AdvancedOptionsReq: &requests.AdvancedOptionsReq{EncryptionType: "https"}}
+	ctx := context.Background()
+
+	_, link, err := service.GenerateMobileConfig(ctx, req, "acc", true)
+	require.NoError(t, err)
+	require.NotEmpty(t, link)
+
+	token := strings.TrimPrefix(link, cfg.Server.FrontendDomain+"/short/")
+	cacheKey := MobileConfigCacheKey(token)
+	cached, err := cache.Get(ctx, cacheKey)
+	require.NoError(t, err)
+
+	assert.True(t, strings.HasPrefix(cached, req.ProfileId+"|"))
+	entry := cache.store[cacheKey]
+	assert.True(t, entry.hasExpiry)
+	assert.True(t, entry.expiresAt.After(time.Now()))
+}
+
 func TestGenerateMobileConfig_WifiNetworkSlicesNilBehavior(t *testing.T) {
 	cfg := &config.Config{
 		Server: &config.ServerConfig{
@@ -341,7 +456,7 @@ func TestGenerateMobileConfig_WifiNetworkSlicesNilBehavior(t *testing.T) {
 		},
 	}
 	shortener := urlshort.NewURLShortener()
-	service := NewAppleService(cfg, shortener)
+	service := NewAppleService(cfg, newFakeCache(), shortener)
 
 	ctx := context.Background()
 
@@ -381,7 +496,7 @@ func TestGenerateMobileConfig_DeviceID(t *testing.T) {
 		},
 	}
 	shortener := urlshort.NewURLShortener()
-	service := NewAppleService(cfg, shortener)
+	service := NewAppleService(cfg, newFakeCache(), shortener)
 
 	ctx := context.Background()
 

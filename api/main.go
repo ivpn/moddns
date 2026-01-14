@@ -119,7 +119,6 @@ func main() {
 		urlshort.WithShortLength(8),
 		urlshort.WithStatsLogging(shortUrlLogInterval),
 	)
-	defer shortener.Close() // Stop the cleanup goroutine when done
 
 	apiValidator, err := validator.NewAPIValidator()
 	if err != nil {

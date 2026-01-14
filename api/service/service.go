@@ -50,7 +50,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	subSrv := subscription.NewSubscriptionService(store, cache, *cfg.Service)
 	httpClient := webhookClient.New(*cfg.API)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
-	appleSrv := apple.NewAppleService(&cfg, shortener)
+	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
 	return Service{
 		Cfg:                  cfg,
 		Store:                store,
