@@ -12,7 +12,7 @@ interface QueryLogCardProps {
     log: ModelQueryLog;
     isLast?: boolean;
     lastLogRef?: (node: HTMLDivElement | null) => void;
-    onQuickRule?: (domain?: string) => void;
+    onQuickRule?: (domain?: string, defaultAction?: "denylist" | "allowlist") => void;
 }
 
 const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProps): JSX.Element | null => {
@@ -21,11 +21,19 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
     const displayDomain = normalizedDomain ?? rawDomain;
     const quickRuleAvailable = Boolean(normalizedDomain);
+    const isBlocked = log.status === "blocked";
+    const isProcessed = log.status === "processed";
     const quickRuleTooltip = quickRuleAvailable ? "Create a custom rule" : "Domain unavailable";
     const handleQuickRule = () => {
         if (!quickRuleAvailable) return;
-        onQuickRule?.(normalizedDomain);
+        const defaultAction = isBlocked ? "allowlist" : "denylist";
+        onQuickRule?.(normalizedDomain, defaultAction);
     };
+    const quickRuleButtonClasses = isBlocked
+        ? "bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-slate-900)] hover:!text-[var(--tailwind-colors-rdns-600)]"
+        : isProcessed
+            ? "bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-100)] hover:!bg-[var(--tailwind-colors-red-600)] hover:!text-[var(--tailwind-colors-slate-50)]"
+            : "bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-slate-900)] hover:!text-[var(--tailwind-colors-rdns-600)]";
     const renderQuickRuleButton = (wrapperClassName: string) => (
         <div className={wrapperClassName}>
             <Tooltip content={quickRuleTooltip} side="top" align="center" delay={150}>
@@ -37,7 +45,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                         aria-label="Quick custom rule"
                         onClick={handleQuickRule}
                         disabled={!quickRuleAvailable}
-                        className="h-9 w-9 min-h-0 p-0 aspect-square rounded-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] disabled:opacity-40"
+                        className={`h-9 w-9 min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
                         data-testid="logs-quick-rule-button"
                     >
                         <ShieldPlus className="w-4 h-4" />
@@ -72,7 +80,6 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
             ? displayDomain.slice(0, MOBILE_EXPANDED_DOMAIN_LIMIT) + '…'
             : displayDomain
         : undefined;
-    const isBlocked = log.status === "blocked";
     const protocolLabel = log?.protocol ? log.protocol.toUpperCase() : '—';
 
     return (

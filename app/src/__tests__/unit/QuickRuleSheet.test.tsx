@@ -43,4 +43,19 @@ describe('QuickRuleSheet', () => {
         fireEvent.click(cancelButton);
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
+
+    test('uses provided defaultAction when opening', () => {
+        const noop = () => { };
+        const { rerender } = render(
+            <QuickRuleSheet open={false} domain="logs.example" onOpenChange={noop} defaultAction="allowlist" />
+        );
+        act(() => {
+            rerender(
+                <QuickRuleSheet open domain="logs.example" onOpenChange={noop} defaultAction="allowlist" />
+            );
+        });
+        expect(screen.getByText('Add to Allowlist')).toBeInTheDocument();
+        const allowToggle = screen.getByRole('radio', { name: /Allow domain/i });
+        expect(allowToggle).toHaveAttribute('data-state', 'on');
+    });
 });

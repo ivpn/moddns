@@ -10,7 +10,7 @@ import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
-import QuickRuleSheet from "./QuickRuleSheet";
+import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 
@@ -32,6 +32,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [fadeClass, setFadeClass] = useState('opacity-100 transition-opacity duration-300 ease-in-out'); // Track fade animation state
     const [isQuickRuleSheetOpen, setIsQuickRuleSheetOpen] = useState(false);
     const [quickRuleDomain, setQuickRuleDomain] = useState<string | undefined>(undefined);
+    const [quickRuleDefaultAction, setQuickRuleDefaultAction] = useState<QuickRuleAction>("denylist");
 
     // Search input (uncommitted while typing) and committed value that triggers requests
     const [searchInputValue, setSearchInputValue] = useState("");
@@ -89,9 +90,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         }
     }, [profiles, setActiveProfile]);
 
-    const handleOpenQuickRule = useCallback((domain?: string) => {
+    const handleOpenQuickRule = useCallback((domain?: string, defaultAction: QuickRuleAction = "denylist") => {
         if (!domain) return;
         setQuickRuleDomain(domain);
+        setQuickRuleDefaultAction(defaultAction);
         setIsQuickRuleSheetOpen(true);
     }, []);
 
@@ -346,6 +348,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 open={isQuickRuleSheetOpen}
                 onOpenChange={handleQuickRuleSheetChange}
                 domain={quickRuleDomain}
+                defaultAction={quickRuleDefaultAction}
             />
         </div>
     );

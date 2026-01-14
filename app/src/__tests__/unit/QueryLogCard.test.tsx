@@ -119,7 +119,7 @@ describe('QueryLogCard quick rule button', () => {
         expect(button).toBeEnabled();
         fireEvent.click(button);
         expect(onQuickRule).toHaveBeenCalledTimes(1);
-        expect(onQuickRule).toHaveBeenCalledWith('Example.com');
+        expect(onQuickRule).toHaveBeenCalledWith('Example.com', 'denylist');
     });
 
     test('disables button when domain missing', () => {

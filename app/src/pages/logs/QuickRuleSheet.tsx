@@ -11,6 +11,8 @@ import { useAppStore } from "@/store/general";
 import api from "@/api/api";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 
+export type QuickRuleAction = "denylist" | "allowlist";
+
 const ACTION_TO_API: Record<QuickRuleAction, "block" | "allow"> = {
     denylist: "block",
     allowlist: "allow",
@@ -26,19 +28,18 @@ const ACTION_HELPER: Record<QuickRuleAction, string> = {
     allowlist: "Overrides blocklists and always allows the domain when resolving.",
 };
 
-type QuickRuleAction = "denylist" | "allowlist";
-
 const ACTION_SEQUENCE: QuickRuleAction[] = ["denylist", "allowlist"];
 
 interface QuickRuleSheetProps {
     open: boolean;
     onOpenChange: (next: boolean) => void;
     domain?: string;
+    defaultAction?: QuickRuleAction;
 }
 
 const iconClasses = "h-4 w-4";
 
-const QuickRuleSheet = ({ open, onOpenChange, domain }: QuickRuleSheetProps) => {
+const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRuleSheetProps) => {
     const [action, setAction] = useState<QuickRuleAction>("denylist");
     const [domainValue, setDomainValue] = useState(domain ?? "");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,10 +54,10 @@ const QuickRuleSheet = ({ open, onOpenChange, domain }: QuickRuleSheetProps) => 
         if (!open) {
             return;
         }
-        setAction("denylist");
+        setAction(defaultAction ?? "denylist");
         setDomainValue(domain ?? "");
         setInputError(null);
-    }, [domain, open]);
+    }, [defaultAction, domain, open]);
 
     const disabled = useMemo(() => !domainValue.trim() || isSubmitting, [domainValue, isSubmitting]);
 
