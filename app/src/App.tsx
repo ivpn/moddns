@@ -366,13 +366,6 @@ function ProtectedLayout() {
 
   return (
     <AppLayout>
-      {navDesktop && shellOffset > 0 && (
-        <div
-          aria-hidden
-          className="fixed top-0 left-0 h-screen"
-          style={{ width: `${shellOffset}px`, backgroundColor: 'var(--variable-collection-surface)', zIndex: 8 }}
-        />
-      )}
       {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
       {isDesktop && connectionStatusVisible && (
