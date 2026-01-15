@@ -25,6 +25,8 @@ import { deviceIdentificationBadges, createDeviceIdentificationSteps } from "./g
 import BrowsersGuide, { createBrowsersSteps, browsersBadges } from "./guides/Browsers";
 import { androidBadges, createAndroidSteps } from "./guides/Android";
 import RoutersGuide, { createRoutersSteps } from "./guides/Routers";
+import IOS from "./guides/AppleIOS";
+import MacOS from "./guides/AppleMacOS";
 
 const AndroidGuide = { badges: androidBadges };
 
@@ -36,6 +38,7 @@ const macOSBadges = [
 
 const iosBadges = [
     { label: "iOS" },
+    { label: "iPadOS" },
     { label: "DNS over HTTPS" },
     { label: "DNS over TLS" },
 ];
@@ -260,6 +263,8 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                                 >
                                     Create Configuration Profile
                                 </Button>
+                                {platform === 'iOS' && <IOS />}
+                                {platform === 'macOS' && <MacOS />}
                             </div>
                         )}
 
