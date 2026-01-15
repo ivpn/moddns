@@ -24,6 +24,7 @@ import { useProfileData } from '@/store/general';
 import { deviceIdentificationBadges, createDeviceIdentificationSteps } from "./guides/DeviceIdentification";
 import BrowsersGuide, { createBrowsersSteps, browsersBadges } from "./guides/Browsers";
 import { androidBadges, createAndroidSteps } from "./guides/Android";
+import RoutersGuide, { createRoutersSteps } from "./guides/Routers";
 
 const AndroidGuide = { badges: androidBadges };
 
@@ -39,11 +40,6 @@ const iosBadges = [
     { label: "DNS over TLS" },
 ];
 
-const routersBadges = [
-    { label: "Routers" },
-    { label: "DNS over HTTPS" },
-    { label: "DNS over TLS" },
-];
 
 interface SetupGuidePanelProps {
     platform: string;
@@ -59,7 +55,7 @@ const platformIcons: { [key: string]: React.ReactNode } = {
     "Browsers": <AppWindow className="w-5 h-5" />,
     "Android": <Smartphone className="w-5 h-5" />,
     "iOS": <img src={AppleLogo} alt="iOS" className="w-5 h-5 brightness-0 invert" />,
-    "Router": <Router className="w-5 h-5" />,
+    "Routers": <Router className="w-5 h-5" />,
     "Console": <Gamepad2 className="w-5 h-5" />,
     "Smart TV": <Tv2 className="w-5 h-5" />,
     "Device Identification": <Smartphone className="w-5 h-5" />,
@@ -71,7 +67,7 @@ const platformGuides: { [key: string]: any } = {
     "Android": AndroidGuide,
     "macOS": { badges: macOSBadges },
     "iOS": { badges: iosBadges },
-    "Routers": { badges: routersBadges },
+    "Routers": RoutersGuide,
     "Browsers": BrowsersGuide,
     "Device Identification": null, // Handle dynamically
 };
@@ -121,6 +117,16 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             badges: androidBadges,
             steps: createAndroidSteps({
                 dotEndpoint: profileData?.dnsOverTLS || 'your-profile-id.example.com'
+            })
+        };
+    } else if (platform === "Routers") {
+        guide = {
+            badges: RoutersGuide.badges,
+            steps: createRoutersSteps({
+                dohEndpoint,
+                anycastIpv4: effectivePrimaryIp,
+                dnsServerDomain: effectiveDomain,
+                dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`
             })
         };
     } else {

@@ -2,7 +2,7 @@
 // Badges shown at top of guide
 export const browsersBadges = [
     { label: "Browsers" },
-    { label: "Secure DNS (DoH)" },
+    { label: "DNS over HTTPS" },
 ];
 
 /**
