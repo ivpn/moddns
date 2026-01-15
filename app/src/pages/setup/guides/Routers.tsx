@@ -22,7 +22,7 @@ interface RouterTabDef {
 }
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="text-xs italic font-semibold tracking-[0.08em] uppercase text-[var(--tailwind-colors-slate-300)]">
+    <div className="text-xs font-semibold tracking-[0.08em] uppercase text-[var(--tailwind-colors-slate-300)]">
         {children}
     </div>
 );
@@ -84,37 +84,37 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
             <div className="flex flex-col gap-6">
                 <SectionLabel>System &gt; General Setup &gt; DNS Server Settings:</SectionLabel>
                 <div className="flex flex-col gap-6">
-                    <StepBlock number={1} text={<span><strong>DNS Servers:</strong> clear all entries from <em>DNS Servers</em></span>} />
+                    <StepBlock number={1} text={<span><strong>DNS Servers:</strong> clear all entries from <span className="font-medium">DNS Servers</span></span>} />
                     <StepBlock
                         number={2}
                         text={(
                             <span>
-                                <strong>DNS Servers:</strong> add <CodeBlock inline noWrap value={deps.anycastIpv4} /> to <em>Address</em> and{' '}
-                                <CodeBlock inline noWrap value={deps.dotHostname} /> to <em>Hostname</em>, repeat for each IP address, hostname is always the same
+                                <strong>DNS Servers:</strong> add <CodeBlock inline noWrap value={deps.anycastIpv4} /> to <span className="font-medium">Address</span> and{' '}
+                                <CodeBlock inline noWrap value={deps.dotHostname} /> to <span className="font-medium">Hostname</span>, repeat for each IP address, hostname is always the same
                             </span>
                         )}
                     />
                     <StepBlock
                         number={3}
-                        text={<span><strong>DNS Server Override:</strong> uncheck <em>Allow DNS server list to overridden by DHCP...</em></span>}
+                        text={<span><strong>DNS Server Override:</strong> uncheck <span className="font-medium">Allow DNS server list to overridden by DHCP...</span></span>}
                     />
                     <StepBlock
                         number={4}
-                        text={<span><strong>DNS Resolution Behavior:</strong> select <em>Use local DNS (127.0.0.1), ignore remote DNS servers</em></span>}
+                        text={<span><strong>DNS Resolution Behavior:</strong> select <span className="font-medium">Use local DNS (127.0.0.1), ignore remote DNS servers</span></span>}
                     />
-                    <StepBlock number={5} text={<span><em>Save</em></span>} />
+                    <StepBlock number={5} text={<span className="font-medium">Save</span>} />
                 </div>
 
                 <SectionDivider />
 
                 <SectionLabel>Services &gt; DNS Resolver &gt; General Settings:</SectionLabel>
                 <div className="flex flex-col gap-6">
-                    <StepBlock number={1} text={<span><strong>DNSSEC:</strong> uncheck <em>Enable DNSSEC support</em></span>} />
+                    <StepBlock number={1} text={<span><strong>DNSSEC:</strong> uncheck <span className="font-medium">Enable DNSSEC support</span></span>} />
                     <StepBlock
                         number={2}
-                        text={<span><strong>DNS Query Forwarding:</strong> check <em>Enable Forwarding Mode</em>, and <em>Use SSL/TLS for outgoing DNS queries to Forwarding Servers</em></span>}
+                        text={<span><strong>DNS Query Forwarding:</strong> check <span className="font-medium">Enable Forwarding Mode</span>, and <span className="font-medium">Use SSL/TLS for outgoing DNS queries to Forwarding Servers</span></span>}
                     />
-                    <StepBlock number={3} text={<span><em>Save and Apply</em></span>} />
+                    <StepBlock number={3} text={<span className="font-medium">Save and Apply</span>} />
                 </div>
             </div>
         )
@@ -132,7 +132,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                 <SectionLabel>Services &gt; Unbound DNS &gt; General:</SectionLabel>
                 <div className="flex flex-col gap-6">
                     <StepBlock number={1} text={<span><strong>Enable DNSSEC Support:</strong> unchecked</span>} />
-                    <StepBlock number={2} text={<span><em>Apply</em>, if required</span>} />
+                    <StepBlock number={2} text={<span><span className="font-medium">Apply</span>, if required</span>} />
                 </div>
 
                 <SectionDivider />
@@ -148,7 +148,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                     <StepBlock number={7} text={<span><strong>Forward First:</strong> unchecked</span>} />
                     <StepBlock number={8} text={<span><strong>Verify CN:</strong> <CodeBlock inline noWrap value={deps.dotHostname} /></span>} />
                     <StepBlock number={9} text={<span><strong>Description:</strong> optional</span>} />
-                    <StepBlock number={10} text={<span><em>Save and Apply</em></span>} />
+                    <StepBlock number={10} text={<span className="font-medium">Save and Apply</span>} />
                 </div>
 
                 <div className="text-xs text-[var(--tailwind-colors-slate-400)] leading-relaxed">
@@ -162,9 +162,9 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                     <StepBlock number={1} text={<span><strong>DNS servers:</strong> clear all entries</span>} />
                     <StepBlock
                         number={2}
-                        text={<span><strong>DNS server options:</strong> uncheck <em>Allow DNS server list to overridden by DHCP...</em></span>}
+                        text={<span><strong>DNS server options:</strong> uncheck <span className="font-medium">Allow DNS server list to overridden by DHCP...</span></span>}
                     />
-                    <StepBlock number={3} text={<span><em>Save</em></span>} />
+                    <StepBlock number={3} text={<span className="font-medium">Save</span>} />
                 </div>
             </div>
         )

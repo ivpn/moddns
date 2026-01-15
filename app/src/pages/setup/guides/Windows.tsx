@@ -22,7 +22,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 1,
       instruction: (
         <span>
-          Go to Windows <em>Settings &gt; Network &amp; internet</em>
+          Go to Windows <span className="font-medium">Settings &gt; Network &amp; internet</span>
         </span>
       ),
     },
@@ -30,7 +30,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 2,
       instruction: (
         <span>
-          Click <em>Wi-Fi &gt; Hardware properties</em>, or click <em>Ethernet</em>
+          Click <span className="font-medium">Wi-Fi &gt; Hardware properties</span>, or click <span className="font-medium">Ethernet</span>
         </span>
       ),
     },
@@ -38,7 +38,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 3,
       instruction: (
         <span>
-          Click the <em>Edit</em> button beside <em>DNS server assignment</em>
+          Click the <span className="font-medium">Edit</span> button beside <span className="font-medium">DNS server assignment</span>
         </span>
       ),
     },
@@ -46,7 +46,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 4,
       instruction: (
         <span>
-          Select <em>Manual</em> and toggle <em>IPv4</em> to <em>On</em>
+          Select <span className="font-medium">Manual</span> and toggle <span className="font-medium">IPv4</span> to <span className="font-medium">On</span>
         </span>
       ),
     },
@@ -54,7 +54,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 5,
       instruction: (
         <span>
-          In the <em>Preferred DNS</em> field, enter the {primaryIp} IP address
+          In the <span className="font-medium">Preferred DNS</span> field, enter the <CodeBlock inline noWrap value={primaryIp} /> IP address
         </span>
       ),
     },
@@ -62,7 +62,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 6,
       instruction: (
         <span>
-          Toggle <em>DNS over HTTPS</em> to <em>On (manual template)</em>
+          Toggle <span className="font-medium">DNS over HTTPS</span> to <span className="font-medium">On (manual template)</span>
         </span>
       ),
     },
@@ -70,7 +70,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 7,
       instruction: (
         <span>
-          Add your DNS query URI  to the <em>DNS over HTTPS template</em> field:
+          Add your DNS query URI  to the <span className="font-medium">DNS over HTTPS template</span> field:
           <br />
           <CodeBlock value={doh} />
         </span>
@@ -80,7 +80,7 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       step: 8,
       instruction: (
         <span>
-          Click <em>Save</em>
+          Click <span className="font-medium">Save</span>
         </span>
       ),
     },

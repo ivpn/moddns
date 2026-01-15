@@ -53,10 +53,10 @@ const browserTabs: BrowserTabDef[] = [
         content: (doh) => (
             <div className="flex flex-col gap-6">
                 {[
-                    <span>Open <em>Chrome Settings</em>.</span>,
-                    <span>Navigate to <em>Privacy and Security</em>.</span>,
-                    <span>In the <em>Security / Advanced</em> section, enable <em>Use secure DNS</em>.</span>,
-                    <span>At <em>Select DNS Provider</em>, choose <em>Add custom DNS service provider</em>.</span>,
+                    <span>Open <span className="font-medium">Chrome Settings</span>.</span>,
+                    <span>Navigate to <span className="font-medium">Privacy and Security</span>.</span>,
+                    <span>In the <span className="font-medium">Security / Advanced</span> section, enable <span className="font-medium">Use secure DNS</span>.</span>,
+                    <span>At <span className="font-medium">Select DNS Provider</span>, choose <span className="font-medium">Add custom DNS service provider</span>.</span>,
                 ].map((text, idx) => (
                     <StepBlock key={idx} number={idx + 1} text={text} />
                 ))}
@@ -71,10 +71,10 @@ const browserTabs: BrowserTabDef[] = [
         content: (doh) => (
             <div className="flex flex-col gap-6">
                 {[
-                    <span>Open <em>Firefox Preferences</em>.</span>,
-                    <span>Search for or find <em>Enable DNS over HTTPS</em> under <em>Privacy &amp; Security</em>.</span>,
-                    <span>Select either <em>Increased Protection</em> or <em>Max Protection</em>.</span>,
-                    <span>Under <em>Choose provider</em>, select <em>Custom</em>.</span>,
+                    <span>Open <span className="font-medium">Firefox Preferences</span>.</span>,
+                    <span>Search for or find <span className="font-medium">Enable DNS over HTTPS</span> under <span className="font-medium">Privacy &amp; Security</span>.</span>,
+                    <span>Select either <span className="font-medium">Increased Protection</span> or <span className="font-medium">Max Protection</span>.</span>,
+                    <span>Under <span className="font-medium">Choose provider</span>, select <span className="font-medium">Custom</span>.</span>,
                 ].map((text, idx) => (
                     <StepBlock key={idx} number={idx + 1} text={text} />
                 ))}
@@ -94,10 +94,10 @@ const browserTabs: BrowserTabDef[] = [
         content: (doh) => (
             <div className="flex flex-col gap-6">
                 {[
-                    <span>Open <em>Brave Settings</em>.</span>,
-                    <span>Go to the <em>Privacy &amp; Security</em> tab.</span>,
-                    <span>Under <em>Security</em>, in the <em>Advanced</em> section, enable <em>Use secure DNS</em>.</span>,
-                    <span>At <em>Select DNS Provider</em>, choose <em>Add custom DNS service provider</em>.</span>,
+                    <span>Open <span className="font-medium">Brave Settings</span>.</span>,
+                    <span>Go to the <span className="font-medium">Privacy &amp; Security</span> tab.</span>,
+                    <span>Under <span className="font-medium">Security</span>, in the <span className="font-medium">Advanced</span> section, enable <span className="font-medium">Use secure DNS</span>.</span>,
+                    <span>At <span className="font-medium">Select DNS Provider</span>, choose <span className="font-medium">Add custom DNS service provider</span>.</span>,
                 ].map((text, idx) => (
                     <StepBlock key={idx} number={idx + 1} text={text} />
                 ))}
@@ -112,9 +112,9 @@ const browserTabs: BrowserTabDef[] = [
         content: (doh) => (
             <div className="flex flex-col gap-6">
                 {[
-                    <span>Open <em>Edge Settings</em>.</span>,
-                    <span>Access the <em>Privacy, search, and services</em> tab.</span>,
-                    <span>In <em>Security</em>, enable <em>Use secure DNS</em> and select <em>Choose a service provider</em>.</span>,
+                    <span>Open <span className="font-medium">Edge Settings</span>.</span>,
+                    <span>Access the <span className="font-medium">Privacy, search, and services</span> tab.</span>,
+                    <span>In <span className="font-medium">Security</span>, enable <span className="font-medium">Use secure DNS</span> and select <span className="font-medium">Choose a service provider</span>.</span>,
                 ].map((text, idx) => (
                     <StepBlock key={idx} number={idx + 1} text={text} />
                 ))}
@@ -126,7 +126,7 @@ const browserTabs: BrowserTabDef[] = [
         key: 'safari',
         label: 'Safari',
         logo: safariLogo,
-        content: (_doh) => (
+        content: () => (
             <div className="flex flex-col gap-6">
                 <StepBlock number={1} text={"Safari uses your device's system-wide DNS settings, so please follow our macOS or iOS setup guide to get started."} />
             </div>

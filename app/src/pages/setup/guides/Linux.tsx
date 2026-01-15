@@ -41,7 +41,7 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
                     <div className="text-sm font-medium text-[var(--tailwind-colors-slate-200)]">Linux systemd-resolved - DNS-over-TLS</div>
                     <div className="flex flex-col gap-6">
                         <StepBlock number={1}>
-                            On the modDNS website, go to <em>Settings &gt; Advanced Settings</em>, and set <em>DNSSEC OK (DO) bit</em> to <em>Disable</em>
+                            On the modDNS website, go to <span className="font-medium">Settings &gt; Advanced Settings</span>, and set <span className="font-medium">DNSSEC OK (DO) bit</span> to <span className="font-medium">Disable</span>
                         </StepBlock>
                         <StepBlock number={2}>
                             Edit <code className="font-mono text-xs">/etc/systemd/resolved.conf</code>:
@@ -63,7 +63,7 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
                     <div className="text-sm font-medium text-[var(--tailwind-colors-slate-200)]">Linux dnsmasq - DNS-over-TLS</div>
                     <div className="flex flex-col gap-6">
                         <StepBlock number={1}>
-                            On the modDNS website, go to <em>Settings &gt; Advanced Settings</em>, and set <em>DNSSEC OK (DO) bit</em> to <em>Disable</em>
+                            On the modDNS website, go to <span className="font-medium">Settings &gt; Advanced Settings</span>, and set <span className="font-medium">DNSSEC OK (DO) bit</span> to <span className="font-medium">Disable</span>
                         </StepBlock>
                         <StepBlock number={2}>
                             Edit <code className="font-mono text-xs">dnsmasq.conf</code>:
