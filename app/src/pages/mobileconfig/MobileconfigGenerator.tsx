@@ -68,6 +68,16 @@ export default function MobileconfigGenerator(): JSX.Element {
 
     const deviceIdValid = isValidDeviceId(formData.device_id);
 
+    const isIOSDevice = () => {
+        if (typeof navigator === 'undefined') return false;
+
+        // iPadOS sometimes reports as MacIntel; include touch-point heuristic.
+        const ua = navigator.userAgent || '';
+        const isIPhoneIPadIPod = /iPad|iPhone|iPod/.test(ua);
+        const isIPadOS = navigator.platform === 'MacIntel' && (navigator as unknown as { maxTouchPoints?: number }).maxTouchPoints && (navigator as unknown as { maxTouchPoints?: number }).maxTouchPoints! > 1;
+        return isIPhoneIPadIPod || isIPadOS;
+    };
+
     const getRequestData = () => {
         const requestData: {
             profile_id: string;
@@ -87,6 +97,56 @@ export default function MobileconfigGenerator(): JSX.Element {
     };
 
     const downloadMobileConfig = async () => {
+        // On iOS, use direct navigation to a .mobileconfig response (not XHR/blob)
+        // so the OS can show the native profile download/install dialogs.
+        if (isIOSDevice()) {
+            try {
+                setIsDownloading(true);
+                // iOS may perform the actual download outside the browser cookie context after the
+                // "Allow" prompt, so use the existing token-based short-code download endpoint.
+                const response = await api.Client.appleMobileconfigApi.apiV1MobileconfigShortPost(getRequestData());
+                const shortLink = response.data?.link;
+                if (!shortLink) {
+                    throw new Error('Invalid response from server');
+                }
+
+                let code = '';
+                try {
+                    const parsed = new URL(shortLink);
+                    const parts = parsed.pathname.split('/').filter(Boolean);
+                    code = parts[parts.length - 1] || '';
+                } catch {
+                    const lastSlash = shortLink.lastIndexOf('/');
+                    if (lastSlash >= 0 && lastSlash < shortLink.length - 1) {
+                        code = shortLink.slice(lastSlash + 1);
+                    }
+                }
+
+                if (!code) {
+                    throw new Error('Failed to parse short code');
+                }
+
+                const directUrl = `${import.meta.env.VITE_API_URL}/api/v1/short/${code}`;
+
+                // Initiate download via a real link click
+                const link = document.createElement('a');
+                link.href = directUrl;
+                link.target = '_self';
+                link.rel = 'noopener';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                return;
+            } catch (error) {
+                console.error('iOS download failed:', error);
+                toast.error("Failed to start the profile download. Please try again.");
+            } finally {
+                setIsDownloading(false);
+            }
+
+            return;
+        }
+
         try {
             setIsDownloading(true);
 
@@ -102,7 +162,7 @@ export default function MobileconfigGenerator(): JSX.Element {
             // Generate the filename with profile ID
             const filename = `modDNS-${activeProfile?.profile_id || 'profile'}.mobileconfig`;
 
-            // Create a download link (works for both iOS and desktop)
+            // Create a download link (desktop/Android browsers)
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', filename);

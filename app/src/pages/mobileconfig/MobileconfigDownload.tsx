@@ -36,7 +36,15 @@ export default function MobileconfigDownload(): JSX.Element {
         // (not XHR/blob) to trigger the native profile download/install dialogs.
         if (isIOSDevice()) {
             const directUrl = `${import.meta.env.VITE_API_URL}/api/v1/short/${code}`;
-            window.location.href = directUrl;
+            setLoading(false);
+            setError(false);
+            setSuccess(true);
+            toast.success("Download started.");
+
+            // Give React a moment to paint the success state before triggering navigation.
+            window.setTimeout(() => {
+                window.location.assign(directUrl);
+            }, 100);
             return;
         }
 
