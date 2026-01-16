@@ -115,7 +115,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             data-testid={isMobile ? 'overlay-navigation' : 'main-navigation'}
             aria-label="Primary"
             /* Mobile menu: ensure scrollable in landscape by using dynamic viewport height and enabling vertical overflow. */
-            className={`${isMobile ? 'relative w-full' : `fixed top-0 left-0 ${sidebarWidth}`} bg-[var(--variable-collection-surface)] ${isMobile ? '' : 'h-screen'} flex flex-col justify-between p-2 transition-all duration-200 ${isMobile ? 'z-auto overflow-y-auto overscroll-contain' : 'z-10'}`}
+            className={`${isMobile ? 'relative w-full' : `fixed top-0 left-0 ${sidebarWidth}`} bg-[var(--shadcn-ui-app-background)] ${isMobile ? '' : 'h-screen border-r border-border'} flex flex-col justify-between p-2 transition-all duration-200 ${isMobile ? 'z-auto overflow-y-auto overscroll-contain' : 'z-10'}`}
             style={isMobile ? { height: '100dvh', maxHeight: '100dvh' } : { minWidth: collapsed ? 64 : 220, left: offsetLeft }}
         >
             <div className="flex flex-col h-full justify-between">
@@ -173,34 +173,13 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
 
                 <div className="flex-1" />
 
-                {/* Logout Button */}
-                <div className={`relative ${isMobile ? 'px-2 pt-4' : 'mb-4'}`}>
-                    <Button
-                        variant="ghost"
-                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors hover:bg-[var(--destructive)]/10 ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
-                        title={!isMobile && collapsed ? "Logout" : undefined}
-                        data-testid="btn-nav-logout"
-                        onClick={() => setShowLogoutDialog(true)}
-                        disabled={loading}
-                    >
-                        <span className="flex items-center">
-                            <LogOut className="w-5 h-5" />
-                        </span>
-                        {showLabels && (
-                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'}`}>
-                                Log out
-                            </span>
-                        )}
-                    </Button>
-                </div>
-
                 {/* Support Section */}
-                <div className={`flex flex-col gap-2 ${isMobile ? 'px-2 border-t border-[var(--tailwind-colors-slate-600)] pt-4' : ''}`}>
-                    {showLabels && !isMobile && (
+                <div className={`flex flex-col gap-2 ${isMobile ? 'px-2 border-t border-[var(--tailwind-colors-slate-600)] pt-4' : 'mb-4'}`}>
+                    {/* {showLabels && !isMobile && (
                         <div className="px-4">
                             <div className="h-px bg-[var(--tailwind-colors-slate-600)] w-full" />
                         </div>
-                    )}
+                    )} */}
 
                     {/* FAQ */}
                     <Button
@@ -240,6 +219,33 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                         )}
                     </Button>
 
+                </div>
+
+                {/* {showLabels && !isMobile && (
+                    <div className="px-4">
+                        <div className="h-px bg-[var(--tailwind-colors-slate-600)] w-full" />
+                    </div>
+                )} */}
+
+                {/* Logout Button */}
+                <div className={`relative ${isMobile ? 'px-2 pt-4' : ''}`}>
+                    <Button
+                        variant="ghost"
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors hover:bg-[var(--destructive)]/10 ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        title={!isMobile && collapsed ? "Logout" : undefined}
+                        data-testid="btn-nav-logout"
+                        onClick={() => setShowLogoutDialog(true)}
+                        disabled={loading}
+                    >
+                        <span className="flex items-center">
+                            <LogOut className="w-5 h-5" />
+                        </span>
+                        {showLabels && (
+                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'}`}>
+                                Log out
+                            </span>
+                        )}
+                    </Button>
                 </div>
             </div>
 
