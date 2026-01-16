@@ -16,6 +16,8 @@ var mobileconfigTemplate = `<?xml version="1.0" encoding="UTF-8"?>
 	<string>{{.PayloadUUID}}</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
+	<key>PayloadScope</key>
+	<string>System</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
