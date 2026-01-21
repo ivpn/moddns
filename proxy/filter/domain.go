@@ -2,7 +2,6 @@ package filter
 
 import (
 	"context"
-	"slices"
 	"sync"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -17,7 +16,7 @@ type DomainFilter struct {
 	Proxy          *proxy.Proxy
 	Cache          cache.Cache
 	patternCache   sync.Map
-	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error)
+	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
 // NewDNSFilterManager creates a new DNSFilterManager instance
@@ -26,7 +25,7 @@ func NewDomainFilter(dnsProxy *proxy.Proxy, cache cache.Cache) *DomainFilter {
 		Cache: cache,
 		Proxy: dnsProxy,
 	}
-	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error){
+	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
 		fltrManager.filterBlocklists,
 		fltrManager.filterCustomRules,
 		fltrManager.applyDefaultRule,
@@ -38,7 +37,7 @@ func NewDomainFilter(dnsProxy *proxy.Proxy, cache cache.Cache) *DomainFilter {
 func (f *DomainFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
 	ctx := context.Background()
 	eg, egCtx := errgroup.WithContext(ctx)
-	resultChan := make(chan *model.FilterResult, len(f.FilteringFuncs))
+	resultChan := make(chan *model.StageResult, len(f.FilteringFuncs))
 	for _, fltrFunc := range f.FilteringFuncs {
 		func(ctx context.Context, reqCtx *requestcontext.RequestContext) {
 			eg.Go(func() error {
@@ -66,25 +65,4 @@ func (f *DomainFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *prox
 	reqCtx.FilterResult = finalFltrRes
 
 	return nil
-}
-
-func getFinalFilteringResult(fltrRes []model.FilterResult) model.FilterResult {
-	finalRes := model.FilterResult{
-		Status: model.StatusProcessed,
-	}
-
-	for _, res := range fltrRes {
-		// if res == nil {
-		// 	continue
-		// }
-		if res.Status == model.StatusBlocked {
-			finalRes.Status = model.StatusBlocked
-			finalRes.Reasons = append(finalRes.Reasons, res.Reasons...)
-		} else if res.Status == model.StatusProcessed && slices.Contains(res.Reasons, REASON_CUSTOM_RULES) {
-			finalRes.Status = model.StatusProcessed
-			finalRes.Reasons = append(finalRes.Reasons, REASON_CUSTOM_RULES)
-			return finalRes
-		}
-	}
-	return finalRes
 }

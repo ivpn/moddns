@@ -15,7 +15,7 @@ type IPFilter struct {
 	Cache cache.Cache
 	Proxy *proxy.Proxy
 	// patternCache   sync.Map
-	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error)
+	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
 // NewIPFilter creates a new IPFilter instance
@@ -23,7 +23,7 @@ func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache) *IPFilter {
 	fltrManager := &IPFilter{
 		Cache: cache,
 	}
-	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error){
+	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
 		fltrManager.filterCustomRules,
 	}
 	return fltrManager
@@ -33,7 +33,7 @@ func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache) *IPFilter {
 func (f *IPFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
 	ctx := context.Background()
 	eg, egCtx := errgroup.WithContext(ctx)
-	resultChan := make(chan *model.FilterResult, len(f.FilteringFuncs))
+	resultChan := make(chan *model.StageResult, len(f.FilteringFuncs))
 	for _, fltrFunc := range f.FilteringFuncs {
 		func(ctx context.Context, reqCtx *requestcontext.RequestContext) {
 			eg.Go(func() error {

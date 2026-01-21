@@ -17,7 +17,7 @@ const (
 	REASON_BLOCKLISTS = "blocklists"
 )
 
-func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error) {
+func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 	blocklists, err := f.Cache.GetProfileBlocklists(context.Background(), reqCtx.ProfileId)
 	if err != nil {
@@ -25,7 +25,7 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 	}
 
 	question := dctx.Req.Question[0].Name // answer only first question - google dns does the same
-	var result model.FilterResult = model.FilterResult{Status: model.StatusProcessed}
+	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
 	for _, blocklistId := range blocklists {
 
 		fqdn, _ := strings.CutSuffix(question, ".")
@@ -42,9 +42,9 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 				Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
 			reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
 			reqCtx.AddDomain(e, question).Msg("Domain blocked")
-			result.Status = model.StatusBlocked
+			result.Decision = model.DecisionBlock
 			result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)
-			return &result, nil
+			return result, nil
 		}
 
 		if reqCtx.PrivacySettings[SUBDOMAINS_RULE] == RULE_BLOCK {
@@ -67,13 +67,13 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 						Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
 					reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
 					reqCtx.AddDomain(e, question).Msg("Subdomain blocked")
-					result.Status = model.StatusBlocked
+					result.Decision = model.DecisionBlock
 					result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)
 					result.Reasons = append(result.Reasons, SUBDOMAINS_RULE)
-					return &result, nil
+					return result, nil
 				}
 			}
 		}
 	}
-	return &result, nil
+	return result, nil
 }

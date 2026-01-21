@@ -15,18 +15,18 @@ const (
 	DEFAULT_RULE = "default_rule"
 )
 
-func (f *DomainFilter) applyDefaultRule(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.FilterResult, error) {
+func (f *DomainFilter) applyDefaultRule(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 	prvSettings, err := f.Cache.GetProfilePrivacySettings(context.Background(), reqCtx.ProfileId)
 	if err != nil {
 		return nil, err
 	}
 
-	var result model.FilterResult = model.FilterResult{Status: model.StatusProcessed}
+	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierDefaultRule}
 	if prvSettings[DEFAULT_RULE] == RULE_BLOCK {
-		result.Status = model.StatusBlocked
+		result.Decision = model.DecisionBlock
 		result.Reasons = append(result.Reasons, DEFAULT_RULE)
 		reqCtx.Logger.Debug().Msg("Applied default block rule")
 	}
-	return &result, nil
+	return result, nil
 }
