@@ -130,6 +130,27 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 			Msgf("Created/updated profile settings blocklist")
 	}
 
+	// associate blocked services to selected settings
+	servicesBlockedKey := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "services", "blocked")
+	res = rdp.Del(ctx, servicesBlockedKey)
+	if err := res.Err(); err != nil {
+		log.Err(err).Msg("Cache: failed to remove existing settings services blocked")
+		return err
+	}
+	if settings.Privacy != nil && settings.Privacy.Services != nil {
+		for _, serviceID := range settings.Privacy.Services.Blocked {
+			cmd := rdp.RPush(ctx, servicesBlockedKey, serviceID)
+			if err := cmd.Err(); err != nil {
+				log.Err(err).Msg("Cache: failed to create settings services blocked")
+				if rollback {
+					rdp.Del(ctx, servicesBlockedKey)
+				}
+				return err
+			}
+		}
+		log.Info().Str("settings_services_blocked_key", servicesBlockedKey).Msg("Created/updated profile settings services blocked")
+	}
+
 	// add logs settings
 	logsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs")
 	logsCmd := rdp.HSet(ctx, logsSettings, settings.Logs)
@@ -202,6 +223,38 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 
 	log.Info().Msg("Created/updated profile settings")
 
+	return nil
+}
+
+// AppendServicesBlockedToProfileSettings appends multiple service IDs to the profile's services blocked list in Redis.
+func (c *RedisCache) AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
+	key := fmt.Sprintf("settings:%s:%s:%s", profileId, "services", "blocked")
+	if len(serviceIds) == 0 {
+		return nil
+	}
+	cmd := c.client.RPush(ctx, key, serviceIds)
+	if err := cmd.Err(); err != nil {
+		log.Err(err).Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: failed to append services blocked")
+		return err
+	}
+	log.Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: appended services blocked")
+	return nil
+}
+
+// RemoveServicesBlockedFromProfileSettings removes multiple service IDs from the profile's services blocked list in Redis.
+func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
+	key := fmt.Sprintf("settings:%s:%s:%s", profileId, "services", "blocked")
+	if len(serviceIds) == 0 {
+		return nil
+	}
+	for _, id := range serviceIds {
+		cmd := c.client.LRem(ctx, key, 0, id)
+		if err := cmd.Err(); err != nil {
+			log.Err(err).Str("key", key).Str("service_id", id).Msg("Cache: failed to remove services blocked")
+			return err
+		}
+	}
+	log.Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: removed services blocked")
 	return nil
 }
 
@@ -292,6 +345,15 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	}
 	log.Info().Str("settings_blocklist_key", settingsBlocklist).
 		Msg("Cache: Deleted profile settings blocklist")
+
+	servicesBlockedKey := fmt.Sprintf("settings:%s:%s:%s", profileId, "services", "blocked")
+	servicesCmd := c.client.Del(ctx, servicesBlockedKey)
+	if err := servicesCmd.Err(); err != nil {
+		log.Err(err).Msg("Cache: failed to delete profile settings services blocked")
+		return err
+	}
+	log.Info().Str("settings_services_blocked_key", servicesBlockedKey).
+		Msg("Cache: Deleted profile settings services blocked")
 
 	// delete logs settings
 	logsSettings := fmt.Sprintf("settings:%s:%s", profileId, "logs")

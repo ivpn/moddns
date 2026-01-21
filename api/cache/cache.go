@@ -23,6 +23,8 @@ type Cache interface {
 	GetTOTPSecret(ctx context.Context, accountId string) (string, error)
 	AppendBlocklistsToProfileSettings(ctx context.Context, profileId string, blocklistIds ...string) error
 	RemoveBlocklistsFromProfileSettings(ctx context.Context, profileId string, blocklistIds ...string) error
+	AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error
+	RemoveServicesBlockedFromProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error
 	AddSubscription(ctx context.Context, subscriptionId string, activeUntil string, expiresIn time.Duration) error
 	GetSubscription(ctx context.Context, subscriptionId string) (string, error)
 	RemoveSubscription(ctx context.Context, subscriptionId string) error
