@@ -26,7 +26,10 @@ var (
 	ErrFailedToDeleteCustomRule   = errors.New("failed to delete custom rule")
 	ErrFailedToEnableBlocklists   = errors.New("failed to enable blocklists")
 	ErrFailedToDisableBlocklists  = errors.New("failed to disable blocklists")
+	ErrFailedToEnableServices     = errors.New("failed to enable services")
+	ErrFailedToDisableServices    = errors.New("failed to disable services")
 	ErrInvalidBlocklistValue      = errors.New("invalid blocklist value")
+	ErrInvalidServiceValue        = errors.New("invalid service value")
 	ErrResourceNotFound           = errors.New("resource not found")
 	ErrFailedToCreateProfile      = errors.New("failed to create profile")
 	ErrFailedToUpdateProfile      = errors.New("failed to update profile")
@@ -132,7 +135,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	case dbErrors.ErrAccountNotFound, account.ErrAccountIdMissing, dbErrors.ErrProfileNotFound, dbErrors.ErrCustomRuleNotFound, dbErrors.ErrSubscriptionNotFound:
 		resp.Error = ErrResourceNotFound.Error()
 		return c.Status(404).JSON(resp)
-	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached:
+	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
 	case ErrSessionsLimitReached:
