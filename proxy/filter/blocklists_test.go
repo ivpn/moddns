@@ -208,10 +208,12 @@ func TestFilterBlocklists(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			if tt.expectBlocked {
-				assert.Equal(t, model.StatusBlocked, result.Status)
+				assert.Equal(t, model.DecisionBlock, result.Decision)
+				assert.Equal(t, TierBlocklists, result.Tier)
 				assert.ElementsMatch(t, tt.expectReasons, result.Reasons)
 			} else {
-				assert.Equal(t, model.StatusProcessed, result.Status)
+				assert.Equal(t, model.DecisionNone, result.Decision)
+				assert.Equal(t, TierBlocklists, result.Tier)
 				assert.Nil(t, result.Reasons)
 			}
 			mockCache.AssertExpectations(t)

@@ -21,7 +21,7 @@ func TestFilterCustomRules(t *testing.T) {
 		domain             string
 		customRuleHashes   []string
 		customRules        map[string]map[string]string
-		expectedFltrResult *model.FilterResult
+		expectedFltrResult *model.StageResult
 		wantErr            bool
 	}{
 		{
@@ -35,9 +35,10 @@ func TestFilterCustomRules(t *testing.T) {
 					"value":  "blocked.example.com",
 				},
 			},
-			expectedFltrResult: &model.FilterResult{
-				Status:  model.StatusBlocked,
-				Reasons: []string{REASON_CUSTOM_RULES},
+			expectedFltrResult: &model.StageResult{
+				Decision: model.DecisionBlock,
+				Tier:     TierCustomRules,
+				Reasons:  []string{REASON_CUSTOM_RULES},
 			},
 			wantErr: false,
 		},
@@ -52,9 +53,10 @@ func TestFilterCustomRules(t *testing.T) {
 					"value":  "allowed.example.com",
 				},
 			},
-			expectedFltrResult: &model.FilterResult{
-				Status:  model.StatusProcessed,
-				Reasons: []string{REASON_CUSTOM_RULES},
+			expectedFltrResult: &model.StageResult{
+				Decision: model.DecisionAllow,
+				Tier:     TierCustomRules,
+				Reasons:  []string{REASON_CUSTOM_RULES},
 			},
 			wantErr: false,
 		},
@@ -69,9 +71,10 @@ func TestFilterCustomRules(t *testing.T) {
 					"value":  "blocked.example.com",
 				},
 			},
-			expectedFltrResult: &model.FilterResult{
-				Status:  model.StatusProcessed,
-				Reasons: nil,
+			expectedFltrResult: &model.StageResult{
+				Decision: model.DecisionNone,
+				Tier:     TierCustomRules,
+				Reasons:  nil,
 			},
 			wantErr: false,
 		},
@@ -90,9 +93,10 @@ func TestFilterCustomRules(t *testing.T) {
 					"value":  "multi.example.com",
 				},
 			},
-			expectedFltrResult: &model.FilterResult{
-				Status:  model.StatusBlocked,
-				Reasons: []string{REASON_CUSTOM_RULES},
+			expectedFltrResult: &model.StageResult{
+				Decision: model.DecisionBlock,
+				Tier:     TierCustomRules,
+				Reasons:  []string{REASON_CUSTOM_RULES},
 			},
 			wantErr: false,
 		},
