@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +18,7 @@ import (
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/middleware"
+	"github.com/ivpn/dns/api/internal/servicescatalogcache"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/libs/urlshort"
@@ -24,15 +26,16 @@ import (
 
 // APIServer represents an API server
 type APIServer struct {
-	App       *fiber.App
-	Service   service.Service // TODO: Should be service.Servicer interface
-	Config    *config.Config
-	Validator *validator.APIValidator
-	Db        db.Db
-	Cache     cache.Cache
-	IdGen     idgen.Generator
-	Mailer    email.Mailer
-	Shortener *urlshort.URLShortener
+	App             *fiber.App
+	Service         service.Service // TODO: Should be service.Servicer interface
+	Config          *config.Config
+	Validator       *validator.APIValidator
+	Db              db.Db
+	Cache           cache.Cache
+	IdGen           idgen.Generator
+	Mailer          email.Mailer
+	Shortener       *urlshort.URLShortener
+	ServicesCatalog *servicescatalogcache.Loader
 }
 
 // NewServer inititiates database connection and sets up API endpoints
@@ -43,20 +46,31 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 		BodyLimit:    1024 * 1024, // 1 MB
 	})
 
+	var servicesCatalog *servicescatalogcache.Loader
+	if config != nil && config.Service != nil {
+		servicesCatalog = servicescatalogcache.New(config.Service.ServicesCatalogPath, config.Service.ServicesCatalogReloadEvery)
+	}
+
 	server := &APIServer{
-		App:       app,
-		Service:   service,
-		Config:    config,
-		Validator: apiValidator,
-		Db:        db,
-		Cache:     cache,
-		IdGen:     idGen,
-		Mailer:    email,
-		Shortener: shortener,
+		App:             app,
+		Service:         service,
+		Config:          config,
+		Validator:       apiValidator,
+		Db:              db,
+		Cache:           cache,
+		IdGen:           idGen,
+		Mailer:          email,
+		Shortener:       shortener,
+		ServicesCatalog: servicesCatalog,
 	}
 
 	middleware.InitLimitConfig(config.API)
 	server.setupMiddlewares()
+
+	// Start catalog reload loop.
+	if server.ServicesCatalog != nil {
+		go server.ServicesCatalog.Start(context.Background())
+	}
 
 	return server, nil
 }
@@ -99,6 +113,7 @@ func (s *APIServer) RegisterRoutes() {
 	mobileconfig := v1.Group("/mobileconfig")
 	sessions := v1.Group("/sessions")
 	blocklists := v1.Group("/blocklists")
+	services := v1.Group("/services")
 	webauthn := v1.Group("/webauthn")
 	sub := v1.Group("/sub")
 
@@ -129,6 +144,7 @@ func (s *APIServer) RegisterRoutes() {
 	verify.Post("/email/otp/confirm", middleware.NewLimit(10, 1*time.Minute), s.verifyEmailOTP())
 
 	blocklists.Get("", middleware.NewLimit(20, 1*time.Minute), s.getBlocklists())
+	services.Get("", middleware.NewLimit(20, 1*time.Minute), s.getServicesCatalog())
 
 	// Protected WebAuthn endpoints (require authentication)
 	webauthn.Post("/passkey/add/begin", middleware.NewLimit(10, 1*time.Minute), s.beginAddPasskey())
@@ -178,6 +194,10 @@ func (s *APIServer) RegisterRoutes() {
 	// Blocklists endpoints
 	profiles.Post("/:id/blocklists", middleware.NewLimit(20, 1*time.Minute), s.enableBlocklists())
 	profiles.Delete("/:id/blocklists", middleware.NewLimit(20, 1*time.Minute), s.disableBlocklists())
+
+	// Services endpoints
+	profiles.Post("/:id/services", middleware.NewLimit(20, 1*time.Minute), s.enableServices())
+	profiles.Delete("/:id/services", middleware.NewLimit(20, 1*time.Minute), s.disableServices())
 
 	// Session endpoints (respect global disable flag via conditional wrapper)
 	if s.Config.API.DisableRateLimit {

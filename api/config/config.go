@@ -39,6 +39,8 @@ type ServiceConfig struct {
 	MaxProfiles                 int
 	MaxCredentials              int
 	SubscriptionCacheExpiration time.Duration
+	ServicesCatalogPath         string
+	ServicesCatalogReloadEvery  time.Duration
 }
 
 // SentryConfig represents the Sentry configuration
@@ -189,6 +191,19 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	servicesCatalogPath := os.Getenv("SERVICES_CATALOG_PATH")
+	if servicesCatalogPath == "" {
+		servicesCatalogPath = "./services/catalog.yml"
+	}
+	servicesCatalogReloadEveryStr := os.Getenv("SERVICES_CATALOG_RELOAD")
+	if servicesCatalogReloadEveryStr == "" {
+		servicesCatalogReloadEveryStr = "5m"
+	}
+	servicesCatalogReloadEvery, err := time.ParseDuration(servicesCatalogReloadEveryStr)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Server: &ServerConfig{
 			Name:            serverName,
@@ -259,6 +274,8 @@ func New() (*Config, error) {
 			MaxProfiles:                 maxProfiles,
 			MaxCredentials:              maxCredentials,
 			SubscriptionCacheExpiration: subCacheExp,
+			ServicesCatalogPath:         servicesCatalogPath,
+			ServicesCatalogReloadEvery:  servicesCatalogReloadEvery,
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
