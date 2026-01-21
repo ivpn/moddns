@@ -45,7 +45,10 @@ type ProfileSettings struct {
 func NewSettings() *ProfileSettings {
 	return &ProfileSettings{
 		Privacy: &Privacy{
-			Blocklists:     make([]string, 0),
+			Blocklists: make([]string, 0),
+			Services: &ServicesSettings{
+				Blocked: make([]string, 0),
+			},
 			DefaultRule:    DEFAULT_RULE_ALLOW,
 			SubdomainsRule: ACTION_BLOCK,
 		},

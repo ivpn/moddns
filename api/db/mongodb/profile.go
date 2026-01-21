@@ -191,3 +191,41 @@ func (r *ProfileRepository) DisableBlocklists(ctx context.Context, profileId str
 		Msgf("Disabled blocklists for profile")
 	return nil
 }
+
+// EnableServices adds the given service IDs to the profile's blocked services array atomically.
+func (r *ProfileRepository) EnableServices(ctx context.Context, profileId string, serviceIds []string) error {
+	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{
+		{Key: "$addToSet", Value: bson.D{
+			{Key: "settings.privacy.services.blocked", Value: bson.D{
+				{Key: "$each", Value: serviceIds},
+			}},
+		}},
+	}
+
+	res, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
+	if err != nil {
+		return err
+	}
+	log.Info().Int64("count", res.ModifiedCount).Msg("Enabled services for profile")
+	return nil
+}
+
+// DisableServices removes the given service IDs from the profile's blocked services array atomically.
+func (r *ProfileRepository) DisableServices(ctx context.Context, profileId string, serviceIds []string) error {
+	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{
+		{Key: "$pull", Value: bson.D{
+			{Key: "settings.privacy.services.blocked", Value: bson.D{
+				{Key: "$in", Value: serviceIds},
+			}},
+		}},
+	}
+
+	res, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
+	if err != nil {
+		return err
+	}
+	log.Info().Int64("count", res.ModifiedCount).Msg("Disabled services for profile")
+	return nil
+}
