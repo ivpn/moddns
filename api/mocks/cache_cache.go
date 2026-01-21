@@ -306,6 +306,78 @@ func (_c *Cachecache_AppendBlocklistsToProfileSettings_Call) RunAndReturn(run fu
 	return _c
 }
 
+// AppendServicesBlockedToProfileSettings provides a mock function for the type Cachecache
+func (_mock *Cachecache) AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
+	var tmpRet mock.Arguments
+	if len(serviceIds) > 0 {
+		tmpRet = _mock.Called(ctx, profileId, serviceIds)
+	} else {
+		tmpRet = _mock.Called(ctx, profileId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AppendServicesBlockedToProfileSettings")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...string) error); ok {
+		r0 = returnFunc(ctx, profileId, serviceIds...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Cachecache_AppendServicesBlockedToProfileSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AppendServicesBlockedToProfileSettings'
+type Cachecache_AppendServicesBlockedToProfileSettings_Call struct {
+	*mock.Call
+}
+
+// AppendServicesBlockedToProfileSettings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - serviceIds ...string
+func (_e *Cachecache_Expecter) AppendServicesBlockedToProfileSettings(ctx interface{}, profileId interface{}, serviceIds ...interface{}) *Cachecache_AppendServicesBlockedToProfileSettings_Call {
+	return &Cachecache_AppendServicesBlockedToProfileSettings_Call{Call: _e.mock.On("AppendServicesBlockedToProfileSettings",
+		append([]interface{}{ctx, profileId}, serviceIds...)...)}
+}
+
+func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) Run(run func(ctx context.Context, profileId string, serviceIds ...string)) *Cachecache_AppendServicesBlockedToProfileSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []string
+		var variadicArgs []string
+		if len(args) > 2 {
+			variadicArgs = args[2].([]string)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) Return(err error) *Cachecache_AppendServicesBlockedToProfileSettings_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) RunAndReturn(run func(ctx context.Context, profileId string, serviceIds ...string) error) *Cachecache_AppendServicesBlockedToProfileSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateOrUpdateProfileSettings provides a mock function for the type Cachecache
 func (_mock *Cachecache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
 	ret := _mock.Called(ctx, settings, rollback)
@@ -884,6 +956,78 @@ func (_c *Cachecache_RemoveCustomRule_Call) Return(err error) *Cachecache_Remove
 }
 
 func (_c *Cachecache_RemoveCustomRule_Call) RunAndReturn(run func(ctx context.Context, profileId string, customRuleId string) error) *Cachecache_RemoveCustomRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveServicesBlockedFromProfileSettings provides a mock function for the type Cachecache
+func (_mock *Cachecache) RemoveServicesBlockedFromProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
+	var tmpRet mock.Arguments
+	if len(serviceIds) > 0 {
+		tmpRet = _mock.Called(ctx, profileId, serviceIds)
+	} else {
+		tmpRet = _mock.Called(ctx, profileId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveServicesBlockedFromProfileSettings")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...string) error); ok {
+		r0 = returnFunc(ctx, profileId, serviceIds...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Cachecache_RemoveServicesBlockedFromProfileSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveServicesBlockedFromProfileSettings'
+type Cachecache_RemoveServicesBlockedFromProfileSettings_Call struct {
+	*mock.Call
+}
+
+// RemoveServicesBlockedFromProfileSettings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - serviceIds ...string
+func (_e *Cachecache_Expecter) RemoveServicesBlockedFromProfileSettings(ctx interface{}, profileId interface{}, serviceIds ...interface{}) *Cachecache_RemoveServicesBlockedFromProfileSettings_Call {
+	return &Cachecache_RemoveServicesBlockedFromProfileSettings_Call{Call: _e.mock.On("RemoveServicesBlockedFromProfileSettings",
+		append([]interface{}{ctx, profileId}, serviceIds...)...)}
+}
+
+func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) Run(run func(ctx context.Context, profileId string, serviceIds ...string)) *Cachecache_RemoveServicesBlockedFromProfileSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []string
+		var variadicArgs []string
+		if len(args) > 2 {
+			variadicArgs = args[2].([]string)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) Return(err error) *Cachecache_RemoveServicesBlockedFromProfileSettings_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) RunAndReturn(run func(ctx context.Context, profileId string, serviceIds ...string) error) *Cachecache_RemoveServicesBlockedFromProfileSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }

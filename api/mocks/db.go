@@ -971,6 +971,69 @@ func (_c *Db_DisableBlocklists_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// DisableServices provides a mock function for the type Db
+func (_mock *Db) DisableServices(ctx context.Context, profileId string, serviceIds []string) error {
+	ret := _mock.Called(ctx, profileId, serviceIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableServices")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) error); ok {
+		r0 = returnFunc(ctx, profileId, serviceIds)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_DisableServices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableServices'
+type Db_DisableServices_Call struct {
+	*mock.Call
+}
+
+// DisableServices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - serviceIds []string
+func (_e *Db_Expecter) DisableServices(ctx interface{}, profileId interface{}, serviceIds interface{}) *Db_DisableServices_Call {
+	return &Db_DisableServices_Call{Call: _e.mock.On("DisableServices", ctx, profileId, serviceIds)}
+}
+
+func (_c *Db_DisableServices_Call) Run(run func(ctx context.Context, profileId string, serviceIds []string)) *Db_DisableServices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []string
+		if args[2] != nil {
+			arg2 = args[2].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DisableServices_Call) Return(err error) *Db_DisableServices_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_DisableServices_Call) RunAndReturn(run func(ctx context.Context, profileId string, serviceIds []string) error) *Db_DisableServices_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Disconnect provides a mock function for the type Db
 func (_mock *Db) Disconnect() error {
 	ret := _mock.Called()
@@ -1074,6 +1137,69 @@ func (_c *Db_EnableBlocklists_Call) Return(err error) *Db_EnableBlocklists_Call 
 }
 
 func (_c *Db_EnableBlocklists_Call) RunAndReturn(run func(ctx context.Context, profileId string, blocklistIds []string) error) *Db_EnableBlocklists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableServices provides a mock function for the type Db
+func (_mock *Db) EnableServices(ctx context.Context, profileId string, serviceIds []string) error {
+	ret := _mock.Called(ctx, profileId, serviceIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableServices")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) error); ok {
+		r0 = returnFunc(ctx, profileId, serviceIds)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_EnableServices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableServices'
+type Db_EnableServices_Call struct {
+	*mock.Call
+}
+
+// EnableServices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - serviceIds []string
+func (_e *Db_Expecter) EnableServices(ctx interface{}, profileId interface{}, serviceIds interface{}) *Db_EnableServices_Call {
+	return &Db_EnableServices_Call{Call: _e.mock.On("EnableServices", ctx, profileId, serviceIds)}
+}
+
+func (_c *Db_EnableServices_Call) Run(run func(ctx context.Context, profileId string, serviceIds []string)) *Db_EnableServices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []string
+		if args[2] != nil {
+			arg2 = args[2].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_EnableServices_Call) Return(err error) *Db_EnableServices_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_EnableServices_Call) RunAndReturn(run func(ctx context.Context, profileId string, serviceIds []string) error) *Db_EnableServices_Call {
 	_c.Call.Return(run)
 	return _c
 }

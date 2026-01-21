@@ -1411,6 +1411,75 @@ func (_c *Servicer_DisableBlocklists_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// DisableServices provides a mock function for the type Servicer
+func (_mock *Servicer) DisableServices(ctx context.Context, accountId string, profileId string, serviceIds []string) error {
+	ret := _mock.Called(ctx, accountId, profileId, serviceIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableServices")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId, serviceIds)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_DisableServices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableServices'
+type Servicer_DisableServices_Call struct {
+	*mock.Call
+}
+
+// DisableServices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - serviceIds []string
+func (_e *Servicer_Expecter) DisableServices(ctx interface{}, accountId interface{}, profileId interface{}, serviceIds interface{}) *Servicer_DisableServices_Call {
+	return &Servicer_DisableServices_Call{Call: _e.mock.On("DisableServices", ctx, accountId, profileId, serviceIds)}
+}
+
+func (_c *Servicer_DisableServices_Call) Run(run func(ctx context.Context, accountId string, profileId string, serviceIds []string)) *Servicer_DisableServices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_DisableServices_Call) Return(err error) *Servicer_DisableServices_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_DisableServices_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, serviceIds []string) error) *Servicer_DisableServices_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DownloadProfileQueryLogs provides a mock function for the type Servicer
 func (_mock *Servicer) DownloadProfileQueryLogs(ctx context.Context, accountId string, profileId string, page int, limit int) ([]model.QueryLog, error) {
 	ret := _mock.Called(ctx, accountId, profileId, page, limit)
@@ -1562,6 +1631,75 @@ func (_c *Servicer_EnableBlocklists_Call) Return(err error) *Servicer_EnableBloc
 }
 
 func (_c *Servicer_EnableBlocklists_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, blocklistIds []string) error) *Servicer_EnableBlocklists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableServices provides a mock function for the type Servicer
+func (_mock *Servicer) EnableServices(ctx context.Context, accountId string, profileId string, serviceIds []string) error {
+	ret := _mock.Called(ctx, accountId, profileId, serviceIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableServices")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId, serviceIds)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_EnableServices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableServices'
+type Servicer_EnableServices_Call struct {
+	*mock.Call
+}
+
+// EnableServices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - serviceIds []string
+func (_e *Servicer_Expecter) EnableServices(ctx interface{}, accountId interface{}, profileId interface{}, serviceIds interface{}) *Servicer_EnableServices_Call {
+	return &Servicer_EnableServices_Call{Call: _e.mock.On("EnableServices", ctx, accountId, profileId, serviceIds)}
+}
+
+func (_c *Servicer_EnableServices_Call) Run(run func(ctx context.Context, accountId string, profileId string, serviceIds []string)) *Servicer_EnableServices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_EnableServices_Call) Return(err error) *Servicer_EnableServices_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_EnableServices_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, serviceIds []string) error) *Servicer_EnableServices_Call {
 	_c.Call.Return(run)
 	return _c
 }
