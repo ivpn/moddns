@@ -3,6 +3,14 @@ package apple
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +26,8 @@ import (
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/libs/urlshort"
+
+	"github.com/ivpn/dns/api/service/apple/pkcs7"
 )
 
 func TestAppleService_validate(t *testing.T) {
@@ -572,4 +582,61 @@ func TestSign_ReturnsErrorOnMissingFiles(t *testing.T) {
 	_, err := service.sign(buf)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file")
+}
+
+func TestSign_ECDSAKey_Works(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	notBefore := time.Now().Add(-time.Minute)
+	notAfter := time.Now().Add(time.Hour)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "test-mobileconfig-signer"},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	require.NotEmpty(t, certPEM)
+
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	require.NoError(t, err)
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	require.NotEmpty(t, keyPEM)
+
+	certFile, err := os.CreateTemp("", "mobileconfig-cert-*.pem")
+	require.NoError(t, err)
+	defer os.Remove(certFile.Name())
+	_, err = certFile.Write(certPEM)
+	require.NoError(t, err)
+	require.NoError(t, certFile.Close())
+
+	keyFile, err := os.CreateTemp("", "mobileconfig-key-*.pem")
+	require.NoError(t, err)
+	defer os.Remove(keyFile.Name())
+	_, err = keyFile.Write(keyPEM)
+	require.NoError(t, err)
+	require.NoError(t, keyFile.Close())
+
+	service := &AppleService{
+		CertPath:       certFile.Name(),
+		PrivateKeyPath: keyFile.Name(),
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("payload")
+
+	signed, err := service.sign(buf)
+	require.NoError(t, err)
+	require.NotEmpty(t, signed)
+
+	p7, err := pkcs7.Parse(signed)
+	require.NoError(t, err)
+	require.NoError(t, p7.Verify())
 }
