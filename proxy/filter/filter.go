@@ -22,7 +22,7 @@ func NewFilter(proxy *proxy.Proxy, cache cache.Cache, filterType string) (Filter
 	case FilterTypeDomain:
 		return NewDomainFilter(proxy, cache), nil
 	case FilterTypeIP:
-		return NewIPFilter(proxy, cache), nil
+		return NewIPFilter(proxy, cache, nil, nil), nil
 	}
 	return nil, errors.New("unknown filter type")
 }

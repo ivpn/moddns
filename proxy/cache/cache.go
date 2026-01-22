@@ -12,6 +12,7 @@ const CacheTypeRedis = "redis"
 // Cache is an interface for caching functionalities
 type Cache interface {
 	GetProfileBlocklists(ctx context.Context, profileId string) ([]string, error)
+	GetProfileServicesBlocked(ctx context.Context, profileId string) ([]string, error)
 	GetProfileLogsSettings(ctx context.Context, profileId string) (map[string]string, error)
 	GetProfileDNSSECSettings(ctx context.Context, profileId string) (map[string]string, error)
 	GetProfileAdvancedSettings(ctx context.Context, profileId string) (map[string]string, error)

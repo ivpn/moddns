@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/proxy/model"
@@ -13,6 +14,7 @@ import (
 // Config represents the application configuration
 type Config struct {
 	Server              *ServerConfig
+	Services            *ServicesConfig
 	Cache               *cache.Config
 	CollectorQueryLogs  CollectorConfig
 	CollectorStatistics CollectorConfig
@@ -47,6 +49,13 @@ type ServerConfig struct {
 	Name           string
 	DnsCheckDomain string
 	DnsCheckPort   string
+}
+
+// ServicesConfig configures ASN-based services blocking.
+type ServicesConfig struct {
+	CatalogPath        string
+	CatalogReloadEvery time.Duration
+	GeoIPASNDBPath     string
 }
 
 // UpstreamConfig represents the upstream configuration
@@ -211,6 +220,21 @@ func New() (*Config, error) {
 	// Get Zerolog log level (default to "info" if not set or invalid)
 	zerologLevel := strings.ToLower(os.Getenv("LOG_LEVEL_PROXY"))
 
+	servicesCatalogPath := strings.TrimSpace(os.Getenv("SERVICES_CATALOG_PATH"))
+	if servicesCatalogPath == "" {
+		servicesCatalogPath = "./services/catalog.yml"
+	}
+	servicesCatalogReloadEveryStr := strings.TrimSpace(os.Getenv("SERVICES_CATALOG_RELOAD"))
+	if servicesCatalogReloadEveryStr == "" {
+		servicesCatalogReloadEveryStr = "5m"
+	}
+	servicesCatalogReloadEvery, err := time.ParseDuration(servicesCatalogReloadEveryStr)
+	if err != nil {
+		return nil, err
+	}
+
+	geoIPASNDBPath := strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE"))
+
 	cacheAddrs := strings.Split(os.Getenv("CACHE_ADDRESSES"), ",")
 
 	return &Config{
@@ -218,6 +242,11 @@ func New() (*Config, error) {
 			Name:           os.Getenv("SERVER_NAME"),
 			DnsCheckDomain: dnsCheckDomain,
 			DnsCheckPort:   os.Getenv("DNS_CHECK_PORT"),
+		},
+		Services: &ServicesConfig{
+			CatalogPath:        servicesCatalogPath,
+			CatalogReloadEvery: servicesCatalogReloadEvery,
+			GeoIPASNDBPath:     geoIPASNDBPath,
 		},
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,

@@ -8,6 +8,7 @@ require (
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/ivpn/dns/libs v0.0.0
 	github.com/miekg/dns v1.1.58
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/quic-go/quic-go v0.42.0
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/rs/zerolog v1.34.0
@@ -26,6 +27,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
+	github.com/oschwald/maxminddb-golang v1.13.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect

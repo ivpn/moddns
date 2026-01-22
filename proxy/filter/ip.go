@@ -12,18 +12,24 @@ import (
 )
 
 type IPFilter struct {
-	Cache cache.Cache
-	Proxy *proxy.Proxy
+	Cache           cache.Cache
+	Proxy           *proxy.Proxy
+	ServicesCatalog ServicesCatalogGetter
+	ASNLookup       ASNLookup
 	// patternCache   sync.Map
 	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
 // NewIPFilter creates a new IPFilter instance
-func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache) *IPFilter {
+func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog ServicesCatalogGetter, asnLookup ASNLookup) *IPFilter {
 	fltrManager := &IPFilter{
-		Cache: cache,
+		Cache:           cache,
+		Proxy:           dnsProxy,
+		ServicesCatalog: servicesCatalog,
+		ASNLookup:       asnLookup,
 	}
 	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
+		fltrManager.filterServices,
 		fltrManager.filterCustomRules,
 	}
 	return fltrManager

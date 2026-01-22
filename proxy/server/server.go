@@ -15,6 +15,8 @@ import (
 	"github.com/ivpn/dns/proxy/collector/channel"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
+	"github.com/ivpn/dns/proxy/internal/asnlookup"
+	"github.com/ivpn/dns/proxy/internal/servicescatalogcache"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
@@ -77,18 +79,20 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	if err != nil {
 		return nil, err
 	}
-	DomainFltr, err := filter.NewFilter(dnsProxy, cache, filter.FilterTypeDomain)
+
+	// Optional services ASN blocking dependencies.
+	servicesCatalog := servicescatalogcache.New(serverConfig.Services.CatalogPath, serverConfig.Services.CatalogReloadEvery)
+	if servicesCatalog != nil {
+		go servicesCatalog.Start(context.Background())
+	}
+	lookup, err := asnlookup.New(serverConfig.Services.GeoIPASNDBPath)
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Str("path", serverConfig.Services.GeoIPASNDBPath).Msg("Failed to open ASN MMDB; services ASN blocking disabled")
+		lookup = nil
 	}
 
-	IPFltr, err := filter.NewFilter(dnsProxy, cache, filter.FilterTypeIP)
-	if err != nil {
-		return nil, err
-	}
-
-	server.DomainFilter = DomainFltr
-	server.IPFilter = IPFltr
+	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache)
+	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup)
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength

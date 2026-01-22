@@ -44,7 +44,7 @@ func TestIPFilter_AllowByIPShouldOverrideBlock_CustomRules(t *testing.T) {
 
 	// Create filter manager with mock cache
 	dnsProxy := &proxy.Proxy{}
-	ipFilter := NewIPFilter(dnsProxy, mockCache)
+	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, nil)
 
 	// Create DNS request/response with two A answers.
 	req := new(dns.Msg)

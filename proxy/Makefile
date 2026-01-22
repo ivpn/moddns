@@ -1,6 +1,3 @@
-CWD=$$(pwd)
-PKG := "/app"
-PKG_LIST := $(shell go list ${PKG}/...)
 APP_NAME := "dnsproxy"
 
 .PHONY: all dep build test coverage coverhtml lint
@@ -36,7 +33,7 @@ test: ## Run all go-based tests
 	go test -race -coverprofile=coverage.txt -covermode=atomic -v ./...
 
 mockery: ## Generate mocks
-	go install github.com/vektra/mockery/v2@v2.52.1
+	go install github.com/vektra/mockery/v2@v2.53.5
 	mockery --all --case underscore --exclude vendor/ --output ./mocks
 
 help: ## Display this help screen
