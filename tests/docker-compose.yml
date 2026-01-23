@@ -11,6 +11,9 @@ services:
       - mongodb
     ports:
       - 3000:3000
+    volumes:
+      - ./bootstrap/services:/opt/services:ro
+      - ../bootstrap/GeoLite2-ASN/:/opt/geo:ro
     env_file:
       - ./config/api.env
 
@@ -34,6 +37,8 @@ services:
       - "853:853/udp" # QUIC
     volumes:
       - ../certs:/certs
+      - ./bootstrap/services:/opt/services:ro
+      - ../bootstrap/GeoLite2-ASN/:/opt/geo:ro
     env_file:
       - ./config/proxy.env
 
@@ -53,8 +58,8 @@ services:
       - "30000:53/tcp"
     volumes:
       - ../dnscheck:/app
-      - ../dnscheck/GeoLite2-ASN/:/opt/dnscheck/GeoIP
-      - ../dnscheck/GeoLite2-City/:/opt/dnscheck/GeoIPCity
+      - ../bootstrap/GeoLite2-ASN/:/opt/dnscheck/GeoIP
+      - ../bootstrap/GeoLite2-City/:/opt/dnscheck/GeoIPCity
     env_file:
       - ./config/dnscheck.env
 

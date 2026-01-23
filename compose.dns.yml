@@ -20,5 +20,7 @@ services:
       - "853:853/udp" # QUIC
     volumes:
       - ./certs:/certs
+      - ./bootstrap/services:/opt/services:ro
+      - ./bootstrap/GeoLite2-ASN/:/opt/geo:ro
     env_file:
       - ./proxy/.env

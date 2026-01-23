@@ -15,8 +15,8 @@ services:
       - "30000:53/tcp"
     volumes:
       - ./dnscheck:/app
-      - ./dnscheck/GeoLite2-ASN/:/opt/dnscheck/GeoIP
-      - ./dnscheck/GeoLite2-City/:/opt/dnscheck/GeoIPCity
+      - ./bootstrap/GeoLite2-ASN/:/opt/dnscheck/GeoIP
+      - ./bootstrap/GeoLite2-City/:/opt/dnscheck/GeoIPCity
       # - ./certs:/certs
     env_file:
       - ./dnscheck/.env
