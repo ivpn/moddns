@@ -244,12 +244,25 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
+    const tabTriggerClassName =
+        "relative rounded-none border-0 bg-transparent data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 text-[var(--tailwind-colors-slate-300)] data-[state=active]:text-[var(--tailwind-colors-slate-50)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors duration-200 ease-out " +
+        "after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-[var(--tailwind-colors-rdns-600)] after:opacity-0 after:transition-opacity after:duration-200 after:ease-out " +
+        "hover:after:opacity-40 data-[state=active]:after:opacity-100";
+
     return (
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full max-w-[420px] bg-[var(--shadcn-ui-app-background)] border border-[var(--tailwind-colors-slate-700)]">
-                    <TabsTrigger value="blocklists">Blocklists</TabsTrigger>
-                    <TabsTrigger value="services">Services</TabsTrigger>
+                <TabsList className="w-full max-w-[420px] h-11 bg-transparent border-b border-[var(--tailwind-colors-slate-700)] rounded-none p-0 justify-start">
+                    <TabsTrigger value="blocklists" className={tabTriggerClassName}>
+                        Blocklists
+                    </TabsTrigger>
+                    <div
+                        aria-hidden="true"
+                        className="self-stretch h-[calc(100%+1px)] w-px bg-[var(--tailwind-colors-slate-700)]"
+                    />
+                    <TabsTrigger value="services" className={tabTriggerClassName}>
+                        Services
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="blocklists" className="mt-4">
