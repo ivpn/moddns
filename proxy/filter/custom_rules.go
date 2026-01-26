@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -159,6 +160,10 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 	allowMatched := false
 	blockMatched := false
 
+	if dctx == nil || dctx.Res == nil {
+		return result, nil
+	}
+
 	for _, customRuleHash := range customRuleHashes {
 		hash, err := f.Cache.GetCustomRulesHash(context.Background(), customRuleHash)
 		if err != nil {
@@ -169,15 +174,30 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 			log.Debug().Str("hash", customRuleHash).Msg("Old custom rule detected, syntax is empty")
 			continue
 		}
-		if !strings.Contains(syntax, "ip") {
-			continue
-		}
-		if dctx.Res != nil {
+
+		switch {
+		case strings.Contains(syntax, "ip"):
 			for _, a := range dctx.Res.Answer {
 				allow, block := f.matchIPRule(a, hash)
 				allowMatched = allowMatched || allow
 				blockMatched = blockMatched || block
 			}
+		case syntax == "asn":
+			if f.ASNLookup == nil {
+				continue
+			}
+			ruleASN, ok := parseCustomRuleASN(hash["value"])
+			if !ok {
+				log.Debug().Str("hash", customRuleHash).Str("value", hash["value"]).Msg("Invalid ASN custom rule value")
+				continue
+			}
+			for _, a := range dctx.Res.Answer {
+				allow, block := f.matchASNRule(a, ruleASN, hash["action"])
+				allowMatched = allowMatched || allow
+				blockMatched = blockMatched || block
+			}
+		default:
+			continue
 		}
 
 	}
@@ -194,6 +214,61 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 	}
 
 	return result, nil
+}
+
+func parseCustomRuleASN(value string) (uint, bool) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return 0, false
+	}
+
+	upper := strings.ToUpper(trimmed)
+	if strings.HasPrefix(upper, "AS") {
+		trimmed = strings.TrimSpace(trimmed[2:])
+	}
+	if trimmed == "" {
+		return 0, false
+	}
+
+	parsed, err := strconv.ParseUint(trimmed, 10, 32)
+	if err != nil || parsed == 0 {
+		return 0, false
+	}
+	return uint(parsed), true
+}
+
+func (f *IPFilter) matchASNRule(rr dns.RR, ruleASN uint, action string) (allow bool, block bool) {
+	var ip net.IP
+	switch v := rr.(type) {
+	case *dns.A:
+		ip = v.A
+	case *dns.AAAA:
+		ip = v.AAAA
+	default:
+		return false, false
+	}
+	if ip == nil {
+		return false, false
+	}
+
+	asn, err := f.ASNLookup.ASN(ip)
+	if err != nil || asn == 0 {
+		return false, false
+	}
+	if asn != ruleASN {
+		return false, false
+	}
+
+	switch action {
+	case ACTION_BLOCK:
+		log.Debug().Str("reason", REASON_CUSTOM_RULES).Uint("asn", asn).Msg("Blocked ASN")
+		return false, true
+	case ACTION_ALLOW:
+		log.Debug().Str("reason", REASON_CUSTOM_RULES).Uint("asn", asn).Msg("Allowing ASN")
+		return true, false
+	default:
+		return false, false
+	}
 }
 
 func (f *IPFilter) matchIPRule(rr dns.RR, hash map[string]string) (allow bool, block bool) {
