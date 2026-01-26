@@ -222,7 +222,7 @@ func New() (*Config, error) {
 
 	servicesCatalogPath := strings.TrimSpace(os.Getenv("SERVICES_CATALOG_PATH"))
 	if servicesCatalogPath == "" {
-		servicesCatalogPath = "/opt/services/catalog.ymls"
+		servicesCatalogPath = "/opt/services/catalog.yml"
 	}
 	servicesCatalogReloadEveryStr := strings.TrimSpace(os.Getenv("SERVICES_CATALOG_RELOAD"))
 	if servicesCatalogReloadEveryStr == "" {
