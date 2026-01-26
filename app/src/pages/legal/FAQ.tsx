@@ -170,10 +170,46 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <p>Click the 'Custom Rules' tab on the left side of the page. Two tabs are available:</p>
             <ul className="list-disc pl-5 space-y-1">
-                <li><strong>Denylist entries</strong> help block specific domains not covered by blocklists</li>
-                <li><strong>Allowlist</strong> specifies domains that should be allowed even if they appear on active blocklists</li>
+                <li><strong>Denylist entries</strong> help block specific domains, IP addresses, or ASNs not covered by blocklists</li>
+                <li><strong>Allowlist</strong> specifies domains, IP addresses, or ASNs that should be allowed even if they appear on active blocklists</li>
             </ul>
-            <p>Enter a domain or IP address in the text entry field, then click the green '+ Add' button.</p>
+            <p>Enter a domain, IP address, or ASN in the text entry field (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">AS15169</code>), then click the green '+ Add' button.</p>
+        </div>
+    );
+
+    const customRulesSupportedInputs = (
+        <div className="space-y-2">
+            <p>Custom Rules support three types of entries:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Domains</strong> (including wildcards, like <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.example.com</code>)</li>
+                <li><strong>IP addresses</strong> (single IPv4/IPv6 addresses)</li>
+                <li><strong>ASNs</strong> (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">AS15169</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">15169</code>)</li>
+            </ul>
+            <p>ASN rules are applied to the resolved IP address (after DNS resolution), not the domain string itself.</p>
+        </div>
+    );
+
+    const servicesBlockingInfo = (
+        <div className="space-y-2">
+            <p>The Services tab lets you block large services (for example a major platform or CDN) using a curated catalog.</p>
+            <p>When you enable blocking for a service, modDNS can block:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Known domains</strong> associated with the service</li>
+                <li><strong>Traffic routed via the service</strong>, based on the service's IP network ownership (ASN) when available</li>
+            </ul>
+            <p>If blocking a service causes issues, you can add specific domains, IP addresses, or ASNs to your allowlist to override blocks.</p>
+        </div>
+    );
+
+    const rulePrecedenceInfo = (
+        <div className="space-y-2">
+            <p>When multiple rules could apply, modDNS uses a simple precedence model:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Allowlist wins over blocking.</strong> If an allowlist entry matches, the request is allowed even if it would otherwise be blocked.</li>
+                <li><strong>Otherwise, blocking applies.</strong> If there is no allow match but a denylist/service/blocklist match exists, the request is blocked.</li>
+                <li><strong>Otherwise, the default rule applies</strong> (your profile's Default rule setting).</li>
+            </ul>
+            <p>This applies consistently whether the match comes from domains, IP addresses, or ASNs.</p>
         </div>
     );
 
@@ -433,6 +469,10 @@ export default function FAQ(): JSX.Element {
                     answer={blocklistsInstructions}
                 />
                 <FAQItem
+                    question="What is service blocking (Services tab)?"
+                    answer={servicesBlockingInfo}
+                />
+                <FAQItem
                     question="Can I block all DNS queries, instead of allowing all by default?"
                     answer={howToBlockAllQueries}
                 />
@@ -450,6 +490,14 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="How do I add a custom rule?"
                     answer={howToAddCustomRule}
+                />
+                <FAQItem
+                    question="What types of entries do Custom Rules support?"
+                    answer={customRulesSupportedInputs}
+                />
+                <FAQItem
+                    question="Which rules take precedence (allowlist, denylist, services, blocklists)?"
+                    answer={rulePrecedenceInfo}
                 />
                 <FAQItem
                     question="Do I need to add a wildcard symbol (*) for a custom rule?"
@@ -506,7 +554,7 @@ export default function FAQ(): JSX.Element {
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-6">
                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                            Last updated: August 27, 2025
+                            Last updated: January 23, 2026
                         </p>
                         <div className="flex justify-end">
                             <Button
