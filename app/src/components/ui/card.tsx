@@ -35,7 +35,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="card-title"
       className={cn(
         // Truncate only when exceeding container; allow wrapping of long words via break-words; keep leading-tight for space
-        "bg-[var(--tailwind-colors-slate-900)] font-semibold leading-tight break-words [&>*]:break-words truncate",
+        "font-semibold leading-tight break-words [&>*]:break-words truncate text-[var(--shadcn-ui-app-foreground)]",
         className
       )}
       {...props}
@@ -49,7 +49,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="card-description"
       className={cn(
         // Allow multi-line clamp customization by parent; ensure long tokens wrap
-        "bg-[var(--tailwind-colors-slate-900)] text-muted-foreground text-sm break-words hyphens-auto",
+        "text-[var(--shadcn-ui-app-muted-foreground)] text-sm break-words hyphens-auto",
         className
       )}
       {...props}
@@ -62,7 +62,7 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-action"
       className={cn(
-        "bg-[var(--tailwind-colors-slate-900)] col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
         className
       )}
       {...props}
@@ -84,7 +84,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("bg-[var(--tailwind-colors-slate-900)] flex items-center px-6 [.border-t]:pt-6", className)}
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
       {...props}
     />
   )

@@ -7,13 +7,17 @@ import {
     LayoutList,
 } from "lucide-react";
 import { type JSX } from "react";
-import modDNSLogo from '@/assets/logos/modDNS.svg'
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg'
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg'
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@/components/theme-provider";
 import { useAppStore } from '@/store/general';
 import VerificationBanner from '@/pages/setup/VerificationBanner';
 
 const Entry = (): JSX.Element => {
     const navigate = useNavigate();
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Feature card data for mapping
     const featureCards = [
@@ -77,7 +81,7 @@ const Entry = (): JSX.Element => {
                             <img
                                 className="w-full max-w-sm h-16 mx-auto"
                                 alt="modDNS logo"
-                                src={modDNSLogo}
+                                src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                                 style={{ display: "block" }}
                             />
                         </div>
@@ -103,7 +107,7 @@ const Entry = (): JSX.Element => {
                                 {featureCards.map((card, index) => (
                                     <Card
                                         key={index}
-                                        className="group flex flex-col items-start gap-8 p-6 bg-[#141414] border-[var(--shadcn-ui-app-border)] rounded-lg overflow-hidden hover:bg-[#1a1a1a] transition-all duration-300 ease-in-out"
+                                        className="group flex flex-col items-start gap-8 p-6 bg-card border-[var(--shadcn-ui-app-border)] rounded-lg overflow-hidden hover:bg-accent transition-all duration-300 ease-in-out"
                                     >
                                         <CardContent className="flex flex-col items-start gap-4 p-0 w-full">
                                             <div className="inline-flex items-center gap-3">
@@ -127,7 +131,7 @@ const Entry = (): JSX.Element => {
                                         <CardFooter className="p-0">
                                             <Button
                                                 variant="outline"
-                                                className="bg-[var(--shadcn-ui-app-muted)] text-[var(--tailwind-colors-rdns-600)] border-[var(--shadcn-ui-app-border)] hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-white group-hover:bg-[var(--tailwind-colors-rdns-600)] group-hover:text-white cursor-pointer transition-colors duration-300"
+                                                className="bg-muted text-[var(--tailwind-colors-rdns-600)] border-[var(--shadcn-ui-app-border)] hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-primary-foreground group-hover:bg-[var(--tailwind-colors-rdns-600)] group-hover:text-primary-foreground cursor-pointer transition-colors duration-300"
                                                 onClick={() => navigate(card.route)}
                                             >
                                                 {card.buttonText}

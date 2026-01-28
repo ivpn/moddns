@@ -10,9 +10,15 @@ import {
     Mail,
     HelpCircle,
     X,
+    Sun,
+    Moon,
+    Monitor,
 } from "lucide-react";
-import modDNSLogo from '@/assets/logos/modDNS.svg'
-import modDNSLogoCollapsed from '@/assets/logos/o_white_250.png';
+import { useTheme } from "@/components/theme-provider";
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg'
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg'
+import modDNSLogoCollapsedWhite from '@/assets/logos/o_white_250.png';
+import modDNSLogoCollapsedBlack from '@/assets/logos/o_black_250.png';
 import { type JSX, useContext, useState } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
@@ -32,6 +38,33 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
     const auth = useContext(AuthContext);
     const [loading, setLoading] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    const { theme, setTheme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    // Toggle between light and dark themes
+    const toggleTheme = () => {
+        if (theme === 'dark') {
+            setTheme('light');
+        } else if (theme === 'light') {
+            setTheme('system');
+        } else {
+            setTheme('dark');
+        }
+    };
+
+    // Get current theme icon
+    const getThemeIcon = () => {
+        if (theme === 'dark') return <Moon className="w-5 h-5" />;
+        if (theme === 'light') return <Sun className="w-5 h-5" />;
+        // System theme - use monitor icon
+        return <Monitor className="w-5 h-5" />;
+    };
+
+    const getThemeLabel = () => {
+        if (theme === 'dark') return 'Dark';
+        if (theme === 'light') return 'Light';
+        return 'System';
+    };
 
     // Logout logic
     const handleLogout = async () => {
@@ -115,23 +148,24 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             data-testid={isMobile ? 'overlay-navigation' : 'main-navigation'}
             aria-label="Primary"
             /* Mobile menu: ensure scrollable in landscape by using dynamic viewport height and enabling vertical overflow. */
-            className={`${isMobile ? 'relative w-full' : `fixed top-0 left-0 ${sidebarWidth}`} bg-[var(--shadcn-ui-app-background)] ${isMobile ? '' : 'h-screen border-r border-border'} flex flex-col justify-between p-2 transition-all duration-200 ${isMobile ? 'z-auto overflow-y-auto overscroll-contain' : 'z-10'}`}
+            className={`${isMobile ? 'relative w-full' : `fixed top-0 left-0 ${sidebarWidth}`} bg-[var(--sidebar-background)] ${isMobile ? '' : 'h-screen border-r border-border'} flex flex-col justify-between p-2 transition-all duration-200 ${isMobile ? 'z-auto overflow-y-auto overscroll-contain' : 'z-10'}`}
             style={isMobile ? { height: '100dvh', maxHeight: '100dvh' } : { minWidth: collapsed ? 64 : 220, left: offsetLeft }}
         >
             <div className="flex flex-col h-full justify-between">
                 <div className="flex flex-col gap-6">
                     {/* Mobile header with close button */}
                     {isMobile && (
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--tailwind-colors-slate-600)]">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--sidebar-border)]">
                             <div className="flex items-center space-x-3">
-                                <img src={modDNSLogo} alt="modDNS" className={logoSize} />
+                                {/* Use theme-aware logo */}
+                                <img src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme} alt="modDNS" className={logoSize} />
                             </div>
                             <button
                                 onClick={onClose}
                                 data-testid="nav-close"
                                 className="p-2 hover:bg-[var(--tailwind-colors-rdns-alpha-900)] rounded-lg transition-colors"
                             >
-                                <X className="h-6 w-6 text-[var(--tailwind-colors-slate-50)]" />
+                                <X className="h-6 w-6 text-[var(--sidebar-foreground)]" />
                             </button>
                         </div>
                     )}
@@ -139,13 +173,19 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                     {/* Logo for desktop */}
                     {!isMobile && (
                         <div
-                            className={`flex items-center cursor-pointer min-h-10 rounded-md px-2 py-2 transition-colors hover:bg-[var(--tailwind-colors-rdns-alpha-900)] ${showLabels ? "w-full gap-2.5 justify-start" : "justify-center"} ${collapsed ? "px-0" : "px-4"}`}
+                            className={`flex items-center cursor-pointer min-h-10 rounded-md px-2 py-2 transition-colors hover:bg-[var(--sidebar-muted)] ${showLabels ? "w-full gap-2.5 justify-start" : "justify-center"} ${collapsed ? "px-0" : "px-4"}`}
                             onClick={() => navigate("/home")}
                         >
+                            {/* Use theme-aware logo */}
                             <img
                                 className={logoSize}
                                 alt="modDNS logo"
-                                src={collapsed ? modDNSLogoCollapsed : modDNSLogo}
+                                src={(() => {
+                                    if (collapsed) {
+                                        return isDarkMode ? modDNSLogoCollapsedWhite : modDNSLogoCollapsedBlack;
+                                    }
+                                    return isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme;
+                                })()}
                             />
                         </div>
                     )}
@@ -156,13 +196,13 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                             <Button
                                 key={index}
                                 variant="ghost"
-                                className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full justify-start gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive(item.route) ? "bg-[var(--shadcn-ui-app-muted)] text-primary" : "text-[var(--tailwind-colors-slate-50)] hover:bg-[var(--shadcn-ui-app-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "px-4"}`}
+                                className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full justify-start gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive(item.route) ? "bg-[var(--sidebar-accent-bg)] text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "px-4"}`}
                                 title={!isMobile && collapsed ? item.label : undefined}
                                 onClick={() => handleNavigation(item.route)}
                             >
-                                <span className={`flex items-center ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : ""}`}>{item.icon}</span>
+                                <span className={`flex items-center ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>{item.icon}</span>
                                 {showLabels && (
-                                    <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--tailwind-colors-slate-50)]"}`}>
+                                    <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
                                         {item.label}
                                     </span>
                                 )}
@@ -174,21 +214,38 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                 <div className="flex-1" />
 
                 {/* Support Section */}
-                <div className={`flex flex-col gap-2 ${isMobile ? 'px-2 border-t border-[var(--tailwind-colors-slate-600)] pt-4' : 'mb-4'}`}>
-                    {/* {showLabels && !isMobile && (
-                        <div className="px-4">
-                            <div className="h-px bg-[var(--tailwind-colors-slate-600)] w-full" />
+                <div className={`flex flex-col gap-2 ${isMobile ? 'px-2 border-t border-[var(--sidebar-border)] pt-4' : 'mb-4'}`}>
+                    {/* Theme Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`flex ${isMobile ? 'h-10 w-10' : 'h-8 w-8'} rounded-md transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] ${!isMobile && collapsed ? "mx-auto" : "ml-2"}`}
+                        title={`Theme: ${getThemeLabel()}`}
+                        onClick={toggleTheme}
+                    >
+                        {getThemeIcon()}
+                    </Button>
+
+                    {/* Horizontal line above FAQ */}
+                    {showLabels && (
+                        <div className="px-4 py-1">
+                            <div className="h-px bg-[var(--sidebar-border)] w-full" />
                         </div>
-                    )} */}
+                    )}
+                    {!showLabels && !isMobile && (
+                        <div className="px-2 py-1">
+                            <div className="h-px bg-[var(--sidebar-border)] w-full" />
+                        </div>
+                    )}
 
                     {/* FAQ */}
                     <Button
                         variant="ghost"
-                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--tailwind-colors-slate-50)] hover:bg-[var(--shadcn-ui-app-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
                         title="FAQ"
                         onClick={() => handleNavigation('/faq')}
                     >
-                        <span className="flex items-center">
+                        <span className="flex items-center text-[var(--sidebar-foreground)]">
                             <HelpCircle className="w-5 h-5" />
                         </span>
                         {showLabels && (
@@ -201,7 +258,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                     {/* Email Support */}
                     <Button
                         variant="ghost"
-                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--tailwind-colors-slate-50)] hover:bg-[var(--shadcn-ui-app-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
                         title="mailto:moddns@ivpn.net"
                         data-testid="nav-support"
                         onClick={() => {
@@ -209,7 +266,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                             if (isMobile && onClose) onClose();
                         }}
                     >
-                        <span className="flex items-center">
+                        <span className="flex items-center text-[var(--sidebar-foreground)]">
                             <Mail className="w-5 h-5" />
                         </span>
                         {showLabels && (
@@ -223,7 +280,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
 
                 {/* {showLabels && !isMobile && (
                     <div className="px-4">
-                        <div className="h-px bg-[var(--tailwind-colors-slate-600)] w-full" />
+                        <div className="h-px bg-[var(--sidebar-border)] w-full" />
                     </div>
                 )} */}
 
@@ -231,17 +288,17 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                 <div className={`relative ${isMobile ? 'px-2 pt-4' : ''}`}>
                     <Button
                         variant="ghost"
-                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors hover:bg-[var(--destructive)]/10 ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--destructive)]/10 ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
                         title={!isMobile && collapsed ? "Logout" : undefined}
                         data-testid="btn-nav-logout"
                         onClick={() => setShowLogoutDialog(true)}
                         disabled={loading}
                     >
-                        <span className="flex items-center">
+                        <span className="flex items-center text-[var(--sidebar-foreground)]">
                             <LogOut className="w-5 h-5" />
                         </span>
                         {showLabels && (
-                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'}`}>
+                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} text-[var(--sidebar-foreground)]`}>
                                 Log out
                             </span>
                         )}

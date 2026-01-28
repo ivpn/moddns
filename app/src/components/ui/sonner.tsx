@@ -19,23 +19,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         unstyled: false,
         style: {
-          background: "var(--shadcn-ui-app-background)",
-          color: "var(--tailwind-colors-slate-50)",
           // Responsive width: cap to 100vw minus safe padding; maintain max for desktop
           width: "min(388px, calc(100vw - 24px))",
           padding: "24px 24px 24px 20px",
           gap: "16px",
           borderRadius: "6px",
-          border: "1px solid var(--tailwind-colors-rdns-600)",
           boxSizing: 'border-box',
           maxWidth: '100%',
         },
         classNames: {
-          toast: "flex items-center gap-4 relative overflow-hidden border-solid",
-          success: "!border-[var(--tailwind-colors-rdns-600)]",
-          error: "!border-[var(--tailwind-colors-red-600)]",
-          info: "!border-[var(--tailwind-colors-rdns-600)]",
-          warning: "!border-[var(--tailwind-colors-rdns-600)]",
+          toast: "flex items-center gap-4 relative overflow-hidden border-solid bg-[var(--tailwind-colors-rdns-50)] dark:bg-[var(--shadcn-ui-app-background)] text-[var(--shadcn-ui-app-foreground)] dark:text-[var(--tailwind-colors-slate-50)] border border-[var(--tailwind-colors-rdns-600)]",
+          title: "text-[var(--shadcn-ui-app-foreground)] dark:text-[var(--tailwind-colors-slate-50)] font-medium",
+          description: "text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-200)]",
+          success: "!bg-[var(--tailwind-colors-rdns-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-rdns-600)] [&_[data-description]]:!text-[var(--tailwind-colors-slate-light-700)] dark:[&_[data-description]]:!text-[var(--tailwind-colors-slate-200)]",
+          error: "!bg-[var(--tailwind-colors-red-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-red-600)]",
+          info: "!bg-[var(--tailwind-colors-rdns-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-rdns-600)]",
+          warning: "!bg-[var(--tailwind-colors-rdns-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-rdns-600)]",
         },
       }}
       icons={{

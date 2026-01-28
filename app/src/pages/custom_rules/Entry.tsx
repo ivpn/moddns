@@ -45,7 +45,7 @@ const CustomRuleEntry: React.FC<CustomRuleEntryProps> = ({
                         className="w-4 h-4 border-solid border-[var(--tailwind-colors-rdns-600)]"
                     />
                     <div className="inline-flex items-center gap-2 relative flex-[0_0_auto]">
-                        <div className="relative w-fit font-text-sm-leading-5-normal font-normal text-white text-sm tracking-normal leading-5 whitespace-nowrap">
+                        <div className="relative w-fit font-text-sm-leading-5-normal font-normal text-foreground text-sm tracking-normal leading-5 whitespace-nowrap">
                             {domain}
                         </div>
                     </div>

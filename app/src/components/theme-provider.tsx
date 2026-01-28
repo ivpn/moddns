@@ -32,20 +32,35 @@ export function ThemeProvider({
 
     useEffect(() => {
         const root = window.document.documentElement
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
 
-        root.classList.remove("light", "dark")
+        const applyTheme = () => {
+            root.classList.remove("light", "dark")
 
-        if (theme === "system") {
-            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-                .matches
-                ? "dark"
-                : "light"
+            const effectiveTheme: "dark" | "light" = theme === "system"
+                ? (mediaQuery.matches ? "dark" : "light")
+                : theme
 
-            root.classList.add(systemTheme)
-            return
+            root.classList.add(effectiveTheme)
+
+            // Also set the data-shadcn-ui-mode attribute for CSS variable overrides
+            document.body.setAttribute(
+                'data-shadcn-ui-mode',
+                effectiveTheme === 'dark' ? 'dark-emerald' : 'light-emerald'
+            )
         }
 
-        root.classList.add(theme)
+        applyTheme()
+
+        // Listen for system theme changes when using "system" theme
+        const handleSystemThemeChange = () => {
+            if (theme === "system") {
+                applyTheme()
+            }
+        }
+
+        mediaQuery.addEventListener("change", handleSystemThemeChange)
+        return () => mediaQuery.removeEventListener("change", handleSystemThemeChange)
     }, [theme])
 
     const value = {

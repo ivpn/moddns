@@ -1,5 +1,7 @@
-import modDNSLogo from '@/assets/logos/modDNS.svg'
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg'
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg'
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@/components/theme-provider";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,8 @@ const SignupCard = ({ onSignup, onPasskeySignup, loading = false, error }: Signu
     const [showPassword, setShowPassword] = useState(false);
     const [webAuthnSupported, setWebAuthnSupported] = useState(false);
     const navigate = useNavigate();
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     useEffect(() => {
         setWebAuthnSupported(isWebAuthnSupported());
@@ -62,7 +66,7 @@ const SignupCard = ({ onSignup, onPasskeySignup, loading = false, error }: Signu
                     <img
                         className="mb-8 w-[200px] h-10 mx-auto"
                         alt="modDNS logo"
-                        src={modDNSLogo}
+                        src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                     />
                     <h2 className="font-bold text-[var(--shadcn-ui-app-foreground)] text-xl text-center tracking-[-0.60px] leading-[18px] font-mono">
                         {signupData.title}

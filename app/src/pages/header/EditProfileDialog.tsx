@@ -115,13 +115,13 @@ export default function EditProfileDialog({
                             </div>
 
                             {/* Delete profile section */}
-                            <Card className="w-full bg-[var(--tailwind-colors-red-950)] border-none rounded-md">
+                            <Card className="w-full bg-[var(--danger-zone-bg)] border-none rounded-md">
                                 <CardContent className="flex items-center justify-between p-4">
                                     <div className="flex flex-col gap-2 max-w-[412px]">
-                                        <h3 className="font-['Roboto_Flex-Medium',Helvetica] font-medium text-[var(--tailwind-colors-slate-50)] text-base leading-4">
+                                        <h3 className="font-['Roboto_Flex-Medium',Helvetica] font-medium text-[var(--shadcn-ui-app-foreground)] text-base leading-4">
                                             Delete profile
                                         </h3>
-                                        <p className="text-[var(--tailwind-colors-slate-200)] text-sm leading-5 font-normal font-text-sm-leading-5-normal">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] text-sm leading-5 font-normal font-text-sm-leading-5-normal">
                                             You can delete your profile immediately,
                                             removing all associated settings and data.
                                             Account preferences and other profiles are
@@ -130,13 +130,11 @@ export default function EditProfileDialog({
                                     </div>
 
                                     <Button
-                                        variant="default"
-                                        size="lg"
-                                        className="gap-2 min-w-40 bg-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-slate-50)] hover:!bg-[var(--tailwind-colors-red-700)]"
+                                        className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto min-w-40"
                                         onClick={() => setShowDeleteDialog(true)}
                                     >
-                                        <Trash2Icon className="w-4 h-4" />
-                                        Delete profile
+                                        <Trash2Icon className="w-4 h-4 text-white" />
+                                        <span className="text-white">Delete profile</span>
                                     </Button>
                                 </CardContent>
                             </Card>

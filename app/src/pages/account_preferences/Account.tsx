@@ -415,15 +415,15 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                 <PasskeySettings />
 
                 {/* Delete Account Section */}
-                <Card className="w-full border-none bg-[var(--tailwind-colors-red-950)] rounded-[var(--primitives-radius-radius)]">
+                <Card className="w-full border-none bg-[var(--danger-zone-bg)] rounded-[var(--primitives-radius-radius)]">
                     <CardContent className="bg-transparent">
                         <div className="flex flex-col items-start gap-6 w-full">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4 flex-wrap">
                                 <div className="flex flex-col items-start gap-2 flex-shrink min-w-0 max-w-full">
-                                    <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 whitespace-nowrap">
+                                    <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--shadcn-ui-app-foreground)] text-base tracking-[0] leading-4 whitespace-nowrap">
                                         Delete account
                                     </div>
-                                    <div className="font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-[var(--tailwind-colors-base-white)] text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)]">
+                                    <div className="font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-[var(--shadcn-ui-app-foreground)] text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)]">
                                         When you delete your account we immediately remove all
                                         associated data including all profile information,
                                         blocklists and custom settings.
@@ -432,11 +432,11 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
 
                                 <div className="mt-2 sm:mt-0 flex items-start sm:items-center">
                                     <Button
-                                        className="bg-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-slate-50)] h-auto min-h-11 lg:min-h-0 flex items-center gap-1 w-full sm:w-auto"
+                                        className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
                                         onClick={() => setShowDeleteAccount(true)}
                                     >
-                                        <TrashIcon className="w-4 h-4" />
-                                        <span className="text-sm break-words">Delete account</span>
+                                        <TrashIcon className="w-4 h-4 text-white" />
+                                        <span className="text-sm text-white">Delete account</span>
                                     </Button>
                                 </div>
                                 <DeleteAccountDialog

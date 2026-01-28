@@ -93,7 +93,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                         <div className="flex items-start gap-2">
                             <div className="inline-flex items-center gap-2 relative min-w-0 flex-1">
                                 <div className="relative flex flex-col gap-1 min-w-0">
-                                    <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-white text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[480px] lg:max-w-[560px]">
+                                    <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[480px] lg:max-w-[560px]">
                                         {displayDomain ? (
                                             <Tooltip content={displayDomain} side="top" align="start" delay={150}>
                                                 <span
@@ -132,7 +132,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                 </div>
                                 <div className={`flex gap-x-2 gap-y-2 min-w-0 flex-wrap transition-all duration-300 ease-out ${timestampExpanded ? 'items-start' : 'items-center'}`}>
                                     <div className="flex items-center gap-2 min-w-0 flex-1 order-1 transition-all duration-300 ease-out">
-                                        <div className="relative flex flex-1 items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-white text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-full text-left min-w-0">
+                                        <div className="relative flex flex-1 items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-full text-left min-w-0">
                                             {displayDomain ? (
                                                 timestampExpanded ? (
                                                     <span

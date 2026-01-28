@@ -93,7 +93,7 @@ export default function DeleteProfileDialog({
                     <Button
                         variant="default"
                         size="lg"
-                        className="flex-1 min-w-32 bg-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-slate-50)] hover:!bg-[var(--tailwind-colors-red-700)]"
+                        className="flex-1 min-w-32 bg-[var(--tailwind-colors-red-600)] text-white hover:bg-[var(--tailwind-colors-red-400)]"
                         onClick={handleDeleteProfile}
                         disabled={loading}
                     >

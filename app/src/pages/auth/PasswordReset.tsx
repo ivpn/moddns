@@ -6,7 +6,9 @@ import AuthFooter from "@/components/auth/AuthFooter";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import modDNSLogo from '@/assets/logos/modDNS.svg'
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
+import { useTheme } from "@/components/theme-provider";
 import api from "@/api/api";
 import { toast } from "sonner";
 import type { RequestsResetPasswordBody } from "@/api/client";
@@ -17,6 +19,8 @@ export default function PasswordReset(): JSX.Element {
     const [loading, setLoading] = useState(false);
     const [sent, setSent] = useState(false);
     const [resending, setResending] = useState(false);
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,7 +70,7 @@ export default function PasswordReset(): JSX.Element {
                                 <img
                                     className="w-[200px] h-10"
                                     alt="modDNS logo"
-                                    src={modDNSLogo}
+                                    src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                                     style={{ display: "block" }}
                                 />
                             </div>

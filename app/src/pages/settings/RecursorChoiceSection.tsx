@@ -35,15 +35,15 @@ const RecursorChoiceSection: React.FC<RecursorChoiceSectionProps> = ({
                 onValueChange={onRecursorChange}
                 disabled={loading}
             >
-                <SelectTrigger className="w-full sm:w-[180px] bg-[var(--tailwind-colors-slate-800)] border-gray-200 text-[var(--tailwind-colors-slate-100)] hover:bg-gray-50 focus:bg-gray-50 disabled:opacity-50">
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted border-border text-foreground hover:bg-accent focus:bg-accent disabled:opacity-50">
                     <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-white shadow-md border dark:bg-neutral-800 dark:border-neutral-700">
+                <SelectContent className="bg-popover shadow-md border border-border">
                     {recursors.map((recursor) => (
                         <SelectItem
                             key={recursor}
                             value={recursor}
-                            className="hover:bg-gray-100 focus:bg-gray-100 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                            className="hover:bg-accent focus:bg-accent"
                         >
                             {recursor}
                         </SelectItem>

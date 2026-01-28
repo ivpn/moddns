@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, ChevronDown } from "lucide-react";
-import modDNSLogo from '@/assets/logos/modDNS.svg';
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
+import { useTheme } from "@/components/theme-provider";
 import AuthFooter from "@/components/auth/AuthFooter";
 
 interface FAQItemProps {
@@ -102,6 +104,8 @@ export default function FAQ(): JSX.Element {
     const location = useLocation();
     const [toggleSignal, setToggleSignal] = useState(0);
     const [toggleState, setToggleState] = useState(false);
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     // Check if we're in the protected route (logged-in) vs standalone route
     const isProtectedRoute = location.pathname === '/faq';
@@ -543,8 +547,8 @@ export default function FAQ(): JSX.Element {
                             <div className="flex flex-col items-center mb-8">
                                 <img
                                     className="mb-4 w-[200px] h-10 mx-auto"
-                                    alt="moddns logo"
-                                    src={modDNSLogo}
+                                    alt="modDNS logo"
+                                    src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                                 />
                                 <h1 className="text-2xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center font-mono">
                                     FAQ

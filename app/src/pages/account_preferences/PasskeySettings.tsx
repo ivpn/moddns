@@ -199,10 +199,10 @@ export default function PasskeySettings() {
                                             <Button
                                                 onClick={() => passkey.id && handleDeletePasskey(passkey.id, passkey.id)}
                                                 disabled={deletingId === passkey.id || !passkey.id}
-                                                className="h-auto min-h-11 lg:min-h-0 !bg-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-slate-50)] hover:!bg-[var(--tailwind-colors-red-950)] flex items-center gap-1 w-full sm:w-auto"
+                                                className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
                                             >
-                                                <Trash2 className="h-4 w-4" />
-                                                <span className="text-sm">Delete</span>
+                                                <Trash2 className="h-4 w-4 text-white" />
+                                                <span className="text-sm text-white">Delete</span>
                                             </Button>
                                         </div>
                                     ))}

@@ -71,7 +71,7 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
             variant={variant}
             className={`
                 p-0.5 rounded-[var(--primitives-radius-radius)] gap-0
-                transition-colors duration-200 bg-[var(--tailwind-colors-slate-800)]
+                transition-colors duration-200 bg-[var(--shadcn-ui-app-muted)]
                 ${className}
             `}
             value={value}
@@ -90,8 +90,8 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
                             flex flex-row items-center justify-center
                             min-w-[72px] h-9 px-3 py-0
                             transition-all duration-200 ease-in-out
-                            data-[state=on]:bg-[var(--shadcn-ui-app-background)] data-[state=on]:border-[var(--tailwind-colors-slate-800)] data-[state=on]:shadow-[0_2px_8px_0_rgba(18,164,149,0.10)]
-                            data-[state=off]:border-[var(--tailwind-colors-slate-800)] data-[state=off]:bg-[var(--tailwind-colors-slate-800)]
+                            data-[state=on]:bg-[var(--variable-collection-surface)] data-[state=on]:shadow-[0_2px_8px_0_rgba(18,164,149,0.10)]
+                            data-[state=off]:bg-transparent
                             ${itemClassName}
                         `}
                         style={{
@@ -106,8 +106,8 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
                                     font-medium text-xs text-left leading-5
                                     transition-colors duration-200
                                     ${isSelected
-                                        ? "text-[var(--tailwind-colors-base-white)]"
-                                        : "text-[var(--tailwind-colors-slate-400)]"
+                                        ? "text-[var(--shadcn-ui-app-foreground)]"
+                                        : "text-[var(--shadcn-ui-app-muted-foreground)]"
                                     }
                                 `}
                                 style={{

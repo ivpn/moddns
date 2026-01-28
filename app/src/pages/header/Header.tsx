@@ -11,7 +11,9 @@ import { AuthContext } from "@/App";
 import api from "@/api/api";
 import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
-import modDNSLogo from '@/assets/logos/modDNS.svg';
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
+import { useTheme } from "@/components/theme-provider";
 import NavigationSection from '@/pages/navigation_menu/NavigationMenu';
 interface HeaderProps {
     showDialogTrigger?: boolean;
@@ -40,6 +42,8 @@ export default function Header({
     const setProfiles = useAppStore((state) => state.setProfiles);
     const auth = useContext(AuthContext);
     const [scrolled, setScrolled] = useState(false);
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     useEffect(() => {
         const onScroll = () => {
@@ -153,7 +157,7 @@ export default function Header({
                         <img
                             className="h-6 cursor-pointer flex-shrink-0"
                             alt="modDNS logo"
-                            src={modDNSLogo}
+                            src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                             onClick={() => navigate("/home")}
                         />
                     )}

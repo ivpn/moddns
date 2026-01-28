@@ -19,7 +19,9 @@ import LinuxLogo from "@/assets/platforms/linux.svg";
 import WindowsIcon from "@/assets/platforms/windows.svg";
 import { useAppStore, useProfileData } from "@/store/general";
 import VerificationBanner from '@/pages/setup/VerificationBanner';
-import modDNSLogo from '@/assets/logos/modDNS.svg';
+import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
+import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
+import { useTheme } from "@/components/theme-provider";
 import SetupGuidePanel from './RightPanelGuide';
 
 
@@ -35,14 +37,14 @@ interface PlatformCard {
 
 const platformCards: PlatformCard[][] = [
     [
-        { icon: <img src={WindowsIcon} alt="Windows Icon" className="w-6 h-6 brightness-0 invert" />, name: "Windows" },
-        { icon: <img src={AppleLogo} alt="Apple Icon" className="w-6 h-6 brightness-0 invert" />, name: "macOS" },
-        { icon: <img src={LinuxLogo} alt="Linux Icon" className="w-6 h-6 brightness-0 invert" />, name: "Linux" },
+        { icon: <img src={WindowsIcon} alt="Windows Icon" className="w-6 h-6 brightness-0 dark:invert" />, name: "Windows" },
+        { icon: <img src={AppleLogo} alt="Apple Icon" className="w-6 h-6 brightness-0 dark:invert" />, name: "macOS" },
+        { icon: <img src={LinuxLogo} alt="Linux Icon" className="w-6 h-6 brightness-0 dark:invert" />, name: "Linux" },
     ],
     [
         { icon: <AppWindow className="w-6 h-6" />, name: "Browsers" },
         { icon: <Smartphone className="w-6 h-6" />, name: "Android" },
-        { icon: <img src={AppleLogo} alt="Apple Icon" className="w-6 h-6 brightness-0 invert" />, name: "iOS" },
+        { icon: <img src={AppleLogo} alt="Apple Icon" className="w-6 h-6 brightness-0 dark:invert" />, name: "iOS" },
     ],
     [
         { icon: <Router className="w-6 h-6" />, name: "Routers" },
@@ -57,6 +59,8 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
     const [showPanel, setShowPanel] = useState(false);
+    const { theme } = useTheme();
+    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -130,17 +134,17 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                     <section className="flex flex-col items-center justify-center gap-8 w-full">
                                         <div className="flex flex-col max-w-[647px] items-center gap-6">
                                             <div className="flex items-center justify-center gap-2">
-                                                <h1 className="relative top-1.5 text-3xl font-bold text-[var(--tailwind-colors-slate-50)] text-center tracking-[-0.60px] leading-7 font-mono">
+                                                <h1 className="relative top-1.5 text-3xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center tracking-[-0.60px] leading-7 font-mono">
                                                     Setup
                                                 </h1>
                                                 <img
                                                     className="w-[240px] h-10"
                                                     alt="modDNS logo"
-                                                    src={modDNSLogo}
+                                                    src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                                                 />
                                             </div>
 
-                                            <p className="max-w-[550px] text-lg text-[var(--tailwind-colors-slate-100)] text-center leading-8">
+                                            <p className="max-w-[550px] text-lg text-[var(--shadcn-ui-app-muted-foreground)] text-center leading-8">
                                                 Use the account-specific information and select from the list
                                                 of guides below to set up modDNS on your device.
                                             </p>
@@ -171,24 +175,24 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                             return (
                                                                 <div
                                                                     key={index}
-                                                                    className={`flex items-center justify-between w-full ${interactive ? 'cursor-pointer rounded-md px-2 -mx-2 active:bg-[#181818] focus:bg-[#181818] focus:outline-none' : ''}`}
+                                                                    className={`flex items-center justify-between w-full ${interactive ? 'cursor-pointer rounded-md px-2 -mx-2 active:bg-muted focus:bg-muted focus:outline-none' : ''}`}
                                                                     onClick={interactive ? () => copyToClipboard(value as string, label) : undefined}
                                                                     role={interactive ? 'button' : undefined}
                                                                     tabIndex={interactive ? 0 : undefined}
                                                                     aria-label={interactive ? `Copy ${label}` : undefined}
                                                                     onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(value as string, label); } } : undefined}
                                                                 >
-                                                                    <span className="text-sm text-[var(--tailwind-colors-slate-100)] leading-[25.4px] select-none">
+                                                                    <span className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-[25.4px] select-none">
                                                                         {label}
                                                                     </span>
                                                                     <div className="inline-flex items-center justify-end gap-2">
-                                                                        <span className="text-sm text-[var(--tailwind-colors-slate-50)] leading-5 font-mono break-all select-all">
+                                                                        <span className="text-sm text-[var(--shadcn-ui-app-foreground)] leading-5 font-mono break-all select-all">
                                                                             {value}
                                                                         </span>
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="icon"
-                                                                            className="p-0.5 h-auto bg-[#141414] text-[var(--tailwind-colors-rdns-600)] rounded-md hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-white"
+                                                                            className="p-0.5 h-auto bg-card text-[var(--tailwind-colors-rdns-600)] rounded-md hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-primary-foreground"
                                                                             onClick={(e) => { e.stopPropagation(); copyToClipboard(value as string, label); }}
                                                                             disabled={copiedField === label}
                                                                             aria-label={`Copy ${label}`}
@@ -217,16 +221,16 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                                 ? 'opacity-0 pointer-events-none'
                                                                 : `hover:scale-105 cursor-pointer transform ${selectedPlatform === platform.name
                                                                     ? 'bg-[var(--tailwind-colors-rdns-600)]'
-                                                                    : 'bg-[#141414] hover:bg-[#1a1a1a]'
+                                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
                                                                 }`
                                                                 }`}
                                                             onClick={platform.disabled ? undefined : () => handlePlatformClick(platform.name)}
                                                         >
                                                             <CardContent className="flex items-center justify-center gap-3">
-                                                                <div className="text-[var(--tailwind-colors-slate-50)]">
+                                                                <div className="text-[var(--shadcn-ui-app-foreground)]">
                                                                     {platform.icon}
                                                                 </div>
-                                                                <span className="text-sm text-[var(--tailwind-colors-slate-50)] leading-5">
+                                                                <span className="text-sm text-[var(--shadcn-ui-app-foreground)] leading-5">
                                                                     {platform.name}
                                                                 </span>
                                                             </CardContent>
@@ -239,13 +243,13 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                 data-testid="setup-platform-card-desktop-device-identification"
                                                 className={`w-full rounded-md border-none hover:scale-105 transition-all duration-300 cursor-pointer transform ${selectedPlatform === 'Device Identification'
                                                     ? 'bg-[var(--tailwind-colors-rdns-600)] shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-[#141414] hover:bg-[#1a1a1a]'
+                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
                                                     }`}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >
                                                 <CardContent className="flex items-center gap-3 p-4">
                                                     <div className={`flex items-center justify-center w-8 h-8 rounded-md transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                        ? 'bg-[#0a0a0a] shadow-md'
+                                                        ? 'bg-[var(--shadcn-ui-app-background)] shadow-md'
                                                         : 'bg-[var(--tailwind-colors-rdns-600)]'
                                                         }`}>
                                                         <Smartphone className={`w-4 h-4 transition-all duration-300 ${selectedPlatform === 'Device Identification'
@@ -255,14 +259,14 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                     </div>
                                                     <div className="flex-1">
                                                         <h3 className={`text-sm font-semibold transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                            ? 'text-[#0a0a0a] font-bold'
-                                                            : 'text-[var(--tailwind-colors-slate-50)]'
+                                                            ? 'text-white font-bold'
+                                                            : 'text-[var(--shadcn-ui-app-foreground)]'
                                                             }`}>
                                                             Device Identification
                                                         </h3>
                                                         <p className={`text-xs transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                            ? 'text-[#1a1a1a]'
-                                                            : 'text-[var(--tailwind-colors-slate-400)]'
+                                                            ? 'text-white/80'
+                                                            : 'text-[var(--shadcn-ui-app-muted-foreground)]'
                                                             }`}>
                                                             Optional: Identify specific devices in your logs
                                                         </p>
@@ -280,15 +284,15 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                     data-testid={`setup-platform-card-${platform.name.replace(/\s+/g, '-').toLowerCase()}`}
                                                     className={`rounded-md border-none hover:scale-[1.03] active:scale-100 transition-all duration-300 cursor-pointer ${selectedPlatform === platform.name
                                                         ? 'bg-[var(--tailwind-colors-rdns-600)]'
-                                                        : 'bg-[#141414] hover:bg-[#1a1a1a]'
+                                                        : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
                                                         }`}
                                                     onClick={() => handlePlatformClick(platform.name)}
                                                 >
                                                     <CardContent className="flex flex-col items-center justify-center gap-2 py-4 px-2">
-                                                        <div className="text-[var(--tailwind-colors-slate-50)]">
+                                                        <div className="text-[var(--shadcn-ui-app-foreground)]">
                                                             {platform.icon}
                                                         </div>
-                                                        <span className="text-xs sm:text-sm text-center text-[var(--tailwind-colors-slate-50)] leading-4 sm:leading-5 truncate w-full">
+                                                        <span className="text-xs sm:text-sm text-center text-[var(--shadcn-ui-app-foreground)] leading-4 sm:leading-5 truncate w-full">
                                                             {platform.name}
                                                         </span>
                                                     </CardContent>
@@ -298,13 +302,13 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                 data-testid="setup-platform-card-device-identification"
                                                 className={`col-span-2 xs:col-span-3 rounded-md border-none hover:scale-[1.02] transition-all duration-300 cursor-pointer ${selectedPlatform === 'Device Identification'
                                                     ? 'bg-[var(--tailwind-colors-rdns-600)] shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-[#141414] hover:bg-[#1a1a1a]'
+                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
                                                     }`}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >
                                                 <CardContent className="flex items-center gap-3 p-4">
                                                     <div className={`flex items-center justify-center w-8 h-8 rounded-md transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                        ? 'bg-[#0a0a0a] shadow-md'
+                                                        ? 'bg-[var(--shadcn-ui-app-background)] shadow-md'
                                                         : 'bg-[var(--tailwind-colors-rdns-600)]'
                                                         }`}>
                                                         <Smartphone className={`w-4 h-4 transition-all duration-300 ${selectedPlatform === 'Device Identification'
@@ -314,14 +318,14 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <h3 className={`text-sm font-semibold transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                            ? 'text-[#0a0a0a] font-bold'
-                                                            : 'text-[var(--tailwind-colors-slate-50)]'
+                                                            ? 'text-white font-bold'
+                                                            : 'text-[var(--shadcn-ui-app-foreground)]'
                                                             }`}>
                                                             Device Identification
                                                         </h3>
                                                         <p className={`text-xs transition-all duration-300 ${selectedPlatform === 'Device Identification'
-                                                            ? 'text-[#1a1a1a]'
-                                                            : 'text-[var(--tailwind-colors-slate-400)]'
+                                                            ? 'text-white/80'
+                                                            : 'text-[var(--shadcn-ui-app-muted-foreground)]'
                                                             }`}>
                                                             Optional: Identify specific devices in your logs
                                                         </p>

@@ -564,9 +564,8 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  useEffect(() => {
-    document.body.setAttribute('data-shadcn-ui-mode', 'dark-emerald');
-  }, []);
+  // Note: data-shadcn-ui-mode attribute is now managed by ThemeProvider
+  // to sync with the current theme selection
 
   return (
     <ApiErrorBoundary>

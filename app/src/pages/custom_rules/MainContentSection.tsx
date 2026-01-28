@@ -286,7 +286,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                     data-[state=active]:!bg-transparent
                                     data-[state=active]:text-[var(--tailwind-colors-slate-50)]
                                     data-[state=inactive]:bg-transparent
-                                    data-[state=inactive]:text-gray-400
+                                    data-[state=inactive]:text-muted-foreground
                                     data-[state=inactive]:border-b-transparent
                                     rounded-none transition-colors"
                                 >
@@ -300,7 +300,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                     data-[state=active]:text-[var(--tailwind-colors-slate-50)]
                                     data-[state=inactive]:bg-transparent
                                     data-[state=inactive]:border-b-transparent
-                                    data-[state=inactive]:text-gray-400
+                                    data-[state=inactive]:text-muted-foreground
                                     rounded-none transition-colors"
                                 >
                                     Allowlist

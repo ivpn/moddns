@@ -8,7 +8,7 @@ export default function NotFound() {
 
     return (
         <div className="bg-background relative w-screen min-h-screen overflow-hidden flex items-center justify-center">
-            <Card className="w-full max-w-md p-8 bg-[var(--tailwind-colors-slate-900)] border-[var(--tailwind-colors-slate-600)] relative z-10">
+            <Card className="w-full max-w-md p-8 bg-[var(--variable-collection-surface)] border-[var(--shadcn-ui-app-border)] relative z-10">
                 <div className="flex flex-col items-center text-center space-y-6">
                     {/* 404 Text */}
                     <div className="space-y-2">

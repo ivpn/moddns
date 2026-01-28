@@ -236,7 +236,7 @@ export default function Login() {
     };
 
     return (
-        <div data-testid="login-page" className="relative flex flex-col min-h-screen w-full overflow-x-hidden bg-[var(--shadcn-ui-app-background)]">
+        <div data-testid="login-page" className="relative flex flex-col min-h-screen w-full overflow-x-hidden bg-[var(--variable-collection-surface)]">
             {/* Main content area - centered vertically and horizontally */}
             <div className="flex-1 flex items-center justify-center safe-px py-8">
                 <div className="flex flex-col auth-shell items-end gap-4 px-4 sm:px-0">
@@ -252,25 +252,24 @@ export default function Login() {
                     />
 
                     {/* Info alert */}
-                    <Alert className="bg-[var(--tailwind-colors-sky-950)] border-none">
-                        <Info className="h-[18px] w-[18px] text-[var(--tailwind-colors-slate-50)]" />
-                        <div className="flex flex-col gap-3">
-                            <h4 className="text-sm leading-4 font-medium text-[var(--tailwind-colors-slate-50)]">
-                                {infoAlertData.title}
+                    <Alert className="bg-[var(--tailwind-colors-rdns-600)]/10 border border-[var(--tailwind-colors-rdns-600)]/20 rounded-lg">
+                        <Info className="h-[18px] w-[18px] text-[var(--tailwind-colors-rdns-600)]" />
+                        <div className="flex flex-col gap-2">
+                            <h4 className="text-sm leading-5 font-semibold text-[var(--tailwind-colors-slate-light-800)] dark:text-[var(--shadcn-ui-app-foreground)]">
+                                Here to try modDNS? You need an active IVPN account.
                             </h4>
-                            <div className="text-xs leading-4 text-[var(--tailwind-colors-slate-100)]">
-                                Sign up
-                                {" "}or log in on{" "}
+                            <div className="text-sm leading-5 text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--shadcn-ui-app-muted-foreground)]">
+                                Sign up or log in on{" "}
                                 <a
                                     href={infoAlertData.linkUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline p-0 m-0 h-auto align-baseline !underline !text-[var(--tailwind-colors-slate-50)] !hover:text-[var(--tailwind-colors-slate-200)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+                                    className="inline p-0 m-0 h-auto align-baseline !underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
                                     aria-label={`Open ${infoAlertData.linkText} in a new tab`}
                                 >
                                     {infoAlertData.linkText}
                                 </a>{" "}
-                                and look for "modDNS Beta" in your account settings.
+                                and look for "DNS Beta" in your account settings.
                             </div>
                         </div>
                     </Alert>
