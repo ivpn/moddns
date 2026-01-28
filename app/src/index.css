@@ -9,11 +9,7 @@
   line-height: 1.5;
   font-weight: 400;
 
-  /* TODO: uncomment after light mode is implemented*/
-  /* color-scheme: light dark; */
-  color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: rgba(17, 17, 17, 1);
+  color-scheme: light dark;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -94,19 +90,15 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* TODO: uncomment after light mode is implemented*/
-/* @media (prefers-color-scheme: light) {
-  :root {
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
     color: #213547;
     background-color: #ffffff;
   }
-  a:hover {
+  :root:not(.dark) a:hover {
     color: #747bff;
   }
-  button {
-    background-color: #f9f9f9;
-  }
-} */
+}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
