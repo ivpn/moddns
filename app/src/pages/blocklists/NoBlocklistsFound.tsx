@@ -7,7 +7,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({ searchTerm }: EmptyStateProps) {
     return (
-        <Card className="flex flex-col items-start relative flex-1 self-stretch w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0">
+        <Card className="flex flex-col items-start relative flex-1 self-stretch w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0">
             <CardContent className="flex flex-col items-start gap-8 p-4 relative self-stretch w-full">
                 <div className="flex flex-col items-center justify-center gap-2.5 relative flex-1 self-stretch w-full grow">
                     <div className="inline-flex flex-col gap-4 flex-[0_0_auto] items-center justify-center relative">
