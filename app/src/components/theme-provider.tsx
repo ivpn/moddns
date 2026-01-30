@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react"
 
-type Theme = "dark" | "light" | "system"
+type Theme = "dark" | "light"
 
 type ThemeProviderProps = {
     children: React.ReactNode
@@ -14,7 +14,7 @@ type ThemeProviderState = {
 }
 
 const initialState: ThemeProviderState = {
-    theme: "system",
+    theme: "dark",
     setTheme: () => null,
 }
 
@@ -22,49 +22,34 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
     children,
-    defaultTheme = "system",
+    defaultTheme = "dark",
     storageKey = "vite-ui-theme",
     ...props
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(
-        () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+        () => {
+            const stored = localStorage.getItem(storageKey)
+            if (stored === "dark" || stored === "light") return stored
+            return defaultTheme
+        }
     )
 
     useEffect(() => {
         const root = window.document.documentElement
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
 
-        const applyTheme = () => {
-            const effectiveTheme: "dark" | "light" = theme === "system"
-                ? (mediaQuery.matches ? "dark" : "light")
-                : theme
-
-            // Only remove the opposite class to avoid flash when :root:not(.dark) briefly matches
-            if (effectiveTheme === "dark") {
-                root.classList.remove("light")
-            } else {
-                root.classList.remove("dark")
-            }
-            root.classList.add(effectiveTheme)
-
-            // Also set the data-shadcn-ui-mode attribute for CSS variable overrides
-            document.body.setAttribute(
-                'data-shadcn-ui-mode',
-                effectiveTheme === 'dark' ? 'dark-emerald' : 'light-emerald'
-            )
+        // Only remove the opposite class to avoid flash when :root:not(.dark) briefly matches
+        if (theme === "dark") {
+            root.classList.remove("light")
+        } else {
+            root.classList.remove("dark")
         }
+        root.classList.add(theme)
 
-        applyTheme()
-
-        // Listen for system theme changes when using "system" theme
-        const handleSystemThemeChange = () => {
-            if (theme === "system") {
-                applyTheme()
-            }
-        }
-
-        mediaQuery.addEventListener("change", handleSystemThemeChange)
-        return () => mediaQuery.removeEventListener("change", handleSystemThemeChange)
+        // Also set the data-shadcn-ui-mode attribute for CSS variable overrides
+        document.body.setAttribute(
+            'data-shadcn-ui-mode',
+            theme === 'dark' ? 'dark-emerald' : 'light-emerald'
+        )
     }, [theme])
 
     const value = {

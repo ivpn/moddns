@@ -340,7 +340,6 @@ You can apply the theme on any DOM node, not just the `body`
 /* Using :root.dark for higher specificity to override :root:not(.dark) */
 [data-shadcn-ui-mode="dark-emerald"],
 :root.dark {
-    /* App semantic colors - Dark mode (reverted to pre-4d1853fe values) */
     --shadcn-ui-app-background: rgba(17, 17, 17, 1);  /* #111111 */
     --public-page-background: var(--shadcn-ui-app-background);
     --sidebar-background: var(--shadcn-ui-app-background);
@@ -357,12 +356,11 @@ You can apply the theme on any DOM node, not just the `body`
     --variable-collection-card: rgba(24, 24, 24, 1);
     --variable-collection-surface-foreground: rgba(20, 50, 47, 1);
 
-    /* Slate colors - Dark mode (reverted to pre-4d1853fe values) */
     --tailwind-colors-slate-50: rgba(235, 238, 238, 1);
-    --tailwind-colors-slate-100: rgba(168, 182, 180, 1);  /* OLD value */
-    --tailwind-colors-slate-200: rgba(107, 127, 124, 1);  /* OLD value */
-    --tailwind-colors-slate-400: rgba(87, 99, 97, 1);     /* OLD value */
-    --tailwind-colors-slate-500: rgba(64, 74, 72, 1);     /* OLD value */
+    --tailwind-colors-slate-100: rgba(168, 182, 180, 1);
+    --tailwind-colors-slate-200: rgba(107, 127, 124, 1);
+    --tailwind-colors-slate-400: rgba(87, 99, 97, 1);
+    --tailwind-colors-slate-500: rgba(64, 74, 72, 1);
     --tailwind-colors-slate-600: rgba(52, 60, 59, 1);
     --tailwind-colors-slate-700: rgba(44, 50, 49, 1);
     --tailwind-colors-slate-800: rgba(33, 33, 33, 1);
@@ -437,7 +435,7 @@ You can apply the theme on any DOM node, not just the `body`
         --border: 216 34% 17%;
         --input: 216 34% 17%;
 
-        --card: transparent;  /* reverted to OLD value */
+        --card: transparent;
         --card-foreground: 213 31% 91%;
 
         --primary: 210 40% 98%;

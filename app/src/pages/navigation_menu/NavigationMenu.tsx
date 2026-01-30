@@ -12,7 +12,6 @@ import {
     X,
     Sun,
     Moon,
-    Monitor,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg'
@@ -39,31 +38,20 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
     const [loading, setLoading] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const { theme, setTheme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     // Toggle between light and dark themes
     const toggleTheme = () => {
-        if (theme === 'dark') {
-            setTheme('light');
-        } else if (theme === 'light') {
-            setTheme('system');
-        } else {
-            setTheme('dark');
-        }
+        setTheme(theme === 'dark' ? 'light' : 'dark');
     };
 
     // Get current theme icon
     const getThemeIcon = () => {
-        if (theme === 'dark') return <Moon className="w-5 h-5" />;
-        if (theme === 'light') return <Sun className="w-5 h-5" />;
-        // System theme - use monitor icon
-        return <Monitor className="w-5 h-5" />;
+        return theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />;
     };
 
     const getThemeLabel = () => {
-        if (theme === 'dark') return 'Dark';
-        if (theme === 'light') return 'Light';
-        return 'System';
+        return theme === 'dark' ? 'Dark' : 'Light';
     };
 
     // Logout logic
@@ -282,7 +270,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                         variant="ghost"
                         size="icon"
                         className={`${isMobile ? 'h-12 w-12' : 'h-10 w-10'} rounded-md transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] flex-shrink-0`}
-                        title={`Theme: ${getThemeLabel()}`}
+                        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                         onClick={toggleTheme}
                     >
                         {getThemeIcon()}

@@ -43,7 +43,7 @@ export default function Header({
     const auth = useContext(AuthContext);
     const [scrolled, setScrolled] = useState(false);
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     useEffect(() => {
         const onScroll = () => {
