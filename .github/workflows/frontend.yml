@@ -37,9 +37,9 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Lint (non-blocking)
+      - name: Lint
         working-directory: app
-        run: npm run lint --silent || true
+        run: npm run lint --silent
 
       # - name: Cache Playwright Browsers
       #   id: playwright-cache
