@@ -4,7 +4,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // Verifies the setup guide overlay/panel is scrollable in mobile landscape.
 
 test.describe('@layout setup guide scrollability', () => {
-  test.beforeEach(async ({ }, testInfo) => {
+  // eslint-disable-next-line no-empty-pattern
+  test.beforeEach(async ({}, testInfo) => {
     // Only run on mobile-like projects (naming pattern from config)
     if (!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name)) test.skip();
     if (/iphone15pro/i.test(testInfo.project.name)) { test.skip(); }

@@ -52,7 +52,8 @@ function isMobileProject(name?: string) {
 }
 
 test.describe('@layout mobile horizontal overflow ALL PAGES', () => {
-  test.beforeEach(async ({ }, testInfo) => {
+  // eslint-disable-next-line no-empty-pattern
+  test.beforeEach(async ({}, testInfo) => {
     if (!isMobileProject(testInfo.project.name)) test.skip();
   });
 

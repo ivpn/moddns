@@ -10,7 +10,8 @@ function isMobileLike(name?: string) {
 }
 
 test.describe('@layout mobile nav scrollability', () => {
-  test.beforeEach(async ({ }, testInfo) => {
+  // eslint-disable-next-line no-empty-pattern
+  test.beforeEach(async ({}, testInfo) => {
     if (!isMobileLike(testInfo.project.name)) test.skip();
   });
 
