@@ -11,13 +11,14 @@ import api from "@/api/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
+import type { ModelProfile } from "@/api/client/api";
 
 interface DeleteProfileDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    activeProfile: any;
-    setActiveProfile: (profile: any) => void;
-    profiles: any[];
+    activeProfile: { profile_id: string };
+    setActiveProfile: (profile: ModelProfile | null) => void;
+    profiles: ModelProfile[];
     onProfileDeleted: (profileId: string) => void;
 }
 
@@ -45,8 +46,9 @@ export default function DeleteProfileDialog({
                 toast.success("Profile deleted.");
                 navigate("/setup", { state: { profileDeleted: true } });
             }
-        } catch (e: any) {
-            toast.error(e?.response?.data?.error || "Failed to delete profile.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { error?: string } } };
+            toast.error(axiosErr?.response?.data?.error || "Failed to delete profile.");
         } finally {
             setLoading(false);
         }
