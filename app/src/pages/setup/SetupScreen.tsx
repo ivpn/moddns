@@ -136,16 +136,15 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                 <div className="flex flex-col items-center justify-center gap-4 w-full">
                                     <section className="flex flex-col items-center justify-center gap-8 w-full">
                                         <div className="flex flex-col max-w-[647px] items-center gap-6">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <h1 className="relative top-1.5 text-3xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center tracking-[-0.60px] leading-7 font-mono">
-                                                    Setup
-                                                </h1>
+                                            <h1 className="text-3xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center tracking-[-0.60px] font-mono">
+                                                Setup
                                                 <img
-                                                    className="w-[240px] h-10"
+                                                    className="inline w-[240px] h-10 ml-2"
                                                     alt="modDNS logo"
                                                     src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
+                                                    style={{ verticalAlign: 'calc(1ex - 29px)' }}
                                                 />
-                                            </div>
+                                            </h1>
 
                                             <p className="max-w-[550px] text-lg text-[var(--shadcn-ui-app-muted-foreground)] text-center leading-8">
                                                 Use the account-specific information and select from the list
