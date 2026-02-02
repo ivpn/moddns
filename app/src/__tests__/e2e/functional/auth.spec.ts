@@ -72,7 +72,7 @@ test.describe('@functional Authentication', () => {
     // Toast should appear (non-strict if animations delay)
     try {
       await expect(page.getByText('Logged out successfully.', { exact: false })).toBeVisible({ timeout: 4000 });
-    } catch (e) {
+    } catch {
       // Soft warn if toast missing but proceed (remove this if toast becomes mandatory)
       console.warn('[SOFT] Logout success toast not detected');
     }

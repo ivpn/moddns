@@ -1,13 +1,13 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 
-async function mockDnsSequence(page: Page, responses: any[]) {
+async function mockDnsSequence(page: Page, responses: Record<string, unknown>[]) {
   let call = 0;
   await page.route(/https:\/\/.*\..*\/$/i, async (route: Route) => {
     const r = responses[Math.min(call, responses.length - 1)];
     call++;
-    if ((r as any).status === 404) {
-      return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify((r as any).body) });
+    if (r.status === 404) {
+      return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify(r.body) });
     }
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(r) });
   });

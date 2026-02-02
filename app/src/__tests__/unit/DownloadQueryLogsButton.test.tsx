@@ -36,13 +36,13 @@ Object.defineProperty(URL, 'createObjectURL', { value: createObjectURLMock });
 // Intercept anchor click creation
 let capturedAnchor: HTMLAnchorElement | null = null;
 const originalAppendChild = document.body.appendChild.bind(document.body);
-document.body.appendChild = ((el: any) => {
-    if (el.tagName === 'A') {
-        capturedAnchor = el as HTMLAnchorElement;
-        vi.spyOn(el, 'click').mockImplementation(() => { });
+document.body.appendChild = (<T extends Node>(el: T): T => {
+    if ((el as unknown as HTMLElement).tagName === 'A') {
+        capturedAnchor = el as unknown as HTMLAnchorElement;
+        vi.spyOn(el as unknown as HTMLAnchorElement, 'click').mockImplementation(() => { });
     }
     return originalAppendChild(el);
-}) as any;
+}) as typeof document.body.appendChild;
 
 describe('DownloadQueryLogsButton', () => {
     it('calls API and creates a downloadable blob with expected filename', async () => {

@@ -18,7 +18,7 @@ const dnsCheckRouteRegex = new RegExp(
   'i'
 );
 
-async function mockDnsSequence(page: Page, responses: any[]) {
+async function mockDnsSequence(page: Page, responses: Record<string, unknown>[]) {
   let call = 0;
   await page.route(dnsCheckRouteRegex, async (route: Route) => {
     const r = responses[Math.min(call, responses.length - 1)];

@@ -4,7 +4,7 @@ import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 import { installWebAuthnSuccessStub, installWebAuthnErrorStub } from '../utils/webauthn';
 
 // Helper for ensuring password mode
-async function ensurePasswordMode(page: any) {
+async function ensurePasswordMode(page: import('@playwright/test').Page) {
   if (await page.getByTestId('login-passkey-form').count()) {
     await page.getByTestId('btn-login-toggle-mode').click();
   }

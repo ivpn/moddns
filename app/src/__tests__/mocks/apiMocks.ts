@@ -1,26 +1,26 @@
 import type { ModelAccount, ModelProfile, ModelProfileSettings, ModelAdvanced, ModelLogsSettings, ModelPrivacy, ModelSecurity, ModelStatisticsSettings } from '@/api/client/api';
 
 // Minimal concrete sub-objects to satisfy required nested structures
-const mockAdvanced: ModelAdvanced = {
+const mockAdvanced = {
   // add required primitive properties if any appear later in schema
-} as any;
-const mockLogs: ModelLogsSettings = {
+} as unknown as ModelAdvanced;
+const mockLogs = {
   enabled: false,
   log_clients_ips: false,
   log_domains: false,
   retention: 0,
-} as any;
+} as unknown as ModelLogsSettings;
 const mockPrivacy = (enabledBlocklists: string[] = []): ModelPrivacy => ({
   default_rule: 'allow',
   subdomains_rule: 'allow',
   blocklists: enabledBlocklists
-} as any);
-const mockSecurity: ModelSecurity = {
+} as unknown as ModelPrivacy);
+const mockSecurity = {
   // fill with minimal required fields if present
-} as any;
-const mockStatistics: ModelStatisticsSettings = {
+} as unknown as ModelSecurity;
+const mockStatistics = {
   enabled: false
-} as any;
+} as unknown as ModelStatisticsSettings;
 
 const baseProfileSettings = (profileId: string, enabledBlocklists: string[] = []): ModelProfileSettings => ({
   advanced: mockAdvanced,
@@ -64,7 +64,7 @@ export function createMockProfiles(count = 1, overrides: Partial<ModelProfile> =
 }
 
 // Convenience: build a small set of blocklists objects for UI listing
-export function createMockBlocklists(): any[] {
+export function createMockBlocklists(): Record<string, unknown>[] {
   const now = new Date().toISOString();
   return [
     {

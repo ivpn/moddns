@@ -7,7 +7,7 @@ export interface RegisterMocksOptions {
   authenticated?: boolean;
   profilesCount?: number;
   enableBlocklists?: string[];
-  customProfiles?: any; // allow tests to pass partial override objects
+  customProfiles?: Partial<ModelProfile>[]; // allow tests to pass partial override objects
   accountOverride?: Partial<ReturnType<typeof createMockAccount>>;
   extraRoutes?: (page: Page) => Promise<void> | void;
   ensureActiveProfile?: boolean; // new option
@@ -46,7 +46,6 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
   await page.route(/http?:\/\/[^\s]+\/api\/v1\/accounts\/logout(\/|\?|$)|\/api\/v1\/accounts\/logout(\/|\?|$)/i, (r: Route) => {
     const method = r.request().method();
     // Debug log for visibility during test runs (non-fatal)
-    // eslint-disable-next-line no-console
     console.log('[MOCK] intercept logout', method, r.request().url());
     if (method === 'OPTIONS') {
       return r.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }, body: '' });
@@ -80,7 +79,7 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
       try {
         const parsed = JSON.parse(p as string);
         // Zustand store exposed? If not, try window.__APP_STORE__ pattern guard
-        // @ts-ignore
+        // @ts-expect-error - accessing test instrumentation on window
         const store = window.__APP_STORE__ || undefined;
         if (store?.setActiveProfile) {
           store.setActiveProfile(parsed[0] || null);

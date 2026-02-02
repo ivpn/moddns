@@ -34,7 +34,7 @@ export async function expectNoHorizontalOverflow(page: Page) {
 
 export async function expectVisibleAndInViewport(page: Page, role: string, name: RegExp | string) {
   const strict = process.env.STRICT_MOBILE === '1';
-  let locator = page.getByRole(role as any, { name });
+  let locator = page.getByRole(role as Parameters<Page['getByRole']>[0], { name });
   const count = await locator.count();
   if (count === 0 && role === 'navigation') {
     // fallback to header or first nav element manually

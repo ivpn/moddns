@@ -12,7 +12,7 @@ describe('QuickRuleSheet', () => {
                 profile_id: 'profile-1',
                 id: 'profile-1',
                 settings: {},
-            } as any,
+            } as unknown as ReturnType<typeof useAppStore.getState>['activeProfile'],
         });
     });
 

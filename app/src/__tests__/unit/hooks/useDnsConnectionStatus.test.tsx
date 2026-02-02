@@ -6,11 +6,18 @@ import axios from 'axios';
 
 vi.mock('axios');
 
+const mockedAxiosGet = vi.mocked(axios.get);
+
 // Helper to advance timers and flush pending promises
 async function advance(ms: number) {
     vi.advanceTimersByTime(ms);
     // wait microtasks
     await Promise.resolve();
+}
+
+// Reusable mock profile factory
+function mockProfile(overrides: Record<string, unknown> = {}) {
+    return { profile_id: 'p1', id: 'p1', name: 'Profile One', ...overrides } as unknown as ReturnType<typeof useAppStore.getState>['activeProfile'];
 }
 
 describe('useDnsConnectionStatus', () => {
@@ -19,8 +26,8 @@ describe('useDnsConnectionStatus', () => {
         vi.clearAllMocks();
         // reset store
         const { setActiveProfile, setProfiles } = useAppStore.getState();
-        setProfiles([] as any);
-        setActiveProfile(null as any);
+        setProfiles([] as unknown as Parameters<typeof setProfiles>[0]);
+        setActiveProfile(null as unknown as Parameters<typeof setActiveProfile>[0]);
     });
 
     afterEach(() => {
@@ -29,26 +36,26 @@ describe('useDnsConnectionStatus', () => {
 
     it('initially shows checking placeholder message', async () => {
         // prevent immediate resolution causing state update outside act
-        (axios.get as any).mockImplementationOnce(() => new Promise(() => { }));
-        let resultRef: any;
+        mockedAxiosGet.mockImplementationOnce(() => new Promise(() => { }));
+        let resultRef: { current: ReturnType<typeof useDnsConnectionStatus> };
         await act(async () => {
             const { result } = renderHook(() => useDnsConnectionStatus(5000));
             resultRef = result;
             // allow microtask queue flush
             await Promise.resolve();
         });
-        const status = resultRef.current.status;
+        const status = resultRef!.current.status;
         expect(status.badge.text).toBe('Checking...');
         expect(status.message).toBe('Checking DNS configuration...');
     });
 
     it('handles successful ok response with current active profile', async () => {
-        const profile = { profile_id: 'p1', id: 'p1', name: 'Profile One' } as any;
+        const profile = mockProfile();
         const { setActiveProfile, setProfiles } = useAppStore.getState();
-        setProfiles([profile]);
-        setActiveProfile(profile);
+        setProfiles([profile] as unknown as Parameters<typeof setProfiles>[0]);
+        setActiveProfile(profile as unknown as Parameters<typeof setActiveProfile>[0]);
 
-        (axios.get as any).mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } });
+        mockedAxiosGet.mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } } as never);
 
         const { result } = renderHook(() => useDnsConnectionStatus(5000));
 
@@ -62,13 +69,13 @@ describe('useDnsConnectionStatus', () => {
     });
 
     it('handles successful ok response with different profile', async () => {
-        const active = { profile_id: 'p1', id: 'p1', name: 'Profile One' } as any;
-        const other = { profile_id: 'p2', id: 'p2', name: 'Other Profile' } as any;
+        const active = mockProfile();
+        const other = mockProfile({ profile_id: 'p2', id: 'p2', name: 'Other Profile' });
         const { setActiveProfile, setProfiles } = useAppStore.getState();
-        setProfiles([active, other]);
-        setActiveProfile(active);
+        setProfiles([active, other] as unknown as Parameters<typeof setProfiles>[0]);
+        setActiveProfile(active as unknown as Parameters<typeof setActiveProfile>[0]);
 
-        (axios.get as any).mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p2', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } });
+        mockedAxiosGet.mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p2', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } } as never);
 
         const { result } = renderHook(() => useDnsConnectionStatus(5000));
 
@@ -80,7 +87,7 @@ describe('useDnsConnectionStatus', () => {
     });
 
     it('handles disconnected 404 case', async () => {
-        (axios.get as any).mockRejectedValueOnce({ response: { status: 404, data: { error: 'disconnected' } } });
+        mockedAxiosGet.mockRejectedValueOnce({ response: { status: 404, data: { error: 'disconnected' } } });
 
         const { result } = renderHook(() => useDnsConnectionStatus(5000));
 
@@ -94,14 +101,14 @@ describe('useDnsConnectionStatus', () => {
     });
 
     it('handles generic error and shows fallback message', async () => {
-        (axios.get as any).mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } });
+        mockedAxiosGet.mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } } as never);
         // second poll triggers error
-        (axios.get as any).mockRejectedValueOnce(new Error('network'));
+        mockedAxiosGet.mockRejectedValueOnce(new Error('network'));
 
-        const profile = { profile_id: 'p1', id: 'p1', name: 'Profile One' } as any;
+        const profile = mockProfile();
         const { setActiveProfile, setProfiles } = useAppStore.getState();
-        setProfiles([profile]);
-        setActiveProfile(profile);
+        setProfiles([profile] as unknown as Parameters<typeof setProfiles>[0]);
+        setActiveProfile(profile as unknown as Parameters<typeof setActiveProfile>[0]);
 
         const { result } = renderHook(() => useDnsConnectionStatus(10));
 
@@ -120,15 +127,15 @@ describe('useDnsConnectionStatus', () => {
 
     it('keeps previous message during loading between polls', async () => {
         // first success
-        (axios.get as any).mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } });
+        mockedAxiosGet.mockResolvedValueOnce({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' } } as never);
         // second pending: we'll not resolve yet
-        let secondResolve: any;
-        (axios.get as any).mockImplementationOnce(() => new Promise(res => { secondResolve = res; }));
+        let secondResolve: (value: unknown) => void;
+        mockedAxiosGet.mockImplementationOnce(() => new Promise(res => { secondResolve = res; }));
 
-        const profile = { profile_id: 'p1', id: 'p1', name: 'Profile One' } as any;
+        const profile = mockProfile();
         const { setActiveProfile, setProfiles } = useAppStore.getState();
-        setProfiles([profile]);
-        setActiveProfile(profile);
+        setProfiles([profile] as unknown as Parameters<typeof setProfiles>[0]);
+        setActiveProfile(profile as unknown as Parameters<typeof setActiveProfile>[0]);
 
         const { result } = renderHook(() => useDnsConnectionStatus(10));
 
@@ -144,17 +151,16 @@ describe('useDnsConnectionStatus', () => {
         expect(result.current.status.message).toBe(stableMessage);
 
         // complete second poll with different profile id to simulate change
-        secondResolve({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org2', ip: '2.2.2.2' } });
+        secondResolve!({ status: 200, data: { status: 'ok', profile_id: 'p1', asn: '', asn_organization: 'Org2', ip: '2.2.2.2' } });
         await act(async () => { await advance(0); });
 
         expect(result.current.status.message).toContain('modDNS with this profile');
     });
 
     it('does not send requests when disabled', () => {
-        const spy = axios.get as any;
         renderHook(() => useDnsConnectionStatus(50, { enabled: false }));
         // Advance time well beyond one interval
         vi.advanceTimersByTime(500);
-        expect(spy).not.toHaveBeenCalled();
+        expect(mockedAxiosGet).not.toHaveBeenCalled();
     });
 });

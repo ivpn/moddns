@@ -5,7 +5,7 @@ import { AUTH_KEY } from '@/lib/consts';
 // Ensures app header remains visible and clickable when setup overlay is open in mobile landscape.
 
 test.describe('@layout setup overlay header visibility', () => {
-  test.beforeEach(async ({}, testInfo) => {
+  test.beforeEach(async ({ }, testInfo) => {
     if (!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name)) test.skip();
   });
 
