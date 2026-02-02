@@ -1,6 +1,7 @@
 import React from 'react';
 import CodeBlock from '@/components/setup/CodeBlock';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const routersBadges = [
     { label: 'Routers' },
     { label: 'DNS over HTTPS' },
@@ -210,6 +211,7 @@ const RouterTabs = ({ deps }: { deps: RoutersGuideDeps }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const createRoutersSteps = (deps: RoutersGuideDeps) => {
     return [
         {
@@ -226,6 +228,7 @@ export const createRoutersSteps = (deps: RoutersGuideDeps) => {
 };
 
 // Default (generic) steps so the panel can render without injected deps.
+// eslint-disable-next-line react-refresh/only-export-components
 export const routersSteps = createRoutersSteps({
     dohEndpoint: 'https://example.com/dns-query/your-profile-id',
     anycastIpv4: '0.0.0.0',

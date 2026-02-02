@@ -84,9 +84,10 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             setAccount(refreshed.data);
             toast.success("Password updated successfully.");
             handleClose();
-        } catch (e: any) {
-            let errorMessage = e.response?.data?.error || "Failed to update password.";
-            if (e.response?.data?.error === "password does not meet complexity requirements") {
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { error?: string } } };
+            let errorMessage = axiosErr.response?.data?.error || "Failed to update password.";
+            if (axiosErr.response?.data?.error === "password does not meet complexity requirements") {
                 errorMessage = "Password must be 12-64 characters, contain at least one uppercase letter, one lowercase letter, one number, and one special character.";
             }
             toast.error(errorMessage);

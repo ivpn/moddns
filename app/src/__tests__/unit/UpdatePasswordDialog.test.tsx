@@ -17,7 +17,7 @@ vi.mock('@/api/api', () => ({
     default: {
         Client: {
             accountsApi: {
-                apiV1AccountsPatch: (...args: any[]) => patchMock(...args),
+                apiV1AccountsPatch: (...args: unknown[]) => patchMock(...args),
                 apiV1AccountsCurrentGet: () => currentGetMock()
             }
         }
@@ -25,18 +25,18 @@ vi.mock('@/api/api', () => ({
 }));
 
 // Helper to set account state in zustand store
-const setAccountState = (account: any) => {
+const setAccountState = (account: Record<string, unknown>) => {
     const setAccount = useAppStore.getState().setAccount;
     setAccount(account);
 };
 
 describe('UpdatePasswordDialog', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
         patchMock.mockReset();
         currentGetMock.mockReset();
-        const toast = require('sonner').toast;
-        (toast.error as any).mockReset?.();
-        (toast.success as any).mockReset?.();
+        const { toast } = await import('sonner');
+        (toast.error as unknown as { mockReset?: () => void }).mockReset?.();
+        (toast.success as unknown as { mockReset?: () => void }).mockReset?.();
         // default account with no 2FA
         setAccountState({ account_id: 'abc', mfa: { totp: { enabled: false } } });
     });

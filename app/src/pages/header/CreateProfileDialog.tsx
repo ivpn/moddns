@@ -51,9 +51,10 @@ export default function CreateProfileDialog({
                 onOpenChange(false);
                 navigate("/setup");
             }
-        } catch (err: any) {
-            if (err?.response?.status === 400 && err?.response?.data?.error) {
-                setError(err.response.data.error);
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+            if (axiosErr?.response?.status === 400 && axiosErr?.response?.data?.error) {
+                setError(axiosErr.response.data.error);
             } else {
                 setError("Failed to create profile.");
             }

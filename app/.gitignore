@@ -25,5 +25,6 @@ env.json
 *.sw?
 
 playwright-report/
+test-results/
 access_rules.conf
 env/.env.local

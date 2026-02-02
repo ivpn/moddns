@@ -53,9 +53,12 @@ const platformCards: PlatformCard[][] = [
     ],
 ];
 
-export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export default function Setup({ profiles }: SetupProps): JSX.Element {
     const { isDesktop } = useScreenDetector();
     const setRightPanelOpen = useAppStore((state) => state.setRightPanelOpen);
+    const account = useAppStore(state => state.account);
+    const emailVerified = account?.email_verified;
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
     const [showPanel, setShowPanel] = useState(false);
@@ -78,7 +81,7 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
 
     // Auto-open right panel guide only when navigating back from Mobileconfig (explicit flag)
     useEffect(() => {
-        const state: any = location.state;
+        const state = location.state as { fromMobileconfig?: boolean; platform?: string } | null;
         if (state?.fromMobileconfig && state.platform && !showPanel) {
             setSelectedPlatform(state.platform);
             setShowPanel(true);
@@ -95,7 +98,7 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
             setCopiedField(fieldName);
             setTimeout(() => setCopiedField(null), 2000);
             toast.success(`${fieldName} copied to clipboard`);
-        } catch (err) {
+        } catch {
             toast.error("Failed to copy to clipboard");
         }
     };
@@ -149,8 +152,8 @@ export default function Setup({ profiles: _ }: SetupProps): JSX.Element {
                                                 of guides below to set up modDNS on your device.
                                             </p>
                                             {/* Email verification warning banner (only if not verified & not dismissed) */}
-                                            {useAppStore(state => state.account) && !useAppStore(state => state.account?.email_verified) && (
-                                                <VerificationBanner emailVerified={useAppStore(state => state.account?.email_verified)} />
+                                            {account && !emailVerified && (
+                                                <VerificationBanner emailVerified={emailVerified} />
                                             )}
                                         </div>
 

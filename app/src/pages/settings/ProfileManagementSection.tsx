@@ -136,7 +136,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                         path: idx === 0
                             ? ModelProfileUpdatePathEnum.SettingsPrivacyDefaultRule
                             : ModelProfileUpdatePathEnum.SettingsPrivacySubdomainsRule,
-                        value: apiValue as any,
+                        value: apiValue as unknown as object,
                     }
                 ]
             });
@@ -146,8 +146,9 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 )
             );
             toast.success("Blocklist setting updated.");
-        } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "Failed to update blocklist setting.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to update blocklist setting.");
         }
     };
 
@@ -179,7 +180,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                     {
                         operation: ModelProfileUpdateOperationEnum.Replace,
                         path,
-                        value: apiValue as any,
+                        value: apiValue as unknown as object,
                     }
                 ]
             });
@@ -189,8 +190,9 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 )
             );
             toast.success("Logs setting updated.");
-        } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "Failed to update logs setting.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to update logs setting.");
         }
     };
 
@@ -210,7 +212,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                     {
                         operation: ModelProfileUpdateOperationEnum.Replace,
                         path: idx === 0 ? ModelProfileUpdatePathEnum.SettingsSecurityDnssecEnabled : ModelProfileUpdatePathEnum.SettingsSecurityDnssecSendDoBit,
-                        value: apiValue as any,
+                        value: apiValue as unknown as object,
                     }
                 ]
             });
@@ -220,8 +222,9 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 )
             );
             toast.success("Advanced setting updated.");
-        } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "Failed to update advanced setting.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to update advanced setting.");
         } finally {
             setAdvancedLoading(false);
         }
@@ -239,13 +242,13 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                     {
                         operation: ModelProfileUpdateOperationEnum.Replace,
                         path: ModelProfileUpdatePathEnum.SettingsAdvancedRecursor,
-                        value: recursor as any,
+                        value: recursor as unknown as object,
                     }
                 ]
             });
             setCurrentRecursor(recursor);
             toast.success("Recursor updated successfully.");
-        } catch (e: any) {
+        } catch {
             toast.error("Failed to update recursor.");
         } finally {
             setAdvancedLoading(false);
@@ -253,7 +256,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
     };
 
     // Handler for profile deletion
-    const handleProfileDeleted = (_profileId: string) => {
+    const handleProfileDeleted = () => {
         // The DeleteProfileDialog should handle the actual deletion
         // This is just a callback for when deletion is complete
         setShowDeleteDialog(false);

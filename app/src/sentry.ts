@@ -17,9 +17,9 @@ Sentry.init({
     replaysSessionSampleRate: 0.1,
     tracesSampleRate: 1.0,
     // tracePropagationTargets: ["localhost:3000"],
-    beforeSend(event, hint) {
+    beforeSend(event) {
         // Custom logic to decide whether to send the event
-        const generalStore = useAppStore();
+        const generalStore = useAppStore.getState();
         if (!generalStore.account?.error_reports_consent) {
             return null; // Prevent sending the event
         }

@@ -20,7 +20,7 @@ export default function Login() {
     const location = useLocation();
     const navigate = useNavigate();
     const auth = useContext(AuthContext); // Move this to top level
-    const [_error, setError] = useState<string | null>(null); // error text managed for potential UI usage, underscore to silence lint if unused
+    const [, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [webAuthnSupported] = useState(() => isWebAuthnSupported());
 
@@ -112,7 +112,7 @@ export default function Login() {
             }
             // Always redirect to home page after successful login
             navigate("/home", { replace: true });
-        } catch (error) {
+        } catch {
             setError("Failed to login. Please try again.");
         } finally {
             setShowSessionLimitDialog(false);
@@ -153,11 +153,12 @@ export default function Login() {
                 setError("Invalid credentials or login failed.");
                 authToasts.invalidCredentials();
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
             if (
-                err?.response?.status === 401
+                axiosErr?.response?.status === 401
             ) {
-                switch (err?.response?.data?.error) {
+                switch (axiosErr?.response?.data?.error) {
                     case "TOTP is required":
                     case "TOTP_REQUIRED":
                         authToasts.totpRequired();
@@ -170,9 +171,9 @@ export default function Login() {
                         setError("Unauthorized. Please check your credentials.");
                         authToasts.unauthorized();
                 }
-            } else if (err?.response?.status === 429) {
+            } else if (axiosErr?.response?.status === 429) {
                 // Check if it's session limit error
-                if (err?.response?.data?.error === "maximum number of active sessions reached") {
+                if (axiosErr?.response?.data?.error === "maximum number of active sessions reached") {
                     setShowSessionLimitDialog(true);
                     setPendingEmail(email);
                     setPendingPassword(password);
@@ -180,8 +181,8 @@ export default function Login() {
                     setError("Too many login attempts. Please try again later.");
                     authToasts.tooManyAttempts();
                 }
-            } else if (err?.response?.status === 400) {
-                const apiErr = err?.response?.data?.error || '';
+            } else if (axiosErr?.response?.status === 400) {
+                const apiErr = axiosErr?.response?.data?.error || '';
                 if (apiErr.toLowerCase().includes('invalid')) {
                     setError("Invalid credentials or login failed.");
                     authToasts.invalidCredentials();
@@ -190,7 +191,7 @@ export default function Login() {
                     authToasts.unexpectedError(apiErr);
                 }
             } else {
-                const apiErr = err?.response?.data?.error;
+                const apiErr = axiosErr?.response?.data?.error;
                 setError(apiErr || "An unexpected error occurred.");
                 authToasts.unexpectedError(apiErr);
             }
@@ -226,8 +227,8 @@ export default function Login() {
 
             // Always redirect to home page after successful login
             navigate("/home", { replace: true });
-        } catch (err: any) {
-            const errorMessage = err.message || "Passkey authentication failed";
+        } catch (err: unknown) {
+            const errorMessage = (err instanceof Error ? err.message : null) || "Passkey authentication failed";
             setError(errorMessage);
             authToasts.passkeyError(errorMessage);
         } finally {

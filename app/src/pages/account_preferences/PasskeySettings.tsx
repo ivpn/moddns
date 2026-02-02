@@ -25,6 +25,7 @@ export default function PasskeySettings() {
         // Check WebAuthn support
         setWebAuthnSupported(isWebAuthnSupported());
         loadPasskeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const loadPasskeys = async () => {

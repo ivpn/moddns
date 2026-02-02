@@ -64,7 +64,7 @@ const platformIcons: { [key: string]: React.ReactNode } = {
     "Device Identification": <Smartphone className="w-5 h-5" />,
 };
 
-const platformGuides: { [key: string]: any } = {
+const platformGuides: { [key: string]: { badges?: { label: string }[]; steps?: { instruction: React.ReactNode; step?: number }[] } | null } = {
     "Windows": WindowsGuide,
     "Linux": LinuxGuide,
     "Android": AndroidGuide,
@@ -238,7 +238,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                     <div className="flex flex-col gap-6">
                         {/* Tags */}
                         <div className="flex items-start gap-2.5 flex-wrap">
-                            {guide.badges?.map((badge: any, index: number) => (
+                            {guide.badges?.map((badge: { label: string }, index: number) => (
                                 <Badge
                                     key={index}
                                     className="cursor-default select-none tracking-[0.08em] uppercase text-[10px] font-semibold px-3 py-1 rounded-[2px] border bg-[var(--variable-collection-surface)] text-[var(--shadcn-ui-app-foreground)] border-[var(--tailwind-colors-slate-400)] dark:border-[var(--tailwind-colors-slate-600)]"
@@ -267,7 +267,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
 
                         {/* Steps */}
                         <div className="flex flex-col gap-6">
-                            {guide.steps?.map((step: any, index: number) => (
+                            {guide.steps?.map((step: { instruction: React.ReactNode; step?: number }, index: number) => (
                                 <div key={index} className="flex flex-col gap-3">
                                     {step.step && (
                                         <div className="flex items-center gap-2.5">

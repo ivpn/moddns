@@ -79,8 +79,9 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             setOtp(""); // Clear OTP after successful confirmation
             toast.success("2FA enabled successfully.");
             // Do NOT call onEnabled here, wait for user confirmation
-        } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "Failed to enable 2FA.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to enable 2FA.");
         } finally {
             setEnabling(false);
         }

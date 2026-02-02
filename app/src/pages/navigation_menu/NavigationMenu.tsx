@@ -50,10 +50,6 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
         return theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />;
     };
 
-    const getThemeLabel = () => {
-        return theme === 'dark' ? 'Dark' : 'Light';
-    };
-
     // Logout logic
     const handleLogout = async () => {
         setLoading(true);
@@ -62,7 +58,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             auth?.logout?.();
             // Call the backend logout endpoint using API client
             await api.Client.authApi.apiV1AccountsLogoutPost();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Logout failed:', err);
         } finally {
             setLoading(false);

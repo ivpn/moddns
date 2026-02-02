@@ -17,7 +17,7 @@ test.describe('@functional Session Expiry', () => {
     await expect.poll(() => page.url()).toMatch(/\/home$/);
 
   // Wait until helper is attached (effect mounts after initial render)
-  await page.evaluate(() => (window as any).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
+  await page.evaluate(() => (window as unknown as { __APP_DISPATCH_EVENT__: (e: { type: string; reason: string; toastType: string }) => void }).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
 
     await expect.poll(() => page.url(), { timeout: 8000 }).toMatch(/\/login$/);
     await expect(page.getByTestId('login-page')).toBeVisible();
@@ -34,7 +34,7 @@ test.describe('@functional Session Expiry', () => {
     await page.goto('/home');
     await expect(page).toHaveURL(/\/home$/);
     // Trigger forced logout
-  await page.evaluate(() => (window as any).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
+  await page.evaluate(() => (window as unknown as { __APP_DISPATCH_EVENT__: (e: { type: string; reason: string; toastType: string }) => void }).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByTestId('login-page')).toBeVisible();
     await expect(page.getByTestId(AUTH_TOAST_IDS.sessionExpired)).toBeVisible();

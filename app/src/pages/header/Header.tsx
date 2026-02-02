@@ -66,7 +66,7 @@ export default function Header({
         try {
             await api.Client.authApi.apiV1AccountsLogoutPost();
             auth?.logout?.();
-        } catch (e) {
+        } catch {
             toast.error("Logout failed.");
         } finally {
             setLogoutLoading(false);

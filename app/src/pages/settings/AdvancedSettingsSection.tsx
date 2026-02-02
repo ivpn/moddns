@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import RecursorChoiceSection from "@/pages/settings/RecursorChoiceSection";
 
 interface AdvancedSettingsSectionProps {
-    advancedSettings: any[];
+    advancedSettings: { title: string; description: string; options: { value: string; label: string; icon?: string }[]; value: string }[];
     advancedLoading: boolean;
     handleAdvancedChange: (idx: number, value: string) => void;
     currentRecursor: string;

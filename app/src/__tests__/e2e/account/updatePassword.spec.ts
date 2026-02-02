@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // Intercepts account patch + current get to assert JSON Patch sequence
 test('password update sends test+replace operations', async ({ page }) => {
-  let patchPayload: any = null;
+  let patchPayload: { updates: { operation: string; path: string; value?: string }[] } | null = null;
   // Pre-auth via localStorage before app scripts run
   await page.addInitScript(() => { window.localStorage.setItem('AUTH_KEY', 'true'); });
   await page.route('**/api/v1/accounts', async route => {

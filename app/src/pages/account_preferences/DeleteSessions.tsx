@@ -27,7 +27,7 @@ export default function DeleteSessionsDialog({
             await api.Client.sessionsApi.apiV1SessionsDelete();
             toast.success("All other sessions have been logged out.");
             onOpenChange(false);
-        } catch (e) {
+        } catch {
             toast.error("Failed to log out sessions.");
         }
     };

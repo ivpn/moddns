@@ -40,10 +40,10 @@ export const useScreenDetector = () => {
   handleOrient();
 
     const add = (mq: MediaQueryList, fn: (e: MediaQueryListEvent) => void) => {
-      if (mq.addEventListener) mq.addEventListener('change', fn); else if ((mq as any).addListener) (mq as any).addListener(fn);
+      if (mq.addEventListener) mq.addEventListener('change', fn); else if ((mq as unknown as { addListener?: (fn: (e: MediaQueryListEvent) => void) => void }).addListener) (mq as unknown as { addListener: (fn: (e: MediaQueryListEvent) => void) => void }).addListener(fn);
     };
     const remove = (mq: MediaQueryList, fn: (e: MediaQueryListEvent) => void) => {
-      if (mq.removeEventListener) mq.removeEventListener('change', fn); else if ((mq as any).removeListener) (mq as any).removeListener(fn);
+      if (mq.removeEventListener) mq.removeEventListener('change', fn); else if ((mq as unknown as { removeListener?: (fn: (e: MediaQueryListEvent) => void) => void }).removeListener) (mq as unknown as { removeListener: (fn: (e: MediaQueryListEvent) => void) => void }).removeListener(fn);
     };
 
     add(desktopMq, handleDesktop);

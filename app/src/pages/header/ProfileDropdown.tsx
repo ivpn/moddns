@@ -47,7 +47,7 @@ export default function ProfileDropdown({
     };
 
     // Handler for deleting a profile
-    const handleProfileDeleted = async (_deletedProfileId: string) => {
+    const handleProfileDeleted = async () => {
         await fetchProfilesAndUpdate();
         setShowEditDialog(false);
         setLoading(false);

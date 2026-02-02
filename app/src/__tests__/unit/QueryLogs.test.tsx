@@ -33,7 +33,7 @@ vi.mock("@/pages/logs/QuickRuleSheet", () => ({
 
 vi.mock("@/pages/logs/QueryLogCard", () => ({
     __esModule: true,
-    default: ({ log, onQuickRule, lastLogRef, isLast }: any) => {
+    default: function MockQueryLogCard({ log, onQuickRule, lastLogRef, isLast }: { log: { status: string; dns_request?: { domain: string } }; onQuickRule?: (domain: string, action: string) => void; lastLogRef?: (el: HTMLDivElement) => void; isLast?: boolean }) {
         React.useEffect(() => {
             if (lastLogRef) {
                 const el = document.createElement("div");
@@ -62,7 +62,7 @@ vi.mock("@/pages/logs/Filters", () => ({
         onTimespanChange,
         onDeviceIdChange,
         onRefresh,
-    }: any) => (
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void }) => (
         <div>
             <input
                 data-testid="search-input"
@@ -103,13 +103,14 @@ vi.mock("sonner", () => ({
 }));
 
 // Minimal IntersectionObserver mock
-let lastObserver: MockIntersectionObserver | null = null;
+
 
 class MockIntersectionObserver {
     callback: IntersectionObserverCallback;
+    static lastInstance: MockIntersectionObserver | null = null;
     constructor(callback: IntersectionObserverCallback) {
         this.callback = callback;
-        lastObserver = this;
+        MockIntersectionObserver.lastInstance = this;
     }
     observe() { }
     unobserve() { }
@@ -126,16 +127,16 @@ declare global {
 
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof globalThis.IntersectionObserver;
 
-const baseProfile: any = {
+const baseProfile = {
     profile_id: "profile-1",
     id: "profile-1",
     name: "Primary",
     settings: { logs: { enabled: true } },
-};
+} as unknown as Record<string, unknown> & { profile_id: string; settings: { logs: { enabled: boolean } } };
 
-const account: any = { id: "account-1" };
+const account = { id: "account-1" } as unknown as Record<string, unknown>;
 
-const makeLog = (overrides: Partial<any> = {}) => ({
+const makeLog = (overrides: Record<string, unknown> = {}) => ({
     profile_id: baseProfile.profile_id,
     timestamp: "2024-01-01T00:00:00Z",
     status: "processed",
@@ -151,12 +152,12 @@ describe("QueryLogs", () => {
         queryLogsMock.mockReset();
         profilesGetMock.mockReset();
         useAppStore.setState({ activeProfile: baseProfile });
-        lastObserver = null;
+        MockIntersectionObserver.lastInstance = null;
     });
 
     afterEach(() => {
         useAppStore.setState({ activeProfile: null });
-        lastObserver = null;
+        MockIntersectionObserver.lastInstance = null;
     });
 
     test("fetches with page 1 limit 100 and paginates to page 2", async () => {
@@ -166,7 +167,7 @@ describe("QueryLogs", () => {
 
         render(<QueryLogs account={account} profiles={[baseProfile]} />);
         await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(lastObserver).toBeTruthy());
+        await waitFor(() => expect(MockIntersectionObserver.lastInstance).toBeTruthy());
         expect(queryLogsMock).toHaveBeenCalledWith(
             baseProfile.profile_id,
             1,
@@ -179,7 +180,7 @@ describe("QueryLogs", () => {
         );
 
         act(() => {
-            lastObserver?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+            MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
         });
 
         await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(2));

@@ -1,10 +1,12 @@
 import { type JSX } from "react";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const deviceIdentificationBadges = [
     { label: "Device Tracking" },
     { label: "DNS Logs" },
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const createDeviceIdentificationSteps = (profileId = "your-profile-id", dnsOverHTTPS = "https://example.com/dns-query", domain = "example.com"): Array<{ instruction: JSX.Element }> => [
     {
         instruction: (
@@ -78,6 +80,7 @@ export const createDeviceIdentificationSteps = (profileId = "your-profile-id", d
 
 // Default export for backwards compatibility
 const deviceIdentificationSteps = createDeviceIdentificationSteps();
+// eslint-disable-next-line react-refresh/only-export-components
 export { deviceIdentificationSteps };
 
 const DeviceIdentificationGuide = {

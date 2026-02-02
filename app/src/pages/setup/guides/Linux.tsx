@@ -7,6 +7,7 @@ export const linuxBadges = [
 ];
 
 // STEP block component
+// eslint-disable-next-line react-refresh/only-export-components
 const StepBlock = ({ number, children }: { number: number; children: React.ReactNode }) => (
     <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2.5">
@@ -80,6 +81,7 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
     ];
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const LinuxTabs = ({ deps }: { deps: LinuxGuideDeps }) => {
     const [active, setActive] = React.useState('systemd-resolved');
     const tabs = React.useMemo(() => buildTabs(deps), [deps]);

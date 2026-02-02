@@ -57,7 +57,7 @@ const PreferencesDialog = ({
                         value: data.settings?.privacy?.subdomains_rule ?? "block",
                     },
                 ]);
-            } catch (e: any) {
+            } catch {
                 toast.error("Failed to fetch profile settings.");
             }
         };
@@ -83,9 +83,9 @@ const PreferencesDialog = ({
         path: ModelProfileUpdatePathEnum | string;
         value: string | boolean;
         loadingSetter: React.Dispatch<React.SetStateAction<boolean>>;
-        stateSetter: React.Dispatch<React.SetStateAction<any[]>>;
+        stateSetter: React.Dispatch<React.SetStateAction<typeof initialBlocklistSettings>>;
         idx: number;
-        settings: any[];
+        settings: typeof initialBlocklistSettings;
         successMessage: string;
         errorMessage: string;
     }) => {
@@ -112,9 +112,10 @@ const PreferencesDialog = ({
                 )
             );
             toast.success(successMessage || "Blocklists preferences updated successfully.");
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
             toast.error(
-                e?.response?.data?.detail ||
+                axiosErr?.response?.data?.detail ||
                 errorMessage ||
                 "Something went wrong while updating blocklists preferences."
             );

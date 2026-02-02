@@ -63,8 +63,9 @@ export default function EditProfileDialog({
             toast.success("Profile name updated.");
             setShowSave(false);
             onProfileUpdated(response.data); // or the updated profile object
-        } catch (e: any) {
-            toast.error(e?.response?.data?.error || "Failed to update profile name.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { error?: string } } };
+            toast.error(axiosErr?.response?.data?.error || "Failed to update profile name.");
         } finally {
             setLoading(false);
         }

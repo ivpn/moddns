@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/general/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import AccountInfoCard from "@/pages/account_preferences/AccountInfoCard";
-import type { ModelAccount, ModelSubscription, ModelSubscriptionType } from "@/api/client/api";
+import type { ModelAccount, ModelSubscription } from "@/api/client/api";
 import api from "@/api/api";
 import ToggleGroup from "@/components/general/ToggleGroup";
 import { toast } from "sonner"
@@ -167,11 +167,6 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
         } catch { return iso; }
     };
 
-    const normalizeType = (t?: ModelSubscriptionType) => {
-        if (!t) return '—';
-        return String(t).charAt(0).toUpperCase() + String(t).slice(1);
-    };
-
     // Account info data (Member since removed; Active until + Subscription type added)
     const accountInfo = [
         { label: "modDNS ID", value: currentAccount?.email || "" },
@@ -201,15 +196,6 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                     ? subscriptionError
                     : formatDate(subscription?.active_until),
         },
-        // TODO: Uncomment when subscription types are supported
-        // {
-        //     label: "Subscription type",
-        //     value: subscriptionLoading
-        //         ? 'Loading…'
-        //         : subscriptionError
-        //             ? '—'
-        //             : normalizeType(subscription?.type),
-        // },
     ];
 
     // Section data

@@ -49,12 +49,13 @@ export default function PasswordResetConfirm(): JSX.Element {
             navigate("/login", {
                 state: { passwordResetSuccess: true }
             });
-        } catch (err: any) {
-            switch (err?.response?.status) {
-                case 400:
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { status?: number; data?: { error?: string; details?: string | string[] } } };
+            switch (axiosErr?.response?.status) {
+                case 400: {
                     // Handle both string and array in details
-                    const errorMsg = err?.response?.data?.error;
-                    const details = err?.response?.data?.details;
+                    const errorMsg = axiosErr?.response?.data?.error;
+                    const details = axiosErr?.response?.data?.details;
                     switch (errorMsg) {
                         case "token expired":
                             toast.error("Reset password token has expired. Please request a new one.");
@@ -74,8 +75,9 @@ export default function PasswordResetConfirm(): JSX.Element {
                             break;
                     }
                     break;
+                }
                 case 401:
-                    if (err?.response?.data?.error === "TOTP is required") {
+                    if (axiosErr?.response?.data?.error === "TOTP is required") {
                         setShowOtp(true);
                         toast.info("Two-factor authentication required. Please enter your code.");
                     }
@@ -84,7 +86,7 @@ export default function PasswordResetConfirm(): JSX.Element {
                     toast.error("Server error. Please try again later.");
                     break;
                 default:
-                    toast.error(err?.response?.data?.error || "Failed to reset password.");
+                    toast.error(axiosErr?.response?.data?.error || "Failed to reset password.");
             }
         } finally {
             setLoading(false);

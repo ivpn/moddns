@@ -88,6 +88,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 setActiveProfile(profiles[0]);
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeProfile is intentionally excluded to avoid re-running this effect when the profile object changes (which this effect itself triggers via setActiveProfile)
     }, [profiles, setActiveProfile]);
 
     const handleOpenQuickRule = useCallback((domain?: string, defaultAction: QuickRuleAction = "denylist") => {
@@ -215,6 +216,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         return () => {
             cancelled = true;
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- committedSearchValue, isAutoRefreshing, and sortValue are consumed via the `filters` object and `refreshTrigger`; adding them directly would cause redundant re-fetches since the filters object already captures their derived values
     }, [page, filters.Limit, filters.Status, filters.Timespan.Value, filters.Search, filters.Sort, activeProfile, refreshTrigger, deviceIdValue]);
 
     // Auto-refresh effect

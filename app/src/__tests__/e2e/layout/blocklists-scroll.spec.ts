@@ -8,7 +8,7 @@ const VIEWPORTS = [
 ];
 
 // Utility: ensure enough mock blocklists to require vertical scrolling
-function extendBlocklists(blocklists: any[], minCount = 30) {
+function extendBlocklists(blocklists: Record<string, unknown>[], minCount = 30) {
   const clone = [...blocklists];
   let i = 0;
   while (clone.length < minCount) {

@@ -42,6 +42,7 @@ export const NavigationCollapseProvider: React.FC<{ children: React.ReactNode }>
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNavigationCollapse() {
     const ctx = useContext(NavigationCollapseContext);
     if (!ctx) throw new Error("useNavigationCollapse must be used within NavigationCollapseProvider");

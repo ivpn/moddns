@@ -62,6 +62,7 @@ const SORT_OPTIONS: Array<{ label: string; value: ApiV1BlocklistsGetSortByEnum }
     },
 ];
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const formatUpdatedRelative = (isoDate?: string): string => {
     if (!isoDate) return "";
     const raw = formatDistanceToNow(parseISO(isoDate), { addSuffix: true });

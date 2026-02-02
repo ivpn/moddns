@@ -34,8 +34,9 @@ export default function PasswordReset(): JSX.Element {
                 setSent(true);
                 toast.success("Reset instructions sent to your email.");
             }
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || "Failed to send reset instructions.");
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { data?: { error?: string } } };
+            toast.error(axiosErr?.response?.data?.error || "Failed to send reset instructions.");
         } finally {
             setLoading(false);
         }
@@ -51,8 +52,9 @@ export default function PasswordReset(): JSX.Element {
             if (response.status === 204) {
                 toast.success("Reset instructions resent.");
             }
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error || "Failed to resend reset instructions.");
+        } catch (err: unknown) {
+            const axiosErr = err as { response?: { data?: { error?: string } } };
+            toast.error(axiosErr?.response?.data?.error || "Failed to resend reset instructions.");
         } finally {
             setResending(false);
         }

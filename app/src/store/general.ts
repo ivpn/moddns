@@ -89,7 +89,7 @@ export function useProfileData(): DerivedProfileData | null {
 
   return useMemo(() => {
     if (!activeProfile) return null;
-    const id = (activeProfile as any).profile_id || (activeProfile as any).id || '';
+    const id = (activeProfile as ModelProfile & { profile_id?: string; id?: string }).profile_id || (activeProfile as ModelProfile & { id?: string }).id || '';
     const dnsOverTLS = `${id}.${envDomain}`;
     const dnsOverHTTPS = `https://${envDomain}/dns-query/${id}`;
     return {

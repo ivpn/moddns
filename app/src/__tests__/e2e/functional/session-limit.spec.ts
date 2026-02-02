@@ -6,7 +6,7 @@ import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 
 test.describe('Session limit dialog cancel flow (desktop only)', () => {
   test('Cancel maintains login state without authenticating', async ({ page }) => {
-    let authed = false;
+    const authed = false;
 
     // Mock login returning session limit on first attempt
     await page.route(/\/api\/v1\/login(\/?|\?.*)$/i, async route => {

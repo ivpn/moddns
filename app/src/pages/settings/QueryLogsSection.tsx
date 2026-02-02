@@ -43,7 +43,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
             await api.Client.queryLogsApi.apiV1ProfilesIdLogsDelete(activeProfile.profile_id);
             toast.success("Query logs cleared.");
             setShowClearDialog(false);
-        } catch (_err: unknown) {
+        } catch {
             toast.error("Failed to clear query logs.");
         } finally {
             setClearLoading(false);
@@ -179,7 +179,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                                     link.remove();
                                     window.URL.revokeObjectURL(url);
                                     toast.success("Query logs download started.");
-                                } catch (_err: unknown) {
+                                } catch {
                                     toast.error("Failed to download query logs.");
                                 }
                             }}

@@ -177,13 +177,14 @@ async function rootLoader() {
       account,
       profiles,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
 
 
 
 
     if (error instanceof Response) throw error;
-    const status = error?.response?.status ?? error?.status ?? (error instanceof Error && (error as any).status);
+    const err = error as Record<string, unknown>;
+    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ?? (error instanceof Error && (error as Record<string, unknown>).status);
     if (status === 401 || status === 404) {
       // Dispatch a unified session expired event; AuthProvider subscriber performs cleanup + toast
       if (typeof window !== 'undefined') {
@@ -229,13 +230,14 @@ async function profilesOnlyLoader() {
       account: null,
       profiles,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
 
 
 
 
     if (error instanceof Response) throw error;
-    const status = error?.response?.status ?? error?.status ?? (error instanceof Error && (error as any).status);
+    const err = error as Record<string, unknown>;
+    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ?? (error instanceof Error && (error as Record<string, unknown>).status);
     if (status === 401 || status === 404) {
       if (typeof window !== 'undefined') {
         dispatch({ type: 'auth/sessionExpired' });
@@ -476,7 +478,8 @@ function LoginWrapper() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const from = (location.state as any)?.from?.pathname || "/home";
+  const from = (location.state as Record<string, unknown>)?.from as Record<string, unknown> | undefined;
+  const fromPath = from?.pathname as string || "/home";
 
   React.useEffect(() => {
     // Only redirect if user is authenticated AND they came from another protected page
@@ -484,7 +487,7 @@ function LoginWrapper() {
     if (isAuthenticated && location.state?.from) {
       navigate("/home", { replace: true });
     }
-  }, [isAuthenticated, navigate, from, location.state]);
+  }, [isAuthenticated, navigate, fromPath, location.state]);
 
   // Always render the Login component to avoid black screen issues
   // The redirect will happen in useEffect when authentication state updates
@@ -578,4 +581,5 @@ function App() {
 
 
 export default App;
+// eslint-disable-next-line react-refresh/only-export-components
 export { useAuth, AuthContext, RootIndexRedirect };

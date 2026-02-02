@@ -21,7 +21,7 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
                     {
                         operation: "replace",
                         path: "/settings/logs/enabled",
-                        value: true as any,
+                        value: true as unknown,
                     }
                 ]
             });
@@ -41,7 +41,7 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
                 setActiveProfile(updatedProfile);
                 toast.success("Query logs enabled.");
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error(e);
             toast.error("Failed to enable query logs.");
         } finally {

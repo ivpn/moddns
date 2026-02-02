@@ -18,6 +18,8 @@ const Entry = (): JSX.Element => {
     const navigate = useNavigate();
     const { theme } = useTheme();
     const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const account = useAppStore(state => state.account);
+    const emailVerified = account?.email_verified;
 
     // Feature card data for mapping
     const featureCards = [
@@ -97,8 +99,8 @@ const Entry = (): JSX.Element => {
                                 </span>
                             </p>
                             {/* Email verification warning banner (only if not verified & not dismissed) */}
-                            {useAppStore(state => state.account) && !useAppStore(state => state.account?.email_verified) && (
-                                <VerificationBanner emailVerified={useAppStore(state => state.account?.email_verified)} />
+                            {account && !emailVerified && (
+                                <VerificationBanner emailVerified={emailVerified} />
                             )}
                         </div>
 

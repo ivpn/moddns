@@ -46,8 +46,9 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
 
             if (onDisabled) onDisabled();
             onOpenChange(false);
-        } catch (e: any) {
-            toast.error(e?.response?.data?.detail || "Failed to disable 2FA.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to disable 2FA.");
         } finally {
             setLoading(false);
         }

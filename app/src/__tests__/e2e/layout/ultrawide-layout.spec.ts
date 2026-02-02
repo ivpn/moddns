@@ -24,7 +24,7 @@ test.describe('@layout Ultrawide clamp alignment', () => {
       const conn = document.querySelector('[data-testid="conn-header-root"]') as HTMLElement | null;
       const connContainer = conn?.parentElement as HTMLElement | null;
       const maxWidth = content ? getComputedStyle(content).maxWidth : '';
-      const result: Record<string, any> = { docWidth, maxWidth };
+      const result: Record<string, unknown> = { docWidth, maxWidth };
       const entries: [string, HTMLElement | null][] = [
         ['content', content],
         ['conn', conn],

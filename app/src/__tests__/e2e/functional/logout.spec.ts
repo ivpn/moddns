@@ -13,7 +13,7 @@ test.describe('Logout flows (desktop only)', () => {
     await expect(page).toHaveURL(/\/home$/);
 
   // Use global helper for deterministic logout since UI trigger test id not guaranteed
-  await page.evaluate(() => (window as any).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout' }));
+  await page.evaluate(() => (window as unknown as { __APP_DISPATCH_EVENT__: (e: { type: string }) => void }).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout' }));
 
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByTestId(AUTH_TOAST_IDS.logoutSuccess)).toBeVisible();

@@ -25,7 +25,7 @@ test.describe('@layout Protected pages basic smoke', () => {
   for (const route of routes) {
     test(`loads ${route} without redirect`, async ({ page }) => {
       await page.goto(route);
-      await expect(page).toHaveURL(new RegExp(route.replace('/', '\/')));
+      await expect(page).toHaveURL(new RegExp(route.replace('/', '/')));
       if (!skipHorizontalCheck.has(route)) {
           const hasHorizontal = await page.evaluate(() => {
             const doc = document.documentElement;

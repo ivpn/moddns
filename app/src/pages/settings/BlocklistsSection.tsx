@@ -3,7 +3,7 @@ import ToggleGroup from "@/components/general/ToggleGroup";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface BlocklistsSectionProps {
-    blocklistSettings: any[];
+    blocklistSettings: { title: string; description: string; options: { value: string; label: string; icon?: string }[]; value: string }[];
     handleBlocklistChange: (idx: number, value: string) => void;
 }
 

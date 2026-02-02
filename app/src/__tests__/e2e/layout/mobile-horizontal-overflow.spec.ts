@@ -10,7 +10,7 @@ const PUBLIC_ROUTES = ['/login','/signup','/reset-password','/tos','/privacy'];
 const PROTECTED_ROUTES = ['/home','/setup','/settings','/blocklists','/custom-rules','/account-preferences','/mobileconfig','/query-logs','/faq'];
 
 // Interactions per route to surface latent overflow after dynamic UI changes.
-async function performRouteInteractions(route: string, page: any) {
+async function performRouteInteractions(route: string, page: import('@playwright/test').Page) {
   // Global: if mobile nav button exists open & close nav
   const menuBtn = page.getByRole('button', { name: /open navigation menu/i });
   if (await menuBtn.count()) {
@@ -52,6 +52,7 @@ function isMobileProject(name?: string) {
 }
 
 test.describe('@layout mobile horizontal overflow ALL PAGES', () => {
+  // eslint-disable-next-line no-empty-pattern
   test.beforeEach(async ({}, testInfo) => {
     if (!isMobileProject(testInfo.project.name)) test.skip();
   });

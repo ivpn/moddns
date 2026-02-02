@@ -42,6 +42,6 @@ export function dispatch(ev: AppEvent) {
 }
 
 // Dev/test bridge for E2E (non-production)
-if (typeof window !== 'undefined' && (import.meta as any).env?.MODE !== 'production') {
-  (window as any).__APP_DISPATCH_EVENT__ = dispatch;
+if (typeof window !== 'undefined' && (import.meta as ImportMeta).env?.MODE !== 'production') {
+  (window as unknown as Record<string, typeof dispatch>).__APP_DISPATCH_EVENT__ = dispatch;
 }

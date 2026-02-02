@@ -1,5 +1,6 @@
 
 // Badges shown at top of guide
+// eslint-disable-next-line react-refresh/only-export-components
 export const browsersBadges = [
     { label: "Browsers" },
     { label: "DNS over HTTPS" },
@@ -10,6 +11,7 @@ export const browsersBadges = [
  * Accepts a dnsOverHTTPS URL which is profile-specific (passed from parent panel).
  */
 interface BrowsersGuideDeps { dohEndpoint: string }
+// eslint-disable-next-line react-refresh/only-export-components
 export const createBrowsersSteps = (
     deps: BrowsersGuideDeps = { dohEndpoint: "https://example.com/dns-query/your-profile-id" }
 ) => {
@@ -178,6 +180,7 @@ const StepBlock = ({ number, text }: { number: number; text: React.ReactNode }) 
 );
 
 // Default (generic) steps so the panel can render without params
+// eslint-disable-next-line react-refresh/only-export-components
 export const browsersSteps = createBrowsersSteps();
 
 const BrowsersGuide = {
