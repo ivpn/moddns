@@ -135,7 +135,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             className={`${isMobile ? 'relative w-full' : `fixed top-0 left-0 ${sidebarWidth}`} bg-[var(--sidebar-background)] ${isMobile ? '' : 'h-screen border-r border-border'} flex flex-col justify-between p-2 transition-all duration-200 ${isMobile ? 'z-auto overflow-y-auto overscroll-contain' : 'z-10'}`}
             style={isMobile ? { height: '100dvh', maxHeight: '100dvh' } : { minWidth: collapsed ? 64 : 220, left: offsetLeft }}
         >
-            <div className="flex flex-col h-full justify-between">
+            <div className={`flex flex-col ${isMobile ? 'min-h-full' : 'h-full'} justify-between`}>
                 <div className="flex flex-col gap-6">
                     {/* Mobile header with close button */}
                     {isMobile && (
@@ -249,7 +249,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                         className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} flex-1 gap-2 rounded-md px-2 py-2 transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
                         title={!isMobile && collapsed ? "Logout" : undefined}
                         data-testid="btn-nav-logout"
-                        onClick={() => setShowLogoutDialog(true)}
+                        onClick={() => { setShowLogoutDialog(true); if (isMobile && onClose) onClose(); }}
                         disabled={loading}
                     >
                         <span className="flex items-center text-[var(--sidebar-foreground)]">
