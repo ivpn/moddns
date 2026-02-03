@@ -199,63 +199,63 @@ textarea::selection {
     --tailwind-primitives-padding-p-4: 16px;
 
     /* Text Styles */
-    --text-base-leading-6-normal-font-family: "Roboto Flex", Helvetica;
+    --text-base-leading-6-normal-font-family: Helvetica;
     --text-base-leading-6-normal-font-size: 16px;
     --text-base-leading-6-normal-font-style: normal;
     --text-base-leading-6-normal-font-weight: 400;
     --text-base-leading-6-normal-letter-spacing: 0px;
     --text-base-leading-6-normal-line-height: 24px;
 
-    --text-sm-leading-5-medium-font-family: "Roboto Flex", Helvetica;
+    --text-sm-leading-5-medium-font-family: Helvetica;
     --text-sm-leading-5-medium-font-size: 14px;
     --text-sm-leading-5-medium-font-style: normal;
     --text-sm-leading-5-medium-font-weight: 500;
     --text-sm-leading-5-medium-letter-spacing: 0px;
     --text-sm-leading-5-medium-line-height: 20px;
 
-    --text-sm-leading-5-normal-font-family: "Roboto Flex", Helvetica;
+    --text-sm-leading-5-normal-font-family: Helvetica;
     --text-sm-leading-5-normal-font-size: 14px;
     --text-sm-leading-5-normal-font-style: normal;
     --text-sm-leading-5-normal-font-weight: 400;
     --text-sm-leading-5-normal-letter-spacing: 0px;
     --text-sm-leading-5-normal-line-height: 20px;
 
-    --text-sm-leading-6-medium-font-family: "Roboto Flex", Helvetica;
+    --text-sm-leading-6-medium-font-family: Helvetica;
     --text-sm-leading-6-medium-font-size: 14px;
     --text-sm-leading-6-medium-font-style: normal;
     --text-sm-leading-6-medium-font-weight: 500;
     --text-sm-leading-6-medium-letter-spacing: 0px;
     --text-sm-leading-6-medium-line-height: 24px;
 
-    --text-sm-leading-6-normal-font-family: "Roboto Flex", Helvetica;
+    --text-sm-leading-6-normal-font-family: Helvetica;
     --text-sm-leading-6-normal-font-size: 14px;
     --text-sm-leading-6-normal-font-style: normal;
     --text-sm-leading-6-normal-font-weight: 400;
     --text-sm-leading-6-normal-letter-spacing: 0px;
     --text-sm-leading-6-normal-line-height: 24px;
 
-    --text-xs-leading-4-medium-font-family: "Roboto Flex", Helvetica;
+    --text-xs-leading-4-medium-font-family: Helvetica;
     --text-xs-leading-4-medium-font-size: 12px;
     --text-xs-leading-4-medium-font-style: normal;
     --text-xs-leading-4-medium-font-weight: 500;
     --text-xs-leading-4-medium-letter-spacing: 0px;
     --text-xs-leading-4-medium-line-height: 16px;
 
-    --text-xs-leading-4-semibold-font-family: "Roboto Flex", Helvetica;
+    --text-xs-leading-4-semibold-font-family: Helvetica;
     --text-xs-leading-4-semibold-font-size: 12px;
     --text-xs-leading-4-semibold-font-style: normal;
     --text-xs-leading-4-semibold-font-weight: 600;
     --text-xs-leading-4-semibold-letter-spacing: 0px;
     --text-xs-leading-4-semibold-line-height: 16px;
 
-    --text-xs-leading-5-medium-font-family: "Roboto Flex", Helvetica;
+    --text-xs-leading-5-medium-font-family: Helvetica;
     --text-xs-leading-5-medium-font-size: 12px;
     --text-xs-leading-5-medium-font-style: normal;
     --text-xs-leading-5-medium-font-weight: 500;
     --text-xs-leading-5-medium-letter-spacing: 0px;
     --text-xs-leading-5-medium-line-height: 20px;
 
-    --text-xs-leading-5-normal-font-family: "Roboto Flex", Helvetica;
+    --text-xs-leading-5-normal-font-family: Helvetica;
     --text-xs-leading-5-normal-font-size: 12px;
     --text-xs-leading-5-normal-font-style: normal;
     --text-xs-leading-5-normal-font-weight: 400;
@@ -510,5 +510,20 @@ You can apply the theme on any DOM node, not just the `body`
     [data-slot="button"][data-variant="cancel"]:focus-visible {
         outline: 2px solid var(--tailwind-colors-rdns-600);
         outline-offset: 2px;
+    }
+}
+
+/* --- Landscape Phone Adjustments: reduce vertical space consumption --- */
+@media (orientation: landscape) and (max-height: 500px) {
+    /* Reduce header padding in landscape */
+    [data-slot="mobile-header"] {
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+
+    /* Reduce page title size in landscape */
+    [data-slot="mobile-page-title"] {
+        font-size: 1.25rem;
+        padding-bottom: 0.5rem;
     }
 }

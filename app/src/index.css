@@ -64,6 +64,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  overscroll-behavior: contain;
 }
 
 h1 {

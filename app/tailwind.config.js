@@ -15,6 +15,8 @@ module.exports = {
         desktop: { raw: '(min-width:1024px) and (hover:hover) and (pointer:fine)' },
         // Optional very wide desktop refinement (future use for ultra-wide adjustments)
         xlDesktop: { raw: '(min-width:1440px) and (hover:hover) and (pointer:fine)' },
+        // Landscape phone: short viewport in landscape orientation
+        'landscape-phone': { raw: '(orientation: landscape) and (max-height: 500px)' },
       },
       colors: {
         // Existing shadcn-ui colors
