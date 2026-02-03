@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>modDNS - Offline</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #111111;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      text-align: center;
+    }
+    .container { max-width: 400px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #9ca3af; line-height: 1.6; }
+    button {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>You're offline</h1>
+    <p>modDNS requires an internet connection. Please check your connection and try again.</p>
+    <button onclick="window.location.reload()">Retry</button>
+  </div>
+</body>
+</html>
