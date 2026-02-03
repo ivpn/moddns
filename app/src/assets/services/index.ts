@@ -4,6 +4,7 @@ type LogoVariants = {
     dark?: string;
 };
 
+// TODO: Consider lazy-loading service logos when code splitting is complete
 function buildServiceLogoMap(): Record<string, LogoVariants> {
     const svgModules = import.meta.glob("./*.svg", { eager: true, import: "default" }) as Record<
         string,
