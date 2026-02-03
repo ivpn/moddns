@@ -43,12 +43,13 @@ test.describe('@layout setup overlay header visibility', () => {
     const panel = page.getByTestId('setup-guide-panel');
     await panel.waitFor({ state: 'visible', timeout: 15000 });
 
-    // Header element (mobile header menu button) should still be visible and clickable
-    const menuBtn = page.getByRole('button', { name: /open navigation menu/i });
-    await expect(menuBtn).toBeVisible();
+    // Header bar should still be visible above the overlay
+    const headerBar = page.getByTestId('app-header-bar');
+    await expect(headerBar).toBeVisible();
 
-    // Try clicking menu button; if overlay blocked pointer events test would fail (nav opens -> close immediately)
-    await menuBtn.click();
+    // Open nav via bottom nav "More" button; if overlay blocked pointer events test would fail
+    const moreBtn = page.getByTestId('bottom-nav').getByRole('button', { name: /more/i });
+    await moreBtn.click();
     // Expect mobile nav overlay to appear (navigation menu role or close button X inside nav)
   const nav = page.getByTestId('overlay-navigation');
   await expect(nav).toBeVisible();

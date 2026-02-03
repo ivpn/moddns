@@ -1,4 +1,4 @@
-import { Settings2, LogOutIcon, Menu } from "lucide-react";
+import { Settings2, LogOutIcon } from "lucide-react";
 import React, { useState, useContext, useEffect } from "react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { Button } from "@/components/ui/button";

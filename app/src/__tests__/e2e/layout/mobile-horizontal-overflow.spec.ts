@@ -11,12 +11,12 @@ const PROTECTED_ROUTES = ['/home','/setup','/settings','/blocklists','/custom-ru
 
 // Interactions per route to surface latent overflow after dynamic UI changes.
 async function performRouteInteractions(route: string, page: import('@playwright/test').Page) {
-  // Global: if mobile nav button exists open & close nav
-  const menuBtn = page.getByRole('button', { name: /open navigation menu/i });
-  if (await menuBtn.count()) {
-    await menuBtn.first().click();
-    // Close via clicking top-left (backdrop)
-    await page.mouse.click(10, 10); // clicking top-left should close if overlay open
+  // Global: if bottom nav "More" button exists, open & close nav overlay
+  const moreBtn = page.getByTestId('bottom-nav').getByRole('button', { name: /more/i });
+  if (await moreBtn.count()) {
+    await moreBtn.first().click();
+    // Close via clicking backdrop area
+    await page.mouse.click(10, 10);
     await expectNoHorizontalOverflow(page);
   }
 

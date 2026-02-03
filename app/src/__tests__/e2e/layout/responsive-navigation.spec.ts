@@ -39,16 +39,17 @@ test.describe('@layout responsive navigation (navDesktop)', () => {
     // Mobile header bar should be visible
     await expect(getHeaderBar(page)).toBeVisible();
 
-    // Open overlay navigation via menu button
-    const menuButton = page.getByRole('button', { name: /open navigation menu/i });
-    await menuButton.click();
+    // Open overlay navigation via bottom nav "More" button
+    const moreButton = page.getByTestId('bottom-nav').getByRole('button', { name: /more/i });
+    await moreButton.click();
 
     // After opening, expect navigation in overlay mode
     await expect(getOverlayNav(page)).toBeVisible();
 
   // Close via explicit close button (backdrop may be partially covered on some layouts)
   await page.getByTestId('nav-close').click();
-    await expect(getOverlayNav(page)).toHaveCount(0);
+    // Nav panel is always-mounted (CSS transitions); check that it's translated off-screen
+    await expect(page.getByTestId('nav-overlay-panel')).toHaveClass(/-translate-x-full/);
   });
 
   test('desktop width shows persistent sidebar and desktop header', async ({ page }) => {
