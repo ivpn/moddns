@@ -13,6 +13,8 @@ import QueryLogCard from "./QueryLogCard";
 import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useScreenDetector } from "@/hooks/useScreenDetector";
 
 const QUERY_LIMIT = 25;
 
@@ -262,6 +264,60 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setRefreshTrigger(prev => prev + 1);
     };
 
+    // --- Pull-to-refresh (mobile only) ---
+    const { isMobile } = useScreenDetector();
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const pullStartY = useRef(0);
+    const isPulling = useRef(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    const PULL_THRESHOLD = 60;
+
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        if (!isMobile || isRefreshing) return;
+        const container = scrollContainerRef.current;
+        if (container && container.scrollTop <= 0) {
+            pullStartY.current = e.touches[0].clientY;
+            isPulling.current = true;
+        }
+    }, [isMobile, isRefreshing]);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!isPulling.current || !isMobile || isRefreshing) return;
+        const container = scrollContainerRef.current;
+        if (!container || container.scrollTop > 0) {
+            isPulling.current = false;
+            setPullDistance(0);
+            return;
+        }
+        const deltaY = e.touches[0].clientY - pullStartY.current;
+        if (deltaY > 0) {
+            // Apply diminishing resistance: actual distance = delta * 0.4
+            setPullDistance(Math.min(deltaY * 0.4, 100));
+        } else {
+            setPullDistance(0);
+        }
+    }, [isMobile, isRefreshing]);
+
+    const handleTouchEnd = useCallback(() => {
+        if (!isPulling.current || !isMobile) return;
+        isPulling.current = false;
+        if (pullDistance > PULL_THRESHOLD && !isRefreshing && !loading) {
+            setIsRefreshing(true);
+            setPullDistance(0);
+            // Trigger the existing refresh mechanism
+            setLogs([]);
+            setPage(1);
+            setHasMore(true);
+            setRefreshTrigger(prev => prev + 1);
+            // Reset refreshing indicator after a short delay
+            setTimeout(() => setIsRefreshing(false), 1200);
+        } else {
+            setPullDistance(0);
+        }
+    }, [pullDistance, isRefreshing, loading, isMobile]);
+
     const logsEnabled =
         activeProfile?.settings?.logs.enabled !== false; // default to true if undefined
 
@@ -317,7 +373,26 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                         )}
 
                         {logsEnabled && (
-                            <div className="relative flex-1 w-full h-full overflow-y-auto px-0" data-testid="logs-scroll-container">
+                            <div
+                                ref={scrollContainerRef}
+                                className="relative flex-1 w-full h-full overflow-y-auto overscroll-contain px-0"
+                                data-testid="logs-scroll-container"
+                                onTouchStart={isMobile ? handleTouchStart : undefined}
+                                onTouchMove={isMobile ? handleTouchMove : undefined}
+                                onTouchEnd={isMobile ? handleTouchEnd : undefined}
+                            >
+                                {/* Pull-to-refresh indicator (mobile only) */}
+                                {isMobile && (pullDistance > 0 || isRefreshing) && (
+                                    <div className="flex justify-center py-2 text-[var(--tailwind-colors-slate-200)] text-sm select-none"
+                                         style={{ opacity: isRefreshing ? 1 : Math.min(pullDistance / PULL_THRESHOLD, 1) }}
+                                    >
+                                        {isRefreshing
+                                            ? "Refreshing..."
+                                            : pullDistance > PULL_THRESHOLD
+                                                ? "Release to refresh"
+                                                : "Pull to refresh"}
+                                    </div>
+                                )}
                                 <div className={`flex flex-col gap-1.5 md:gap-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
                                     {logs.map((log, index) => {
                                         const isLast = index === logs.length - 1;
@@ -332,8 +407,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                         );
                                     })}
                                     {loading && (
-                                        <div className="w-full text-center py-4 text-[var(--tailwind-colors-slate-400)]">
-                                            Loading...
+                                        <div className="space-y-2">
+                                            {Array.from({ length: 8 }).map((_, i) => (
+                                                <div key={i} className="flex items-center gap-3 px-3 py-3 bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)]">
+                                                    <Skeleton className="h-4 w-4 rounded-full" />
+                                                    <Skeleton className="h-4 flex-1 max-w-[200px]" />
+                                                    <Skeleton className="h-4 w-16" />
+                                                    <Skeleton className="h-4 w-10 ml-auto" />
+                                                </div>
+                                            ))}
                                         </div>
                                     )}
                                     {error && (
