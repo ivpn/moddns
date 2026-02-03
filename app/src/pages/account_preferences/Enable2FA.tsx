@@ -244,6 +244,8 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
 
                                 <Input
                                     id="totp-code"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     className="h-10 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] rounded-md"
                                     disabled={loading || enabling}
                                     value={otp}

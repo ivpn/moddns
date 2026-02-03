@@ -27,6 +27,9 @@ export default function CustomRulesSearch({
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     className="pl-10 pr-3 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] rounded-lg h-9 min-h-11 lg:min-h-0 placeholder:text-s md:placeholder:text-sm"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    autoCorrect="off"
                 />
             </div>
 

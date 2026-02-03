@@ -207,6 +207,9 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
                             }}
                             onKeyDown={handleDomainKeyDown}
                             autoComplete="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            autoCorrect="off"
                         />
                         <p className="text-xs text-[var(--tailwind-colors-slate-500)]">
                             Applies to {profileDisplayName}.
