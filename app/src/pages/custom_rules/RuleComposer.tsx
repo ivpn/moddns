@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { type ComponentProps, useMemo, useState, type KeyboardEvent } from "react";
 import CreatableSelect from "react-select/creatable";
 import {
     components,
@@ -186,6 +186,10 @@ const DropdownIndicator = () => null;
 const IndicatorSeparator = () => null;
 const Menu = () => null;
 
+const CustomInput = (props: ComponentProps<typeof components.Input>) => (
+    <components.Input {...props} autoCapitalize="none" spellCheck={false} autoCorrect="off" />
+);
+
 export function RuleComposer({
     tokens,
     onTokensChange,
@@ -313,6 +317,7 @@ export function RuleComposer({
                         DropdownIndicator,
                         IndicatorSeparator,
                         Menu,
+                        Input: CustomInput,
                     }}
                     classNamePrefix="rule-composer"
                     placeholder="Paste or type domains, IPs, or ASNs"

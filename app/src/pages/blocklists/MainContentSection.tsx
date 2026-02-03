@@ -18,6 +18,7 @@ import {
     ToggleLeftIcon,
     ArrowUpDown,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
     ApiV1BlocklistsGetSortByEnum,
     type ApiBlocklistsUpdates,
@@ -323,6 +324,9 @@ export default function MainContentSection(): JSX.Element {
                                         aria-label="Search blocklists"
                                         value={searchValue}
                                         onChange={e => setSearchValue(e.target.value)}
+                                        autoCapitalize="none"
+                                        spellCheck={false}
+                                        autoCorrect="off"
                                     />
                                 </div>
                             </div>
@@ -337,6 +341,9 @@ export default function MainContentSection(): JSX.Element {
                                         aria-label="Search blocklists"
                                         value={searchValue}
                                         onChange={e => setSearchValue(e.target.value)}
+                                        autoCapitalize="none"
+                                        spellCheck={false}
+                                        autoCorrect="off"
                                     />
                                 </div>
                                 {/* List Filter */}
@@ -407,9 +414,22 @@ export default function MainContentSection(): JSX.Element {
                             <ScrollArea className="w-full max-h-[calc(100vh-var(--app-header-stack,120px)-200px)] md:max-h-[unset]">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
                                     {loading ? (
-                                        <div className="col-span-full text-center text-[var(--tailwind-colors-slate-400)] py-8">
-                                            Loading blocklists...
-                                        </div>
+                                        <>
+                                            {Array.from({ length: 8 }).map((_, i) => (
+                                                <div key={i} className="rounded-lg border border-[var(--tailwind-colors-slate-700)] p-4 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <Skeleton className="h-5 w-32" />
+                                                        <Skeleton className="h-5 w-10 rounded-full" />
+                                                    </div>
+                                                    <Skeleton className="h-4 w-full" />
+                                                    <Skeleton className="h-4 w-3/4" />
+                                                    <div className="flex items-center justify-between pt-2">
+                                                        <Skeleton className="h-3 w-20" />
+                                                        <Skeleton className="h-3 w-16" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </>
                                     ) : filteredBlocklists.length === 0 ? (
                                         <div className="col-span-full flex justify-center py-8">
                                             <EmptyState searchTerm={searchValue.trim() || undefined} />
