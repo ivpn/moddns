@@ -22,8 +22,6 @@ interface HeaderProps {
     currentPageName?: string;
     showConnectionStatusRestoreButton?: boolean;
     onRestoreConnectionStatus?: () => void;
-    mobileNavOpen?: boolean;
-    setMobileNavOpen?: (open: boolean) => void;
 }
 
 export default function Header({
@@ -34,8 +32,6 @@ export default function Header({
     currentPageName,
     showConnectionStatusRestoreButton = false,
     onRestoreConnectionStatus,
-    mobileNavOpen: mobileNavOpenProp,
-    setMobileNavOpen: setMobileNavOpenProp,
 }: HeaderProps): React.JSX.Element {
     const { navDesktop } = useScreenDetector();
     const navigate = useNavigate();
@@ -62,10 +58,6 @@ export default function Header({
     const [showBlocklistsDialog, setShowBlocklistsDialog] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
-    const [mobileNavOpenLocal, setMobileNavOpenLocal] = useState(false);
-    const mobileNavOpen = mobileNavOpenProp ?? mobileNavOpenLocal;
-    const setMobileNavOpen = setMobileNavOpenProp ?? setMobileNavOpenLocal;
-
     // Logout handler
     const handleLogout = async () => {
         setLogoutLoading(true);

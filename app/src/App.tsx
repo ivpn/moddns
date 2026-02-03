@@ -411,8 +411,6 @@ function ProtectedLayout() {
             currentPageName={currentPageName}
             showConnectionStatusRestoreButton={shouldShowConnectionStatusRestore}
             onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
-            mobileNavOpen={mobileNavOpen}
-            setMobileNavOpen={setMobileNavOpen}
           />
         </div>
       </div>
