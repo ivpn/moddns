@@ -40,6 +40,8 @@ export default defineConfig({
     { name: 'chromium-mobile-dark', use: { ...devices['Pixel 5'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
     // Safari/WebKit coverage: latest supported iPhone (15 Pro) using default WebKit engine
     { name: 'iphone15pro-dark', use: { ...devices['iPhone 15 Pro'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
+    // Mobile baseline: Pixel 5 light mode
+    { name: 'chromium-mobile-light', use: { ...devices['Pixel 5'], colorScheme: 'light', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
     // Desktop without pre-auth storage so login flows can exercise authentication UI
     { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } }
   ]

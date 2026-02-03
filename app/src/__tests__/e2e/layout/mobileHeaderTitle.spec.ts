@@ -29,4 +29,34 @@ test.describe('Mobile Header Page Title', () => {
     await titleLocator.waitFor({ state: 'visible', timeout: 5000 });
     await expect(titleLocator).toHaveText(/Blocklists/i);
   });
+
+  test('shows page title inside mobile header area on Settings', async ({ page }) => {
+    await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+
+    await expect.poll(async () => /\/settings$/.test(page.url())).toBeTruthy();
+
+    const titleLocator = page.getByTestId('mobile-header-page-title');
+    await titleLocator.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(titleLocator).toHaveText(/Settings/i);
+  });
+
+  test('shows page title inside mobile header area on Custom Rules', async ({ page }) => {
+    await page.goto('/custom-rules', { waitUntil: 'domcontentloaded' });
+
+    await expect.poll(async () => /\/custom-rules$/.test(page.url())).toBeTruthy();
+
+    const titleLocator = page.getByTestId('mobile-header-page-title');
+    await titleLocator.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(titleLocator).toHaveText(/Custom rules/i);
+  });
+
+  test('shows page title inside mobile header area on Query Logs', async ({ page }) => {
+    await page.goto('/query-logs', { waitUntil: 'domcontentloaded' });
+
+    await expect.poll(async () => /\/query-logs$/.test(page.url())).toBeTruthy();
+
+    const titleLocator = page.getByTestId('mobile-header-page-title');
+    await titleLocator.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(titleLocator).toHaveText(/Logs/i);
+  });
 });
