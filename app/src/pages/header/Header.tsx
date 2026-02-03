@@ -14,7 +14,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
-import NavigationSection from '@/pages/navigation_menu/NavigationMenu';
 interface HeaderProps {
     showDialogTrigger?: boolean;
     profiles: ModelProfile[];
@@ -204,27 +203,6 @@ export default function Header({
                             <Settings2 className="h-5 w-5 text-[var(--tailwind-colors-rdns-600)]" />
                         </Button>
                     )}
-                </div>
-            )}
-
-            {/* Mobile Navigation */}
-            {/* Mobile / tablet (incl. landscape tablets) overlay navigation; hidden for full navDesktop */}
-            {!navDesktop && (
-                <div className={`fixed inset-0 z-[100] ${mobileNavOpen ? '' : 'pointer-events-none'}`} data-testid="nav-overlay-wrapper">
-                    {/* Backdrop */}
-                    <div
-                        data-testid="nav-backdrop"
-                        className={`fixed inset-0 bg-black/50 cursor-pointer transition-opacity duration-300 ${mobileNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                        onClick={() => setMobileNavOpen(false)}
-                    />
-
-                    {/* Navigation Panel */}
-                    <div
-                        className={`fixed inset-y-0 left-0 w-[80%] max-w-[320px] bg-[var(--variable-collection-surface)] shadow-lg transition-transform duration-300 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'}`}
-                        data-testid="nav-overlay-panel"
-                    >
-                        <NavigationSection isMobile={true} onClose={() => setMobileNavOpen(false)} />
-                    </div>
                 </div>
             )}
 
