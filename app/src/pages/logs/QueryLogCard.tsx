@@ -45,7 +45,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                         aria-label="Quick custom rule"
                         onClick={handleQuickRule}
                         disabled={!quickRuleAvailable}
-                        className={`h-9 w-9 min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
+                        className={`h-9 w-9 lg:min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
                         data-testid="logs-quick-rule-button"
                     >
                         <ShieldPlus className="w-4 h-4" />
