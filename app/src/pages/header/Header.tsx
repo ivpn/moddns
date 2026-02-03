@@ -23,6 +23,8 @@ interface HeaderProps {
     currentPageName?: string;
     showConnectionStatusRestoreButton?: boolean;
     onRestoreConnectionStatus?: () => void;
+    mobileNavOpen?: boolean;
+    setMobileNavOpen?: (open: boolean) => void;
 }
 
 export default function Header({
@@ -33,6 +35,8 @@ export default function Header({
     currentPageName,
     showConnectionStatusRestoreButton = false,
     onRestoreConnectionStatus,
+    mobileNavOpen: mobileNavOpenProp,
+    setMobileNavOpen: setMobileNavOpenProp,
 }: HeaderProps): React.JSX.Element {
     const { navDesktop } = useScreenDetector();
     const navigate = useNavigate();
@@ -47,7 +51,8 @@ export default function Header({
 
     useEffect(() => {
         const onScroll = () => {
-            setScrolled(window.scrollY > 4);
+            const shouldBeScrolled = window.scrollY > 4;
+            setScrolled((prev) => prev === shouldBeScrolled ? prev : shouldBeScrolled);
         };
         window.addEventListener('scroll', onScroll, { passive: true });
         onScroll();
@@ -58,7 +63,9 @@ export default function Header({
     const [showBlocklistsDialog, setShowBlocklistsDialog] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
-    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const [mobileNavOpenLocal, setMobileNavOpenLocal] = useState(false);
+    const mobileNavOpen = mobileNavOpenProp ?? mobileNavOpenLocal;
+    const setMobileNavOpen = setMobileNavOpenProp ?? setMobileNavOpenLocal;
 
     // Logout handler
     const handleLogout = async () => {
@@ -150,7 +157,7 @@ export default function Header({
     // Mobile header
     return (
         <>
-            <div data-testid="app-header-bar" className={`flex items-center justify-between px-4 py-4 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}>
+            <div data-testid="app-header-bar" data-slot="mobile-header" className={`flex items-center justify-between px-4 sm:px-6 py-4 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}>
                 {/* Left: modDNS logo - hidden on /home page */}
                 <div className="flex items-center min-w-0">
                     {location.pathname !== "/home" && (
@@ -174,15 +181,6 @@ export default function Header({
                             />
                         </div>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-11 h-11 p-0 flex items-center justify-center flex-shrink-0 rounded-lg"
-                        onClick={() => setMobileNavOpen(true)}
-                        aria-label="Open navigation menu"
-                    >
-                        <Menu className="w-7 h-7 text-[var(--tailwind-colors-slate-50)]" />
-                    </Button>
                 </div>
             </div>
 
@@ -190,9 +188,9 @@ export default function Header({
             {currentPageName && (
                 <div
                     data-testid="mobile-header-page-title"
-                    className={`md:hidden px-6 pt-1 pb-8 flex items-center justify-between gap-3 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}
+                    className={`md:hidden px-4 sm:px-6 pt-1 pb-8 flex items-center justify-between gap-3 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}
                 >
-                    <h2 className="font-bold text-[var(--tailwind-colors-slate-50)] text-3xl tracking-tight leading-8">
+                    <h2 data-slot="mobile-page-title" className="font-bold text-[var(--tailwind-colors-slate-50)] text-3xl tracking-tight leading-8">
                         {currentPageName}
                     </h2>
                     {location.pathname === '/blocklists' && (
@@ -211,13 +209,20 @@ export default function Header({
 
             {/* Mobile Navigation */}
             {/* Mobile / tablet (incl. landscape tablets) overlay navigation; hidden for full navDesktop */}
-            {mobileNavOpen && !navDesktop && (
-                <div className="fixed inset-0 z-[100]" data-testid="nav-overlay-wrapper">
+            {!navDesktop && (
+                <div className={`fixed inset-0 z-[100] ${mobileNavOpen ? '' : 'pointer-events-none'}`} data-testid="nav-overlay-wrapper">
                     {/* Backdrop */}
-                    <div data-testid="nav-backdrop" className="fixed inset-0 bg-black/50 cursor-pointer" onClick={() => setMobileNavOpen(false)} />
+                    <div
+                        data-testid="nav-backdrop"
+                        className={`fixed inset-0 bg-black/50 cursor-pointer transition-opacity duration-300 ${mobileNavOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        onClick={() => setMobileNavOpen(false)}
+                    />
 
                     {/* Navigation Panel */}
-                    <div className="fixed inset-y-0 left-0 w-[80%] max-w-[320px] bg-[var(--variable-collection-surface)] shadow-lg" data-testid="nav-overlay-panel">
+                    <div
+                        className={`fixed inset-y-0 left-0 w-[80%] max-w-[320px] bg-[var(--variable-collection-surface)] shadow-lg transition-transform duration-300 ${mobileNavOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                        data-testid="nav-overlay-panel"
+                    >
                         <NavigationSection isMobile={true} onClose={() => setMobileNavOpen(false)} />
                     </div>
                 </div>
