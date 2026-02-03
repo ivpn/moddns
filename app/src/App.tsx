@@ -1,27 +1,31 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from "react";
+import React, { lazy, Suspense, useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { useHeaderStackHeight } from '@/lib/useHeaderStackHeight';
 import NavigationMenu from './pages/navigation_menu/NavigationMenu';
 import { useScreenDetector } from './hooks/useScreenDetector';
 import Header from './pages/header/Header';
+import BottomNav from './components/navigation/BottomNav';
 import ConnectionStatusHeader from './pages/header/ConnectionStatusHeader';
 import { NavigationCollapseProvider, useNavigationCollapse } from "@/context/NavigationCollapseContext";
-import Setup from './pages/setup/Setup';
-import Settings from './pages/settings/Settings';
-import PasswordReset from './pages/auth/PasswordReset';
-import PasswordResetConfirm from './pages/auth/PasswordResetConfirm';
-import Logs from './pages/logs/Logs';
-import Blocklists from './pages/blocklists/Blocklists'
-import CustomRules from './pages/custom_rules/CustomRules';
-import Login from './pages/auth/Login';
-import Signup from './pages/auth/Signup';
-import TermsOfService from './pages/legal/TermsOfService';
-import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
-import FAQ from "./pages/legal/FAQ";
-import NotFound from "./pages/NotFound";
-import AccountPreferences from '@/pages/account_preferences/Account';
-import MobileconfigPage from '@/pages/mobileconfig/MobileconfigPage';
-import MobileconfigDownload from '@/pages/mobileconfig/MobileconfigDownload';
-import HomeScreen from './pages/home/HomeScreen';
+
+// Lazy-loaded page components (route-level code splitting)
+const Setup = lazy(() => import('./pages/setup/Setup'));
+const Settings = lazy(() => import('./pages/settings/Settings'));
+const PasswordReset = lazy(() => import('./pages/auth/PasswordReset'));
+const PasswordResetConfirm = lazy(() => import('./pages/auth/PasswordResetConfirm'));
+const Logs = lazy(() => import('./pages/logs/Logs'));
+const Blocklists = lazy(() => import('./pages/blocklists/Blocklists'));
+const CustomRules = lazy(() => import('./pages/custom_rules/CustomRules'));
+const Login = lazy(() => import('./pages/auth/Login'));
+const Signup = lazy(() => import('./pages/auth/Signup'));
+const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
+const PrivacyPolicy = lazy(() => import("./pages/legal/PrivacyPolicy"));
+const FAQ = lazy(() => import("./pages/legal/FAQ"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AccountPreferences = lazy(() => import('@/pages/account_preferences/Account'));
+const MobileconfigPage = lazy(() => import('@/pages/mobileconfig/MobileconfigPage'));
+const MobileconfigDownload = lazy(() => import('@/pages/mobileconfig/MobileconfigDownload'));
+const HomeScreen = lazy(() => import('./pages/home/HomeScreen'));
+
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
 import api from "@/api/api";
@@ -284,9 +288,11 @@ function ProtectedLayout() {
   const setRightPanelOpen = useAppStore((state) => state.setRightPanelOpen);
   const connectionStatusVisible = useAppStore((state) => state.connectionStatusVisible);
   const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
-  const { profiles } = useAppStore();
+  const profiles = useAppStore((state) => state.profiles);
   const location = useLocation();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
 
   const connectionHeaderRef = useRef<HTMLDivElement | null>(null);
   const mainHeaderRef = useRef<HTMLDivElement | null>(null);
@@ -404,6 +410,8 @@ function ProtectedLayout() {
             currentPageName={currentPageName}
             showConnectionStatusRestoreButton={shouldShowConnectionStatusRestore}
             onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
+            mobileNavOpen={mobileNavOpen}
+            setMobileNavOpen={setMobileNavOpen}
           />
         </div>
       </div>
@@ -419,10 +427,11 @@ function ProtectedLayout() {
           maxWidth: '100vw'
         } : {
           paddingTop: 'var(--app-header-stack, 110px)',
+          paddingBottom: '72px',
           paddingLeft: '0px',
           marginLeft: '0px',
-          width: '100vw',
-          minHeight: 'calc(100vh - 72px)',
+          width: '100%',
+          minHeight: 'calc(100dvh - 72px)',
           maxWidth: '100vw'
         }}
       >
@@ -430,6 +439,8 @@ function ProtectedLayout() {
           <Outlet />
         </div>
       </div>
+
+      {!navDesktop && <BottomNav onMoreClick={handleMoreClick} />}
     </AppLayout>
   );
 }
@@ -444,36 +455,38 @@ function RootIndexRedirect() {
 
 function SetupWithLoader() {
   const { account, profiles } = useLoaderData() as { account: ModelAccount | null, profiles: ModelProfile[] };
-  return <Setup account={account as ModelAccount} profiles={profiles} />;
+  return <Suspense fallback={<div />}><Setup account={account as ModelAccount} profiles={profiles} /></Suspense>;
 }
 
 function SettingsWithLoader() {
   const { profiles } = useLoaderData() as { account: ModelAccount | null, profiles: ModelProfile[] };
-  return <Settings profiles={profiles} />;
+  return <Suspense fallback={<div />}><Settings profiles={profiles} /></Suspense>;
 }
 
 function BlocklistsWithLoader() {
-  return <Blocklists />;
+  return <Suspense fallback={<div />}><Blocklists /></Suspense>;
 }
 
 function CustomRulesWithLoader() {
   const { profiles } = useLoaderData() as { account: ModelAccount | null, profiles: ModelProfile[] };
-  return <CustomRules profiles={profiles} />;
+  return <Suspense fallback={<div />}><CustomRules profiles={profiles} /></Suspense>;
 }
 
 function AccountPreferencesWithLoader() {
   const { account } = useLoaderData() as { account: ModelAccount | null };
-  return <AccountPreferences account={account} />;
+  return <Suspense fallback={<div />}><AccountPreferences account={account} /></Suspense>;
 }
 
 function MobileconfigWithLoader() {
-  return <MobileconfigPage />;
+  return <Suspense fallback={<div />}><MobileconfigPage /></Suspense>;
 }
 
 function QueryLogsWithLoader() {
   const { account, profiles } = useLoaderData() as { account: ModelAccount | null, profiles: ModelProfile[] };
-  return <Logs account={account as ModelAccount} profiles={profiles} />;
-}// LoginWrapper handles login and redirects after success
+  return <Suspense fallback={<div />}><Logs account={account as ModelAccount} profiles={profiles} /></Suspense>;
+}
+
+// LoginWrapper handles login and redirects after success
 function LoginWrapper() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
@@ -491,7 +504,7 @@ function LoginWrapper() {
 
   // Always render the Login component to avoid black screen issues
   // The redirect will happen in useEffect when authentication state updates
-  return <Login />;
+  return <Suspense fallback={<div />}><Login /></Suspense>;
 }
 
 // Component that handles API events inside Router context
@@ -530,13 +543,13 @@ const router = createBrowserRouter([
         element: <PublicLayout><Outlet /></PublicLayout>,
         children: [
           { path: "login", element: <LoginWrapper /> },
-          { path: "signup/:subid", element: <Signup /> },
-          { path: "tos", element: <TermsOfService /> },
-          { path: "privacy", element: <PrivacyPolicy /> },
-          { path: "standalone-faq", element: <FAQ /> },
-          { path: "reset-password", element: <PasswordReset /> },
-          { path: "reset-password/:token", element: <PasswordResetConfirm /> },
-          { path: "short/:code", element: <MobileconfigDownload /> },
+          { path: "signup/:subid", element: <Suspense fallback={<div />}><Signup /></Suspense> },
+          { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
+          { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
+          { path: "standalone-faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },
+          { path: "reset-password", element: <Suspense fallback={<div />}><PasswordReset /></Suspense> },
+          { path: "reset-password/:token", element: <Suspense fallback={<div />}><PasswordResetConfirm /></Suspense> },
+          { path: "short/:code", element: <Suspense fallback={<div />}><MobileconfigDownload /></Suspense> },
         ]
       },
 
@@ -546,7 +559,7 @@ const router = createBrowserRouter([
         element: <ProtectedLayout />,
         errorElement: <RouterErrorBoundary />, // Protected route errors
         children: [
-          { loader: rootLoader, path: "home", element: <HomeScreen /> },
+          { loader: rootLoader, path: "home", element: <Suspense fallback={<div />}><HomeScreen /></Suspense> },
           { loader: rootLoader, path: "setup", element: <SetupWithLoader /> },
           { loader: rootLoader, path: "settings", element: <SettingsWithLoader /> },
           { loader: profilesOnlyLoader, path: "blocklists", element: <BlocklistsWithLoader /> },
@@ -554,16 +567,16 @@ const router = createBrowserRouter([
           { loader: rootLoader, path: "account-preferences", element: <AccountPreferencesWithLoader /> },
           { loader: rootLoader, path: "mobileconfig", element: <MobileconfigWithLoader /> },
           { loader: rootLoader, path: "query-logs", element: <QueryLogsWithLoader /> },
-          { path: "faq", element: <FAQ /> },
+          { path: "faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },
         ],
       },
 
       // 404 CATCH-ALL for any unmatched routes (within first-level children)
-      { path: "*", element: <NotFound /> },
+      { path: "*", element: <Suspense fallback={<div />}><NotFound /></Suspense> },
     ],
   },
   // Global catch-all (extra safety) - can be retained or removed
-  { path: "*", element: <NotFound /> },
+  { path: "*", element: <Suspense fallback={<div />}><NotFound /></Suspense> },
 ]);
 
 function App() {

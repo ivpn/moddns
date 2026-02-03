@@ -12,7 +12,6 @@ Sentry.init({
     integrations: [
         Sentry.browserTracingIntegration(),
         // Sentry.reactRouterV5BrowserTracingIntegration(history),
-        Sentry.replayIntegration(),
     ],
     replaysSessionSampleRate: 0.1,
     tracesSampleRate: 1.0,
@@ -25,4 +24,9 @@ Sentry.init({
         }
         return event;
     },
+});
+
+// Lazy-load the replay integration to reduce initial bundle size
+Sentry.lazyLoadIntegration('replayIntegration').then((replay) => {
+    Sentry.addIntegration(replay());
 });
