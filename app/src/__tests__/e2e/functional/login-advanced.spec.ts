@@ -5,6 +5,7 @@ import { installWebAuthnSuccessStub, installWebAuthnErrorStub } from '../utils/w
 
 // Helper for ensuring password mode
 async function ensurePasswordMode(page: import('@playwright/test').Page) {
+  await page.getByTestId('login-page').waitFor();
   if (await page.getByTestId('login-passkey-form').count()) {
     await page.getByTestId('btn-login-toggle-mode').click();
   }
@@ -118,7 +119,7 @@ test.describe('Login advanced flows (desktop only)', () => {
   await page.route(/\/api\/v1\/profiles(\/?|\?.*)$/i, r => r.fulfill({ status: authed ? 200 : 401, contentType: 'application/json', body: authed ? JSON.stringify([{ id: 'p1', profile_id: 'p1', account_id: 'a1', name: 'Profile 1', settings: { profile_id: 'p1', advanced: {}, logs: { enabled: false }, privacy: { default_rule: 'allow', subdomains_rule: 'allow', blocklists: [] }, security: {}, statistics: { enabled: false }, custom_rules: [] } }]) : '[]' }));
 
     await page.goto('/login');
-    // Ensure passkey mode (toggle if currently password form visible)
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-password-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }
@@ -141,6 +142,7 @@ test.describe('Login advanced flows (desktop only)', () => {
   await page.route(/\/api\/v1\/webauthn\/login\/finish/i, r => r.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'bad' }) }));
 
     await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-password-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }

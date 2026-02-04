@@ -32,7 +32,8 @@ test.describe('Login basic flows (desktop only)', () => {
     });
 
     await page.goto('/login');
-    // Ensure password mode (only toggle if currently passkey form is visible)
+    // Wait for lazy-loaded Login component to render before checking form mode
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-passkey-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }
@@ -55,6 +56,7 @@ test.describe('Login basic flows (desktop only)', () => {
       }
     });
     await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-passkey-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }
@@ -75,6 +77,7 @@ test.describe('Login basic flows (desktop only)', () => {
       }
     });
     await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-passkey-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }
@@ -95,6 +98,7 @@ test.describe('Login basic flows (desktop only)', () => {
       }
     });
     await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
     if (await page.getByTestId('login-passkey-form').count()) {
       await page.getByTestId('btn-login-toggle-mode').click();
     }

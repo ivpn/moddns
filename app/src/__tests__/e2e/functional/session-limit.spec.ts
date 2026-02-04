@@ -21,6 +21,8 @@ test.describe('Session limit dialog cancel flow (desktop only)', () => {
   await page.route(/\/api\/v1\/profiles(\/?|\?.*)$/i, r => r.fulfill({ status: authed ? 200 : 401, contentType: 'application/json', body: authed ? JSON.stringify([{ id: 'p1', profile_id: 'p1', account_id: 'a1', name: 'Profile 1', settings: { profile_id: 'p1', advanced: {}, logs: { enabled: false }, privacy: { default_rule: 'allow', subdomains_rule: 'allow', blocklists: [] }, security: {}, statistics: { enabled: false }, custom_rules: [] } }]) : '[]' }));
 
     await page.goto('/login');
+    // Wait for lazy-loaded Login component to render before checking form mode
+    await page.getByTestId('login-page').waitFor();
 
     // Ensure password mode
     if (await page.getByTestId('login-passkey-form').count()) {
