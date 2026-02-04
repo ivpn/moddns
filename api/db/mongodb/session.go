@@ -105,13 +105,13 @@ func (r *SessionRepository) GetSession(ctx context.Context, token string) (model
 		if err == mongo.ErrNoDocuments {
 			return model.Session{}, false, nil
 		}
-		log.Error().Err(err).Str("token", token).Msg("Failed to get session")
+		log.Error().Err(err).Msg("Failed to get session")
 		return model.Session{}, false, errors.Wrap(err, "failed to get session")
 	}
 
 	err = session.UnmarshalSessionData()
 	if err != nil {
-		log.Error().Err(err).Str("token", token).Msg("Failed to deserialize session data")
+		log.Error().Err(err).Msg("Failed to deserialize session data")
 		return model.Session{}, false, errors.Wrap(err, "failed to deserialize session data")
 	}
 
@@ -123,7 +123,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 	// Serialize the webauthn session data to JSON
 	dataBytes, err := json.Marshal(sessionData)
 	if err != nil {
-		log.Error().Err(err).Str("token", token).Msg("Failed to serialize session data")
+		log.Error().Err(err).Msg("Failed to serialize session data")
 		return errors.Wrap(err, "failed to serialize session data")
 	}
 
@@ -142,7 +142,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 
 	_, err = r.sessionsColl.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		log.Error().Err(err).Str("token", token).Msg("Failed to save session")
+		log.Error().Err(err).Msg("Failed to save session")
 		return errors.Wrap(err, "failed to save session")
 	}
 
@@ -153,7 +153,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 func (r *SessionRepository) DeleteSession(ctx context.Context, token string) error {
 	_, err := r.sessionsColl.DeleteOne(ctx, bson.M{"token": token})
 	if err != nil {
-		log.Error().Err(err).Str("token", token).Msg("Failed to delete session")
+		log.Error().Err(err).Msg("Failed to delete session")
 		return errors.Wrap(err, "failed to delete session")
 	}
 	return nil

@@ -74,6 +74,7 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 			Value:    token,
 			HTTPOnly: true,
 			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 			MaxAge:   int(SessionDuration.Seconds()),
 			Expires:  time.Now().Add(SessionDuration),
 		})
@@ -154,6 +155,7 @@ func (s *APIServer) beginLogin() fiber.Handler {
 			Value:    token,
 			HTTPOnly: true,
 			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 			MaxAge:   int(SessionDuration.Seconds()),
 			Expires:  time.Now().Add(SessionDuration),
 		})
@@ -214,7 +216,7 @@ func (s *APIServer) finishLogin() fiber.Handler {
 			if count >= s.Config.API.SessionLimit {
 				// Delete the just-created session since we're rejecting the login
 				if err := s.Service.DeleteSession(c.Context(), token); err != nil {
-					log.Err(err).Str("token", token).Msg("failed to delete session after limit reached")
+					log.Err(err).Msg("failed to delete session after limit reached")
 				}
 				return HandleError(c, ErrSessionsLimitReached, ErrSessionsLimitReached.Error())
 			}
@@ -227,6 +229,7 @@ func (s *APIServer) finishLogin() fiber.Handler {
 			Value:    token,
 			HTTPOnly: true,
 			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 			MaxAge:   int(s.Config.API.SessionExpirationTime.Seconds()),
 			Expires:  expires,
 		})
@@ -269,6 +272,7 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 			Value:    token,
 			HTTPOnly: true,
 			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 			MaxAge:   int(SessionDuration.Seconds()),
 			Expires:  time.Now().Add(SessionDuration),
 		})
@@ -313,7 +317,7 @@ func (s *APIServer) beginReauth() fiber.Handler {
 			return HandleError(c, err, err.Error())
 		}
 
-		c.Cookie(&fiber.Cookie{Name: WebAuthnTempCookie, Value: token, HTTPOnly: true, Secure: true, MaxAge: int(SessionDuration.Seconds()), Expires: time.Now().Add(SessionDuration)})
+		c.Cookie(&fiber.Cookie{Name: WebAuthnTempCookie, Value: token, HTTPOnly: true, Secure: true, SameSite: fiber.CookieSameSiteLaxMode, MaxAge: int(SessionDuration.Seconds()), Expires: time.Now().Add(SessionDuration)})
 
 		return c.Status(200).JSON(options)
 	}

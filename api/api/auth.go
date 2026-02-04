@@ -109,6 +109,7 @@ func (s *APIServer) login() fiber.Handler {
 			Value:    token,
 			HTTPOnly: true,
 			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 			MaxAge:   int(s.Config.API.SessionExpirationTime.Seconds()),
 			Expires:  expires,
 		})
@@ -128,7 +129,10 @@ func (s *APIServer) login() fiber.Handler {
 // @Router /api/v1/accounts/logout [post]
 func (s *APIServer) logout() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
-		sessionToken := c.Locals(auth.SESSION_TOKEN).(string)
+		sessionToken, ok := c.Locals(auth.SESSION_TOKEN).(string)
+		if !ok || sessionToken == "" {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
 
 		if err := s.Service.DeleteSession(c.Context(), sessionToken); err != nil {
 			return HandleError(c, err, ErrDeleteSession.Error())
@@ -141,14 +145,18 @@ func (s *APIServer) logout() fiber.Handler {
 	return handler
 }
 
-// ClearCookies clears cookies by setting them to expire in the past
+// ClearCookies clears cookies by setting them to expire in the past.
+// Flags must match the original cookie attributes for the browser to clear them.
 // Workaround for clearing cookies: https://github.com/gofiber/fiber/issues/1127
 func ClearCookies(c *fiber.Ctx, key ...string) {
 	for i := range key {
 		c.Cookie(&fiber.Cookie{
-			Name:    key[i],
-			Expires: time.Now().Add(-time.Hour * 24),
-			Value:   "",
+			Name:     key[i],
+			Expires:  time.Now().Add(-time.Hour * 24),
+			Value:    "",
+			HTTPOnly: true,
+			Secure:   true,
+			SameSite: fiber.CookieSameSiteLaxMode,
 		})
 	}
 }

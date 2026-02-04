@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -24,7 +25,8 @@ func GetToken(c *fiber.Ctx) string {
 func NewPSK(cfg config.APIConfig) fiber.Handler {
 
 	return func(c *fiber.Ctx) error {
-		if GetToken(c) != cfg.PSK {
+		token := GetToken(c)
+		if subtle.ConstantTimeCompare([]byte(token), []byte(cfg.PSK)) != 1 {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 

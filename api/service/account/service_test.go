@@ -611,7 +611,7 @@ func (suite *AccountTestSuite) TestSendResetPasswordEmail() {
 			name:            "Account not found",
 			email:           "notfound@example.com",
 			getAccountError: dbErrors.ErrAccountNotFound,
-			expectedError:   "account not found",
+			expectSuccess:   true, // Returns nil to prevent account enumeration
 		},
 		{
 			name:            "Database error on get account",

@@ -281,18 +281,21 @@ func (a *AccountService) RegisterAccountWithActiveUntil(ctx context.Context, ema
 	return acc, nil
 }
 
-// SendResetPasswordEmail generates secure token and sends reset password email
+// SendResetPasswordEmail generates secure token and sends reset password email.
+// Returns nil even when the account is not found to prevent account enumeration.
 func (a *AccountService) SendResetPasswordEmail(ctx context.Context, email string) error {
 	acc, err := a.AccountRepository.GetAccountByEmail(ctx, email)
 	if err != nil {
-		// What if account does not exist? Should I return 200, 404 or something went wrong without details?
+		if errors.Is(err, dbErrors.ErrAccountNotFound) {
+			// Do not reveal whether the account exists.
+			log.Debug().Msg("Password reset requested for non-existent account")
+			return nil
+		}
 		return err
 	}
 
-	// TODO: Should I return 200 and do not send email, send email anyway or return error?
 	if !acc.EmailVerified {
-		log.Warn().Str("email", email).Msg("Email not verified")
-		// return ErrEmailNotVerified
+		log.Warn().Msg("Password reset requested for unverified email")
 	}
 
 	eg, _ := errgroup.WithContext(ctx)

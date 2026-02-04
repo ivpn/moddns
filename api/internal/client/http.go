@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -26,7 +27,8 @@ func (h Http) SignupWebhook(subID string) error {
 		req.Set("Content-Type", "application/json")
 		req.Set("Accept", "application/json")
 		req.Set("Authorization", "Bearer "+h.Cfg.SignupWebhookPSK)
-		req.Body([]byte(`{"uuid": "` + subID + `"}`))
+		body, _ := json.Marshal(map[string]string{"uuid": subID})
+		req.Body(body)
 
 		status, _, err := req.Bytes()
 		log.Info().Int("status", status).Msgf("Called signup webhook")
