@@ -85,7 +85,7 @@ func (s *APIServer) disable2FA() fiber.Handler {
 		accountId := auth.GetAccountID(c)
 		acc, err := s.Service.TotpDisable(c.Context(), accountId, p.OTP)
 		if err != nil {
-			return HandleError(c, err, ErrFailedToRegisterAccount.Error())
+			return HandleError(c, err, ErrFailedToDisable2FA.Error())
 		}
 		return c.Status(200).JSON(acc)
 	}

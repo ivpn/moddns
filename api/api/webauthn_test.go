@@ -67,7 +67,8 @@ func (suite *WebAuthnAPITestSuite) SetupTest() {
 }
 
 func (suite *WebAuthnAPITestSuite) createServer() *APIServer {
-	webAuthn := middleware.NewWebAuthn(*suite.config)
+	webAuthn, err := middleware.NewWebAuthn(*suite.config)
+	suite.Require().NoError(err)
 
 	srv := service.Service{
 		Cfg:      *suite.config,

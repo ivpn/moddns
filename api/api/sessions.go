@@ -18,8 +18,14 @@ import (
 // @Router /api/v1/sessions [delete]
 func (s *APIServer) deleteAllOtherSessions() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		accountID := c.Locals(auth.ACCOUNT_ID).(string)
-		currentToken := c.Locals(auth.SESSION_TOKEN).(string)
+		accountID, ok := c.Locals(auth.ACCOUNT_ID).(string)
+		if !ok || accountID == "" {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		currentToken, ok := c.Locals(auth.SESSION_TOKEN).(string)
+		if !ok || currentToken == "" {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
 
 		err := s.Service.DeleteSessionsByAccountIDExceptCurrent(c.Context(), accountID, currentToken)
 		if err != nil {

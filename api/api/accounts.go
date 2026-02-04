@@ -106,7 +106,7 @@ func (s *APIServer) updateAccount() fiber.Handler {
 			return HandleError(c, err, ErrInvalidRequestBody.Error())
 		}
 
-		errMsgs := s.Validator.ValidateRequest(c, updates, ErrFailedToCreateCustomRule.Error())
+		errMsgs := s.Validator.ValidateRequest(c, updates, ErrFailedToUpdateAccount.Error())
 		if len(errMsgs) > 0 {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}

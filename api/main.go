@@ -125,7 +125,10 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create API validator")
 	}
 
-	webAuthn := middleware.NewWebAuthn(*appConfig)
+	webAuthn, err := middleware.NewWebAuthn(*appConfig)
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to initialize WebAuthn")
+	}
 	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn)
 
 	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener)
