@@ -39,18 +39,17 @@ func NewBasicAuth(cfg config.APIConfig) fiber.Handler {
 	})
 }
 
-func NewWebAuthn(cfg config.Config) *webauthn.WebAuthn {
-	var webAuthn *webauthn.WebAuthn
-	config := &webauthn.Config{
+func NewWebAuthn(cfg config.Config) (*webauthn.WebAuthn, error) {
+	waCfg := &webauthn.Config{
 		RPDisplayName: cfg.Server.Name,                  // Display Name for your site
 		RPID:          cfg.Server.FQDN,                  // Generally the FQDN for your site
 		RPOrigins:     []string{cfg.API.ApiAllowOrigin}, // The origin URLs allowed for WebAuthn requests
 	}
 
-	webAuthn, err := webauthn.New(config)
+	webAuthn, err := webauthn.New(waCfg)
 	if err != nil {
-		fmt.Println(err)
+		return nil, fmt.Errorf("failed to initialize WebAuthn: %w", err)
 	}
 
-	return webAuthn
+	return webAuthn, nil
 }

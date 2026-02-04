@@ -10,7 +10,7 @@ type Profile struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id" binding:"required"`
 	ProfileId string             `json:"profile_id" bson:"profile_id" binding:"required"`
 	AccountId string             `json:"account_id" bson:"account_id" binding:"required"`
-	Name      string             `json:"name" validate:"required" binding:"required"`
+	Name      string             `json:"name" validate:"required,max=50" binding:"required"`
 	Settings  *ProfileSettings   `json:"settings" bson:"settings" binding:"required"`
 }
 
