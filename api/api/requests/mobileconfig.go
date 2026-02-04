@@ -7,7 +7,7 @@ type MobileConfigReq struct {
 	// consistent with the DNS proxy rules (currently 16). When provided, generated
 	// mobileconfig profile endpoints (DoH / DoT / DoQ) will embed it so queries can
 	// be attributed per-device.
-	DeviceId            string `json:"device_id"`
+	DeviceId            string `json:"device_id" validate:"omitempty,device_id"`
 	*AdvancedOptionsReq `json:"advanced_options"`
 }
 

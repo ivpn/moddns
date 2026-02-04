@@ -9,7 +9,7 @@ import (
 )
 
 type ServicesUpdates struct {
-	ServiceIds []string `json:"service_ids" validate:"required"`
+	ServiceIds []string `json:"service_ids" validate:"required,min=1,max=100,dive,required"`
 }
 
 // @Summary Get services catalog
