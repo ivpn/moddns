@@ -199,15 +199,15 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                     {/* FAQ */}
                     <Button
                         variant="ghost"
-                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)] ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive('/faq') ? "bg-[var(--sidebar-accent-bg)] text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
                         title="FAQ"
                         onClick={() => handleNavigation('/faq')}
                     >
-                        <span className="flex items-center text-[var(--sidebar-foreground)]">
+                        <span className={`flex items-center ${isActive('/faq') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
                             <HelpCircle className="w-5 h-5" />
                         </span>
                         {showLabels && (
-                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'}`}>
+                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive('/faq') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
                                 FAQ
                             </span>
                         )}
