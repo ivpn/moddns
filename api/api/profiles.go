@@ -14,7 +14,7 @@ import (
 )
 
 type createProfileBody struct {
-	Name string `json:"name"`
+	Name string `json:"name" validate:"required,min=1,max=50"`
 }
 
 // @Summary Create profile
@@ -33,6 +33,11 @@ func (s *APIServer) createProfile() fiber.Handler {
 		p := new(createProfileBody)
 		if err := c.BodyParser(p); err != nil {
 			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+
+		errMsgs := s.Validator.ValidateRequest(c, p, ErrFailedToCreateProfile.Error())
+		if len(errMsgs) > 0 {
+			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
 		accountId := auth.GetAccountID(c)

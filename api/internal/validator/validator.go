@@ -9,7 +9,16 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/rs/zerolog/log"
+)
+
+// Pre-compiled regexes for password validation (avoid re-compilation on every call).
+var (
+	reUppercase   = regexp.MustCompile(`[A-Z]`)
+	reLowercase   = regexp.MustCompile(`[a-z]`)
+	reNumber      = regexp.MustCompile(`[0-9]`)
+	reSpecialChar = regexp.MustCompile(`[!@#$%^&*(),;.?":{}\[\]|<>_-]`)
 )
 
 const (
@@ -56,6 +65,10 @@ func NewAPIValidator() (*APIValidator, error) {
 		return nil, err
 	}
 	err = apiValidator.Validator.RegisterValidation("asn", asnValidation)
+	if err != nil {
+		return nil, err
+	}
+	err = apiValidator.Validator.RegisterValidation("device_id", deviceIDValidation)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +173,7 @@ func asnValidation(fl validator.FieldLevel) bool {
 	return parsed > 0
 }
 
-// passowrdValidation validates the password according to the complexity criteria
+// passwordValidation validates the password according to the complexity criteria
 func passwordValidation(fl validator.FieldLevel) bool {
 	return ValidatePassword(fl.Field().String())
 }
@@ -170,26 +183,28 @@ func ValidatePassword(password string) bool {
 		return false
 	}
 
-	var uppercase = regexp.MustCompile(`[A-Z]`).MatchString
-	var lowercase = regexp.MustCompile(`[a-z]`).MatchString
-	var number = regexp.MustCompile(`[0-9]`).MatchString
-	var specialChar = regexp.MustCompile(`[!@#$%^&*(),;.?":{}\[\]|<>-_]`).MatchString
-
-	if !uppercase(password) {
+	if !reUppercase.MatchString(password) {
 		return false
 	}
 
-	if !lowercase(password) {
+	if !reLowercase.MatchString(password) {
 		return false
 	}
 
-	if !number(password) {
+	if !reNumber.MatchString(password) {
 		return false
 	}
 
-	if !specialChar(password) {
+	if !reSpecialChar.MatchString(password) {
 		return false
 	}
 
 	return true
+}
+
+// deviceIDValidation validates device identifiers using the shared deviceid package.
+// It passes if the raw value equals its normalized form (only [A-Za-z0-9 -], max length).
+func deviceIDValidation(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	return value == deviceid.Normalize(value)
 }

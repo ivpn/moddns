@@ -11,7 +11,7 @@ import (
 )
 
 type BlocklistsUpdates struct {
-	BlocklistIds []string `json:"blocklist_ids" validate:"required"`
+	BlocklistIds []string `json:"blocklist_ids" validate:"required,min=1,max=100,dive,required"`
 }
 
 // @Summary Get blocklists data
