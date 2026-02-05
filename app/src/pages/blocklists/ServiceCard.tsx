@@ -28,7 +28,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
     return (
         <Card
             data-testid="service-card"
-            className="bg-[var(--variable-collection-card)] p-3 border-none rounded-[var(--tailwind-primitives-border-radius-rounded)] shadow-sm flex flex-col justify-between h-[196px] lg:h-[180px] w-full overflow-hidden"
+            className="bg-transparent dark:bg-[var(--variable-collection-surface)] p-3 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-[var(--tailwind-primitives-border-radius-rounded)] shadow-sm flex flex-col justify-between h-[196px] lg:h-[180px] w-full overflow-hidden"
         >
             <CardContent className="p-0 flex flex-col justify-between h-full">
                 <div className="flex flex-col gap-1">
