@@ -1,5 +1,6 @@
 import { type JSX, useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { toast } from "sonner";
@@ -107,9 +108,32 @@ export default function ServicesContentSection(): JSX.Element {
                 <ScrollArea className="w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
                         {loading ? (
-                            <div className="col-span-full text-center text-[var(--tailwind-colors-slate-400)] py-8">
-                                Loading services...
-                            </div>
+                            <>
+                                {Array.from({ length: 8 }).map((_, i) => (
+                                    <div
+                                        key={i}
+                                        className="bg-transparent dark:bg-[var(--variable-collection-surface)] p-3 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-[var(--tailwind-primitives-border-radius-rounded)] shadow-sm flex flex-col justify-between h-[196px] lg:h-[180px] w-full"
+                                    >
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-start gap-2">
+                                                    <Skeleton className="h-5 w-5 mt-0.5 rounded" />
+                                                    <Skeleton className="h-5 w-24" />
+                                                </div>
+                                                <Skeleton className="h-5 w-9 rounded-full" />
+                                            </div>
+                                            <div className="pt-2 space-y-1.5">
+                                                <Skeleton className="h-3 w-full" />
+                                                <Skeleton className="h-3 w-full" />
+                                                <Skeleton className="h-3 w-3/4" />
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex items-center justify-end">
+                                            <Skeleton className="h-3 w-20" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
                         ) : services.length === 0 ? (
                             <div className="col-span-full text-center text-[var(--tailwind-colors-slate-400)] py-8">
                                 No services available.
