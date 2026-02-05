@@ -411,7 +411,7 @@ export default function MainContentSection(): JSX.Element {
                              * by stacked fixed headers, preventing the overall document from scrolling to the very bottom.
                              * We remove forced h-full and instead cap the ScrollArea only when there is sufficient vertical space.
                              */}
-                            <ScrollArea className="w-full max-h-[calc(100vh-var(--app-header-stack,120px)-200px)] md:max-h-[unset]">
+                            <ScrollArea className="w-full">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
                                     {loading ? (
                                         <>

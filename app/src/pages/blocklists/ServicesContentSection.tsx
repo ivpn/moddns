@@ -104,7 +104,7 @@ export default function ServicesContentSection(): JSX.Element {
             </section>
 
             <section className="w-full">
-                <ScrollArea className="w-full max-h-[calc(100vh-var(--app-header-stack,120px)-200px)] md:max-h-[unset]">
+                <ScrollArea className="w-full">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
                         {loading ? (
                             <div className="col-span-full text-center text-[var(--tailwind-colors-slate-400)] py-8">
