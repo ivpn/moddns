@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Key, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api/api";
@@ -162,10 +163,22 @@ export default function PasskeySettings() {
 
                             {/* Existing passkeys list */}
                             {loading ? (
-                                <div className="text-center py-4">
-                                    <p className="text-sm text-[var(--tailwind-colors-slate-200)]">
-                                        Loading passkeys...
-                                    </p>
+                                <div className="space-y-3">
+                                    {Array.from({ length: 2 }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-[var(--tailwind-colors-slate-600)] rounded-lg w-full gap-3"
+                                        >
+                                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                                <Skeleton className="h-8 w-8 rounded-full flex-shrink-0" />
+                                                <div className="space-y-1.5">
+                                                    <Skeleton className="h-4 w-32" />
+                                                    <Skeleton className="h-3 w-24" />
+                                                </div>
+                                            </div>
+                                            <Skeleton className="h-9 w-20 rounded-md" />
+                                        </div>
+                                    ))}
                                 </div>
                             ) : passkeys.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-3 w-full">
