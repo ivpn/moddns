@@ -145,7 +145,6 @@ test.describe('@layout Content centering - symmetric margins', () => {
       // Find the main content container (different pages may use different containers)
       const appContent = page.getByTestId('app-content');
       const box = await appContent.boundingBox();
-      const viewport = page.viewportSize()!;
 
       // Verify content starts at left edge
       expect(box!.x, `${route}: app-content not at left edge`).toBe(0);
