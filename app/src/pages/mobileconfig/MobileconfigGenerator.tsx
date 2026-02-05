@@ -245,15 +245,15 @@ export default function MobileconfigGenerator(): JSX.Element {
                         ← Back
                     </Button>
                 </div>
-                <Card className="bg-[var(--variable-collection-surface)] border-[var(--shadcn-ui-app-border)] shadow-sm">
-                    <CardHeader className="text-center space-y-4">
+                <Card className="bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent shadow-sm">
+                    <CardHeader className="text-center space-y-4 bg-transparent dark:bg-[var(--variable-collection-surface)]">
                         <div className="flex items-center justify-center">
-                            <div className="w-12 h-12 bg-[var(--variable-collection-surface)] rounded-lg flex items-center justify-center">
+                            <div className="w-12 h-12 bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg flex items-center justify-center">
                                 <Smartphone className="w-6 h-6 text-[var(--tailwind-colors-rdns-600)]" />
                             </div>
                         </div>
                         <div>
-                            <CardTitle className="text-xl sm:text-2xl font-bold bg-[var(--variable-collection-surface)] text-[var(--tailwind-colors-slate-50)] text-balance text-center px-2">
+                            <CardTitle className="text-xl sm:text-2xl font-bold text-[var(--tailwind-colors-slate-50)] text-balance text-center px-2">
                                 Set up modDNS on Apple devices
                             </CardTitle>
                             <p className="text-[var(--tailwind-colors-slate-400)] mt-2 text-sm sm:text-base text-balance text-center px-4">

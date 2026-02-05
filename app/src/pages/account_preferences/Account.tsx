@@ -287,7 +287,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
 
                 {/* Sections */}
                 {sections.map((section, sectionIndex) => (
-                    <Card key={sectionIndex} className="w-full border-none">
+                    <Card key={sectionIndex} className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                         <CardContent>
                             <div className="flex flex-col items-start gap-6 w-full">
                                 <div className="flex items-center gap-2 w-full">
@@ -401,7 +401,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                 <PasskeySettings />
 
                 {/* Delete Account Section */}
-                <Card className="w-full border-none bg-[var(--danger-zone-bg)] rounded-[var(--primitives-radius-radius)]">
+                <Card className="w-full bg-transparent dark:bg-[var(--danger-zone-bg)] border border-[var(--tailwind-colors-red-400)] dark:border-transparent rounded-[var(--primitives-radius-radius)]">
                     <CardContent className="bg-transparent">
                         <div className="flex flex-col items-start gap-6 w-full">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-4 flex-wrap">

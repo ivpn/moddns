@@ -200,7 +200,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
         <div
             data-testid="setup-guide-panel"
             data-mode={isOverlay ? 'overlay' : 'sidepanel'}
-            className={`fixed ${isOverlay ? 'inset-x-0' : 'right-0'} ${isOverlay ? 'w-full' : 'w-[600px]'} ${isOverlay ? 'rounded-none' : 'rounded-md'} bg-[var(--variable-collection-surface)] transition-all duration-500 ease-in-out z-40 ${isVisible
+            className={`fixed ${isOverlay ? 'inset-x-0' : 'right-0'} ${isOverlay ? 'w-full' : 'w-[600px]'} ${isOverlay ? 'rounded-none' : 'rounded-md'} bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent transition-all duration-500 ease-in-out z-40 ${isVisible
                 ? 'transform translate-x-0 opacity-100'
                 : 'transform translate-x-full opacity-0'
                 }`}
@@ -213,7 +213,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
         >
             <div className="h-full relative flex flex-col">
                 {/* Instructions Header */}
-                <div className="flex items-center justify-between px-4 sm:px-6 h-[54px] sm:h-[62px] bg-[var(--variable-collection-surface)] border-b border-[var(--shadcn-ui-app-border)]" data-testid="setup-guide-header">
+                <div className="flex items-center justify-between px-4 sm:px-6 h-[54px] sm:h-[62px] bg-transparent dark:bg-[var(--variable-collection-surface)] border-b border-[var(--shadcn-ui-app-border)]" data-testid="setup-guide-header">
                     <div className="flex items-center gap-3 min-w-0">
                         {isOverlay && (
                             <Button variant="ghost" size="icon" onClick={onClose} className="h-6 w-6 shrink-0" data-testid="setup-guide-close-button">

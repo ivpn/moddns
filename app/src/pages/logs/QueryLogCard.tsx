@@ -85,7 +85,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     return (
         <div
             ref={isLast ? lastLogRef : undefined}
-            className="w-full bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border-0"
+            className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent"
         >
             <div className={`flex h-auto md:h-[66px] items-stretch md:items-center justify-between gap-3 md:gap-4 px-3 md:pt-[var(--tailwind-primitives-gap-gap-3)] md:pr-[var(--tailwind-primitives-gap-gap-4)] md:pb-[var(--tailwind-primitives-gap-gap-3)] md:pl-[var(--tailwind-primitives-gap-gap-4)] min-w-0 py-2 md:py-0 transition-all duration-200 ease-out min-h-[64px] ${timestampExpanded ? 'pb-3.5 min-h-[84px]' : ''}`}>
                 <div className="flex items-center gap-3 relative min-w-0 flex-1">
@@ -119,7 +119,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                             <Badge
                                                 className="inline-flex items-center justify-center px-2 py-0.5 bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5"
                                             >
-                                                <span className="font-text-xs-leading-4-semibold text-[10px] leading-4 text-[var(--tailwind-colors-slate-50)] font-semibold">Blocked</span>
+                                                <span className="font-text-xs-leading-4-semibold text-[10px] leading-4 text-white font-semibold">Blocked</span>
                                             </Badge>
                                         )}
                                     </div>
@@ -181,7 +181,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
                                 {protocolLabel}
                             </div>
                             <Badge className={`order-1 md:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none' : ''}`} aria-hidden={!isBlocked}>
-                                <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-[var(--tailwind-colors-slate-50)] font-semibold">Blocked</span>
+                                <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
                             </Badge>
                         </div>
                         <div className="flex flex-col w-[140px] md:w-[220px] lg:w-[280px] items-end justify-center gap-0.5 md:gap-[var(--tailwind-primitives-gap-gap-0-5)] relative min-w-0 flex-shrink-0">

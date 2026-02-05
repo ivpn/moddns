@@ -54,7 +54,7 @@ export default function CustomRulesCard({
         }
 
         return (
-            <Card className="flex flex-col flex-1 self-stretch w-full grow bg-[var(--variable-collection-surface)] rounded-lg border border-[var(--tailwind-colors-slate-700)]">
+            <Card className="flex flex-col flex-1 self-stretch w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                 <div className="flex flex-col items-center gap-6 p-6 w-full text-center">
                     <NoRulesExist
                         type={type}

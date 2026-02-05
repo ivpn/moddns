@@ -13,7 +13,7 @@ interface AccountInfoCardProps {
 }
 
 const AccountInfoCard: React.FC<AccountInfoCardProps> = ({ accountInfo }) => (
-    <Card className="w-full max-w-full bg-transparent border border-[var(--tailwind-colors-slate-500)] overflow-hidden">
+    <Card className="w-full max-w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent overflow-hidden">
         <CardContent className="flex flex-col gap-6 w-full max-w-full">
             <div className="flex flex-col gap-0.5">
                 <h2 className="font-mono font-bold text-[var(--tailwind-colors-slate-50)] text-xl leading-6">

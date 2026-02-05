@@ -35,7 +35,7 @@ const CustomRuleEntry: React.FC<CustomRuleEntryProps> = ({
 
     return (
         <Card
-            className={`w-full h-10 bg-[var(--variable-collection-surface)] border-none transition-opacity duration-300 ${isVisible && !isRemoving ? "opacity-100" : "opacity-0"}`}
+            className={`w-full h-10 bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent transition-opacity duration-300 ${isVisible && !isRemoving ? "opacity-100" : "opacity-0"}`}
         >
             <CardContent className="flex items-center justify-between relative self-stretch w-full h-full p-0 px-3">
                 <div className="flex items-center gap-4 relative flex-1">

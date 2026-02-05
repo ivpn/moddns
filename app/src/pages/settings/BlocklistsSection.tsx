@@ -11,7 +11,7 @@ const BlocklistsSection: React.FC<BlocklistsSectionProps> = ({
     blocklistSettings,
     handleBlocklistChange,
 }) => (
-    <Card className="w-full border-none">
+    <Card className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
         <CardContent>
             <div className="flex flex-col items-start gap-6 w-full">
                 <div className="flex items-center gap-2 w-full">

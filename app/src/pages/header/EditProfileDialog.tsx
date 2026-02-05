@@ -116,7 +116,7 @@ export default function EditProfileDialog({
                             </div>
 
                             {/* Delete profile section */}
-                            <Card className="w-full bg-[var(--danger-zone-bg)] border-none rounded-md">
+                            <Card className="w-full bg-transparent dark:bg-[var(--danger-zone-bg)] border border-[var(--tailwind-colors-red-400)] dark:border-transparent rounded-md">
                                 <CardContent className="flex items-center justify-between p-4">
                                     <div className="flex flex-col gap-2 max-w-[412px]">
                                         <h3 className="font-['Roboto_Flex-Medium',Helvetica] font-medium text-[var(--shadcn-ui-app-foreground)] text-base leading-4">

@@ -163,7 +163,7 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                         )}
 
                                         {profileData && (
-                                            <Card className="w-full max-w-[630px] rounded-md overflow-hidden border-none">
+                                            <Card className="w-full max-w-[630px] rounded-md overflow-hidden bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                                                 <CardContent className="p-4">
                                                     <div className="flex flex-col items-start gap-3 w-full">
                                                         {Object.entries({
@@ -194,7 +194,7 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="icon"
-                                                                            className="p-0.5 h-auto bg-[var(--shadcn-ui-app-card)] text-[var(--tailwind-colors-rdns-600)] rounded-md hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-primary-foreground"
+                                                                            className="p-0.5 h-auto bg-transparent dark:bg-[var(--variable-collection-surface)] text-[var(--tailwind-colors-rdns-600)] rounded-md hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-primary-foreground"
                                                                             onClick={(e) => { e.stopPropagation(); copyToClipboard(value as string, label); }}
                                                                             disabled={copiedField === label}
                                                                             aria-label={`Copy ${label}`}
@@ -219,11 +219,11 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                         <Card
                                                             key={platformIndex}
                                                             data-testid={`setup-platform-card-desktop-${platform.name.replace(/\s+/g, '-').toLowerCase()}`}
-                                                            className={`flex-1 rounded-md border-none transition-all duration-300 ${platform.disabled
+                                                            className={`flex-1 rounded-md transition-all duration-300 ${platform.disabled
                                                                 ? 'opacity-0 pointer-events-none'
                                                                 : `hover:scale-105 cursor-pointer transform ${selectedPlatform === platform.name
-                                                                    ? 'bg-[var(--tailwind-colors-rdns-600)]'
-                                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent'
+                                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
                                                                 }`
                                                                 }`}
                                                             onClick={platform.disabled ? undefined : () => handlePlatformClick(platform.name)}
@@ -243,9 +243,9 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                             {/* Device Identification Card - full width */}
                                             <Card
                                                 data-testid="setup-platform-card-desktop-device-identification"
-                                                className={`w-full rounded-md border-none hover:scale-105 transition-all duration-300 cursor-pointer transform ${selectedPlatform === 'Device Identification'
-                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                className={`w-full rounded-md hover:scale-105 transition-all duration-300 cursor-pointer transform ${selectedPlatform === 'Device Identification'
+                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
+                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
                                                     }`}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >
@@ -284,9 +284,9 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                 <Card
                                                     key={idx}
                                                     data-testid={`setup-platform-card-${platform.name.replace(/\s+/g, '-').toLowerCase()}`}
-                                                    className={`rounded-md border-none hover:scale-[1.03] active:scale-100 transition-all duration-300 cursor-pointer ${selectedPlatform === platform.name
-                                                        ? 'bg-[var(--tailwind-colors-rdns-600)]'
-                                                        : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                    className={`rounded-md hover:scale-[1.03] active:scale-100 transition-all duration-300 cursor-pointer ${selectedPlatform === platform.name
+                                                        ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent'
+                                                        : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
                                                         }`}
                                                     onClick={() => handlePlatformClick(platform.name)}
                                                 >
@@ -302,9 +302,9 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                             ))}
                                             <Card
                                                 data-testid="setup-platform-card-device-identification"
-                                                className={`col-span-2 xs:col-span-3 rounded-md border-none hover:scale-[1.02] transition-all duration-300 cursor-pointer ${selectedPlatform === 'Device Identification'
-                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-[var(--variable-collection-surface)] hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                className={`col-span-2 xs:col-span-3 rounded-md hover:scale-[1.02] transition-all duration-300 cursor-pointer ${selectedPlatform === 'Device Identification'
+                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
+                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
                                                     }`}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >

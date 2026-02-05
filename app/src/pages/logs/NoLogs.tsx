@@ -31,7 +31,7 @@ const NoLogs = ({ isSearchActive = false }: NoLogsProps): JSX.Element => {
     const emptyStateData = isSearchActive ? emptyStateVariants.search : emptyStateVariants.default;
 
     return (
-        <Card className="flex flex-col relative w-full bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden !border-0 !shadow-none !outline-none !ring-0
+        <Card className="flex flex-col relative w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden !border-0 !shadow-none !outline-none !ring-0
             items-center md:items-start mx-auto md:mx-0 max-w-[560px] md:max-w-full flex-1 self-stretch grow">
             <div className="flex flex-col h-auto md:h-[652px] items-center md:items-start gap-4 md:gap-8 p-4 pt-2 md:pt-4 relative w-full self-stretch">
                 <div className="flex flex-col items-center justify-start md:justify-center gap-3 md:gap-2.5 relative w-full md:flex-1 md:grow mt-10 md:mt-0">

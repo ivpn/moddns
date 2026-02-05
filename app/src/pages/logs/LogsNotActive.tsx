@@ -50,7 +50,7 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
     };
 
     return (
-        <Card className="flex flex-col items-start relative flex-1 self-stretch w-full grow bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border-0">
+        <Card className="flex flex-col items-start relative flex-1 self-stretch w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
             <div className="flex flex-col h-[652px] items-start gap-8 p-4 pt-2 md:pt-4 relative self-stretch w-full">
                 <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative flex-1 self-stretch w-full grow -mt-4 md:mt-0">
                     <div className="flex w-12 h-12 items-center justify-center rounded-sm">

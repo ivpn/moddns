@@ -51,7 +51,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
     };
 
     return (
-        <Card className="w-full border-none">
+        <Card className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
             <CardContent>
                 <div className="flex flex-col items-start gap-6 w-full">
                     <div className="flex items-center gap-2 w-full">
@@ -142,7 +142,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
                         <Button
                             variant="outline"
-                            className="px-4 py-2 rounded bg-[var(--tailwind-colors-rdns-600)] border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-slate-50)] w-full sm:w-auto"
+                            className="px-4 py-2 rounded bg-[var(--tailwind-colors-rdns-600)] border-[var(--tailwind-colors-slate-600)] text-white w-full sm:w-auto"
                             onClick={async () => {
                                 try {
                                     // Request JSON (array of query logs). Avoid forcing blob response which led to JSON.stringify(Blob) -> '{}'.

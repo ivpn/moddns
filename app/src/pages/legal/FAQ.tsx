@@ -40,7 +40,7 @@ function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FA
     };
 
     return (
-        <div className="mb-4 border border-[var(--shadcn-ui-app-border)] rounded-lg overflow-hidden bg-[var(--shadcn-ui-app-card)]">
+        <div className="mb-4 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-lg overflow-hidden bg-transparent dark:bg-[var(--variable-collection-surface)]">
             <button
                 className="w-full p-4 text-left hover:bg-[var(--shadcn-ui-app-muted)] transition-colors duration-200 flex items-center justify-between"
                 onClick={handleToggle}
