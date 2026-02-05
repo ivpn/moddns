@@ -150,15 +150,13 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
     // Dynamic positioning: respect the measured header stack height so our overlay starts BELOW the fixed header(s)
     // Header stack height is published to --app-header-stack by useHeaderStackHeight hook (App.tsx)
     // Fallbacks: mobile ~110px padding (App.tsx fallback) but actual visual header for /setup page is usually ~64-72px.
-    const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
     const baseTop = connectionStatusVisible ? 48 : 0;
 
-    // Measure actual header + optional page title height + safe-area inset (iOS notch) for precise overlay offset.
+    // Measure header height for overlay positioning on all non-desktop devices (phones + tablets)
     const [mobileTop, setMobileTop] = useState(0);
     useLayoutEffect(() => {
         if (!(mode === 'overlay')) return;
         const measure = () => {
-            if (!isMobile) { setMobileTop(baseTop); return; }
             const header = document.querySelector('[data-testid=app-header-bar]') as HTMLElement | null;
             const title = document.querySelector('[data-testid=mobile-header-page-title]') as HTMLElement | null;
             let total = 0;
@@ -167,7 +165,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             // Add safe-area inset top if present
             const safe = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)').replace('px', '')) || 0;
             // Fallback if measurement fails
-            if (total === 0) total = 64;
+            if (total === 0) total = baseTop + 64;
             setMobileTop(total + safe);
         };
         measure();
@@ -189,7 +187,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             mo.disconnect();
             clearInterval(id);
         };
-    }, [mode, isMobile, baseTop]);
+    }, [mode, baseTop]);
 
     const EXTRA_BUFFER = 24;
     const bufferedTop = mode === 'overlay' ? mobileTop + EXTRA_BUFFER : 0;
