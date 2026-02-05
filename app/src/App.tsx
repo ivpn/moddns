@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
+import React, { Suspense, useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { useHeaderStackHeight } from '@/lib/useHeaderStackHeight';
 import NavigationMenu from './pages/navigation_menu/NavigationMenu';
 import { useScreenDetector } from './hooks/useScreenDetector';
@@ -6,25 +6,27 @@ import Header from './pages/header/Header';
 import BottomNav from './components/navigation/BottomNav';
 import ConnectionStatusHeader from './pages/header/ConnectionStatusHeader';
 import { NavigationCollapseProvider, useNavigationCollapse } from "@/context/NavigationCollapseContext";
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 // Lazy-loaded page components (route-level code splitting)
-const Setup = lazy(() => import('./pages/setup/Setup'));
-const Settings = lazy(() => import('./pages/settings/Settings'));
-const PasswordReset = lazy(() => import('./pages/auth/PasswordReset'));
-const PasswordResetConfirm = lazy(() => import('./pages/auth/PasswordResetConfirm'));
-const Logs = lazy(() => import('./pages/logs/Logs'));
-const Blocklists = lazy(() => import('./pages/blocklists/Blocklists'));
-const CustomRules = lazy(() => import('./pages/custom_rules/CustomRules'));
-const Login = lazy(() => import('./pages/auth/Login'));
-const Signup = lazy(() => import('./pages/auth/Signup'));
-const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
-const PrivacyPolicy = lazy(() => import("./pages/legal/PrivacyPolicy"));
-const FAQ = lazy(() => import("./pages/legal/FAQ"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const AccountPreferences = lazy(() => import('@/pages/account_preferences/Account'));
-const MobileconfigPage = lazy(() => import('@/pages/mobileconfig/MobileconfigPage'));
-const MobileconfigDownload = lazy(() => import('@/pages/mobileconfig/MobileconfigDownload'));
-const HomeScreen = lazy(() => import('./pages/home/HomeScreen'));
+// Uses lazyWithRetry to handle HMR failures gracefully
+const Setup = lazyWithRetry(() => import('./pages/setup/Setup'));
+const Settings = lazyWithRetry(() => import('./pages/settings/Settings'));
+const PasswordReset = lazyWithRetry(() => import('./pages/auth/PasswordReset'));
+const PasswordResetConfirm = lazyWithRetry(() => import('./pages/auth/PasswordResetConfirm'));
+const Logs = lazyWithRetry(() => import('./pages/logs/Logs'));
+const Blocklists = lazyWithRetry(() => import('./pages/blocklists/Blocklists'));
+const CustomRules = lazyWithRetry(() => import('./pages/custom_rules/CustomRules'));
+const Login = lazyWithRetry(() => import('./pages/auth/Login'));
+const Signup = lazyWithRetry(() => import('./pages/auth/Signup'));
+const TermsOfService = lazyWithRetry(() => import('./pages/legal/TermsOfService'));
+const PrivacyPolicy = lazyWithRetry(() => import("./pages/legal/PrivacyPolicy"));
+const FAQ = lazyWithRetry(() => import("./pages/legal/FAQ"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
+const AccountPreferences = lazyWithRetry(() => import('@/pages/account_preferences/Account'));
+const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigPage'));
+const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigDownload'));
+const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
 
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
