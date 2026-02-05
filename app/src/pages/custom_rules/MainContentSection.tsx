@@ -257,15 +257,6 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
     return (
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible">
 
-            {/* Page Description */}
-            <section className="w-full">
-                <div className="flex flex-col gap-1">
-                    <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                        Manually add domains and IP addresses to either block or allow when resolving.
-                    </p>
-                </div>
-            </section>
-
             <div className="flex w-full h-full flex-1 items-start relative min-h-0">
                 <div className="flex flex-col flex-1 h-full w-full min-h-0">
                     <Tabs
@@ -277,36 +268,29 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         }}
                         className="w-full"
                     >
-                        <div className="w-full border-b overflow-x-auto no-scrollbar">
-                            <TabsList className="flex h-auto w-fit bg-[var(--shadcn-ui-app-background)] rounded-none gap-0 justify-start p-0 border-b-0 min-w-max">
+                        <div className="w-full border-b border-[var(--tailwind-colors-slate-700)] overflow-x-auto no-scrollbar">
+                            <TabsList className="flex h-auto w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 min-w-max">
                                 <TabsTrigger
                                     value="denylist"
-                                    className="min-w-14 py-2 px-4 pb-3 border-b-2 w-auto flex-shrink-0
-                                    data-[state=active]:!border-b-[var(--tailwind-colors-rdns-600)]
-                                    data-[state=active]:!bg-transparent
-                                    data-[state=active]:text-[var(--tailwind-colors-slate-50)]
-                                    data-[state=inactive]:bg-transparent
-                                    data-[state=inactive]:text-muted-foreground
-                                    data-[state=inactive]:border-b-transparent
-                                    rounded-none transition-colors"
+                                    className="relative rounded-none border-t border-l border-r border-b-2 bg-transparent px-6 sm:px-10 md:px-16 lg:px-20 py-2 sm:py-2.5 md:py-3 text-[var(--tailwind-colors-slate-300)] border-transparent data-[state=active]:!bg-transparent dark:data-[state=active]:!bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[var(--tailwind-colors-slate-50)] data-[state=active]:!border-t-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-l-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-r-[var(--tailwind-colors-slate-light-300)] dark:data-[state=active]:!border-t-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-l-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-r-[var(--tailwind-colors-slate-700)] data-[state=active]:!border-b-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors duration-200 ease-out after:absolute after:left-0 after:right-0 after:-bottom-[2px] after:h-[2px] after:rounded-full after:bg-[var(--tailwind-colors-rdns-600)] after:opacity-0 after:transition-opacity after:duration-200 after:ease-out hover:after:opacity-40 data-[state=active]:after:opacity-0"
                                 >
                                     Denylist
                                 </TabsTrigger>
                                 <TabsTrigger
                                     value="allowlist"
-                                    className="min-w-14 py-2 px-4 pb-3 border-b-2 border-transparent w-auto flex-shrink-0
-                                    data-[state=active]:!border-b-[var(--tailwind-colors-rdns-600)]
-                                    data-[state=active]:!bg-transparent
-                                    data-[state=active]:text-[var(--tailwind-colors-slate-50)]
-                                    data-[state=inactive]:bg-transparent
-                                    data-[state=inactive]:border-b-transparent
-                                    data-[state=inactive]:text-muted-foreground
-                                    rounded-none transition-colors"
+                                    className="relative rounded-none border-t border-l border-r border-b-2 bg-transparent px-6 sm:px-10 md:px-16 lg:px-20 py-2 sm:py-2.5 md:py-3 text-[var(--tailwind-colors-slate-300)] border-transparent data-[state=active]:!bg-transparent dark:data-[state=active]:!bg-transparent data-[state=active]:shadow-none data-[state=active]:text-[var(--tailwind-colors-slate-50)] data-[state=active]:!border-t-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-l-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-r-[var(--tailwind-colors-slate-light-300)] dark:data-[state=active]:!border-t-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-l-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-r-[var(--tailwind-colors-slate-700)] data-[state=active]:!border-b-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors duration-200 ease-out after:absolute after:left-0 after:right-0 after:-bottom-[2px] after:h-[2px] after:rounded-full after:bg-[var(--tailwind-colors-rdns-600)] after:opacity-0 after:transition-opacity after:duration-200 after:ease-out hover:after:opacity-40 data-[state=active]:after:opacity-0"
                                 >
                                     Allowlist
                                 </TabsTrigger>
                             </TabsList>
                         </div>
+
+                        {/* Page Description */}
+                        <section className="w-full mt-4">
+                            <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
+                                Manually add domains and IP addresses to either block or allow when resolving.
+                            </p>
+                        </section>
 
                         {/* Shared AlertCard and input for both tabs */}
                         <section className="w-full pt-4 pb-0">

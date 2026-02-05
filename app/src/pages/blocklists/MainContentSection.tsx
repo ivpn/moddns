@@ -246,25 +246,35 @@ export default function MainContentSection(): JSX.Element {
     };
 
     const tabTriggerClassName =
-        "relative rounded-none border-0 bg-transparent data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2 text-[var(--tailwind-colors-slate-300)] data-[state=active]:text-[var(--tailwind-colors-slate-50)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors duration-200 ease-out " +
-        "after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-[var(--tailwind-colors-rdns-600)] after:opacity-0 after:transition-opacity after:duration-200 after:ease-out " +
-        "hover:after:opacity-40 data-[state=active]:after:opacity-100";
+        "relative rounded-none border-t border-l border-r border-b-2 bg-transparent px-6 sm:px-10 md:px-16 lg:px-20 py-2 sm:py-2.5 md:py-3 " +
+        "text-[var(--tailwind-colors-slate-300)] " +
+        "border-transparent " +
+        "data-[state=active]:!bg-transparent dark:data-[state=active]:!bg-transparent " +
+        "data-[state=active]:shadow-none " +
+        "data-[state=active]:text-[var(--tailwind-colors-slate-50)] " +
+        "data-[state=active]:!border-t-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-l-[var(--tailwind-colors-slate-light-300)] data-[state=active]:!border-r-[var(--tailwind-colors-slate-light-300)] " +
+        "dark:data-[state=active]:!border-t-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-l-[var(--tailwind-colors-slate-700)] dark:data-[state=active]:!border-r-[var(--tailwind-colors-slate-700)] " +
+        "data-[state=active]:!border-b-[var(--tailwind-colors-rdns-600)] " +
+        "hover:text-[var(--tailwind-colors-slate-50)] " +
+        "transition-colors duration-200 ease-out " +
+        // Hover underline effect using ::after pseudo-element
+        "after:absolute after:left-0 after:right-0 after:-bottom-[2px] after:h-[2px] after:rounded-full after:bg-[var(--tailwind-colors-rdns-600)] " +
+        "after:opacity-0 after:transition-opacity after:duration-200 after:ease-out " +
+        "hover:after:opacity-40 data-[state=active]:after:opacity-0";
 
     return (
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="w-full max-w-[420px] h-11 bg-transparent border-b border-[var(--tailwind-colors-slate-700)] rounded-none p-0 justify-start">
-                    <TabsTrigger value="blocklists" className={tabTriggerClassName}>
-                        Blocklists
-                    </TabsTrigger>
-                    <div
-                        aria-hidden="true"
-                        className="self-stretch h-[calc(100%+1px)] w-px bg-[var(--tailwind-colors-slate-700)]"
-                    />
-                    <TabsTrigger value="services" className={tabTriggerClassName}>
-                        Services
-                    </TabsTrigger>
-                </TabsList>
+                <div className="w-full border-b border-[var(--tailwind-colors-slate-700)] overflow-x-auto no-scrollbar">
+                    <TabsList className="flex h-auto w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 min-w-max">
+                        <TabsTrigger value="blocklists" className={tabTriggerClassName}>
+                            Blocklists
+                        </TabsTrigger>
+                        <TabsTrigger value="services" className={tabTriggerClassName}>
+                            Services
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
                 <TabsContent value="blocklists" className="mt-4">
                     <div className="flex flex-col w-full items-start gap-6">
