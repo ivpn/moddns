@@ -370,7 +370,8 @@ function ProtectedLayout() {
     ? Math.max((viewportWidth - (sidebarWidth + ULTRAWIDE_CONTENT_MAX_WIDTH)) / 2, 0)
     : 0;
 
-  const contentMaxWidth = isDesktop ? DESKTOP_CONTENT_CLAMP : '100%';
+  // On non-desktop (tablets in landscape), cap content width so mx-auto centers it
+  const contentMaxWidth = isDesktop ? DESKTOP_CONTENT_CLAMP : 'min(100%, 1080px)';
 
   return (
     <>
@@ -426,11 +427,11 @@ function ProtectedLayout() {
           maxWidth: '100vw'
         } : {
           paddingTop: 'var(--app-header-stack, 110px)',
-          paddingBottom: '72px',
+          paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
           paddingLeft: '0px',
           marginLeft: '0px',
           width: '100%',
-          minHeight: 'calc(100dvh - 72px)',
+          minHeight: 'calc(100dvh - 72px - env(safe-area-inset-bottom, 0px))',
           maxWidth: '100vw'
         }}
       >
