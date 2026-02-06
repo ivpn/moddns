@@ -255,7 +255,7 @@ export default function MainContentSection(): JSX.Element {
     };
 
     const tabTriggerClassName =
-        "relative rounded-none border-t border-l border-r border-b-2 bg-transparent px-6 sm:px-10 md:px-16 lg:px-20 py-2 sm:py-2.5 md:py-3 " +
+        "relative rounded-none border-t border-l border-r border-b-2 bg-transparent flex-1 sm:flex-none px-3 sm:px-10 md:px-16 lg:px-20 py-2 sm:py-2.5 md:py-3 " +
         "text-[var(--tailwind-colors-slate-300)] " +
         "border-transparent " +
         "data-[state=active]:!bg-transparent dark:data-[state=active]:!bg-transparent " +
@@ -274,8 +274,8 @@ export default function MainContentSection(): JSX.Element {
     return (
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="w-full border-b border-[var(--tailwind-colors-slate-700)] overflow-x-auto no-scrollbar">
-                    <TabsList className="flex h-auto w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 min-w-max">
+                <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">
+                    <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
                             Blocklists
                         </TabsTrigger>
@@ -336,9 +336,9 @@ export default function MainContentSection(): JSX.Element {
 
                         {/* Filters and Search (mobile-first layout similar to logs page) */}
                         <section className="w-full flex flex-col gap-2.5">
-                            {/* Row 1: search only (mobile). Desktop search handled in row 2 */}
-                            <div className="flex items-start w-full md:hidden">
-                                <div className="relative flex-1 min-w-0 w-full">
+                            {/* Row 1: search + enable button (mobile). Desktop search handled in row 2 */}
+                            <div className="flex items-start gap-2 w-full md:hidden">
+                                <div className="relative flex-1 min-w-0">
                                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--tailwind-colors-slate-400)]" />
                                     <Input
                                         className="h-11 min-h-11 pl-10 pr-3 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-200)] rounded-lg placeholder:text-[var(--tailwind-colors-slate-500)]"
@@ -350,6 +350,19 @@ export default function MainContentSection(): JSX.Element {
                                         spellCheck={false}
                                         autoCorrect="off"
                                     />
+                                </div>
+                                <div className="flex-shrink-0">
+                                    <Button
+                                        aria-label="Enable listed blocklists"
+                                        variant="outline"
+                                        size="icon"
+                                        className={`w-11 h-11 min-h-11 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive ? "opacity-100" : "opacity-50"}`}
+                                        disabled={!enableListedActive || updating === "all"}
+                                        onClick={handleEnableListed}
+                                        title="Enable currently listed blocklists"
+                                    >
+                                        <ToggleLeftIcon className={`w-4 h-4 ${enableListedActive ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
+                                    </Button>
                                 </div>
                             </div>
                             {/* Row 2: horizontal scroll filters line (mobile) / single row on desktop */}
@@ -408,8 +421,8 @@ export default function MainContentSection(): JSX.Element {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {/* Enable Listed Button (mobile & desktop at end of row) */}
-                                <div className="flex-shrink-0 ml-auto">
+                                {/* Enable Listed Button (desktop only - mobile version is in row 1) */}
+                                <div className="flex-shrink-0 ml-auto hidden md:block">
                                     <Button
                                         aria-label="Enable listed blocklists"
                                         variant="outline"
