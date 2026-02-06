@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesContentSection from "@/pages/blocklists/ServicesContentSection";
+import CategoriesContentSection from "@/pages/blocklists/CategoriesContentSection";
 
 const INDIVIDUAL_LISTS = [
     { label: "Hagezi", tag: "hagezi" },
@@ -162,8 +163,16 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
+    // Split into regular and category blocklists
+    const regularBlocklists = blocklists.filter(
+        (bl) => !Array.isArray(bl.tags) || !bl.tags.includes("category")
+    );
+    const categoryBlocklists = blocklists.filter(
+        (bl) => Array.isArray(bl.tags) && bl.tags.includes("category")
+    );
+
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
-    let filteredBlocklists = blocklists.filter((blocklist) => {
+    let filteredBlocklists = regularBlocklists.filter((blocklist) => {
         const matchesSearch =
             !searchValue.trim() ||
             blocklist.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -272,6 +281,9 @@ export default function MainContentSection(): JSX.Element {
                         </TabsTrigger>
                         <TabsTrigger value="services" className={tabTriggerClassName}>
                             Services
+                        </TabsTrigger>
+                        <TabsTrigger value="categories" className={tabTriggerClassName}>
+                            Categories
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -471,6 +483,18 @@ export default function MainContentSection(): JSX.Element {
 
                 <TabsContent value="services" className="mt-4">
                     {activeTab === "services" ? <ServicesContentSection /> : null}
+                </TabsContent>
+
+                <TabsContent value="categories" className="mt-4">
+                    {activeTab === "categories" ? (
+                        <CategoriesContentSection
+                            blocklists={categoryBlocklists}
+                            enabledBlocklists={enabledBlocklists}
+                            onToggle={handleBlocklistSwitch}
+                            updating={updating}
+                            loading={loading}
+                        />
+                    ) : null}
                 </TabsContent>
             </Tabs>
         </div>
