@@ -10,6 +10,7 @@ import (
 
 const (
 	TypeAdguard     = "adguard"
+	TypeDomains     = "domains"
 	TypeHagezi      = "hagezi"
 	TypeOISD        = "oisd"
 	TypeStevenBlack = "steven_black"
@@ -32,6 +33,12 @@ func NewExtractor(blocklistID string) (Extractor, error) {
 		return NewAdguardExtractor(), nil
 	case strings.HasPrefix(blocklistID, "steven_black"):
 		return NewStevenBlackExtractor(), nil
+	case strings.HasPrefix(blocklistID, "blp_"):
+		return NewDomainsExtractor(), nil
+	case strings.HasPrefix(blocklistID, "ut1_"):
+		return NewDomainsExtractor(), nil
+	case strings.HasPrefix(blocklistID, "shadowwhisperer_"):
+		return NewDomainsExtractor(), nil
 	default:
 		log.Error().Msg("Unknown blocklist ID")
 		return nil, fmt.Errorf("unknown blocklist ID: %s", blocklistID)

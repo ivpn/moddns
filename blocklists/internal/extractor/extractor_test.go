@@ -44,6 +44,24 @@ func TestNewExtractor(t *testing.T) {
 			wantErr:     false,
 		},
 		{
+			name:        "blp extractor",
+			blocklistID: "blp_gambling",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
+			name:        "ut1 extractor",
+			blocklistID: "ut1_dating",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
+			name:        "shadowwhisperer extractor",
+			blocklistID: "shadowwhisperer_crypto",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
 			name:        "unknown extractor",
 			blocklistID: "unknown_type",
 			wantType:    "",
@@ -85,6 +103,8 @@ func getFullTypeName(v interface{}) string {
 		return "*extractor.OISDExtractor"
 	case *AdguardExtractor:
 		return "*extractor.AdguardExtractor"
+	case *DomainsExtractor:
+		return "*extractor.DomainsExtractor"
 	default:
 		return "unknown"
 	}
