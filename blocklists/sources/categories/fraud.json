@@ -1,0 +1,22 @@
+[
+  {
+    "blocklist_id": "blp_fraud",
+    "name": "Block List Project - Fraud",
+    "description": "Community-maintained list blocking known fraud and deception domains.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/fraud-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "fraud", "blp"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "blp_scam",
+    "name": "Block List Project - Scam",
+    "description": "Community-maintained list blocking known scam and phishing domains.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/scam-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "fraud", "blp"],
+    "schedule": "@hourly"
+  }
+]

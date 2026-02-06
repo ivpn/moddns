@@ -1,0 +1,22 @@
+[
+  {
+    "blocklist_id": "hagezi_doh_vpn_proxy_bypass",
+    "name": "Hagezi DoH/VPN/Proxy Bypass",
+    "description": "Blocks DNS-over-HTTPS providers, VPN services, and proxy/bypass tools to prevent DNS filter circumvention.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/doh-vpn-proxy-bypass-onlydomains.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "tags": ["category", "vpn_bypass", "hagezi"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "shadowwhisperer_tunnels",
+    "name": "ShadowWhisperer - Tunnels",
+    "description": "Curated list blocking VPN tunnels, proxy services, and bypass tools.",
+    "source_url": "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Tunnels",
+    "homepage": "https://github.com/ShadowWhisperer/BlockLists",
+    "syntax": "domains",
+    "tags": ["category", "vpn_bypass", "shadowwhisperer"],
+    "schedule": "@hourly"
+  }
+]

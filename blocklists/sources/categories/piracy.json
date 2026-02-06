@@ -1,0 +1,32 @@
+[
+  {
+    "blocklist_id": "hagezi_anti_piracy",
+    "name": "Hagezi Anti-Piracy",
+    "description": "Blocks piracy, illegal streaming, and torrent-related domains.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/anti.piracy-onlydomains.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "tags": ["category", "piracy", "hagezi"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "blp_piracy",
+    "name": "Block List Project - Piracy",
+    "description": "Community-maintained list blocking piracy and illegal streaming domains.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/piracy-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "piracy", "blp"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "blp_torrent",
+    "name": "Block List Project - Torrent",
+    "description": "Community-maintained list blocking torrent sites and trackers.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/torrent-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "piracy", "blp"],
+    "schedule": "@hourly"
+  }
+]

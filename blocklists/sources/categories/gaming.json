@@ -1,0 +1,12 @@
+[
+  {
+    "blocklist_id": "ut1_gaming",
+    "name": "UT1 - Gaming",
+    "description": "Universite Toulouse maintained list blocking online gaming platforms and game-related domains.",
+    "source_url": "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains",
+    "homepage": "https://dsi.ut-capitole.fr/blacklists/",
+    "syntax": "domains",
+    "tags": ["category", "gaming", "ut1"],
+    "schedule": "@hourly"
+  }
+]

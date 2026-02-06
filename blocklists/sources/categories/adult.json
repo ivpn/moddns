@@ -1,0 +1,22 @@
+[
+  {
+    "blocklist_id": "hagezi_nsfw",
+    "name": "Hagezi NSFW",
+    "description": "Blocks adult and NSFW content domains.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "tags": ["category", "adult", "hagezi"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "blp_porn",
+    "name": "Block List Project - Porn",
+    "description": "Community-maintained list blocking pornography and adult content domains.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/porn-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "adult", "blp"],
+    "schedule": "@hourly"
+  }
+]

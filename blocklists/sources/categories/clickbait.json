@@ -1,0 +1,12 @@
+[
+  {
+    "blocklist_id": "blp_fakenews",
+    "name": "Fake News / Clickbait",
+    "description": "Community-maintained list blocking fake news, clickbait, and misinformation domains.",
+    "source_url": "https://raw.githubusercontent.com/marktron/fakenews/master/fakenews",
+    "homepage": "https://github.com/marktron/fakenews",
+    "syntax": "domains",
+    "tags": ["category", "clickbait", "blp"],
+    "schedule": "@hourly"
+  }
+]

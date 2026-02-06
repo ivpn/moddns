@@ -1,0 +1,32 @@
+[
+  {
+    "blocklist_id": "blp_crypto",
+    "name": "Block List Project - Crypto",
+    "description": "Community-maintained list blocking cryptocurrency mining, exchanges, and related domains.",
+    "source_url": "https://blocklistproject.github.io/Lists/alt-version/crypto-nl.txt",
+    "homepage": "https://github.com/blocklistproject/Lists",
+    "syntax": "domains",
+    "tags": ["category", "crypto", "blp"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "shadowwhisperer_crypto",
+    "name": "ShadowWhisperer - Cryptocurrency",
+    "description": "Curated list blocking cryptocurrency-related domains including mining pools and exchanges.",
+    "source_url": "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Cryptocurrency",
+    "homepage": "https://github.com/ShadowWhisperer/BlockLists",
+    "syntax": "domains",
+    "tags": ["category", "crypto", "shadowwhisperer"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "ut1_cryptojacking",
+    "name": "UT1 - Cryptojacking",
+    "description": "Universite Toulouse maintained list blocking cryptojacking and browser-based cryptocurrency mining domains.",
+    "source_url": "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/cryptojacking/domains",
+    "homepage": "https://dsi.ut-capitole.fr/blacklists/",
+    "syntax": "domains",
+    "tags": ["category", "crypto", "ut1"],
+    "schedule": "@hourly"
+  }
+]
