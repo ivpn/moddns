@@ -93,7 +93,7 @@ export default function CategoriesContentSection({
                     <div className="flex flex-wrap gap-2">
                         <button
                             onClick={() => setActiveFilter(null)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border cursor-pointer ${
                                 activeFilter === null
                                     ? "bg-[var(--tailwind-colors-rdns-600)] text-white border-transparent"
                                     : "bg-transparent text-[var(--tailwind-colors-slate-300)] border-[var(--tailwind-colors-slate-700)] hover:border-[var(--tailwind-colors-slate-500)] hover:text-[var(--tailwind-colors-slate-100)]"
@@ -106,7 +106,7 @@ export default function CategoriesContentSection({
                             <button
                                 key={key}
                                 onClick={() => setActiveFilter(activeFilter === key ? null : key)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border cursor-pointer ${
                                     activeFilter === key
                                         ? "bg-[var(--tailwind-colors-rdns-600)] text-white border-transparent"
                                         : "bg-transparent text-[var(--tailwind-colors-slate-300)] border-[var(--tailwind-colors-slate-700)] hover:border-[var(--tailwind-colors-slate-500)] hover:text-[var(--tailwind-colors-slate-100)]"
