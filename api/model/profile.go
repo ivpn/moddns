@@ -32,6 +32,6 @@ func NewProfile(idGen idgen.Generator, name, accountId string) (*Profile, error)
 // RFC6902 JSON Patch format is used
 type ProfileUpdate struct {
 	Operation string `json:"operation" validate:"required,oneof=remove add replace move copy"`
-	Path      string `json:"path" validate:"required,oneof=/name /settings/statistics/enabled /settings/logs/enabled /settings/logs/log_clients_ips /settings/logs/log_domains /settings/logs/retention /settings/privacy/default_rule /settings/privacy/subdomains_rule /settings/security/dnssec/enabled /settings/security/dnssec/send_do_bit /settings/advanced/recursor"`
+	Path      string `json:"path" validate:"required,oneof=/name /settings/statistics/enabled /settings/logs/enabled /settings/logs/log_clients_ips /settings/logs/log_domains /settings/logs/retention /settings/privacy/default_rule /settings/privacy/subdomains_rule /settings/privacy/custom_rules_subdomains /settings/security/dnssec/enabled /settings/security/dnssec/send_do_bit /settings/advanced/recursor"`
 	Value     any    `json:"value" validate:"required"`
 }

@@ -298,6 +298,11 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			if err != nil {
 				return nil, err
 			}
+		case "/settings/privacy/custom_rules_subdomains":
+			err = p.handleCustomRulesSubdomainsUpdate(profile, update)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -445,6 +450,23 @@ func (p *ProfileService) handleSubdomainsRuleUpdate(profile *model.Profile, upda
 		if err != nil {
 			log.Debug().Err(err).Msg("Failed to validate subdomains block rule")
 			return ErrBlockSubdomainsInvalid
+		}
+	}
+	return nil
+}
+
+func (p *ProfileService) handleCustomRulesSubdomainsUpdate(profile *model.Profile, update model.ProfileUpdate) error {
+	switch update.Operation { // nolint
+	case model.UpdateOperationReplace:
+		value, err := cast.ToStringE(update.Value)
+		if err != nil {
+			return err
+		}
+		profile.Settings.Privacy.CustomRulesSubdomains = value
+		err = p.Validate.Struct(profile.Settings.Privacy)
+		if err != nil {
+			log.Debug().Err(err).Msg("Failed to validate custom_rules_subdomains")
+			return ErrCustomRulesSubdomainsInvalid
 		}
 	}
 	return nil

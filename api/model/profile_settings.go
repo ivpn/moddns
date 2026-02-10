@@ -14,6 +14,8 @@ const (
 	ACTION_COMMENT       = "comment"
 	DEFAULT_RULE_BLOCK   = ACTION_BLOCK
 	DEFAULT_RULE_ALLOW   = ACTION_ALLOW
+	CUSTOM_RULES_SUBDOMAINS_INCLUDE = "include"
+	CUSTOM_RULES_SUBDOMAINS_EXACT   = "exact"
 	SYNTAX_IPV4          = "ip4_addr"
 	SYNTAX_IPV4_WILDCARD = "ip4_wildcard"
 	SYNTAX_IPV4_CIDR     = "ip4_cidr"
@@ -50,8 +52,9 @@ func NewSettings() *ProfileSettings {
 			Services: &ServicesSettings{
 				Blocked: make([]string, 0),
 			},
-			DefaultRule:    DEFAULT_RULE_ALLOW,
-			SubdomainsRule: ACTION_BLOCK,
+			DefaultRule:           DEFAULT_RULE_ALLOW,
+			SubdomainsRule:        ACTION_BLOCK,
+			CustomRulesSubdomains: CUSTOM_RULES_SUBDOMAINS_INCLUDE,
 		},
 		Security: &Security{
 			DNSSECSettings: DNSSECSettings{
