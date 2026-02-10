@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	SUBDOMAINS_RULE   = "subdomains_rule"
+	SUBDOMAINS_RULE   = "blocklists_subdomains_rule"
 	REASON_BLOCKLISTS = "blocklists"
 )
 
