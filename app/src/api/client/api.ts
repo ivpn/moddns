@@ -47,7 +47,7 @@ export interface ApiCreateProfileBody {
      * @type {string}
      * @memberof ApiCreateProfileBody
      */
-    'name'?: string;
+    'name': string;
 }
 /**
  * 
@@ -481,6 +481,12 @@ export interface ModelPrivacy {
      * @type {string}
      * @memberof ModelPrivacy
      */
+    'custom_rules_subdomains'?: ModelPrivacyCustomRulesSubdomainsEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelPrivacy
+     */
     'default_rule': ModelPrivacyDefaultRuleEnum;
     /**
      * 
@@ -490,6 +496,12 @@ export interface ModelPrivacy {
     'subdomains_rule': ModelPrivacySubdomainsRuleEnum;
 }
 
+export const ModelPrivacyCustomRulesSubdomainsEnum = {
+    Include: 'include',
+    Exact: 'exact'
+} as const;
+
+export type ModelPrivacyCustomRulesSubdomainsEnum = typeof ModelPrivacyCustomRulesSubdomainsEnum[keyof typeof ModelPrivacyCustomRulesSubdomainsEnum];
 export const ModelPrivacyDefaultRuleEnum = {
     Block: 'block',
     Allow: 'allow'
@@ -633,6 +645,7 @@ export const ModelProfileUpdatePathEnum = {
     SettingsLogsRetention: '/settings/logs/retention',
     SettingsPrivacyDefaultRule: '/settings/privacy/default_rule',
     SettingsPrivacySubdomainsRule: '/settings/privacy/subdomains_rule',
+    SettingsPrivacyCustomRulesSubdomains: '/settings/privacy/custom_rules_subdomains',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'
@@ -1387,7 +1400,7 @@ export interface RequestsCreateProfileCustomRuleBody {
      * @type {string}
      * @memberof RequestsCreateProfileCustomRuleBody
      */
-    'action'?: string;
+    'action': RequestsCreateProfileCustomRuleBodyActionEnum;
     /**
      * 
      * @type {string}
@@ -1395,6 +1408,15 @@ export interface RequestsCreateProfileCustomRuleBody {
      */
     'value': string;
 }
+
+export const RequestsCreateProfileCustomRuleBodyActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type RequestsCreateProfileCustomRuleBodyActionEnum = typeof RequestsCreateProfileCustomRuleBodyActionEnum[keyof typeof RequestsCreateProfileCustomRuleBodyActionEnum];
+
 /**
  * 
  * @export
@@ -1406,7 +1428,7 @@ export interface RequestsCreateProfileCustomRulesBatchBody {
      * @type {string}
      * @memberof RequestsCreateProfileCustomRulesBatchBody
      */
-    'action'?: string;
+    'action': RequestsCreateProfileCustomRulesBatchBodyActionEnum;
     /**
      * 
      * @type {Array<string>}
@@ -1414,6 +1436,15 @@ export interface RequestsCreateProfileCustomRulesBatchBody {
      */
     'values': Array<string>;
 }
+
+export const RequestsCreateProfileCustomRulesBatchBodyActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof RequestsCreateProfileCustomRulesBatchBodyActionEnum[keyof typeof RequestsCreateProfileCustomRulesBatchBodyActionEnum];
+
 /**
  * 
  * @export
