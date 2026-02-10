@@ -54,7 +54,7 @@ const PreferencesDialog = ({
                     },
                     {
                         ...blocklistSettings[1],
-                        value: data.settings?.privacy?.subdomains_rule ?? "block",
+                        value: data.settings?.privacy?.blocklists_subdomains_rule ?? "block",
                     },
                 ]);
             } catch {
@@ -129,7 +129,7 @@ const PreferencesDialog = ({
         handleProfileSettingChange({
             path: idx === 0
                 ? "/settings/privacy/default_rule"
-                : "/settings/privacy/subdomains_rule",
+                : "/settings/privacy/blocklists_subdomains_rule",
             value,
             loadingSetter: () => { },
             stateSetter: setBlocklistSettings,

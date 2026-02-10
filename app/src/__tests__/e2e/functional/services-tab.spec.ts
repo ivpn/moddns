@@ -59,7 +59,7 @@ test.describe('@functional services tab', () => {
             profile_id: profileId,
             privacy: {
               default_rule: 'allow',
-              subdomains_rule: 'allow',
+              blocklists_subdomains_rule: 'allow',
               blocklists: ['bl-basic'],
               services: { blocked },
             },

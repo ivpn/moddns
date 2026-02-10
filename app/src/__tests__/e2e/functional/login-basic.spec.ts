@@ -27,7 +27,7 @@ test.describe('Login basic flows (desktop only)', () => {
       await route.fulfill({
         status: authed ? 200 : 401,
         contentType: 'application/json',
-        body: authed ? JSON.stringify([{ id: 'p1', profile_id: 'p1', account_id: 'a1', name: 'Profile 1', settings: { profile_id: 'p1', advanced: {}, logs: { enabled: false }, privacy: { default_rule: 'allow', subdomains_rule: 'allow', blocklists: [] }, security: {}, statistics: { enabled: false }, custom_rules: [] } }]) : '[]' }
+        body: authed ? JSON.stringify([{ id: 'p1', profile_id: 'p1', account_id: 'a1', name: 'Profile 1', settings: { profile_id: 'p1', advanced: {}, logs: { enabled: false }, privacy: { default_rule: 'allow', blocklists_subdomains_rule: 'allow', blocklists: [] }, security: {}, statistics: { enabled: false }, custom_rules: [] } }]) : '[]' }
       );
     });
 
