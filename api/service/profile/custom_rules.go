@@ -113,8 +113,15 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 
 		// When custom_rules_subdomains_rule is "include" (or empty/unset for backwards compat),
 		// auto-prepend "*." to plain FQDN values so subdomains are included.
+		// Skip values that already express subdomain/non-FQDN semantics:
+		//   - wildcards (already contain "*")
+		//   - dot-prefix (".facebook.com" was already normalized to "*.facebook.com" above)
+		//   - IPs (v4/v6)
+		//   - CIDRs ("1.2.3.0/24", "2001:db8::/32" — contain "/")
+		//   - ASNs ("15169")
 		if profile.Settings.Privacy.CustomRulesSubdomainsRule != model.CUSTOM_RULES_SUBDOMAINS_EXACT {
-			if !strings.Contains(normalized, "*") && net.ParseIP(normalized) == nil {
+			if !strings.Contains(normalized, "*") && !strings.Contains(normalized, "/") &&
+				net.ParseIP(normalized) == nil {
 				if _, isASN := normalizeASN(normalized); !isASN {
 					normalized = "*." + normalized
 				}
