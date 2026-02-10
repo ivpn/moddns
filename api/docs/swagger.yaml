@@ -4,6 +4,8 @@ definitions:
       blocklist_ids:
         items:
           type: string
+        maxItems: 100
+        minItems: 1
         type: array
     required:
     - blocklist_ids
@@ -22,6 +24,8 @@ definitions:
       service_ids:
         items:
           type: string
+        maxItems: 100
+        minItems: 1
         type: array
     required:
     - service_ids
@@ -46,7 +50,11 @@ definitions:
   api.createProfileBody:
     properties:
       name:
+        maxLength: 50
+        minLength: 1
         type: string
+    required:
+    - name
     type: object
   api.registerAccountBody:
     properties:
@@ -227,6 +235,11 @@ definitions:
         items:
           type: string
         type: array
+      custom_rules_subdomains:
+        enum:
+        - include
+        - exact
+        type: string
       default_rule:
         enum:
         - block
@@ -250,6 +263,7 @@ definitions:
       id:
         type: string
       name:
+        maxLength: 50
         type: string
       profile_id:
         type: string
@@ -308,6 +322,7 @@ definitions:
         - /settings/logs/retention
         - /settings/privacy/default_rule
         - /settings/privacy/subdomains_rule
+        - /settings/privacy/custom_rules_subdomains
         - /settings/security/dnssec/enabled
         - /settings/security/dnssec/send_do_bit
         - /settings/advanced/recursor
@@ -749,15 +764,24 @@ definitions:
   requests.CreateProfileCustomRuleBody:
     properties:
       action:
+        enum:
+        - block
+        - allow
+        - comment
         type: string
       value:
         type: string
     required:
+    - action
     - value
     type: object
   requests.CreateProfileCustomRulesBatchBody:
     properties:
       action:
+        enum:
+        - block
+        - allow
+        - comment
         type: string
       values:
         items:
@@ -766,6 +790,7 @@ definitions:
         minItems: 1
         type: array
     required:
+    - action
     - values
     type: object
   requests.LoginBody:
