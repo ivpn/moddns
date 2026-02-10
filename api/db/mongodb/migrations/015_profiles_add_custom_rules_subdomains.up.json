@@ -6,7 +6,7 @@
         "q": {},
         "u": {
           "$set": {
-            "settings.privacy.custom_rules_subdomains": "include"
+            "settings.privacy.custom_rules_subdomains_rule": "include"
           }
         },
         "multi": true
