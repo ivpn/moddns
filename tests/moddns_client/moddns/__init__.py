@@ -23,6 +23,7 @@ from moddns.api.authentication_api import AuthenticationApi
 from moddns.api.blocklists_api import BlocklistsApi
 from moddns.api.profile_api import ProfileApi
 from moddns.api.query_logs_api import QueryLogsApi
+from moddns.api.services_api import ServicesApi
 from moddns.api.sessions_api import SessionsApi
 from moddns.api.statistics_api import StatisticsApi
 from moddns.api.subscription_api import SubscriptionApi
@@ -44,6 +45,7 @@ from moddns.models.api_blocklists_updates import ApiBlocklistsUpdates
 from moddns.models.api_create_profile_body import ApiCreateProfileBody
 from moddns.models.api_err_response import ApiErrResponse
 from moddns.models.api_register_account_body import ApiRegisterAccountBody
+from moddns.models.api_services_updates import ApiServicesUpdates
 from moddns.models.api_verify_email_otp_body import ApiVerifyEmailOTPBody
 from moddns.models.api_web_authn_login_begin_request import ApiWebAuthnLoginBeginRequest
 from moddns.models.api_web_authn_register_begin_request import ApiWebAuthnRegisterBeginRequest
@@ -64,6 +66,7 @@ from moddns.models.model_profile_update import ModelProfileUpdate
 from moddns.models.model_query_log import ModelQueryLog
 from moddns.models.model_retention import ModelRetention
 from moddns.models.model_security import ModelSecurity
+from moddns.models.model_services_settings import ModelServicesSettings
 from moddns.models.model_statistics_aggregated import ModelStatisticsAggregated
 from moddns.models.model_statistics_settings import ModelStatisticsSettings
 from moddns.models.model_subscription import ModelSubscription
@@ -109,4 +112,6 @@ from moddns.models.responses_deletion_code_response import ResponsesDeletionCode
 from moddns.models.responses_registration_success_response import ResponsesRegistrationSuccessResponse
 from moddns.models.responses_short_link_response import ResponsesShortLinkResponse
 from moddns.models.responses_web_authn_reauth_finish_response import ResponsesWebAuthnReauthFinishResponse
+from moddns.models.servicescatalog_catalog import ServicescatalogCatalog
+from moddns.models.servicescatalog_service import ServicescatalogService
 from moddns.models.webauthncose_cose_algorithm_identifier import WebauthncoseCOSEAlgorithmIdentifier

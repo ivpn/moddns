@@ -89,6 +89,20 @@ class TestProfileApi(unittest.TestCase):
         """
         pass
 
+    def test_api_v1_profiles_id_services_delete(self) -> None:
+        """Test case for api_v1_profiles_id_services_delete
+
+        Disable services
+        """
+        pass
+
+    def test_api_v1_profiles_id_services_post(self) -> None:
+        """Test case for api_v1_profiles_id_services_post
+
+        Enable services
+        """
+        pass
+
     def test_api_v1_profiles_post(self) -> None:
         """Test case for api_v1_profiles_post
 

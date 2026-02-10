@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,7 +27,7 @@ class ApiBlocklistsUpdates(BaseModel):
     """
     ApiBlocklistsUpdates
     """ # noqa: E501
-    blocklist_ids: List[StrictStr]
+    blocklist_ids: Annotated[List[StrictStr], Field(min_length=1, max_length=100)]
     __properties: ClassVar[List[str]] = ["blocklist_ids"]
 
     model_config = ConfigDict(

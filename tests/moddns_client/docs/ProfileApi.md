@@ -13,6 +13,8 @@ Method | HTTP request | Description
 [**api_v1_profiles_id_delete**](ProfileApi.md#api_v1_profiles_id_delete) | **DELETE** /api/v1/profiles/{id} | Delete profile
 [**api_v1_profiles_id_get**](ProfileApi.md#api_v1_profiles_id_get) | **GET** /api/v1/profiles/{id} | Get profile data
 [**api_v1_profiles_id_patch**](ProfileApi.md#api_v1_profiles_id_patch) | **PATCH** /api/v1/profiles/{id} | Update profile
+[**api_v1_profiles_id_services_delete**](ProfileApi.md#api_v1_profiles_id_services_delete) | **DELETE** /api/v1/profiles/{id}/services | Disable services
+[**api_v1_profiles_id_services_post**](ProfileApi.md#api_v1_profiles_id_services_post) | **POST** /api/v1/profiles/{id}/services | Enable services
 [**api_v1_profiles_post**](ProfileApi.md#api_v1_profiles_post) | **POST** /api/v1/profiles | Create profile
 
 
@@ -646,6 +648,148 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | OK |  -  |
 **400** | Bad Request |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_profiles_id_services_delete**
+> api_v1_profiles_id_services_delete(id, service_ids)
+
+Disable services
+
+Disable services for a profile (removes from privacy.services.blocked)
+
+### Example
+
+
+```python
+import moddns
+from moddns.models.api_services_updates import ApiServicesUpdates
+from moddns.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = moddns.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with moddns.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = moddns.ProfileApi(api_client)
+    id = 'id_example' # str | Profile ID
+    service_ids = moddns.ApiServicesUpdates() # ApiServicesUpdates | Services to disable
+
+    try:
+        # Disable services
+        api_instance.api_v1_profiles_id_services_delete(id, service_ids)
+    except Exception as e:
+        print("Exception when calling ProfileApi->api_v1_profiles_id_services_delete: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **str**| Profile ID | 
+ **service_ids** | [**ApiServicesUpdates**](ApiServicesUpdates.md)| Services to disable | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**404** | Not Found |  -  |
+**500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_profiles_id_services_post**
+> api_v1_profiles_id_services_post(id, service_ids)
+
+Enable services
+
+Enable services for a profile (adds to privacy.services.blocked)
+
+### Example
+
+
+```python
+import moddns
+from moddns.models.api_services_updates import ApiServicesUpdates
+from moddns.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = moddns.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with moddns.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = moddns.ProfileApi(api_client)
+    id = 'id_example' # str | Profile ID
+    service_ids = moddns.ApiServicesUpdates() # ApiServicesUpdates | Services to enable
+
+    try:
+        # Enable services
+        api_instance.api_v1_profiles_id_services_post(id, service_ids)
+    except Exception as e:
+        print("Exception when calling ProfileApi->api_v1_profiles_id_services_post: %s\n" % e)
+```
+
+
+
+### Parameters
+
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **str**| Profile ID | 
+ **service_ids** | [**ApiServicesUpdates**](ApiServicesUpdates.md)| Services to enable | 
+
+### Return type
+
+void (empty response body)
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**404** | Not Found |  -  |
 **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
