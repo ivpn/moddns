@@ -17,8 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List
 from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,9 +27,16 @@ class RequestsCreateProfileCustomRulesBatchBody(BaseModel):
     """
     RequestsCreateProfileCustomRulesBatchBody
     """ # noqa: E501
-    action: Optional[StrictStr] = None
+    action: StrictStr
     values: Annotated[List[StrictStr], Field(min_length=1, max_length=20)]
     __properties: ClassVar[List[str]] = ["action", "values"]
+
+    @field_validator('action')
+    def action_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['block', 'allow', 'comment']):
+            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

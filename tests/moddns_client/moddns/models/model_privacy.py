@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.model_services_settings import ModelServicesSettings
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,9 +28,21 @@ class ModelPrivacy(BaseModel):
     ModelPrivacy
     """ # noqa: E501
     blocklists: Optional[List[StrictStr]] = None
+    custom_rules_subdomains: Optional[StrictStr] = None
     default_rule: StrictStr
+    services: Optional[ModelServicesSettings] = None
     subdomains_rule: StrictStr
-    __properties: ClassVar[List[str]] = ["blocklists", "default_rule", "subdomains_rule"]
+    __properties: ClassVar[List[str]] = ["blocklists", "custom_rules_subdomains", "default_rule", "services", "subdomains_rule"]
+
+    @field_validator('custom_rules_subdomains')
+    def custom_rules_subdomains_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['include', 'exact']):
+            raise ValueError("must be one of enum values ('include', 'exact')")
+        return value
 
     @field_validator('default_rule')
     def default_rule_validate_enum(cls, value):
@@ -84,6 +97,9 @@ class ModelPrivacy(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of services
+        if self.services:
+            _dict['services'] = self.services.to_dict()
         return _dict
 
     @classmethod
@@ -97,7 +113,9 @@ class ModelPrivacy(BaseModel):
 
         _obj = cls.model_validate({
             "blocklists": obj.get("blocklists"),
+            "custom_rules_subdomains": obj.get("custom_rules_subdomains"),
             "default_rule": obj.get("default_rule"),
+            "services": ModelServicesSettings.from_dict(obj["services"]) if obj.get("services") is not None else None,
             "subdomains_rule": obj.get("subdomains_rule")
         })
         return _obj

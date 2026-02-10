@@ -52,7 +52,12 @@ class TestModelProfileSettings(unittest.TestCase):
                     blocklists = [
                         ''
                         ], 
+                    custom_rules_subdomains = 'include', 
                     default_rule = 'block', 
+                    services = moddns.models.model/services_settings.model.ServicesSettings(
+                        blocked = [
+                            ''
+                            ], ), 
                     subdomains_rule = 'block', ),
                 profile_id = '',
                 security = moddns.models.model/security.model.Security(
@@ -75,7 +80,12 @@ class TestModelProfileSettings(unittest.TestCase):
                     blocklists = [
                         ''
                         ], 
+                    custom_rules_subdomains = 'include', 
                     default_rule = 'block', 
+                    services = moddns.models.model/services_settings.model.ServicesSettings(
+                        blocked = [
+                            ''
+                            ], ), 
                     subdomains_rule = 'block', ),
                 profile_id = '',
                 security = moddns.models.model/security.model.Security(

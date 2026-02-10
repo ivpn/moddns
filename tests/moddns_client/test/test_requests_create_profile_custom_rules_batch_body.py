@@ -35,13 +35,14 @@ class TestRequestsCreateProfileCustomRulesBatchBody(unittest.TestCase):
         model = RequestsCreateProfileCustomRulesBatchBody()
         if include_optional:
             return RequestsCreateProfileCustomRulesBatchBody(
-                action = '',
+                action = 'block',
                 values = [
                     ''
                     ]
             )
         else:
             return RequestsCreateProfileCustomRulesBatchBody(
+                action = 'block',
                 values = [
                     ''
                     ],

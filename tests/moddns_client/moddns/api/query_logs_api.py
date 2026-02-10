@@ -16,7 +16,7 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictInt, StrictStr
+from pydantic import Field, StrictInt, StrictStr, field_validator
 from typing import List, Optional
 from typing_extensions import Annotated
 from moddns.models.model_query_log import ModelQueryLog
@@ -581,6 +581,7 @@ class QueryLogsApi:
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
         search: Annotated[Optional[StrictStr], Field(description="substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)")] = None,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -612,6 +613,8 @@ class QueryLogsApi:
         :type device_id: str
         :param search: substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
         :type search: str
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -642,6 +645,7 @@ class QueryLogsApi:
             timespan=timespan,
             device_id=device_id,
             search=search,
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -674,6 +678,7 @@ class QueryLogsApi:
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
         search: Annotated[Optional[StrictStr], Field(description="substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)")] = None,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -705,6 +710,8 @@ class QueryLogsApi:
         :type device_id: str
         :param search: substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
         :type search: str
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -735,6 +742,7 @@ class QueryLogsApi:
             timespan=timespan,
             device_id=device_id,
             search=search,
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -767,6 +775,7 @@ class QueryLogsApi:
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
         search: Annotated[Optional[StrictStr], Field(description="substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)")] = None,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -798,6 +807,8 @@ class QueryLogsApi:
         :type device_id: str
         :param search: substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)
         :type search: str
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -828,6 +839,7 @@ class QueryLogsApi:
             timespan=timespan,
             device_id=device_id,
             search=search,
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -855,6 +867,7 @@ class QueryLogsApi:
         timespan,
         device_id,
         search,
+        sort_by,
         _request_auth,
         _content_type,
         _headers,
@@ -902,6 +915,10 @@ class QueryLogsApi:
         if search is not None:
             
             _query_params.append(('search', search))
+            
+        if sort_by is not None:
+            
+            _query_params.append(('sort_by', sort_by))
             
         # process the header parameters
         # process the form parameters
