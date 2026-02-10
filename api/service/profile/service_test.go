@@ -705,7 +705,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -730,7 +730,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_BLOCK,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -755,7 +755,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -780,7 +780,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -788,13 +788,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: false,
 		},
 		{
-			name:      "Successfully update privacy subdomains_rule to block",
+			name:      "Successfully update privacy blocklists_subdomains_rule to block",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     model.ACTION_BLOCK,
 				},
 			},
@@ -805,7 +805,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -813,13 +813,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: true,
 		},
 		{
-			name:      "Successfully update privacy subdomains_rule to allow",
+			name:      "Successfully update privacy blocklists_subdomains_rule to allow",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     model.ACTION_ALLOW,
 				},
 			},
@@ -830,7 +830,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_BLOCK,
+						BlocklistsSubdomainsRule: model.ACTION_BLOCK,
 					},
 				},
 			},
@@ -838,13 +838,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: true,
 		},
 		{
-			name:      "Update privacy subdomains_rule with invalid value",
+			name:      "Update privacy blocklists_subdomains_rule with invalid value",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     "invalid",
 				},
 			},
@@ -855,21 +855,21 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
-			expectedError: "block subdomains value is invalid",
+			expectedError: "blocklists_subdomains_rule value is invalid",
 			expectProfile: false,
 		},
 		{
-			name:      "Update privacy subdomains_rule with non-string value",
+			name:      "Update privacy blocklists_subdomains_rule with non-string value",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     false,
 				},
 			},
@@ -880,11 +880,11 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
-			expectedError: "block subdomains value is invalid",
+			expectedError: "blocklists_subdomains_rule value is invalid",
 			expectProfile: false,
 		},
 
@@ -1146,7 +1146,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 					Statistics: &model.StatisticsSettings{Enabled: false},
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 					Advanced: &model.Advanced{Recursor: model.RECURSOR_SDNS},
 					Security: &model.Security{DNSSECSettings: model.DNSSECSettings{Enabled: false}},

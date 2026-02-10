@@ -293,13 +293,13 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 					}
 				}
 			}
-		case "/settings/privacy/subdomains_rule":
-			err = p.handleSubdomainsRuleUpdate(profile, update)
+		case "/settings/privacy/blocklists_subdomains_rule":
+			err = p.handleBlocklistsSubdomainsRuleUpdate(profile, update)
 			if err != nil {
 				return nil, err
 			}
-		case "/settings/privacy/custom_rules_subdomains":
-			err = p.handleCustomRulesSubdomainsUpdate(profile, update)
+		case "/settings/privacy/custom_rules_subdomains_rule":
+			err = p.handleCustomRulesSubdomainsRuleUpdate(profile, update)
 			if err != nil {
 				return nil, err
 			}
@@ -438,34 +438,34 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 	return nil
 }
 
-func (p *ProfileService) handleSubdomainsRuleUpdate(profile *model.Profile, update model.ProfileUpdate) error {
+func (p *ProfileService) handleBlocklistsSubdomainsRuleUpdate(profile *model.Profile, update model.ProfileUpdate) error {
 	switch update.Operation { // nolint
 	case model.UpdateOperationReplace:
 		blockSubdomains, err := cast.ToStringE(update.Value)
 		if err != nil {
 			return err
 		}
-		profile.Settings.Privacy.SubdomainsRule = blockSubdomains
+		profile.Settings.Privacy.BlocklistsSubdomainsRule = blockSubdomains
 		err = p.Validate.Struct(profile.Settings.Privacy)
 		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate subdomains block rule")
-			return ErrBlockSubdomainsInvalid
+			log.Debug().Err(err).Msg("Failed to validate blocklists_subdomains_rule")
+			return ErrBlocklistsSubdomainsInvalid
 		}
 	}
 	return nil
 }
 
-func (p *ProfileService) handleCustomRulesSubdomainsUpdate(profile *model.Profile, update model.ProfileUpdate) error {
+func (p *ProfileService) handleCustomRulesSubdomainsRuleUpdate(profile *model.Profile, update model.ProfileUpdate) error {
 	switch update.Operation { // nolint
 	case model.UpdateOperationReplace:
 		value, err := cast.ToStringE(update.Value)
 		if err != nil {
 			return err
 		}
-		profile.Settings.Privacy.CustomRulesSubdomains = value
+		profile.Settings.Privacy.CustomRulesSubdomainsRule = value
 		err = p.Validate.Struct(profile.Settings.Privacy)
 		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate custom_rules_subdomains")
+			log.Debug().Err(err).Msg("Failed to validate custom_rules_subdomains_rule")
 			return ErrCustomRulesSubdomainsInvalid
 		}
 	}
