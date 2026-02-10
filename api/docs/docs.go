@@ -2651,8 +2651,8 @@ const docTemplate = `{
         "model.Privacy": {
             "type": "object",
             "required": [
-                "default_rule",
-                "subdomains_rule"
+                "blocklists_subdomains_rule",
+                "default_rule"
             ],
             "properties": {
                 "blocklists": {
@@ -2661,7 +2661,14 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "custom_rules_subdomains": {
+                "blocklists_subdomains_rule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "custom_rules_subdomains_rule": {
                     "type": "string",
                     "enum": [
                         "include",
@@ -2677,13 +2684,6 @@ const docTemplate = `{
                 },
                 "services": {
                     "$ref": "#/definitions/model.ServicesSettings"
-                },
-                "subdomains_rule": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow"
-                    ]
                 }
             }
         },
@@ -2780,8 +2780,8 @@ const docTemplate = `{
                         "/settings/logs/log_domains",
                         "/settings/logs/retention",
                         "/settings/privacy/default_rule",
-                        "/settings/privacy/subdomains_rule",
-                        "/settings/privacy/custom_rules_subdomains",
+                        "/settings/privacy/blocklists_subdomains_rule",
+                        "/settings/privacy/custom_rules_subdomains_rule",
                         "/settings/security/dnssec/enabled",
                         "/settings/security/dnssec/send_do_bit",
                         "/settings/advanced/recursor"
