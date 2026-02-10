@@ -6,10 +6,10 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **blocklists** | **List[str]** |  | [optional] 
-**custom_rules_subdomains** | **str** |  | [optional] 
+**blocklists_subdomains_rule** | **str** |  | 
+**custom_rules_subdomains_rule** | **str** |  | [optional] 
 **default_rule** | **str** |  | 
 **services** | [**ModelServicesSettings**](ModelServicesSettings.md) |  | [optional] 
-**subdomains_rule** | **str** |  | 
 
 ## Example
 

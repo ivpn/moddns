@@ -41,8 +41,8 @@ class ModelProfileUpdate(BaseModel):
     @field_validator('path')
     def path_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['/name', '/settings/statistics/enabled', '/settings/logs/enabled', '/settings/logs/log_clients_ips', '/settings/logs/log_domains', '/settings/logs/retention', '/settings/privacy/default_rule', '/settings/privacy/subdomains_rule', '/settings/privacy/custom_rules_subdomains', '/settings/security/dnssec/enabled', '/settings/security/dnssec/send_do_bit', '/settings/advanced/recursor']):
-            raise ValueError("must be one of enum values ('/name', '/settings/statistics/enabled', '/settings/logs/enabled', '/settings/logs/log_clients_ips', '/settings/logs/log_domains', '/settings/logs/retention', '/settings/privacy/default_rule', '/settings/privacy/subdomains_rule', '/settings/privacy/custom_rules_subdomains', '/settings/security/dnssec/enabled', '/settings/security/dnssec/send_do_bit', '/settings/advanced/recursor')")
+        if value not in set(['/name', '/settings/statistics/enabled', '/settings/logs/enabled', '/settings/logs/log_clients_ips', '/settings/logs/log_domains', '/settings/logs/retention', '/settings/privacy/default_rule', '/settings/privacy/blocklists_subdomains_rule', '/settings/privacy/custom_rules_subdomains_rule', '/settings/security/dnssec/enabled', '/settings/security/dnssec/send_do_bit', '/settings/advanced/recursor']):
+            raise ValueError("must be one of enum values ('/name', '/settings/statistics/enabled', '/settings/logs/enabled', '/settings/logs/log_clients_ips', '/settings/logs/log_domains', '/settings/logs/retention', '/settings/privacy/default_rule', '/settings/privacy/blocklists_subdomains_rule', '/settings/privacy/custom_rules_subdomains_rule', '/settings/security/dnssec/enabled', '/settings/security/dnssec/send_do_bit', '/settings/advanced/recursor')")
         return value
 
     model_config = ConfigDict(

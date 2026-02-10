@@ -28,14 +28,21 @@ class ModelPrivacy(BaseModel):
     ModelPrivacy
     """ # noqa: E501
     blocklists: Optional[List[StrictStr]] = None
-    custom_rules_subdomains: Optional[StrictStr] = None
+    blocklists_subdomains_rule: StrictStr
+    custom_rules_subdomains_rule: Optional[StrictStr] = None
     default_rule: StrictStr
     services: Optional[ModelServicesSettings] = None
-    subdomains_rule: StrictStr
-    __properties: ClassVar[List[str]] = ["blocklists", "custom_rules_subdomains", "default_rule", "services", "subdomains_rule"]
+    __properties: ClassVar[List[str]] = ["blocklists", "blocklists_subdomains_rule", "custom_rules_subdomains_rule", "default_rule", "services"]
 
-    @field_validator('custom_rules_subdomains')
-    def custom_rules_subdomains_validate_enum(cls, value):
+    @field_validator('blocklists_subdomains_rule')
+    def blocklists_subdomains_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
+        return value
+
+    @field_validator('custom_rules_subdomains_rule')
+    def custom_rules_subdomains_rule_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
@@ -46,13 +53,6 @@ class ModelPrivacy(BaseModel):
 
     @field_validator('default_rule')
     def default_rule_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow']):
-            raise ValueError("must be one of enum values ('block', 'allow')")
-        return value
-
-    @field_validator('subdomains_rule')
-    def subdomains_rule_validate_enum(cls, value):
         """Validates the enum"""
         if value not in set(['block', 'allow']):
             raise ValueError("must be one of enum values ('block', 'allow')")
@@ -113,10 +113,10 @@ class ModelPrivacy(BaseModel):
 
         _obj = cls.model_validate({
             "blocklists": obj.get("blocklists"),
-            "custom_rules_subdomains": obj.get("custom_rules_subdomains"),
+            "blocklists_subdomains_rule": obj.get("blocklists_subdomains_rule"),
+            "custom_rules_subdomains_rule": obj.get("custom_rules_subdomains_rule"),
             "default_rule": obj.get("default_rule"),
-            "services": ModelServicesSettings.from_dict(obj["services"]) if obj.get("services") is not None else None,
-            "subdomains_rule": obj.get("subdomains_rule")
+            "services": ModelServicesSettings.from_dict(obj["services"]) if obj.get("services") is not None else None
         })
         return _obj
 

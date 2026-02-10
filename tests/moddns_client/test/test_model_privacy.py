@@ -38,18 +38,18 @@ class TestModelPrivacy(unittest.TestCase):
                 blocklists = [
                     ''
                     ],
-                custom_rules_subdomains = 'include',
+                blocklists_subdomains_rule = 'block',
+                custom_rules_subdomains_rule = 'include',
                 default_rule = 'block',
                 services = moddns.models.model/services_settings.model.ServicesSettings(
                     blocked = [
                         ''
-                        ], ),
-                subdomains_rule = 'block'
+                        ], )
             )
         else:
             return ModelPrivacy(
+                blocklists_subdomains_rule = 'block',
                 default_rule = 'block',
-                subdomains_rule = 'block',
         )
         """
 
