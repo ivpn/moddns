@@ -177,6 +177,18 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    const customRulesSubdomainsInfo = (
+        <div className="space-y-2">
+            <p>By default, when you add a plain domain like <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">facebook.com</code> to your denylist or allowlist, it is automatically stored as <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.facebook.com</code>, meaning the rule applies to the domain and all its subdomains (e.g. <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">www.facebook.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">m.facebook.com</code>).</p>
+            <p>This behavior is controlled by the <strong>'Subdomains in custom rules'</strong> setting under 'Settings' &gt; 'CUSTOM RULES':</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Include</strong> (default): Plain domains are automatically expanded to include subdomains (<code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">facebook.com</code> → <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.facebook.com</code>)</li>
+                <li><strong>Exact</strong>: Domains are stored exactly as entered. To include subdomains, you must explicitly use a wildcard (<code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.facebook.com</code>)</li>
+            </ul>
+            <p>This setting only affects new rules. Existing rules are not changed when you toggle the setting. IP addresses and ASNs are not affected by this setting.</p>
+        </div>
+    );
+
     const customRulesSupportedInputs = (
         <div className="space-y-2">
             <p>Custom Rules support three types of entries:</p>
@@ -218,7 +230,12 @@ export default function FAQ(): JSX.Element {
             <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.ads-example.com</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">.ads-example.com</code> matches <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads-example.com</code> plus any subdomain, such as <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads1.ads-example.com</code> and <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads2.ads-example.com</code>.</p>
             <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.*</code> matches any top-level domain for that label (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.co.uk</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.us</code>) and their subdomains.</p>
             <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*ads*</code> matches any domain that contains that fragment anywhere, including <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">www.ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">exampleads.com</code>, and <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">cdn.exampleads.net</code>.</p>
-            <p>The 'Settings' &gt; 'BLOCKLISTS' &gt; 'Subdomains' option is enabled by default and blocks a plain domain plus all of its subdomains (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads-example.com</code> will also match <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads1.ads-example.com</code>). You can toggle this in 'Custom Rules' via the quick menu next to the profile selector.</p>
+            <p>There are two separate subdomain settings in 'Settings':</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>'BLOCKLISTS' &gt; 'Subdomains in blocklists'</strong> (default: Block) controls whether subdomains of domains on enabled blocklists are also blocked. For example, if a blocklist contains <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads-example.com</code>, this setting determines whether <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads1.ads-example.com</code> is also blocked.</li>
+                <li><strong>'CUSTOM RULES' &gt; 'Subdomains in custom rules'</strong> (default: Include) controls whether new custom rules automatically include subdomains. When set to Include, adding <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">example.com</code> is stored as <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.example.com</code>, matching the domain and all its subdomains. When set to Exact, the rule matches only the exact domain entered.</li>
+            </ul>
+            <p>You can always use explicit wildcards (e.g. <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.example.com</code>) regardless of the setting.</p>
         </div>
     );
 
@@ -477,8 +494,8 @@ export default function FAQ(): JSX.Element {
                     answer={howToBlockAllQueries}
                 />
                 <FAQItem
-                    question="How do I block subdomains?"
-                    answer="Subdomain blocking is enabled by default. Change this via the 'Settings' &gt; 'BLOCKLISTS' &gt; 'Subdomains blocking' option."
+                    question="How do I block subdomains in blocklists?"
+                    answer="Subdomain blocking for blocklists is enabled by default. When enabled, if a blocklist contains a domain like example.com, all its subdomains (e.g. www.example.com) are also blocked. You can change this via 'Settings' > 'BLOCKLISTS' > 'Subdomains in blocklists'."
                 />
                 <FAQItem
                     question="Will blocklists break websites?"
@@ -490,6 +507,10 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="How do I add a custom rule?"
                     answer={howToAddCustomRule}
+                />
+                <FAQItem
+                    question="How are subdomains handled in custom rules?"
+                    answer={customRulesSubdomainsInfo}
                 />
                 <FAQItem
                     question="What types of entries do Custom Rules support?"
