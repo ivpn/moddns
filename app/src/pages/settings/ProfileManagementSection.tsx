@@ -150,8 +150,8 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                         operation: ModelProfileUpdateOperationEnum.Replace,
                         path: idx === 0
                             ? ModelProfileUpdatePathEnum.SettingsPrivacyDefaultRule
-                            : ModelProfileUpdatePathEnum.SettingsPrivacySubdomainsRule,
-                        value: apiValue as any,
+                            : ModelProfileUpdatePathEnum.SettingsPrivacyBlocklistsSubdomainsRule,
+                        value: apiValue as unknown as object,
                     }
                 ]
             });
@@ -177,7 +177,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 updates: [
                     {
                         operation: ModelProfileUpdateOperationEnum.Replace,
-                        path: ModelProfileUpdatePathEnum.SettingsPrivacyCustomRulesSubdomains,
+                        path: ModelProfileUpdatePathEnum.SettingsPrivacyCustomRulesSubdomainsRule,
                         value: value as unknown as object,
                     }
                 ]
@@ -318,7 +318,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             },
             {
                 ...blocklistSettings[1],
-                value: profile.settings?.privacy?.subdomains_rule ?? "block",
+                value: profile.settings?.privacy?.blocklists_subdomains_rule ?? "block",
             },
         ]);
 
@@ -326,7 +326,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
         setCustomRulesSettings([
             {
                 ...customRulesSettings[0],
-                value: profile.settings?.privacy?.custom_rules_subdomains ?? "include",
+                value: profile.settings?.privacy?.custom_rules_subdomains_rule ?? "include",
             },
         ]);
 

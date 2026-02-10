@@ -481,7 +481,13 @@ export interface ModelPrivacy {
      * @type {string}
      * @memberof ModelPrivacy
      */
-    'custom_rules_subdomains'?: ModelPrivacyCustomRulesSubdomainsEnum;
+    'blocklists_subdomains_rule': ModelPrivacyBlocklistsSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelPrivacy
+     */
+    'custom_rules_subdomains_rule'?: ModelPrivacyCustomRulesSubdomainsRuleEnum;
     /**
      * 
      * @type {string}
@@ -493,27 +499,27 @@ export interface ModelPrivacy {
      * @type {string}
      * @memberof ModelPrivacy
      */
-    'subdomains_rule': ModelPrivacySubdomainsRuleEnum;
+    'subdomains_rule': ModelPrivacyBlocklistsSubdomainsRuleEnum;
 }
 
-export const ModelPrivacyCustomRulesSubdomainsEnum = {
+export const ModelPrivacyBlocklistsSubdomainsRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ModelPrivacyBlocklistsSubdomainsRuleEnum = typeof ModelPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof ModelPrivacyBlocklistsSubdomainsRuleEnum];
+export const ModelPrivacyCustomRulesSubdomainsRuleEnum = {
     Include: 'include',
     Exact: 'exact'
 } as const;
 
-export type ModelPrivacyCustomRulesSubdomainsEnum = typeof ModelPrivacyCustomRulesSubdomainsEnum[keyof typeof ModelPrivacyCustomRulesSubdomainsEnum];
+export type ModelPrivacyCustomRulesSubdomainsRuleEnum = typeof ModelPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof ModelPrivacyCustomRulesSubdomainsRuleEnum];
 export const ModelPrivacyDefaultRuleEnum = {
     Block: 'block',
     Allow: 'allow'
 } as const;
 
 export type ModelPrivacyDefaultRuleEnum = typeof ModelPrivacyDefaultRuleEnum[keyof typeof ModelPrivacyDefaultRuleEnum];
-export const ModelPrivacySubdomainsRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type ModelPrivacySubdomainsRuleEnum = typeof ModelPrivacySubdomainsRuleEnum[keyof typeof ModelPrivacySubdomainsRuleEnum];
 
 /**
  * 
@@ -644,8 +650,8 @@ export const ModelProfileUpdatePathEnum = {
     SettingsLogsLogDomains: '/settings/logs/log_domains',
     SettingsLogsRetention: '/settings/logs/retention',
     SettingsPrivacyDefaultRule: '/settings/privacy/default_rule',
-    SettingsPrivacySubdomainsRule: '/settings/privacy/subdomains_rule',
-    SettingsPrivacyCustomRulesSubdomains: '/settings/privacy/custom_rules_subdomains',
+    SettingsPrivacyBlocklistsSubdomainsRule: '/settings/privacy/blocklists_subdomains_rule',
+    SettingsPrivacyCustomRulesSubdomainsRule: '/settings/privacy/custom_rules_subdomains_rule',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'
