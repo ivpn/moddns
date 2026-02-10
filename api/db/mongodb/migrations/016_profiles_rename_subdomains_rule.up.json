@@ -5,8 +5,8 @@
       {
         "q": {},
         "u": {
-          "$unset": {
-            "settings.privacy.custom_rules_subdomains_rule": ""
+          "$rename": {
+            "settings.privacy.subdomains_rule": "settings.privacy.blocklists_subdomains_rule"
           }
         },
         "multi": true
