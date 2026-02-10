@@ -1,4 +1,5 @@
 from ipaddress import ip_address
+import uuid
 
 import pytest
 from libs.dns_lib import DNSLib
@@ -46,7 +47,7 @@ class TestSubdomainBlocking:
     When a parent domain (e.g. example.com) is present in a blocklist the
     proxy should, by default, also block all its subdomains (sub.example.com,
     www.example.com, a.b.example.com, etc.).  A per-profile setting called
-    ``subdomains_rule`` controls this: ``"block"`` (default) means subdomains
+    ``blocklists_subdomains_rule`` controls this: ``"block"`` (default) means subdomains
     are blocked; ``"allow"`` means only the exact parent domain is blocked.
     """
 
@@ -62,19 +63,20 @@ class TestSubdomainBlocking:
     # ------------------------------------------------------------------
 
     def _create_profile(self, cookie: str) -> str:
-        """Create a fresh profile and return its profile_id."""
+        """Create a fresh profile with a unique name and return its profile_id."""
         with client.ApiClient(self.api_config) as api_client:
             profiles_instance = api.ProfileApi(api_client)
             profiles_instance.api_client.default_headers["Cookie"] = cookie
-            body = ApiCreateProfileBody(name="test_subdomain_profile")
+            name = f"test_subdomain_{uuid.uuid4().hex[:8]}"
+            body = ApiCreateProfileBody(name=name)
             resp = profiles_instance.api_v1_profiles_post_with_http_info(body=body)
             assert (
                 resp.status_code == 201
             ), f"Failed to create profile with status code: {resp.status_code}"
             return resp.data.profile_id
 
-    def _set_subdomains_rule(self, cookie: str, profile_id: str, value: str) -> None:
-        """PATCH the subdomains_rule setting on *profile_id*."""
+    def _set_blocklists_subdomains_rule(self, cookie: str, profile_id: str, value: str) -> None:
+        """PATCH the blocklists_subdomains_rule setting on *profile_id*."""
         with client.ApiClient(self.api_config) as api_client:
             profiles_instance = api.ProfileApi(api_client)
             profiles_instance.api_client.default_headers["Cookie"] = cookie
@@ -82,7 +84,7 @@ class TestSubdomainBlocking:
                 updates=[
                     ModelProfileUpdate(
                         operation="replace",
-                        path="/settings/privacy/subdomains_rule",
+                        path="/settings/privacy/blocklists_subdomains_rule",
                         value={"value": value},
                     )
                 ]
@@ -92,7 +94,7 @@ class TestSubdomainBlocking:
             )
             assert (
                 resp.status_code == 200
-            ), f"Failed to update subdomains_rule to '{value}' with status code: {resp.status_code}"
+            ), f"Failed to update blocklists_subdomains_rule to '{value}' with status code: {resp.status_code}"
 
     # ------------------------------------------------------------------
     # Tests
@@ -124,7 +126,7 @@ class TestSubdomainBlocking:
 
         This is the core regression test: sub.example.com is NOT inserted into
         the blocklist, yet it must be blocked because example.com is listed and
-        the default subdomains_rule is "block".
+        the default blocklists_subdomains_rule is "block".
         """
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
@@ -159,7 +161,7 @@ class TestSubdomainBlocking:
         """Verify that deeply-nested subdomains are blocked.
 
         a.b.example.com should still be blocked when example.com is in the
-        blocklist and subdomains_rule is "block" (default).
+        blocklist and blocklists_subdomains_rule is "block" (default).
         """
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
@@ -174,7 +176,7 @@ class TestSubdomainBlocking:
     async def test_subdomain_allowed_when_rule_disabled(
         self, create_account_and_login, ensure_test_blocklisted
     ):
-        """Verify that subdomains pass through when subdomains_rule is "allow".
+        """Verify that subdomains pass through when blocklists_subdomains_rule is "allow".
 
         When the profile setting is changed to "allow", only the exact parent
         domain (example.com) should be blocked.  sub.example.com must not be
@@ -183,18 +185,18 @@ class TestSubdomainBlocking:
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
 
-        self._set_subdomains_rule(cookie, profile_id, "allow")
+        self._set_blocklists_subdomains_rule(cookie, profile_id, "allow")
 
         resp = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
         assert _is_not_blocked(
             resp
-        ), f"Subdomain {TEST_SUBDOMAIN} was still blocked after setting subdomains_rule to 'allow'"
+        ), f"Subdomain {TEST_SUBDOMAIN} was still blocked after setting blocklists_subdomains_rule to 'allow'"
 
     @pytest.mark.asyncio
     async def test_subdomain_rule_toggle(
         self, create_account_and_login, ensure_test_blocklisted
     ):
-        """Verify that toggling subdomains_rule takes effect dynamically.
+        """Verify that toggling blocklists_subdomains_rule takes effect dynamically.
 
         Steps:
           1. Default (block) -- subdomain query returns 0.0.0.0
@@ -208,21 +210,21 @@ class TestSubdomainBlocking:
         resp1 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
         assert _is_blocked(
             resp1
-        ), f"Step 1 failed: {TEST_SUBDOMAIN} should be blocked with default subdomains_rule"
+        ), f"Step 1 failed: {TEST_SUBDOMAIN} should be blocked with default blocklists_subdomains_rule"
 
         # Step 2: switch to "allow"
-        self._set_subdomains_rule(cookie, profile_id, "allow")
+        self._set_blocklists_subdomains_rule(cookie, profile_id, "allow")
         resp2 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
         assert _is_not_blocked(
             resp2
-        ), f"Step 2 failed: {TEST_SUBDOMAIN} should not be blocked after setting subdomains_rule to 'allow'"
+        ), f"Step 2 failed: {TEST_SUBDOMAIN} should not be blocked after setting blocklists_subdomains_rule to 'allow'"
 
         # Step 3: switch back to "block"
-        self._set_subdomains_rule(cookie, profile_id, "block")
+        self._set_blocklists_subdomains_rule(cookie, profile_id, "block")
         resp3 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
         assert _is_blocked(
             resp3
-        ), f"Step 3 failed: {TEST_SUBDOMAIN} should be blocked again after restoring subdomains_rule to 'block'"
+        ), f"Step 3 failed: {TEST_SUBDOMAIN} should be blocked again after restoring blocklists_subdomains_rule to 'block'"
 
     @pytest.mark.asyncio
     async def test_unrelated_domain_not_blocked(
@@ -258,7 +260,7 @@ class TestSubdomainBlocking:
     ):
         """Parametrized: various subdomain depths are all blocked.
 
-        When example.com is in the blocklist and subdomains_rule is "block"
+        When example.com is in the blocklist and blocklists_subdomains_rule is "block"
         (default), every subdomain regardless of depth must return 0.0.0.0.
         """
         _, cookie = create_account_and_login
