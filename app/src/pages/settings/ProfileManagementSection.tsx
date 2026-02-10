@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import DeleteProfileDialog from "@/pages/settings/DeleteProfileDialog";
 import QueryLogsSection from "./QueryLogsSection";
 import BlocklistsSection from "./BlocklistsSection";
+import CustomRulesSection from "./CustomRulesSection";
 import AdvancedSettingsSection from "./AdvancedSettingsSection";
 import DeleteProfileSection from "./DeleteProfileSection";
 
@@ -32,7 +33,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             value: "allow",
         },
         {
-            title: "Subdomains blocking",
+            title: "Subdomains in blocklists",
             description:
                 "Set how to handle subdomains of domain entries in enabled blocklists.",
             options: [
@@ -40,6 +41,20 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 { value: "allow", label: "Allow", icon: "check" as const },
             ],
             value: "block",
+        },
+    ]);
+
+    // Data for custom rules settings
+    const [customRulesSettings, setCustomRulesSettings] = useState([
+        {
+            title: "Subdomains in custom rules",
+            description:
+                "Set whether new custom rules include subdomains (*.domain) or use exact match only.",
+            options: [
+                { value: "exact", label: "Exact", icon: "octagon-x" as const },
+                { value: "include", label: "Include", icon: "check" as const },
+            ],
+            value: "include",
         },
     ]);
 
@@ -149,6 +164,34 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
         } catch (e: unknown) {
             const axiosErr = e as { response?: { data?: { detail?: string } } };
             toast.error(axiosErr?.response?.data?.detail || "Failed to update blocklist setting.");
+        }
+    };
+
+    // Usage for custom rules settings
+    const handleCustomRulesSettingsChange = async (idx: number, value: string) => {
+        if (value === "") return;
+        if (customRulesSettings[idx].value === value) return;
+        if (!activeProfile) return;
+
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdPatch(activeProfile.profile_id, {
+                updates: [
+                    {
+                        operation: ModelProfileUpdateOperationEnum.Replace,
+                        path: ModelProfileUpdatePathEnum.SettingsPrivacyCustomRulesSubdomains,
+                        value: value as unknown as object,
+                    }
+                ]
+            });
+            setCustomRulesSettings(current =>
+                current.map((setting, i) =>
+                    i === idx ? { ...setting, value } : setting
+                )
+            );
+            toast.success("Custom rules setting updated.");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { detail?: string } } };
+            toast.error(axiosErr?.response?.data?.detail || "Failed to update custom rules setting.");
         }
     };
 
@@ -282,6 +325,14 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             },
         ]);
 
+        // Update custom rules settings
+        setCustomRulesSettings([
+            {
+                ...customRulesSettings[0],
+                value: profile.settings?.privacy?.custom_rules_subdomains ?? "include",
+            },
+        ]);
+
         // Update logs settings
         setLogsSettings([
             {
@@ -335,6 +386,12 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             <BlocklistsSection
                 blocklistSettings={blocklistSettings}
                 handleBlocklistChange={handleBlocklistChange}
+            />
+
+            {/* CUSTOM RULES Section */}
+            <CustomRulesSection
+                customRulesSettings={customRulesSettings}
+                handleCustomRulesSettingsChange={handleCustomRulesSettingsChange}
             />
 
             {/* LOGS Section */}

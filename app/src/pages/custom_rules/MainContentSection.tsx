@@ -299,7 +299,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                     description={
                                         <>
                                             <div>
-                                                Custom rules take precedence over blocklists and other settings. You can add domains, IP addresses, or ASNs (e.g. AS15169). Subdomains of Denylist entries are blocked by default - you can change this in <span
+                                                Custom rules take precedence over blocklists and other settings. You can add domains, IP addresses, or ASNs (e.g. AS15169). Subdomains of custom rules entries are included by default (*.domain) - you can change this in <span
                                                     className="underline cursor-pointer"
                                                     onClick={() => navigate("/settings")}
                                                 >
