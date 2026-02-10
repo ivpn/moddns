@@ -8,7 +8,7 @@ Method | HTTP request | Description
 
 
 # **api_v1_blocklists_get**
-> List[ModelBlocklist] api_v1_blocklists_get()
+> List[ModelBlocklist] api_v1_blocklists_get(sort_by=sort_by)
 
 Get blocklists data
 
@@ -34,10 +34,11 @@ configuration = moddns.Configuration(
 with moddns.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = moddns.BlocklistsApi(api_client)
+    sort_by = updated # str | field to sort by (optional) (default to updated)
 
     try:
         # Get blocklists data
-        api_response = api_instance.api_v1_blocklists_get()
+        api_response = api_instance.api_v1_blocklists_get(sort_by=sort_by)
         print("The response of BlocklistsApi->api_v1_blocklists_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -48,7 +49,10 @@ with moddns.ApiClient(configuration) as api_client:
 
 ### Parameters
 
-This endpoint does not need any parameter.
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **sort_by** | **str**| field to sort by | [optional] [default to updated]
 
 ### Return type
 

@@ -35,11 +35,12 @@ class TestRequestsCreateProfileCustomRuleBody(unittest.TestCase):
         model = RequestsCreateProfileCustomRuleBody()
         if include_optional:
             return RequestsCreateProfileCustomRuleBody(
-                action = '',
+                action = 'block',
                 value = ''
             )
         else:
             return RequestsCreateProfileCustomRuleBody(
+                action = 'block',
                 value = '',
         )
         """

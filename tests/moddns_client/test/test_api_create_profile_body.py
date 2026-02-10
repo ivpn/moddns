@@ -35,10 +35,11 @@ class TestApiCreateProfileBody(unittest.TestCase):
         model = ApiCreateProfileBody()
         if include_optional:
             return ApiCreateProfileBody(
-                name = ''
+                name = '0'
             )
         else:
             return ApiCreateProfileBody(
+                name = '0',
         )
         """
 

@@ -147,7 +147,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **api_v1_profiles_id_logs_get**
-> List[ModelQueryLog] api_v1_profiles_id_logs_get(id, page=page, limit=limit, status=status, timespan=timespan, device_id=device_id, search=search)
+> List[ModelQueryLog] api_v1_profiles_id_logs_get(id, page=page, limit=limit, status=status, timespan=timespan, device_id=device_id, search=search, sort_by=sort_by)
 
 Get profile query logs
 
@@ -180,10 +180,11 @@ with moddns.ApiClient(configuration) as api_client:
     timespan = '"LAST_1_HOUR"' # str | specify timespan for query (optional) (default to '"LAST_1_HOUR"')
     device_id = 'device_id_example' # str | specify device ID for filtering (optional)
     search = 'search_example' # str | substring (case-insensitive) match against stored domain; free-form (short inputs may scan more) (optional)
+    sort_by = created # str | field to sort by (optional) (default to created)
 
     try:
         # Get profile query logs
-        api_response = api_instance.api_v1_profiles_id_logs_get(id, page=page, limit=limit, status=status, timespan=timespan, device_id=device_id, search=search)
+        api_response = api_instance.api_v1_profiles_id_logs_get(id, page=page, limit=limit, status=status, timespan=timespan, device_id=device_id, search=search, sort_by=sort_by)
         print("The response of QueryLogsApi->api_v1_profiles_id_logs_get:\n")
         pprint(api_response)
     except Exception as e:
@@ -204,6 +205,7 @@ Name | Type | Description  | Notes
  **timespan** | **str**| specify timespan for query | [optional] [default to &#39;&quot;LAST_1_HOUR&quot;&#39;]
  **device_id** | **str**| specify device ID for filtering | [optional] 
  **search** | **str**| substring (case-insensitive) match against stored domain; free-form (short inputs may scan more) | [optional] 
+ **sort_by** | **str**| field to sort by | [optional] [default to created]
 
 ### Return type
 
