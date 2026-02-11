@@ -47,7 +47,7 @@ export interface ApiCreateProfileBody {
      * @type {string}
      * @memberof ApiCreateProfileBody
      */
-    'name': string;
+    'name'?: string;
 }
 /**
  * 
@@ -494,12 +494,6 @@ export interface ModelPrivacy {
      * @memberof ModelPrivacy
      */
     'default_rule': ModelPrivacyDefaultRuleEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof ModelPrivacy
-     */
-    'subdomains_rule': ModelPrivacyBlocklistsSubdomainsRuleEnum;
 }
 
 export const ModelPrivacyBlocklistsSubdomainsRuleEnum = {
@@ -1406,7 +1400,7 @@ export interface RequestsCreateProfileCustomRuleBody {
      * @type {string}
      * @memberof RequestsCreateProfileCustomRuleBody
      */
-    'action': RequestsCreateProfileCustomRuleBodyActionEnum;
+    'action'?: string;
     /**
      * 
      * @type {string}
@@ -1414,15 +1408,6 @@ export interface RequestsCreateProfileCustomRuleBody {
      */
     'value': string;
 }
-
-export const RequestsCreateProfileCustomRuleBodyActionEnum = {
-    Block: 'block',
-    Allow: 'allow',
-    Comment: 'comment'
-} as const;
-
-export type RequestsCreateProfileCustomRuleBodyActionEnum = typeof RequestsCreateProfileCustomRuleBodyActionEnum[keyof typeof RequestsCreateProfileCustomRuleBodyActionEnum];
-
 /**
  * 
  * @export
@@ -1434,7 +1419,7 @@ export interface RequestsCreateProfileCustomRulesBatchBody {
      * @type {string}
      * @memberof RequestsCreateProfileCustomRulesBatchBody
      */
-    'action': RequestsCreateProfileCustomRulesBatchBodyActionEnum;
+    'action'?: string;
     /**
      * 
      * @type {Array<string>}
@@ -1442,15 +1427,6 @@ export interface RequestsCreateProfileCustomRulesBatchBody {
      */
     'values': Array<string>;
 }
-
-export const RequestsCreateProfileCustomRulesBatchBodyActionEnum = {
-    Block: 'block',
-    Allow: 'allow',
-    Comment: 'comment'
-} as const;
-
-export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof RequestsCreateProfileCustomRulesBatchBodyActionEnum[keyof typeof RequestsCreateProfileCustomRulesBatchBodyActionEnum];
-
 /**
  * 
  * @export
