@@ -627,7 +627,7 @@ export default function FAQ(): JSX.Element {
                             <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
                                 <div className="mb-6">
                                     <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                        Last updated: August 27, 2025
+                                        Last updated: February 11, 2026
                                     </p>
                                     <div className="flex justify-end">
                                         <Button
