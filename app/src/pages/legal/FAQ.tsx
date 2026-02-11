@@ -99,6 +99,8 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
+const FAQ_LAST_UPDATED = 'February 11, 2026';
+
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -559,7 +561,7 @@ export default function FAQ(): JSX.Element {
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-6">
                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                            Last updated: February 11, 2026
+                            Last updated: {FAQ_LAST_UPDATED}
                         </p>
                         <div className="flex justify-end">
                             <Button
@@ -611,7 +613,7 @@ export default function FAQ(): JSX.Element {
                             <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
                                 <div className="mb-6">
                                     <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                        Last updated: February 11, 2026
+                                        Last updated: {FAQ_LAST_UPDATED}
                                     </p>
                                     <div className="flex justify-end">
                                         <Button
