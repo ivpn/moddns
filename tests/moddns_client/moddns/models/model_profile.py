@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
-from typing_extensions import Annotated
 from moddns.models.model_profile_settings import ModelProfileSettings
 from typing import Optional, Set
 from typing_extensions import Self
@@ -30,7 +29,7 @@ class ModelProfile(BaseModel):
     """ # noqa: E501
     account_id: StrictStr
     id: StrictStr
-    name: Annotated[str, Field(strict=True, max_length=50)]
+    name: StrictStr
     profile_id: StrictStr
     settings: ModelProfileSettings
     __properties: ClassVar[List[str]] = ["account_id", "id", "name", "profile_id", "settings"]

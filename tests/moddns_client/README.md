@@ -117,13 +117,10 @@ Class | Method | HTTP request | Description
 *ProfileApi* | [**api_v1_profiles_id_delete**](docs/ProfileApi.md#api_v1_profiles_id_delete) | **DELETE** /api/v1/profiles/{id} | Delete profile
 *ProfileApi* | [**api_v1_profiles_id_get**](docs/ProfileApi.md#api_v1_profiles_id_get) | **GET** /api/v1/profiles/{id} | Get profile data
 *ProfileApi* | [**api_v1_profiles_id_patch**](docs/ProfileApi.md#api_v1_profiles_id_patch) | **PATCH** /api/v1/profiles/{id} | Update profile
-*ProfileApi* | [**api_v1_profiles_id_services_delete**](docs/ProfileApi.md#api_v1_profiles_id_services_delete) | **DELETE** /api/v1/profiles/{id}/services | Disable services
-*ProfileApi* | [**api_v1_profiles_id_services_post**](docs/ProfileApi.md#api_v1_profiles_id_services_post) | **POST** /api/v1/profiles/{id}/services | Enable services
 *ProfileApi* | [**api_v1_profiles_post**](docs/ProfileApi.md#api_v1_profiles_post) | **POST** /api/v1/profiles | Create profile
 *QueryLogsApi* | [**api_v1_profiles_id_logs_delete**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_delete) | **DELETE** /api/v1/profiles/{id}/logs | Delete profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_download_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_download_get) | **GET** /api/v1/profiles/{id}/logs/download | Download profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_get) | **GET** /api/v1/profiles/{id}/logs | Get profile query logs
-*ServicesApi* | [**api_v1_services_get**](docs/ServicesApi.md#api_v1_services_get) | **GET** /api/v1/services | Get services catalog
 *SessionsApi* | [**api_v1_sessions_delete**](docs/SessionsApi.md#api_v1_sessions_delete) | **DELETE** /api/v1/sessions | Delete all other sessions
 *StatisticsApi* | [**api_v1_profiles_id_statistics_get**](docs/StatisticsApi.md#api_v1_profiles_id_statistics_get) | **GET** /api/v1/profiles/{id}/statistics | Get statistics data for a profile
 *SubscriptionApi* | [**api_v1_sub_get**](docs/SubscriptionApi.md#api_v1_sub_get) | **GET** /api/v1/sub | Get subscription data
@@ -139,7 +136,6 @@ Class | Method | HTTP request | Description
  - [ApiCreateProfileBody](docs/ApiCreateProfileBody.md)
  - [ApiErrResponse](docs/ApiErrResponse.md)
  - [ApiRegisterAccountBody](docs/ApiRegisterAccountBody.md)
- - [ApiServicesUpdates](docs/ApiServicesUpdates.md)
  - [ApiVerifyEmailOTPBody](docs/ApiVerifyEmailOTPBody.md)
  - [ApiWebAuthnLoginBeginRequest](docs/ApiWebAuthnLoginBeginRequest.md)
  - [ApiWebAuthnRegisterBeginRequest](docs/ApiWebAuthnRegisterBeginRequest.md)
@@ -160,7 +156,6 @@ Class | Method | HTTP request | Description
  - [ModelQueryLog](docs/ModelQueryLog.md)
  - [ModelRetention](docs/ModelRetention.md)
  - [ModelSecurity](docs/ModelSecurity.md)
- - [ModelServicesSettings](docs/ModelServicesSettings.md)
  - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)
  - [ModelStatisticsSettings](docs/ModelStatisticsSettings.md)
  - [ModelSubscription](docs/ModelSubscription.md)
@@ -206,8 +201,6 @@ Class | Method | HTTP request | Description
  - [ResponsesRegistrationSuccessResponse](docs/ResponsesRegistrationSuccessResponse.md)
  - [ResponsesShortLinkResponse](docs/ResponsesShortLinkResponse.md)
  - [ResponsesWebAuthnReauthFinishResponse](docs/ResponsesWebAuthnReauthFinishResponse.md)
- - [ServicescatalogCatalog](docs/ServicescatalogCatalog.md)
- - [ServicescatalogService](docs/ServicescatalogService.md)
  - [WebauthncoseCOSEAlgorithmIdentifier](docs/WebauthncoseCOSEAlgorithmIdentifier.md)
 
 

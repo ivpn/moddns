@@ -9,7 +9,6 @@ docs/ApiBlocklistsUpdates.md
 docs/ApiCreateProfileBody.md
 docs/ApiErrResponse.md
 docs/ApiRegisterAccountBody.md
-docs/ApiServicesUpdates.md
 docs/ApiVerifyEmailOTPBody.md
 docs/ApiWebAuthnLoginBeginRequest.md
 docs/ApiWebAuthnRegisterBeginRequest.md
@@ -33,7 +32,6 @@ docs/ModelProfileUpdate.md
 docs/ModelQueryLog.md
 docs/ModelRetention.md
 docs/ModelSecurity.md
-docs/ModelServicesSettings.md
 docs/ModelStatisticsAggregated.md
 docs/ModelStatisticsSettings.md
 docs/ModelSubscription.md
@@ -81,9 +79,6 @@ docs/ResponsesDeletionCodeResponse.md
 docs/ResponsesRegistrationSuccessResponse.md
 docs/ResponsesShortLinkResponse.md
 docs/ResponsesWebAuthnReauthFinishResponse.md
-docs/ServicesApi.md
-docs/ServicescatalogCatalog.md
-docs/ServicescatalogService.md
 docs/SessionsApi.md
 docs/StatisticsApi.md
 docs/SubscriptionApi.md
@@ -98,7 +93,6 @@ moddns/api/authentication_api.py
 moddns/api/blocklists_api.py
 moddns/api/profile_api.py
 moddns/api/query_logs_api.py
-moddns/api/services_api.py
 moddns/api/sessions_api.py
 moddns/api/statistics_api.py
 moddns/api/subscription_api.py
@@ -112,7 +106,6 @@ moddns/models/api_blocklists_updates.py
 moddns/models/api_create_profile_body.py
 moddns/models/api_err_response.py
 moddns/models/api_register_account_body.py
-moddns/models/api_services_updates.py
 moddns/models/api_verify_email_otp_body.py
 moddns/models/api_web_authn_login_begin_request.py
 moddns/models/api_web_authn_register_begin_request.py
@@ -133,7 +126,6 @@ moddns/models/model_profile_update.py
 moddns/models/model_query_log.py
 moddns/models/model_retention.py
 moddns/models/model_security.py
-moddns/models/model_services_settings.py
 moddns/models/model_statistics_aggregated.py
 moddns/models/model_statistics_settings.py
 moddns/models/model_subscription.py
@@ -179,8 +171,6 @@ moddns/models/responses_deletion_code_response.py
 moddns/models/responses_registration_success_response.py
 moddns/models/responses_short_link_response.py
 moddns/models/responses_web_authn_reauth_finish_response.py
-moddns/models/servicescatalog_catalog.py
-moddns/models/servicescatalog_service.py
 moddns/models/webauthncose_cose_algorithm_identifier.py
 moddns/py.typed
 moddns/rest.py
@@ -195,7 +185,6 @@ test/test_api_blocklists_updates.py
 test/test_api_create_profile_body.py
 test/test_api_err_response.py
 test/test_api_register_account_body.py
-test/test_api_services_updates.py
 test/test_api_verify_email_otp_body.py
 test/test_api_web_authn_login_begin_request.py
 test/test_api_web_authn_register_begin_request.py
@@ -219,7 +208,6 @@ test/test_model_profile_update.py
 test/test_model_query_log.py
 test/test_model_retention.py
 test/test_model_security.py
-test/test_model_services_settings.py
 test/test_model_statistics_aggregated.py
 test/test_model_statistics_settings.py
 test/test_model_subscription.py
@@ -267,9 +255,6 @@ test/test_responses_deletion_code_response.py
 test/test_responses_registration_success_response.py
 test/test_responses_short_link_response.py
 test/test_responses_web_authn_reauth_finish_response.py
-test/test_services_api.py
-test/test_servicescatalog_catalog.py
-test/test_servicescatalog_service.py
 test/test_sessions_api.py
 test/test_statistics_api.py
 test/test_subscription_api.py

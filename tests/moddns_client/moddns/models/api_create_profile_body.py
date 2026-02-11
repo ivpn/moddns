@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, ClassVar, Dict, List
-from typing_extensions import Annotated
+from pydantic import BaseModel, ConfigDict, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,7 +26,7 @@ class ApiCreateProfileBody(BaseModel):
     """
     ApiCreateProfileBody
     """ # noqa: E501
-    name: Annotated[str, Field(min_length=1, strict=True, max_length=50)]
+    name: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["name"]
 
     model_config = ConfigDict(

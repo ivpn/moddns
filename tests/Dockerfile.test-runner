@@ -1,0 +1,34 @@
+FROM python:3.11.9-slim
+
+# Separate lightweight image dedicated to executing pytest inside the Docker network
+# This avoids host networking / port mapping ambiguities for MongoDB replica set failover tests.
+
+COPY ./tests /tests/
+WORKDIR /tests
+
+# Copy only what is needed first (for better layer caching) then the rest of the workspace mounts at runtime.
+COPY ./tests/requirements.txt requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Trust mkcert development CA if present (mounted via volume from parent compose context)
+# We resolve certifi path dynamically to avoid hard-coding Python minor version paths.
+RUN python - <<'PY'
+import certifi, pathlib, os
+ca = pathlib.Path('/certs/mkcert_development_CA_307611231582065277882115426409270736451.crt')
+if ca.exists():
+    dest = pathlib.Path(certifi.where())
+    with ca.open('rb') as src, dest.open('ab') as dst:
+        dst.write(b"\n")
+        dst.write(src.read())
+    print('Appended mkcert CA to', dest)
+else:
+    print('mkcert dev CA not found, skipping append')
+PY
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/tests:/api:/proxy:/blocklists:/libs
+
+# Default command (can be overridden by docker compose command)
+CMD ["pytest", "-v", "-s", "-m", "mongodb_failover", "manual/test_mongodb_failover.py"]
