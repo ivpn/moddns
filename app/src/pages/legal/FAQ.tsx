@@ -188,7 +188,7 @@ export default function FAQ(): JSX.Element {
                 <li><strong>Exact</strong>: Domains are stored exactly as entered. To include subdomains, you must explicitly use a wildcard (<code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.facebook.com</code>)</li>
             </ul>
             <p>This setting only affects new rules. Existing rules are not changed when you toggle the setting. IP addresses and ASNs are not affected by this setting.</p>
-        </div>
+        </div >
     );
 
     const customRulesSupportedInputs = (
@@ -200,7 +200,7 @@ export default function FAQ(): JSX.Element {
                 <li><strong>ASNs</strong> (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">AS15169</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">15169</code>)</li>
             </ul>
             <p>ASN rules are applied to the resolved IP address (after DNS resolution), not the domain string itself.</p>
-        </div>
+        </div >
     );
 
     const servicesBlockingInfo = (
@@ -224,7 +224,7 @@ export default function FAQ(): JSX.Element {
                 <li><strong>Otherwise, the default rule applies</strong> (your profile's Default rule setting).</li>
             </ul>
             <p>This applies consistently whether the match comes from domains, IP addresses, or ASNs.</p>
-        </div>
+        </div >
     );
 
     const wildcardRules = (
