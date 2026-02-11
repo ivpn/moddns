@@ -38,13 +38,14 @@ class TestModelPrivacy(unittest.TestCase):
                 blocklists = [
                     ''
                     ],
-                default_rule = 'block',
-                subdomains_rule = 'block'
+                blocklists_subdomains_rule = 'block',
+                custom_rules_subdomains_rule = 'include',
+                default_rule = 'block'
             )
         else:
             return ModelPrivacy(
+                blocklists_subdomains_rule = 'block',
                 default_rule = 'block',
-                subdomains_rule = 'block',
         )
         """
 

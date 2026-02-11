@@ -481,27 +481,39 @@ export interface ModelPrivacy {
      * @type {string}
      * @memberof ModelPrivacy
      */
-    'default_rule': ModelPrivacyDefaultRuleEnum;
+    'blocklists_subdomains_rule': ModelPrivacyBlocklistsSubdomainsRuleEnum;
     /**
      * 
      * @type {string}
      * @memberof ModelPrivacy
      */
-    'subdomains_rule': ModelPrivacySubdomainsRuleEnum;
+    'custom_rules_subdomains_rule'?: ModelPrivacyCustomRulesSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelPrivacy
+     */
+    'default_rule': ModelPrivacyDefaultRuleEnum;
 }
 
+export const ModelPrivacyBlocklistsSubdomainsRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ModelPrivacyBlocklistsSubdomainsRuleEnum = typeof ModelPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof ModelPrivacyBlocklistsSubdomainsRuleEnum];
+export const ModelPrivacyCustomRulesSubdomainsRuleEnum = {
+    Include: 'include',
+    Exact: 'exact'
+} as const;
+
+export type ModelPrivacyCustomRulesSubdomainsRuleEnum = typeof ModelPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof ModelPrivacyCustomRulesSubdomainsRuleEnum];
 export const ModelPrivacyDefaultRuleEnum = {
     Block: 'block',
     Allow: 'allow'
 } as const;
 
 export type ModelPrivacyDefaultRuleEnum = typeof ModelPrivacyDefaultRuleEnum[keyof typeof ModelPrivacyDefaultRuleEnum];
-export const ModelPrivacySubdomainsRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type ModelPrivacySubdomainsRuleEnum = typeof ModelPrivacySubdomainsRuleEnum[keyof typeof ModelPrivacySubdomainsRuleEnum];
 
 /**
  * 
@@ -632,7 +644,8 @@ export const ModelProfileUpdatePathEnum = {
     SettingsLogsLogDomains: '/settings/logs/log_domains',
     SettingsLogsRetention: '/settings/logs/retention',
     SettingsPrivacyDefaultRule: '/settings/privacy/default_rule',
-    SettingsPrivacySubdomainsRule: '/settings/privacy/subdomains_rule',
+    SettingsPrivacyBlocklistsSubdomainsRule: '/settings/privacy/blocklists_subdomains_rule',
+    SettingsPrivacyCustomRulesSubdomainsRule: '/settings/privacy/custom_rules_subdomains_rule',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'

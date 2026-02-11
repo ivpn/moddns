@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ivpn/dns/api/config"
+	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/blocklist"
@@ -705,7 +706,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -730,7 +731,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_BLOCK,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -755,7 +756,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -780,7 +781,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -788,13 +789,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: false,
 		},
 		{
-			name:      "Successfully update privacy subdomains_rule to block",
+			name:      "Successfully update privacy blocklists_subdomains_rule to block",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     model.ACTION_BLOCK,
 				},
 			},
@@ -805,7 +806,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
@@ -813,13 +814,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: true,
 		},
 		{
-			name:      "Successfully update privacy subdomains_rule to allow",
+			name:      "Successfully update privacy blocklists_subdomains_rule to allow",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     model.ACTION_ALLOW,
 				},
 			},
@@ -830,7 +831,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_BLOCK,
+						BlocklistsSubdomainsRule: model.ACTION_BLOCK,
 					},
 				},
 			},
@@ -838,13 +839,13 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile: true,
 		},
 		{
-			name:      "Update privacy subdomains_rule with invalid value",
+			name:      "Update privacy blocklists_subdomains_rule with invalid value",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     "invalid",
 				},
 			},
@@ -855,21 +856,21 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
-			expectedError: "block subdomains value is invalid",
+			expectedError: "blocklists_subdomains_rule value is invalid",
 			expectProfile: false,
 		},
 		{
-			name:      "Update privacy subdomains_rule with non-string value",
+			name:      "Update privacy blocklists_subdomains_rule with non-string value",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/settings/privacy/subdomains_rule",
+					Path:      "/settings/privacy/blocklists_subdomains_rule",
 					Value:     false,
 				},
 			},
@@ -880,11 +881,11 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
 			},
-			expectedError: "block subdomains value is invalid",
+			expectedError: "blocklists_subdomains_rule value is invalid",
 			expectProfile: false,
 		},
 
@@ -1146,7 +1147,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 					Statistics: &model.StatisticsSettings{Enabled: false},
 					Privacy: &model.Privacy{
 						DefaultRule:    model.DEFAULT_RULE_ALLOW,
-						SubdomainsRule: model.ACTION_ALLOW,
+						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 					Advanced: &model.Advanced{Recursor: model.RECURSOR_SDNS},
 					Security: &model.Security{DNSSECSettings: model.DNSSECSettings{Enabled: false}},
@@ -2071,6 +2072,170 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 			} else {
 				suite.NoError(err)
 			}
+		})
+	}
+}
+
+// TestCreateCustomRulesBulkAutoPrepend verifies the auto-prepend "*." logic
+// in CreateCustomRulesBulk when custom_rules_subdomains_rule is "include".
+// It ensures non-FQDN inputs (IPs, ASNs, CIDRs, dot-prefixes, wildcards)
+// are NOT incorrectly prefixed.
+func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
+	const accountID = "acc-autoprepend"
+	const profileID = "prof-autoprepend"
+
+	tests := []struct {
+		name           string
+		subdomainsRule string
+		input          string
+		wantValue      string // expected normalized value in Created (empty = expect Skipped)
+		wantSkipped    bool
+	}{
+		{
+			name:           "include mode: plain FQDN gets wildcard prepended",
+			subdomainsRule: "include",
+			input:          "facebook.com",
+			wantValue:      "*.facebook.com",
+		},
+		{
+			name:           "exact mode: plain FQDN stays as-is",
+			subdomainsRule: "exact",
+			input:          "facebook.com",
+			wantValue:      "facebook.com",
+		},
+		{
+			name:           "include mode: dot-prefix normalized to wildcard, no double prefix",
+			subdomainsRule: "include",
+			input:          ".facebook.com",
+			wantValue:      "*.facebook.com",
+		},
+		{
+			name:           "exact mode: dot-prefix still normalized to wildcard",
+			subdomainsRule: "exact",
+			input:          ".facebook.com",
+			wantValue:      "*.facebook.com",
+		},
+		{
+			name:           "include mode: existing wildcard not double-prefixed",
+			subdomainsRule: "include",
+			input:          "*.facebook.com",
+			wantValue:      "*.facebook.com",
+		},
+		{
+			name:           "include mode: IPv4 not prefixed",
+			subdomainsRule: "include",
+			input:          "192.168.1.1",
+			wantValue:      "192.168.1.1",
+		},
+		{
+			name:           "include mode: IPv6 not prefixed",
+			subdomainsRule: "include",
+			input:          "::1",
+			wantValue:      "::1",
+		},
+		// ASN syntax is not supported on this branch yet
+		// {
+		// 	name:           "include mode: ASN with prefix not prefixed",
+		// 	subdomainsRule: "include",
+		// 	input:          "AS15169",
+		// 	wantValue:      "15169",
+		// },
+		// {
+		// 	name:           "include mode: ASN without prefix not prefixed",
+		// 	subdomainsRule: "include",
+		// 	input:          "15169",
+		// 	wantValue:      "15169",
+		// },
+		{
+			name:           "include mode: CIDR not prefixed (skipped as invalid syntax)",
+			subdomainsRule: "include",
+			input:          "1.2.3.0/24",
+			wantSkipped:    true,
+			wantValue:      "1.2.3.0/24",
+		},
+		{
+			name:           "include mode: IPv6 CIDR not prefixed (skipped as invalid syntax)",
+			subdomainsRule: "include",
+			input:          "2001:db8::/32",
+			wantSkipped:    true,
+			wantValue:      "2001:db8::/32",
+		},
+		{
+			name:           "include mode: subdomain FQDN gets wildcard prepended",
+			subdomainsRule: "include",
+			input:          "www.facebook.com",
+			wantValue:      "*.www.facebook.com",
+		},
+		{
+			name:           "include mode: trailing dot stripped then prepended",
+			subdomainsRule: "include",
+			input:          "facebook.com.",
+			wantValue:      "*.facebook.com",
+		},
+	}
+
+	apiVldtr, err := intvldtr.NewAPIValidator()
+	suite.Require().NoError(err)
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			mockProfileRepo := mocks.NewProfileRepository(suite.T())
+			mockCache := mocks.NewCachecache(suite.T())
+
+			svc := profile.NewProfileService(
+				suite.serverConfig,
+				suite.serviceConfig,
+				mockProfileRepo,
+				suite.blocklistService,
+				suite.queryLogsService,
+				suite.statisticsService,
+				mockCache,
+				suite.mockIDGen,
+				apiVldtr.Validator,
+			)
+
+			existingProfile := &model.Profile{
+				AccountId: accountID,
+				Settings: &model.ProfileSettings{
+					Privacy: &model.Privacy{
+						BlocklistsSubdomainsRule:  "block",
+						CustomRulesSubdomainsRule: tt.subdomainsRule,
+						DefaultRule:               "allow",
+					},
+					CustomRules: []*model.CustomRule{},
+				},
+			}
+
+			mockProfileRepo.On("GetProfileById", mock.Anything, profileID).
+				Return(existingProfile, nil)
+
+			if !tt.wantSkipped {
+				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).
+					Return(nil)
+				mockCache.On("AddCustomRule", mock.Anything, profileID, mock.Anything).
+					Return(nil)
+			}
+
+			result, err := svc.CreateCustomRulesBulk(
+				context.Background(), accountID, profileID, "block", []string{tt.input},
+			)
+
+			suite.NoError(err)
+			suite.NotNil(result)
+
+			if tt.wantSkipped {
+				suite.Len(result.Created, 0, "expected no rules created")
+				suite.Require().Len(result.Skipped, 1, "expected one skipped entry")
+				suite.Equal(tt.wantValue, result.Skipped[0].Value,
+					"skipped entry should show un-mangled value")
+			} else {
+				suite.Require().Len(result.Created, 1, "expected one rule created")
+				suite.Equal(tt.wantValue, result.Created[0].Value)
+				suite.Len(result.Skipped, 0)
+			}
+
+			mockProfileRepo.AssertExpectations(suite.T())
+			mockCache.AssertExpectations(suite.T())
 		})
 	}
 }

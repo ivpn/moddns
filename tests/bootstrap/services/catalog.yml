@@ -1,0 +1,36 @@
+# Services catalog used for ASN-based blocking presets.
+# IDs are stable identifiers stored in profile settings.
+#
+# services:
+#   - id: google
+#     name: Google
+#     logo_key: google
+#     asns: [15169]
+
+# Source notes (for maintainers):
+# - AS15169: https://bgp.he.net/AS15169 (Google LLC)
+# - AS16509, AS14618: https://bgp.he.net/AS16509 and https://bgp.he.net/AS14618 (Amazon.com, Inc.)
+# - AS32934: https://bgp.he.net/AS32934 (Facebook, Inc. / Meta)
+# - AS714: https://bgp.he.net/AS714 (Apple Inc.)
+# - AS8075: https://bgp.he.net/AS8075 (Microsoft Corporation)
+services:
+  - id: google
+    name: Google
+    logo_key: google
+    asns: [15169, 1026, 6432, 11344, 13949, 16550, 16591, 17346, 19425, 19448, 19527, 22577, 22859, 24424]
+  - id: amazon
+    name: Amazon
+    logo_key: amazon
+    asns: [16509, 14618]
+  - id: meta
+    name: Meta (Facebook)
+    logo_key: meta
+    asns: [32934]
+  - id: apple
+    name: Apple
+    logo_key: apple
+    asns: [714]
+  - id: microsoft
+    name: Microsoft
+    logo_key: microsoft
+    asns: [8075]

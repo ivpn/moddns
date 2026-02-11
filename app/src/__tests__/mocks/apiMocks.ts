@@ -12,7 +12,7 @@ const mockLogs: ModelLogsSettings = {
 } as any;
 const mockPrivacy = (enabledBlocklists: string[] = []): ModelPrivacy => ({
   default_rule: 'allow',
-  subdomains_rule: 'allow',
+  blocklists_subdomains_rule: 'allow',
   blocklists: enabledBlocklists
 } as any);
 const mockSecurity: ModelSecurity = {

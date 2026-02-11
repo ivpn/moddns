@@ -16,7 +16,9 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from typing import List
+from pydantic import Field, StrictStr, field_validator
+from typing import List, Optional
+from typing_extensions import Annotated
 from moddns.models.model_blocklist import ModelBlocklist
 
 from moddns.api_client import ApiClient, RequestSerialized
@@ -40,6 +42,7 @@ class BlocklistsApi:
     @validate_call
     def api_v1_blocklists_get(
         self,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -57,6 +60,8 @@ class BlocklistsApi:
 
         Get available blocklists data
 
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -80,6 +85,7 @@ class BlocklistsApi:
         """ # noqa: E501
 
         _param = self._api_v1_blocklists_get_serialize(
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -106,6 +112,7 @@ class BlocklistsApi:
     @validate_call
     def api_v1_blocklists_get_with_http_info(
         self,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -123,6 +130,8 @@ class BlocklistsApi:
 
         Get available blocklists data
 
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -146,6 +155,7 @@ class BlocklistsApi:
         """ # noqa: E501
 
         _param = self._api_v1_blocklists_get_serialize(
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -172,6 +182,7 @@ class BlocklistsApi:
     @validate_call
     def api_v1_blocklists_get_without_preload_content(
         self,
+        sort_by: Annotated[Optional[StrictStr], Field(description="field to sort by")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -189,6 +200,8 @@ class BlocklistsApi:
 
         Get available blocklists data
 
+        :param sort_by: field to sort by
+        :type sort_by: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -212,6 +225,7 @@ class BlocklistsApi:
         """ # noqa: E501
 
         _param = self._api_v1_blocklists_get_serialize(
+            sort_by=sort_by,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -233,6 +247,7 @@ class BlocklistsApi:
 
     def _api_v1_blocklists_get_serialize(
         self,
+        sort_by,
         _request_auth,
         _content_type,
         _headers,
@@ -255,6 +270,10 @@ class BlocklistsApi:
 
         # process the path parameters
         # process the query parameters
+        if sort_by is not None:
+            
+            _query_params.append(('sort_by', sort_by))
+            
         # process the header parameters
         # process the form parameters
         # process the body parameter

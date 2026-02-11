@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"net"
 	"strings"
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
@@ -102,6 +103,20 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 		// Support ".example.com" syntax by normalizing to "*.example.com" for validation/storage
 		if strings.HasPrefix(normalized, ".") {
 			normalized = "*" + normalized
+		}
+
+		// When custom_rules_subdomains is "include" (or empty/unset for backwards compat),
+		// auto-prepend "*." to plain FQDN values so subdomains are included.
+		// Skip values that already express subdomain/non-FQDN semantics:
+		//   - wildcards (already contain "*")
+		//   - dot-prefix (".facebook.com" was already normalized to "*.facebook.com" above)
+		//   - IPs (v4/v6)
+		//   - CIDRs ("1.2.3.0/24", "2001:db8::/32" — contain "/")
+		if profile.Settings.Privacy.CustomRulesSubdomainsRule != model.CUSTOM_RULES_SUBDOMAINS_EXACT {
+			if !strings.Contains(normalized, "*") && !strings.Contains(normalized, "/") &&
+				net.ParseIP(normalized) == nil {
+				normalized = "*." + normalized
+			}
 		}
 
 		if _, exists := payloadSeen[normalized]; exists {

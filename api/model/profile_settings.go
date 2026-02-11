@@ -9,20 +9,22 @@ import (
 )
 
 const (
-	ACTION_BLOCK         = "block"
-	ACTION_ALLOW         = "allow"
-	ACTION_COMMENT       = "comment"
-	DEFAULT_RULE_BLOCK   = ACTION_BLOCK
-	DEFAULT_RULE_ALLOW   = ACTION_ALLOW
-	SYNTAX_IPV4          = "ip4_addr"
-	SYNTAX_IPV4_WILDCARD = "ip4_wildcard"
-	SYNTAX_IPV4_CIDR     = "ip4_cidr"
-	SYNTAX_IPV6          = "ip6"
-	SYNTAX_IPV6_WILDCARD = "ip6_wildcard"
-	SYNTAX_IPV6_CIDR     = "ip6_cidr"
-	SYNTAX_FQDN          = "fqdn"
-	SYNTAX_FQDN_WILDCARD = "fqdn_wildcard"
-	SYNTAX_UNKNOWN       = "unknown_syntax"
+	ACTION_BLOCK                    = "block"
+	ACTION_ALLOW                    = "allow"
+	ACTION_COMMENT                  = "comment"
+	DEFAULT_RULE_BLOCK              = ACTION_BLOCK
+	DEFAULT_RULE_ALLOW              = ACTION_ALLOW
+	CUSTOM_RULES_SUBDOMAINS_INCLUDE = "include"
+	CUSTOM_RULES_SUBDOMAINS_EXACT   = "exact"
+	SYNTAX_IPV4                     = "ip4_addr"
+	SYNTAX_IPV4_WILDCARD            = "ip4_wildcard"
+	SYNTAX_IPV4_CIDR                = "ip4_cidr"
+	SYNTAX_IPV6                     = "ip6"
+	SYNTAX_IPV6_WILDCARD            = "ip6_wildcard"
+	SYNTAX_IPV6_CIDR                = "ip6_cidr"
+	SYNTAX_FQDN                     = "fqdn"
+	SYNTAX_FQDN_WILDCARD            = "fqdn_wildcard"
+	SYNTAX_UNKNOWN                  = "unknown_syntax"
 )
 
 var (
@@ -45,9 +47,10 @@ type ProfileSettings struct {
 func NewSettings() *ProfileSettings {
 	return &ProfileSettings{
 		Privacy: &Privacy{
-			Blocklists:     make([]string, 0),
-			DefaultRule:    DEFAULT_RULE_ALLOW,
-			SubdomainsRule: ACTION_BLOCK,
+			Blocklists:                make([]string, 0),
+			DefaultRule:               DEFAULT_RULE_ALLOW,
+			BlocklistsSubdomainsRule:  ACTION_BLOCK,
+			CustomRulesSubdomainsRule: CUSTOM_RULES_SUBDOMAINS_INCLUDE,
 		},
 		Security: &Security{
 			DNSSECSettings: DNSSECSettings{

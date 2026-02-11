@@ -27,19 +27,30 @@ class ModelPrivacy(BaseModel):
     ModelPrivacy
     """ # noqa: E501
     blocklists: Optional[List[StrictStr]] = None
+    blocklists_subdomains_rule: StrictStr
+    custom_rules_subdomains_rule: Optional[StrictStr] = None
     default_rule: StrictStr
-    subdomains_rule: StrictStr
-    __properties: ClassVar[List[str]] = ["blocklists", "default_rule", "subdomains_rule"]
+    __properties: ClassVar[List[str]] = ["blocklists", "blocklists_subdomains_rule", "custom_rules_subdomains_rule", "default_rule"]
 
-    @field_validator('default_rule')
-    def default_rule_validate_enum(cls, value):
+    @field_validator('blocklists_subdomains_rule')
+    def blocklists_subdomains_rule_validate_enum(cls, value):
         """Validates the enum"""
         if value not in set(['block', 'allow']):
             raise ValueError("must be one of enum values ('block', 'allow')")
         return value
 
-    @field_validator('subdomains_rule')
-    def subdomains_rule_validate_enum(cls, value):
+    @field_validator('custom_rules_subdomains_rule')
+    def custom_rules_subdomains_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['include', 'exact']):
+            raise ValueError("must be one of enum values ('include', 'exact')")
+        return value
+
+    @field_validator('default_rule')
+    def default_rule_validate_enum(cls, value):
         """Validates the enum"""
         if value not in set(['block', 'allow']):
             raise ValueError("must be one of enum values ('block', 'allow')")
@@ -97,8 +108,9 @@ class ModelPrivacy(BaseModel):
 
         _obj = cls.model_validate({
             "blocklists": obj.get("blocklists"),
-            "default_rule": obj.get("default_rule"),
-            "subdomains_rule": obj.get("subdomains_rule")
+            "blocklists_subdomains_rule": obj.get("blocklists_subdomains_rule"),
+            "custom_rules_subdomains_rule": obj.get("custom_rules_subdomains_rule"),
+            "default_rule": obj.get("default_rule")
         })
         return _obj
 
