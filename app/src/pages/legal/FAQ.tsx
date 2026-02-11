@@ -228,7 +228,7 @@ export default function FAQ(): JSX.Element {
     const wildcardRules = (
         <div className="space-y-2">
             <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*.ads-example.com</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">.ads-example.com</code> matches <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads-example.com</code> plus any subdomain, such as <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads1.ads-example.com</code> and <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads2.ads-example.com</code>.</p>
-            <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.*</code> matches any top-level domain for that label (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.co.uk</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.us</code>) and their subdomains.</p>
+            <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.*</code> matches any domain starting with that label (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.co.uk</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.us</code>), but does not match subdomains such as <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">www.ads.com</code>.</p>
             <p><code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">*ads*</code> matches any domain that contains that fragment anywhere, including <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">www.ads.com</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">exampleads.com</code>, and <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">cdn.exampleads.net</code>.</p>
             <p>There are two separate subdomain settings in 'Settings':</p>
             <ul className="list-disc pl-5 space-y-1">
@@ -262,20 +262,6 @@ export default function FAQ(): JSX.Element {
             <li>Use <a href="https://www.dnsleaktest.com" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsleaktest.com</code></a> to verify you're using modDNS servers</li>
             <li>Try accessing a test domain that should be blocked</li>
         </ol>
-    );
-
-    const sessionLimitInfo = (
-        <div className="space-y-2">
-            <p>Your account has a maximum of 20 active sessions to ensure security. If you reach this limit when trying to log in, you'll see a session limit dialog.</p>
-            <p><strong>What happens when the session limit is reached:</strong></p>
-            <ul className="list-disc pl-5 space-y-1">
-                <li>A dialog will appear explaining that you've reached the maximum number of active sessions</li>
-                <li>You can choose to "Log out all devices & log in" to automatically remove all other sessions and complete your login</li>
-                <li>This action will log you out from all other browsers and devices, then immediately log you in on the current device</li>
-                <li>Alternatively, you can cancel and manually log out from other devices using the Account preferences page</li>
-            </ul>
-            <p>This feature helps keep your account secure by preventing unlimited concurrent sessions while providing a convenient way to manage them during login.</p>
-        </div>
     );
 
     const whyWebsitesAreNotWorking = (
@@ -346,11 +332,13 @@ export default function FAQ(): JSX.Element {
                 />
                 <FAQItem
                     question="How does modDNS protect my privacy?"
-                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs so you can monitor what's being blocked."
+                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs (default: off) so you can monitor what's being blocked."
                 />
                 <FAQItem
                     question="Do you log my DNS queries?"
-                    answer="Query logging is optional, off by default. When enabled, retention period controlled by you, with logs available for review and download in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our Privacy Policy for more information."
+                    answer={
+                        <p>Query logging is optional, off by default. When enabled, retention period is controlled by you, with logs available for review in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our <a href="/privacy" className="underline text-[var(--tailwind-colors-rdns-600)] dark:text-[var(--tailwind-colors-rdns-400)]">Privacy Policy</a> for more information.</p>
+                    }
                 />
                 <FAQItem
                     question="What DNS protocols do you support?"
@@ -378,10 +366,6 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="What are sessions and what happens if I choose to log out of them?"
                     answer={sessionManagement}
-                />
-                <FAQItem
-                    question="What happens when I reach the session limit during login?"
-                    answer={sessionLimitInfo}
                 />
                 <FAQItem
                     question="How do I delete my account?"
@@ -575,7 +559,7 @@ export default function FAQ(): JSX.Element {
                 <div className="max-w-4xl mx-auto">
                     <div className="mb-6">
                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                            Last updated: January 23, 2026
+                            Last updated: February 11, 2026
                         </p>
                         <div className="flex justify-end">
                             <Button
