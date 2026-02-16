@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -73,6 +74,11 @@ func (s *APIServer) setupMiddlewares() {
 			healthcheck.Config{
 				LivenessEndpoint:  "/health/live",
 				ReadinessEndpoint: "/health/ready",
+				ReadinessProbe: func(c *fiber.Ctx) bool {
+					ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+					defer cancel()
+					return s.Db.GetClient().Ping(ctx, nil) == nil
+				},
 			},
 		),
 	)
