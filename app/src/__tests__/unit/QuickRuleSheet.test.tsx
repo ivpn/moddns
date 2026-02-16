@@ -28,6 +28,7 @@ describe('QuickRuleSheet', () => {
         });
         const input = screen.getByLabelText(/Domain/i, { selector: 'input' }) as HTMLInputElement;
         expect(input.value).toBe('*.logs.example');
+        expect(input).toHaveAttribute('readonly');
     });
 
     test('prefills domain verbatim in exact mode', () => {
@@ -93,6 +94,29 @@ describe('QuickRuleSheet', () => {
         const cancelButton = screen.getByRole('button', { name: 'Cancel' });
         fireEvent.click(cancelButton);
         expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    test('recalculates domain when activeProfile updates while sheet is open', () => {
+        const noop = () => { };
+        const { rerender } = render(<QuickRuleSheet open={false} domain="logs.example" onOpenChange={noop} />);
+        act(() => {
+            rerender(<QuickRuleSheet open domain="logs.example" onOpenChange={noop} />);
+        });
+        const input = screen.getByLabelText(/Domain/i, { selector: 'input' }) as HTMLInputElement;
+        expect(input.value).toBe('*.logs.example');
+
+        // Simulate activeProfile switching to exact mode while sheet is open
+        act(() => {
+            useAppStore.setState({
+                activeProfile: {
+                    profile_id: 'profile-1',
+                    id: 'profile-1',
+                    settings: { privacy: { custom_rules_subdomains_rule: 'exact' } },
+                } as any,
+            });
+        });
+
+        expect(input.value).toBe('logs.example');
     });
 
     test('uses provided defaultAction when opening', () => {

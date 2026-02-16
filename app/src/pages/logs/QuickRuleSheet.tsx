@@ -57,9 +57,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
     const profileDisplayName = activeProfile?.name ?? "current profile";
 
     useEffect(() => {
-        if (!open) {
-            return;
-        }
+        if (!open) return;
         setAction(defaultAction ?? "denylist");
         const subdomainsRule = activeProfile?.settings?.privacy?.custom_rules_subdomains_rule ?? "include";
         setDomainValue(domain ? prefillDomain(domain, subdomainsRule) : "");
@@ -208,12 +206,10 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
                             id="quick-rule-domain"
                             placeholder="example.com"
                             value={domainValue}
-                            onChange={(event) => {
-                                setDomainValue(event.target.value);
-                                setInputError(null);
-                            }}
+                            readOnly
                             onKeyDown={handleDomainKeyDown}
                             autoComplete="off"
+                            className="caret-transparent cursor-default focus-visible:ring-0"
                         />
                         <p className="text-xs text-[var(--tailwind-colors-slate-500)]">
                             Applies to {profileDisplayName}.
