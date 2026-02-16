@@ -17,13 +17,14 @@ func NewAuth(service service.Servicer, cfg *config.APIConfig, filter func(c *fib
 		sessionToken := c.Cookies(auth.AUTH_COOKIE)
 		if sessionToken != "" {
 			session, ok, err := service.GetSession(c.Context(), sessionToken)
-			if err == nil && ok {
+			if err != nil {
+				log.Err(err).Msg("Failed to get session")
+				return c.SendStatus(fiber.StatusServiceUnavailable)
+			}
+			if ok {
 				c.Locals(auth.ACCOUNT_ID, session.AccountID)
 				c.Locals(auth.SESSION_TOKEN, sessionToken)
 				return c.Next()
-			}
-			if err != nil {
-				log.Err(err).Msg("Failed to get session")
 			}
 		}
 
