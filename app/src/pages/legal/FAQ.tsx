@@ -321,7 +321,7 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="Do you log my DNS queries?"
                     answer={
-                        <p>Query logging is optional, off by default. When enabled, retention period is controlled by you, with logs available for review in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our <a href="/privacy" className="underline text-[var(--tailwind-colors-rdns-600)] dark:text-[var(--tailwind-colors-rdns-400)]">Privacy Policy</a> for more information.</p>
+                        <p>Query logging is optional, off by default. When enabled, retention period is controlled by you, with logs available for review in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
                     }
                 />
                 <FAQItem

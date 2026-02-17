@@ -156,7 +156,7 @@ export default function TermsOfService() {
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">Contact Us</h2>
                                         <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
-                                            If you have any questions about these Terms, please contact us at support@modDNS.net.
+                                            If you have any questions about these Terms, please contact us at <a href="mailto:moddns@ivpn.net" className="text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] transition-colors">moddns@ivpn.net</a>.
                                         </p>
                                     </section>
 
