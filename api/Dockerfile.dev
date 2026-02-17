@@ -17,4 +17,5 @@ RUN go mod download
 COPY api/ .
 
 RUN GOOS=linux GOARCH=amd64 go build -o /app/dnsapi -v .
+RUN GOOS=linux GOARCH=amd64 go build -o /bin/healthcheck ./cmd/healthcheck
 CMD ["./dnsapi"]

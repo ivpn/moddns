@@ -13,6 +13,12 @@ services:
       - 3000:3000
     env_file:
       - ./config/api.env
+    healthcheck:
+      test: ["CMD", "/bin/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
 
   dnsproxy:
     build:

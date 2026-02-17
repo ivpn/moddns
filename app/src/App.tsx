@@ -198,7 +198,7 @@ async function rootLoader() {
       return { account: null, profiles: [] };
     }
     console.error('Root loader error (unhandled):', error);
-    throw redirect('/login');
+    return { account: null, profiles: [] };
   }
 }
 
@@ -230,10 +230,6 @@ async function profilesOnlyLoader() {
       profiles,
     };
   } catch (error: any) {
-
-
-
-
     if (error instanceof Response) throw error;
     const status = error?.response?.status ?? error?.status ?? (error instanceof Error && (error as any).status);
     if (status === 401 || status === 404) {
@@ -249,7 +245,7 @@ async function profilesOnlyLoader() {
       return { account: null, profiles: [] };
     }
     console.error('Profiles loader error (unhandled):', error);
-    throw redirect('/login');
+    return { account: null, profiles: [] };
   }
 }
 

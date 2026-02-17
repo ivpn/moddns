@@ -18,10 +18,12 @@ RUN go mod verify
 COPY api/ .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/dnsapi .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
 
 FROM scratch AS run
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /app/db/mongodb/migrations /db/mongodb/migrations
 COPY --from=build /app/dnsapi /bin/dnsapi
+COPY --from=build /app/healthcheck /bin/healthcheck
 ENTRYPOINT ["/bin/dnsapi"]
