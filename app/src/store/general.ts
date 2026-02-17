@@ -17,6 +17,10 @@ interface AppState {
   setConnectionStatusVisible: (isVisible: boolean) => void;
   verificationBannerDismissed: boolean; // persisted dismissal of email verification banner
   setVerificationBannerDismissed: (dismissed: boolean) => void;
+  blocklistsAlertDismissed: boolean; // session-only dismissal (not persisted)
+  setBlocklistsAlertDismissed: (dismissed: boolean) => void;
+  customRulesAlertDismissed: boolean; // session-only dismissal (not persisted)
+  setCustomRulesAlertDismissed: (dismissed: boolean) => void;
   passkeys: ModelCredential[];
   setPasskeys: (passkeys: ModelCredential[]) => void;
 }
@@ -53,6 +57,10 @@ export const useAppStore = create<AppState>()(
       setConnectionStatusVisible: (isVisible) => set({ connectionStatusVisible: isVisible }),
       verificationBannerDismissed: false,
       setVerificationBannerDismissed: (dismissed) => set({ verificationBannerDismissed: dismissed }),
+      blocklistsAlertDismissed: false,
+      setBlocklistsAlertDismissed: (dismissed) => set({ blocklistsAlertDismissed: dismissed }),
+      customRulesAlertDismissed: false,
+      setCustomRulesAlertDismissed: (dismissed) => set({ customRulesAlertDismissed: dismissed }),
       passkeys: [],
       setPasskeys: (passkeys) => set({ passkeys }),
     }),
@@ -62,6 +70,8 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         activeProfile: state.activeProfile,
         verificationBannerDismissed: state.verificationBannerDismissed,
+        blocklistsAlertDismissed: state.blocklistsAlertDismissed,
+        customRulesAlertDismissed: state.customRulesAlertDismissed,
         connectionStatusVisible: state.connectionStatusVisible,
       }),
     }

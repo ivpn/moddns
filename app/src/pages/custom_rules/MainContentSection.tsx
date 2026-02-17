@@ -51,7 +51,8 @@ interface MainContentSectionProps {
 }
 
 export default function MainContentSection({ profiles = [] }: Omit<MainContentSectionProps, "account">): JSX.Element {
-    const [showAlert, setShowAlert] = useState(true);
+    const customRulesAlertDismissed = useAppStore((state) => state.customRulesAlertDismissed);
+    const setCustomRulesAlertDismissed = useAppStore((state) => state.setCustomRulesAlertDismissed);
     const [showSearch, setShowSearch] = useState(false);
     const [activeTab, setActiveTab] = useState<RuleTab>("denylist");
     const [loading, setLoading] = useState(false);
@@ -310,7 +311,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
 
                         {/* Shared AlertCard and input for both tabs */}
                         <section className="w-full pt-4 pb-0">
-                            {showAlert && (
+                            {!customRulesAlertDismissed && (
                                 <AlertCard
                                     description={
                                         <>
@@ -329,7 +330,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                             </div>
                                         </>
                                     }
-                                    onClose={() => setShowAlert(false)}
+                                    onClose={() => setCustomRulesAlertDismissed(true)}
                                 />
                             )}
                         </section>
