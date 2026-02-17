@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	toxiclient "github.com/Shopify/toxiproxy/v2/client"
 	"github.com/ivpn/dns/proxy/model"
+	gocache "github.com/patrickmn/go-cache"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -171,6 +173,21 @@ func BenchmarkGetProfileSettings(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					env.cache.GetProfileSettingsBatch(ctx, benchProfileID)
+				}
+			})
+
+			b.Run("cached", func(b *testing.B) {
+				// Pre-warm the in-memory cache.
+				ps, err := env.cache.GetProfileSettingsBatch(ctx, benchProfileID)
+				require.NoError(b, err)
+				require.Nil(b, ps.PrivacyErr)
+
+				localCache := gocache.New(30*time.Second, time.Minute)
+				localCache.Set(benchProfileID, ps, gocache.DefaultExpiration)
+
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					localCache.Get(benchProfileID)
 				}
 			})
 		})
