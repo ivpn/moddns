@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/proxy/model"
@@ -44,9 +45,10 @@ type SentryConfig struct {
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Name           string
-	DnsCheckDomain string
-	DnsCheckPort   string
+	Name                    string
+	DnsCheckDomain          string
+	DnsCheckPort            string
+	ProfileSettingsCacheTTL time.Duration
 }
 
 // UpstreamConfig represents the upstream configuration
@@ -205,6 +207,16 @@ func New() (*Config, error) {
 		dnsCheckDomain = "test.moddns.net"
 	}
 
+	// Profile settings in-memory cache TTL (default 30s, "0" disables expiration)
+	profileSettingsCacheTTL := 30 * time.Second
+	if v := os.Getenv("PROFILE_SETTINGS_CACHE_TTL"); v != "" {
+		parsed, err := time.ParseDuration(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PROFILE_SETTINGS_CACHE_TTL %q: %w", v, err)
+		}
+		profileSettingsCacheTTL = parsed
+	}
+
 	// Get AdGuard log level (default to "info" if not set or invalid)
 	adguardLogLevel := strings.ToLower(os.Getenv("LOG_LEVEL_ADGUARD"))
 
@@ -215,9 +227,10 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Name:           os.Getenv("SERVER_NAME"),
-			DnsCheckDomain: dnsCheckDomain,
-			DnsCheckPort:   os.Getenv("DNS_CHECK_PORT"),
+			Name:                    os.Getenv("SERVER_NAME"),
+			DnsCheckDomain:          dnsCheckDomain,
+			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
+			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
 		},
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,
