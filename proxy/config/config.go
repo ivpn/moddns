@@ -34,7 +34,7 @@ type Config struct {
 
 // DNSCacheConfig configures the vendor (AdGuard) DNS response cache.
 type DNSCacheConfig struct {
-	Enabled    bool   // DNS_CACHE_ENABLED (default true)
+	Enabled    bool   // DNS_CACHE_ENABLED (default false)
 	Size       int    // DNS_CACHE_SIZE - per-upstream entries (default 256000)
 	SizeBytes  int    // DNS_CACHE_SIZE_BYTES - max bytes (default 0 = unlimited)
 	MinTTL     uint32 // DNS_CACHE_MIN_TTL (default 0)
@@ -226,9 +226,9 @@ func New() (*Config, error) {
 	}
 
 	// DNS response cache (vendor / AdGuard layer)
-	dnsCacheEnabled := true
-	if v := strings.ToLower(strings.TrimSpace(os.Getenv("DNS_CACHE_ENABLED"))); v == "false" || v == "0" {
-		dnsCacheEnabled = false
+	dnsCacheEnabled := false
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("DNS_CACHE_ENABLED"))); v == "true" || v == "1" {
+		dnsCacheEnabled = true
 	}
 	dnsCacheSize := 256000
 	if v := os.Getenv("DNS_CACHE_SIZE"); v != "" {
