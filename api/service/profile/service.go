@@ -25,7 +25,7 @@ import (
 )
 
 // Account-based rate limiting for query logs retrieval.
-const queryLogsRateLimitMax = 60
+const queryLogsRateLimitMax = 120
 const queryLogsRateLimitWindow = time.Minute
 
 type ProfileService struct {

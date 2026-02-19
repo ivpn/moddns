@@ -1740,7 +1740,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogs() {
 				Name:      "Test Profile",
 				Settings:  &model.ProfileSettings{Logs: &model.LogsSettings{Retention: model.RetentionOneDay}},
 			},
-			rateLimitValue: "61", // simulate cache value exceeding Max (60)
+			rateLimitValue: "121", // simulate cache value exceeding Max (120)
 			expectedError:  profile.ErrQueryLogsRateLimited.Error(),
 		},
 	}
