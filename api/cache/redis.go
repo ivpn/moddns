@@ -44,8 +44,8 @@ func (c *RedisCache) Incr(ctx context.Context, key string, expiration time.Durat
 	val := incrCmd.Val()
 	log.Trace().Str("key", key).Int64("value", val).Msg("Cache: incremented value")
 
-	// Set expiration if provided
-	if expiration > 0 {
+	// Set expiration only when the key is first created (val == 1)
+	if expiration > 0 && val == 1 {
 		expireCmd := c.client.Expire(ctx, key, expiration)
 		if err := expireCmd.Err(); err != nil {
 			log.Err(err).Str("key", key).Msg("Cache: failed to set expiration after increment")
