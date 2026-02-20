@@ -470,17 +470,13 @@ function QueryLogsWithLoader() {
 }// LoginWrapper handles login and redirects after success
 function LoginWrapper() {
   const { isAuthenticated } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
-  const from = (location.state as any)?.from?.pathname || "/home";
 
   React.useEffect(() => {
-    // Only redirect if user is authenticated AND they came from another protected page
-    // Don't redirect if they're already on the login page (let Login component handle its own navigation)
-    if (isAuthenticated && location.state?.from) {
+    if (isAuthenticated) {
       navigate("/home", { replace: true });
     }
-  }, [isAuthenticated, navigate, from, location.state]);
+  }, [isAuthenticated, navigate]);
 
   // Always render the Login component to avoid black screen issues
   // The redirect will happen in useEffect when authentication state updates

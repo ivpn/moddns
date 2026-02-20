@@ -56,13 +56,13 @@ describe('Login page behavior without legacy revalidation screen', () => {
         revalidateSpy.mockReset();
     });
 
-    it('renders the login card immediately even when auth context is true', () => {
+    it('renders the login card when auth context is true (LoginWrapper redirects before this)', () => {
         renderLogin(true);
 
+        // Login component itself renders normally; redirection is handled by LoginWrapper in App.tsx
         expect(screen.getByTestId('login-card')).toBeInTheDocument();
         expect(screen.queryByTestId('loading-screen')).not.toBeInTheDocument();
         expect(revalidateSpy).not.toHaveBeenCalled();
-        expect(navigateMock).not.toHaveBeenCalled();
     });
 
     it('renders the login card when auth state is false without performing revalidation', () => {

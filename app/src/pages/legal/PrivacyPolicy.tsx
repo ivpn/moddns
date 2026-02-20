@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
                 <div className="w-full max-w-4xl mx-auto p-8">
                     <div className="mb-6">
                         <Button
-                            onClick={() => navigate('/login')}
+                            onClick={() => navigate(-1)}
                             className="flex items-center gap-2 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] bg-transparent hover:bg-transparent border-none p-0 font-inherit cursor-pointer"
                         >
                             <ArrowLeft className="h-4 w-4" />
