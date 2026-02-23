@@ -6,8 +6,8 @@ import { expectNoHorizontalOverflow } from '../utils/layoutAssertions';
 // Runs only on explicitly mobile projects (chromium-mobile, iphone15pro) to keep suite lean.
 // Covers both public and protected routes + key interactions that could introduce overflow.
 
-const PUBLIC_ROUTES = ['/login','/signup','/reset-password','/tos','/privacy'];
-const PROTECTED_ROUTES = ['/home','/setup','/settings','/blocklists','/custom-rules','/account-preferences','/mobileconfig','/query-logs','/faq'];
+const PUBLIC_ROUTES = ['/login','/signup','/reset-password','/tos','/privacy','/faq'];
+const PROTECTED_ROUTES = ['/home','/setup','/settings','/blocklists','/custom-rules','/account-preferences','/mobileconfig','/query-logs'];
 
 // Interactions per route to surface latent overflow after dynamic UI changes.
 async function performRouteInteractions(route: string, page: any) {

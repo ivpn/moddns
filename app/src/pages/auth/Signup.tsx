@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/App";
 
 const isUUIDv4 = (id: string): boolean => {
     const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
@@ -16,9 +17,16 @@ import NotFound from "@/pages/NotFound";
 export default function Signup() {
     const navigate = useNavigate();
     const { subid } = useParams();
+    const { isAuthenticated } = useAuth();
     const validSubId = (subid && isUUIDv4(subid));
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate("/home", { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     if (!validSubId) {
         // Missing or invalid subscription id -> 404

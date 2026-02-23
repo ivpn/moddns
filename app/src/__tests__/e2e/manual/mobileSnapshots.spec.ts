@@ -12,6 +12,7 @@ const ROUTES = [
   // Public (still useful to snapshot their appearance)
   '/login',
   '/signup',
+  '/faq',
   // Protected
   '/home',
   '/setup',
@@ -21,7 +22,6 @@ const ROUTES = [
   '/account-preferences',
   '/mobileconfig',
   '/query-logs',
-  '/faq'
 ];
 
 const PROTECTED_PREFIXES = [
@@ -33,7 +33,6 @@ const PROTECTED_PREFIXES = [
   '/account-preferences',
   '/mobileconfig',
   '/query-logs',
-  '/faq'
 ];
 
 

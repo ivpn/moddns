@@ -11,7 +11,6 @@ const routes = [
   '/account-preferences',
   '/mobileconfig',
   '/query-logs',
-  '/faq'
 ];
 
 // All routes are now checked strictly for horizontal overflow

@@ -102,11 +102,9 @@ const FAQ_LAST_UPDATED = 'February 11, 2026';
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
+    const hasHistory = location.key !== "default";
     const [toggleSignal, setToggleSignal] = useState(0);
     const [toggleState, setToggleState] = useState(false);
-
-    // Check if we're in the protected route (logged-in) vs standalone route
-    const isProtectedRoute = location.pathname === '/faq';
 
     const toggleAllFAQs = () => {
         setToggleState(!toggleState);
@@ -532,48 +530,21 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
-    if (isProtectedRoute) {
-        // Logged-in layout (within ProtectedLayout)
-        return (
-            <div className="p-6 pt-12">
-                <div className="max-w-4xl mx-auto">
-                    <div className="mb-6">
-                        <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                            Last updated: {FAQ_LAST_UPDATED}
-                        </p>
-                        <div className="flex justify-end">
-                            <Button
-                                onClick={toggleAllFAQs}
-                                variant="outline"
-                                className="text-sm"
-                            >
-                                {toggleState ? 'Collapse All' : 'Expand All'}
-                            </Button>
-                        </div>
-                    </div>
-
-                    <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
-                        {renderFAQContent()}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Standalone layout (not logged in)
     return (
         <div className="relative min-h-screen w-full overflow-x-hidden bg-[var(--shadcn-ui-app-background)]">
             <div className="relative z-10 py-8">
                 <div className="w-full max-w-4xl mx-auto p-8">
-                    <div className="mb-6">
-                        <Button
-                            onClick={() => navigate('/login')}
-                            className="flex items-center gap-2 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] bg-transparent hover:bg-transparent border-none p-0 font-inherit cursor-pointer"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
-                        </Button>
-                    </div>
+                    {hasHistory && (
+                        <div className="mb-6">
+                            <Button
+                                onClick={() => navigate(-1)}
+                                className="flex items-center gap-2 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] bg-transparent hover:bg-transparent border-none p-0 font-inherit cursor-pointer"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Back
+                            </Button>
+                        </div>
+                    )}
 
                     <Card className="bg-[var(--shadcn-ui-app-popover)] border-[var(--shadcn-ui-app-border)]">
                         <CardContent className="p-8">
@@ -609,7 +580,7 @@ export default function FAQ(): JSX.Element {
                         </CardContent>
                     </Card>
                 </div>
-                <AuthFooter variant="relative" />
+                <AuthFooter variant="relative" openInNewTab={false} />
             </div>
         </div>
     );

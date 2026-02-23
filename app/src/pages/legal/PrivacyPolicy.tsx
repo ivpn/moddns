@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
@@ -7,20 +7,24 @@ import AuthFooter from "@/components/auth/AuthFooter";
 
 export default function PrivacyPolicy() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const hasHistory = location.key !== "default";
 
     return (
         <div className="relative min-h-screen w-full overflow-x-hidden bg-[var(--shadcn-ui-app-background)]">
             <div className="relative z-10 py-8">
                 <div className="w-full max-w-4xl mx-auto p-8">
-                    <div className="mb-6">
-                        <Button
-                            onClick={() => navigate('/login')}
-                            className="flex items-center gap-2 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] bg-transparent hover:bg-transparent border-none p-0 font-inherit cursor-pointer"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                            Back
-                        </Button>
-                    </div>
+                    {hasHistory && (
+                        <div className="mb-6">
+                            <Button
+                                onClick={() => navigate(-1)}
+                                className="flex items-center gap-2 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] bg-transparent hover:bg-transparent border-none p-0 font-inherit cursor-pointer"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Back
+                            </Button>
+                        </div>
+                    )}
 
                     <Card className="bg-[var(--shadcn-ui-app-popover)] border-[var(--shadcn-ui-app-border)]">
                         <CardContent className="p-8">
@@ -150,7 +154,7 @@ export default function PrivacyPolicy() {
                     </Card>
                 </div>
 
-                <AuthFooter variant="relative" />
+                <AuthFooter variant="relative" openInNewTab={false} />
             </div>
         </div>
     );
