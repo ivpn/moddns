@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p.startsWith('/signup/') ||
     p === '/tos' ||
     p === '/privacy' ||
-    p === '/standalone-faq' ||
+    p === '/faq' ||
     p === '/reset-password' ||
     p.startsWith('/reset-password/') ||
     p.startsWith('/verify/email/') ||
@@ -333,8 +333,6 @@ function ProtectedLayout() {
         return 'Account preferences';
       case '/mobileconfig':
         return 'Mobile configuration';
-      case '/faq':
-        return 'FAQ';
       default:
         if (location.pathname.startsWith('/setup/')) return 'DNS Setup';
         if (location.pathname.startsWith('/blocklists/')) return 'Blocklists';
@@ -522,7 +520,7 @@ const router = createBrowserRouter([
           { path: "signup/:subid", element: <Signup /> },
           { path: "tos", element: <TermsOfService /> },
           { path: "privacy", element: <PrivacyPolicy /> },
-          { path: "standalone-faq", element: <FAQ /> },
+          { path: "faq", element: <FAQ /> },
           { path: "reset-password", element: <PasswordReset /> },
           { path: "reset-password/:token", element: <PasswordResetConfirm /> },
           { path: "short/:code", element: <MobileconfigDownload /> },
@@ -543,7 +541,6 @@ const router = createBrowserRouter([
           { loader: rootLoader, path: "account-preferences", element: <AccountPreferencesWithLoader /> },
           { loader: rootLoader, path: "mobileconfig", element: <MobileconfigWithLoader /> },
           { loader: rootLoader, path: "query-logs", element: <QueryLogsWithLoader /> },
-          { path: "faq", element: <FAQ /> },
         ],
       },
 
