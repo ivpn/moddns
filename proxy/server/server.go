@@ -107,9 +107,9 @@ func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.
 			reqCtx.Logger.Err(err).Msg("IP Filtering error")
 		}
 	}
+	s.respond(reqCtx, dctx)
 	go s.EmitQueryLog(reqCtx, dctx)
 	go s.EmitStatistics(reqCtx, dctx)
-	s.respond(reqCtx, dctx)
 }
 
 func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
@@ -263,11 +263,9 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 				reqLogger.Trace().Str("cached_upstream", dctx.CachedUpstreamAddr).Msg("Cache hit — running postResolve")
 				s.postResolve(reqCtx, dctx)
 			}
-		} else {
-			if s.Proxy.ResponseHandler != nil {
-				reqLogger.Trace().Msg("Going to response handler")
-				s.Proxy.ResponseHandler(dctx, err)
-			}
+		} else if s.Proxy.ResponseHandler != nil {
+			reqLogger.Trace().Msg("Going to response handler")
+			s.Proxy.ResponseHandler(dctx, err)
 		}
 
 		return nil
@@ -287,7 +285,7 @@ func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSC
 
 	if reqCtx.FilterResult.Status == model.StatusBlocked {
 		dctx.Res = dctx.Req
-		dctx.Res.MsgHdr.Response = true // Set QR flag to indicate this is a response
+		dctx.Res.Response = true // Set QR flag to indicate this is a response
 		q := dctx.Req.Question[0].Name
 		fakeRR, err := dns.NewRR(fmt.Sprintf(emptyResourceRecord, q))
 		if err != nil {
