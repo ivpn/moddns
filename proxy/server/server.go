@@ -17,10 +17,12 @@ import (
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
 	"github.com/ivpn/dns/proxy/internal/asnlookup"
+	"github.com/ivpn/dns/proxy/internal/ratelimit"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
 	gocache "github.com/patrickmn/go-cache"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,6 +47,7 @@ type Server struct {
 	ProfileSettingsCache *gocache.Cache
 	CollectorChannels    map[string]channel.CollectorChannel
 	LoggerFactory        logging.FactoryInterface
+	RateLimiter          *ratelimit.RateLimiter
 }
 
 var _ RequestManager = (*Server)(nil)
@@ -52,6 +55,8 @@ var _ RequestManager = (*Server)(nil)
 var (
 	errProfileIdNotProvided = errors.New("profile_id not provided")
 	errProfileIdNotFound    = errors.New("profile_id not found")
+	errRateLimitedIP        = errors.New("rate limited by IP")
+	errRateLimitedProfile   = errors.New("rate limited by profile")
 )
 
 func NewServer(serverConfig *config.Config, collectorChannels map[string]channel.CollectorChannel) (*Server, error) {
@@ -71,6 +76,14 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	// In-memory profile settings cache to avoid Redis round-trips for warm profiles.
 	profileSettingsCache := gocache.New(serverConfig.Server.ProfileSettingsCacheTTL, 2*serverConfig.Server.ProfileSettingsCacheTTL)
 
+	rl := ratelimit.New(ratelimit.Config{
+		Enabled:         serverConfig.RateLimit.Enabled,
+		PerIPRate:       serverConfig.RateLimit.PerIPRate,
+		PerIPBurst:      serverConfig.RateLimit.PerIPBurst,
+		PerProfileRate:  serverConfig.RateLimit.PerProfileRate,
+		PerProfileBurst: serverConfig.RateLimit.PerProfileBurst,
+	}, prometheus.DefaultRegisterer)
+
 	server := &Server{
 		Config:               serverConfig,
 		Cache:                cache,
@@ -79,6 +92,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		CollectorChannels:    collectorChannels,
 		Upstreams:            make(map[string]*proxy.CustomUpstreamConfig, 0),
 		LoggerFactory:        loggerFactory,
+		RateLimiter:          rl,
 	}
 
 	dnsProxy, err := server.newProxy(ProxyTypeAdguard, serverConfig)
@@ -121,6 +135,11 @@ func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.
 func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
 	defer sentry.Recover()
 
+	// Layer 1: per-IP rate limit (before any IO or profile extraction).
+	if !s.RateLimiter.CheckIP(dctx.Addr.Addr(), string(dctx.Proto)) {
+		return errRateLimitedIP
+	}
+
 	profileId, deviceId, err := s.clientIDFromDNSContext(dctx)
 	if err != nil {
 		return fmt.Errorf("getting profile_id: %w", err)
@@ -135,6 +154,11 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		systemLogger.Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return errProfileIdNotProvided
 	} else {
+		// Layer 2: per-profile rate limit (after profile extraction, before Redis).
+		if !s.RateLimiter.CheckProfile(profileId, string(dctx.Proto)) {
+			return errRateLimitedProfile
+		}
+
 		// Try in-memory profile settings cache first.
 		var settings *model.ProfileSettings
 		if cached, ok := s.ProfileSettingsCache.Get(profileId); ok {

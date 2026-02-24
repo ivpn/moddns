@@ -28,6 +28,7 @@ type Config struct {
 	DoQ                 *DoQConfig
 	Sentry              *SentryConfig
 	Log                 *LogConfig
+	RateLimit           *RateLimitConfig
 	TrustedProxies      []string
 	ProfileIDMinLength  int
 }
@@ -40,6 +41,16 @@ type DNSCacheConfig struct {
 	MinTTL     uint32 // DNS_CACHE_MIN_TTL (default 0)
 	MaxTTL     uint32 // DNS_CACHE_MAX_TTL (default 0 = no cap)
 	Optimistic bool   // DNS_CACHE_OPTIMISTIC (default false)
+}
+
+// RateLimitConfig holds rate limiter settings.
+type RateLimitConfig struct {
+	Enabled         bool
+	PerIPRate       int
+	PerIPBurst      int
+	PerProfileRate  int
+	PerProfileBurst int
+	MetricsPort     int
 }
 
 // LogConfig represents the logging configuration
@@ -296,6 +307,8 @@ func New() (*Config, error) {
 
 	cacheAddrs := strings.Split(os.Getenv("CACHE_ADDRESSES"), ",")
 
+	rlCfg := loadRateLimitConfig()
+
 	return &Config{
 		Server: &ServerConfig{
 			Name:                    os.Getenv("SERVER_NAME"),
@@ -358,5 +371,33 @@ func New() (*Config, error) {
 			AdGuardLogLevel: adguardLogLevel,
 			ZerologLevel:    zerologLevel,
 		},
+		RateLimit: rlCfg,
 	}, nil
+}
+
+func loadRateLimitConfig() *RateLimitConfig {
+	cfg := &RateLimitConfig{
+		Enabled:         os.Getenv("RATELIMIT_ENABLED") == "true",
+		PerIPRate:       100,
+		PerIPBurst:      200,
+		PerProfileRate:  300,
+		PerProfileBurst: 500,
+		MetricsPort:     9153,
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_IP")); err == nil && v > 0 {
+		cfg.PerIPRate = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_IP_BURST")); err == nil && v > 0 {
+		cfg.PerIPBurst = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_PROFILE")); err == nil && v > 0 {
+		cfg.PerProfileRate = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_PROFILE_BURST")); err == nil && v > 0 {
+		cfg.PerProfileBurst = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("METRICS_PORT")); err == nil && v >= 0 {
+		cfg.MetricsPort = v
+	}
+	return cfg
 }
