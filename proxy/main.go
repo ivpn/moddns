@@ -15,6 +15,7 @@ import (
 	"github.com/ivpn/dns/proxy/collector/channel"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/emitter"
+	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/server"
 	"github.com/ivpn/dns/proxy/utils"
@@ -83,7 +84,7 @@ func main() {
 	}
 
 	defer func() {
-		shutdown(nil, emitterI, sentryWriter)
+		shutdown(nil, emitterI, sentryWriter, nil)
 	}()
 
 	quit := make(chan struct{})
@@ -129,6 +130,16 @@ func main() {
 		_ = statsCollector.Collect()
 	})
 
+	var metricsServer *metrics.Server
+	if serverConfig.RateLimit.MetricsPort > 0 {
+		metricsServer = metrics.New(serverConfig.RateLimit.MetricsPort)
+		go safelyRun(func() {
+			if err := metricsServer.Start(); err != nil {
+				log.Error().Err(err).Msg("Metrics server error")
+			}
+		})
+	}
+
 	go safelyRun(func() {
 		ctx := context.Background()
 		if err := server.Proxy.Start(ctx); err != nil {
@@ -140,7 +151,7 @@ func main() {
 	signal.Notify(signals, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	<-signals
 	close(quit)
-	shutdown(server, emitterI, sentryWriter)
+	shutdown(server, emitterI, sentryWriter, metricsServer)
 }
 
 // safelyRun wraps each goroutine with panic recovery to ensure the application continues even if a panic occurs
@@ -162,10 +173,16 @@ func safelyRun(fn func()) {
 	}()
 }
 
-func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sentryzerolog.Writer) {
+func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sentryzerolog.Writer, metricsServer *metrics.Server) {
 	log.Info().Msg("Shutting down server")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	if metricsServer != nil {
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			log.Warn().Err(err).Msg("Failed to shutdown metrics server")
+		}
+	}
 
 	if server != nil {
 		if err := server.Proxy.Shutdown(ctx); err != nil {
