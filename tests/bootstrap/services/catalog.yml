@@ -1,0 +1,27 @@
+# Services catalog for integration tests.
+# Copied from bootstrap/services/catalog.yml — keep in sync.
+#
+# Test infrastructure:
+#   - svctest-google.com → 8.8.8.8 (AS15169, Google) via testhosts.txt
+#   - test.com → 104.18.74.230 (AS13335, Cloudflare, NOT in catalog)
+services:
+  - id: google
+    name: Google
+    logo_key: google
+    asns: [15169, 1026, 6432, 11344, 13949, 16550, 16591, 17346, 19425, 19448, 19527, 22577, 22859, 24424]
+  - id: amazon
+    name: Amazon
+    logo_key: amazon
+    asns: [16509, 14618]
+  - id: meta
+    name: Meta (Facebook)
+    logo_key: meta
+    asns: [32934]
+  - id: apple
+    name: Apple
+    logo_key: apple
+    asns: [714]
+  - id: microsoft
+    name: Microsoft
+    logo_key: microsoft
+    asns: [8075]

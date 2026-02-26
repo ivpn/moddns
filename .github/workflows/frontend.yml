@@ -8,12 +8,12 @@ on:
         required: false
         default: 'manual trigger'
   push:
-    branches: ["main", "staging"]
+    branches: ["main", "develop"]
     paths:
       - 'app/**'
       - '.github/workflows/frontend.yml'
   pull_request:
-    branches: ["main", "staging"]
+    branches: ["main", "develop"]
     paths:
       - 'app/**'
       - '.github/workflows/frontend.yml'

@@ -2,3 +2,5 @@
 # dnscheck    test.moddns.net
 104.18.74.230 test.com
 212.77.99.7 ads.wp.pl
+# Services/ASN blocking tests — 8.8.8.8 is always AS15169 (Google) in GeoIP.
+8.8.8.8 svctest-google.com

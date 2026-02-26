@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +25,7 @@ func setupTestData(size int) ([]string, map[string]map[string]string) {
 		rulesMap[hash] = map[string]string{
 			"value":  fmt.Sprintf("domain%d.com", i),
 			"action": ACTION_BLOCK,
+			"syntax": "domain",
 		}
 	}
 
@@ -66,10 +69,10 @@ func BenchmarkFilterCustomRules(b *testing.B) {
 			dnsCtx := &proxy.DNSContext{
 				Req: msg,
 			}
+			loggerFactory := logging.NewFactory(zerolog.Disabled)
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId: "test-profile",
-				// DnsCtx:    dnsCtx,
-				// Proxy: &proxy.Proxy{},
+				Logger:    loggerFactory.ForProfile("test-profile", true),
 			}
 
 			// Reset timer and run benchmark

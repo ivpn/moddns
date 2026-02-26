@@ -16,6 +16,7 @@ type Config struct {
 	Server              *ServerConfig
 	Services            *ServicesConfig
 	Cache               *cache.Config
+	DNSCache            *DNSCacheConfig
 	CollectorQueryLogs  CollectorConfig
 	CollectorStatistics CollectorConfig
 	Emitter             *EmitterConfig
@@ -29,6 +30,16 @@ type Config struct {
 	Log                 *LogConfig
 	TrustedProxies      []string
 	ProfileIDMinLength  int
+}
+
+// DNSCacheConfig configures the vendor (AdGuard) DNS response cache.
+type DNSCacheConfig struct {
+	Enabled    bool   // DNS_CACHE_ENABLED (default false)
+	Size       int    // DNS_CACHE_SIZE - per-upstream entries (default 256000)
+	SizeBytes  int    // DNS_CACHE_SIZE_BYTES - max bytes (default 0 = unlimited)
+	MinTTL     uint32 // DNS_CACHE_MIN_TTL (default 0)
+	MaxTTL     uint32 // DNS_CACHE_MAX_TTL (default 0 = no cap)
+	Optimistic bool   // DNS_CACHE_OPTIMISTIC (default false)
 }
 
 // LogConfig represents the logging configuration
@@ -214,6 +225,40 @@ func New() (*Config, error) {
 		dnsCheckDomain = "test.moddns.net"
 	}
 
+	// DNS response cache (vendor / AdGuard layer)
+	dnsCacheEnabled := false
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("DNS_CACHE_ENABLED"))); v == "true" || v == "1" {
+		dnsCacheEnabled = true
+	}
+	dnsCacheSize := 256000
+	if v := os.Getenv("DNS_CACHE_SIZE"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 {
+			dnsCacheSize = parsed
+		}
+	}
+	dnsCacheSizeBytes := 0
+	if v := os.Getenv("DNS_CACHE_SIZE_BYTES"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil && parsed >= 0 {
+			dnsCacheSizeBytes = parsed
+		}
+	}
+	var dnsCacheMinTTL uint32
+	if v := os.Getenv("DNS_CACHE_MIN_TTL"); v != "" {
+		if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
+			dnsCacheMinTTL = uint32(parsed)
+		}
+	}
+	var dnsCacheMaxTTL uint32
+	if v := os.Getenv("DNS_CACHE_MAX_TTL"); v != "" {
+		if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
+			dnsCacheMaxTTL = uint32(parsed)
+		}
+	}
+	dnsCacheOptimistic := false
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("DNS_CACHE_OPTIMISTIC"))); v == "true" || v == "1" {
+		dnsCacheOptimistic = true
+	}
+
 	// Get AdGuard log level (default to "info" if not set or invalid)
 	adguardLogLevel := strings.ToLower(os.Getenv("LOG_LEVEL_ADGUARD"))
 
@@ -247,6 +292,14 @@ func New() (*Config, error) {
 			CatalogPath:        servicesCatalogPath,
 			CatalogReloadEvery: servicesCatalogReloadEvery,
 			GeoIPASNDBPath:     geoIPASNDBPath,
+		},
+		DNSCache: &DNSCacheConfig{
+			Enabled:    dnsCacheEnabled,
+			Size:       dnsCacheSize,
+			SizeBytes:  dnsCacheSizeBytes,
+			MinTTL:     dnsCacheMinTTL,
+			MaxTTL:     dnsCacheMaxTTL,
+			Optimistic: dnsCacheOptimistic,
 		},
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,

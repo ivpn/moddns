@@ -99,6 +99,19 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	return server, nil
 }
 
+// postResolve runs IP filtering, emits query logs/statistics, and responds.
+// Called from ResponseHandler (cache miss) and RequestHandler (cache hit).
+func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
+	if reqCtx.FilterResult.Status != model.StatusBlocked {
+		if err := s.IPFilter.Execute(reqCtx, dctx); err != nil {
+			reqCtx.Logger.Err(err).Msg("IP Filtering error")
+		}
+	}
+	s.respond(reqCtx, dctx)
+	go s.EmitQueryLog(reqCtx, dctx)
+	go s.EmitStatistics(reqCtx, dctx)
+}
+
 func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
 	defer sentry.Recover()
 
@@ -115,7 +128,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		// drop DNS request if profile_id is not provided
 		systemLogger.Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return errProfileIdNotProvided
-	} else {
+	} else { //nolint:revive // keeping else branch for clarity
 		// check if profile id exists in cache; drop DNS request if not
 		prvSettings, err := s.Cache.GetProfilePrivacySettings(context.Background(), profileId)
 		if err != nil {
@@ -244,11 +257,15 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 			if err := s.Proxy.Resolve(dctx); err != nil {
 				reqLogger.Err(err).Msg("DNS resolving error")
 			}
-		} else {
-			if s.Proxy.ResponseHandler != nil {
-				reqLogger.Trace().Msg("Going to response handler")
-				s.Proxy.ResponseHandler(dctx, err)
+			// For cache hits, ResponseHandler is skipped by the vendor.
+			// Run IP filtering, emit logs/stats, and respond manually.
+			if dctx.CachedUpstreamAddr != "" {
+				reqLogger.Trace().Str("cached_upstream", dctx.CachedUpstreamAddr).Msg("Cache hit — running postResolve")
+				s.postResolve(reqCtx, dctx)
 			}
+		} else if s.Proxy.ResponseHandler != nil {
+			reqLogger.Trace().Msg("Going to response handler")
+			s.Proxy.ResponseHandler(dctx, err)
 		}
 
 		return nil
@@ -268,7 +285,7 @@ func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSC
 
 	if reqCtx.FilterResult.Status == model.StatusBlocked {
 		dctx.Res = dctx.Req
-		dctx.Res.MsgHdr.Response = true // Set QR flag to indicate this is a response
+		dctx.Res.Response = true // Set QR flag to indicate this is a response
 		q := dctx.Req.Question[0].Name
 		fakeRR, err := dns.NewRR(fmt.Sprintf(emptyResourceRecord, q))
 		if err != nil {
@@ -301,16 +318,9 @@ func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
 
 		// Only continue if we have a valid request context
 		if ctxErr == nil {
-			// perform filtering actions
-			if err = s.IPFilter.Execute(reqCtx, dctx); err != nil {
-				logger.Err(err).Msg("IP Filtering error")
-			}
-
-			go s.EmitQueryLog(reqCtx, dctx)
-			go s.EmitStatistics(reqCtx, dctx)
-
-			s.respond(reqCtx, dctx)
+			s.postResolve(reqCtx, dctx)
 		}
+
 	}
 }
 

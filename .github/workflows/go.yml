@@ -39,7 +39,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: ["main", "staging"]
+    branches: ["main", "develop"]
     # Trigger evaluation when any service or this workflow file changes.
     paths:
       - 'api/**'
@@ -49,7 +49,7 @@ on:
       - 'dnscheck/**'
       - '.github/workflows/go.yml'
   pull_request:
-    branches: ["main", "staging"]
+    branches: ["main", "develop"]
     paths:
       - 'api/**'
       - 'libs/**'

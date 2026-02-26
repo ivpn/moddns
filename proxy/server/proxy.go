@@ -72,7 +72,9 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 				ups,
 			},
 		}
-		customUpstreamConfig := proxy.NewCustomUpstreamConfig(upCfg, false, 1, false)
+		customUpstreamConfig := proxy.NewCustomUpstreamConfig(
+			upCfg, serverConfig.DNSCache.Enabled, serverConfig.DNSCache.Size, false,
+		)
 		s.Upstreams[name] = customUpstreamConfig
 
 		log.Info().Str("upstream", serverConfig.Upstream.Default).Msg("Proxy upstream settings")
@@ -112,9 +114,15 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		ResponseHandler:      s.ResponseHandler(),
 		TLSConfig:            tlsConfig,
 		TrustedProxies:       netutil.SliceSubnetSet(trustedPrefixes),
-		// CacheEnabled:         true,
-		// Note: Cache is disabled for now because IP filtering is not working with cache (filtering does not work at all when cache serves the responses)
-		Ratelimit: 0,
+		Ratelimit:            0,
+	}
+
+	if serverConfig.DNSCache.Enabled {
+		conf.CacheEnabled = true
+		conf.CacheSizeBytes = serverConfig.DNSCache.SizeBytes
+		conf.CacheMinTTL = serverConfig.DNSCache.MinTTL
+		conf.CacheMaxTTL = serverConfig.DNSCache.MaxTTL
+		conf.CacheOptimistic = serverConfig.DNSCache.Optimistic
 	}
 
 	if serverConfig.PlainDNS.UDPListenAddr != 0 {

@@ -13,7 +13,7 @@ services:
       - 3000:3000
     volumes:
       - ./bootstrap/services:/opt/services:ro
-      - ../bootstrap/GeoLite2-ASN/:/opt/geo:ro
+      - ./bootstrap/geolite/:/opt/geo:ro
     env_file:
       - ./config/api.env
 
@@ -38,7 +38,7 @@ services:
     volumes:
       - ../certs:/certs
       - ./bootstrap/services:/opt/services:ro
-      - ../bootstrap/GeoLite2-ASN/:/opt/geo:ro
+      - ./bootstrap/geolite/:/opt/geo:ro
     env_file:
       - ./config/proxy.env
 
@@ -58,8 +58,8 @@ services:
       - "30000:53/tcp"
     volumes:
       - ../dnscheck:/app
-      - ../bootstrap/GeoLite2-ASN/:/opt/dnscheck/GeoIP
-      - ../bootstrap/GeoLite2-City/:/opt/dnscheck/GeoIPCity
+      - ./bootstrap/geolite/:/opt/dnscheck/GeoIP
+      - ./bootstrap/geolite/:/opt/dnscheck/GeoIPCity
     env_file:
       - ./config/dnscheck.env
 

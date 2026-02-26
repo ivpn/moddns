@@ -1,5 +1,5 @@
 /* tslint:disable */
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * modDNS REST API
  * modDNS REST API

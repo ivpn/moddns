@@ -45,6 +45,27 @@ def ensure_test_blocklisted():
         r.srem(key, TEST_DOMAIN)
 
 
+@pytest.fixture
+def ensure_domain_blocklisted():
+    """Insert an arbitrary domain into the test blocklist.
+
+    Usage: ``@pytest.mark.parametrize`` the ``blocklist_domain`` parameter,
+    then request this fixture.  The domain is removed on teardown.
+    """
+    _inserted = []
+    r = redis.Redis(host="localhost", port=6379, db=0)
+    key = f"blocklist:{TEST_BLOCKLIST_ID}"
+
+    def _insert(domain: str):
+        r.sadd(key, domain)
+        _inserted.append(domain)
+
+    yield _insert
+
+    for d in _inserted:
+        r.srem(key, d)
+
+
 # TODO: class scope can be troublesome, investigate usage and change if necessary
 @pytest.fixture(scope="class")
 def create_account_and_login():

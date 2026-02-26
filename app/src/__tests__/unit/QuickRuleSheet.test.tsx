@@ -36,7 +36,7 @@ describe('QuickRuleSheet', () => {
                 profile_id: 'profile-1',
                 id: 'profile-1',
                 settings: { privacy: { custom_rules_subdomains_rule: 'exact' } },
-            } as any,
+            } as unknown as ReturnType<typeof useAppStore.getState>['activeProfile'],
         });
         const noop = () => { };
         const { rerender } = render(<QuickRuleSheet open={false} domain="ads.google.com" onOpenChange={noop} />);
@@ -53,7 +53,7 @@ describe('QuickRuleSheet', () => {
                 profile_id: 'profile-1',
                 id: 'profile-1',
                 settings: { privacy: { custom_rules_subdomains_rule: 'include' } },
-            } as any,
+            } as unknown as ReturnType<typeof useAppStore.getState>['activeProfile'],
         });
         const noop = () => { };
         const { rerender } = render(<QuickRuleSheet open={false} domain="www.google.com" onOpenChange={noop} />);
@@ -70,7 +70,7 @@ describe('QuickRuleSheet', () => {
                 profile_id: 'profile-1',
                 id: 'profile-1',
                 settings: { privacy: { custom_rules_subdomains_rule: 'exact' } },
-            } as any,
+            } as unknown as ReturnType<typeof useAppStore.getState>['activeProfile'],
         });
         const noop = () => { };
         const { rerender } = render(<QuickRuleSheet open={false} domain="www.google.com" onOpenChange={noop} />);
