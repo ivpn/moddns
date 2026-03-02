@@ -5,7 +5,6 @@ import (
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/time/rate"
@@ -13,9 +12,9 @@ import (
 
 // Config holds rate limiter settings.
 type Config struct {
-	PerIPEnabled    bool
-	PerIPRate       int
-	PerIPBurst      int
+	PerIPEnabled      bool
+	PerIPRate         int
+	PerIPBurst        int
 	PerProfileEnabled bool
 	PerProfileRate    int
 	PerProfileBurst   int
@@ -26,7 +25,7 @@ type RateLimiter struct {
 	cfg            Config
 	ipBuckets      *gocache.Cache
 	profileBuckets *gocache.Cache
-	rejected       *prometheus.CounterVec
+	metrics        Metrics
 	sampledLogger  zerolog.Logger
 }
 
@@ -37,29 +36,22 @@ const (
 	layerProfile  = "profile"
 )
 
-// New creates a RateLimiter. Pass nil for reg to skip Prometheus registration.
-func New(cfg Config, reg prometheus.Registerer) *RateLimiter {
-	rl := &RateLimiter{
+// New creates a RateLimiter. Pass nil for m to disable metrics recording.
+func New(cfg Config, m Metrics) *RateLimiter {
+	if m == nil {
+		m = noopMetrics{}
+	}
+	return &RateLimiter{
 		cfg:            cfg,
 		ipBuckets:      gocache.New(bucketExpiry, bucketCleanup),
 		profileBuckets: gocache.New(bucketExpiry, bucketCleanup),
+		metrics:        m,
 		sampledLogger: log.Logger.Sample(&zerolog.BurstSampler{
 			Burst:       5,
 			Period:      10 * time.Second,
 			NextSampler: &zerolog.BasicSampler{N: 100},
 		}),
 	}
-
-	rl.rejected = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "dns_ratelimited_total",
-		Help: "Total number of DNS queries rejected by the rate limiter.",
-	}, []string{"layer", "proto"})
-
-	if reg != nil {
-		reg.MustRegister(rl.rejected)
-	}
-
-	return rl
 }
 
 // CheckIP returns true if the query from addr should be allowed (Layer 1).
@@ -85,7 +77,7 @@ func (rl *RateLimiter) check(store *gocache.Cache, key string, rps, burst int, l
 		if limiter.Allow() {
 			return true
 		}
-		rl.rejected.WithLabelValues(layer, proto).Inc()
+		rl.metrics.RecordRejection(layer, proto)
 		rl.sampledLogger.Warn().Str("layer", layer).Str("key", key).Str("proto", proto).Msg("rate limited")
 		return false
 	}

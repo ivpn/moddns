@@ -52,13 +52,13 @@ const (
 
 // RateLimitConfig holds rate limiter settings.
 type RateLimitConfig struct {
-	PerIPEnabled      bool
-	PerIPRate         int
-	PerIPBurst        int
-	PerIPResponse     string // "drop" (default) or "refuse"
-	PerProfileEnabled bool
-	PerProfileRate    int
-	PerProfileBurst   int
+	PerIPEnabled       bool
+	PerIPRate          int
+	PerIPBurst         int
+	PerIPResponse      string // "drop" (default) or "refuse"
+	PerProfileEnabled  bool
+	PerProfileRate     int
+	PerProfileBurst    int
 	PerProfileResponse string // "drop" or "refuse" (default)
 }
 

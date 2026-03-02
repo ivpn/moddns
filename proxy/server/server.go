@@ -17,6 +17,7 @@ import (
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
 	"github.com/ivpn/dns/proxy/internal/asnlookup"
+	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
@@ -83,7 +84,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		PerProfileEnabled: serverConfig.RateLimit.PerProfileEnabled,
 		PerProfileRate:    serverConfig.RateLimit.PerProfileRate,
 		PerProfileBurst:   serverConfig.RateLimit.PerProfileBurst,
-	}, prometheus.DefaultRegisterer)
+	}, metrics.NewRateLimitMetrics(prometheus.DefaultRegisterer))
 
 	server := &Server{
 		Config:               serverConfig,
