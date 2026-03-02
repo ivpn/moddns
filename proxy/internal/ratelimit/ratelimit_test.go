@@ -41,7 +41,7 @@ func counterValue(t *testing.T, reg *prometheus.Registry, layer, proto string) f
 }
 
 func TestDisabled(t *testing.T) {
-	rl, _ := newTestLimiter(t, Config{Enabled: false, PerIPRate: 1, PerIPBurst: 1, PerProfileRate: 1, PerProfileBurst: 1})
+	rl, _ := newTestLimiter(t, Config{PerIPEnabled: false, PerIPRate: 1, PerIPBurst: 1, PerProfileEnabled: false, PerProfileRate: 1, PerProfileBurst: 1})
 	addr := netip.MustParseAddr("192.0.2.1")
 
 	for range 1000 {
@@ -50,8 +50,44 @@ func TestDisabled(t *testing.T) {
 	}
 }
 
+func TestIPDisabledProfileEnabled(t *testing.T) {
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: false, PerIPRate: 1, PerIPBurst: 1, PerProfileEnabled: true, PerProfileRate: 3, PerProfileBurst: 3})
+	addr := netip.MustParseAddr("192.0.2.1")
+
+	// IP checks always pass when disabled.
+	for range 100 {
+		assert.True(t, rl.CheckIP(addr, "udp"))
+	}
+
+	// Profile checks still enforce limits.
+	for range 3 {
+		rl.CheckProfile("prof1", "udp")
+	}
+	assert.False(t, rl.CheckProfile("prof1", "udp"))
+	assert.Equal(t, float64(1), counterValue(t, reg, "profile", "udp"))
+	assert.Equal(t, float64(0), counterValue(t, reg, "ip", "udp"))
+}
+
+func TestIPEnabledProfileDisabled(t *testing.T) {
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: true, PerIPRate: 3, PerIPBurst: 3, PerProfileEnabled: false, PerProfileRate: 1, PerProfileBurst: 1})
+	addr := netip.MustParseAddr("192.0.2.1")
+
+	// Profile checks always pass when disabled.
+	for range 100 {
+		assert.True(t, rl.CheckProfile("prof1", "udp"))
+	}
+
+	// IP checks still enforce limits.
+	for range 3 {
+		rl.CheckIP(addr, "udp")
+	}
+	assert.False(t, rl.CheckIP(addr, "udp"))
+	assert.Equal(t, float64(1), counterValue(t, reg, "ip", "udp"))
+	assert.Equal(t, float64(0), counterValue(t, reg, "profile", "udp"))
+}
+
 func TestCheckIP_UnderLimit(t *testing.T) {
-	rl, _ := newTestLimiter(t, Config{Enabled: true, PerIPRate: 100, PerIPBurst: 100, PerProfileRate: 100, PerProfileBurst: 100})
+	rl, _ := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 100, PerIPBurst: 100, PerProfileRate: 100, PerProfileBurst: 100})
 	addr := netip.MustParseAddr("192.0.2.1")
 
 	// First burst of requests up to burst size should all pass.
@@ -61,7 +97,7 @@ func TestCheckIP_UnderLimit(t *testing.T) {
 }
 
 func TestCheckIP_OverLimit(t *testing.T) {
-	rl, reg := newTestLimiter(t, Config{Enabled: true, PerIPRate: 5, PerIPBurst: 5, PerProfileRate: 100, PerProfileBurst: 100})
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 5, PerIPBurst: 5, PerProfileRate: 100, PerProfileBurst: 100})
 	addr := netip.MustParseAddr("192.0.2.1")
 
 	// Exhaust the burst.
@@ -75,7 +111,7 @@ func TestCheckIP_OverLimit(t *testing.T) {
 }
 
 func TestCheckProfile_OverLimit(t *testing.T) {
-	rl, reg := newTestLimiter(t, Config{Enabled: true, PerIPRate: 100, PerIPBurst: 100, PerProfileRate: 3, PerProfileBurst: 3})
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 100, PerIPBurst: 100, PerProfileRate: 3, PerProfileBurst: 3})
 
 	for range 3 {
 		rl.CheckProfile("prof1", "tls")
@@ -86,7 +122,7 @@ func TestCheckProfile_OverLimit(t *testing.T) {
 }
 
 func TestIndependentBuckets(t *testing.T) {
-	rl, _ := newTestLimiter(t, Config{Enabled: true, PerIPRate: 2, PerIPBurst: 2, PerProfileRate: 2, PerProfileBurst: 2})
+	rl, _ := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 2, PerIPBurst: 2, PerProfileRate: 2, PerProfileBurst: 2})
 
 	ip1 := netip.MustParseAddr("192.0.2.1")
 	ip2 := netip.MustParseAddr("192.0.2.2")
@@ -102,7 +138,7 @@ func TestIndependentBuckets(t *testing.T) {
 }
 
 func TestPrometheusLabels(t *testing.T) {
-	rl, reg := newTestLimiter(t, Config{Enabled: true, PerIPRate: 1, PerIPBurst: 1, PerProfileRate: 1, PerProfileBurst: 1})
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 1, PerIPBurst: 1, PerProfileRate: 1, PerProfileBurst: 1})
 
 	addr := netip.MustParseAddr("192.0.2.1")
 	rl.CheckIP(addr, "https")
@@ -119,7 +155,7 @@ func TestPrometheusLabels(t *testing.T) {
 
 func TestBurstAllowance(t *testing.T) {
 	// Rate=1/s but burst=10 — should allow 10 immediate requests.
-	rl, _ := newTestLimiter(t, Config{Enabled: true, PerIPRate: 1, PerIPBurst: 10, PerProfileRate: 1, PerProfileBurst: 10})
+	rl, _ := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 1, PerIPBurst: 10, PerProfileRate: 1, PerProfileBurst: 10})
 	addr := netip.MustParseAddr("192.0.2.1")
 
 	for i := range 10 {
@@ -129,7 +165,7 @@ func TestBurstAllowance(t *testing.T) {
 }
 
 func TestCounterIncrements(t *testing.T) {
-	rl, reg := newTestLimiter(t, Config{Enabled: true, PerIPRate: 1, PerIPBurst: 1, PerProfileRate: 1, PerProfileBurst: 1})
+	rl, reg := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 1, PerIPBurst: 1, PerProfileRate: 1, PerProfileBurst: 1})
 	addr := netip.MustParseAddr("10.0.0.1")
 
 	// First passes, next 5 fail.
@@ -165,7 +201,7 @@ func labelMap(labels []*dto.LabelPair) map[string]string {
 }
 
 func TestCheckIP_ManyIPs(t *testing.T) {
-	rl, _ := newTestLimiter(t, Config{Enabled: true, PerIPRate: 10, PerIPBurst: 10, PerProfileRate: 100, PerProfileBurst: 100})
+	rl, _ := newTestLimiter(t, Config{PerIPEnabled: true, PerProfileEnabled: true, PerIPRate: 10, PerIPBurst: 10, PerProfileRate: 100, PerProfileBurst: 100})
 
 	for i := range 256 {
 		addr := netip.MustParseAddr(fmt.Sprintf("10.0.0.%d", i))

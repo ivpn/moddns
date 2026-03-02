@@ -77,11 +77,12 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	profileSettingsCache := gocache.New(serverConfig.Server.ProfileSettingsCacheTTL, 2*serverConfig.Server.ProfileSettingsCacheTTL)
 
 	rl := ratelimit.New(ratelimit.Config{
-		Enabled:         serverConfig.RateLimit.Enabled,
-		PerIPRate:       serverConfig.RateLimit.PerIPRate,
-		PerIPBurst:      serverConfig.RateLimit.PerIPBurst,
-		PerProfileRate:  serverConfig.RateLimit.PerProfileRate,
-		PerProfileBurst: serverConfig.RateLimit.PerProfileBurst,
+		PerIPEnabled:      serverConfig.RateLimit.PerIPEnabled,
+		PerIPRate:         serverConfig.RateLimit.PerIPRate,
+		PerIPBurst:        serverConfig.RateLimit.PerIPBurst,
+		PerProfileEnabled: serverConfig.RateLimit.PerProfileEnabled,
+		PerProfileRate:    serverConfig.RateLimit.PerProfileRate,
+		PerProfileBurst:   serverConfig.RateLimit.PerProfileBurst,
 	}, prometheus.DefaultRegisterer)
 
 	server := &Server{

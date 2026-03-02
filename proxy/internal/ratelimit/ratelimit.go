@@ -13,11 +13,12 @@ import (
 
 // Config holds rate limiter settings.
 type Config struct {
-	Enabled         bool
+	PerIPEnabled    bool
 	PerIPRate       int
 	PerIPBurst      int
-	PerProfileRate  int
-	PerProfileBurst int
+	PerProfileEnabled bool
+	PerProfileRate    int
+	PerProfileBurst   int
 }
 
 // RateLimiter enforces per-IP and per-profile rate limits using token buckets.
@@ -63,7 +64,7 @@ func New(cfg Config, reg prometheus.Registerer) *RateLimiter {
 
 // CheckIP returns true if the query from addr should be allowed (Layer 1).
 func (rl *RateLimiter) CheckIP(addr netip.Addr, proto string) bool {
-	if !rl.cfg.Enabled {
+	if !rl.cfg.PerIPEnabled {
 		return true
 	}
 	return rl.check(rl.ipBuckets, addr.String(), rl.cfg.PerIPRate, rl.cfg.PerIPBurst, layerIP, proto)
@@ -71,7 +72,7 @@ func (rl *RateLimiter) CheckIP(addr netip.Addr, proto string) bool {
 
 // CheckProfile returns true if the query for profileID should be allowed (Layer 2).
 func (rl *RateLimiter) CheckProfile(profileID string, proto string) bool {
-	if !rl.cfg.Enabled {
+	if !rl.cfg.PerProfileEnabled {
 		return true
 	}
 	return rl.check(rl.profileBuckets, profileID, rl.cfg.PerProfileRate, rl.cfg.PerProfileBurst, layerProfile, proto)

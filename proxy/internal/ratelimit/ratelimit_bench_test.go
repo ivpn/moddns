@@ -11,11 +11,12 @@ import (
 func benchLimiter() *RateLimiter {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	return New(Config{
-		Enabled:         true,
-		PerIPRate:       100,
-		PerIPBurst:      200,
-		PerProfileRate:  300,
-		PerProfileBurst: 500,
+		PerIPEnabled:      true,
+		PerIPRate:         100,
+		PerIPBurst:        200,
+		PerProfileEnabled: true,
+		PerProfileRate:    300,
+		PerProfileBurst:   500,
 	}, nil)
 }
 

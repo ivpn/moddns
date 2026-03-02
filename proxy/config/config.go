@@ -45,12 +45,13 @@ type DNSCacheConfig struct {
 
 // RateLimitConfig holds rate limiter settings.
 type RateLimitConfig struct {
-	Enabled         bool
-	PerIPRate       int
-	PerIPBurst      int
-	PerProfileRate  int
-	PerProfileBurst int
-	MetricsPort     int
+	PerIPEnabled      bool
+	PerIPRate         int
+	PerIPBurst        int
+	PerProfileEnabled bool
+	PerProfileRate    int
+	PerProfileBurst   int
+	MetricsPort       int
 }
 
 // LogConfig represents the logging configuration
@@ -377,12 +378,13 @@ func New() (*Config, error) {
 
 func loadRateLimitConfig() *RateLimitConfig {
 	cfg := &RateLimitConfig{
-		Enabled:         os.Getenv("RATELIMIT_ENABLED") != "false",
-		PerIPRate:       100,
-		PerIPBurst:      200,
-		PerProfileRate:  300,
-		PerProfileBurst: 500,
-		MetricsPort:     9153,
+		PerIPEnabled:      getEnvBool("RATELIMIT_PER_IP_ENABLED"),
+		PerIPRate:         2000,
+		PerIPBurst:        4000,
+		PerProfileEnabled: os.Getenv("RATELIMIT_PER_PROFILE_ENABLED") != "false",
+		PerProfileRate:    600,
+		PerProfileBurst:   1000,
+		MetricsPort:       9153,
 	}
 	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_IP")); err == nil && v > 0 {
 		cfg.PerIPRate = v
