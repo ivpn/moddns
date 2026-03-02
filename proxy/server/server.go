@@ -138,6 +138,12 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 	// Layer 1: per-IP rate limit (before any IO or profile extraction).
 	if !s.RateLimiter.CheckIP(dctx.Addr.Addr(), string(dctx.Proto)) {
+		if s.Config.RateLimit.PerIPResponse == config.RateLimitResponseRefuse {
+			return &proxy.BeforeRequestError{
+				Err:      errRateLimitedIP,
+				Response: s.refusedResponse(dctx.Req),
+			}
+		}
 		return errRateLimitedIP
 	}
 
@@ -157,6 +163,12 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 	} else {
 		// Layer 2: per-profile rate limit (after profile extraction, before Redis).
 		if !s.RateLimiter.CheckProfile(profileId, string(dctx.Proto)) {
+			if s.Config.RateLimit.PerProfileResponse == config.RateLimitResponseRefuse {
+				return &proxy.BeforeRequestError{
+					Err:      errRateLimitedProfile,
+					Response: s.refusedResponse(dctx.Req),
+				}
+			}
 			return errRateLimitedProfile
 		}
 
@@ -469,5 +481,12 @@ func (s *Server) buildDNSCheckResponse(origReq *dns.Msg, upstream *dns.Msg) *dns
 		resp.Extra = filterSection(upstream.Extra)
 	}
 
+	return resp
+}
+
+// refusedResponse builds a minimal DNS REFUSED response for the given request.
+func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeRefused)
 	return resp
 }

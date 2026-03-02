@@ -43,14 +43,22 @@ type DNSCacheConfig struct {
 	Optimistic bool   // DNS_CACHE_OPTIMISTIC (default false)
 }
 
+// Rate limit response modes.
+const (
+	RateLimitResponseDrop   = "drop"
+	RateLimitResponseRefuse = "refuse"
+)
+
 // RateLimitConfig holds rate limiter settings.
 type RateLimitConfig struct {
 	PerIPEnabled      bool
 	PerIPRate         int
 	PerIPBurst        int
+	PerIPResponse     string // "drop" (default) or "refuse"
 	PerProfileEnabled bool
 	PerProfileRate    int
 	PerProfileBurst   int
+	PerProfileResponse string // "drop" or "refuse" (default)
 	MetricsPort       int
 }
 
@@ -378,13 +386,21 @@ func New() (*Config, error) {
 
 func loadRateLimitConfig() *RateLimitConfig {
 	cfg := &RateLimitConfig{
-		PerIPEnabled:      getEnvBool("RATELIMIT_PER_IP_ENABLED"),
-		PerIPRate:         2000,
-		PerIPBurst:        4000,
-		PerProfileEnabled: os.Getenv("RATELIMIT_PER_PROFILE_ENABLED") != "false",
-		PerProfileRate:    600,
-		PerProfileBurst:   1000,
-		MetricsPort:       9153,
+		PerIPEnabled:       getEnvBool("RATELIMIT_PER_IP_ENABLED"),
+		PerIPRate:          2000,
+		PerIPBurst:         4000,
+		PerIPResponse:      RateLimitResponseDrop,
+		PerProfileEnabled:  os.Getenv("RATELIMIT_PER_PROFILE_ENABLED") != "false",
+		PerProfileRate:     600,
+		PerProfileBurst:    1000,
+		PerProfileResponse: RateLimitResponseRefuse,
+		MetricsPort:        9153,
+	}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RATELIMIT_PER_IP_RESPONSE"))); v == RateLimitResponseDrop || v == RateLimitResponseRefuse {
+		cfg.PerIPResponse = v
+	}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RATELIMIT_PER_PROFILE_RESPONSE"))); v == RateLimitResponseDrop || v == RateLimitResponseRefuse {
+		cfg.PerProfileResponse = v
 	}
 	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_IP")); err == nil && v > 0 {
 		cfg.PerIPRate = v
