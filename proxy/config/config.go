@@ -29,6 +29,7 @@ type Config struct {
 	Sentry              *SentryConfig
 	Log                 *LogConfig
 	RateLimit           *RateLimitConfig
+	Metrics             *MetricsConfig
 	TrustedProxies      []string
 	ProfileIDMinLength  int
 }
@@ -59,7 +60,11 @@ type RateLimitConfig struct {
 	PerProfileRate    int
 	PerProfileBurst   int
 	PerProfileResponse string // "drop" or "refuse" (default)
-	MetricsPort       int
+}
+
+// MetricsConfig holds Prometheus metrics server settings.
+type MetricsConfig struct {
+	Port int
 }
 
 // LogConfig represents the logging configuration
@@ -381,6 +386,7 @@ func New() (*Config, error) {
 			ZerologLevel:    zerologLevel,
 		},
 		RateLimit: rlCfg,
+		Metrics:   loadMetricsConfig(),
 	}, nil
 }
 
@@ -394,7 +400,6 @@ func loadRateLimitConfig() *RateLimitConfig {
 		PerProfileRate:     600,
 		PerProfileBurst:    1000,
 		PerProfileResponse: RateLimitResponseRefuse,
-		MetricsPort:        9153,
 	}
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RATELIMIT_PER_IP_RESPONSE"))); v == RateLimitResponseDrop || v == RateLimitResponseRefuse {
 		cfg.PerIPResponse = v
@@ -414,8 +419,13 @@ func loadRateLimitConfig() *RateLimitConfig {
 	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_PROFILE_BURST")); err == nil && v > 0 {
 		cfg.PerProfileBurst = v
 	}
+	return cfg
+}
+
+func loadMetricsConfig() *MetricsConfig {
+	cfg := &MetricsConfig{Port: 9153}
 	if v, err := strconv.Atoi(os.Getenv("METRICS_PORT")); err == nil && v >= 0 {
-		cfg.MetricsPort = v
+		cfg.Port = v
 	}
 	return cfg
 }

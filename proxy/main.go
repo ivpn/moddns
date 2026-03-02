@@ -131,8 +131,8 @@ func main() {
 	})
 
 	var metricsServer *metrics.Server
-	if serverConfig.RateLimit.MetricsPort > 0 {
-		metricsServer = metrics.New(serverConfig.RateLimit.MetricsPort)
+	if serverConfig.Metrics.Port > 0 {
+		metricsServer = metrics.New(serverConfig.Metrics.Port)
 		go safelyRun(func() {
 			if err := metricsServer.Start(); err != nil {
 				log.Error().Err(err).Msg("Metrics server error")
