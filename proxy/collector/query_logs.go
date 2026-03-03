@@ -45,10 +45,10 @@ func (c *QueryLogsCollector) Collect() error {
 			if counter == c.BatchSize {
 				log.Info().Str("event_type", c.Type).Str("trigger", "batch_size").Int("events_number", len(queryLogsToEmit)).Msg("Emitting events batch")
 				timeoutCtx, cancel := context.WithTimeout(ctx, EmitTimeout)
-				defer cancel()
 				if err := c.Emitter.EmitQueryLogs(timeoutCtx, queryLogsToEmit); err != nil {
 					log.Error().Err(err).Msg("Failed to emit events")
 				}
+				cancel()
 
 				// reset for next batch
 				mu.Lock()
@@ -60,10 +60,10 @@ func (c *QueryLogsCollector) Collect() error {
 			mu.Lock()
 			if len(queryLogsToEmit) > 0 {
 				timeoutCtx, cancel := context.WithTimeout(ctx, EmitTimeout)
-				defer cancel()
 				if err := c.Emitter.EmitQueryLogs(timeoutCtx, queryLogsToEmit); err != nil {
 					log.Error().Err(err).Msg("Failed to emit events")
 				}
+				cancel()
 				log.Info().Str("event_type", c.Type).Str("trigger", "frequency").Int("events_number", len(queryLogsToEmit)).Msg("Emitting events batch")
 				queryLogsToEmit = make([]model.EventQueryLog, 0)
 				counter = 0

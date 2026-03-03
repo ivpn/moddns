@@ -48,7 +48,6 @@ func (c *StatisticsCollector) Collect() error {
 
 			if counter == c.BatchSize {
 				timeoutCtx, cancel := context.WithTimeout(ctx, EmitTimeout)
-				defer cancel()
 				c.statsAggregated.Range(func(key, value interface{}) bool {
 					stats, _ := value.(*model.Statistics)
 					c.statsToEmit = append(c.statsToEmit, model.EventStatistics{
@@ -60,6 +59,7 @@ func (c *StatisticsCollector) Collect() error {
 				if err := c.Emitter.EmitStatistics(timeoutCtx, c.statsToEmit); err != nil {
 					log.Error().Err(err).Msg("Failed to emit stats events")
 				}
+				cancel()
 
 				// reset for next batch
 				c.mu.Lock()
@@ -79,11 +79,11 @@ func (c *StatisticsCollector) Collect() error {
 			})
 			if len(c.statsToEmit) > 0 {
 				timeoutCtx, cancel := context.WithTimeout(ctx, EmitTimeout)
-				defer cancel()
 				log.Info().Str("event_type", c.Type).Int("events_number", len(c.statsToEmit)).Str("trigger", "frequency").Msg("Emitting stats events batch")
 				if err := c.Emitter.EmitStatistics(timeoutCtx, c.statsToEmit); err != nil {
 					log.Error().Err(err).Msg("Failed to emit events")
 				}
+				cancel()
 
 				c.statsToEmit = make([]model.EventStatistics, 0)
 				c.statsAggregated.Clear()
