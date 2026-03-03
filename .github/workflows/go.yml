@@ -58,10 +58,14 @@ on:
       - 'dnscheck/**'
       - '.github/workflows/go.yml'
 
+permissions: read-all
+
 jobs:
   changes:
     name: Detect changed service directories
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       api: ${{ steps.filter.outputs.api }}
       libs: ${{ steps.filter.outputs.libs }}
@@ -69,10 +73,12 @@ jobs:
       blocklists: ${{ steps.filter.outputs.blocklists }}
       dnscheck: ${{ steps.filter.outputs.dnscheck }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Paths filter
         id: filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         with:
           filters: |
             api:
@@ -89,12 +95,16 @@ jobs:
   api:
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
     # Also run API job if libs changed (libs change triggers full Go suite)
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.api == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go (API)
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
           go-version: "1.25.4"
       - name: Build API
@@ -102,7 +112,7 @@ jobs:
       - name: Test API
         run: cd api/; make test
       - name: golangci-lint - API
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: api
           args: --config ../.github/golangci.yml
@@ -110,17 +120,21 @@ jobs:
   libs:
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.libs == 'true')) || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.libs == 'true') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go (Libs)
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
           go-version: "1.23.2"
       - name: Test Libs
         run: cd libs/; go mod vendor; make test
       - name: golangci-lint - Libs (non-blocking)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: libs
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -128,12 +142,16 @@ jobs:
   proxy:
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
     # Also run Proxy job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.proxy == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.proxy == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go (Proxy)
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
           go-version: "1.25.4"
       - name: Build Proxy
@@ -141,7 +159,7 @@ jobs:
       - name: Test Proxy
         run: cd proxy/; make test
       - name: golangci-lint - Proxy (non-blocking)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: proxy
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -149,12 +167,16 @@ jobs:
   blocklists:
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
     # Also run Blocklists job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.blocklists == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.blocklists == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go (Blocklists)
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
           go-version: "1.23.2"
       - name: Build Blocklists
@@ -162,7 +184,7 @@ jobs:
       - name: Test Blocklists
         run: cd blocklists/; make test
       - name: golangci-lint - Blocklists (non-blocking)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: blocklists
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -170,18 +192,22 @@ jobs:
   dnscheck:
     runs-on: ubuntu-latest
     needs: changes
+    permissions:
+      contents: read
     # Also run DNSCheck job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.dnscheck == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.dnscheck == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go (DNSCheck)
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
           go-version: "1.23.2"
       - name: Build DNSCheck
         run: cd dnscheck/; go mod vendor; make build
       - name: golangci-lint - DNSCheck (non-blocking)
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
         with:
           working-directory: dnscheck
           args: --config ../.github/golangci.yml --issues-exit-code=0
