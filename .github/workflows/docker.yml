@@ -20,7 +20,7 @@ jobs:
           echo "DNS_API_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS API
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_API_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -32,7 +32,7 @@ jobs:
           echo "DNS_PROXY_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS Proxy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_PROXY_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -44,7 +44,7 @@ jobs:
           echo "DNS_FRONTEND_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS Frontend
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_FRONTEND_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -56,7 +56,7 @@ jobs:
           echo "DNS_BLOCKLISTS_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS blocklists
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_BLOCKLISTS_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -68,7 +68,7 @@ jobs:
           echo "DNS_CHECK_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS check
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_CHECK_IMAGE }}
           trivy-config: ./.github/trivy.yaml
