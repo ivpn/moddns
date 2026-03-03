@@ -1,6 +1,6 @@
 module github.com/ivpn/dns/proxy
 
-go 1.24.0
+go 1.25.7
 
 require (
 	github.com/AdguardTeam/dnsproxy v0.70.0
@@ -103,7 +103,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/onsi/ginkgo/v2 v2.15.0 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/quic-go/qpack v0.4.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.3
 	go.uber.org/mock v0.4.0 // indirect
