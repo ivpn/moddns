@@ -11,7 +11,6 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/log"
 	"github.com/AdguardTeam/golibs/netutil"
-	"github.com/quic-go/quic-go"
 	zerolog "github.com/rs/zerolog/log"
 
 	"github.com/ivpn/dns/libs/deviceid"
@@ -179,11 +178,6 @@ type tlsConn interface {
 	ConnectionState() (cs tls.ConnectionState)
 }
 
-// quicConnection is a narrow interface for quic.Connection to simplify testing.
-type quicConnection interface {
-	ConnectionState() (cs quic.ConnectionState)
-}
-
 // clientIDFromDNSContext extracts the client's ID and device ID from the server name of the
 // client's DoT or DoQ request or the path of the client's DoH.  If the protocol
 // is not one of these, clientID is an empty string and err is nil.
@@ -249,12 +243,11 @@ func clientServerName(pctx *proxy.DNSContext, proto proxy.Proto) (srvName string
 		}
 	case proxy.ProtoQUIC:
 		qConn := pctx.QUICConnection
-		conn, ok := qConn.(quicConnection)
-		if !ok {
-			return "", fmt.Errorf("pctx conn of proto %s is %T, want quic.Connection", proto, qConn)
+		if qConn == nil {
+			return "", fmt.Errorf("pctx conn of proto %s is nil", proto)
 		}
 
-		srvName = conn.ConnectionState().TLS.ServerName
+		srvName = qConn.ConnectionState().TLS.ServerName
 	case proxy.ProtoTLS:
 		conn := pctx.Conn
 		tc, ok := conn.(tlsConn)

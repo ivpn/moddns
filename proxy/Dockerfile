@@ -1,5 +1,5 @@
 # NOTE: The image should be built from the root of the project (see Makefile)
-FROM golang:1.25.4 AS build
+FROM golang:1.25.7 AS build
 
 WORKDIR /app
 

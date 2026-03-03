@@ -1,6 +1,6 @@
 module github.com/ivpn/dns/api
 
-go 1.25.4
+go 1.25.7
 
 require (
 	github.com/AfterShip/email-verifier v1.4.0
@@ -9,7 +9,7 @@ require (
 	github.com/getsentry/sentry-go/fiber v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/go-playground/validator/v10 v10.20.0
-	github.com/gofiber/fiber/v2 v2.52.9
+	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/ivpn/dns/libs v0.0.0
 	github.com/pquerna/otp v1.4.0
 	github.com/redis/go-redis/v9 v9.7.3

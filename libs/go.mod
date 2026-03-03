@@ -1,6 +1,6 @@
 module github.com/ivpn/dns/libs
 
-go 1.23.2
+go 1.25.7
 
 require (
 	github.com/redis/go-redis/v9 v9.7.3

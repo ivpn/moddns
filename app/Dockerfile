@@ -16,7 +16,10 @@ COPY env/.env.$ENVIRONMENT .env
 
 RUN npm run build
 
-FROM nginx:1.29-alpine
+FROM nginx:1.29.5-alpine
+
+# Pull security patches for OS packages
+RUN apk update --no-cache && apk upgrade --no-cache
 
 # Remove default nginx static assets
 RUN rm -rf /usr/share/nginx/html/*
