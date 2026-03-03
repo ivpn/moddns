@@ -4,6 +4,8 @@ on:
   push:
     branches: ["staging"]
 
+permissions: read-all
+
 env:
   DNS_API_IMAGE: dns/api
   DNS_PROXY_IMAGE: dns/proxy
@@ -13,12 +15,15 @@ env:
 jobs:
   staging_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
 
@@ -70,9 +75,9 @@ jobs:
         run: podman push ${{ secrets.REGISTRY_NAME }}/${DNS_CHECK_IMAGE}:${{ steps.get_docker_tag.outputs.tag }}
 
       - name: Trigger workflow in dns-deployment repository
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3
         with:
           token: ${{ secrets.PAT }}
           repository: ivpn/dns-deployment
           event-type: update-staging-tags-pr
-          client-payload: '{"tag": "${{ steps.get_docker_tag.outputs.tag }}"}'
+          client-payload: '{"tag": ${{ toJSON(steps.get_docker_tag.outputs.tag) }}}'
