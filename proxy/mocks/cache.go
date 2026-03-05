@@ -38,6 +38,39 @@ func (_m *Cache) EXPECT() *Cache_Expecter {
 	return &Cache_Expecter{mock: &_m.Mock}
 }
 
+// Close provides a mock function for the type Cache
+func (_mock *Cache) Close() {
+	_mock.Called()
+	return
+}
+
+// Cache_Close_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Close'
+type Cache_Close_Call struct {
+	*mock.Call
+}
+
+// Close is a helper method to define mock.On call
+func (_e *Cache_Expecter) Close() *Cache_Close_Call {
+	return &Cache_Close_Call{Call: _e.mock.On("Close")}
+}
+
+func (_c *Cache_Close_Call) Run(run func()) *Cache_Close_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Cache_Close_Call) Return() *Cache_Close_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Cache_Close_Call) RunAndReturn(run func()) *Cache_Close_Call {
+	_c.Run(run)
+	return _c
+}
+
 // GetBlocklistEntry provides a mock function for the type Cache
 func (_mock *Cache) GetBlocklistEntry(ctx context.Context, blocklistId string, domain string) (bool, error) {
 	ret := _mock.Called(ctx, blocklistId, domain)

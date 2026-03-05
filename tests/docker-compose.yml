@@ -32,6 +32,7 @@ services:
     container_name: dnsproxy
     depends_on:
       - cache
+      - redis-replica-dns
       - mongodb
       - sdns
     # - unbound
@@ -137,7 +138,7 @@ services:
       - '6379:6379'
       - '8001:8001'
     volumes:
-      - ./redis/master.conf:/etc/redis/master.conf:ro
+      - ./bootstrap/redis/master.conf:/etc/redis/master.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli","--user","appcache","-a","${REDIS_PASSWORD}","ping"]
       interval: 10s
@@ -155,7 +156,25 @@ services:
       dnsnetwork:
         ipv4_address: 10.5.0.11
     volumes:
-      - ./redis/replica.conf:/etc/redis/replica.conf:ro
+      - ./bootstrap/redis/replica.conf:/etc/redis/replica.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli","--user","appcache","-p","6379","-a","${REDIS_PASSWORD}","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis-replica-dns:
+    container_name: redis-replica-dns
+    image: ${REDIS_IMAGE}
+    command: ["redis-server", "/etc/redis/replica-dns.conf"]
+    restart: always
+    depends_on:
+      - cache
+    networks:
+      dnsnetwork:
+        ipv4_address: 10.5.0.20
+    volumes:
+      - ./bootstrap/redis/replica-dns.conf:/etc/redis/replica-dns.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli","--user","appcache","-p","6379","-a","${REDIS_PASSWORD}","ping"]
       interval: 10s
@@ -174,7 +193,7 @@ services:
     ports:
       - '26379:26379'
     volumes:
-      - ./redis/sentinel.conf:/tmp/sentinel.conf:ro
+      - ./bootstrap/redis/sentinel.conf:/tmp/sentinel.conf:ro
     command: ["/bin/sh","-c","cp /tmp/sentinel.conf /data/sentinel.conf && exec redis-server /data/sentinel.conf --sentinel"]
     healthcheck:
       test: ["CMD", "redis-cli","-p","26379","ping"]
@@ -194,7 +213,7 @@ services:
     ports:
       - '26380:26379'
     volumes:
-      - ./redis/sentinel.conf:/tmp/sentinel.conf:ro
+      - ./bootstrap/redis/sentinel.conf:/tmp/sentinel.conf:ro
     command: ["/bin/sh","-c","cp /tmp/sentinel.conf /data/sentinel.conf && exec redis-server /data/sentinel.conf --sentinel"]
     healthcheck:
       test: ["CMD", "redis-cli","-p","26379","ping"]
@@ -214,7 +233,7 @@ services:
     ports:
       - '26381:26379'
     volumes:
-      - ./redis/sentinel.conf:/tmp/sentinel.conf:ro
+      - ./bootstrap/redis/sentinel.conf:/tmp/sentinel.conf:ro
     command: ["/bin/sh","-c","cp /tmp/sentinel.conf /data/sentinel.conf && exec redis-server /data/sentinel.conf --sentinel"]
     healthcheck:
       test: ["CMD", "redis-cli","-p","26379","ping"]

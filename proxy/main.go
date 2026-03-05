@@ -188,6 +188,7 @@ func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sen
 		if err := server.Proxy.Shutdown(ctx); err != nil {
 			log.Warn().Err(err).Msg("Failed to shutdown proxy")
 		}
+		server.Cache.Close()
 	}
 
 	if err := sentryWriter.Close(); err != nil {

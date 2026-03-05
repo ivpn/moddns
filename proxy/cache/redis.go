@@ -14,26 +14,34 @@ import (
 
 // RedisCache is a cache implementation using Redis
 type RedisCache struct {
-	client *redis.Client
+	dual *cache.DualClient
 }
 
 // NewRedisCache creates a new RedisCache instance
 func NewRedisCache(cfg *cache.Config) (*RedisCache, error) {
-	rdb, err := cache.NewRedisClient(cfg)
+	dc, err := cache.NewDualClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	return &RedisCache{
-		client: rdb,
-	}, nil
+	return &RedisCache{dual: dc}, nil
+}
+
+// Close shuts down the underlying Redis clients.
+func (c *RedisCache) Close() {
+	c.dual.Close()
+}
+
+// client returns the currently active Redis client.
+func (c *RedisCache) client() *redis.Client {
+	return c.dual.Client()
 }
 
 // GetProfileBlocklists gets blocklists profile subscribes from the cache
 func (c *RedisCache) GetProfileBlocklists(ctx context.Context, profileId string) ([]string, error) {
 	settingsKey := "settings:" + profileId
 	settingsBlocklists := fmt.Sprintf("%s:%s", settingsKey, "blocklists")
-	cmd := c.client.LRange(ctx, settingsBlocklists, 0, -1)
+	cmd := c.client().LRange(ctx, settingsBlocklists, 0, -1)
 	if err := cmd.Err(); err != nil {
 		return nil, err
 	}
@@ -90,7 +98,7 @@ func (c *RedisCache) getProfileSettings(ctx context.Context, profileId string, s
 	}
 	settings := strings.Join(settingsKey, ":")
 
-	cmd := c.client.HGetAll(ctx, settings)
+	cmd := c.client().HGetAll(ctx, settings)
 	if err := cmd.Err(); err != nil {
 		return nil, err
 	}
@@ -105,7 +113,7 @@ func (c *RedisCache) getProfileSettings(ctx context.Context, profileId string, s
 // GetBlocklistEntry checks if a domain is present in the blocklist
 func (c *RedisCache) GetBlocklistEntry(ctx context.Context, blocklistId string, fqdn string) (bool, error) {
 	blocklistKey := "blocklist:" + blocklistId
-	cmd := c.client.SIsMember(ctx, blocklistKey, fqdn)
+	cmd := c.client().SIsMember(ctx, blocklistKey, fqdn)
 	if err := cmd.Err(); err != nil {
 		return false, err
 	}
@@ -115,7 +123,7 @@ func (c *RedisCache) GetBlocklistEntry(ctx context.Context, blocklistId string, 
 // GetCustomRulesHashes gets list of custom rules set names
 func (c *RedisCache) GetCustomRulesHashes(ctx context.Context, profileId string) ([]string, error) {
 	customRulesSetKey := fmt.Sprintf("settings:%s:custom_rules", profileId)
-	cmd := c.client.SMembers(ctx, customRulesSetKey)
+	cmd := c.client().SMembers(ctx, customRulesSetKey)
 	if err := cmd.Err(); err != nil {
 		return nil, err
 	}
@@ -124,7 +132,7 @@ func (c *RedisCache) GetCustomRulesHashes(ctx context.Context, profileId string)
 
 // GetCustomRulesHash gets custom rules hash
 func (c *RedisCache) GetCustomRulesHash(ctx context.Context, hashId string) (map[string]string, error) {
-	cmd := c.client.HGetAll(ctx, hashId)
+	cmd := c.client().HGetAll(ctx, hashId)
 	if err := cmd.Err(); err != nil {
 		return nil, err
 	}
@@ -143,7 +151,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	dnssecKey := "settings:" + profileId + ":security:dnssec"
 	advancedKey := "settings:" + profileId + ":advanced"
 
-	pipe := c.client.Pipeline()
+	pipe := c.client().Pipeline()
 	privacyCmd := pipe.HGetAll(ctx, privacyKey)
 	logsCmd := pipe.HGetAll(ctx, logsKey)
 	dnssecCmd := pipe.HGetAll(ctx, dnssecKey)
