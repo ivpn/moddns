@@ -7,6 +7,7 @@ import (
 	"time"
 
 	toxiclient "github.com/Shopify/toxiproxy/v2/client"
+	libscache "github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/proxy/model"
 	gocache "github.com/patrickmn/go-cache"
 	goredis "github.com/redis/go-redis/v9"
@@ -117,7 +118,7 @@ func setupBenchEnv(t testing.TB, latencyMs int) *benchEnv {
 
 	// Build a RedisCache that goes through the latency proxy.
 	rdb := goredis.NewClient(&goredis.Options{Addr: proxyAddr})
-	rc := &RedisCache{client: rdb}
+	rc := &RedisCache{dual: libscache.NewSingleClient(rdb)}
 
 	cleanup := func() {
 		rdb.Close()
