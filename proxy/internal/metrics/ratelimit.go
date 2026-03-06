@@ -16,8 +16,8 @@ var _ ratelimit.Metrics = (*RateLimitMetrics)(nil)
 func NewRateLimitMetrics(reg prometheus.Registerer) *RateLimitMetrics {
 	m := &RateLimitMetrics{
 		rejected: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Name: "dns_ratelimited_total",
-			Help: "Total number of DNS queries rejected by the rate limiter.",
+			Name: "proxy_dns_ratelimited_total",
+			Help: "Total number of DNS queries rejected by the proxy rate limiter.",
 		}, []string{"layer", "proto"}),
 	}
 	reg.MustRegister(m.rejected)

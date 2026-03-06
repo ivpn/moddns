@@ -39,6 +39,7 @@ func newRateLimitServer(ipResponse, profileResponse string) *Server {
 			PerProfileRate:    1,
 			PerProfileBurst:   1,
 		}, nil),
+		Metrics: noopMetrics{},
 	}
 }
 

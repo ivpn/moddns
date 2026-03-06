@@ -59,6 +59,7 @@ func newPostResolveServer(t *testing.T, ipFilter *mocks.Filter, cacheMock *mocks
 		Cache:             cacheMock,
 		CollectorChannels: channels,
 		LoggerFactory:     logging.NewDefaultFactory(),
+		Metrics:           noopMetrics{},
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
@@ -49,6 +50,7 @@ type Server struct {
 	CollectorChannels    map[string]channel.CollectorChannel
 	LoggerFactory        logging.FactoryInterface
 	RateLimiter          *ratelimit.RateLimiter
+	Metrics              Metrics
 }
 
 var _ RequestManager = (*Server)(nil)
@@ -95,6 +97,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		Upstreams:            make(map[string]*proxy.CustomUpstreamConfig, 0),
 		LoggerFactory:        loggerFactory,
 		RateLimiter:          rl,
+		Metrics:              metrics.NewServerMetrics(prometheus.DefaultRegisterer),
 	}
 
 	dnsProxy, err := server.newProxy(ProxyTypeAdguard, serverConfig)
@@ -125,17 +128,27 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 // Called from ResponseHandler (cache miss) and RequestHandler (cache hit).
 func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
 	if reqCtx.FilterResult.Status != model.StatusBlocked {
+		ipStart := time.Now()
 		if err := s.IPFilter.Execute(reqCtx, dctx); err != nil {
 			reqCtx.Logger.Err(err).Msg("IP Filtering error")
 		}
+		s.Metrics.RecordIPFilterDuration(string(dctx.Proto), time.Since(ipStart))
+		if reqCtx.FilterResult.Status == model.StatusBlocked {
+			s.Metrics.RecordBlocked("ip")
+		}
 	}
 	s.respond(reqCtx, dctx)
+	if !reqCtx.StartTime.IsZero() {
+		s.Metrics.RecordQueryDuration(string(dctx.Proto), time.Since(reqCtx.StartTime))
+	}
 	go s.EmitQueryLog(reqCtx, dctx)
 	go s.EmitStatistics(reqCtx, dctx)
 }
 
 func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
 	defer sentry.Recover()
+
+	s.Metrics.RecordQuery(string(dctx.Proto))
 
 	// Layer 1: per-IP rate limit (before any IO or profile extraction).
 	if !s.RateLimiter.CheckIP(dctx.Addr.Addr(), string(dctx.Proto)) {
@@ -176,8 +189,10 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		// Try in-memory profile settings cache first.
 		var settings *model.ProfileSettings
 		if cached, ok := s.ProfileSettingsCache.Get(profileId); ok {
+			s.Metrics.RecordProfileCacheLookup(true)
 			settings = cached.(*model.ProfileSettings)
 		} else {
+			s.Metrics.RecordProfileCacheLookup(false)
 			// Cache miss — fetch from Redis pipeline.
 			var fetchErr error
 			settings, fetchErr = s.Cache.GetProfileSettingsBatch(context.Background(), profileId)
@@ -266,6 +281,8 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		dctx.CustomUpstreamConfig = s.Upstreams[upstreamName]
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
 		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, advancedSettings, reqLogger)
+		reqCtx.StartTime = time.Now()
+		reqCtx.UpstreamName = upstreamName
 		// TODO: set TTL for this request context - it's unnecessary to keep it in cache for long time since it's read right away in RequestHandler
 		// TODO: investigate other in-memory cache types
 		if err = s.InMemoryCache.SetRequestCtx(strconv.FormatUint(dctx.RequestID, 10), reqCtx); err != nil {
@@ -307,8 +324,13 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 		}
 
 		// perform filtering actions
+		domainStart := time.Now()
 		if err = s.DomainFilter.Execute(reqCtx, dctx); err != nil {
 			reqLogger.Err(err).Msg("Filtering error")
+		}
+		s.Metrics.RecordDomainFilterDuration(string(dctx.Proto), time.Since(domainStart))
+		if reqCtx.FilterResult.Status == model.StatusBlocked {
+			s.Metrics.RecordBlocked("domain")
 		}
 
 		if err = s.InMemoryCache.SetRequestCtx(strconv.FormatUint(dctx.RequestID, 10)+"_response", reqCtx); err != nil {
@@ -318,9 +340,11 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 
 		if reqCtx.FilterResult.Status == model.StatusProcessed {
 			reqLogger.Trace().Msg("Triggering default resolver")
+			upstreamStart := time.Now()
 			if err := s.Proxy.Resolve(dctx); err != nil {
 				reqLogger.Err(err).Msg("DNS resolving error")
 			}
+			s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
 			// For cache hits, ResponseHandler is skipped by the vendor.
 			// Run IP filtering, emit logs/stats, and respond manually.
 			if addr, ok := cachedUpstreamAddr(dctx); ok {
