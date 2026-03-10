@@ -26,6 +26,9 @@ type Cache interface {
 	// settings for a profile in a single Redis pipeline round-trip.
 	// The returned ProfileSettings contains per-key results and errors.
 	GetProfileSettingsBatch(ctx context.Context, profileId string) (*model.ProfileSettings, error)
+
+	// Close shuts down the cache and releases resources.
+	Close()
 }
 
 // NewCache creates a new BlocklistCache instance

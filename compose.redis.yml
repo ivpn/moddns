@@ -42,9 +42,9 @@ services:
     command: ["bash", "-c", "mkdir -p /etc/redis-config && cp /redis.conf /etc/redis-config/redis.conf && redis-server /etc/redis-config/redis.conf"]
     networks:
       dnsnetwork:
-        ipv4_address: 10.5.0.12
+        ipv4_address: 10.5.0.20
     volumes:
-      - ./bootstrap/redis/replica/replica.conf:/redis.conf
+      - ./bootstrap/redis/replica/replica-dns.conf:/redis.conf
       - ./data/replica_2:/data
     depends_on:
       - cache
@@ -61,7 +61,7 @@ services:
     command: ["bash", "-c", "mkdir -p /etc/redis-config && cp /redis.conf /etc/redis-config/sentinel.conf && redis-server /etc/redis-config/sentinel.conf --sentinel"]
     networks:
       dnsnetwork:
-        ipv4_address: 10.5.0.13
+        ipv4_address: 10.5.0.21
     volumes:
       - ./bootstrap/redis/sentinel/sentinel.conf:/redis.conf
     depends_on:
@@ -69,7 +69,7 @@ services:
       - redis_replica
       - redis_replica_dns
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      test: ["CMD", "redis-cli", "-p", "26379", "-a", "sentinelpass", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3

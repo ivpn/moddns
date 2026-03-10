@@ -19,10 +19,10 @@ const (
 // NewRedisClient creates a new Redis client, configured according to the provided CacheConfig
 func NewRedisClient(cfg *Config) (rdb *redis.Client, err error) {
 	log.Info().Msg("Connecting to Redis")
-	rdb, err = newClient(cfg)
+	rdb, err = NewDirectClient(cfg)
 
 	if cfg.MasterName != "" && len(cfg.FailoverAddresses) > 0 {
-		rdb, err = newFailoverCient(cfg)
+		rdb, err = NewFailoverClient(cfg)
 	}
 	if err != nil {
 		return nil, err
@@ -43,7 +43,8 @@ func NewRedisClient(cfg *Config) (rdb *redis.Client, err error) {
 	return rdb, nil
 }
 
-func newClient(cfg *Config) (*redis.Client, error) {
+// NewDirectClient creates a client connected to a specific Redis address.
+func NewDirectClient(cfg *Config) (*redis.Client, error) {
 	options := &redis.Options{
 		Addr:     cfg.Address,
 		Username: cfg.Username,
@@ -53,7 +54,8 @@ func newClient(cfg *Config) (*redis.Client, error) {
 	return redis.NewClient(options), nil
 }
 
-func newFailoverCient(cfg *Config) (*redis.Client, error) {
+// NewFailoverClient creates a sentinel-managed client.
+func NewFailoverClient(cfg *Config) (*redis.Client, error) {
 	log.Debug().Msg("Creating failover client")
 	options := &redis.FailoverOptions{
 		MasterName:       cfg.MasterName,

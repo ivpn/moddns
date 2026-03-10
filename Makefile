@@ -92,14 +92,16 @@ up_dev: ## Starts the services for development purposes.
 	docker compose \
 		-f compose.yml \
 		-f compose.dev.yml \
+		-f compose.redis.yml \
 		-f compose.unbound.yml \
 		-f compose.sdns.yml \
 		up -d
 
 down_dev: ## Stops the development services.
 	docker compose \
-	-f compose.dev.yml \
 	-f compose.yml \
+	-f compose.dev.yml \
+	-f compose.redis.yml \
 	-f compose.sdns.yml \
 	-f compose.unbound.yml \
 	down
@@ -166,9 +168,9 @@ build_image_dev:
 	fi
 		@if [ ${image} = "dnscheck" ]; then \
 		echo "Building DNS check dev image...\n"; \
-		docker build -t dnsproxydev -f proxy/Dockerfile.dev . ;\
+		docker build -t dnscheckdev -f dnscheck/Dockerfile.dev . ;\
 	fi
 		@if [ ${image} = "blocklists" ]; then \
 		echo "Building DNS Blocklists dev image...\n"; \
-		docker build -t dnsproxydev -f proxy/Dockerfile.dev . ;\
+		docker build -t dnsblocklistsdev -f blocklists/Dockerfile.dev . ;\
 	fi
