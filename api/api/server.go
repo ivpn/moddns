@@ -41,10 +41,7 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 	app := fiber.New(fiber.Config{
 		ServerHeader:            "modDNS API",
 		AppName:                 "modDNS API",
-		BodyLimit:               1024 * 1024, // 1 MB
-		EnableTrustedProxyCheck: true,
-		TrustedProxies:          config.API.TrustedProxies,
-		ProxyHeader:             fiber.HeaderXForwardedProto,
+		BodyLimit: 1024 * 1024, // 1 MB
 	})
 
 	server := &APIServer{

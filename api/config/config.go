@@ -18,29 +18,6 @@ func parseBoolEnv(key string) bool {
 	return os.Getenv(key) == "true"
 }
 
-// defaultTrustedProxies covers RFC 1918 private ranges (Docker, K8s, typical reverse proxies).
-var defaultTrustedProxies = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8"}
-
-// parseTrustedProxies reads API_TRUSTED_PROXIES as a comma-separated list of CIDRs.
-// Falls back to RFC 1918 defaults if unset.
-func parseTrustedProxies() []string {
-	v := os.Getenv("API_TRUSTED_PROXIES")
-	if v == "" {
-		return defaultTrustedProxies
-	}
-	var proxies []string
-	for _, p := range strings.Split(v, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			proxies = append(proxies, p)
-		}
-	}
-	if len(proxies) == 0 {
-		return defaultTrustedProxies
-	}
-	return proxies
-}
-
 // Config represents the application configuration
 type Config struct {
 	Server  *ServerConfig
@@ -94,8 +71,7 @@ type APIConfig struct {
 	PSK                   string
 	SignupWebhookURL      string
 	SignupWebhookPSK      string
-	DisableRateLimit      bool
-	TrustedProxies        []string
+	DisableRateLimit bool
 }
 
 type EmailSenderConfig struct {
@@ -234,8 +210,7 @@ func New() (*Config, error) {
 			PSK:                   os.Getenv("API_PSK"),
 			SignupWebhookURL:      os.Getenv("API_SIGNUP_WEBHOOK_URL"),
 			SignupWebhookPSK:      os.Getenv("API_SIGNUP_WEBHOOK_PSK"),
-			DisableRateLimit:      parseBoolEnv("API_DISABLE_RATE_LIMIT"),
-			TrustedProxies:        parseTrustedProxies(),
+			DisableRateLimit: parseBoolEnv("API_DISABLE_RATE_LIMIT"),
 		},
 		DB: &store.Config{
 			DbURI:    os.Getenv("DB_URI"),
