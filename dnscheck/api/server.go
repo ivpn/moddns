@@ -24,8 +24,11 @@ type APIServer struct {
 // NewServer inititiates database connection and sets up API endpoints
 func NewServer(config *config.Config, cache cache.Cache) *APIServer {
 	app := fiber.New(fiber.Config{
-		ServerHeader: "DNSCHECK API",
-		AppName:      "DNSCHECK API",
+		ServerHeader:            "DNSCHECK API",
+		AppName:                 "DNSCHECK API",
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          config.API.TrustedProxies,
+		ProxyHeader:             fiber.HeaderXForwardedProto,
 	})
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
@@ -50,7 +53,12 @@ func (s *APIServer) RegisterRoutes() {
 			Max: 100,
 		},
 	))
-	s.App.Use(helmet.New())
+	s.App.Use(helmet.New(helmet.Config{
+		HSTSMaxAge:            31536000,
+		HSTSPreloadEnabled:    true,
+		ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none'",
+		PermissionPolicy:      "camera=(), microphone=(), geolocation=()",
+	}))
 	s.App.Use(middleware.NewAPICORS(*s.Config.API))
 
 	s.App.Get("/", s.DnsCheck())
