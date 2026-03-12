@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -31,8 +30,7 @@ type APIConfig struct {
 	JWTExpirationTime time.Duration
 	BasicAuthUser     string
 	BasicAuthPassword string
-	ApiAllowOrigin    string
-	TrustedProxies    []string
+	ApiAllowOrigin string
 }
 
 // CacheConfig represents the cache configuration
@@ -58,29 +56,6 @@ func (cfg *GeoLookupConfig) IsValid() error {
 
 	}
 	return nil
-}
-
-// defaultTrustedProxies covers RFC 1918 private ranges (Docker, K8s, typical reverse proxies).
-var defaultTrustedProxies = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8"}
-
-// parseTrustedProxies reads API_TRUSTED_PROXIES as a comma-separated list of CIDRs.
-// Falls back to RFC 1918 defaults if unset.
-func parseTrustedProxies() []string {
-	v := os.Getenv("API_TRUSTED_PROXIES")
-	if v == "" {
-		return defaultTrustedProxies
-	}
-	var proxies []string
-	for _, p := range strings.Split(v, ",") {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			proxies = append(proxies, p)
-		}
-	}
-	if len(proxies) == 0 {
-		return defaultTrustedProxies
-	}
-	return proxies
 }
 
 // New creates a new Config instance
@@ -112,7 +87,6 @@ func New() (*Config, error) {
 		API: &APIConfig{
 			Port:           os.Getenv("API_PORT"),
 			ApiAllowOrigin: os.Getenv("API_ALLOW_ORIGIN"),
-			TrustedProxies: parseTrustedProxies(),
 		},
 		Cache: &CacheConfig{
 			TTL:     ttl,

@@ -24,11 +24,8 @@ type APIServer struct {
 // NewServer inititiates database connection and sets up API endpoints
 func NewServer(config *config.Config, cache cache.Cache) *APIServer {
 	app := fiber.New(fiber.Config{
-		ServerHeader:            "DNSCHECK API",
-		AppName:                 "DNSCHECK API",
-		EnableTrustedProxyCheck: true,
-		TrustedProxies:          config.API.TrustedProxies,
-		ProxyHeader:             fiber.HeaderXForwardedProto,
+		ServerHeader: "DNSCHECK API",
+		AppName:      "DNSCHECK API",
 	})
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
