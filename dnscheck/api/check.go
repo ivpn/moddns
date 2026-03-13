@@ -25,7 +25,7 @@ func (s *APIServer) DnsCheck() fiber.Handler {
 			return HandleError(c, err, ErrInvalidHostHeader)
 		}
 
-		subdomain := hostParts[0]
+		subdomain := strings.ToLower(hostParts[0])
 		if !subdomainRegex.MatchString(subdomain) {
 			log.Warn().Str("subdomain", subdomain).Msg("Invalid subdomain format")
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
