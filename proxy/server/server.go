@@ -33,16 +33,16 @@ type RequestManager interface {
 }
 
 type Server struct {
-	Config                *config.Config
-	Proxy                 *proxy.Proxy // service.Interface
-	Upstreams             map[string]*proxy.CustomUpstreamConfig
-	DomainFilter          filter.Filter
-	IPFilter              filter.Filter
-	Cache                 cache.Cache
-	InMemoryCache         memory.MemoryCache
-	ProfileSettingsCache  *gocache.Cache
-	CollectorChannels     map[string]channel.CollectorChannel
-	LoggerFactory         logging.FactoryInterface
+	Config               *config.Config
+	Proxy                *proxy.Proxy // service.Interface
+	Upstreams            map[string]*proxy.CustomUpstreamConfig
+	DomainFilter         filter.Filter
+	IPFilter             filter.Filter
+	Cache                cache.Cache
+	InMemoryCache        memory.MemoryCache
+	ProfileSettingsCache *gocache.Cache
+	CollectorChannels    map[string]channel.CollectorChannel
+	LoggerFactory        logging.FactoryInterface
 }
 
 var _ RequestManager = (*Server)(nil)

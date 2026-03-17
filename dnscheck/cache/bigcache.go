@@ -31,3 +31,7 @@ func (c *BigCache) SaveQueryData(key string, value []byte) error {
 func (c *BigCache) GetQueryData(key string) ([]byte, error) {
 	return c.cache.Get(key)
 }
+
+func (c *BigCache) DeleteQueryData(key string) error {
+	return c.cache.Delete(key)
+}

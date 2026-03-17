@@ -705,7 +705,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -730,7 +730,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_BLOCK,
+						DefaultRule:              model.DEFAULT_RULE_BLOCK,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -755,7 +755,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -780,7 +780,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -805,7 +805,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -830,7 +830,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_BLOCK,
 					},
 				},
@@ -855,7 +855,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -880,7 +880,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 				},
@@ -1146,7 +1146,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 					Logs:       &model.LogsSettings{Enabled: false},
 					Statistics: &model.StatisticsSettings{Enabled: false},
 					Privacy: &model.Privacy{
-						DefaultRule:    model.DEFAULT_RULE_ALLOW,
+						DefaultRule:              model.DEFAULT_RULE_ALLOW,
 						BlocklistsSubdomainsRule: model.ACTION_ALLOW,
 					},
 					Advanced: &model.Advanced{Recursor: model.RECURSOR_SDNS},

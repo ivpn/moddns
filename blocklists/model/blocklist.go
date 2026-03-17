@@ -52,4 +52,3 @@ func NewBlocklistContent(blocklistId string, partNum int, data []string) (*Block
 		Data:        []byte(strings.Join(data, "\n")),
 	}, nil
 }
-

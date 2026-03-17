@@ -50,7 +50,12 @@ func (s *APIServer) RegisterRoutes() {
 			Max: 100,
 		},
 	))
-	s.App.Use(helmet.New())
+	s.App.Use(helmet.New(helmet.Config{
+		HSTSMaxAge:            31536000,
+		HSTSPreloadEnabled:    true,
+		ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none'",
+		PermissionPolicy:      "camera=(), microphone=(), geolocation=()",
+	}))
 	s.App.Use(middleware.NewAPICORS(*s.Config.API))
 
 	s.App.Get("/", s.DnsCheck())

@@ -18,6 +18,8 @@ RUN npm run build
 
 FROM nginx:1.29.5-alpine
 
+ARG ENVIRONMENT=local
+
 # Pull security patches for OS packages
 RUN apk update --no-cache && apk upgrade --no-cache
 
@@ -27,7 +29,12 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy built assets from build-stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html/app
 
-COPY nginx.conf /etc/nginx/nginx.conf
+# Substitute CSP domains from the environment file into nginx.conf
+COPY env/.env.$ENVIRONMENT /tmp/.env
+COPY nginx.conf /etc/nginx/nginx.conf.template
+RUN export $(grep -v '^#' /tmp/.env | grep -E '^VITE_API_URL=|^VITE_DNS_CHECK_DOMAIN=' | xargs) && \
+    envsubst '${VITE_API_URL} ${VITE_DNS_CHECK_DOMAIN}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && \
+    rm -f /tmp/.env /etc/nginx/nginx.conf.template
 
 EXPOSE 80
 

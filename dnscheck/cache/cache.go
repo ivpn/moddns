@@ -10,6 +10,7 @@ const CacheTypeBigCache = "bigcache"
 type Cache interface {
 	SaveQueryData(key string, value []byte) error
 	GetQueryData(key string) ([]byte, error)
+	DeleteQueryData(key string) error
 }
 
 // New creates a new Cache instance

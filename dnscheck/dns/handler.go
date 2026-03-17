@@ -8,12 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dnscheck/cache"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	subdomainRegexPattern          = `^[a-zA-Z0-9]{12}-[a-zA-Z0-9-]+$`
+	// SubdomainRegexPattern validates the expected dnscheck subdomain format:
+	// 12 alphanumeric chars (nanoid), a dash, then the profile ID.
+	SubdomainRegexPattern          = `^[a-zA-Z0-9]{12}-[a-zA-Z0-9-]+$`
 	ProfileIdAdditionalSectionCode = 0xfeed
 	TTL                            = 300
 )
@@ -37,7 +40,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			subdomain := strings.Split(domain, ".")[0]
 
 			// Regex to identify the subdomain with the first part being exactly 12 characters
-			matched, err := regexp.MatchString(subdomainRegexPattern, subdomain)
+			matched, err := regexp.MatchString(SubdomainRegexPattern, subdomain)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to compile regex")
 				return
@@ -45,6 +48,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 			if !matched {
 				log.Warn().Str("subdomain", subdomain).Msg("Unidentified subdomain")
+				return
 			}
 
 			record := DNSLogRecord{}
@@ -87,7 +91,8 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to marshal record")
 			}
-			if err = h.srv.Cache.SaveQueryData(subdomain, recordBytes); err != nil {
+			cacheKey := cache.HMACKey(h.srv.Config.Cache.HMACKey, subdomain)
+			if err = h.srv.Cache.SaveQueryData(cacheKey, recordBytes); err != nil {
 				log.Error().Err(err).Str("ID", subdomain).Msg("Failed to save record")
 			}
 			log.Debug().Str("ID", subdomain).Msg("Record saved")

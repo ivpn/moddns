@@ -608,26 +608,26 @@ func (suite *AccountTestSuite) TestSendResetPasswordEmail() {
 			expectSuccess: true,
 		},
 		{
-			name:            "Account not found",
+			name:            "Account not found - returns success to prevent enumeration",
 			email:           "notfound@example.com",
 			getAccountError: dbErrors.ErrAccountNotFound,
-			expectedError:   "account not found",
+			expectSuccess:   true,
 		},
 		{
-			name:            "Database error on get account",
+			name:            "Database error on get account - returns success to prevent enumeration",
 			email:           "test@example.com",
 			getAccountError: errors.New("database error"),
-			expectedError:   "database error",
+			expectSuccess:   true,
 		},
 		{
-			name:  "Email not verified (suppressed)",
+			name:  "Email not verified - returns success to prevent enumeration",
 			email: "unverified@example.com",
 			account: &model.Account{
 				ID:            primitive.NewObjectID(),
 				Email:         "unverified@example.com",
 				EmailVerified: false,
 			},
-			expectedError: "Email delivery is not possible until your address is verified.",
+			expectSuccess: true,
 		},
 		// TODO: data race
 		// {

@@ -24,7 +24,7 @@ func New(storeI store.Store, config *store.Config) (*MongoDB, error) {
 	client := storeI.GetClient()
 
 	return &MongoDB{
-		Store: storeI,
+		Store:               storeI,
 		BlocklistRepository: NewBlocklistRepository(client, config.Name, collNameBlocklistsMetadata, collNameBlocklists),
 	}, nil
 }

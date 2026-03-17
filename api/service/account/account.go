@@ -285,14 +285,13 @@ func (a *AccountService) RegisterAccountWithActiveUntil(ctx context.Context, ema
 func (a *AccountService) SendResetPasswordEmail(ctx context.Context, email string) error {
 	acc, err := a.AccountRepository.GetAccountByEmail(ctx, email)
 	if err != nil {
-		// What if account does not exist? Should I return 200, 404 or something went wrong without details?
-		return err
+		log.Warn().Str("email", email).Msg("Password reset requested for unknown account")
+		return nil
 	}
 
-	// TODO: Should I return 200 and do not send email, send email anyway or return error?
 	if !acc.EmailVerified {
-		log.Warn().Str("email", email).Msg("Email not verified")
-		// return ErrEmailNotVerified
+		log.Warn().Str("email", email).Msg("Password reset requested for unverified account")
+		return nil
 	}
 
 	eg, _ := errgroup.WithContext(ctx)

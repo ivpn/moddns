@@ -5,9 +5,6 @@ import { useAppStore } from '@/store/general';
 
 export interface DnsCheckResponse {
   status: string;
-  asn: string;
-  asn_organization: string;
-  ip: string;
   profile_id: string;
 }
 
@@ -22,9 +19,6 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
   const enabled = options?.enabled ?? true;
   const [dnsCheckResponse, setDnsCheckResponse] = useState<DnsCheckResponse>({
     status: '',
-    asn: '',
-    asn_organization: '',
-    ip: '',
     profile_id: '',
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -56,9 +50,6 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
       if (axiosError?.response?.status === 404 && axiosError?.response?.data?.error === 'disconnected') {
         setDnsCheckResponse({
           status: 'disconnected',
-          asn: '',
-          asn_organization: '',
-          ip: '',
           profile_id: '',
         });
         setIsLoading(false);

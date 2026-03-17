@@ -34,5 +34,11 @@ func NewLimit(max int, exp time.Duration) fiber.Handler {
 	return limiter.New(limiter.Config{
 		Max:        max,
 		Expiration: exp,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			// X-Forwarded-For header is taken from nginx ingress controller
+			xff := c.Get(fiber.HeaderXForwardedFor)
+			log.Trace().Str("ip", c.IP()).Str("x-forwarded-for", xff).Str("path", c.Path()).Msg("rate limiter client IP")
+			return xff
+		},
 	})
 }

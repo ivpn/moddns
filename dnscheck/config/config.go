@@ -35,7 +35,8 @@ type APIConfig struct {
 
 // CacheConfig represents the cache configuration
 type CacheConfig struct {
-	TTL time.Duration
+	TTL     time.Duration
+	HMACKey string
 }
 
 // GeoLookupConfig represents access to MaxMind GeoIP database
@@ -71,6 +72,11 @@ func New() (*Config, error) {
 		asnUint = 123456 // non-existent ASN
 	}
 
+	cacheHMACKey := os.Getenv("CACHE_HMAC_KEY")
+	if cacheHMACKey == "" {
+		return nil, errors.New("CACHE_HMAC_KEY environment variable is required")
+	}
+
 	return &Config{
 		Server: &AuthoritativeDNSServerConfig{
 			Domain:    os.Getenv("DNS_AUTH_SERVER_DOMAIN"),
@@ -83,7 +89,8 @@ func New() (*Config, error) {
 			ApiAllowOrigin: os.Getenv("API_ALLOW_ORIGIN"),
 		},
 		Cache: &CacheConfig{
-			TTL: ttl,
+			TTL:     ttl,
+			HMACKey: cacheHMACKey,
 		},
 		GeoLookupConfig: &GeoLookupConfig{
 			DBFile:    os.Getenv("GEOIP_DB_FILE"),

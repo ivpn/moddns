@@ -139,18 +139,26 @@ func (a *AccountService) VerifyPasswordReset(ctx context.Context, tokenValue, ne
 		return err
 	}
 
+	var others []model.Token
+	var found bool
 	for _, token := range acc.Tokens {
 		if token.Type == auth.TokenTypePasswordReset && token.Value == tokenValue {
 			if time.Now().After(token.ExpiresAt) {
 				return ErrTokenExpired
 			}
-			break
+			found = true
+			continue // exclude the used token
 		}
+		others = append(others, token)
+	}
+	if !found {
+		return ErrInvalidVerificationToken
 	}
 
 	if err := acc.SetPassword(newPassword); err != nil {
 		return err
 	}
+	acc.Tokens = others
 	_, err = a.AccountRepository.UpdateAccount(ctx, acc)
 	if err != nil {
 		return err

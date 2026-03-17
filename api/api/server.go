@@ -67,7 +67,12 @@ func (s *APIServer) setupMiddlewares() {
 	s.App.Use(middleware.Recover())
 	s.App.Use(requestid.New())
 	s.App.Use(logger.New())
-	s.App.Use(helmet.New())
+	s.App.Use(helmet.New(helmet.Config{
+		HSTSMaxAge:            31536000,
+		HSTSPreloadEnabled:    true,
+		ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none'",
+		PermissionPolicy:      "camera=(), microphone=(), geolocation=()",
+	}))
 	s.App.Use(middleware.NewAccepts(fiber.MIMEApplicationJSON))
 	s.App.Use(
 		healthcheck.New(
@@ -88,6 +93,7 @@ func (s *APIServer) setupMiddlewares() {
 func (s *APIServer) RegisterRoutes() {
 	api := s.App.Group("/api")
 	v1 := api.Group("/v1")
+	v1.Use(middleware.NewNoCache())
 
 	api.Use(middleware.NewAPICORS(*s.Config.API))
 	api.Use(middleware.NewIPCORS(*s.Config.API))

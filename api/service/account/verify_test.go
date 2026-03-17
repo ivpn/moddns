@@ -375,6 +375,177 @@ func (suite *EmailVerificationOTPSuite) TestVerifyEmailOTP() {
 	}
 }
 
+func (suite *EmailVerificationOTPSuite) TestVerifyPasswordReset() {
+	validToken := "reset-token-abc123"
+	validPassword := "NewSecurePass123!"
+	futureTime := time.Now().Add(1 * time.Hour)
+	expiredTime := time.Now().Add(-1 * time.Minute)
+
+	makeAccountWithResetToken := func(tokenValue string, exp time.Time) *model.Account {
+		return &model.Account{
+			ID:            primitive.NewObjectID(),
+			Email:         "user@example.com",
+			EmailVerified: true,
+			Tokens: []model.Token{
+				{Type: "password_reset", Value: tokenValue, ExpiresAt: exp},
+			},
+		}
+	}
+
+	tests := []struct {
+		name               string
+		account            *model.Account
+		tokenInput         string
+		password           string
+		mfa                *model.MfaData
+		getByTokenErr      error
+		updateErr          error
+		expectedErrorPart  string
+		expectTokenRemoved bool
+	}{
+		{
+			name:               "success resets password and removes token",
+			account:            makeAccountWithResetToken(validToken, futureTime),
+			tokenInput:         validToken,
+			password:           validPassword,
+			mfa:                &model.MfaData{},
+			expectTokenRemoved: true,
+		},
+		{
+			name:              "token not found in database",
+			tokenInput:        validToken,
+			password:          validPassword,
+			mfa:               &model.MfaData{},
+			getByTokenErr:     dbErrors.ErrAccountNotFound,
+			expectedErrorPart: "invalid verification token",
+		},
+		{
+			name:              "token expired",
+			account:           makeAccountWithResetToken(validToken, expiredTime),
+			tokenInput:        validToken,
+			password:          validPassword,
+			mfa:               &model.MfaData{},
+			expectedErrorPart: "token expired",
+		},
+		{
+			name: "token not in account tokens array",
+			account: &model.Account{
+				ID:            primitive.NewObjectID(),
+				Email:         "user@example.com",
+				EmailVerified: true,
+				Tokens:        []model.Token{},
+			},
+			tokenInput:        validToken,
+			password:          validPassword,
+			mfa:               &model.MfaData{},
+			expectedErrorPart: "invalid verification token",
+		},
+		{
+			name:              "empty password rejected",
+			account:           makeAccountWithResetToken(validToken, futureTime),
+			tokenInput:        validToken,
+			password:          "",
+			mfa:               &model.MfaData{},
+			expectedErrorPart: "password cannot be empty",
+		},
+		{
+			name:              "update account error",
+			account:           makeAccountWithResetToken(validToken, futureTime),
+			tokenInput:        validToken,
+			password:          validPassword,
+			mfa:               &model.MfaData{},
+			updateErr:         errors.New("db write failed"),
+			expectedErrorPart: "db write failed",
+		},
+		{
+			name: "mfa required but not provided",
+			account: func() *model.Account {
+				acc := makeAccountWithResetToken(validToken, futureTime)
+				acc.MFA.TOTP.Enabled = true
+				acc.MFA.TOTP.Secret = "JBSWY3DPEHPK3PXP"
+				return acc
+			}(),
+			tokenInput:        validToken,
+			password:          validPassword,
+			mfa:               &model.MfaData{},
+			expectedErrorPart: "TOTP is required",
+		},
+		{
+			name: "preserves other tokens after reset",
+			account: &model.Account{
+				ID:            primitive.NewObjectID(),
+				Email:         "user@example.com",
+				EmailVerified: true,
+				Tokens: []model.Token{
+					{Type: "password_reset", Value: validToken, ExpiresAt: futureTime},
+					{Type: "email_verification_otp", Value: "keep-me", ExpiresAt: futureTime},
+				},
+			},
+			tokenInput:         validToken,
+			password:           validPassword,
+			mfa:                &model.MfaData{},
+			expectTokenRemoved: true,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.mockAccountRepo.ExpectedCalls = nil
+			suite.mockCache.ExpectedCalls = nil
+
+			// Mock GetAccountByToken
+			if tt.getByTokenErr != nil {
+				suite.mockAccountRepo.On("GetAccountByToken", context.Background(), tt.tokenInput, "password_reset").Return(nil, tt.getByTokenErr)
+			} else {
+				suite.mockAccountRepo.On("GetAccountByToken", context.Background(), tt.tokenInput, "password_reset").Return(tt.account, nil)
+			}
+
+			// Early exit on getByTokenErr
+			if tt.getByTokenErr != nil {
+				err := suite.service.VerifyPasswordReset(context.Background(), tt.tokenInput, tt.password, tt.mfa)
+				suite.Error(err)
+				suite.Contains(err.Error(), tt.expectedErrorPart)
+				return
+			}
+
+			// MFA check may fail before we reach token loop
+			if tt.account != nil && tt.account.MFA.TOTP.Enabled && tt.mfa.OTP == "" {
+				err := suite.service.VerifyPasswordReset(context.Background(), tt.tokenInput, tt.password, tt.mfa)
+				suite.Error(err)
+				suite.Contains(err.Error(), tt.expectedErrorPart)
+				return
+			}
+
+			// Mock UpdateAccount on success path (valid token, valid password)
+			if tt.expectTokenRemoved || tt.updateErr != nil {
+				if tt.updateErr != nil {
+					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(nil, tt.updateErr)
+				} else {
+					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).
+						Run(func(args mock.Arguments) {
+							acc := args.Get(1).(*model.Account)
+							// Verify the used reset token was removed
+							for _, t := range acc.Tokens {
+								suite.NotEqual(tt.tokenInput, t.Value, "used reset token should be removed")
+							}
+							// Verify password was set (non-nil)
+							suite.NotNil(acc.Password, "password should be set after reset")
+						}).
+						Return(tt.account, nil)
+				}
+			}
+
+			err := suite.service.VerifyPasswordReset(context.Background(), tt.tokenInput, tt.password, tt.mfa)
+			if tt.expectedErrorPart != "" {
+				suite.Error(err)
+				suite.Contains(err.Error(), tt.expectedErrorPart)
+			} else {
+				suite.NoError(err)
+			}
+		})
+	}
+}
+
 func TestEmailVerificationOTPSuite(t *testing.T) {
 	suite.Run(t, new(EmailVerificationOTPSuite))
 }

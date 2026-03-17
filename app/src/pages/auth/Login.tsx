@@ -270,7 +270,7 @@ export default function Login() {
                                 >
                                     {infoAlertData.linkText}
                                 </a>{" "}
-                                and look for "modDNS Beta" in your account settings.
+                                and look for "ModDNS" in your account settings.
                             </div>
                         </div>
                     </Alert>
