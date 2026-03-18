@@ -105,7 +105,7 @@ jobs:
       - name: Set up Go (API)
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
-          go-version: "1.25.7"
+          go-version: "1.25.8"
       - name: Build API
         run: cd api/; go mod vendor; make build
       - name: Test API
@@ -129,7 +129,7 @@ jobs:
       - name: Set up Go (Libs)
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
-          go-version: "1.25.7"
+          go-version: "1.25.8"
       - name: Test Libs
         run: cd libs/; go mod vendor; make test
       - name: golangci-lint - Libs (non-blocking)
@@ -152,7 +152,7 @@ jobs:
       - name: Set up Go (Proxy)
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
-          go-version: "1.25.7"
+          go-version: "1.25.8"
       - name: Build Proxy
         run: cd proxy/; go mod vendor; make build
       - name: Test Proxy
@@ -177,7 +177,7 @@ jobs:
       - name: Set up Go (Blocklists)
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
-          go-version: "1.25.7"
+          go-version: "1.25.8"
       - name: Build Blocklists
         run: cd blocklists/; go mod vendor; make build
       - name: Test Blocklists
@@ -202,7 +202,7 @@ jobs:
       - name: Set up Go (DNSCheck)
         uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
         with:
-          go-version: "1.25.7"
+          go-version: "1.25.8"
       - name: Build DNSCheck
         run: cd dnscheck/; go mod vendor; make build
       - name: golangci-lint - DNSCheck (non-blocking)
