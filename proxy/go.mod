@@ -1,6 +1,6 @@
 module github.com/ivpn/dns/proxy
 
-go 1.25.7
+go 1.25.8
 
 require (
 	github.com/AdguardTeam/dnsproxy v0.78.0
