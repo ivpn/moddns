@@ -28,7 +28,7 @@ const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/Mobile
 const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigDownload'));
 const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
 
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
 import api from "@/api/api";
 import type { ModelAccount, ModelProfile } from "@/api/client/api";
@@ -528,6 +528,7 @@ function EventHandlerMount() {
 function AppWithEventHandler() {
   return (
     <>
+      <ScrollRestoration />
       <Toaster />
       <AuthProvider>
         <NavigationCollapseProvider>
