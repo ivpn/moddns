@@ -1,5 +1,6 @@
 import { type JSX, type LucideIcon, useMemo, useState } from "react";
 import BlocklistCard from "./BlocklistCard";
+import CategoryCard from "./CategoryCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ModelBlocklist } from "@/api/client/api";
@@ -16,27 +17,38 @@ import {
     Gamepad2,
     Globe,
     Newspaper,
-    LayoutGrid,
 } from "lucide-react";
 
-const CATEGORIES: Array<{ key: string; label: string; icon: LucideIcon }> = [
-    { key: "gambling", label: "Gambling", icon: Dices },
-    { key: "adult", label: "Adult Content", icon: ShieldAlert },
-    { key: "dating", label: "Dating", icon: Heart },
-    { key: "drugs", label: "Drugs", icon: Pill },
-    { key: "social_media", label: "Social Media", icon: Users },
-    { key: "piracy", label: "Piracy", icon: Skull },
-    { key: "crypto", label: "Cryptocurrency", icon: Coins },
-    { key: "fraud", label: "Fraud & Scams", icon: AlertTriangle },
-    { key: "gaming", label: "Gaming", icon: Gamepad2 },
-    { key: "vpn_bypass", label: "VPN & Bypass", icon: Globe },
-    { key: "clickbait", label: "Clickbait & Fake News", icon: Newspaper },
+const CATEGORIES: Array<{
+    key: string;
+    label: string;
+    icon: LucideIcon;
+    description: string;
+}> = [
+    { key: "gambling", label: "Gambling", icon: Dices, description: "Block online casinos, betting platforms, and lottery services" },
+    { key: "adult", label: "Adult Content", icon: ShieldAlert, description: "Block adult and explicit content websites" },
+    { key: "dating", label: "Dating", icon: Heart, description: "Block dating apps and matchmaking services" },
+    { key: "drugs", label: "Drugs", icon: Pill, description: "Block sites promoting illegal drugs and substances" },
+    { key: "social_media", label: "Social Media", icon: Users, description: "Block social media platforms and networks" },
+    { key: "piracy", label: "Piracy", icon: Skull, description: "Block piracy, torrenting, and illegal streaming sites" },
+    { key: "crypto", label: "Cryptocurrency", icon: Coins, description: "Block cryptocurrency exchanges, mining, and trading platforms" },
+    { key: "fraud", label: "Fraud & Scams", icon: AlertTriangle, description: "Block phishing, scam, and fraudulent websites" },
+    { key: "gaming", label: "Gaming", icon: Gamepad2, description: "Block online gaming platforms and game-related sites" },
+    { key: "vpn_bypass", label: "VPN & Bypass", icon: Globe, description: "Block VPN services and DNS/proxy bypass tools" },
+    { key: "clickbait", label: "Clickbait & Fake News", icon: Newspaper, description: "Block clickbait, fake news, and misleading content sites" },
 ];
+
+function formatEntries(n: number): string {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+    return String(n);
+}
 
 interface CategoriesContentSectionProps {
     blocklists: ModelBlocklist[];
     enabledBlocklists: string[];
     onToggle: (id: string, checked: boolean) => void;
+    onCategoryToggle: (blocklistIds: string[], enable: boolean) => void;
     updating: string | null;
     loading: boolean;
 }
@@ -45,10 +57,11 @@ export default function CategoriesContentSection({
     blocklists,
     enabledBlocklists,
     onToggle,
+    onCategoryToggle,
     updating,
     loading,
 }: CategoriesContentSectionProps): JSX.Element {
-    const [activeFilter, setActiveFilter] = useState<string | null>(null);
+    const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
     const grouped = useMemo(() => {
         const map = new Map<string, ModelBlocklist[]>();
@@ -60,105 +73,115 @@ export default function CategoriesContentSection({
         return map;
     }, [blocklists]);
 
-    // Only show category labels that actually have blocklists
     const availableCategories = useMemo(
         () => CATEGORIES.filter((c) => (grouped.get(c.key)?.length ?? 0) > 0),
         [grouped],
     );
 
-    const visibleGroups = useMemo(() => {
-        const result: Array<{ key: string; label: string; icon: LucideIcon; items: ModelBlocklist[] }> = [];
+    // If no blocklists in a category are tagged "recommended", treat all as recommended
+    const getRecommended = (items: ModelBlocklist[]): ModelBlocklist[] => {
+        const tagged = items.filter((bl) => bl.tags?.includes("recommended"));
+        return tagged.length > 0 ? tagged : items;
+    };
 
-        for (const cat of availableCategories) {
-            if (activeFilter && activeFilter !== cat.key) continue;
-            const items = grouped.get(cat.key);
-            if (!items || items.length === 0) continue;
-            result.push({ ...cat, items });
+    const handleCategoryToggle = (categoryKey: string) => {
+        const items = grouped.get(categoryKey) ?? [];
+        const recommended = getRecommended(items);
+        const recommendedIds = recommended.map((bl) => bl.blocklist_id);
+        const enabledCount = recommended.filter((bl) =>
+            enabledBlocklists.includes(bl.blocklist_id)
+        ).length;
+
+        if (enabledCount >= recommended.length) {
+            // All recommended enabled -> disable all recommended
+            onCategoryToggle(recommendedIds, false);
+        } else {
+            // None or partial -> enable all recommended
+            onCategoryToggle(recommendedIds, true);
         }
-
-        return result;
-    }, [grouped, availableCategories, activeFilter]);
+    };
 
     return (
         <div className="flex flex-col w-full items-start gap-6">
             <section className="w-full">
                 <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                    Category blocklists let you block entire content categories such as gambling, adult content, or social media. Each category includes lists from multiple providers for comprehensive coverage.
+                    Enable content categories to quickly block entire types of content. Each category applies recommended blocklists from multiple providers for comprehensive coverage. Expand any category to fine-tune individual lists.
                 </p>
             </section>
 
-            {/* Category labels */}
-            {!loading && (
-                <section className="w-full">
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={() => setActiveFilter(null)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border cursor-pointer ${
-                                activeFilter === null
-                                    ? "bg-[var(--tailwind-colors-rdns-600)] text-white border-transparent"
-                                    : "bg-transparent text-[var(--tailwind-colors-slate-300)] border-[var(--tailwind-colors-slate-700)] hover:border-[var(--tailwind-colors-slate-500)] hover:text-[var(--tailwind-colors-slate-100)]"
-                            }`}
-                        >
-                            <LayoutGrid className="h-3.5 w-3.5" />
-                            All
-                        </button>
-                        {availableCategories.map(({ key, label, icon: Icon }) => (
-                            <button
-                                key={key}
-                                onClick={() => setActiveFilter(activeFilter === key ? null : key)}
-                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors duration-150 border cursor-pointer ${
-                                    activeFilter === key
-                                        ? "bg-[var(--tailwind-colors-rdns-600)] text-white border-transparent"
-                                        : "bg-transparent text-[var(--tailwind-colors-slate-300)] border-[var(--tailwind-colors-slate-700)] hover:border-[var(--tailwind-colors-slate-500)] hover:text-[var(--tailwind-colors-slate-100)]"
-                                }`}
-                            >
-                                <Icon className="h-3.5 w-3.5" />
-                                {label}
-                            </button>
-                        ))}
-                    </div>
-                </section>
-            )}
-
-            {/* Category groups */}
             <section className="w-full">
                 <ScrollArea className="w-full">
                     {loading ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
                             {Array.from({ length: 8 }).map((_, i) => (
-                                <div key={i} className="rounded-lg border border-[var(--tailwind-colors-slate-700)] p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <Skeleton className="h-5 w-32" />
-                                        <Skeleton className="h-5 w-10 rounded-full" />
+                                <div
+                                    key={i}
+                                    className="bg-transparent dark:bg-[var(--variable-collection-surface)] p-3 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-[var(--tailwind-primitives-border-radius-rounded)] shadow-sm flex flex-col justify-between h-[196px] lg:h-[180px] w-full"
+                                >
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-start gap-2">
+                                                <Skeleton className="h-5 w-5 mt-0.5 rounded" />
+                                                <Skeleton className="h-5 w-24" />
+                                            </div>
+                                            <Skeleton className="h-5 w-9 rounded-full" />
+                                        </div>
+                                        <div className="pt-2 space-y-1.5">
+                                            <Skeleton className="h-3 w-full" />
+                                            <Skeleton className="h-3 w-full" />
+                                            <Skeleton className="h-3 w-3/4" />
+                                        </div>
                                     </div>
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <div className="flex items-center justify-between pt-2">
+                                    <div className="mt-4 flex items-center justify-between">
+                                        <Skeleton className="h-3 w-14" />
                                         <Skeleton className="h-3 w-20" />
-                                        <Skeleton className="h-3 w-16" />
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-8 pb-8">
-                            {visibleGroups.map(({ key, label, icon: Icon, items }) => {
-                                const enabledCount = items.filter((bl) =>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
+                            {availableCategories.map(({ key, label, icon, description }) => {
+                                const items = grouped.get(key) ?? [];
+                                const recommended = getRecommended(items);
+                                const enabledRecommended = recommended.filter((bl) =>
                                     enabledBlocklists.includes(bl.blocklist_id)
                                 ).length;
 
+                                const totalEntries = items.reduce(
+                                    (sum, bl) => sum + (typeof bl.entries === "number" ? bl.entries : 0),
+                                    0,
+                                );
+
+                                const mostRecent = items.reduce((latest, bl) => {
+                                    if (!bl.last_modified) return latest;
+                                    if (!latest) return bl.last_modified;
+                                    return new Date(bl.last_modified) > new Date(latest)
+                                        ? bl.last_modified
+                                        : latest;
+                                }, "" as string);
+
+                                const isExpanded = expandedCategory === key;
+
                                 return (
-                                    <div key={key}>
-                                        <div className="flex items-center gap-2 mb-4">
-                                            <Icon className="h-4 w-4 text-[var(--tailwind-colors-rdns-600)]" />
-                                            <h3 className="text-[var(--tailwind-colors-slate-50)] font-semibold text-base">
-                                                {label}
-                                            </h3>
-                                            <span className="text-xs text-[var(--tailwind-colors-slate-400)]">
-                                                ({enabledCount}/{items.length})
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    <CategoryCard
+                                        key={key}
+                                        icon={icon}
+                                        label={label}
+                                        description={description}
+                                        totalLists={items.length}
+                                        enabledLists={enabledRecommended}
+                                        totalRecommended={recommended.length}
+                                        totalEntries={formatEntries(totalEntries)}
+                                        lastUpdated={formatUpdatedRelative(mostRecent)}
+                                        onToggle={() => handleCategoryToggle(key)}
+                                        toggleDisabled={updating !== null}
+                                        expanded={isExpanded}
+                                        onExpandToggle={() =>
+                                            setExpandedCategory(isExpanded ? null : key)
+                                        }
+                                    >
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {items.map((bl) => {
                                                 const isEnabled = enabledBlocklists.includes(bl.blocklist_id);
                                                 return (
@@ -176,7 +199,7 @@ export default function CategoriesContentSection({
                                                 );
                                             })}
                                         </div>
-                                    </div>
+                                    </CategoryCard>
                                 );
                             })}
                         </div>

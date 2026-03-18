@@ -126,6 +126,42 @@ export default function MainContentSection(): JSX.Element {
         };
     }, [sortValue]);
 
+    // Handler to enable/disable all recommended blocklists in a category
+    const handleCategoryToggle = async (blocklistIds: string[], enable: boolean) => {
+        if (!activeProfile?.profile_id || blocklistIds.length === 0) return;
+        const idsToChange = enable
+            ? blocklistIds.filter((id) => !enabledBlocklists.includes(id))
+            : blocklistIds.filter((id) => enabledBlocklists.includes(id));
+        if (idsToChange.length === 0) return;
+        setUpdating("category");
+        try {
+            if (enable) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
+                    activeProfile.profile_id,
+                    { blocklist_ids: idsToChange } as ApiBlocklistsUpdates
+                );
+            } else {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsDelete(
+                    activeProfile.profile_id,
+                    { blocklist_ids: idsToChange } as ApiBlocklistsUpdates
+                );
+            }
+            const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updatedProfile.data);
+            toast.success(enable ? "Category enabled" : "Category disabled", {
+                description: enable
+                    ? "Recommended blocklists have been enabled."
+                    : "Recommended blocklists have been disabled.",
+            });
+        } catch {
+            toast.error("Error", {
+                description: "Failed to update category. Please try again.",
+            });
+        } finally {
+            setUpdating(null);
+        }
+    };
+
     // Handler to enable/disable a blocklist for the user
     const handleBlocklistSwitch = async (blocklistId: string, checked: boolean) => {
         if (!activeProfile?.profile_id) return;
@@ -505,6 +541,7 @@ export default function MainContentSection(): JSX.Element {
                             blocklists={categoryBlocklists}
                             enabledBlocklists={enabledBlocklists}
                             onToggle={handleBlocklistSwitch}
+                            onCategoryToggle={handleCategoryToggle}
                             updating={updating}
                             loading={loading}
                         />
