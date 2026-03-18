@@ -5,13 +5,13 @@ import {
     TrashIcon,
 } from "lucide-react";
 import type { JSX } from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/general/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import AccountInfoCard from "@/pages/account_preferences/AccountInfoCard";
-import type { ModelAccount, ModelSubscription } from "@/api/client/api";
+import type { ModelAccount } from "@/api/client/api";
 import api from "@/api/api";
 import ToggleGroup from "@/components/general/ToggleGroup";
 import { toast } from "sonner"
@@ -120,54 +120,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
         }
     };
 
-    // Subscription state
-    const [subscription, setSubscription] = useState<ModelSubscription | null>(null);
-    const [subscriptionLoading, setSubscriptionLoading] = useState(false);
-    const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
-
-    // Fetch subscription info once on mount (requires auth cookie)
-    useEffect(() => {
-        let cancelled = false;
-        const fetchSubscription = async () => {
-            setSubscriptionLoading(true);
-            setSubscriptionError(null);
-            try {
-                const resp = await api.Client.subscriptionApi.apiV1SubGet();
-                if (!cancelled) {
-                    setSubscription(resp.data);
-                }
-            } catch (err: unknown) {
-                // 404 means no subscription yet; treat silently
-                let notFound = false;
-                if (typeof err === 'object' && err !== null && 'response' in err) {
-                    const response = (err as { response?: { status?: number } }).response;
-                    if (response?.status === 404) {
-                        notFound = true;
-                    }
-                }
-                if (notFound) {
-                    if (!cancelled) setSubscription(null);
-                } else if (!cancelled) {
-                    setSubscriptionError('Failed to load subscription');
-                }
-            } finally {
-                if (!cancelled) setSubscriptionLoading(false);
-            }
-        };
-        fetchSubscription();
-        return () => { cancelled = true; };
-    }, []);
-
-    const formatDate = (iso?: string) => {
-        if (!iso) return '—';
-        try {
-            const d = new Date(iso);
-            if (isNaN(d.getTime())) return iso;
-            return d.toLocaleDateString();
-        } catch { return iso; }
-    };
-
-    // Account info data (Member since removed; Active until + Subscription type added)
+    // Account info data
     const accountInfo = [
         { label: "modDNS ID", value: currentAccount?.email || "" },
         {
@@ -187,14 +140,6 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
             icon: is2FAEnabled
                 ? <ShieldCheck className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
                 : <ShieldX className="w-4 h-4 text-[var(--tailwind-colors-red-600)]" />,
-        },
-        {
-            label: "Active until",
-            value: subscriptionLoading
-                ? 'Loading…'
-                : subscriptionError
-                    ? subscriptionError
-                    : formatDate(subscription?.active_until),
         },
     ];
 
