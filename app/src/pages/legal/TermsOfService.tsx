@@ -53,14 +53,14 @@ export default function TermsOfService() {
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             These Terms of Service ("Terms") govern your use of modDNS, a DNS resolver and filtering service operated by IVPN Limited ("we," "us," or "our"). By subscribing to or using our service, you ("you" or "user") agree to abide by these Terms.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">2. Acceptance of Terms</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             By accessing or using our service, you agree to be bound by these Terms and our{" "}
                                             <span
                                                 onClick={() => navigate('/privacy')}
@@ -73,10 +73,10 @@ export default function TermsOfService() {
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">3. User Responsibilities</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed mb-4">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             You agree to use our service only for lawful purposes and in a manner that does not infringe or restrict any third party's rights or service use. Prohibited activities include, but are not limited to:
                                         </p>
-                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>Engaging in illegal activities, including criminal or terrorist actions, fraud, identity theft, and money laundering.</li>
                                             <li>Attempting to hack, attack, or gain unauthorized access to any computers, networks, accounts, or systems.</li>
                                             <li>Transmitting or distributing viruses, worms, trojans, or other malicious software.</li>
@@ -91,14 +91,14 @@ export default function TermsOfService() {
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">4. Account Usage and Security</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             Your account is for individual use only; sharing your account or login credentials is prohibited. You are responsible for all activities that occur under your account. Notify us immediately of any unauthorized use or security breaches.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">5. Payment Terms</h2>
-                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>All payments must be made using valid and authorized payment methods. Do not use stolen or unauthorized payment information.</li>
                                             <li>Fees are due in advance and are non-refundable, except as required by law or specified in our Refund Policy.</li>
                                             <li>We reserve the right to change our fees at any time. Advance notice of fee changes will be provided by posting updates on our website and social media communication channels.</li>
@@ -107,47 +107,47 @@ export default function TermsOfService() {
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">6. Service Availability and Modifications</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed mb-4">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             We strive to provide reliable service but do not guarantee uninterrupted availability. We reserve the right to modify, suspend, or discontinue the service (or any part thereof) at any time, with or without notice.
                                         </p>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             Technical support is provided via email and is limited to issues related to the functionality of the service.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">7. Termination and Suspension</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed mb-4">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             We may suspend or terminate your account immediately, without prior notice or liability, upon breach of these Terms. No refunds will be provided if your account is terminated due to a breach of these Terms.
                                         </p>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             Upon termination, your right to use the service ceases immediately. Provisions that should survive termination will remain in effect, including ownership provisions, warranty disclaimers, indemnity, and limitations of liability.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">8. Changes to Terms</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             We reserve the right to modify or replace these Terms at any time. Significant changes will be communicated by posting the new Terms on our website and updating the "Effective Date." By continuing to use our service after revisions become effective, you agree to be bound by the revised Terms.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">9. Limitation of Liability and Disclaimer of Warranties</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed mb-4">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             The service is provided on an "as is" and "as available" basis, without any warranties or conditions, express or implied. We do not warrant that the service will meet your requirements or that it will be uninterrupted, timely, or error-free.
                                         </p>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             In no event shall we be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, use, goodwill, or other intangible losses.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">10. Indemnification</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed mb-4">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             You agree to defend, indemnify, and hold harmless IVPN Limited and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, costs, or expenses arising from:
                                         </p>
-                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>Your use of and access to the service.</li>
                                             <li>Your violation of any term of these Terms.</li>
                                             <li>Your violation of any third-party right, including intellectual property or privacy rights.</li>
@@ -156,14 +156,14 @@ export default function TermsOfService() {
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">11. Governing Law</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             These Terms are governed by and construed in accordance with the laws of Gibraltar, without regard to its conflicts of law provisions.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">Contact Us</h2>
-                                        <p className="text-[var(--shadcn-ui-app-muted-foreground)] leading-relaxed">
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             If you have any questions about these Terms, please contact us at <a href="mailto:moddns@ivpn.net" className="text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] transition-colors">moddns@ivpn.net</a>.
                                         </p>
                                     </section>
