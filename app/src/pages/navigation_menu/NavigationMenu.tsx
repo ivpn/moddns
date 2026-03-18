@@ -9,6 +9,7 @@ import {
     LogOut,
     Mail,
     HelpCircle,
+    EyeOff,
     X,
 } from "lucide-react";
 import modDNSLogo from '@/assets/logos/modDNS.svg'
@@ -194,6 +195,23 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                         {showLabels && (
                             <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'}`}>
                                 FAQ
+                            </span>
+                        )}
+                    </Button>
+
+                    {/* Privacy Policy */}
+                    <Button
+                        variant="ghost"
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive('/privacy') ? "bg-[var(--sidebar-accent-bg)] text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        title="Privacy Policy"
+                        onClick={() => handleNavigation('/privacy')}
+                    >
+                        <span className={`flex items-center ${isActive('/privacy') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
+                            <EyeOff className="w-5 h-5" />
+                        </span>
+                        {showLabels && (
+                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive('/privacy') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
+                                Privacy
                             </span>
                         )}
                     </Button>

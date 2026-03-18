@@ -22,7 +22,7 @@ import AccountPreferences from '@/pages/account_preferences/Account';
 import MobileconfigPage from '@/pages/mobileconfig/MobileconfigPage';
 import MobileconfigDownload from '@/pages/mobileconfig/MobileconfigDownload';
 import HomeScreen from './pages/home/HomeScreen';
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
 import api from "@/api/api";
 import type { ModelAccount, ModelProfile } from "@/api/client/api";
@@ -491,6 +491,7 @@ function EventHandlerMount() {
 function AppWithEventHandler() {
   return (
     <>
+      <ScrollRestoration />
       <Toaster />
       <AuthProvider>
         <NavigationCollapseProvider>
