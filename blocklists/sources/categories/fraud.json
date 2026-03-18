@@ -6,7 +6,7 @@
     "source_url": "https://blocklistproject.github.io/Lists/alt-version/fraud-nl.txt",
     "homepage": "https://github.com/blocklistproject/Lists",
     "syntax": "domains",
-    "tags": ["category", "fraud", "blp"],
+    "tags": ["category", "fraud", "blp", "recommended"],
     "schedule": "@hourly"
   },
   {
@@ -16,7 +16,7 @@
     "source_url": "https://blocklistproject.github.io/Lists/alt-version/scam-nl.txt",
     "homepage": "https://github.com/blocklistproject/Lists",
     "syntax": "domains",
-    "tags": ["category", "fraud", "blp"],
+    "tags": ["category", "fraud", "blp", "recommended"],
     "schedule": "@hourly"
   }
 ]

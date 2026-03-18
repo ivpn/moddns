@@ -6,7 +6,7 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "tags": ["category", "adult", "hagezi"],
+    "tags": ["category", "adult", "hagezi", "recommended"],
     "schedule": "@hourly"
   },
   {
