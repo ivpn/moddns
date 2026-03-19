@@ -222,7 +222,7 @@ export default function CategoriesContentSection({
         <div className="flex flex-col w-full items-start gap-6">
             <section className="w-full">
                 <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                    Enable content categories to quickly block entire types of content. Each category applies recommended blocklists from multiple providers for comprehensive coverage. Expand any category to fine-tune individual lists.
+                    Toggle content categories to quickly block entire types of content.
                 </p>
             </section>
 

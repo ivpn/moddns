@@ -1,6 +1,8 @@
 import { type JSX, useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { SearchIcon } from "lucide-react";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { toast } from "sonner";
@@ -23,6 +25,8 @@ function formatASNsTitle(asns?: Array<number>): string {
     return `ASNs: ${asns.join(", ")}`;
 }
 
+type StatusFilter = "all" | "blocked" | "unblocked";
+
 export default function ServicesContentSection(): JSX.Element {
     const activeProfile = useAppStore((state) => state.activeProfile);
     const setActiveProfile = useAppStore((state) => state.setActiveProfile);
@@ -30,6 +34,8 @@ export default function ServicesContentSection(): JSX.Element {
     const [services, setServices] = useState<ServicescatalogService[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
+    const [searchValue, setSearchValue] = useState("");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
     const blockedServices = activeProfile?.settings?.privacy?.services?.blocked ?? [];
 
@@ -96,13 +102,62 @@ export default function ServicesContentSection(): JSX.Element {
         }
     };
 
+    const filteredServices = useMemo(() => {
+        return services.filter((svc) => {
+            const name = svc.name ?? "";
+            const id = svc.id ?? "";
+            const matchesSearch =
+                !searchValue.trim() ||
+                name.toLowerCase().includes(searchValue.toLowerCase());
+            const isBlocked = id ? blockedServices.includes(id) : false;
+            const matchesStatus =
+                statusFilter === "all" ||
+                (statusFilter === "blocked" && isBlocked) ||
+                (statusFilter === "unblocked" && !isBlocked);
+            return matchesSearch && matchesStatus;
+        });
+    }, [services, searchValue, statusFilter, blockedServices]);
+
+    const statusFilterClassName = (value: StatusFilter) =>
+        `h-11 sm:h-9 px-3 text-xs font-medium rounded-md transition-colors duration-150 cursor-pointer select-none ${
+            statusFilter === value
+                ? "bg-[var(--tailwind-colors-rdns-600)] text-white"
+                : "bg-[var(--shadcn-ui-app-background)] text-[var(--tailwind-colors-slate-400)] border border-[var(--tailwind-colors-slate-700)] hover:text-[var(--tailwind-colors-slate-200)]"
+        }`;
+
     return (
         <div className="flex flex-col w-full items-start gap-6">
             <section className="w-full">
                 <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                    Services are ASN-based presets. When enabled, modDNS blocks DNS answers whose destination IP belongs to the service’s network.
+                    Block specific online services by their network identity.
                 </p>
             </section>
+
+            {/* Search and status filter */}
+            {!loading && services.length > 0 && (
+                <section className="w-full flex flex-col gap-2.5">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full">
+                        <div className="relative min-w-0 sm:flex-1">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--tailwind-colors-slate-400)]" />
+                            <Input
+                                className="h-11 sm:h-9 min-h-11 sm:min-h-0 pl-10 pr-3 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-200)] rounded-lg placeholder:text-[var(--tailwind-colors-slate-400)]"
+                                placeholder="Search services..."
+                                aria-label="Search services"
+                                value={searchValue}
+                                onChange={(e) => setSearchValue(e.target.value)}
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                autoCorrect="off"
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <button type="button" className={statusFilterClassName("all")} onClick={() => setStatusFilter("all")}>All</button>
+                            <button type="button" className={statusFilterClassName("blocked")} onClick={() => setStatusFilter("blocked")}>Blocked</button>
+                            <button type="button" className={statusFilterClassName("unblocked")} onClick={() => setStatusFilter("unblocked")}>Unblocked</button>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             <section className="w-full">
                 <ScrollArea className="w-full">
@@ -134,12 +189,14 @@ export default function ServicesContentSection(): JSX.Element {
                                     </div>
                                 ))}
                             </>
-                        ) : services.length === 0 ? (
+                        ) : filteredServices.length === 0 ? (
                             <div className="col-span-full text-center text-[var(--tailwind-colors-slate-400)] py-8">
-                                No services available.
+                                {services.length === 0
+                                    ? "No services available."
+                                    : "No services match your search."}
                             </div>
                         ) : (
-                            services.map((svc, idx) => {
+                            filteredServices.map((svc, idx) => {
                                 const id = svc.id ?? "";
                                 const name = svc.name ?? "Unnamed";
                                 const isBlocked = id ? blockedServices.includes(id) : false;

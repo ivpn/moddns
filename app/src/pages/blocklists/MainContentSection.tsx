@@ -314,7 +314,7 @@ export default function MainContentSection(): JSX.Element {
                 <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
-                            Blocklists
+                            Lists
                         </TabsTrigger>
                         <TabsTrigger value="services" className={tabTriggerClassName}>
                             Services
@@ -330,7 +330,7 @@ export default function MainContentSection(): JSX.Element {
                         {/* Page Description */}
                         <section className="w-full">
                             <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                                Blocklists are collections of domains and IP addresses that help block trackers, ads, and malicious content. Choose from curated lists or individual providers to customize your DNS filtering experience.
+                                Fine-tune your filtering with individual blocklists from trusted providers.
                             </p>
                         </section>
 
