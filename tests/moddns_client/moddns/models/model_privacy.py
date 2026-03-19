@@ -19,7 +19,6 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_services_settings import ModelServicesSettings
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -31,7 +30,7 @@ class ModelPrivacy(BaseModel):
     blocklists_subdomains_rule: StrictStr
     custom_rules_subdomains_rule: Optional[StrictStr] = None
     default_rule: StrictStr
-    services: Optional[ModelServicesSettings] = None
+    services: Optional[List[StrictStr]] = None
     __properties: ClassVar[List[str]] = ["blocklists", "blocklists_subdomains_rule", "custom_rules_subdomains_rule", "default_rule", "services"]
 
     @field_validator('blocklists_subdomains_rule')
@@ -97,9 +96,6 @@ class ModelPrivacy(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of services
-        if self.services:
-            _dict['services'] = self.services.to_dict()
         return _dict
 
     @classmethod
@@ -116,7 +112,7 @@ class ModelPrivacy(BaseModel):
             "blocklists_subdomains_rule": obj.get("blocklists_subdomains_rule"),
             "custom_rules_subdomains_rule": obj.get("custom_rules_subdomains_rule"),
             "default_rule": obj.get("default_rule"),
-            "services": ModelServicesSettings.from_dict(obj["services"]) if obj.get("services") is not None else None
+            "services": obj.get("services")
         })
         return _obj
 
