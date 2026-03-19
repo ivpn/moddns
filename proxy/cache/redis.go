@@ -51,7 +51,7 @@ func (c *RedisCache) GetProfileBlocklists(ctx context.Context, profileId string)
 // GetProfileServicesBlocked gets blocked services (service IDs) for a profile.
 func (c *RedisCache) GetProfileServicesBlocked(ctx context.Context, profileId string) ([]string, error) {
 	settingsKey := "settings:" + profileId
-	settingsServicesBlocked := fmt.Sprintf("%s:%s", settingsKey, "services:blocked")
+	settingsServicesBlocked := fmt.Sprintf("%s:%s", settingsKey, "services")
 	cmd := c.client().LRange(ctx, settingsServicesBlocked, 0, -1)
 	if err := cmd.Err(); err != nil {
 		return nil, err
