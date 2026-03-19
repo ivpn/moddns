@@ -509,10 +509,10 @@ export interface ModelPrivacy {
     'default_rule': ModelPrivacyDefaultRuleEnum;
     /**
      * 
-     * @type {ModelServicesSettings}
+     * @type {Array<string>}
      * @memberof ModelPrivacy
      */
-    'services'?: ModelServicesSettings;
+    'services'?: Array<string>;
 }
 
 export const ModelPrivacyBlocklistsSubdomainsRuleEnum = {
@@ -762,19 +762,6 @@ export interface ModelSecurity {
      * @memberof ModelSecurity
      */
     'dnssec': ModelDNSSECSettings;
-}
-/**
- * 
- * @export
- * @interface ModelServicesSettings
- */
-export interface ModelServicesSettings {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof ModelServicesSettings
-     */
-    'blocked'?: Array<string>;
 }
 /**
  * 
@@ -4040,7 +4027,7 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4080,7 +4067,7 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4288,7 +4275,7 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4302,7 +4289,7 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4434,7 +4421,7 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdPatch(id, body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4445,7 +4432,7 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdServicesDelete(id, serviceIds, options).then((request) => request(axios, basePath));
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4589,7 +4576,7 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
-     * Disable services for a profile (removes from privacy.services.blocked)
+     * Disable services for a profile (removes from privacy.services)
      * @summary Disable services
      * @param {string} id Profile ID
      * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4602,7 +4589,7 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
-     * Enable services for a profile (adds to privacy.services.blocked)
+     * Enable services for a profile (adds to privacy.services)
      * @summary Enable services
      * @param {string} id Profile ID
      * @param {ApiServicesUpdates} serviceIds Services to enable
