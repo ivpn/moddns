@@ -1,4 +1,5 @@
 /* tslint:disable */
+/* eslint-disable */
 /**
  * modDNS REST API
  * modDNS REST API
