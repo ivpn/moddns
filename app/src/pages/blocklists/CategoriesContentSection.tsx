@@ -1,4 +1,4 @@
-import { type JSX, type LucideIcon, useMemo, useState } from "react";
+import { type JSX, type LucideIcon, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import BlocklistCard from "./BlocklistCard";
 import CategoryCard from "./CategoryCard";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,6 +44,86 @@ function formatEntries(n: number): string {
     return String(n);
 }
 
+/* ------------------------------------------------------------------ */
+/*  Expand panel — full-width with two-phase animation                 */
+/* ------------------------------------------------------------------ */
+
+interface ExpandPanelProps {
+    expanded: boolean;
+    categoryLabel: string;
+    categoryIcon: LucideIcon;
+    children: React.ReactNode;
+}
+
+function ExpandPanel({ expanded, categoryLabel, categoryIcon: Icon, children }: ExpandPanelProps) {
+    const innerRef = useRef<HTMLDivElement>(null);
+    const [contentHeight, setContentHeight] = useState(0);
+    const [spread, setSpread] = useState(false);
+
+    useEffect(() => {
+        if (expanded && innerRef.current) {
+            setContentHeight(innerRef.current.scrollHeight);
+        }
+        if (!expanded) {
+            setSpread(false);
+        }
+    }, [expanded, children]);
+
+    const handleTransitionEnd = useCallback(
+        (e: React.TransitionEvent) => {
+            if (e.propertyName === "max-height" && expanded) {
+                setSpread(true);
+            }
+        },
+        [expanded],
+    );
+
+    return (
+        <div
+            className="w-full overflow-hidden transition-[max-height] duration-300 ease-out"
+            style={{ maxHeight: expanded ? `${contentHeight + 48}px` : "0px" }}
+            onTransitionEnd={handleTransitionEnd}
+        >
+            <div ref={innerRef}>
+                {/* Connector bar */}
+                <div className="flex items-center gap-2 pt-1 pb-3 px-1">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--tailwind-colors-rdns-600)]/30 to-transparent" />
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--tailwind-colors-slate-400)] uppercase tracking-wider select-none">
+                        <Icon className="h-3 w-3 text-[var(--tailwind-colors-rdns-600)]/60" />
+                        {categoryLabel}
+                    </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--tailwind-colors-rdns-600)]/30 to-transparent" />
+                </div>
+
+                {/* Blocklist cards with horizontal spread animation */}
+                <div
+                    className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-3 transition-all duration-300 ease-out ${
+                        spread
+                            ? "opacity-100 scale-x-100"
+                            : "opacity-0 scale-x-95"
+                    }`}
+                    style={{ transformOrigin: "top center" }}
+                >
+                    {children}
+                </div>
+
+                {/* Bottom separator — closes off the expanded section */}
+                <div className="flex items-center gap-2 pb-2 px-1">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--tailwind-colors-rdns-600)]/30 to-transparent" />
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--tailwind-colors-slate-400)] select-none">
+                        <Icon className="h-3 w-3 text-[var(--tailwind-colors-rdns-600)]/60" />
+                    </div>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--tailwind-colors-rdns-600)]/30 to-transparent" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main section                                                       */
+/* ------------------------------------------------------------------ */
+
 interface CategoriesContentSectionProps {
     blocklists: ModelBlocklist[];
     enabledBlocklists: string[];
@@ -51,6 +131,18 @@ interface CategoriesContentSectionProps {
     onCategoryToggle: (blocklistIds: string[], enable: boolean) => void;
     updating: string | null;
     loading: boolean;
+}
+
+interface PreparedCategory {
+    key: string;
+    label: string;
+    icon: LucideIcon;
+    description: string;
+    items: ModelBlocklist[];
+    recommended: ModelBlocklist[];
+    enabledRecommended: number;
+    totalEntries: string;
+    mostRecent: string;
 }
 
 export default function CategoriesContentSection({
@@ -73,16 +165,33 @@ export default function CategoriesContentSection({
         return map;
     }, [blocklists]);
 
-    const availableCategories = useMemo(
-        () => CATEGORIES.filter((c) => (grouped.get(c.key)?.length ?? 0) > 0),
-        [grouped],
-    );
-
-    // If no blocklists in a category are tagged "recommended", treat all as recommended
     const getRecommended = (items: ModelBlocklist[]): ModelBlocklist[] => {
         const tagged = items.filter((bl) => bl.tags?.includes("recommended"));
         return tagged.length > 0 ? tagged : items;
     };
+
+    // Pre-compute all category data
+    const preparedCategories: PreparedCategory[] = useMemo(() => {
+        return CATEGORIES
+            .filter((c) => (grouped.get(c.key)?.length ?? 0) > 0)
+            .map((cat) => {
+                const items = grouped.get(cat.key) ?? [];
+                const recommended = getRecommended(items);
+                const enabledRecommended = recommended.filter((bl) =>
+                    enabledBlocklists.includes(bl.blocklist_id)
+                ).length;
+                const totalEntries = formatEntries(
+                    items.reduce((sum, bl) => sum + (typeof bl.entries === "number" ? bl.entries : 0), 0),
+                );
+                const mostRecent = items.reduce((latest, bl) => {
+                    if (!bl.last_modified) return latest;
+                    if (!latest) return bl.last_modified;
+                    return new Date(bl.last_modified) > new Date(latest) ? bl.last_modified : latest;
+                }, "" as string);
+
+                return { ...cat, items, recommended, enabledRecommended, totalEntries, mostRecent };
+            });
+    }, [grouped, enabledBlocklists]);
 
     const handleCategoryToggle = (categoryKey: string) => {
         const items = grouped.get(categoryKey) ?? [];
@@ -93,13 +202,21 @@ export default function CategoriesContentSection({
         ).length;
 
         if (enabledCount >= recommended.length) {
-            // All recommended enabled -> disable all recommended
             onCategoryToggle(recommendedIds, false);
         } else {
-            // None or partial -> enable all recommended
             onCategoryToggle(recommendedIds, true);
         }
     };
+
+    // Find the expanded category's data for the panel
+    const expandedData = expandedCategory
+        ? preparedCategories.find((c) => c.key === expandedCategory)
+        : null;
+
+    // Find the index of the expanded category to know which row it's in
+    const expandedIndex = expandedCategory
+        ? preparedCategories.findIndex((c) => c.key === expandedCategory)
+        : -1;
 
     return (
         <div className="flex flex-col w-full items-start gap-6">
@@ -140,72 +257,131 @@ export default function CategoriesContentSection({
                             ))}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
-                            {availableCategories.map(({ key, label, icon, description }) => {
-                                const items = grouped.get(key) ?? [];
-                                const recommended = getRecommended(items);
-                                const enabledRecommended = recommended.filter((bl) =>
-                                    enabledBlocklists.includes(bl.blocklist_id)
-                                ).length;
-
-                                const totalEntries = items.reduce(
-                                    (sum, bl) => sum + (typeof bl.entries === "number" ? bl.entries : 0),
-                                    0,
-                                );
-
-                                const mostRecent = items.reduce((latest, bl) => {
-                                    if (!bl.last_modified) return latest;
-                                    if (!latest) return bl.last_modified;
-                                    return new Date(bl.last_modified) > new Date(latest)
-                                        ? bl.last_modified
-                                        : latest;
-                                }, "" as string);
-
-                                const isExpanded = expandedCategory === key;
-
-                                return (
-                                    <CategoryCard
-                                        key={key}
-                                        icon={icon}
-                                        label={label}
-                                        description={description}
-                                        totalLists={items.length}
-                                        enabledLists={enabledRecommended}
-                                        totalRecommended={recommended.length}
-                                        totalEntries={formatEntries(totalEntries)}
-                                        lastUpdated={formatUpdatedRelative(mostRecent)}
-                                        onToggle={() => handleCategoryToggle(key)}
-                                        toggleDisabled={updating !== null}
-                                        expanded={isExpanded}
-                                        onExpandToggle={() =>
-                                            setExpandedCategory(isExpanded ? null : key)
-                                        }
-                                    >
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            {items.map((bl) => {
-                                                const isEnabled = enabledBlocklists.includes(bl.blocklist_id);
-                                                return (
-                                                    <BlocklistCard
-                                                        key={bl.blocklist_id}
-                                                        title={bl.name}
-                                                        description={bl.description}
-                                                        entries={bl.entries}
-                                                        updated={formatUpdatedRelative(bl.last_modified)}
-                                                        onSwitchChange={(checked) => onToggle(bl.blocklist_id, checked)}
-                                                        switchChecked={isEnabled}
-                                                        switchDisabled={updating === bl.blocklist_id}
-                                                        homepage={bl.homepage}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    </CategoryCard>
-                                );
-                            })}
-                        </div>
+                        <CategoriesGrid
+                            categories={preparedCategories}
+                            expandedCategory={expandedCategory}
+                            expandedIndex={expandedIndex}
+                            expandedData={expandedData}
+                            enabledBlocklists={enabledBlocklists}
+                            updating={updating}
+                            onCategoryToggle={handleCategoryToggle}
+                            onExpandToggle={(key) =>
+                                setExpandedCategory(expandedCategory === key ? null : key)
+                            }
+                            onBlocklistToggle={onToggle}
+                        />
                     )}
                 </ScrollArea>
             </section>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Grid renderer — splits categories into rows with expand panels     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Uses CSS `display: contents` on a wrapper so the category cards flow
+ * naturally into the parent grid, then renders the ExpandPanel as a
+ * block element *outside* the grid-row wrapper so it spans full width.
+ *
+ * We use a useMediaQuery-like approach with fixed breakpoints to chunk
+ * categories into rows. But CSS grid already handles the flow — we just
+ * need to inject the expand panel after the right card.
+ *
+ * Simplest correct approach: render ALL category cards in the grid, then
+ * use CSS `grid-column: 1 / -1` on a panel injected at the right position
+ * via `order`. But CSS order can't insert *between* auto-placed items
+ * reliably.
+ *
+ * Best approach: render the grid, then render the expand panel as a
+ * separate full-width div below the grid, absolutely positioned or
+ * using a portal. But that's complex.
+ *
+ * Cleanest approach: abandon the single grid. Render rows of cards
+ * manually (flex-wrap with fixed widths) and inject expand panels
+ * between rows. This gives full control.
+ *
+ * Actually, the cleanest approach: use `display: contents` wrappers.
+ * Group [cards…, panel] where the panel has `grid-column: 1 / -1`.
+ * The panel only exists in DOM when that category IS expanded, so
+ * collapsed categories don't disrupt the grid.
+ */
+
+interface CategoriesGridProps {
+    categories: PreparedCategory[];
+    expandedCategory: string | null;
+    expandedIndex: number;
+    expandedData: PreparedCategory | null | undefined;
+    enabledBlocklists: string[];
+    updating: string | null;
+    onCategoryToggle: (key: string) => void;
+    onExpandToggle: (key: string) => void;
+    onBlocklistToggle: (id: string, checked: boolean) => void;
+}
+
+function CategoriesGrid({
+    categories,
+    expandedCategory,
+    expandedData,
+    enabledBlocklists,
+    updating,
+    onCategoryToggle,
+    onExpandToggle,
+    onBlocklistToggle,
+}: CategoriesGridProps) {
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
+            {categories.map((cat) => {
+                const isExpanded = expandedCategory === cat.key;
+
+                return (
+                    <div key={cat.key} className="contents">
+                        <CategoryCard
+                            icon={cat.icon}
+                            label={cat.label}
+                            description={cat.description}
+                            totalLists={cat.items.length}
+                            enabledLists={cat.enabledRecommended}
+                            totalRecommended={cat.recommended.length}
+                            totalEntries={cat.totalEntries}
+                            lastUpdated={formatUpdatedRelative(cat.mostRecent)}
+                            onToggle={() => onCategoryToggle(cat.key)}
+                            toggleDisabled={updating !== null}
+                            expanded={isExpanded}
+                            onExpandToggle={() => onExpandToggle(cat.key)}
+                        />
+
+                        {isExpanded && expandedData && (
+                            <div className="col-[1/-1]">
+                                <ExpandPanel
+                                    expanded
+                                    categoryLabel={expandedData.label}
+                                    categoryIcon={expandedData.icon}
+                                >
+                                    {expandedData.items.map((bl) => {
+                                        const isEnabled = enabledBlocklists.includes(bl.blocklist_id);
+                                        return (
+                                            <BlocklistCard
+                                                key={bl.blocklist_id}
+                                                title={bl.name}
+                                                description={bl.description}
+                                                entries={bl.entries}
+                                                updated={formatUpdatedRelative(bl.last_modified)}
+                                                onSwitchChange={(checked) => onBlocklistToggle(bl.blocklist_id, checked)}
+                                                switchChecked={isEnabled}
+                                                switchDisabled={updating === bl.blocklist_id}
+                                                homepage={bl.homepage}
+                                            />
+                                        );
+                                    })}
+                                </ExpandPanel>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 }
