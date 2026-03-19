@@ -1437,7 +1437,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Enable services for a profile (adds to privacy.services.blocked)",
+                "description": "Enable services for a profile (adds to privacy.services)",
                 "consumes": [
                     "application/json"
                 ],
@@ -1496,7 +1496,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Disable services for a profile (removes from privacy.services.blocked)",
+                "description": "Disable services for a profile (removes from privacy.services)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2683,7 +2683,10 @@ const docTemplate = `{
                     ]
                 },
                 "services": {
-                    "$ref": "#/definitions/model.ServicesSettings"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2850,17 +2853,6 @@ const docTemplate = `{
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.DNSSECSettings"
-                }
-            }
-        },
-        "model.ServicesSettings": {
-            "type": "object",
-            "properties": {
-                "blocked": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },
