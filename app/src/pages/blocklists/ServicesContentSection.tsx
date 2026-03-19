@@ -37,7 +37,7 @@ export default function ServicesContentSection(): JSX.Element {
     const [searchValue, setSearchValue] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-    const blockedServices = activeProfile?.settings?.privacy?.services?.blocked ?? [];
+    const blockedServices = activeProfile?.settings?.privacy?.services ?? [];
 
     useEffect(() => {
         let isActive = true;
