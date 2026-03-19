@@ -160,7 +160,6 @@ Class | Method | HTTP request | Description
  - [ModelQueryLog](docs/ModelQueryLog.md)
  - [ModelRetention](docs/ModelRetention.md)
  - [ModelSecurity](docs/ModelSecurity.md)
- - [ModelServicesSettings](docs/ModelServicesSettings.md)
  - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)
  - [ModelStatisticsSettings](docs/ModelStatisticsSettings.md)
  - [ModelSubscription](docs/ModelSubscription.md)

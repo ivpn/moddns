@@ -657,7 +657,7 @@ No authorization required
 
 Disable services
 
-Disable services for a profile (removes from privacy.services.blocked)
+Disable services for a profile (removes from privacy.services)
 
 ### Example
 
@@ -728,7 +728,7 @@ No authorization required
 
 Enable services
 
-Enable services for a profile (adds to privacy.services.blocked)
+Enable services for a profile (adds to privacy.services)
 
 ### Example
 
