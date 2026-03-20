@@ -63,7 +63,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 max-w-[70%] md:max-w-[75%] lg:max-w-[80%]">
                             <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate">
+                                <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate" title={label}>
                                     {label}
                                 </span>
                                 {state === "partial" && (
