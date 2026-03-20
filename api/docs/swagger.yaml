@@ -137,6 +137,9 @@ definitions:
     properties:
       blocklist_id:
         type: string
+      category:
+        description: category key (only when kind=category)
+        type: string
       default:
         description: default blocklist is enabled when profile is created
         type: boolean
@@ -148,6 +151,12 @@ definitions:
       homepage:
         type: string
       id:
+        type: string
+      intensity:
+        description: basic, comprehensive, restrictive
+        type: string
+      kind:
+        description: general, category, security
         type: string
       last_modified:
         type: string
@@ -161,6 +170,7 @@ definitions:
           type: string
         type: array
       type:
+        description: 'ownership: public (platform-provided) or private (user-uploaded)'
         type: string
     required:
     - blocklist_id
@@ -251,7 +261,9 @@ definitions:
         - allow
         type: string
       services:
-        $ref: '#/definitions/model.ServicesSettings'
+        items:
+          type: string
+        type: array
     required:
     - blocklists_subdomains_rule
     - default_rule
@@ -376,13 +388,6 @@ definitions:
         $ref: '#/definitions/model.DNSSECSettings'
     required:
     - dnssec
-    type: object
-  model.ServicesSettings:
-    properties:
-      blocked:
-        items:
-          type: string
-        type: array
     type: object
   model.StatisticsAggregated:
     properties:
@@ -1893,7 +1898,7 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Disable services for a profile (removes from privacy.services.blocked)
+      description: Disable services for a profile (removes from privacy.services)
       parameters:
       - description: Profile ID
         in: path
@@ -1931,7 +1936,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Enable services for a profile (adds to privacy.services.blocked)
+      description: Enable services for a profile (adds to privacy.services)
       parameters:
       - description: Profile ID
         in: path

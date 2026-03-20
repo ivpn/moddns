@@ -95,6 +95,7 @@ func main() {
 	}
 
 	service.Trigger(sources)
+	service.PurgeStale(sources)
 
 	updater.Start()
 	defer updater.Stop()

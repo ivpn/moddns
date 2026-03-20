@@ -46,6 +46,8 @@ const PREDEFINED_LISTS = [
     { label: "Restrictive", tag: "restrictive" },
 ];
 
+const PREDEFINED_INTENSITY = new Set(["basic", "comprehensive", "restrictive"]);
+
 const STATUS_FILTERS = [
     { label: "Enabled", value: "enabled" },
     { label: "Disabled", value: "disabled" },
@@ -126,6 +128,42 @@ export default function MainContentSection(): JSX.Element {
         };
     }, [sortValue]);
 
+    // Handler to enable/disable all recommended blocklists in a category
+    const handleCategoryToggle = async (blocklistIds: string[], enable: boolean) => {
+        if (!activeProfile?.profile_id || blocklistIds.length === 0) return;
+        const idsToChange = enable
+            ? blocklistIds.filter((id) => !enabledBlocklists.includes(id))
+            : blocklistIds.filter((id) => enabledBlocklists.includes(id));
+        if (idsToChange.length === 0) return;
+        setUpdating("category");
+        try {
+            if (enable) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
+                    activeProfile.profile_id,
+                    { blocklist_ids: idsToChange } as ApiBlocklistsUpdates
+                );
+            } else {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsDelete(
+                    activeProfile.profile_id,
+                    { blocklist_ids: idsToChange } as ApiBlocklistsUpdates
+                );
+            }
+            const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updatedProfile.data);
+            toast.success(enable ? "Category enabled" : "Category disabled", {
+                description: enable
+                    ? "Recommended blocklists have been enabled."
+                    : "Recommended blocklists have been disabled.",
+            });
+        } catch {
+            toast.error("Error", {
+                description: "Failed to update category. Please try again.",
+            });
+        } finally {
+            setUpdating(null);
+        }
+    };
+
     // Handler to enable/disable a blocklist for the user
     const handleBlocklistSwitch = async (blocklistId: string, checked: boolean) => {
         if (!activeProfile?.profile_id) return;
@@ -164,13 +202,9 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
-    // Split into regular and category blocklists
-    const regularBlocklists = blocklists.filter(
-        (bl) => !Array.isArray(bl.tags) || !bl.tags.includes("category")
-    );
-    const categoryBlocklists = blocklists.filter(
-        (bl) => Array.isArray(bl.tags) && bl.tags.includes("category")
-    );
+    // Split into regular and category blocklists using the `kind` field
+    const regularBlocklists = blocklists.filter((bl) => bl.kind !== "category");
+    const categoryBlocklists = blocklists.filter((bl) => bl.kind === "category");
 
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
     let filteredBlocklists = regularBlocklists.filter((blocklist) => {
@@ -185,15 +219,10 @@ export default function MainContentSection(): JSX.Element {
             filterValue !== "enabled" &&
             filterValue !== "disabled"
         ) {
-            // For predefined lists, use accumulative logic
-            if (filterValue === "basic") {
-                matchesFilter = Array.isArray(blocklist.tags) && blocklist.tags.includes("basic");
-            } else if (filterValue === "comprehensive") {
-                matchesFilter = Array.isArray(blocklist.tags) &&
-                    (blocklist.tags.includes("basic") || blocklist.tags.includes("comprehensive"));
-            } else if (filterValue === "restrictive") {
-                matchesFilter = Array.isArray(blocklist.tags) &&
-                    (blocklist.tags.includes("basic") || blocklist.tags.includes("comprehensive") || blocklist.tags.includes("restrictive"));
+            // For predefined lists, match by intensity array
+            if (PREDEFINED_INTENSITY.has(filterValue)) {
+                const intensity = blocklist.intensity as unknown;
+                matchesFilter = Array.isArray(intensity) && intensity.includes(filterValue);
             } else {
                 // For individual lists (hagezi, adguard, oisd), use exact match
                 matchesFilter = Array.isArray(blocklist.tags) && blocklist.tags.includes(filterValue);
@@ -278,13 +307,13 @@ export default function MainContentSection(): JSX.Element {
                 <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
-                            Blocklists
-                        </TabsTrigger>
-                        <TabsTrigger value="services" className={tabTriggerClassName}>
-                            Services
+                            Lists
                         </TabsTrigger>
                         <TabsTrigger value="categories" className={tabTriggerClassName}>
                             Categories
+                        </TabsTrigger>
+                        <TabsTrigger value="services" className={tabTriggerClassName}>
+                            Services
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -294,13 +323,18 @@ export default function MainContentSection(): JSX.Element {
                         {/* Page Description */}
                         <section className="w-full">
                             <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                                Blocklists are collections of domains and IP addresses that help block trackers, ads, and malicious content. Choose from curated lists or individual providers to customize your DNS filtering experience.
+                                Blocklists are collections of domains and IP addresses that help block trackers, ads, and malicious content. Enable general lists here and customise further with{" "}
+                                <button
+                                    type="button"
+                                    className="underline cursor-pointer hover:text-[var(--tailwind-colors-slate-50)] transition-colors"
+                                    onClick={() => setActiveTab("categories")}
+                                >Categories</button>.
                             </p>
                         </section>
 
                         {/* Alert Card */}
-                        <section className="w-full">
-                            {!blocklistsAlertDismissed && (
+                        {!blocklistsAlertDismissed && (
+                            <section className="w-full">
                                 <AlertCard
                                     description={
                                         <>
@@ -329,11 +363,11 @@ export default function MainContentSection(): JSX.Element {
                                             </div>
                                         </>
                                     }
-                                    onClose={() => setBlocklistsAlertDismissed(false)}
+                                    onClose={() => setBlocklistsAlertDismissed(true)}
                                     className="w-full"
                                 />
-                            )}
-                        </section>
+                            </section>
+                        )}
 
                         {/* Filters and Search (mobile-first layout similar to logs page) */}
                         <section className="w-full flex flex-col gap-2.5">
@@ -505,6 +539,7 @@ export default function MainContentSection(): JSX.Element {
                             blocklists={categoryBlocklists}
                             enabledBlocklists={enabledBlocklists}
                             onToggle={handleBlocklistSwitch}
+                            onCategoryToggle={handleCategoryToggle}
                             updating={updating}
                             loading={loading}
                         />

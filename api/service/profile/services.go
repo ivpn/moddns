@@ -15,8 +15,8 @@ func (p *ProfileService) EnableServices(ctx context.Context, accountId, profileI
 		return ErrInvalidServiceValue
 	}
 	blocked := make([]string, 0)
-	if profile.Settings != nil && profile.Settings.Privacy != nil && profile.Settings.Privacy.Services != nil {
-		blocked = profile.Settings.Privacy.Services.Blocked
+	if profile.Settings != nil && profile.Settings.Privacy != nil {
+		blocked = profile.Settings.Privacy.Services
 	}
 
 	for _, id := range serviceIds {

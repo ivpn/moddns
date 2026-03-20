@@ -2618,7 +2618,7 @@ class ProfileApi:
     ) -> None:
         """Disable services
 
-        Disable services for a profile (removes from privacy.services.blocked)
+        Disable services for a profile (removes from privacy.services)
 
         :param id: Profile ID (required)
         :type id: str
@@ -2692,7 +2692,7 @@ class ProfileApi:
     ) -> ApiResponse[None]:
         """Disable services
 
-        Disable services for a profile (removes from privacy.services.blocked)
+        Disable services for a profile (removes from privacy.services)
 
         :param id: Profile ID (required)
         :type id: str
@@ -2766,7 +2766,7 @@ class ProfileApi:
     ) -> RESTResponseType:
         """Disable services
 
-        Disable services for a profile (removes from privacy.services.blocked)
+        Disable services for a profile (removes from privacy.services)
 
         :param id: Profile ID (required)
         :type id: str
@@ -2915,7 +2915,7 @@ class ProfileApi:
     ) -> None:
         """Enable services
 
-        Enable services for a profile (adds to privacy.services.blocked)
+        Enable services for a profile (adds to privacy.services)
 
         :param id: Profile ID (required)
         :type id: str
@@ -2989,7 +2989,7 @@ class ProfileApi:
     ) -> ApiResponse[None]:
         """Enable services
 
-        Enable services for a profile (adds to privacy.services.blocked)
+        Enable services for a profile (adds to privacy.services)
 
         :param id: Profile ID (required)
         :type id: str
@@ -3063,7 +3063,7 @@ class ProfileApi:
     ) -> RESTResponseType:
         """Enable services
 
-        Enable services for a profile (adds to privacy.services.blocked)
+        Enable services for a profile (adds to privacy.services)
 
         :param id: Profile ID (required)
         :type id: str

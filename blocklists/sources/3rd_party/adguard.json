@@ -6,7 +6,9 @@
     "source_url": "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
     "homepage": "https://github.com/AdguardTeam/AdGuardSDNSFilter",
     "syntax": "adblock",
-    "tags": ["adguard", "basic"],
+    "kind": "general",
+    "intensity": ["comprehensive", "restrictive"],
+    "tags": ["adguard", "comprehensive"],
     "schedule": "@hourly"
   }
 ]

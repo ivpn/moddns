@@ -12,6 +12,7 @@ const CacheTypeRedis = "redis"
 // Cache is an interface for caching functionalities
 type Cache interface {
 	CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error
+	DeleteBlocklist(ctx context.Context, blocklistId string) error
 }
 
 // NewCache creates a new BlocklistCache instance

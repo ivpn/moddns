@@ -197,7 +197,7 @@ func (r *ProfileRepository) EnableServices(ctx context.Context, profileId string
 	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
 	updateBson := bson.D{
 		{Key: "$addToSet", Value: bson.D{
-			{Key: "settings.privacy.services.blocked", Value: bson.D{
+			{Key: "settings.privacy.services", Value: bson.D{
 				{Key: "$each", Value: serviceIds},
 			}},
 		}},
@@ -216,7 +216,7 @@ func (r *ProfileRepository) DisableServices(ctx context.Context, profileId strin
 	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
 	updateBson := bson.D{
 		{Key: "$pull", Value: bson.D{
-			{Key: "settings.privacy.services.blocked", Value: bson.D{
+			{Key: "settings.privacy.services", Value: bson.D{
 				{Key: "$in", Value: serviceIds},
 			}},
 		}},

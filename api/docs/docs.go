@@ -1437,7 +1437,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Enable services for a profile (adds to privacy.services.blocked)",
+                "description": "Enable services for a profile (adds to privacy.services)",
                 "consumes": [
                     "application/json"
                 ],
@@ -1496,7 +1496,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Disable services for a profile (removes from privacy.services.blocked)",
+                "description": "Disable services for a profile (removes from privacy.services)",
                 "consumes": [
                     "application/json"
                 ],
@@ -2517,6 +2517,10 @@ const docTemplate = `{
                 "blocklist_id": {
                     "type": "string"
                 },
+                "category": {
+                    "description": "category key (only when kind=category)",
+                    "type": "string"
+                },
                 "default": {
                     "description": "default blocklist is enabled when profile is created",
                     "type": "boolean"
@@ -2532,6 +2536,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "intensity": {
+                    "description": "basic, comprehensive, restrictive",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "general, category, security",
                     "type": "string"
                 },
                 "last_modified": {
@@ -2551,6 +2563,7 @@ const docTemplate = `{
                     }
                 },
                 "type": {
+                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
                     "type": "string"
                 }
             }
@@ -2683,7 +2696,10 @@ const docTemplate = `{
                     ]
                 },
                 "services": {
-                    "$ref": "#/definitions/model.ServicesSettings"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2850,17 +2866,6 @@ const docTemplate = `{
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.DNSSECSettings"
-                }
-            }
-        },
-        "model.ServicesSettings": {
-            "type": "object",
-            "properties": {
-                "blocked": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
                 }
             }
         },

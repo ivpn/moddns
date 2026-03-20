@@ -59,7 +59,7 @@ const makeProfile = (blocked: string[] = []) =>
         account_id: "account-1",
         settings: {
             privacy: {
-                services: { blocked },
+                services: blocked,
             },
         },
     }) as unknown as ModelProfile;

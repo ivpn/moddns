@@ -123,6 +123,36 @@ func (r *BlocklistRepository) GetContent(ctx context.Context, filter map[string]
 	return contents, nil
 }
 
+// DeleteMetadata removes blocklists from the blocklists_metadata collection based on the provided filter
+func (r *BlocklistRepository) DeleteMetadata(ctx context.Context, filter map[string]any) error {
+	filterBson := bson.D{}
+
+	blocklistVal, exists := filter["blocklist_id"]
+	if exists {
+		switch v := blocklistVal.(type) {
+		case string:
+			filterBson = bson.D{primitive.E{Key: "blocklist_id", Value: v}}
+		case []string:
+			filterBson = bson.D{primitive.E{Key: "blocklist_id", Value: bson.D{
+				primitive.E{Key: "$nin", Value: v},
+			}}}
+		}
+	}
+
+	result, err := r.blocklistsMetadataCollection.DeleteMany(ctx, filterBson)
+	if err != nil {
+		return err
+	}
+
+	log.Debug().
+		Str("component", "mongoDB").
+		Interface("filter", filter).
+		Int64("deleted_count", result.DeletedCount).
+		Msg("Deleted blocklist metadata documents")
+
+	return nil
+}
+
 // Delete removes blocklists from the blocklists collection based on the provided filter
 func (r *BlocklistRepository) Delete(ctx context.Context, filter map[string]any) error {
 	filterBson := bson.D{}

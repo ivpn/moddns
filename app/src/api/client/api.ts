@@ -277,6 +277,12 @@ export interface ModelBlocklist {
      */
     'blocklist_id': string;
     /**
+     * category key (only when kind=category)
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'category'?: string;
+    /**
      * default blocklist is enabled when profile is created
      * @type {boolean}
      * @memberof ModelBlocklist
@@ -307,6 +313,18 @@ export interface ModelBlocklist {
      */
     'id'?: string;
     /**
+     * basic, comprehensive, restrictive
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'intensity'?: string;
+    /**
+     * general, category, security
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'kind'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelBlocklist
@@ -331,7 +349,7 @@ export interface ModelBlocklist {
      */
     'tags'?: Array<string>;
     /**
-     * 
+     * ownership: public (platform-provided) or private (user-uploaded)
      * @type {string}
      * @memberof ModelBlocklist
      */
@@ -509,10 +527,10 @@ export interface ModelPrivacy {
     'default_rule': ModelPrivacyDefaultRuleEnum;
     /**
      * 
-     * @type {ModelServicesSettings}
+     * @type {Array<string>}
      * @memberof ModelPrivacy
      */
-    'services'?: ModelServicesSettings;
+    'services'?: Array<string>;
 }
 
 export const ModelPrivacyBlocklistsSubdomainsRuleEnum = {
@@ -762,19 +780,6 @@ export interface ModelSecurity {
      * @memberof ModelSecurity
      */
     'dnssec': ModelDNSSECSettings;
-}
-/**
- * 
- * @export
- * @interface ModelServicesSettings
- */
-export interface ModelServicesSettings {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof ModelServicesSettings
-     */
-    'blocked'?: Array<string>;
 }
 /**
  * 
@@ -4040,7 +4045,7 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4080,7 +4085,7 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4288,7 +4293,7 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4302,7 +4307,7 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4434,7 +4439,7 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdPatch(id, body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Disable services for a profile (removes from privacy.services.blocked)
+         * Disable services for a profile (removes from privacy.services)
          * @summary Disable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4445,7 +4450,7 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdServicesDelete(id, serviceIds, options).then((request) => request(axios, basePath));
         },
         /**
-         * Enable services for a profile (adds to privacy.services.blocked)
+         * Enable services for a profile (adds to privacy.services)
          * @summary Enable services
          * @param {string} id Profile ID
          * @param {ApiServicesUpdates} serviceIds Services to enable
@@ -4589,7 +4594,7 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
-     * Disable services for a profile (removes from privacy.services.blocked)
+     * Disable services for a profile (removes from privacy.services)
      * @summary Disable services
      * @param {string} id Profile ID
      * @param {ApiServicesUpdates} serviceIds Services to disable
@@ -4602,7 +4607,7 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
-     * Enable services for a profile (adds to privacy.services.blocked)
+     * Enable services for a profile (adds to privacy.services)
      * @summary Enable services
      * @param {string} id Profile ID
      * @param {ApiServicesUpdates} serviceIds Services to enable

@@ -1,13 +1,14 @@
 [
-    {
-      "blocklist_id": "steven_black_ads_malware",
-      "name": "Steven Black - Ads & Malware",
-      "description": "Blocks Ads and Malware.",
-      "source_url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
-      "homepage": "https://github.com/StevenBlack/hosts",
-      "syntax": "domains",
-      "tags": ["steven_black", "basic", "ads", "malware"],
-      "schedule": "@hourly"
-    }
-  ]
-  
+  {
+    "blocklist_id": "steven_black_ads_malware",
+    "name": "Steven Black - Ads & Malware",
+    "description": "Blocks Ads and Malware.",
+    "source_url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+    "homepage": "https://github.com/StevenBlack/hosts",
+    "syntax": "domains",
+    "kind": "general",
+    "intensity": ["basic", "comprehensive", "restrictive"],
+    "tags": ["steven_black", "basic", "ads", "malware"],
+    "schedule": "@hourly"
+  }
+]

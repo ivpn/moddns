@@ -35,7 +35,7 @@ func (s *APIServer) getServicesCatalog() fiber.Handler {
 }
 
 // @Summary Enable services
-// @Description Enable services for a profile (adds to privacy.services.blocked)
+// @Description Enable services for a profile (adds to privacy.services)
 // @Tags Profile
 // @Accept json
 // @Produce json
@@ -73,7 +73,7 @@ func (s *APIServer) enableServices() fiber.Handler {
 }
 
 // @Summary Disable services
-// @Description Disable services for a profile (removes from privacy.services.blocked)
+// @Description Disable services for a profile (removes from privacy.services)
 // @Tags Profile
 // @Accept json
 // @Produce json

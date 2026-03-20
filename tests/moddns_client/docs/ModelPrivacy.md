@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **blocklists_subdomains_rule** | **str** |  | 
 **custom_rules_subdomains_rule** | **str** |  | [optional] 
 **default_rule** | **str** |  | 
-**services** | [**ModelServicesSettings**](ModelServicesSettings.md) |  | [optional] 
+**services** | **List[str]** |  | [optional] 
 
 ## Example
 

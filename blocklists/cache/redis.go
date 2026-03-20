@@ -100,3 +100,13 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		Msgf("Created/updated blocklist with atomic swap using temp and old sets")
 	return nil
 }
+
+// DeleteBlocklist removes a blocklist set from the cache
+func (c *RedisCache) DeleteBlocklist(ctx context.Context, blocklistId string) error {
+	key := fmt.Sprintf("blocklist:%s", blocklistId)
+	if err := c.client.Del(ctx, key).Err(); err != nil {
+		return err
+	}
+	log.Info().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")
+	return nil
+}

@@ -27,17 +27,20 @@ class ModelBlocklist(BaseModel):
     ModelBlocklist
     """ # noqa: E501
     blocklist_id: StrictStr
+    category: Optional[StrictStr] = Field(default=None, description="category key (only when kind=category)")
     default: Optional[StrictBool] = Field(default=None, description="default blocklist is enabled when profile is created")
     description: StrictStr = Field(description="displayed to the user")
     entries: Optional[StrictInt] = None
     homepage: Optional[StrictStr] = None
     id: Optional[StrictStr] = None
+    intensity: Optional[StrictStr] = Field(default=None, description="basic, comprehensive, restrictive")
+    kind: Optional[StrictStr] = Field(default=None, description="general, category, security")
     last_modified: Optional[StrictStr] = None
     name: StrictStr = Field(description="conventional blocklist name, displayed to the user")
     source_url: Optional[StrictStr] = None
     tags: Optional[List[StrictStr]] = None
-    type: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["blocklist_id", "default", "description", "entries", "homepage", "id", "last_modified", "name", "source_url", "tags", "type"]
+    type: Optional[StrictStr] = Field(default=None, description="ownership: public (platform-provided) or private (user-uploaded)")
+    __properties: ClassVar[List[str]] = ["blocklist_id", "category", "default", "description", "entries", "homepage", "id", "intensity", "kind", "last_modified", "name", "source_url", "tags", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,11 +94,14 @@ class ModelBlocklist(BaseModel):
 
         _obj = cls.model_validate({
             "blocklist_id": obj.get("blocklist_id"),
+            "category": obj.get("category"),
             "default": obj.get("default"),
             "description": obj.get("description"),
             "entries": obj.get("entries"),
             "homepage": obj.get("homepage"),
             "id": obj.get("id"),
+            "intensity": obj.get("intensity"),
+            "kind": obj.get("kind"),
             "last_modified": obj.get("last_modified"),
             "name": obj.get("name"),
             "source_url": obj.get("source_url"),

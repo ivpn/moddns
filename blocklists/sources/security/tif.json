@@ -1,13 +1,15 @@
 [
-    {
-        "blocklist_id": "hagezi_threat_intelligence_feeds_full",
-        "name": "Hagezi Threat Intelligence Feeds Full",
-        "description": "A blocklist for blocking malware, cryptojacking, scam, spam and phishing. Blocks domains known to spread malware, launch phishing attacks and host command-and-control servers.",
-        "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt",
-        "homepage": "https://github.com/hagezi/dns-blocklists",
-        "syntax": "domains",
-        "tags": ["comprehensive"],
-        "schedule": "@hourly",
-        "default": true
-    }
+  {
+    "blocklist_id": "hagezi_threat_intelligence_feeds_full",
+    "name": "Hagezi Threat Intelligence Feeds Full",
+    "description": "A blocklist for blocking malware, cryptojacking, scam, spam and phishing. Blocks domains known to spread malware, launch phishing attacks and host command-and-control servers.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "intensity": ["comprehensive", "restrictive"],
+    "tags": ["comprehensive"],
+    "schedule": "@hourly",
+    "default": true
+  }
 ]
