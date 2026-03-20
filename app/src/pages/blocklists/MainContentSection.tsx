@@ -200,13 +200,9 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
-    // Split into regular and category blocklists
-    const regularBlocklists = blocklists.filter(
-        (bl) => !Array.isArray(bl.tags) || !bl.tags.includes("category")
-    );
-    const categoryBlocklists = blocklists.filter(
-        (bl) => Array.isArray(bl.tags) && bl.tags.includes("category")
-    );
+    // Split into regular and category blocklists using the `kind` field
+    const regularBlocklists = blocklists.filter((bl) => bl.kind !== "category");
+    const categoryBlocklists = blocklists.filter((bl) => bl.kind === "category");
 
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
     let filteredBlocklists = regularBlocklists.filter((blocklist) => {

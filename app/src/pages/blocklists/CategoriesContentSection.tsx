@@ -19,24 +19,32 @@ import {
     Newspaper,
 } from "lucide-react";
 
-const CATEGORIES: Array<{
-    key: string;
-    label: string;
-    icon: LucideIcon;
-    description: string;
-}> = [
-    { key: "gambling", label: "Gambling", icon: Dices, description: "Block online casinos, betting platforms, and lottery services" },
-    { key: "adult", label: "Adult Content", icon: ShieldAlert, description: "Block adult and explicit content websites" },
-    { key: "dating", label: "Dating", icon: Heart, description: "Block dating apps and matchmaking services" },
-    { key: "drugs", label: "Drugs", icon: Pill, description: "Block sites promoting illegal drugs and substances" },
-    { key: "social_media", label: "Social Media", icon: Users, description: "Block social media platforms and networks" },
-    { key: "piracy", label: "Piracy", icon: Skull, description: "Block piracy, torrenting, and illegal streaming sites" },
-    { key: "crypto", label: "Cryptocurrency", icon: Coins, description: "Block cryptocurrency exchanges, mining, and trading platforms" },
-    { key: "fraud", label: "Fraud & Scams", icon: AlertTriangle, description: "Block phishing, scam, and fraudulent websites" },
-    { key: "gaming", label: "Gaming", icon: Gamepad2, description: "Block online gaming platforms and game-related sites" },
-    { key: "vpn_bypass", label: "VPN & Bypass", icon: Globe, description: "Block VPN services and DNS/proxy bypass tools" },
-    { key: "clickbait", label: "Clickbait & Fake News", icon: Newspaper, description: "Block clickbait, fake news, and misleading content sites" },
-];
+// Display metadata for known categories (icons, labels, descriptions).
+// Categories are derived from the API data — only categories present in the data are shown.
+// New categories added to the backend appear automatically; add an entry here for a custom icon/label.
+const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; description: string }> = {
+    gambling: { label: "Gambling", icon: Dices, description: "Block online casinos, betting platforms, and lottery services" },
+    adult: { label: "Adult Content", icon: ShieldAlert, description: "Block adult and explicit content websites" },
+    dating: { label: "Dating", icon: Heart, description: "Block dating apps and matchmaking services" },
+    drugs: { label: "Drugs", icon: Pill, description: "Block sites promoting illegal drugs and substances" },
+    social_media: { label: "Social Media", icon: Users, description: "Block social media platforms and networks" },
+    piracy: { label: "Piracy", icon: Skull, description: "Block piracy, torrenting, and illegal streaming sites" },
+    crypto: { label: "Cryptocurrency", icon: Coins, description: "Block cryptocurrency exchanges, mining, and trading platforms" },
+    fraud: { label: "Fraud & Scams", icon: AlertTriangle, description: "Block phishing, scam, and fraudulent websites" },
+    gaming: { label: "Gaming", icon: Gamepad2, description: "Block online gaming platforms and game-related sites" },
+    vpn_bypass: { label: "VPN & Bypass", icon: Globe, description: "Block VPN services and DNS/proxy bypass tools" },
+    clickbait: { label: "Clickbait & Fake News", icon: Newspaper, description: "Block clickbait, fake news, and misleading content sites" },
+};
+
+const DEFAULT_ICON = ShieldAlert;
+
+function getCategoryMeta(key: string): { label: string; icon: LucideIcon; description: string } {
+    return CATEGORY_META[key] ?? {
+        label: key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        icon: DEFAULT_ICON,
+        description: `Block ${key.replace(/_/g, " ")} content`,
+    };
+}
 
 function formatEntries(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -155,12 +163,13 @@ export default function CategoriesContentSection({
 }: CategoriesContentSectionProps): JSX.Element {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
+    // Group blocklists by the `category` field from the API
     const grouped = useMemo(() => {
         const map = new Map<string, ModelBlocklist[]>();
         for (const bl of blocklists) {
-            const categoryTag = bl.tags?.[1] ?? "other";
-            if (!map.has(categoryTag)) map.set(categoryTag, []);
-            map.get(categoryTag)!.push(bl);
+            const key = bl.category || "other";
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(bl);
         }
         return map;
     }, [blocklists]);
@@ -170,12 +179,12 @@ export default function CategoriesContentSection({
         return tagged.length > 0 ? tagged : items;
     };
 
-    // Pre-compute all category data
+    // Derive categories from data — no hardcoded list needed
     const preparedCategories: PreparedCategory[] = useMemo(() => {
-        return CATEGORIES
-            .filter((c) => (grouped.get(c.key)?.length ?? 0) > 0)
-            .map((cat) => {
-                const items = grouped.get(cat.key) ?? [];
+        return Array.from(grouped.entries())
+            .filter(([key]) => key !== "other")
+            .map(([key, items]) => {
+                const meta = getCategoryMeta(key);
                 const recommended = getRecommended(items);
                 const enabledRecommended = recommended.filter((bl) =>
                     enabledBlocklists.includes(bl.blocklist_id)
@@ -189,7 +198,7 @@ export default function CategoriesContentSection({
                     return new Date(bl.last_modified) > new Date(latest) ? bl.last_modified : latest;
                 }, "" as string);
 
-                return { ...cat, items, recommended, enabledRecommended, totalEntries, mostRecent };
+                return { key, ...meta, items, recommended, enabledRecommended, totalEntries, mostRecent };
             });
     }, [grouped, enabledBlocklists]);
 
