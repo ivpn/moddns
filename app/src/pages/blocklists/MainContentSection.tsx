@@ -331,8 +331,8 @@ export default function MainContentSection(): JSX.Element {
                         </section>
 
                         {/* Alert Card */}
-                        <section className="w-full">
-                            {!blocklistsAlertDismissed && (
+                        {!blocklistsAlertDismissed && (
+                            <section className="w-full">
                                 <AlertCard
                                     description={
                                         <>
@@ -361,11 +361,11 @@ export default function MainContentSection(): JSX.Element {
                                             </div>
                                         </>
                                     }
-                                    onClose={() => setBlocklistsAlertDismissed(false)}
+                                    onClose={() => setBlocklistsAlertDismissed(true)}
                                     className="w-full"
                                 />
-                            )}
-                        </section>
+                            </section>
+                        )}
 
                         {/* Filters and Search (mobile-first layout similar to logs page) */}
                         <section className="w-full flex flex-col gap-2.5">
