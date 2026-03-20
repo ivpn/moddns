@@ -59,8 +59,8 @@ class TestRedisReplicaFailover:
         container.reload()
         if container.status != "running":
             container.start()
-            # Give it a moment to reconnect to master and sync.
-            time.sleep(5)
+            # Wait for replica to sync and proxy health check to detect recovery.
+            time.sleep(RECOVERY_WAIT)
 
     @pytest.mark.asyncio
     async def test_proxy_falls_back_to_master_when_replica_stops(self):
@@ -94,8 +94,8 @@ class TestRedisReplicaFailover:
         After a failover to master, restarting the replica should cause
         the proxy to switch back to the replica automatically.
         """
-        # 1. Baseline query.
-        resp = await self.dns_lib.send_doh_request(
+        # 1. Baseline query (retry — proxy may still be recovering from previous test's replica restart).
+        resp = await self.dns_lib.send_doh_request_with_retry(
             self.profile_id, "example.com", "A"
         )
         assert len(resp.answer) > 0
