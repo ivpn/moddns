@@ -312,11 +312,11 @@ export default function MainContentSection(): JSX.Element {
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
                             Lists
                         </TabsTrigger>
-                        <TabsTrigger value="services" className={tabTriggerClassName}>
-                            Services
-                        </TabsTrigger>
                         <TabsTrigger value="categories" className={tabTriggerClassName}>
                             Categories
+                        </TabsTrigger>
+                        <TabsTrigger value="services" className={tabTriggerClassName}>
+                            Services
                         </TabsTrigger>
                     </TabsList>
                 </div>
@@ -326,7 +326,12 @@ export default function MainContentSection(): JSX.Element {
                         {/* Page Description */}
                         <section className="w-full">
                             <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                                Fine-tune your filtering with individual blocklists from trusted providers.
+                                Blocklists are collections of domains and IP addresses that help block trackers, ads, and malicious content. Enable general lists here and customise further with{" "}
+                                <button
+                                    type="button"
+                                    className="underline cursor-pointer hover:text-[var(--tailwind-colors-slate-50)] transition-colors"
+                                    onClick={() => setActiveTab("categories")}
+                                >Categories</button>.
                             </p>
                         </section>
 

@@ -129,7 +129,7 @@ export default function ServicesContentSection(): JSX.Element {
         <div className="flex flex-col w-full items-start gap-6">
             <section className="w-full">
                 <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
-                    Block specific online services by their network identity.
+                    Block specific online services. Affects their websites, apps, and third-party services that depend on them — things might break.
                 </p>
             </section>
 
