@@ -6,16 +6,19 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **blocklist_id** | **str** |  | 
+**category** | **str** | category key (only when kind&#x3D;category) | [optional] 
 **default** | **bool** | default blocklist is enabled when profile is created | [optional] 
 **description** | **str** | displayed to the user | 
 **entries** | **int** |  | [optional] 
 **homepage** | **str** |  | [optional] 
 **id** | **str** |  | [optional] 
+**intensity** | **str** | basic, comprehensive, restrictive | [optional] 
+**kind** | **str** | general, category, security | [optional] 
 **last_modified** | **str** |  | [optional] 
 **name** | **str** | conventional blocklist name, displayed to the user | 
 **source_url** | **str** |  | [optional] 
 **tags** | **List[str]** |  | [optional] 
-**type** | **str** |  | [optional] 
+**type** | **str** | ownership: public (platform-provided) or private (user-uploaded) | [optional] 
 
 ## Example
 

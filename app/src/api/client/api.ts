@@ -277,6 +277,12 @@ export interface ModelBlocklist {
      */
     'blocklist_id': string;
     /**
+     * category key (only when kind=category)
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'category'?: string;
+    /**
      * default blocklist is enabled when profile is created
      * @type {boolean}
      * @memberof ModelBlocklist
@@ -307,6 +313,18 @@ export interface ModelBlocklist {
      */
     'id'?: string;
     /**
+     * basic, comprehensive, restrictive
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'intensity'?: string;
+    /**
+     * general, category, security
+     * @type {string}
+     * @memberof ModelBlocklist
+     */
+    'kind'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelBlocklist
@@ -331,7 +349,7 @@ export interface ModelBlocklist {
      */
     'tags'?: Array<string>;
     /**
-     * 
+     * ownership: public (platform-provided) or private (user-uploaded)
      * @type {string}
      * @memberof ModelBlocklist
      */
