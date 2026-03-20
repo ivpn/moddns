@@ -245,6 +245,61 @@ func (s *Service) saveChunk(ctx context.Context, blocklistID string, chunkIndex 
 	return partialBlocklistContent.ID, nil
 }
 
+// PurgeStale removes metadata and content for blocklists that are no longer
+// present in the current sources. This ensures that removed blocklists don't
+// linger in the database and get served by the API.
+func (s *Service) PurgeStale(sources []model.BlocklistMetadata) {
+	ctx, cancel := context.WithTimeout(context.Background(), processingTimeout)
+	defer cancel()
+
+	sourceIDs := make([]string, 0, len(sources))
+	for _, src := range sources {
+		sourceIDs = append(sourceIDs, src.BlocklistID)
+	}
+
+	// Get all metadata currently in the database
+	allMetadata, err := s.Store.GetMetadata(ctx, map[string]any{})
+	if err != nil {
+		log.Err(err).Msg("Failed to get all blocklist metadata for stale check")
+		return
+	}
+
+	staleIDs := make([]string, 0)
+	sourceSet := make(map[string]struct{}, len(sourceIDs))
+	for _, id := range sourceIDs {
+		sourceSet[id] = struct{}{}
+	}
+	for _, meta := range allMetadata {
+		if _, exists := sourceSet[meta.BlocklistID]; !exists {
+			staleIDs = append(staleIDs, meta.BlocklistID)
+		}
+	}
+
+	if len(staleIDs) == 0 {
+		log.Debug().Msg("No stale blocklists to purge")
+		return
+	}
+
+	log.Info().Strs("blocklist_ids", staleIDs).Msg("Purging stale blocklists")
+
+	for _, id := range staleIDs {
+		// Delete metadata
+		if err := s.Store.DeleteMetadata(ctx, map[string]any{"blocklist_id": id}); err != nil {
+			log.Err(err).Str("blocklist_id", id).Msg("Failed to delete stale metadata")
+		}
+		// Delete content
+		if err := s.Store.Delete(ctx, map[string]any{"blocklist_id": id}); err != nil {
+			log.Err(err).Str("blocklist_id", id).Msg("Failed to delete stale content")
+		}
+		// Delete from cache
+		if err := s.Cache.DeleteBlocklist(ctx, id); err != nil {
+			log.Err(err).Str("blocklist_id", id).Msg("Failed to delete stale blocklist from cache")
+		}
+	}
+
+	log.Info().Int("count", len(staleIDs)).Msg("Purged stale blocklists")
+}
+
 // download fetches blocklist data from the given link
 func (s *Service) download(ctx context.Context, link string) ([]byte, error) {
 	client := &http.Client{

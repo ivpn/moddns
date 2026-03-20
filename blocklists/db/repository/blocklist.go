@@ -13,4 +13,5 @@ type BlocklistRepository interface {
 	GetMetadata(ctx context.Context, filter map[string]any) ([]model.BlocklistMetadata, error)
 	GetContent(ctx context.Context, filter map[string]any) ([]model.BlocklistContent, error)
 	Delete(ctx context.Context, filter map[string]any) error
+	DeleteMetadata(ctx context.Context, filter map[string]any) error
 }
