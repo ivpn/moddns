@@ -62,7 +62,6 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                     {/* Top row: icon + label + optional badge + switch */}
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 max-w-[70%] md:max-w-[75%] lg:max-w-[80%]">
-                            <Icon className="h-5 w-5 mt-0.5 shrink-0 text-[var(--tailwind-colors-rdns-600)]" />
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate">
                                     {label}
