@@ -7,7 +7,7 @@
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "security",
-    "intensity": "comprehensive",
+    "intensity": ["comprehensive", "restrictive"],
     "tags": ["comprehensive"],
     "schedule": "@hourly",
     "default": true

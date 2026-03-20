@@ -7,8 +7,8 @@
     "homepage": "https://github.com/AdguardTeam/AdGuardSDNSFilter",
     "syntax": "adblock",
     "kind": "general",
-    "intensity": "basic",
-    "tags": ["adguard", "basic"],
+    "intensity": ["comprehensive", "restrictive"],
+    "tags": ["adguard", "comprehensive"],
     "schedule": "@hourly"
   }
 ]

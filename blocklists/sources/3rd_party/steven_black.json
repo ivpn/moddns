@@ -7,7 +7,7 @@
     "homepage": "https://github.com/StevenBlack/hosts",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "basic",
+    "intensity": ["basic", "comprehensive", "restrictive"],
     "tags": ["steven_black", "basic", "ads", "malware"],
     "schedule": "@hourly"
   }

@@ -7,20 +7,8 @@
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "basic",
+    "intensity": ["basic"],
     "tags": ["hagezi", "basic"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_multi_normal",
-    "name": "Hagezi Multi NORMAL",
-    "description": "Broom - Cleans the Internet and protects your privacy! Blocks Ads, Affiliate, Tracking, Metrics, Telemetry, Phishing, Malware, Scam, Fake, Coins and other \"Crap\".",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/multi.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "general",
-    "intensity": "comprehensive",
-    "tags": ["hagezi", "comprehensive"],
     "schedule": "@hourly"
   },
   {
@@ -31,44 +19,8 @@
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "restrictive",
-    "tags": ["hagezi", "restrictive"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_multi_pro_mini",
-    "name": "Hagezi Multi PRO mini",
-    "description": "Size-optimised version for DNS/Browser adblockers. This list only contains domains from the Pro full that have been found on Top 1M lists (Umbrella, Cloudflare, Tranco, Chrome, ...) in the last 12 months.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.mini-onlydomains.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "general",
-    "intensity": "restrictive",
-    "tags": ["hagezi", "basic", "mini"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_multi_pro_plus",
-    "name": "Hagezi Multi PRO++",
-    "description": "Sweeper - Aggressive cleans the Internet and protects your privacy! Blocks Ads, Affiliate, Tracking, Metrics, Telemetry, Phishing, Malware, Scam, Fake, Coins and other \"Crap\".",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.plus.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "general",
-    "intensity": "restrictive",
-    "tags": ["hagezi", "restrictive"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_multi_pro_plus_mini",
-    "name": "Hagezi Multi PRO++ mini",
-    "description": "Size-optimised version for DNS/Browser adblockers. This list only contains domains from the Pro++ full that have been found on Top 1M lists (Umbrella, Cloudflare, Tranco, Chrome, ...) in the last 12 months.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus.mini-onlydomains.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "general",
-    "intensity": "restrictive",
-    "tags": ["hagezi", "restrictive", "mini"],
+    "intensity": ["comprehensive"],
+    "tags": ["hagezi", "comprehensive"],
     "schedule": "@hourly"
   },
   {
@@ -79,20 +31,8 @@
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "restrictive",
+    "intensity": ["restrictive"],
     "tags": ["hagezi", "restrictive"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_multi_ultimate_mini",
-    "name": "Hagezi Multi ULTIMATE mini",
-    "description": "Size-optimised version for DNS/Browser adblockers. This list only contains domains from the Ultimate full that have been found on Top 1M lists (Umbrella, Cloudflare, Tranco, Chrome, ...) in the last 12 months.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate.mini-onlydomains.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "general",
-    "intensity": "restrictive",
-    "tags": ["hagezi", "restrictive", "mini"],
     "schedule": "@hourly"
   }
 ]

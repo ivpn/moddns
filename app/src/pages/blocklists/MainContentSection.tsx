@@ -46,7 +46,6 @@ const PREDEFINED_LISTS = [
     { label: "Restrictive", tag: "restrictive" },
 ];
 
-// Filter by intensity field from the blocklist data.
 const PREDEFINED_INTENSITY = new Set(["basic", "comprehensive", "restrictive"]);
 
 const STATUS_FILTERS = [
@@ -220,9 +219,10 @@ export default function MainContentSection(): JSX.Element {
             filterValue !== "enabled" &&
             filterValue !== "disabled"
         ) {
-            // For predefined lists, match by intensity field
+            // For predefined lists, match by intensity array
             if (PREDEFINED_INTENSITY.has(filterValue)) {
-                matchesFilter = (blocklist as Record<string, unknown>).intensity === filterValue;
+                const intensity = blocklist.intensity as unknown;
+                matchesFilter = Array.isArray(intensity) && intensity.includes(filterValue);
             } else {
                 // For individual lists (hagezi, adguard, oisd), use exact match
                 matchesFilter = Array.isArray(blocklist.tags) && blocklist.tags.includes(filterValue);

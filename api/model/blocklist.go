@@ -26,7 +26,7 @@ type Blocklist struct {
 	Type         string             `json:"type" bson:"type"`           // ownership: public (platform-provided) or private (user-uploaded)
 	Kind         string             `json:"kind" bson:"kind"`           // general, category, security
 	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
-	Intensity    string             `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
+	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
 	Default      bool               `json:"default" bson:"default"`     // default blocklist is enabled when profile is created
 }
 

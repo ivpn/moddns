@@ -28,7 +28,7 @@ type BlocklistMetadata struct {
 	Type         string             `json:"type"` // ownership: public (platform-provided) or private (user-uploaded)
 	Kind         string             `json:"kind" bson:"kind"`           // general, category, security
 	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
-	Intensity    string             `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
+	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
 	Default      bool               `json:"default"`                    // default blocklist is enabled when profile is created
 	Syntax       string             `json:"syntax"`
 	Schedule     string             `json:"schedule"`

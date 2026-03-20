@@ -8,7 +8,7 @@
     "syntax": "domains",
     "kind": "category",
     "category": "adult",
-    "intensity": "comprehensive",
+    "intensity": ["comprehensive"],
     "tags": ["category", "adult", "hagezi", "recommended"],
     "schedule": "@hourly"
   },
@@ -33,7 +33,7 @@
     "syntax": "domains",
     "kind": "category",
     "category": "adult",
-    "intensity": "comprehensive",
+    "intensity": ["comprehensive"],
     "tags": ["category", "adult", "oisd"],
     "schedule": "@hourly"
   },
@@ -46,7 +46,7 @@
     "syntax": "domains",
     "kind": "category",
     "category": "adult",
-    "intensity": "basic",
+    "intensity": ["basic"],
     "tags": ["category", "adult", "oisd"],
     "schedule": "@hourly"
   }

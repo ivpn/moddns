@@ -7,7 +7,7 @@
     "homepage": "https://oisd.nl/downloads",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "comprehensive",
+    "intensity": ["comprehensive", "restrictive"],
     "tags": ["oisd", "comprehensive", "ads", "malware", "phishing", "tracking"],
     "schedule": "@hourly"
   },
@@ -19,7 +19,7 @@
     "homepage": "https://oisd.nl/downloads",
     "syntax": "domains",
     "kind": "general",
-    "intensity": "basic",
+    "intensity": ["basic"],
     "tags": ["oisd", "basic", "ads"],
     "schedule": "@hourly"
   }
