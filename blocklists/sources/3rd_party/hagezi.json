@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/light.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "basic",
     "tags": ["hagezi", "basic"],
     "schedule": "@hourly"
   },
@@ -16,6 +18,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/multi.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "comprehensive",
     "tags": ["hagezi", "comprehensive"],
     "schedule": "@hourly"
   },
@@ -26,6 +30,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "restrictive"],
     "schedule": "@hourly"
   },
@@ -36,6 +42,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.mini-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "basic", "mini"],
     "schedule": "@hourly"
   },
@@ -46,6 +54,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.plus.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "restrictive"],
     "schedule": "@hourly"
   },
@@ -56,6 +66,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/pro.plus.mini-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "restrictive", "mini"],
     "schedule": "@hourly"
   },
@@ -66,6 +78,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/ultimate.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "restrictive"],
     "schedule": "@hourly"
   },
@@ -76,6 +90,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/ultimate.mini-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "restrictive",
     "tags": ["hagezi", "restrictive", "mini"],
     "schedule": "@hourly"
   }

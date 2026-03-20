@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "gambling",
     "tags": ["category", "gambling", "hagezi", "recommended"],
     "schedule": "@hourly"
   },
@@ -16,6 +18,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.medium-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "gambling",
     "tags": ["category", "gambling", "hagezi"],
     "schedule": "@hourly"
   },
@@ -26,6 +30,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "gambling",
     "tags": ["category", "gambling", "hagezi"],
     "schedule": "@hourly"
   },
@@ -36,6 +42,8 @@
     "source_url": "https://blocklistproject.github.io/Lists/alt-version/gambling-nl.txt",
     "homepage": "https://github.com/blocklistproject/Lists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "gambling",
     "tags": ["category", "gambling", "blp"],
     "schedule": "@hourly"
   }

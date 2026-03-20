@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/doh-vpn-proxy-bypass-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "vpn_bypass",
     "tags": ["category", "vpn_bypass", "hagezi", "recommended"],
     "schedule": "@hourly"
   },
@@ -16,6 +18,8 @@
     "source_url": "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Tunnels",
     "homepage": "https://github.com/ShadowWhisperer/BlockLists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "vpn_bypass",
     "tags": ["category", "vpn_bypass", "shadowwhisperer"],
     "schedule": "@hourly"
   }

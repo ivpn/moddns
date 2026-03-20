@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains",
     "homepage": "https://dsi.ut-capitole.fr/blacklists/",
     "syntax": "domains",
+    "kind": "category",
+    "category": "dating",
     "tags": ["category", "dating", "ut1", "recommended"],
     "schedule": "@hourly"
   },
@@ -16,6 +18,8 @@
     "source_url": "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Dating",
     "homepage": "https://github.com/ShadowWhisperer/BlockLists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "dating",
     "tags": ["category", "dating", "shadowwhisperer", "recommended"],
     "schedule": "@hourly"
   }

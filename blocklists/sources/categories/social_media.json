@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/social-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "social_media",
     "tags": ["category", "social_media", "hagezi", "recommended"],
     "schedule": "@hourly"
   }

@@ -6,6 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/drogue/domains",
     "homepage": "https://dsi.ut-capitole.fr/blacklists/",
     "syntax": "domains",
+    "kind": "category",
+    "category": "drugs",
     "tags": ["category", "drugs", "ut1", "recommended"],
     "schedule": "@hourly"
   },
@@ -16,6 +18,8 @@
     "source_url": "https://blocklistproject.github.io/Lists/alt-version/drugs-nl.txt",
     "homepage": "https://github.com/blocklistproject/Lists",
     "syntax": "domains",
+    "kind": "category",
+    "category": "drugs",
     "tags": ["category", "drugs", "blp", "recommended"],
     "schedule": "@hourly"
   }

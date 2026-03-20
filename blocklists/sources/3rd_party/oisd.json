@@ -6,6 +6,8 @@
     "source_url": "https://big.oisd.nl/domainswild2",
     "homepage": "https://oisd.nl/downloads",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "comprehensive",
     "tags": ["oisd", "comprehensive", "ads", "malware", "phishing", "tracking"],
     "schedule": "@hourly"
   },
@@ -16,27 +18,9 @@
     "source_url": "https://small.oisd.nl/domainswild2",
     "homepage": "https://oisd.nl/downloads",
     "syntax": "domains",
+    "kind": "general",
+    "intensity": "basic",
     "tags": ["oisd", "basic", "ads"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "oisd_nsfw",
-    "name": "OISD - NSFW",
-    "description": "Blocks porn/shock/adult sites",
-    "source_url": "https://nsfw.oisd.nl/domainswild2",
-    "homepage": "https://oisd.nl/downloads",
-    "syntax": "domains",
-    "tags": ["oisd", "comprehensive", "adult"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "oisd_nsfw_small",
-    "name": "OISD - NSFW small",
-    "description": "NSFW domains found in the top 1 million domains (Using Tranco List)",
-    "source_url": "https://nsfw-small.oisd.nl/domainswild2",
-    "homepage": "https://oisd.nl/downloads",
-    "syntax": "domains",
-    "tags": ["oisd", "basic", "adult"],
     "schedule": "@hourly"
   }
 ]
