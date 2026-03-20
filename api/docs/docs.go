@@ -2517,6 +2517,10 @@ const docTemplate = `{
                 "blocklist_id": {
                     "type": "string"
                 },
+                "category": {
+                    "description": "category key (only when kind=category)",
+                    "type": "string"
+                },
                 "default": {
                     "description": "default blocklist is enabled when profile is created",
                     "type": "boolean"
@@ -2532,6 +2536,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "intensity": {
+                    "description": "basic, comprehensive, restrictive",
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "general, category, security",
                     "type": "string"
                 },
                 "last_modified": {
@@ -2551,6 +2563,7 @@ const docTemplate = `{
                     }
                 },
                 "type": {
+                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
                     "type": "string"
                 }
             }
