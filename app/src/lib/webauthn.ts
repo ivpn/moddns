@@ -298,10 +298,13 @@ export async function beginEmailChangeReauth(): Promise<string> {
     return token;
   } catch (err: unknown) {
     const webauthnErr = err as WebAuthnError;
+    if (webauthnErr.name === 'NotAllowedError') {
+      throw new Error('Passkey verification was cancelled or timed out.');
+    }
     if (webauthnErr.response?.data?.error) {
       throw new Error(webauthnErr.response.data.error);
     }
-    throw new Error(webauthnErr.message || 'Passkey reauthentication failed');
+    throw new Error(webauthnErr.message || 'Passkey reauthentication failed.');
   }
 }
 
@@ -322,9 +325,12 @@ export async function beginAccountDeletionReauth(): Promise<string> {
     return token;
   } catch (err: unknown) {
     const webauthnErr = err as WebAuthnError;
+    if (webauthnErr.name === 'NotAllowedError') {
+      throw new Error('Passkey verification was cancelled or timed out.');
+    }
     if (webauthnErr.response?.data?.error) {
       throw new Error(webauthnErr.response.data.error);
     }
-    throw new Error(webauthnErr.message || 'Passkey reauthentication failed');
+    throw new Error(webauthnErr.message || 'Passkey reauthentication failed.');
   }
 }
