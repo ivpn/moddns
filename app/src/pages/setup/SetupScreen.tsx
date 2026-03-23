@@ -10,6 +10,7 @@ import {
     AppWindow,
     Clipboard,
     Gamepad2,
+    Info,
     Router,
     Smartphone,
     Tv2,
@@ -18,6 +19,7 @@ import AppleLogo from "@/assets/platforms/apple.svg";
 import LinuxLogo from "@/assets/platforms/linux.svg";
 import WindowsIcon from "@/assets/platforms/windows.svg";
 import { useAppStore, useProfileData } from "@/store/general";
+import { Tooltip } from "@/components/ui/tooltip";
 import VerificationBanner from '@/pages/setup/VerificationBanner';
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
@@ -184,8 +186,21 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                                     aria-label={interactive ? `Copy ${label}` : undefined}
                                                                     onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(value as string, label); } } : undefined}
                                                                 >
-                                                                    <span className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-[25.4px] select-none">
+                                                                    <span className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-[25.4px] select-none inline-flex items-center gap-1">
                                                                         {label}
+                                                                        {label === "IPv4" && (
+                                                                            <Tooltip content="Note: Plain DNS is not supported. Must be used with DoH, DoT, or DoQ URI above." side="top" align="start" maxWidthClassName="max-w-[260px]">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    aria-label="IPv4 usage information"
+                                                                                    className="inline-flex items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                                                >
+                                                                                    <Info className="w-3.5 h-3.5 text-[var(--shadcn-ui-app-muted-foreground)]" />
+                                                                                </button>
+                                                                            </Tooltip>
+                                                                        )}
                                                                     </span>
                                                                     <div className="inline-flex items-center justify-end gap-2">
                                                                         <span className="text-sm text-[var(--shadcn-ui-app-foreground)] leading-5 font-mono break-all select-all">
