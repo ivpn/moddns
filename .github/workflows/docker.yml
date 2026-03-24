@@ -26,6 +26,8 @@ jobs:
           echo "DNS_API_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS API
+        id: trivy_api
+        continue-on-error: true
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_API_IMAGE }}
@@ -38,6 +40,8 @@ jobs:
           echo "DNS_PROXY_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS Proxy
+        id: trivy_proxy
+        continue-on-error: true
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_PROXY_IMAGE }}
@@ -50,6 +54,8 @@ jobs:
           echo "DNS_FRONTEND_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS Frontend
+        id: trivy_frontend
+        continue-on-error: true
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_FRONTEND_IMAGE }}
@@ -62,6 +68,8 @@ jobs:
           echo "DNS_BLOCKLISTS_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS blocklists
+        id: trivy_blocklists
+        continue-on-error: true
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_BLOCKLISTS_IMAGE }}
@@ -74,7 +82,29 @@ jobs:
           echo "DNS_CHECK_IMAGE=${IMAGE}" >> $GITHUB_ENV
 
       - name: Run Trivy vulnerability scanner - DNS check
+        id: trivy_dnscheck
+        continue-on-error: true
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           image-ref: ${{ env.DNS_CHECK_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+
+      - name: Trivy scan summary
+        if: >-
+          steps.trivy_api.outcome == 'failure' ||
+          steps.trivy_proxy.outcome == 'failure' ||
+          steps.trivy_frontend.outcome == 'failure' ||
+          steps.trivy_blocklists.outcome == 'failure' ||
+          steps.trivy_dnscheck.outcome == 'failure'
+        run: |
+          echo "## :warning: Trivy vulnerability scan findings" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following images have HIGH/CRITICAL vulnerabilities:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          [ "${{ steps.trivy_api.outcome }}" = "failure" ] && echo "- **DNS API** (dnsapi)" >> $GITHUB_STEP_SUMMARY
+          [ "${{ steps.trivy_proxy.outcome }}" = "failure" ] && echo "- **DNS Proxy** (dnsproxy)" >> $GITHUB_STEP_SUMMARY
+          [ "${{ steps.trivy_frontend.outcome }}" = "failure" ] && echo "- **DNS Frontend** (dnswebapp)" >> $GITHUB_STEP_SUMMARY
+          [ "${{ steps.trivy_blocklists.outcome }}" = "failure" ] && echo "- **DNS Blocklists** (dnsblocklists)" >> $GITHUB_STEP_SUMMARY
+          [ "${{ steps.trivy_dnscheck.outcome }}" = "failure" ] && echo "- **DNS Check** (dnscheck)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Review the Trivy scan steps above for details. Consider creating a separate PR to upgrade affected dependencies." >> $GITHUB_STEP_SUMMARY
