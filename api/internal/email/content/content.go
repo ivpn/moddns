@@ -2,6 +2,8 @@ package content
 
 import "fmt"
 
+const SupportEmail = "moddns@ivpn.net"
+
 // EmailContent holds subject, plain text, and HTML for an email.
 type EmailContent struct {
 	Subject string
@@ -22,8 +24,8 @@ func WelcomeContent(homeURL, verifyURL string) EmailContent {
 func PasswordResetContent(resetLink string) EmailContent {
 	return EmailContent{
 		Subject: "Reset your modDNS password",
-		Plain:   fmt.Sprintf("Hello,\n\nYou have requested a password reset for your modDNS account.\n\nFollow this link to reset your password: %s\n\nThe URL is live for 60 minutes after generation.\n\nIf you did not request the password reset, please ignore this message or contact support at moddns@ivpn.net.\n\nRegards,\nmodDNS team", resetLink),
-		Html:    fmt.Sprintf("<p>Hello,</p><p>You have requested a password reset for your modDNS account.</p><p>Follow this link to reset your password: <a href=\"%s\">%s</a></p><p>The URL is live for 60 minutes after generation.</p><p>If you did not request the password reset, please ignore this message or contact support at <a href=\"mailto:moddns@ivpn.net\">moddns@ivpn.net</a>.</p><p>Regards,<br>modDNS team</p>", resetLink, resetLink),
+		Plain:   fmt.Sprintf("Hello,\n\nYou have requested a password reset for your modDNS account.\n\nFollow this link to reset your password: %s\n\nThe URL is live for 60 minutes after generation.\n\nIf you did not request the password reset, please ignore this message or contact support at %s.\n\nRegards,\nmodDNS team", resetLink, SupportEmail),
+		Html:    fmt.Sprintf("<p>Hello,</p><p>You have requested a password reset for your modDNS account.</p><p>Follow this link to reset your password: <a href=\"%s\">%s</a></p><p>The URL is live for 60 minutes after generation.</p><p>If you did not request the password reset, please ignore this message or contact support at <a href=\"mailto:%s\">%s</a>.</p><p>Regards,<br>modDNS team</p>", resetLink, resetLink, SupportEmail, SupportEmail),
 	}
 }
 
