@@ -43,11 +43,11 @@ const (
 	TokenTypePasswordReset           string        = "password_reset"          //nolint:gosec
 	TokenTypeReauthEmailChange       string        = "reauth_email_change"     //nolint:gosec
 	TokenTypeReauthAccountDeletion   string        = "reauth_account_deletion" //nolint:gosec
-	passwordResetTokenLength         int           = 128
+	passwordResetTokenLength         int           = 48
 	passwordResetTokenExpiration     time.Duration = time.Hour
-	reauthEmailChangeTokenLength     int           = 128
+	reauthEmailChangeTokenLength     int           = 48
 	reauthEmailChangeExpiration      time.Duration = time.Minute * 5
-	reauthAccountDeletionTokenLength int           = 128
+	reauthAccountDeletionTokenLength int           = 48
 	reauthAccountDeletionExpiration  time.Duration = time.Minute * 5
 )
 
