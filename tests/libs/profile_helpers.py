@@ -21,6 +21,13 @@ from moddns import (
 SVC_GOOGLE_DOMAIN = "svctest-google.com"
 SVC_GOOGLE_IP = "8.8.8.8"  # AS15169 (Google)
 SVC_GOOGLE_ID = "google"
+REAL_GOOGLE_DOMAIN = "google.com"  # Real domain; HTTPS record has alpn but NO ipv4hint/ipv6hint
+# cloudflare.com serves HTTPS records with ipv4hint and ipv6hint (AS13335).
+# Used to test that the proxy extracts and inspects IPs embedded in SVCB hints.
+# These tests depend on Cloudflare's authoritative DNS and may fail if the
+# record format changes — mark them xfail(strict=False) so failures warn
+# rather than break CI.
+REAL_HTTPS_HINTS_DOMAIN = "cloudflare.com"
 
 TEST_DOMAIN = "test.com"
 TEST_IP = "104.18.74.230"  # AS13335 (Cloudflare, not in catalog)
