@@ -337,77 +337,56 @@ func TestIPFilterCustomRules_CacheErrors(t *testing.T) {
 func TestMatchIPRule(t *testing.T) {
 	tests := []struct {
 		name        string
-		rr          dns.RR
+		ip          net.IP
 		hash        map[string]string
 		expectAllow bool
 		expectBlock bool
 	}{
 		{
-			name: "A record - block match",
-			rr: &dns.A{
-				Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA, Class: dns.ClassINET},
-				A:   net.ParseIP("93.184.216.34"),
-			},
+			name:        "IPv4 - block match",
+			ip:          net.ParseIP("93.184.216.34"),
 			hash:        map[string]string{"action": ACTION_BLOCK, "value": "93.184.216.34"},
 			expectAllow: false,
 			expectBlock: true,
 		},
 		{
-			name: "A record - allow match",
-			rr: &dns.A{
-				Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA, Class: dns.ClassINET},
-				A:   net.ParseIP("93.184.216.34"),
-			},
+			name:        "IPv4 - allow match",
+			ip:          net.ParseIP("93.184.216.34"),
 			hash:        map[string]string{"action": ACTION_ALLOW, "value": "93.184.216.34"},
 			expectAllow: true,
 			expectBlock: false,
 		},
 		{
-			name: "A record - no match",
-			rr: &dns.A{
-				Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA, Class: dns.ClassINET},
-				A:   net.ParseIP("93.184.216.34"),
-			},
+			name:        "IPv4 - no match",
+			ip:          net.ParseIP("93.184.216.34"),
 			hash:        map[string]string{"action": ACTION_BLOCK, "value": "10.0.0.1"},
 			expectAllow: false,
 			expectBlock: false,
 		},
 		{
-			name: "AAAA record - block match",
-			rr: &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeAAAA, Class: dns.ClassINET},
-				AAAA: net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
-			},
+			name:        "IPv6 - block match",
+			ip:          net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
 			hash:        map[string]string{"action": ACTION_BLOCK, "value": "2606:2800:220:1:248:1893:25c8:1946"},
 			expectAllow: false,
 			expectBlock: true,
 		},
 		{
-			name: "AAAA record - allow match",
-			rr: &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeAAAA, Class: dns.ClassINET},
-				AAAA: net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
-			},
+			name:        "IPv6 - allow match",
+			ip:          net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
 			hash:        map[string]string{"action": ACTION_ALLOW, "value": "2606:2800:220:1:248:1893:25c8:1946"},
 			expectAllow: true,
 			expectBlock: false,
 		},
 		{
-			name: "AAAA record - no match",
-			rr: &dns.AAAA{
-				Hdr:  dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeAAAA, Class: dns.ClassINET},
-				AAAA: net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
-			},
+			name:        "IPv6 - no match",
+			ip:          net.ParseIP("2606:2800:220:1:248:1893:25c8:1946"),
 			hash:        map[string]string{"action": ACTION_BLOCK, "value": "::1"},
 			expectAllow: false,
 			expectBlock: false,
 		},
 		{
-			name: "CNAME record - ignored",
-			rr: &dns.CNAME{
-				Hdr:    dns.RR_Header{Name: "www.example.com.", Rrtype: dns.TypeCNAME, Class: dns.ClassINET},
-				Target: "example.com.",
-			},
+			name:        "nil IP - ignored",
+			ip:          nil,
 			hash:        map[string]string{"action": ACTION_BLOCK, "value": "1.2.3.4"},
 			expectAllow: false,
 			expectBlock: false,
@@ -418,7 +397,7 @@ func TestMatchIPRule(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fm := &IPFilter{}
 
-			allow, block := fm.matchIPRule(tt.rr, tt.hash)
+			allow, block := fm.matchIPRule(tt.ip, tt.hash)
 
 			assert.Equal(t, tt.expectAllow, allow, "allow mismatch")
 			assert.Equal(t, tt.expectBlock, block, "block mismatch")

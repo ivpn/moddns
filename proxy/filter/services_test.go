@@ -76,6 +76,28 @@ func dnsCtxWithAnswers(t *testing.T, answers []dns.RR) *proxy.DNSContext {
 	return &proxy.DNSContext{Req: req, Res: res}
 }
 
+func dnsCtxWithHTTPSAnswer(t *testing.T, name string, ipv4hints []net.IP, ipv6hints []net.IP) *proxy.DNSContext {
+	t.Helper()
+	req := new(dns.Msg)
+	req.SetQuestion(name, dns.TypeHTTPS)
+	res := new(dns.Msg)
+	res.SetReply(req)
+
+	https := &dns.HTTPS{SVCB: dns.SVCB{
+		Hdr:      dns.RR_Header{Name: name, Rrtype: dns.TypeHTTPS, Class: dns.ClassINET, Ttl: 60},
+		Priority: 1,
+		Target:   ".",
+	}}
+	if len(ipv4hints) > 0 {
+		https.Value = append(https.Value, &dns.SVCBIPv4Hint{Hint: ipv4hints})
+	}
+	if len(ipv6hints) > 0 {
+		https.Value = append(https.Value, &dns.SVCBIPv6Hint{Hint: ipv6hints})
+	}
+	res.Answer = []dns.RR{https}
+	return &proxy.DNSContext{Req: req, Res: res}
+}
+
 func googleCatalogWithASN(asn uint) *servicescatalog.Catalog {
 	return &servicescatalog.Catalog{Services: []servicescatalog.Service{{
 		ID:   "google",
@@ -214,6 +236,36 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			wantReasons:  []string{REASON_SERVICES, "service: google"},
 		},
 		{
+			name:           "blocks on HTTPS answer with ipv4hint when asn matches",
+			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
+			asnLookup: mapASNLookup{asnByIP: map[string]uint{
+				"142.250.74.46": asn,
+			}},
+			blockedIDs: []string{"google"},
+			dnsCtx:     dnsCtxWithHTTPSAnswer(t, "example.com.", []net.IP{net.ParseIP("142.250.74.46").To4()}, nil),
+			wantDecision: model.DecisionBlock,
+			wantReasons:  []string{REASON_SERVICES, "service: google"},
+		},
+		{
+			name:           "blocks on HTTPS answer with ipv6hint when asn matches",
+			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
+			asnLookup: mapASNLookup{asnByIP: map[string]uint{
+				"2a00:1450:4010:c0a::5e": asn,
+			}},
+			blockedIDs: []string{"google"},
+			dnsCtx:     dnsCtxWithHTTPSAnswer(t, "example.com.", nil, []net.IP{net.ParseIP("2a00:1450:4010:c0a::5e")}),
+			wantDecision: model.DecisionBlock,
+			wantReasons:  []string{REASON_SERVICES, "service: google"},
+		},
+		{
+			name:           "HTTPS answer without IP hints is not blocked",
+			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
+			asnLookup:      staticASNLookup{asn: asn},
+			blockedIDs:     []string{"google"},
+			dnsCtx:         dnsCtxWithHTTPSAnswer(t, "example.com.", nil, nil),
+			wantDecision:   model.DecisionNone,
+		},
+		{
 			name:           "blocks on AAAA answer when asn matches",
 			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
 			asnLookup: mapASNLookup{asnByIP: map[string]uint{
@@ -349,6 +401,115 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			}
 
 			mockCache.AssertExpectations(t)
+		})
+	}
+}
+
+func TestExtractIPsFromAnswer(t *testing.T) {
+	tests := []struct {
+		name    string
+		answers []dns.RR
+		wantIPs []string
+	}{
+		{
+			name:    "nil answers",
+			answers: nil,
+			wantIPs: nil,
+		},
+		{
+			name: "A record",
+			answers: []dns.RR{
+				&dns.A{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA}, A: net.ParseIP("1.2.3.4")},
+			},
+			wantIPs: []string{"1.2.3.4"},
+		},
+		{
+			name: "AAAA record",
+			answers: []dns.RR{
+				&dns.AAAA{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeAAAA}, AAAA: net.ParseIP("2001:db8::1")},
+			},
+			wantIPs: []string{"2001:db8::1"},
+		},
+		{
+			name: "HTTPS with ipv4hint and ipv6hint",
+			answers: []dns.RR{
+				&dns.HTTPS{SVCB: dns.SVCB{
+					Hdr:      dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeHTTPS},
+					Priority: 1,
+					Target:   ".",
+					Value: []dns.SVCBKeyValue{
+						&dns.SVCBIPv4Hint{Hint: []net.IP{net.ParseIP("142.250.74.46").To4()}},
+						&dns.SVCBIPv6Hint{Hint: []net.IP{net.ParseIP("2a00:1450::1")}},
+					},
+				}},
+			},
+			wantIPs: []string{"142.250.74.46", "2a00:1450::1"},
+		},
+		{
+			name: "HTTPS without IP hints",
+			answers: []dns.RR{
+				&dns.HTTPS{SVCB: dns.SVCB{
+					Hdr:      dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeHTTPS},
+					Priority: 1,
+					Target:   ".",
+					Value: []dns.SVCBKeyValue{
+						&dns.SVCBAlpn{Alpn: []string{"h2", "h3"}},
+					},
+				}},
+			},
+			wantIPs: nil,
+		},
+		{
+			name: "mixed A and HTTPS records",
+			answers: []dns.RR{
+				&dns.A{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA}, A: net.ParseIP("1.1.1.1")},
+				&dns.HTTPS{SVCB: dns.SVCB{
+					Hdr:      dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeHTTPS},
+					Priority: 1,
+					Target:   ".",
+					Value: []dns.SVCBKeyValue{
+						&dns.SVCBIPv4Hint{Hint: []net.IP{net.ParseIP("2.2.2.2").To4()}},
+					},
+				}},
+			},
+			wantIPs: []string{"1.1.1.1", "2.2.2.2"},
+		},
+		{
+			name: "SVCB record with ipv4hint",
+			answers: []dns.RR{
+				&dns.SVCB{
+					Hdr:      dns.RR_Header{Name: "_svc.example.com.", Rrtype: dns.TypeSVCB},
+					Priority: 1,
+					Target:   ".",
+					Value: []dns.SVCBKeyValue{
+						&dns.SVCBIPv4Hint{Hint: []net.IP{net.ParseIP("3.3.3.3").To4()}},
+					},
+				},
+			},
+			wantIPs: []string{"3.3.3.3"},
+		},
+		{
+			name: "unrelated record types are ignored",
+			answers: []dns.RR{
+				&dns.CNAME{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeCNAME}, Target: "other.example.com."},
+				&dns.MX{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeMX}, Mx: "mail.example.com."},
+			},
+			wantIPs: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractIPsFromAnswer(tt.answers)
+			if tt.wantIPs == nil {
+				assert.Nil(t, got)
+				return
+			}
+			var gotStrs []string
+			for _, ip := range got {
+				gotStrs = append(gotStrs, ip.String())
+			}
+			assert.Equal(t, tt.wantIPs, gotStrs)
 		})
 	}
 }

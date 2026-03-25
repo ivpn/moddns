@@ -180,10 +180,11 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 			continue
 		}
 
+		ips := extractIPsFromAnswer(dctx.Res.Answer)
 		switch {
 		case strings.Contains(syntax, "ip"):
-			for _, a := range dctx.Res.Answer {
-				allow, block := f.matchIPRule(a, hash)
+			for _, ip := range ips {
+				allow, block := f.matchIPRule(ip, hash)
 				allowMatched = allowMatched || allow
 				blockMatched = blockMatched || block
 			}
@@ -196,8 +197,8 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 				log.Debug().Str("hash", customRuleHash).Str("value", hash["value"]).Msg("Invalid ASN custom rule value")
 				continue
 			}
-			for _, a := range dctx.Res.Answer {
-				allow, block := f.matchASNRule(a, ruleASN, hash["action"])
+			for _, ip := range ips {
+				allow, block := f.matchASNRule(ip, ruleASN, hash["action"])
 				allowMatched = allowMatched || allow
 				blockMatched = blockMatched || block
 			}
@@ -242,16 +243,7 @@ func parseCustomRuleASN(value string) (uint, bool) {
 	return uint(parsed), true
 }
 
-func (f *IPFilter) matchASNRule(rr dns.RR, ruleASN uint, action string) (allow bool, block bool) {
-	var ip net.IP
-	switch v := rr.(type) {
-	case *dns.A:
-		ip = v.A
-	case *dns.AAAA:
-		ip = v.AAAA
-	default:
-		return false, false
-	}
+func (f *IPFilter) matchASNRule(ip net.IP, ruleASN uint, action string) (allow bool, block bool) {
 	if ip == nil {
 		return false, false
 	}
@@ -276,44 +268,28 @@ func (f *IPFilter) matchASNRule(rr dns.RR, ruleASN uint, action string) (allow b
 	}
 }
 
-func (f *IPFilter) matchIPRule(rr dns.RR, hash map[string]string) (allow bool, block bool) {
-	switch ip := rr.(type) {
-	case *dns.A:
-		if ip.A.Equal(net.ParseIP(hash["value"])) {
-			switch hash["action"] {
-			case ACTION_BLOCK:
-				log.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
-					Msgf("Blocked IP: %s", ip.A.String())
-				return false, true
-
-			case ACTION_ALLOW:
-				log.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
-					Msgf("Allowing IP: %s", rr.String())
-				return true, false
-			}
-		}
-	case *dns.AAAA:
-		if ip.AAAA.Equal(net.ParseIP(hash["value"])) {
-			switch hash["action"] {
-			case ACTION_BLOCK:
-				log.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
-					Msgf("Blocked IP: %s", ip.AAAA.String())
-				return false, true
-
-			case ACTION_ALLOW:
-				log.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
-					Msgf("Allowing IP: %s", rr.String())
-				return true, false
-			}
-		}
+func (f *IPFilter) matchIPRule(ip net.IP, hash map[string]string) (allow bool, block bool) {
+	if ip == nil {
+		return false, false
 	}
-	return false, false
+	if !ip.Equal(net.ParseIP(hash["value"])) {
+		return false, false
+	}
+
+	switch hash["action"] {
+	case ACTION_BLOCK:
+		log.Debug().
+			Str("reason", REASON_CUSTOM_RULES).
+			Str("pattern", hash["value"]).
+			Msgf("Blocked IP: %s", ip.String())
+		return false, true
+	case ACTION_ALLOW:
+		log.Debug().
+			Str("reason", REASON_CUSTOM_RULES).
+			Str("pattern", hash["value"]).
+			Msgf("Allowing IP: %s", ip.String())
+		return true, false
+	default:
+		return false, false
+	}
 }

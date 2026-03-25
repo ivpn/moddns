@@ -63,16 +63,8 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 
 	matchedServices := make(map[string]struct{})
 
-	for _, rr := range dctx.Res.Answer {
-		var ip net.IP
-		switch v := rr.(type) {
-		case *dns.A:
-			ip = v.A
-		case *dns.AAAA:
-			ip = v.AAAA
-		default:
-			continue
-		}
+	ips := extractIPsFromAnswer(dctx.Res.Answer)
+	for _, ip := range ips {
 		asn, err := f.ASNLookup.ASN(ip)
 		if err != nil || asn == 0 {
 			continue
@@ -101,4 +93,37 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 		result.Reasons = append(result.Reasons, "service: "+id)
 	}
 	return result, nil
+}
+
+// extractIPsFromAnswer collects IP addresses from DNS answer records.
+// Handles A, AAAA, and HTTPS/SVCB records (ipv4hint/ipv6hint parameters).
+func extractIPsFromAnswer(answers []dns.RR) []net.IP {
+	var ips []net.IP
+	for _, rr := range answers {
+		switch v := rr.(type) {
+		case *dns.A:
+			ips = append(ips, v.A)
+		case *dns.AAAA:
+			ips = append(ips, v.AAAA)
+		case *dns.HTTPS:
+			ips = append(ips, extractIPsFromSVCB(v.Value)...)
+		case *dns.SVCB:
+			ips = append(ips, extractIPsFromSVCB(v.Value)...)
+		}
+	}
+	return ips
+}
+
+// extractIPsFromSVCB extracts ipv4hint and ipv6hint IPs from SVCB key-value pairs.
+func extractIPsFromSVCB(values []dns.SVCBKeyValue) []net.IP {
+	var ips []net.IP
+	for _, kv := range values {
+		switch v := kv.(type) {
+		case *dns.SVCBIPv4Hint:
+			ips = append(ips, v.Hint...)
+		case *dns.SVCBIPv6Hint:
+			ips = append(ips, v.Hint...)
+		}
+	}
+	return ips
 }
