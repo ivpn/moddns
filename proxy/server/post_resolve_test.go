@@ -177,6 +177,13 @@ func TestPostResolve_ResponseContent(t *testing.T) {
 			ipFilterBlocks: true,
 			wantIP:         "",
 		},
+		{
+			name:           "IPBlock_HTTPS_ReturnsEmptyAnswer",
+			qtype:          dns.TypeHTTPS,
+			upstreamRR:     "example.com. 300 IN HTTPS 1 . alpn=h2",
+			ipFilterBlocks: true,
+			wantIP:         "NODATA",
+		},
 	}
 
 	for _, tt := range tests {
@@ -210,12 +217,17 @@ func TestPostResolve_ResponseContent(t *testing.T) {
 			s.postResolve(reqCtx, dctx)
 			require.True(t, awaitWG(&wg, time.Second))
 
-			require.Len(t, dctx.Res.Answer, 1)
-			ip := answerIP(t, dctx.Res.Answer[0])
-			if tt.wantIP == "" {
-				assert.True(t, ip.IsUnspecified(), "blocked response should be unspecified, got %s", ip)
+			if tt.wantIP == "NODATA" {
+				assert.Empty(t, dctx.Res.Answer, "blocked HTTPS response should have empty answer (NODATA)")
+				assert.True(t, dctx.Res.Response, "response flag should be set")
 			} else {
-				assert.Equal(t, tt.wantIP, ip.String())
+				require.Len(t, dctx.Res.Answer, 1)
+				ip := answerIP(t, dctx.Res.Answer[0])
+				if tt.wantIP == "" {
+					assert.True(t, ip.IsUnspecified(), "blocked response should be unspecified, got %s", ip)
+				} else {
+					assert.Equal(t, tt.wantIP, ip.String())
+				}
 			}
 		})
 	}
