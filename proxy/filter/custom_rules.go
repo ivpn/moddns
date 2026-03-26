@@ -169,6 +169,7 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 		return result, nil
 	}
 
+	ips := extractIPsFromAnswer(dctx.Res.Answer)
 	for _, customRuleHash := range customRuleHashes {
 		hash, err := f.Cache.GetCustomRulesHash(context.Background(), customRuleHash)
 		if err != nil {
@@ -180,7 +181,6 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 			continue
 		}
 
-		ips := extractIPsFromAnswer(dctx.Res.Answer)
 		switch {
 		case strings.Contains(syntax, "ip"):
 			for _, ip := range ips {
