@@ -106,8 +106,8 @@ describe("ServicesContentSection", () => {
         expect(screen.getByRole("img", { name: /google logo/i })).toBeInTheDocument();
 
         const asnsEl = screen.getByTestId("service-asns");
-        expect(asnsEl).toHaveTextContent("ASNs: 1, 2, 3, 4, 5 +1");
-        expect(asnsEl).toHaveAttribute("title", "ASNs: 1, 2, 3, 4, 5, 6");
+        expect(asnsEl).toHaveTextContent("ASN: 1, 2, 3, 4, 5 +1");
+        expect(asnsEl).toHaveAttribute("title", "ASN: 1, 2, 3, 4, 5, 6");
 
         const switchEl = screen.getByRole("switch");
         expect(switchEl).toHaveAttribute("aria-checked", "false");
