@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -371,20 +372,16 @@ func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSC
 	switch dctx.Req.Question[0].Qtype {
 	case dns.TypeA:
 		q := dctx.Req.Question[0].Name
-		fakeRR, err := dns.NewRR(fmt.Sprintf("%s\t30\tIN\tA\t0.0.0.0", q))
-		if err != nil {
-			reqCtx.Logger.Err(err).Msg("Error creating fake RR")
-		} else {
-			resp.Answer = []dns.RR{fakeRR}
-		}
+		resp.Answer = []dns.RR{&dns.A{
+			Hdr: dns.RR_Header{Name: q, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 30},
+			A:   net.IPv4zero,
+		}}
 	case dns.TypeAAAA:
 		q := dctx.Req.Question[0].Name
-		fakeRR, err := dns.NewRR(fmt.Sprintf("%s\t30\tIN\tAAAA\t::", q))
-		if err != nil {
-			reqCtx.Logger.Err(err).Msg("Error creating fake RR")
-		} else {
-			resp.Answer = []dns.RR{fakeRR}
-		}
+		resp.Answer = []dns.RR{&dns.AAAA{
+			Hdr: dns.RR_Header{Name: q, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 30},
+			AAAA: net.IPv6zero,
+		}}
 	default:
 		// For HTTPS, SVCB, and other record types: return empty answer (NODATA).
 		// An empty answer with NOERROR signals the domain exists but has no records
