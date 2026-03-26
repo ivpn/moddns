@@ -1,8 +1,12 @@
 """Generate minimal GeoLite2-ASN stub .mmdb for CI/test use.
 
 Contains only the IPs used in e2e tests:
-  - 8.8.8.8/32       -> AS15169 (Google)
-  - 104.18.74.230/32 -> AS13335 (Cloudflare)
+  - 8.8.8.8/32      -> AS15169 (Google)
+  - 104.16.0.0/13   -> AS13335 (Cloudflare, covers 104.16.x-104.23.x)
+  - 104.24.0.0/14   -> AS13335 (Cloudflare, covers 104.24.x-104.27.x)
+
+The Cloudflare ranges cover IPs returned by cloudflare.com A records
+(e.g. 104.18.74.230) and HTTPS ipv4hint values (e.g. 104.16.132.229).
 
 Usage:
     python scripts/generate_stub_mmdb.py
@@ -23,7 +27,7 @@ writer.insert_network(
 )
 
 writer.insert_network(
-    IPSet(["104.18.74.230/32"]),
+    IPSet(["104.16.0.0/13", "104.24.0.0/14"]),
     {
         "autonomous_system_number": 13335,
         "autonomous_system_organization": "CLOUDFLARENET",

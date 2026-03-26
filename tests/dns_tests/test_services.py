@@ -256,9 +256,11 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
     async def test_services_block_https_query_no_ip_hints(
         self, create_account_and_login
     ):
-        """When a service is blocked, HTTPS records that pass through
-        must not contain ipv4hint or ipv6hint parameters that would
-        leak IP addresses to browsers."""
+        """When a service is blocked, HTTPS records must not contain
+        ipv4hint or ipv6hint parameters that would leak IP addresses
+        to browsers. The response is either NODATA (empty answer) when
+        hints were present and matched, or contains only hint-free
+        HTTPS records (e.g. alpn-only)."""
         account, cookie = create_account_and_login
         with client.ApiClient(self.api_config) as api_client:
             p = api.ProfileApi(api_client)
@@ -274,9 +276,8 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
                 profile_id, REAL_GOOGLE_DOMAIN, HTTPS
             )
 
-            # If the response has HTTPS answer records, none of them
-            # should contain ipv4hint or ipv6hint parameters that
-            # would let the browser bypass A/AAAA blocking.
+            # HTTPS records without IP hints (e.g. alpn-only) are safe
+            # to pass through. Verify none leak ipv4hint/ipv6hint.
             for rrset in resp.answer:
                 for rdata in rrset:
                     rdata_text = rdata.to_text()
