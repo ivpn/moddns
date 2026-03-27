@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                            Last updated: Mar 16, 2026
+                                            Last updated: Mar 23, 2026
                                         </p>
                                     </div>
 
@@ -166,10 +166,10 @@ export default function PrivacyPolicy() {
                                             Within your profile settings, you can independently enable or disable the logging of queried domains and client IP Addresses.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            You also have full control over the data retention period, which can be set from a minimum of 1 hour to a maximum of 1 month. The default retention period is 1 hour. When you change the retention period setting, any existing logs that exceed the new timeframe are immediately deleted from our systems.
+                                            You also have full control over the data retention period, which can be set from a minimum of 1 hour to a maximum of 1 month. The default retention period is 1 hour.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            You can permanently delete all stored query logs at any time from your dashboard.
+                                            Query log entries are automatically and permanently deleted once they exceed the retention period. When you change the retention period setting, any existing logs that exceed the new timeframe are immediately deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard.
                                         </p>
                                     </section>
 
