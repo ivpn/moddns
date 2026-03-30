@@ -1,11 +1,13 @@
-# Services catalog used for ASN-based blocking presets.
+# Services catalog used for ASN and domain-based blocking presets.
 # IDs are stable identifiers stored in profile settings.
 #
-# services:
-#   - id: google
-#     name: Google
-#     logo_key: google
-#     asns: [15169]
+# Each service may define:
+#   asns:    ASN-based blocking (IP phase, post-resolve)
+#   domains: domain-based blocking (domain phase, pre-resolve)
+#
+# Domain-based blocking catches traffic served via third-party CDNs that
+# ASN blocking would miss. Subdomains are automatically included:
+# listing "microsoft.com" also blocks "www.microsoft.com", etc.
 
 # Source notes (for maintainers):
 # - AS15169: https://bgp.he.net/AS15169 (Google LLC)
@@ -18,19 +20,24 @@ services:
     name: Google
     logo_key: google
     asns: [15169, 1026, 6432, 11344, 13949, 16550, 16591, 17346, 19425, 19448, 19527, 22577, 22859, 24424]
+    domains: [google.com, youtube.com, gmail.com, googleapis.com, gstatic.com, googlevideo.com, google-analytics.com, googleusercontent.com, googlesyndication.com, doubleclick.net, gvt1.com, gvt2.com]
   - id: amazon
     name: Amazon
     logo_key: amazon
     asns: [16509, 14618, 16625]
+    domains: [amazon.com, amazonaws.com, amazonvideo.com, primevideo.com, alexa.com, audible.com, goodreads.com, imdb.com, twitch.tv, whole-foods.com]
   - id: meta
     name: Meta (Facebook)
     logo_key: meta
     asns: [32934]
+    domains: [facebook.com, instagram.com, whatsapp.com, messenger.com, fb.com, fbcdn.net, fbsbx.com, threads.net]
   - id: apple
     name: Apple
     logo_key: apple
     asns: [714, 6185]
+    domains: [apple.com, icloud.com, mzstatic.com, cdn-apple.com]
   - id: microsoft
     name: Microsoft
     logo_key: microsoft
     asns: [8068, 8069, 8070, 8071, 8072, 8073, 8074, 8075]
+    domains: [microsoft.com, windows.com, office.com, office365.com, live.com, outlook.com, hotmail.com, bing.com, msn.com, xbox.com, skype.com, microsoftonline.com, windowsupdate.com]
