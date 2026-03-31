@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -69,7 +70,12 @@ func (s *APIServer) setupMiddlewares() {
 	s.App.Use(middleware.SentryFiber())
 	s.App.Use(middleware.Recover())
 	s.App.Use(requestid.New())
-	s.App.Use(logger.New())
+	s.App.Use(logger.New(logger.Config{
+		Next: func(c *fiber.Ctx) bool {
+			return c.Response().StatusCode() == fiber.StatusOK &&
+				strings.HasPrefix(c.Path(), "/health/")
+		},
+	}))
 	s.App.Use(helmet.New(helmet.Config{
 		HSTSMaxAge:            31536000,
 		HSTSPreloadEnabled:    true,
