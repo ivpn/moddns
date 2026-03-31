@@ -1,0 +1,5 @@
+vendor/
+dnscheck
+coverage.*
+*.test
+.env

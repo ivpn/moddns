@@ -1,0 +1,19 @@
+# ==============================================
+# Git-tracked files not needed in Docker builds
+# ==============================================
+
+# Frontend app (not needed for Go service builds)
+app/
+
+# Bootstrap data (DB init, GeoIP, services catalog)
+bootstrap/
+
+# CI/CD and tooling config
+.github/
+.releaserc
+
+# Compose files
+compose*.yml
+
+# Documentation
+*.md
