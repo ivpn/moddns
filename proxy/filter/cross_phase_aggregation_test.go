@@ -40,13 +40,14 @@ func domainCustomBlockResult() model.StageResult {
 	}
 }
 
-// TestIPFilter_PhaseIndependence verifies that IPFilter.Execute aggregates only
-// its own results (services + IP custom rules), ignoring any domain-phase
-// StageResults already present in reqCtx.PartialFilteringResults.
+// TestIPFilter_CrossPhaseAggregation verifies that IPFilter.Execute aggregates
+// all results from both domain and IP phases. Domain-phase custom Allow (T200)
+// overrides IP-phase service blocks (T100) and IP-phase custom blocks (T200),
+// following the global aggregation rule: any Allow present wins.
 //
-// Table references correspond to the cross-phase behaviour table in the
-// feat/proxy-cache-enable plan.
-func TestIPFilter_PhaseIndependence(t *testing.T) {
+// Table references correspond to the cross-phase behaviour table in
+// docs/proxy-filtering-behaviour.md.
+func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 	const (
 		profileID = "phase-independence"
 		asn       = uint(15169)
@@ -174,7 +175,7 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			wantStatus:        model.StatusProcessed,
 		},
 		{
-			name:              "#8 — Domain Allow + SVC Block → Blocked (domain allow must not leak)",
+			name:              "#8 — Domain Allow + SVC Block → Processed (domain T200 overrides service T100)",
 			tableRef:          "#8",
 			domainResults:     []model.StageResult{domainAllowResult()},
 			blockedServiceIDs: []string{"google"},
@@ -182,11 +183,11 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			asnLookup:         staticASNLookup{asn: asn},
 			customHashes:      []string{},
 			dnsCtx:            dnsCtxWithAAnswer(t, answerIP),
-			wantStatus:        model.StatusBlocked,
-			wantContains:      []string{REASON_SERVICES},
+			wantStatus:        model.StatusProcessed,
+			wantContains:      []string{REASON_CUSTOM_RULES},
 		},
 		{
-			name:              "#9 — Domain Allow + IP CR Block → Blocked (domain allow must not leak)",
+			name:              "#9 — Domain Allow + IP CR Block → Processed (T200 allow overrides T200 block)",
 			tableRef:          "#9",
 			domainResults:     []model.StageResult{domainAllowResult()},
 			blockedServiceIDs: []string{},
@@ -197,11 +198,11 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 				"h_block_ip": {"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
-			wantStatus:   model.StatusBlocked,
+			wantStatus:   model.StatusProcessed,
 			wantContains: []string{REASON_CUSTOM_RULES},
 		},
 		{
-			name:              "#10 — Domain Allow + SVC Block + IP CR Block → Blocked",
+			name:              "#10 — Domain Allow + SVC Block + IP CR Block → Processed (T200 allow wins)",
 			tableRef:          "#10",
 			domainResults:     []model.StageResult{domainAllowResult()},
 			blockedServiceIDs: []string{"google"},
@@ -211,8 +212,9 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			customRules: map[string]map[string]string{
 				"h_block_ip": {"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
 			},
-			dnsCtx:     dnsCtxWithAAnswer(t, answerIP),
-			wantStatus: model.StatusBlocked,
+			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
+			wantStatus:   model.StatusProcessed,
+			wantContains: []string{REASON_CUSTOM_RULES},
 		},
 		{
 			name:              "#11 — Domain Allow + IP CR Allow → Processed",
@@ -259,7 +261,7 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			wantStatus:        model.StatusProcessed,
 		},
 		{
-			name:              "#14 — BL Block + Domain Allow + SVC Block → Blocked",
+			name:              "#14 — BL Block + Domain Allow + SVC Block → Processed (domain T200 overrides)",
 			tableRef:          "#14",
 			domainResults:     []model.StageResult{domainBlocklistResult(), domainAllowResult()},
 			blockedServiceIDs: []string{"google"},
@@ -267,11 +269,11 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			asnLookup:         staticASNLookup{asn: asn},
 			customHashes:      []string{},
 			dnsCtx:            dnsCtxWithAAnswer(t, answerIP),
-			wantStatus:        model.StatusBlocked,
-			wantContains:      []string{REASON_SERVICES},
+			wantStatus:        model.StatusProcessed,
+			wantContains:      []string{REASON_CUSTOM_RULES},
 		},
 		{
-			name:              "#15 — BL Block + Domain Allow + IP CR Block → Blocked",
+			name:              "#15 — BL Block + Domain Allow + IP CR Block → Processed (T200 allow wins)",
 			tableRef:          "#15",
 			domainResults:     []model.StageResult{domainBlocklistResult(), domainAllowResult()},
 			blockedServiceIDs: []string{},
@@ -282,11 +284,11 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 				"h_block_ip": {"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
-			wantStatus:   model.StatusBlocked,
+			wantStatus:   model.StatusProcessed,
 			wantContains: []string{REASON_CUSTOM_RULES},
 		},
 		{
-			name:              "#16 — BL Block + Domain Allow + SVC Block + IP CR Block → Blocked",
+			name:              "#16 — BL Block + Domain Allow + SVC Block + IP CR Block → Processed (T200 allow wins)",
 			tableRef:          "#16",
 			domainResults:     []model.StageResult{domainBlocklistResult(), domainAllowResult()},
 			blockedServiceIDs: []string{"google"},
@@ -296,8 +298,9 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 			customRules: map[string]map[string]string{
 				"h_block_ip": {"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
 			},
-			dnsCtx:     dnsCtxWithAAnswer(t, answerIP),
-			wantStatus: model.StatusBlocked,
+			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
+			wantStatus:   model.StatusProcessed,
+			wantContains: []string{REASON_CUSTOM_RULES},
 		},
 		{
 			name:              "#17 — BL Block + Domain Allow + IP CR Allow → Processed",
@@ -386,11 +389,12 @@ func TestIPFilter_PhaseIndependence(t *testing.T) {
 	}
 }
 
-// TestIPFilter_NilResponse_ReturnsProcessed verifies that when dctx.Res is nil
-// (domain blocked, no upstream resolution), IPFilter.Execute returns Processed
-// with no reasons. This confirms the server-level guard in postResolve is
-// essential to preserve the domain block (table #19-#21).
-func TestIPFilter_NilResponse_ReturnsProcessed(t *testing.T) {
+// TestIPFilter_NilResponse_PreservesDomainBlock verifies that when dctx.Res is
+// nil (domain blocked, no upstream resolution), IPFilter.Execute preserves the
+// domain block through unified aggregation. The server-level postResolve guard
+// still prevents this call in practice, but even without it the result is
+// correct (table #19-#21).
+func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 	const profileID = "nil-response"
 
 	tests := []struct {
@@ -400,19 +404,19 @@ func TestIPFilter_NilResponse_ReturnsProcessed(t *testing.T) {
 		priorStatus   model.Status
 	}{
 		{
-			name:          "#19 — BL Block domain, nil Res → IP returns Processed (server must guard)",
+			name:          "#19 — BL Block domain, nil Res → IP preserves Blocked via unified aggregation",
 			tableRef:      "#19",
 			domainResults: []model.StageResult{domainBlocklistResult()},
 			priorStatus:   model.StatusBlocked,
 		},
 		{
-			name:          "#20 — Domain CR Block, nil Res → IP returns Processed (server must guard)",
+			name:          "#20 — Domain CR Block, nil Res → IP preserves Blocked via unified aggregation",
 			tableRef:      "#20",
 			domainResults: []model.StageResult{domainCustomBlockResult()},
 			priorStatus:   model.StatusBlocked,
 		},
 		{
-			name:     "#21 — BL + Domain CR Block, nil Res → IP returns Processed (server must guard)",
+			name:     "#21 — BL + Domain CR Block, nil Res → IP preserves Blocked via unified aggregation",
 			tableRef: "#21",
 			domainResults: []model.StageResult{
 				domainBlocklistResult(),
@@ -448,20 +452,19 @@ func TestIPFilter_NilResponse_ReturnsProcessed(t *testing.T) {
 			err := ipFilter.Execute(reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
-			// IPFilter.Execute always overwrites FilterResult with its own
-			// aggregation. With nil Res both sub-filters return None →
-			// Processed. The server-level postResolve guard prevents this
-			// call entirely when domain is already blocked.
-			assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status,
-				"table %s: IP phase with nil Res must return Processed (server guards this)", tt.tableRef)
+			// With unified aggregation, domain-phase Block results propagate
+			// into IP-phase aggregation. Even though IP sub-filters return
+			// None (nil Res), the domain Block is preserved.
+			assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status,
+				"table %s: domain block preserved via unified aggregation", tt.tableRef)
 		})
 	}
 }
 
 // TestIPFilter_NilResponse_IPAllowInert verifies that when the domain phase
 // blocks (dctx.Res is nil), configured IP allow rules are inert — they cannot
-// match without response IPs. IPFilter.Execute returns Processed, confirming
-// the server-level postResolve guard is essential (table #24-#27).
+// match without response IPs. With unified aggregation the domain Block
+// propagates, so the final result is Blocked (table #24-#27).
 func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 	const (
 		profileID = "nil-response-ip-allow"
@@ -559,24 +562,20 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 			err := ipFilter.Execute(reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
-			// With nil Res, both sub-filters return DecisionNone even though
-			// an IP allow rule is configured. getFinalFilteringResult([None, None])
-			// returns Processed — the server postResolve guard must prevent
-			// this call to preserve the domain block.
-			assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status,
-				"table %s: IP phase with nil Res must return Processed even with IP allow configured (server guards this)", tt.tableRef)
-			assert.Empty(t, reqCtx.FilterResult.Reasons,
-				"table %s: no reasons expected — IP allow rule cannot match without response IPs", tt.tableRef)
+			// With unified aggregation, domain-phase Block propagates. IP allow
+			// rules are inert (nil Res, can't match IPs), so domain Block wins.
+			assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status,
+				"table %s: domain block preserved — IP allow inert with nil Res", tt.tableRef)
 
 			mockCache.AssertExpectations(t)
 		})
 	}
 }
 
-// TestIPFilter_PhaseIndependence_PartialResultsGrow verifies that IP-phase
-// results are appended to PartialFilteringResults for observability even though
-// they are aggregated separately for the final decision.
-func TestIPFilter_PhaseIndependence_PartialResultsGrow(t *testing.T) {
+// TestIPFilter_CrossPhaseAggregation_PartialResultsGrow verifies that IP-phase
+// results are appended to PartialFilteringResults and aggregated together with
+// domain-phase results for the final decision.
+func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 	const (
 		profileID = "partial-results-grow"
 		asn       = uint(15169)
@@ -611,8 +610,9 @@ func TestIPFilter_PhaseIndependence_PartialResultsGrow(t *testing.T) {
 	assert.Equal(t, 3, len(reqCtx.PartialFilteringResults),
 		"PartialFilteringResults should contain domain + all IP-phase results")
 
-	// Final decision based on IP-phase only → blocked.
-	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
+	// Final decision based on unified aggregation: domain Allow (T200) wins
+	// over services block (T100) and IP custom block (T200).
+	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 }
 
 // TestIPFilter_NilResponse_SubFiltersReturnNone confirms both sub-filters
@@ -696,6 +696,6 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 	err := ipFilter.Execute(reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
-	// Domain allow must NOT prevent IP block.
-	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
+	// Domain allow (T200) overrides IP block (T200) — allow always wins.
+	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 }

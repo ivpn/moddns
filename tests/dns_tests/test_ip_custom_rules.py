@@ -199,24 +199,24 @@ class TestIPCustomRules:
             )
 
     # ------------------------------------------------------------------
-    # IP block + domain allow coexistence
+    # Domain allow + IP block — allow wins (unified cross-phase aggregation)
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
-    async def test_ip_block_overrides_domain_allow(
+    async def test_domain_allow_overrides_ip_block(
         self, create_account_and_login
     ):
-        """When a domain allow rule and an IP block rule both match, the IP
-        block should still block the response.
+        """When a domain allow rule and an IP block rule both match, the
+        domain allow wins through unified cross-phase aggregation.
 
-        Domain filtering (pre-resolve) runs first and allows the query through.
-        IP filtering (post-resolve) then sees the response IPs and blocks.
+        Domain Allow (T200) overrides IP custom block (T200) — any Allow
+        present wins. Behaviour table #9.
         """
         account, cookie = create_account_and_login
         with client.ApiClient(self.api_config) as api_client:
             p = api.ProfileApi(api_client)
             p.api_client.default_headers["Cookie"] = cookie
-            profile_id = self._create_profile(p, "ip_block_domain_allow")
+            profile_id = self._create_profile(p, "domain_allow_ip_block")
 
             # Allow the domain explicitly.
             self._create_custom_rule(p, profile_id, "allow", TEST_IPV4_DOMAIN)
@@ -226,9 +226,9 @@ class TestIPCustomRules:
             resp = await self.dns_lib.send_doh_request(
                 profile_id, TEST_IPV4_DOMAIN, A
             )
-            assert resp.answer, f"Expected a blocked answer for {TEST_IPV4_DOMAIN}"
+            assert resp.answer, f"Expected an answer for {TEST_IPV4_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
-            assert ip_addr == "0.0.0.0", (
-                f"IP block rule should override domain allow for {TEST_IPV4_DOMAIN}; "
+            assert ip_addr != "0.0.0.0", (
+                f"Domain allow should override IP block for {TEST_IPV4_DOMAIN}; "
                 f"got {ip_addr}"
             )
