@@ -12,30 +12,6 @@
     "schedule": "@hourly"
   },
   {
-    "blocklist_id": "hagezi_gambling_medium",
-    "name": "Hagezi Gambling Medium",
-    "description": "Medium-sized gambling blocklist. A balanced version with fewer entries for reduced false positives.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.medium-onlydomains.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "category",
-    "category": "gambling",
-    "tags": ["category", "gambling", "hagezi"],
-    "schedule": "@hourly"
-  },
-  {
-    "blocklist_id": "hagezi_gambling_mini",
-    "name": "Hagezi Gambling Mini",
-    "description": "Minimal gambling blocklist. Only the most popular gambling domains for minimal false positives.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling.mini-onlydomains.txt",
-    "homepage": "https://github.com/hagezi/dns-blocklists",
-    "syntax": "domains",
-    "kind": "category",
-    "category": "gambling",
-    "tags": ["category", "gambling", "hagezi"],
-    "schedule": "@hourly"
-  },
-  {
     "blocklist_id": "blp_gambling",
     "name": "Block List Project - Gambling",
     "description": "Community-maintained list blocking gambling-related domains including casinos, betting, and lottery sites.",
