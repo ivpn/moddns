@@ -139,3 +139,126 @@ func testDoTDeviceIdentification(t *testing.T) {
 		})
 	}
 }
+
+// TestLocationSubdomainIdentification verifies that profile/device extraction
+// works when the client connects via a location-specific subdomain
+// (e.g. prof123.ams1.dns.moddns.net) by matching against the location
+// server name (ams1.dns.moddns.net) rather than the anycast name.
+func TestLocationSubdomainIdentification(t *testing.T) {
+	testCases := []struct {
+		name           string
+		hostSrvName    string
+		cliSrvName     string
+		expectedClient string
+		expectedDevice string
+	}{
+		{
+			name:           "profile only via location subdomain",
+			hostSrvName:    "ams1.dns.moddns.net",
+			cliSrvName:     "3mdq3851b9.ams1.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "",
+		},
+		{
+			name:           "device and profile via location subdomain",
+			hostSrvName:    "ams1.dns.moddns.net",
+			cliSrvName:     "my-laptop-3mdq3851b9.ams1.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "my-laptop",
+		},
+		{
+			name:           "profile only via anycast domain",
+			hostSrvName:    "dns.moddns.net",
+			cliSrvName:     "3mdq3851b9.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "",
+		},
+		{
+			name:           "location SNI does not match anycast host (IsImmediateSubdomain fails)",
+			hostSrvName:    "dns.moddns.net",
+			cliSrvName:     "3mdq3851b9.ams1.dns.moddns.net",
+			expectedClient: "",
+			expectedDevice: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			clientID, deviceId, err := clientIDFromClientServerName(tc.hostSrvName, tc.cliSrvName, false, proxy.ProtoTLS)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if clientID != tc.expectedClient {
+				t.Errorf("clientID: got %q, want %q", clientID, tc.expectedClient)
+			}
+			if deviceId != tc.expectedDevice {
+				t.Errorf("deviceId: got %q, want %q", deviceId, tc.expectedDevice)
+			}
+		})
+	}
+}
+
+// TestMultiServerNameIteration verifies the multi-name iteration logic:
+// when a proxy is configured with both an anycast and location server name,
+// the correct one is selected based on the client's SNI.
+func TestMultiServerNameIteration(t *testing.T) {
+	serverNames := []string{"dns.moddns.net", "ams1.dns.moddns.net"}
+
+	testCases := []struct {
+		name           string
+		cliSrvName     string
+		expectedClient string
+		expectedDevice string
+	}{
+		{
+			name:           "anycast SNI matches first server name",
+			cliSrvName:     "3mdq3851b9.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "",
+		},
+		{
+			name:           "location SNI matches second server name",
+			cliSrvName:     "3mdq3851b9.ams1.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "",
+		},
+		{
+			name:           "device+profile via location",
+			cliSrvName:     "my-laptop-3mdq3851b9.ams1.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "my-laptop",
+		},
+		{
+			name:           "device+profile via anycast",
+			cliSrvName:     "my-laptop-3mdq3851b9.dns.moddns.net",
+			expectedClient: "3mdq3851b9",
+			expectedDevice: "my-laptop",
+		},
+		{
+			name:           "unknown location returns empty",
+			cliSrvName:     "3mdq3851b9.fra1.dns.moddns.net",
+			expectedClient: "",
+			expectedDevice: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var clientID, deviceId string
+			for _, hostSrvName := range serverNames {
+				cid, did, err := clientIDFromClientServerName(hostSrvName, tc.cliSrvName, false, proxy.ProtoTLS)
+				if err == nil && cid != "" {
+					clientID = cid
+					deviceId = did
+					break
+				}
+			}
+			if clientID != tc.expectedClient {
+				t.Errorf("clientID: got %q, want %q", clientID, tc.expectedClient)
+			}
+			if deviceId != tc.expectedDevice {
+				t.Errorf("deviceId: got %q, want %q", deviceId, tc.expectedDevice)
+			}
+		})
+	}
+}
