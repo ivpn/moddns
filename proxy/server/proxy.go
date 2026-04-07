@@ -90,7 +90,7 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		return nil, errors.New("default upstream not found")
 	}
 
-	tlsConfig, err := newTLSConfig(0, 0, serverConfig.TLS.CertPath, serverConfig.TLS.KeyPath)
+	tlsConfig, err := newTLSConfig(0, 0, serverConfig.TLS.CertPaths, serverConfig.TLS.KeyPaths)
 	if err != nil {
 		return nil, err
 	}

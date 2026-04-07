@@ -108,6 +108,39 @@ Local server:
 ./q wp.pl A @tls://test-3mdq3851b9.ivpndns.com -v
 ```
 
+### Location Subdomain Testing (DoT/DoQ)
+
+Each proxy node can serve both the anycast domain and a location-specific domain.
+Replace `PROFILEID` with a real profile ID and `STAGING_IP` with the staging node IP.
+
+DoT via location subdomain (vm1):
+```
+kdig @STAGING_IP +tls-sni=PROFILEID.vm1.dns.staging.ivpndns.net \
+  +tls-ca +tls example.com A -p 853
+```
+
+DoT via anycast (same node, for comparison):
+```
+kdig @STAGING_IP +tls-sni=PROFILEID.dns.staging.ivpndns.net \
+  +tls-ca +tls example.com A -p 853
+```
+
+DoQ via location subdomain:
+```
+kdig @STAGING_IP +quic-sni=PROFILEID.vm1.dns.staging.ivpndns.net \
+  +tls-ca +quic example.com A -p 853
+```
+
+Verify which cert is served (check SAN/CN):
+```
+kdig @STAGING_IP +tls-sni=PROFILEID.vm1.dns.staging.ivpndns.net \
+  +tls-ca +tls +tls-debug example.com A -p 853 2>&1 | grep -i "certificate"
+```
+
+If the location cert isn't yet trusted (e.g. self-signed for testing), use `+tls-no-ca` instead of `+tls-ca`.
+
+Production locations: `tor1.dns.moddns.net` (dfn1), `ams1.dns.moddns.net` (dfn3).
+
 ### DNS over QUIC
 
 I found a DNS client which is capable of sending all mentioned types of DNS requests, not only DoQ: https://github.com/natesales/q
