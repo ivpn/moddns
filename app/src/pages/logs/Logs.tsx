@@ -270,14 +270,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const pullStartY = useRef(0);
     const isPulling = useRef(false);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
     const PULL_THRESHOLD = 60;
 
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         if (!isMobile || isRefreshing) return;
-        const container = scrollContainerRef.current;
-        if (container && container.scrollTop <= 0) {
+        if (window.scrollY <= 0) {
             pullStartY.current = e.touches[0].clientY;
             isPulling.current = true;
         }
@@ -285,8 +282,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!isPulling.current || !isMobile || isRefreshing) return;
-        const container = scrollContainerRef.current;
-        if (!container || container.scrollTop > 0) {
+        if (window.scrollY > 0) {
             isPulling.current = false;
             setPullDistance(0);
             return;
@@ -374,8 +370,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
                         {logsEnabled && (
                             <div
-                                ref={scrollContainerRef}
-                                className="relative flex-1 w-full h-full overflow-y-auto overscroll-contain px-0"
+                                className="relative flex-1 w-full h-full px-0"
                                 data-testid="logs-scroll-container"
                                 onTouchStart={isMobile ? handleTouchStart : undefined}
                                 onTouchMove={isMobile ? handleTouchMove : undefined}
