@@ -39,15 +39,15 @@ type Config struct {
 
 // ServiceConfig represents the service configuration
 type ServiceConfig struct {
-	OTPExpirationTime           time.Duration
-	MobileConfigPrivateKeyPath  string
-	MobileConfigCertPath        string
-	IdLimiterMax                int
-	IdLimiterExpiration         time.Duration
-	MaxProfiles                 int
-	MaxCredentials              int
-	ServicesCatalogPath         string
-	ServicesCatalogReloadEvery  time.Duration
+	OTPExpirationTime          time.Duration
+	MobileConfigPrivateKeyPath string
+	MobileConfigCertPath       string
+	IdLimiterMax               int
+	IdLimiterExpiration        time.Duration
+	MaxProfiles                int
+	MaxCredentials             int
+	ServicesCatalogPath        string
+	ServicesCatalogReloadEvery time.Duration
 }
 
 // SentryConfig represents the Sentry configuration
@@ -244,15 +244,15 @@ func New() (*Config, error) {
 			AuthToken:  os.Getenv("EMAIL_SENDER_AUTH_TOKEN"),
 		},
 		Service: &ServiceConfig{
-			OTPExpirationTime:           otpExp,
-			MobileConfigPrivateKeyPath:  os.Getenv("MOBILECONFIG_PRIVATE_KEY_PATH"),
-			MobileConfigCertPath:        os.Getenv("MOBILECONFIG_CERT_PATH"),
-			IdLimiterMax:                idLimiterMax,
-			IdLimiterExpiration:         idLimiterExpiration,
-			MaxProfiles:                 maxProfiles,
-			MaxCredentials:              maxCredentials,
-			ServicesCatalogPath:         servicesCatalogPath,
-			ServicesCatalogReloadEvery:  servicesCatalogReloadEvery,
+			OTPExpirationTime:          otpExp,
+			MobileConfigPrivateKeyPath: os.Getenv("MOBILECONFIG_PRIVATE_KEY_PATH"),
+			MobileConfigCertPath:       os.Getenv("MOBILECONFIG_CERT_PATH"),
+			IdLimiterMax:               idLimiterMax,
+			IdLimiterExpiration:        idLimiterExpiration,
+			MaxProfiles:                maxProfiles,
+			MaxCredentials:             maxCredentials,
+			ServicesCatalogPath:        servicesCatalogPath,
+			ServicesCatalogReloadEvery: servicesCatalogReloadEvery,
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
