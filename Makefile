@@ -156,8 +156,14 @@ dev_check: ## Starts the development dnscheck service.
 	docker exec -it dnscheck make gow
 
 gen_python_client: ## Generates the python client from swagger spec (renamed to moddns_client, package moddns).
-	rm -rf tests/moddns_client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name moddns -i swagger.yaml -g python -o /app/tests/moddns_client --skip-validate-spec
+	rm -r tests/moddns_client/ || true
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm -i openapitools/openapi-generator-cli generate \
+		--package-name moddns \
+		-i swagger.yaml \
+		-g python \
+		-o /app/tests/moddns_client \
+		--skip-validate-spec \
+		--global-property models,apis,supportingFiles,apiTests=false,modelTests=false,apiDocs=false,modelDocs=false
 
 gen_ts_client: ## Generates the typescript client from swagger spec.
 	rm -rf app/src/api/client/ || true
