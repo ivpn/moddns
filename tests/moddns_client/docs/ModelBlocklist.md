@@ -12,7 +12,7 @@ Name | Type | Description | Notes
 **entries** | **int** |  | [optional] 
 **homepage** | **str** |  | [optional] 
 **id** | **str** |  | [optional] 
-**intensity** | **str** | basic, comprehensive, restrictive | [optional] 
+**intensity** | **List[str]** | basic, comprehensive, restrictive | [optional] 
 **kind** | **str** | general, category, security | [optional] 
 **last_modified** | **str** |  | [optional] 
 **name** | **str** | conventional blocklist name, displayed to the user | 

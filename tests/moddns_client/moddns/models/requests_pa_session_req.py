@@ -17,18 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsSubscriptionReq(BaseModel):
+class RequestsPASessionReq(BaseModel):
     """
-    RequestsSubscriptionReq
+    RequestsPASessionReq
     """ # noqa: E501
-    active_until: StrictStr
-    id: StrictStr = Field(description="ID is the external Subscription ID (UUIDv4)")
-    __properties: ClassVar[List[str]] = ["active_until", "id"]
+    id: StrictStr
+    preauth_id: StrictStr
+    token: StrictStr
+    __properties: ClassVar[List[str]] = ["id", "preauth_id", "token"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +49,7 @@ class RequestsSubscriptionReq(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsSubscriptionReq from a JSON string"""
+        """Create an instance of RequestsPASessionReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +74,7 @@ class RequestsSubscriptionReq(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsSubscriptionReq from a dict"""
+        """Create an instance of RequestsPASessionReq from a dict"""
         if obj is None:
             return None
 
@@ -81,8 +82,9 @@ class RequestsSubscriptionReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "active_until": obj.get("active_until"),
-            "id": obj.get("id")
+            "id": obj.get("id"),
+            "preauth_id": obj.get("preauth_id"),
+            "token": obj.get("token")
         })
         return _obj
 
