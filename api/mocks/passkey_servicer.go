@@ -435,16 +435,16 @@ func (_c *PasskeyServicer_FinishReauth_Call) RunAndReturn(run func(ctx context.C
 }
 
 // FinishRegistration provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request) error {
-	ret := _mock.Called(ctx, token, httpReq)
+func (_mock *PasskeyServicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
+	ret := _mock.Called(ctx, token, httpReq, paSessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FinishRegistration")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request) error); ok {
-		r0 = returnFunc(ctx, token, httpReq)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request, string) error); ok {
+		r0 = returnFunc(ctx, token, httpReq, paSessionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -460,11 +460,12 @@ type PasskeyServicer_FinishRegistration_Call struct {
 //   - ctx context.Context
 //   - token string
 //   - httpReq *http.Request
-func (_e *PasskeyServicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}) *PasskeyServicer_FinishRegistration_Call {
-	return &PasskeyServicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq)}
+//   - paSessionID string
+func (_e *PasskeyServicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}, paSessionID interface{}) *PasskeyServicer_FinishRegistration_Call {
+	return &PasskeyServicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq, paSessionID)}
 }
 
-func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request)) *PasskeyServicer_FinishRegistration_Call {
+func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string)) *PasskeyServicer_FinishRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -478,10 +479,15 @@ func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].(*http.Request)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -492,7 +498,7 @@ func (_c *PasskeyServicer_FinishRegistration_Call) Return(err error) *PasskeySer
 	return _c
 }
 
-func (_c *PasskeyServicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request) error) *PasskeyServicer_FinishRegistration_Call {
+func (_c *PasskeyServicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error) *PasskeyServicer_FinishRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }

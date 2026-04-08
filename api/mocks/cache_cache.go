@@ -165,71 +165,65 @@ func (_c *Cachecache_AddCustomRule_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
-// AddSubscription provides a mock function for the type Cachecache
-func (_mock *Cachecache) AddSubscription(ctx context.Context, subscriptionId string, activeUntil string, expiresIn time.Duration) error {
-	ret := _mock.Called(ctx, subscriptionId, activeUntil, expiresIn)
+// AddPASession provides a mock function for the type Cachecache
+func (_mock *Cachecache) AddPASession(ctx context.Context, session *model.PASession, expiresIn time.Duration) error {
+	ret := _mock.Called(ctx, session, expiresIn)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AddSubscription")
+		panic("no return value specified for AddPASession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, time.Duration) error); ok {
-		r0 = returnFunc(ctx, subscriptionId, activeUntil, expiresIn)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.PASession, time.Duration) error); ok {
+		r0 = returnFunc(ctx, session, expiresIn)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// Cachecache_AddSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddSubscription'
-type Cachecache_AddSubscription_Call struct {
+// Cachecache_AddPASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddPASession'
+type Cachecache_AddPASession_Call struct {
 	*mock.Call
 }
 
-// AddSubscription is a helper method to define mock.On call
+// AddPASession is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subscriptionId string
-//   - activeUntil string
+//   - session *model.PASession
 //   - expiresIn time.Duration
-func (_e *Cachecache_Expecter) AddSubscription(ctx interface{}, subscriptionId interface{}, activeUntil interface{}, expiresIn interface{}) *Cachecache_AddSubscription_Call {
-	return &Cachecache_AddSubscription_Call{Call: _e.mock.On("AddSubscription", ctx, subscriptionId, activeUntil, expiresIn)}
+func (_e *Cachecache_Expecter) AddPASession(ctx interface{}, session interface{}, expiresIn interface{}) *Cachecache_AddPASession_Call {
+	return &Cachecache_AddPASession_Call{Call: _e.mock.On("AddPASession", ctx, session, expiresIn)}
 }
 
-func (_c *Cachecache_AddSubscription_Call) Run(run func(ctx context.Context, subscriptionId string, activeUntil string, expiresIn time.Duration)) *Cachecache_AddSubscription_Call {
+func (_c *Cachecache_AddPASession_Call) Run(run func(ctx context.Context, session *model.PASession, expiresIn time.Duration)) *Cachecache_AddPASession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 *model.PASession
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(*model.PASession)
 		}
-		var arg2 string
+		var arg2 time.Duration
 		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 time.Duration
-		if args[3] != nil {
-			arg3 = args[3].(time.Duration)
+			arg2 = args[2].(time.Duration)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
 }
 
-func (_c *Cachecache_AddSubscription_Call) Return(err error) *Cachecache_AddSubscription_Call {
+func (_c *Cachecache_AddPASession_Call) Return(err error) *Cachecache_AddPASession_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Cachecache_AddSubscription_Call) RunAndReturn(run func(ctx context.Context, subscriptionId string, activeUntil string, expiresIn time.Duration) error) *Cachecache_AddSubscription_Call {
+func (_c *Cachecache_AddPASession_Call) RunAndReturn(run func(ctx context.Context, session *model.PASession, expiresIn time.Duration) error) *Cachecache_AddPASession_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -621,45 +615,47 @@ func (_c *Cachecache_Get_Call) RunAndReturn(run func(context1 context.Context, s
 	return _c
 }
 
-// GetSubscription provides a mock function for the type Cachecache
-func (_mock *Cachecache) GetSubscription(ctx context.Context, subscriptionId string) (string, error) {
-	ret := _mock.Called(ctx, subscriptionId)
+// GetPASession provides a mock function for the type Cachecache
+func (_mock *Cachecache) GetPASession(ctx context.Context, sessionID string) (*model.PASession, error) {
+	ret := _mock.Called(ctx, sessionID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetSubscription")
+		panic("no return value specified for GetPASession")
 	}
 
-	var r0 string
+	var r0 *model.PASession
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return returnFunc(ctx, subscriptionId)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.PASession, error)); ok {
+		return returnFunc(ctx, sessionID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = returnFunc(ctx, subscriptionId)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.PASession); ok {
+		r0 = returnFunc(ctx, sessionID)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.PASession)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, subscriptionId)
+		r1 = returnFunc(ctx, sessionID)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// Cachecache_GetSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSubscription'
-type Cachecache_GetSubscription_Call struct {
+// Cachecache_GetPASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPASession'
+type Cachecache_GetPASession_Call struct {
 	*mock.Call
 }
 
-// GetSubscription is a helper method to define mock.On call
+// GetPASession is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subscriptionId string
-func (_e *Cachecache_Expecter) GetSubscription(ctx interface{}, subscriptionId interface{}) *Cachecache_GetSubscription_Call {
-	return &Cachecache_GetSubscription_Call{Call: _e.mock.On("GetSubscription", ctx, subscriptionId)}
+//   - sessionID string
+func (_e *Cachecache_Expecter) GetPASession(ctx interface{}, sessionID interface{}) *Cachecache_GetPASession_Call {
+	return &Cachecache_GetPASession_Call{Call: _e.mock.On("GetPASession", ctx, sessionID)}
 }
 
-func (_c *Cachecache_GetSubscription_Call) Run(run func(ctx context.Context, subscriptionId string)) *Cachecache_GetSubscription_Call {
+func (_c *Cachecache_GetPASession_Call) Run(run func(ctx context.Context, sessionID string)) *Cachecache_GetPASession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -677,12 +673,12 @@ func (_c *Cachecache_GetSubscription_Call) Run(run func(ctx context.Context, sub
 	return _c
 }
 
-func (_c *Cachecache_GetSubscription_Call) Return(s string, err error) *Cachecache_GetSubscription_Call {
-	_c.Call.Return(s, err)
+func (_c *Cachecache_GetPASession_Call) Return(pASession *model.PASession, err error) *Cachecache_GetPASession_Call {
+	_c.Call.Return(pASession, err)
 	return _c
 }
 
-func (_c *Cachecache_GetSubscription_Call) RunAndReturn(run func(ctx context.Context, subscriptionId string) (string, error)) *Cachecache_GetSubscription_Call {
+func (_c *Cachecache_GetPASession_Call) RunAndReturn(run func(ctx context.Context, sessionID string) (*model.PASession, error)) *Cachecache_GetPASession_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -960,6 +956,63 @@ func (_c *Cachecache_RemoveCustomRule_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// RemovePASession provides a mock function for the type Cachecache
+func (_mock *Cachecache) RemovePASession(ctx context.Context, sessionID string) error {
+	ret := _mock.Called(ctx, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemovePASession")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, sessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Cachecache_RemovePASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemovePASession'
+type Cachecache_RemovePASession_Call struct {
+	*mock.Call
+}
+
+// RemovePASession is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sessionID string
+func (_e *Cachecache_Expecter) RemovePASession(ctx interface{}, sessionID interface{}) *Cachecache_RemovePASession_Call {
+	return &Cachecache_RemovePASession_Call{Call: _e.mock.On("RemovePASession", ctx, sessionID)}
+}
+
+func (_c *Cachecache_RemovePASession_Call) Run(run func(ctx context.Context, sessionID string)) *Cachecache_RemovePASession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Cachecache_RemovePASession_Call) Return(err error) *Cachecache_RemovePASession_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Cachecache_RemovePASession_Call) RunAndReturn(run func(ctx context.Context, sessionID string) error) *Cachecache_RemovePASession_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemoveServicesBlockedFromProfileSettings provides a mock function for the type Cachecache
 func (_mock *Cachecache) RemoveServicesBlockedFromProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
 	var tmpRet mock.Arguments
@@ -1028,63 +1081,6 @@ func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) Return(err e
 }
 
 func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) RunAndReturn(run func(ctx context.Context, profileId string, serviceIds ...string) error) *Cachecache_RemoveServicesBlockedFromProfileSettings_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// RemoveSubscription provides a mock function for the type Cachecache
-func (_mock *Cachecache) RemoveSubscription(ctx context.Context, subscriptionId string) error {
-	ret := _mock.Called(ctx, subscriptionId)
-
-	if len(ret) == 0 {
-		panic("no return value specified for RemoveSubscription")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, subscriptionId)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Cachecache_RemoveSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveSubscription'
-type Cachecache_RemoveSubscription_Call struct {
-	*mock.Call
-}
-
-// RemoveSubscription is a helper method to define mock.On call
-//   - ctx context.Context
-//   - subscriptionId string
-func (_e *Cachecache_Expecter) RemoveSubscription(ctx interface{}, subscriptionId interface{}) *Cachecache_RemoveSubscription_Call {
-	return &Cachecache_RemoveSubscription_Call{Call: _e.mock.On("RemoveSubscription", ctx, subscriptionId)}
-}
-
-func (_c *Cachecache_RemoveSubscription_Call) Run(run func(ctx context.Context, subscriptionId string)) *Cachecache_RemoveSubscription_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Cachecache_RemoveSubscription_Call) Return(err error) *Cachecache_RemoveSubscription_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Cachecache_RemoveSubscription_Call) RunAndReturn(run func(ctx context.Context, subscriptionId string) error) *Cachecache_RemoveSubscription_Call {
 	_c.Call.Return(run)
 	return _c
 }

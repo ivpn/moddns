@@ -58,7 +58,8 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
-		acc, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), req.Email, "", req.SubID)
+		sessionID := c.Cookies(PASessionCookie)
+		acc, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), req.Email, "", req.SubID, sessionID)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToRegisterAccount.Error())
 		}
@@ -109,7 +110,8 @@ func (s *APIServer) finishRegistration() fiber.Handler {
 			})
 		}
 
-		if err = s.Service.FinishRegistration(c.Context(), token, httpReq); err != nil {
+		paSessionID := c.Cookies(PASessionCookie)
+		if err = s.Service.FinishRegistration(c.Context(), token, httpReq, paSessionID); err != nil {
 			return HandleError(c, err, "Failed to finish registration")
 		}
 

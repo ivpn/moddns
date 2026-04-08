@@ -796,7 +796,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessNewAccount() {
 
 	// Mock service returning newly created finished account
 	acc := &model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}
-	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID).Return(acc, nil)
+	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID, mock.Anything).Return(acc, nil)
 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
@@ -814,7 +814,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessUnfinishedReuse() 
 
 	// Unfinished account simulated by nil Password in returned account (service after reuse sets password internally)
 	acc := &model.Account{ID: primitive.NewObjectID(), Email: email, Password: nil}
-	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID).Return(acc, nil)
+	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID, mock.Anything).Return(acc, nil)
 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
@@ -830,7 +830,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ErrorCacheMissing() {
 	password := "StrongPass123!"
 	subID := "550e8400-e29b-41d4-a716-446655440002"
 
-	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID).Return(nil, account.ErrUnableToCreateAccount)
+	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID, mock.Anything).Return(nil, account.ErrUnableToCreateAccount)
 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
@@ -846,7 +846,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ErrorSubscriptionDuplicat
 	password := "StrongPass123!"
 	subID := "550e8400-e29b-41d4-a716-446655440003"
 
-	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID).Return(nil, account.ErrUnableToCreateAccount)
+	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID, mock.Anything).Return(nil, account.ErrUnableToCreateAccount)
 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
@@ -862,7 +862,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ErrorFinishedAccountReuse
 	password := "StrongPass123!"
 	subID := "550e8400-e29b-41d4-a716-446655440004"
 
-	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID).Return(nil, account.ErrUnableToCreateAccount)
+	suite.mockService.On("GetUnfinishedSignupOrPostAccount", mock.Anything, email, password, subID, mock.Anything).Return(nil, account.ErrUnableToCreateAccount)
 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
