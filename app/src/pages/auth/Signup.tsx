@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/App";
 
 const isUUIDv4 = (id: string): boolean => {
@@ -16,12 +16,10 @@ import NotFound from "@/pages/NotFound";
 
 export default function Signup() {
     const navigate = useNavigate();
-    const params = useParams();
     const [searchParams] = useSearchParams();
     const { isAuthenticated } = useAuth();
 
-    // Support both query param (?subid=X&sessionid=Y) and path param (/signup/:subid)
-    const subid = searchParams.get("subid") || params.subid || "";
+    const subid = searchParams.get("subid") || "";
     const sessionid = searchParams.get("sessionid") || "";
 
     const validSubId = subid !== "" && isUUIDv4(subid);

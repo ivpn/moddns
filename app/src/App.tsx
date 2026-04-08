@@ -76,7 +76,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isPublicPath = (p: string) => (
     p === '/login' ||
     p === '/signup' ||
-    p.startsWith('/signup/') ||
     p === '/tos' ||
     p === '/privacy' ||
     p === '/faq' ||
@@ -556,7 +555,6 @@ const router = createBrowserRouter([
         children: [
           { path: "login", element: <LoginWrapper /> },
           { path: "signup", element: <Suspense fallback={<div />}><Signup /></Suspense> },
-          { path: "signup/:subid", element: <Suspense fallback={<div />}><Signup /></Suspense> },
           { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
           { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
           { path: "faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },
