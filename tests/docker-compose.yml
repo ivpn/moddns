@@ -9,6 +9,7 @@ services:
     depends_on:
       - cache
       - mongodb
+      - mock-preauth
     ports:
       - 3000:3000
     volumes:
@@ -241,6 +242,22 @@ services:
       timeout: 5s
       retries: 5
   
+  mock-preauth:
+    container_name: mock-preauth
+    image: python:3.12-slim
+    networks:
+      - dnsnetwork
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./bootstrap/mock-preauth:/app:ro
+    command: ["python", "/app/server.py"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
   email:
     container_name: email
     image: axllent/mailpit:v1.24.2

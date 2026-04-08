@@ -38,11 +38,12 @@ class TestMultipleUsers:
             # Create multiple accounts with subscription markers
             profiles: list[str] = []
             for idx in range(4):
-                subscription_id = create_temp_subscription()
+                subscription_id, pa_cookie = create_temp_subscription()
                 email = f"test{''.join(random.choice(string.digits) for i in range(5))}@ivpn.net"
                 password = generate_complex_password()
 
                 # Register account (201 expected, no account object returned)
+                api_instance.api_client.default_headers["Cookie"] = pa_cookie
                 api_instance.api_v1_accounts_post(
                     body={
                         "email": email,
