@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Public route predicate (keep in sync with router public section)
   const isPublicPath = (p: string) => (
     p === '/login' ||
-    // Dynamic signup route requires subid; plain /signup should not be treated as public and will fall through to 404
+    p === '/signup' ||
     p.startsWith('/signup/') ||
     p === '/tos' ||
     p === '/privacy' ||
@@ -555,6 +555,7 @@ const router = createBrowserRouter([
         element: <PublicLayout><Outlet /></PublicLayout>,
         children: [
           { path: "login", element: <LoginWrapper /> },
+          { path: "signup", element: <Suspense fallback={<div />}><Signup /></Suspense> },
           { path: "signup/:subid", element: <Suspense fallback={<div />}><Signup /></Suspense> },
           { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
           { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
