@@ -17,9 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_subscription_type import ModelSubscriptionType
+from moddns.models.model_subscription_status import ModelSubscriptionStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,8 +28,11 @@ class ModelSubscription(BaseModel):
     ModelSubscription
     """ # noqa: E501
     active_until: Optional[StrictStr] = None
-    type: Optional[ModelSubscriptionType] = None
-    __properties: ClassVar[List[str]] = ["active_until", "type"]
+    outage: Optional[StrictBool] = None
+    status: Optional[ModelSubscriptionStatus] = Field(default=None, description="Computed fields (not persisted)")
+    tier: Optional[StrictStr] = None
+    updated_at: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,7 +86,10 @@ class ModelSubscription(BaseModel):
 
         _obj = cls.model_validate({
             "active_until": obj.get("active_until"),
-            "type": obj.get("type")
+            "outage": obj.get("outage"),
+            "status": obj.get("status"),
+            "tier": obj.get("tier"),
+            "updated_at": obj.get("updated_at")
         })
         return _obj
 

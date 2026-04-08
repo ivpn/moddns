@@ -6,7 +6,10 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **active_until** | **str** |  | [optional] 
-**type** | [**ModelSubscriptionType**](ModelSubscriptionType.md) |  | [optional] 
+**outage** | **bool** |  | [optional] 
+**status** | [**ModelSubscriptionStatus**](ModelSubscriptionStatus.md) | Computed fields (not persisted) | [optional] 
+**tier** | **str** |  | [optional] 
+**updated_at** | **str** |  | [optional] 
 
 ## Example
 

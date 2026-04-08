@@ -42,7 +42,7 @@ from moddns.models.model_security import ModelSecurity
 from moddns.models.model_statistics_aggregated import ModelStatisticsAggregated
 from moddns.models.model_statistics_settings import ModelStatisticsSettings
 from moddns.models.model_subscription import ModelSubscription
-from moddns.models.model_subscription_type import ModelSubscriptionType
+from moddns.models.model_subscription_status import ModelSubscriptionStatus
 from moddns.models.model_totp_backup import ModelTOTPBackup
 from moddns.models.model_totp_new import ModelTOTPNew
 from moddns.models.model_totp_settings import ModelTotpSettings
@@ -72,9 +72,10 @@ from moddns.models.requests_create_profile_custom_rule_body import RequestsCreat
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_mobile_config_req import RequestsMobileConfigReq
+from moddns.models.requests_pa_session_req import RequestsPASessionReq
 from moddns.models.requests_profile_updates import RequestsProfileUpdates
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
-from moddns.models.requests_subscription_req import RequestsSubscriptionReq
+from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAuthnReauthBeginRequest
 from moddns.models.responses_create_profile_custom_rules_batch_response import ResponsesCreateProfileCustomRulesBatchResponse
