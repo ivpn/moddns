@@ -281,7 +281,6 @@ func (c *RedisCache) AddCustomRule(ctx context.Context, profileId string, custom
 	return nil
 }
 
-
 func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRuleId string) error {
 	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRuleId)
 	hashCmd := c.client.Del(ctx, customRuleHash)
