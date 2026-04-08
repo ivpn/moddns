@@ -109,10 +109,13 @@ func (s *APIServer) RegisterRoutes() {
 
 	v1.Post("/login", middleware.NewLimit(10, 1*time.Minute), s.login())
 
-	// PSK-provisioning subscription endpoint (outside v1 auth chain)
-	subscriptions := s.App.Group("/api/v1/subscription")
-	subscriptions.Use(middleware.NewPSK(*s.Config.API))
-	subscriptions.Post("/add", middleware.NewLimit(10, 1*time.Minute), s.addSubscription())
+	// PSK-protected PASession endpoint (outside v1 auth chain)
+	pasession := s.App.Group("/api/v1/pasession")
+	pasession.Use(middleware.NewPSK(*s.Config.API))
+	pasession.Post("/add", middleware.NewLimit(10, 1*time.Minute), s.addPASession())
+
+	// Public PASession rotation endpoint
+	v1.Put("/pasession/rotate", middleware.NewLimit(10, 1*time.Minute), s.rotatePASession())
 
 	accounts := v1.Group("/accounts")
 	profiles := v1.Group("/profiles")
