@@ -74,6 +74,12 @@ func (m *Mailer) SendPasswordResetEmail(ctx context.Context, sendTo, passwordRes
 	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
 }
 
+// SendSubscriptionExpiryEmail notifies the user their subscription has expired.
+func (m *Mailer) SendSubscriptionExpiryEmail(ctx context.Context, sendTo string) error {
+	c := content.SubscriptionExpiryContent()
+	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
+}
+
 // Verify performs basic syntax validation. Extend with more advanced service if needed.
 func (m *Mailer) Verify(email string) error {
 	if email == "" {
