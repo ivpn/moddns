@@ -1613,6 +1613,25 @@ export interface RequestsRotatePASessionReq {
 /**
  * 
  * @export
+ * @interface RequestsSubscriptionUpdateReq
+ */
+export interface RequestsSubscriptionUpdateReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSubscriptionUpdateReq
+     */
+    'id': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSubscriptionUpdateReq
+     */
+    'subid': string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpReq
  */
 export interface RequestsTotpReq {
@@ -1808,6 +1827,12 @@ export interface ServicescatalogService {
      * @memberof ServicescatalogService
      */
     'asns'?: Array<number>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ServicescatalogService
+     */
+    'domains'?: Array<string>;
     /**
      * 
      * @type {string}
@@ -5519,6 +5544,42 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1SubUpdatePut: async (body: RequestsSubscriptionUpdateReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1SubUpdatePut', 'body', body)
+            const localVarPath = `/api/v1/sub/update`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -5541,6 +5602,19 @@ export const SubscriptionApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubUpdatePut']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -5559,6 +5633,16 @@ export const SubscriptionApiFactory = function (configuration?: Configuration, b
          */
         apiV1SubGet(options?: RawAxiosRequestConfig): AxiosPromise<ModelSubscription> {
             return localVarFp.apiV1SubGet(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.apiV1SubUpdatePut(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -5579,6 +5663,18 @@ export class SubscriptionApi extends BaseAPI {
      */
     public apiV1SubGet(options?: RawAxiosRequestConfig) {
         return SubscriptionApiFp(this.configuration).apiV1SubGet(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Resync subscription using a pre-auth session
+     * @summary Update subscription via PASession
+     * @param {RequestsSubscriptionUpdateReq} body Subscription update request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof SubscriptionApi
+     */
+    public apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig) {
+        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

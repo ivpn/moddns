@@ -24,6 +24,7 @@ import PasskeySettings from "@/pages/account_preferences/PasskeySettings";
 import VerifyEmailDialog from "@/pages/account_preferences/VerifyEmailDialog";
 import ChangeEmailDialog from "@/pages/account_preferences/ChangeEmailDialog";
 import { useAppStore } from "@/store/general";
+import AccountSubscription from "@/components/AccountSubscription";
 
 interface PreferencesSectionProps {
     account: ModelAccount | null;
@@ -220,12 +221,10 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
             </div>
 
             <div className="flex flex-col gap-6">
-                {/* Account Info Card */}
-                <div className="flex flex-col gap-6 w-full">
-                    <div
-                        className="flex w-full justify-start md:max-w-[572px] lg:max-w-[640px] md:px-0"
-                        data-testid="account-info-card-wrapper"
-                    >
+                {/* Alerts + Account Info + Subscription Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full items-start">
+                    <AccountSubscription />
+                    <div data-testid="account-info-card-wrapper">
                         <AccountInfoCard accountInfo={accountInfo} />
                     </div>
                 </div>
