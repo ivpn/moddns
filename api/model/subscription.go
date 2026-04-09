@@ -64,7 +64,12 @@ func (s *Subscription) ActiveStatus() bool {
 }
 
 // IsOutage returns true when the subscription hasn't been updated in over 48 hours.
+// Returns false for zero UpdatedAt (never-synced pre-ZLA accounts) to avoid
+// incorrectly degrading paid subscriptions that haven't gone through ZLA sync yet.
 func (s *Subscription) IsOutage() bool {
+	if s.UpdatedAt.IsZero() {
+		return false
+	}
 	return s.UpdatedAt.Add(48 * time.Hour).Before(time.Now())
 }
 

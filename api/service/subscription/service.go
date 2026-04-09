@@ -55,7 +55,8 @@ func (s *SubscriptionService) GetSubscription(ctx context.Context, accountId str
 	}
 
 	subscription.Status = subscription.GetStatus()
-	subscription.Outage = subscription.IsOutage()
+	// Outage UI flag: true when never synced (zero UpdatedAt) OR genuinely stale (>48h)
+	subscription.Outage = subscription.UpdatedAt.IsZero() || subscription.IsOutage()
 
 	return subscription, nil
 }
@@ -151,4 +152,30 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 	}
 
 	return &preauth, nil
+}
+
+// UpdateSubscriptionFromPASession validates the PASession, updates subscription fields from preauth, and persists.
+func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error {
+	preauth, err := s.ValidateAndGetPreauth(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+
+	sub.ActiveUntil = preauth.ActiveUntil
+	sub.IsActive = preauth.IsActive
+	sub.Tier = preauth.Tier
+	sub.TokenHash = preauth.TokenHash
+	sub.UpdatedAt = time.Now()
+
+	if err := s.SubscriptionRepository.Upsert(ctx, *sub); err != nil {
+		log.Error().Err(err).Msg("Failed to update subscription from PASession")
+		return err
+	}
+
+	if err := s.Http.SignupWebhook(subID); err != nil {
+		log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
+		return err
+	}
+
+	return nil
 }

@@ -29,6 +29,15 @@ func PasswordResetContent(resetLink string) EmailContent {
 	}
 }
 
+// SubscriptionExpiryContent returns the subscription expiry notification email content.
+func SubscriptionExpiryContent() EmailContent {
+	return EmailContent{
+		Subject: "Limited Access Mode",
+		Plain:   "Hello,\n\nYour modDNS account is in limited access mode.\n\nTo regain full access with no restrictions, add time to your IVPN account.\n\nSent by modDNS",
+		Html:    "<p>Hello,</p><p>Your modDNS account is in limited access mode.</p><p>To regain full access with no restrictions, add time to your IVPN account.</p><p>Sent by modDNS</p>",
+	}
+}
+
 // EmailVerificationOTPContent returns the email verification OTP content.
 func EmailVerificationOTPContent(otp string) EmailContent {
 	return EmailContent{

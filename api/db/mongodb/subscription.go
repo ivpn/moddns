@@ -2,7 +2,9 @@ package mongodb
 
 import (
 	"context"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
@@ -85,4 +87,49 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 		return err
 	}
 	return nil
+}
+
+// ResetNotifiedForActive sets notified=false for all subscriptions where active_until >= now.
+func (r *SubscriptionRepository) ResetNotifiedForActive(ctx context.Context) error {
+	filter := bson.M{"active_until": bson.M{"$gte": time.Now()}}
+	update := bson.M{"$set": bson.M{"notified": false}}
+	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to reset notified flag for active subscriptions")
+	}
+	return err
+}
+
+// FindExpiredUnnotified returns subscriptions where notified=false and active_until < now - 24h.
+func (r *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
+	oneDayAgo := time.Now().Add(-24 * time.Hour)
+	filter := bson.M{
+		"notified":     false,
+		"active_until": bson.M{"$lt": oneDayAgo},
+	}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// MarkNotified sets notified=true for the given subscription IDs.
+func (r *SubscriptionRepository) MarkNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
+	if len(subscriptionIDs) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": subscriptionIDs}}
+	update := bson.M{"$set": bson.M{"notified": true}}
+	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to mark subscriptions as notified")
+	}
+	return err
 }

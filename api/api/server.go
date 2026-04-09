@@ -148,6 +148,7 @@ func (s *APIServer) RegisterRoutes() {
 
 	// Subscription (protected) endpoint (session auth only)
 	sub.Get("", middleware.NewLimit(40, 1*time.Minute), s.getSubscription())
+	sub.Put("/update", middleware.NewLimit(10, 1*time.Minute), s.updateSubscription())
 
 	// Email verification OTP (requires auth)
 	verify.Post("/email/otp/request", middleware.NewLimit(10, 1*time.Minute), s.requestEmailVerificationOTP())

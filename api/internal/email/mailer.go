@@ -20,6 +20,7 @@ type Mailer interface {
 	SendWelcomeEmail(ctx context.Context, sendTo, confirmationToken string) error
 	SendPasswordResetEmail(ctx context.Context, sendTo, passwordResetToken string) error
 	SendEmailVerificationOTP(ctx context.Context, sendTo, otp string) error
+	SendSubscriptionExpiryEmail(ctx context.Context, sendTo string) error
 	Verify(email string) error
 }
 

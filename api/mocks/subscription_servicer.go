@@ -434,6 +434,75 @@ func (_c *SubscriptionServicer_UpdateSubscription_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// UpdateSubscriptionFromPASession provides a mock function for the type SubscriptionServicer
+func (_mock *SubscriptionServicer) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error {
+	ret := _mock.Called(ctx, sub, subID, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSubscriptionFromPASession")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Subscription, string, string) error); ok {
+		r0 = returnFunc(ctx, sub, subID, sessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// SubscriptionServicer_UpdateSubscriptionFromPASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSubscriptionFromPASession'
+type SubscriptionServicer_UpdateSubscriptionFromPASession_Call struct {
+	*mock.Call
+}
+
+// UpdateSubscriptionFromPASession is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sub *model.Subscription
+//   - subID string
+//   - sessionID string
+func (_e *SubscriptionServicer_Expecter) UpdateSubscriptionFromPASession(ctx interface{}, sub interface{}, subID interface{}, sessionID interface{}) *SubscriptionServicer_UpdateSubscriptionFromPASession_Call {
+	return &SubscriptionServicer_UpdateSubscriptionFromPASession_Call{Call: _e.mock.On("UpdateSubscriptionFromPASession", ctx, sub, subID, sessionID)}
+}
+
+func (_c *SubscriptionServicer_UpdateSubscriptionFromPASession_Call) Run(run func(ctx context.Context, sub *model.Subscription, subID string, sessionID string)) *SubscriptionServicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *model.Subscription
+		if args[1] != nil {
+			arg1 = args[1].(*model.Subscription)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionServicer_UpdateSubscriptionFromPASession_Call) Return(err error) *SubscriptionServicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *SubscriptionServicer_UpdateSubscriptionFromPASession_Call) RunAndReturn(run func(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error) *SubscriptionServicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ValidateAndGetPreauth provides a mock function for the type SubscriptionServicer
 func (_mock *SubscriptionServicer) ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error) {
 	ret := _mock.Called(ctx, sessionID)

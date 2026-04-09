@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -1204,6 +1205,68 @@ func (_c *Db_EnableServices_Call) RunAndReturn(run func(ctx context.Context, pro
 	return _c
 }
 
+// FindExpiredUnnotified provides a mock function for the type Db
+func (_mock *Db) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindExpiredUnnotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindExpiredUnnotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindExpiredUnnotified'
+type Db_FindExpiredUnnotified_Call struct {
+	*mock.Call
+}
+
+// FindExpiredUnnotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) FindExpiredUnnotified(ctx interface{}) *Db_FindExpiredUnnotified_Call {
+	return &Db_FindExpiredUnnotified_Call{Call: _e.mock.On("FindExpiredUnnotified", ctx)}
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) Run(run func(ctx context.Context)) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function for the type Db
 func (_mock *Db) Get(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
 	ret := _mock.Called(ctx, filter, sortBy)
@@ -2338,6 +2401,63 @@ func (_c *Db_GetSubscriptionById_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// MarkNotified provides a mock function for the type Db
+func (_mock *Db) MarkNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
+	ret := _mock.Called(ctx, subscriptionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkNotified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_MarkNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkNotified'
+type Db_MarkNotified_Call struct {
+	*mock.Call
+}
+
+// MarkNotified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subscriptionIDs []uuid.UUID
+func (_e *Db_Expecter) MarkNotified(ctx interface{}, subscriptionIDs interface{}) *Db_MarkNotified_Call {
+	return &Db_MarkNotified_Call{Call: _e.mock.On("MarkNotified", ctx, subscriptionIDs)}
+}
+
+func (_c *Db_MarkNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID)) *Db_MarkNotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_MarkNotified_Call) Return(err error) *Db_MarkNotified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_MarkNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID) error) *Db_MarkNotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Migrate provides a mock function for the type Db
 func (_mock *Db) Migrate() error {
 	ret := _mock.Called()
@@ -2504,6 +2624,57 @@ func (_c *Db_RemoveProfileFromAccount_Call) Return(err error) *Db_RemoveProfileF
 }
 
 func (_c *Db_RemoveProfileFromAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string) error) *Db_RemoveProfileFromAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetNotifiedForActive provides a mock function for the type Db
+func (_mock *Db) ResetNotifiedForActive(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetNotifiedForActive")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_ResetNotifiedForActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetNotifiedForActive'
+type Db_ResetNotifiedForActive_Call struct {
+	*mock.Call
+}
+
+// ResetNotifiedForActive is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ResetNotifiedForActive(ctx interface{}) *Db_ResetNotifiedForActive_Call {
+	return &Db_ResetNotifiedForActive_Call{Call: _e.mock.On("ResetNotifiedForActive", ctx)}
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) Run(run func(ctx context.Context)) *Db_ResetNotifiedForActive_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) Return(err error) *Db_ResetNotifiedForActive_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) RunAndReturn(run func(ctx context.Context) error) *Db_ResetNotifiedForActive_Call {
 	_c.Call.Return(run)
 	return _c
 }
