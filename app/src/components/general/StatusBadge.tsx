@@ -16,7 +16,7 @@ export interface StatusBadgeProps {
 const intentStyles: Record<StatusBadgeProps['intent'], string> = {
     success: 'bg-[var(--tailwind-colors-rdns-600)] border border-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-700)]',
     error: '!bg-[var(--tailwind-colors-red-600)] border border-[var(--tailwind-colors-red-600)] text-white',
-    warning: 'bg-[var(--tailwind-colors-orange-500)]/30 border border-[var(--tailwind-colors-orange-500)] text-[var(--tailwind-colors-slate-900)]',
+    warning: 'bg-[var(--tailwind-colors-orange-500)]/30 border border-[var(--tailwind-colors-orange-500)] text-[var(--tailwind-colors-orange-300)]',
     info: 'bg-[var(--tailwind-colors-rdns-600)]/30 border border-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-50)]',
     neutral: 'bg-[var(--tailwind-colors-slate-600)]/30 border border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-slate-50)]',
 };
