@@ -1849,6 +1849,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/sub/update": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Resync subscription using a pre-auth session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription"
+                ],
+                "summary": "Update subscription via PASession",
+                "parameters": [
+                    {
+                        "description": "Subscription update request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.SubscriptionUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/verify/email/otp/confirm": {
             "post": {
                 "description": "Verifies the 6-digit OTP provided by the authenticated user",
@@ -3557,6 +3608,21 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.SubscriptionUpdateReq": {
+            "type": "object",
+            "required": [
+                "id",
+                "subid"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "subid": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.TotpReq": {
             "type": "object",
             "required": [
@@ -3690,6 +3756,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "id": {

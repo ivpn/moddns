@@ -875,6 +875,16 @@ definitions:
     required:
     - sessionid
     type: object
+  requests.SubscriptionUpdateReq:
+    properties:
+      id:
+        type: string
+      subid:
+        type: string
+    required:
+    - id
+    - subid
+    type: object
   requests.TotpReq:
     properties:
       otp:
@@ -962,6 +972,10 @@ definitions:
       asns:
         items:
           type: integer
+        type: array
+      domains:
+        items:
+          type: string
         type: array
       id:
         type: string
@@ -2183,6 +2197,38 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Get subscription data
+      tags:
+      - Subscription
+  /api/v1/sub/update:
+    put:
+      consumes:
+      - application/json
+      description: Resync subscription using a pre-auth session
+      parameters:
+      - description: Subscription update request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SubscriptionUpdateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update subscription via PASession
       tags:
       - Subscription
   /api/v1/verify/email/otp/confirm:
