@@ -42,8 +42,9 @@ func (h Http) SignupWebhook(subID string) error {
 			log.Error().Int("status", status).Msgf("Error calling signup webhook")
 			return errors.New("error response from signup webhook")
 		}
+	} else {
+		log.Debug().Msg("No signup webhook configured, skipping")
 	}
-	log.Debug().Msg("No signup webhook configured, skipping")
 	return nil
 }
 
