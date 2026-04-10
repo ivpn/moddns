@@ -154,7 +154,9 @@ definitions:
         type: string
       intensity:
         description: basic, comprehensive, restrictive
-        type: string
+        items:
+          type: string
+        type: array
       kind:
         description: general, category, security
         type: string
@@ -407,17 +409,29 @@ definitions:
     properties:
       active_until:
         type: string
-      type:
-        $ref: '#/definitions/model.SubscriptionType'
+      outage:
+        type: boolean
+      status:
+        allOf:
+        - $ref: '#/definitions/model.SubscriptionStatus'
+        description: Computed fields (not persisted)
+      tier:
+        type: string
+      updated_at:
+        type: string
     type: object
-  model.SubscriptionType:
+  model.SubscriptionStatus:
     enum:
-    - Free
-    - Managed
+    - active
+    - grace_period
+    - limited_access
+    - pending_delete
     type: string
     x-enum-varnames:
-    - Free
-    - Managed
+    - StatusActive
+    - StatusGracePeriod
+    - StatusLimitedAccess
+    - StatusPendingDelete
   model.TOTPBackup:
     properties:
       backup_codes:
@@ -825,6 +839,19 @@ definitions:
     required:
     - profile_id
     type: object
+  requests.PASessionReq:
+    properties:
+      id:
+        type: string
+      preauth_id:
+        type: string
+      token:
+        type: string
+    required:
+    - id
+    - preauth_id
+    - token
+    type: object
   requests.ProfileUpdates:
     properties:
       updates:
@@ -841,16 +868,22 @@ definitions:
     required:
     - email
     type: object
-  requests.SubscriptionReq:
+  requests.RotatePASessionReq:
     properties:
-      active_until:
-        type: string
-      id:
-        description: ID is the external Subscription ID (UUIDv4)
+      sessionid:
         type: string
     required:
-    - active_until
+    - sessionid
+    type: object
+  requests.SubscriptionUpdateReq:
+    properties:
+      id:
+        type: string
+      subid:
+        type: string
+    required:
     - id
+    - subid
     type: object
   requests.TotpReq:
     properties:
@@ -939,6 +972,10 @@ definitions:
       asns:
         items:
           type: integer
+        type: array
+      domains:
+        items:
+          type: string
         type: array
       id:
         type: string
@@ -1426,6 +1463,62 @@ paths:
       summary: Generate short link for configuration profile (Apple devices)
       tags:
       - Apple mobileconfig
+  /api/v1/pasession/add:
+    post:
+      consumes:
+      - application/json
+      description: Add a pre-auth session to cache (called by preauth service)
+      parameters:
+      - description: Pre-auth session request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.PASessionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add pre-auth session
+      tags:
+      - PASession
+  /api/v1/pasession/rotate:
+    put:
+      consumes:
+      - application/json
+      description: Rotate pre-auth session ID and set new ID as cookie
+      parameters:
+      - description: Rotate pre-auth session request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RotatePASessionReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      summary: Rotate pre-auth session ID
+      tags:
+      - PASession
   /api/v1/profiles:
     get:
       description: Get profiles data
@@ -2106,18 +2199,18 @@ paths:
       summary: Get subscription data
       tags:
       - Subscription
-  /api/v1/subscription/add:
-    post:
+  /api/v1/sub/update:
+    put:
       consumes:
       - application/json
-      description: Add subscription and cache its presence
+      description: Resync subscription using a pre-auth session
       parameters:
-      - description: Subscription request
+      - description: Subscription update request
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/requests.SubscriptionReq'
+          $ref: '#/definitions/requests.SubscriptionUpdateReq'
       produces:
       - application/json
       responses:
@@ -2129,13 +2222,13 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/api.ErrResponse'
-        "500":
-          description: Internal Server Error
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api.ErrResponse'
       security:
       - ApiKeyAuth: []
-      summary: Add subscription
+      summary: Update subscription via PASession
       tags:
       - Subscription
   /api/v1/verify/email/otp/confirm:

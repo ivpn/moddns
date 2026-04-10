@@ -39,16 +39,15 @@ type Config struct {
 
 // ServiceConfig represents the service configuration
 type ServiceConfig struct {
-	OTPExpirationTime           time.Duration
-	MobileConfigPrivateKeyPath  string
-	MobileConfigCertPath        string
-	IdLimiterMax                int
-	IdLimiterExpiration         time.Duration
-	MaxProfiles                 int
-	MaxCredentials              int
-	SubscriptionCacheExpiration time.Duration
-	ServicesCatalogPath         string
-	ServicesCatalogReloadEvery  time.Duration
+	OTPExpirationTime          time.Duration
+	MobileConfigPrivateKeyPath string
+	MobileConfigCertPath       string
+	IdLimiterMax               int
+	IdLimiterExpiration        time.Duration
+	MaxProfiles                int
+	MaxCredentials             int
+	ServicesCatalogPath        string
+	ServicesCatalogReloadEvery time.Duration
 }
 
 // SentryConfig represents the Sentry configuration
@@ -82,6 +81,9 @@ type APIConfig struct {
 	SignupWebhookURL      string
 	SignupWebhookPSK      string
 	DisableRateLimit      bool
+	PreauthURL            string
+	PreauthPSK            string
+	PreauthTTL            time.Duration
 }
 
 type EmailSenderConfig struct {
@@ -114,8 +116,7 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
-	// subscription cache expiration (used for AddSubscription endpoint)
-	subCacheExp, err := time.ParseDuration(envOrDefault("SUBSCRIPTION_CACHE_EXPIRATION", "15m"))
+	preauthTTL, err := time.ParseDuration(envOrDefault("PREAUTH_TTL", "60m"))
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +175,9 @@ func New() (*Config, error) {
 	if os.Getenv("API_BASIC_AUTH_USER") == "" || os.Getenv("API_BASIC_AUTH_PASSWORD") == "" {
 		log.Warn().Msg("API_BASIC_AUTH_USER or API_BASIC_AUTH_PASSWORD is not set; Swagger docs endpoint will be unprotected")
 	}
+	if os.Getenv("PREAUTH_URL") == "" {
+		log.Warn().Msg("PREAUTH_URL is not set; ZLA pre-auth session flow will be unavailable")
+	}
 
 	return &Config{
 		Server: &ServerConfig{
@@ -197,6 +201,9 @@ func New() (*Config, error) {
 			SignupWebhookURL:      os.Getenv("API_SIGNUP_WEBHOOK_URL"),
 			SignupWebhookPSK:      os.Getenv("API_SIGNUP_WEBHOOK_PSK"),
 			DisableRateLimit:      parseBoolEnv("API_DISABLE_RATE_LIMIT"),
+			PreauthURL:            os.Getenv("PREAUTH_URL"),
+			PreauthPSK:            os.Getenv("PREAUTH_PSK"),
+			PreauthTTL:            preauthTTL,
 		},
 		DB: &store.Config{
 			DbURI:    os.Getenv("DB_URI"),
@@ -237,16 +244,15 @@ func New() (*Config, error) {
 			AuthToken:  os.Getenv("EMAIL_SENDER_AUTH_TOKEN"),
 		},
 		Service: &ServiceConfig{
-			OTPExpirationTime:           otpExp,
-			MobileConfigPrivateKeyPath:  os.Getenv("MOBILECONFIG_PRIVATE_KEY_PATH"),
-			MobileConfigCertPath:        os.Getenv("MOBILECONFIG_CERT_PATH"),
-			IdLimiterMax:                idLimiterMax,
-			IdLimiterExpiration:         idLimiterExpiration,
-			MaxProfiles:                 maxProfiles,
-			MaxCredentials:              maxCredentials,
-			SubscriptionCacheExpiration: subCacheExp,
-			ServicesCatalogPath:         servicesCatalogPath,
-			ServicesCatalogReloadEvery:  servicesCatalogReloadEvery,
+			OTPExpirationTime:          otpExp,
+			MobileConfigPrivateKeyPath: os.Getenv("MOBILECONFIG_PRIVATE_KEY_PATH"),
+			MobileConfigCertPath:       os.Getenv("MOBILECONFIG_CERT_PATH"),
+			IdLimiterMax:               idLimiterMax,
+			IdLimiterExpiration:        idLimiterExpiration,
+			MaxProfiles:                maxProfiles,
+			MaxCredentials:             maxCredentials,
+			ServicesCatalogPath:        servicesCatalogPath,
+			ServicesCatalogReloadEvery: servicesCatalogReloadEvery,
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),

@@ -33,13 +33,6 @@ class TestSubscriptionApi(unittest.TestCase):
         """
         pass
 
-    def test_api_v1_subscription_add_post(self) -> None:
-        """Test case for api_v1_subscription_add_post
-
-        Add subscription
-        """
-        pass
-
 
 if __name__ == '__main__':
     unittest.main()

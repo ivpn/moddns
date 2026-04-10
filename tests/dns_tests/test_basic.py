@@ -43,9 +43,10 @@ class TestBasic:
             api_instance = api.AccountApi(api_client)
 
             password = generate_complex_password()
-            subscription_id = create_temp_subscription()
+            subscription_id, pa_cookie = create_temp_subscription()
             email = f"test{''.join(random.choice(string.digits) for i in range(5))}@ivpn.net"
 
+            api_instance.api_client.default_headers["Cookie"] = pa_cookie
             reg_resp = api_instance.api_v1_accounts_post(
                 body={"email": email, "password": password, "subid": subscription_id}
             )

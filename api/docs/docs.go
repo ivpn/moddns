@@ -703,6 +703,94 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/pasession/add": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Add a pre-auth session to cache (called by preauth service)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PASession"
+                ],
+                "summary": "Add pre-auth session",
+                "parameters": [
+                    {
+                        "description": "Pre-auth session request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.PASessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/pasession/rotate": {
+            "put": {
+                "description": "Rotate pre-auth session ID and set new ID as cookie",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "PASession"
+                ],
+                "summary": "Rotate pre-auth session ID",
+                "parameters": [
+                    {
+                        "description": "Rotate pre-auth session request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RotatePASessionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles": {
             "get": {
                 "security": [
@@ -1761,14 +1849,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/subscription/add": {
-            "post": {
+        "/api/v1/sub/update": {
+            "put": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Add subscription and cache its presence",
+                "description": "Resync subscription using a pre-auth session",
                 "consumes": [
                     "application/json"
                 ],
@@ -1778,15 +1866,15 @@ const docTemplate = `{
                 "tags": [
                     "Subscription"
                 ],
-                "summary": "Add subscription",
+                "summary": "Update subscription via PASession",
                 "parameters": [
                     {
-                        "description": "Subscription request",
+                        "description": "Subscription update request",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.SubscriptionReq"
+                            "$ref": "#/definitions/requests.SubscriptionUpdateReq"
                         }
                     }
                 ],
@@ -1803,8 +1891,8 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -2540,7 +2628,10 @@ const docTemplate = `{
                 },
                 "intensity": {
                     "description": "basic, comprehensive, restrictive",
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "kind": {
                     "description": "general, category, security",
@@ -2895,20 +2986,38 @@ const docTemplate = `{
                 "active_until": {
                     "type": "string"
                 },
-                "type": {
-                    "$ref": "#/definitions/model.SubscriptionType"
+                "outage": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "description": "Computed fields (not persisted)",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.SubscriptionStatus"
+                        }
+                    ]
+                },
+                "tier": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
-        "model.SubscriptionType": {
+        "model.SubscriptionStatus": {
             "type": "string",
             "enum": [
-                "Free",
-                "Managed"
+                "active",
+                "grace_period",
+                "limited_access",
+                "pending_delete"
             ],
             "x-enum-varnames": [
-                "Free",
-                "Managed"
+                "StatusActive",
+                "StatusGracePeriod",
+                "StatusLimitedAccess",
+                "StatusPendingDelete"
             ]
         },
         "model.TOTPBackup": {
@@ -3444,6 +3553,25 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.PASessionReq": {
+            "type": "object",
+            "required": [
+                "id",
+                "preauth_id",
+                "token"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "preauth_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.ProfileUpdates": {
             "type": "object",
             "required": [
@@ -3469,18 +3597,28 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.SubscriptionReq": {
+        "requests.RotatePASessionReq": {
             "type": "object",
             "required": [
-                "active_until",
-                "id"
+                "sessionid"
             ],
             "properties": {
-                "active_until": {
+                "sessionid": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.SubscriptionUpdateReq": {
+            "type": "object",
+            "required": [
+                "id",
+                "subid"
+            ],
+            "properties": {
+                "id": {
                     "type": "string"
                 },
-                "id": {
-                    "description": "ID is the external Subscription ID (UUIDv4)",
+                "subid": {
                     "type": "string"
                 }
             }
@@ -3618,6 +3756,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "domains": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "id": {

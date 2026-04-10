@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/App";
 
 const isUUIDv4 = (id: string): boolean => {
@@ -16,11 +16,17 @@ import NotFound from "@/pages/NotFound";
 
 export default function Signup() {
     const navigate = useNavigate();
-    const { subid } = useParams();
+    const [searchParams] = useSearchParams();
     const { isAuthenticated } = useAuth();
-    const validSubId = (subid && isUUIDv4(subid));
+
+    const subid = searchParams.get("subid") || "";
+    const sessionid = searchParams.get("sessionid") || "";
+
+    const validSubId = subid !== "" && isUUIDv4(subid);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const submittingRef = useRef(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -28,12 +34,30 @@ export default function Signup() {
         }
     }, [isAuthenticated, navigate]);
 
+    // Rotate PASession on mount when sessionid is present
+    useEffect(() => {
+        if (!sessionid || !isUUIDv4(sessionid)) return;
+
+        setSyncing(true);
+        api.Client.paSessionApi
+            .apiV1PasessionRotatePut({ sessionid })
+            .then(() => {
+                setSyncing(false);
+            })
+            .catch(() => {
+                setError("This signup link has expired. Please request a new one from your IVPN account.");
+                setSyncing(false);
+            });
+    }, [sessionid]);
+
     if (!validSubId) {
-        // Missing or invalid subscription id -> 404
         return <NotFound />;
     }
 
     const handleSignup = async (email: string, password: string) => {
+        // Guard against double-submit: ref is synchronous, unlike state
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
         setError(null);
 
@@ -46,7 +70,6 @@ export default function Signup() {
 
             if (response.status === 201) {
                 navigate("/login", { replace: true });
-                // Use unified toast helper
                 authToasts.accountCreatedSuccess();
             }
         } catch (err) {
@@ -65,18 +88,19 @@ export default function Signup() {
 
             setError(errorMessage);
             authToasts.unexpectedError(errorMessage);
+            submittingRef.current = false; // allow retry on failure
         } finally {
             setLoading(false);
         }
     };
 
     const handlePasskeySignup = async (email: string) => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
         setError(null);
 
         try {
-            // Register the passkey first - supply subscription id to backend flow if supported
-            // Passkey registration currently does not accept subscription id; will be linked after OpenAPI update
             await registerPasskey(email, subid!);
             navigate("/login", { replace: true });
             authToasts.accountCreatedSuccess();
@@ -93,6 +117,7 @@ export default function Signup() {
 
             setError(errorMessage);
             authToasts.unexpectedError(errorMessage);
+            submittingRef.current = false;
         } finally {
             setLoading(false);
         }
@@ -106,7 +131,7 @@ export default function Signup() {
                     <SignupCard
                         onSignup={handleSignup}
                         onPasskeySignup={handlePasskeySignup}
-                        loading={loading}
+                        loading={loading || syncing}
                         error={error}
                     />
                 </div>

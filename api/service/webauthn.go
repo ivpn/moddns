@@ -49,7 +49,7 @@ func (s *Service) BeginRegistration(ctx context.Context, account *model.Account)
 }
 
 // FinishRegistration completes the WebAuthn registration process
-func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq *http.Request) error {
+func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
 	// Get session
 	session, exists, err := s.GetSession(ctx, token)
 	if err != nil || !exists {
@@ -79,7 +79,7 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 	if err != nil {
 		return fmt.Errorf("failed to get subscription ID for account: %w", err)
 	}
-	if err = s.CompleteRegistration(ctx, account, sub.ID.String()); err != nil {
+	if err = s.CompleteRegistration(ctx, account, sub.ID.String(), paSessionID); err != nil {
 		return fmt.Errorf("failed to complete registration: %w", err)
 	}
 

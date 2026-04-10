@@ -47,7 +47,7 @@ func (suite *EmailVerificationOTPSuite) SetupSuite() {
 	// Minimal dependencies; other repos not needed for OTP operations
 	val := validatorv10.New()
 	mockSubRepo := mocks.NewSubscriptionRepository(suite.T())
-	subService := subscription.NewSubscriptionService(mockSubRepo, suite.mockCache, config.ServiceConfig{})
+	subService := subscription.NewSubscriptionService(mockSubRepo, suite.mockCache, config.ServiceConfig{}, config.APIConfig{}, webhookClient.Http{})
 	suite.service = account.NewAccountService(
 		*cfg.Service,
 		suite.mockAccountRepo,

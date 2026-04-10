@@ -65,10 +65,10 @@ func NewAccountService(serviceCfg config.ServiceConfig, db repository.AccountRep
 	}
 }
 
-func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string) (*model.Account, error) {
-	// 1. Ensure subscription cache presence (activeUntil retrieval)
-	activeUntil, cacheErr := a.Cache.GetSubscription(ctx, subscriptionID)
-	if cacheErr != nil {
+func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error) {
+	// 1. Validate PASession and get preauth entry
+	preauth, err := a.SubscriptionService.ValidateAndGetPreauth(ctx, sessionID)
+	if err != nil {
 		return nil, ErrUnableToCreateAccount
 	}
 
@@ -83,11 +83,9 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 		if acc == nil {
 			return false
 		}
-		// Password present -> finished
 		if acc.Password != nil {
 			return true
 		}
-		// Check passkey credentials count; treat errors as not finished (log only)
 		if a.CredentialRepository != nil {
 			count, err := a.CredentialRepository.GetCredentialsCount(ctx, acc.ID)
 			if err != nil {
@@ -108,8 +106,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 		_, subErr := a.SubscriptionService.GetSubscription(ctx, existingAcc.ID.Hex())
 		if subErr != nil {
 			if errors.Is(subErr, dbErrors.ErrSubscriptionNotFound) {
-				// create subscription now using previously validated cache activeUntil
-				createErr := a.SubscriptionService.CreateSubscription(ctx, existingAcc.ID.Hex(), subscriptionID, activeUntil)
+				createErr := a.SubscriptionService.CreateSubscriptionFromPreauth(ctx, existingAcc.ID.Hex(), preauth)
 				if createErr != nil {
 					return nil, ErrUnableToCreateAccount
 				}
@@ -117,7 +114,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 				return nil, subErr
 			}
 		}
-		// If password provided and not yet set, set it and mark finished (derived)
+		// If password provided and not yet set, set it
 		if existingAcc.Password == nil && strings.TrimSpace(password) != "" {
 			if err := existingAcc.SetPassword(password); err != nil {
 				return nil, err
@@ -129,7 +126,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 
 		log.Debug().Msg("Reusing unfinished account for registration - completing signup")
 		if password != "" {
-			if err := a.CompleteRegistration(ctx, existingAcc, subscriptionID); err != nil {
+			if err := a.CompleteRegistration(ctx, existingAcc, subscriptionID, sessionID); err != nil {
 				log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 				return nil, err
 			}
@@ -137,22 +134,15 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 		return existingAcc, nil
 	}
 
-	// 3. Account does not exist
-	// Check if subscription UUID already exists (Scenario 2)
-	// Implement via repository method; if found -> unified failure
-	if subById, _ := a.SubscriptionService.GetSubscriptionById(ctx, subscriptionID); subById != nil {
-		return nil, ErrUnableToCreateAccount
-	}
-
-	// 4. Proceed with new account creation (Scenario 3)
-	acc, regErr := a.RegisterAccountWithActiveUntil(ctx, email, password, subscriptionID, activeUntil)
+	// 3. Account does not exist — proceed with new account creation
+	acc, regErr := a.RegisterAccountWithPreauth(ctx, email, password, preauth)
 	if regErr != nil {
 		return nil, regErr
 	}
 
 	log.Debug().Msg("Created new account for registration - before webhook")
 	if password != "" {
-		if err := a.CompleteRegistration(ctx, acc, subscriptionID); err != nil {
+		if err := a.CompleteRegistration(ctx, acc, subscriptionID, sessionID); err != nil {
 			log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 			return nil, err
 		}
@@ -160,18 +150,18 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 	return acc, nil
 }
 
-// CompleteRegistration finalizes registration steps for an account
-// Sends signup webhook, removes subscription cache entry, sends welcome email
-func (a *AccountService) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string) error {
+// CompleteRegistration finalizes registration steps for an account.
+// Sends signup webhook, removes PASession cache entry, sends welcome email.
+func (a *AccountService) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
 	err := a.Http.SignupWebhook(subscriptionID)
 	if err != nil {
 		log.Debug().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to send signup webhook")
 	}
 
 	if err == nil {
-		// Remove subscription cache key (idempotent; ignore removal error as non-critical)
-		if err := a.Cache.RemoveSubscription(ctx, subscriptionID); err != nil {
-			log.Debug().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to remove subscription cache entry")
+		// Remove PASession cache key (idempotent)
+		if rmErr := a.Cache.RemovePASession(ctx, sessionID); rmErr != nil {
+			log.Debug().Err(rmErr).Str("session_id", sessionID).Msg("Failed to remove PA session cache entry")
 		}
 		err = a.sendWelcomeEmail(ctx, account, account.Email)
 		if err != nil {
@@ -179,57 +169,6 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 		}
 	}
 	return err
-}
-
-// RegisterAccount registers (creates) a new account
-func (a *AccountService) RegisterAccount(ctx context.Context, email, passwordPlain, subscriptionID string) (*model.Account, error) {
-	activeUntil, err := a.Cache.GetSubscription(ctx, subscriptionID)
-	if err != nil {
-		return nil, err
-	}
-
-	// check if given email is already registered
-	existingAcc, err := a.AccountRepository.GetAccountByEmail(ctx, email)
-	if err != nil {
-		if !errors.Is(err, dbErrors.ErrAccountNotFound) {
-			return nil, err
-		}
-	}
-	if existingAcc != nil {
-		return nil, ErrAccountAlreadyExists
-	}
-
-	accountId := primitive.NewObjectID()
-	profile, err := a.ProfileService.CreateProfile(ctx, firstProfileName, accountId.Hex())
-	if err != nil {
-		return nil, err
-	}
-
-	acc, err := a.AccountRepository.CreateAccount(ctx, email, passwordPlain, accountId.Hex(), profile.ProfileId)
-	if err != nil {
-		return nil, err
-	}
-
-	err = a.SubscriptionService.CreateSubscription(ctx, acc.ID.Hex(), subscriptionID, activeUntil)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = a.Cache.RemoveSubscription(ctx, subscriptionID); err != nil {
-		return nil, err
-	}
-
-	// eg, _ := errgroup.WithContext(ctx)
-	// eg.Go(func() (err error) {
-	// 	return a.Mailer.Verify(email)
-	// })
-
-	err = a.sendWelcomeEmail(ctx, acc, email)
-	if err != nil {
-		return nil, err
-	}
-
-	return acc, nil
 }
 
 func (a *AccountService) sendWelcomeEmail(ctx context.Context, acc *model.Account, email string) error {
@@ -251,8 +190,8 @@ func (a *AccountService) sendWelcomeEmail(ctx context.Context, acc *model.Accoun
 	return nil
 }
 
-// RegisterAccountWithActiveUntil is internal helper when activeUntil already retrieved & validated
-func (a *AccountService) RegisterAccountWithActiveUntil(ctx context.Context, email, passwordPlain, subscriptionID, activeUntil string) (*model.Account, error) {
+// RegisterAccountWithPreauth creates a new account with subscription from preauth data.
+func (a *AccountService) RegisterAccountWithPreauth(ctx context.Context, email, passwordPlain string, preauth *model.Preauth) (*model.Account, error) {
 	// check if given email is already registered (defensive re-check)
 	existingAcc, err := a.AccountRepository.GetAccountByEmail(ctx, email)
 	if err != nil && !errors.Is(err, dbErrors.ErrAccountNotFound) {
@@ -268,8 +207,8 @@ func (a *AccountService) RegisterAccountWithActiveUntil(ctx context.Context, ema
 		return nil, err
 	}
 
-	// create subscription
-	if err = a.SubscriptionService.CreateSubscription(ctx, accountId.Hex(), subscriptionID, activeUntil); err != nil {
+	// create subscription from preauth data
+	if err = a.SubscriptionService.CreateSubscriptionFromPreauth(ctx, accountId.Hex(), preauth); err != nil {
 		return nil, err
 	}
 

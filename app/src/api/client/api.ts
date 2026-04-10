@@ -314,10 +314,10 @@ export interface ModelBlocklist {
     'id'?: string;
     /**
      * basic, comprehensive, restrictive
-     * @type {string}
+     * @type {Array<string>}
      * @memberof ModelBlocklist
      */
-    'intensity'?: string;
+    'intensity'?: Array<string>;
     /**
      * general, category, security
      * @type {string}
@@ -821,10 +821,28 @@ export interface ModelSubscription {
     'active_until'?: string;
     /**
      * 
-     * @type {ModelSubscriptionType}
+     * @type {boolean}
      * @memberof ModelSubscription
      */
-    'type'?: ModelSubscriptionType;
+    'outage'?: boolean;
+    /**
+     * Computed fields (not persisted)
+     * @type {ModelSubscriptionStatus}
+     * @memberof ModelSubscription
+     */
+    'status'?: ModelSubscriptionStatus;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'tier'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'updated_at'?: string;
 }
 
 
@@ -834,12 +852,14 @@ export interface ModelSubscription {
  * @enum {string}
  */
 
-export const ModelSubscriptionType = {
-    Free: 'Free',
-    Managed: 'Managed'
+export const ModelSubscriptionStatus = {
+    StatusActive: 'active',
+    StatusGracePeriod: 'grace_period',
+    StatusLimitedAccess: 'limited_access',
+    StatusPendingDelete: 'pending_delete'
 } as const;
 
-export type ModelSubscriptionType = typeof ModelSubscriptionType[keyof typeof ModelSubscriptionType];
+export type ModelSubscriptionStatus = typeof ModelSubscriptionStatus[keyof typeof ModelSubscriptionStatus];
 
 
 /**
@@ -1529,6 +1549,31 @@ export interface RequestsMobileConfigReq {
 /**
  * 
  * @export
+ * @interface RequestsPASessionReq
+ */
+export interface RequestsPASessionReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsPASessionReq
+     */
+    'id': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsPASessionReq
+     */
+    'preauth_id': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsPASessionReq
+     */
+    'token': string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsProfileUpdates
  */
 export interface RequestsProfileUpdates {
@@ -1555,21 +1600,34 @@ export interface RequestsResetPasswordBody {
 /**
  * 
  * @export
- * @interface RequestsSubscriptionReq
+ * @interface RequestsRotatePASessionReq
  */
-export interface RequestsSubscriptionReq {
+export interface RequestsRotatePASessionReq {
     /**
      * 
      * @type {string}
-     * @memberof RequestsSubscriptionReq
+     * @memberof RequestsRotatePASessionReq
      */
-    'active_until': string;
+    'sessionid': string;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsSubscriptionUpdateReq
+ */
+export interface RequestsSubscriptionUpdateReq {
     /**
-     * ID is the external Subscription ID (UUIDv4)
+     * 
      * @type {string}
-     * @memberof RequestsSubscriptionReq
+     * @memberof RequestsSubscriptionUpdateReq
      */
     'id': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSubscriptionUpdateReq
+     */
+    'subid': string;
 }
 /**
  * 
@@ -1769,6 +1827,12 @@ export interface ServicescatalogService {
      * @memberof ServicescatalogService
      */
     'asns'?: Array<number>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ServicescatalogService
+     */
+    'domains'?: Array<string>;
     /**
      * 
      * @type {string}
@@ -3703,6 +3767,187 @@ export type ApiV1BlocklistsGetSortByEnum = typeof ApiV1BlocklistsGetSortByEnum[k
 
 
 /**
+ * PASessionApi - axios parameter creator
+ * @export
+ */
+export const PASessionApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * Add a pre-auth session to cache (called by preauth service)
+         * @summary Add pre-auth session
+         * @param {RequestsPASessionReq} body Pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1PasessionAddPost: async (body: RequestsPASessionReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1PasessionAddPost', 'body', body)
+            const localVarPath = `/api/v1/pasession/add`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Rotate pre-auth session ID and set new ID as cookie
+         * @summary Rotate pre-auth session ID
+         * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1PasessionRotatePut: async (body: RequestsRotatePASessionReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1PasessionRotatePut', 'body', body)
+            const localVarPath = `/api/v1/pasession/rotate`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * PASessionApi - functional programming interface
+ * @export
+ */
+export const PASessionApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = PASessionApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * Add a pre-auth session to cache (called by preauth service)
+         * @summary Add pre-auth session
+         * @param {RequestsPASessionReq} body Pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1PasessionAddPost(body: RequestsPASessionReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1PasessionAddPost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PASessionApi.apiV1PasessionAddPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Rotate pre-auth session ID and set new ID as cookie
+         * @summary Rotate pre-auth session ID
+         * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1PasessionRotatePut(body: RequestsRotatePASessionReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1PasessionRotatePut(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PASessionApi.apiV1PasessionRotatePut']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * PASessionApi - factory interface
+ * @export
+ */
+export const PASessionApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = PASessionApiFp(configuration)
+    return {
+        /**
+         * Add a pre-auth session to cache (called by preauth service)
+         * @summary Add pre-auth session
+         * @param {RequestsPASessionReq} body Pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1PasessionAddPost(body: RequestsPASessionReq, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.apiV1PasessionAddPost(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Rotate pre-auth session ID and set new ID as cookie
+         * @summary Rotate pre-auth session ID
+         * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1PasessionRotatePut(body: RequestsRotatePASessionReq, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1PasessionRotatePut(body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * PASessionApi - object-oriented interface
+ * @export
+ * @class PASessionApi
+ * @extends {BaseAPI}
+ */
+export class PASessionApi extends BaseAPI {
+    /**
+     * Add a pre-auth session to cache (called by preauth service)
+     * @summary Add pre-auth session
+     * @param {RequestsPASessionReq} body Pre-auth session request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PASessionApi
+     */
+    public apiV1PasessionAddPost(body: RequestsPASessionReq, options?: RawAxiosRequestConfig) {
+        return PASessionApiFp(this.configuration).apiV1PasessionAddPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Rotate pre-auth session ID and set new ID as cookie
+     * @summary Rotate pre-auth session ID
+     * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PASessionApi
+     */
+    public apiV1PasessionRotatePut(body: RequestsRotatePASessionReq, options?: RawAxiosRequestConfig) {
+        return PASessionApiFp(this.configuration).apiV1PasessionRotatePut(body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * ProfileApi - axios parameter creator
  * @export
  */
@@ -5300,16 +5545,16 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
             };
         },
         /**
-         * Add subscription and cache its presence
-         * @summary Add subscription
-         * @param {RequestsSubscriptionReq} body Subscription request
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubscriptionAddPost: async (body: RequestsSubscriptionReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1SubUpdatePut: async (body: RequestsSubscriptionUpdateReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
-            assertParamExists('apiV1SubscriptionAddPost', 'body', body)
-            const localVarPath = `/api/v1/subscription/add`;
+            assertParamExists('apiV1SubUpdatePut', 'body', body)
+            const localVarPath = `/api/v1/sub/update`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -5317,7 +5562,7 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
                 baseOptions = configuration.baseOptions;
             }
 
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
             const localVarHeaderParameter = {} as any;
             const localVarQueryParameter = {} as any;
 
@@ -5358,16 +5603,16 @@ export const SubscriptionApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Add subscription and cache its presence
-         * @summary Add subscription
-         * @param {RequestsSubscriptionReq} body Subscription request
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1SubscriptionAddPost(body: RequestsSubscriptionReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubscriptionAddPost(body, options);
+        async apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubscriptionAddPost']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubUpdatePut']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
     }
@@ -5390,14 +5635,14 @@ export const SubscriptionApiFactory = function (configuration?: Configuration, b
             return localVarFp.apiV1SubGet(options).then((request) => request(axios, basePath));
         },
         /**
-         * Add subscription and cache its presence
-         * @summary Add subscription
-         * @param {RequestsSubscriptionReq} body Subscription request
+         * Resync subscription using a pre-auth session
+         * @summary Update subscription via PASession
+         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubscriptionAddPost(body: RequestsSubscriptionReq, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
-            return localVarFp.apiV1SubscriptionAddPost(body, options).then((request) => request(axios, basePath));
+        apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.apiV1SubUpdatePut(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -5421,15 +5666,15 @@ export class SubscriptionApi extends BaseAPI {
     }
 
     /**
-     * Add subscription and cache its presence
-     * @summary Add subscription
-     * @param {RequestsSubscriptionReq} body Subscription request
+     * Resync subscription using a pre-auth session
+     * @summary Update subscription via PASession
+     * @param {RequestsSubscriptionUpdateReq} body Subscription update request
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof SubscriptionApi
      */
-    public apiV1SubscriptionAddPost(body: RequestsSubscriptionReq, options?: RawAxiosRequestConfig) {
-        return SubscriptionApiFp(this.configuration).apiV1SubscriptionAddPost(body, options).then((request) => request(this.axios, this.basePath));
+    public apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig) {
+        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

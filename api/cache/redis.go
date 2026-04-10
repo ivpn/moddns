@@ -281,42 +281,6 @@ func (c *RedisCache) AddCustomRule(ctx context.Context, profileId string, custom
 	return nil
 }
 
-// AddSubscription sets a simple presence key for an account's subscription with expiration
-// Key format: subscription:<subscriptionId>
-func (c *RedisCache) AddSubscription(ctx context.Context, subscriptionId, activeUntil string, expiresIn time.Duration) error {
-	key := fmt.Sprintf("subscription:%s", subscriptionId)
-	setCmd := c.client.Set(ctx, key, activeUntil, expiresIn)
-	if err := setCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to add subscription key")
-		return err
-	}
-	log.Info().Str("key", key).Dur("expires_in", expiresIn).Msg("Cache: added subscription key")
-	return nil
-}
-
-// GetSubscription retrieves the activeUntil value for a subscription from the cache
-func (c *RedisCache) GetSubscription(ctx context.Context, subscriptionId string) (string, error) {
-	key := fmt.Sprintf("subscription:%s", subscriptionId)
-	getCmd := c.client.Get(ctx, key)
-	if err := getCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to get subscription key")
-		return "", err
-	}
-	log.Info().Str("key", key).Msg("Cache: retrieved subscription key")
-	return getCmd.Val(), nil
-}
-
-func (c *RedisCache) RemoveSubscription(ctx context.Context, subscriptionId string) error {
-	key := fmt.Sprintf("subscription:%s", subscriptionId)
-	delCmd := c.client.Del(ctx, key)
-	if err := delCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to remove subscription key")
-		return err
-	}
-	log.Info().Str("key", key).Msg("Cache: removed subscription key")
-	return nil
-}
-
 func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRuleId string) error {
 	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRuleId)
 	hashCmd := c.client.Del(ctx, customRuleHash)

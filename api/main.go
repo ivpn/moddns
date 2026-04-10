@@ -9,6 +9,7 @@ import (
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/db/mongodb"
+	"github.com/ivpn/dns/api/internal/cron"
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/middleware"
@@ -143,6 +144,9 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create API server")
 	}
 	server.RegisterRoutes()
+
+	cron.Start(db, db, mailer)
+
 	err = server.App.Listen(appConfig.API.Port)
 	log.Panic().Err(err).Msg("Failed to start REST API")
 }

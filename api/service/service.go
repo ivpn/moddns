@@ -47,8 +47,8 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
 	statsSrv := statistics.NewStatisticsService(store)
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, blocklistSrv, queryLogsSrv, statsSrv, cache, idGen, apiValidator.Validator)
-	subSrv := subscription.NewSubscriptionService(store, cache, *cfg.Service)
 	httpClient := webhookClient.New(*cfg.API)
+	subSrv := subscription.NewSubscriptionService(store, cache, *cfg.Service, *cfg.API, *httpClient)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
 	return Service{
@@ -86,7 +86,7 @@ type CredentialServicer interface {
 
 type PasskeyServicer interface {
 	BeginRegistration(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error)
-	FinishRegistration(ctx context.Context, token string, httpReq *http.Request) error
+	FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error
 	BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error)
 	FinishLogin(ctx context.Context, token string, httpReq *http.Request, saveSession bool) (*model.Account, string, string, error)
 	GetPasskeys(ctx context.Context, account *model.Account) ([]model.Credential, error)
@@ -111,9 +111,8 @@ type AccountServicer interface {
 	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)
 	MfaCheck(ctx context.Context, acc *model.Account, mfa *model.MfaData) error
-	RegisterAccount(ctx context.Context, email, password, subID string) (*model.Account, error)
-	CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string) error
-	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string) (*model.Account, error)
+	CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error
+	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error)
 	SendResetPasswordEmail(ctx context.Context, email string) error
 	VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error
 	TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error)
@@ -173,8 +172,12 @@ type BlocklistServicer interface {
 type SubscriptionServicer interface {
 	GetSubscription(ctx context.Context, accountId string) (*model.Subscription, error)
 	UpdateSubscription(ctx context.Context, accountId string, updates []model.SubscriptionUpdate) (*model.Subscription, error)
-	CreateSubscription(ctx context.Context, accountId, subscriptionId, activeUntil string) error
-	AddSubscription(ctx context.Context, subscriptionId string, activeUntil string) error
+	CreateSubscriptionFromPreauth(ctx context.Context, accountId string, preauth *model.Preauth) error
+	AddPASession(ctx context.Context, session *model.PASession) error
+	RotatePASessionID(ctx context.Context, oldID string) (string, error)
+	ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error)
+	GetSubscriptionById(ctx context.Context, subscriptionId string) (*model.Subscription, error)
+	UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error
 }
 
 // DeleteAccount deletes account with all connected data including sessions

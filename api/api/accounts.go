@@ -43,7 +43,8 @@ func (s *APIServer) registerAccount() fiber.Handler {
 			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
-		_, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), p.Email, p.Password, p.SubID)
+		sessionID := c.Cookies(PASessionCookie)
+		_, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), p.Email, p.Password, p.SubID, sessionID)
 		if err != nil {
 			// Map specific service errors to unified user-facing failure
 			if _, ok := err.(*account.ServiceAccountError); ok && err == account.ErrUnableToCreateAccount {

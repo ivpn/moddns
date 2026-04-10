@@ -36,11 +36,16 @@ class TestModelBlocklist(unittest.TestCase):
         if include_optional:
             return ModelBlocklist(
                 blocklist_id = '',
+                category = '',
                 default = True,
                 description = '',
                 entries = 56,
                 homepage = '',
                 id = '',
+                intensity = [
+                    ''
+                    ],
+                kind = '',
                 last_modified = '',
                 name = '',
                 source_url = '',
