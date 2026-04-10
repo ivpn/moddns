@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/App";
 
@@ -26,6 +26,7 @@ export default function Signup() {
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const submittingRef = useRef(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -54,6 +55,9 @@ export default function Signup() {
     }
 
     const handleSignup = async (email: string, password: string) => {
+        // Guard against double-submit: ref is synchronous, unlike state
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
         setError(null);
 
@@ -84,12 +88,15 @@ export default function Signup() {
 
             setError(errorMessage);
             authToasts.unexpectedError(errorMessage);
+            submittingRef.current = false; // allow retry on failure
         } finally {
             setLoading(false);
         }
     };
 
     const handlePasskeySignup = async (email: string) => {
+        if (submittingRef.current) return;
+        submittingRef.current = true;
         setLoading(true);
         setError(null);
 
@@ -110,6 +117,7 @@ export default function Signup() {
 
             setError(errorMessage);
             authToasts.unexpectedError(errorMessage);
+            submittingRef.current = false;
         } finally {
             setLoading(false);
         }
