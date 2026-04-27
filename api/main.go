@@ -13,6 +13,7 @@ import (
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/middleware"
+	"github.com/ivpn/dns/api/internal/migrations"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
@@ -90,6 +91,18 @@ func main() {
 
 	if err = db.Migrate(); err != nil {
 		log.Panic().Err(err).Msg("Failed to run migrations")
+	}
+
+	if appConfig.Service.MigrateSubscriptionUUIDSubtype {
+		migCtx, migCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		stats, migErr := migrations.MigrateSubscriptionUUIDSubtype(migCtx, storeI.GetClient(), appConfig.DB.Name)
+		migCancel()
+		if migErr != nil {
+			log.Panic().Err(migErr).Msg("Subscription UUID subtype migration failed")
+		}
+		if stats.Migrated > 0 {
+			log.Info().Int("migrated", stats.Migrated).Int("skipped", stats.Skipped).Msg("Subscription UUID subtype migration applied")
+		}
 	}
 
 	// cache create, load data on startup
