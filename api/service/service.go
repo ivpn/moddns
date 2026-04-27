@@ -176,7 +176,6 @@ type SubscriptionServicer interface {
 	AddPASession(ctx context.Context, session *model.PASession) error
 	RotatePASessionID(ctx context.Context, oldID string) (string, error)
 	ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error)
-	GetSubscriptionById(ctx context.Context, subscriptionId string) (*model.Subscription, error)
 	UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error
 }
 

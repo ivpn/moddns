@@ -50,20 +50,6 @@ func (r *SubscriptionRepository) GetSubscriptionByAccountId(ctx context.Context,
 	return &subscription, nil
 }
 
-// GetSubscriptionById returns subscription by its UUID (_id)
-func (r *SubscriptionRepository) GetSubscriptionById(ctx context.Context, subscriptionId string) (*model.Subscription, error) {
-	// The subscriptionId is a UUID string stored as _id field
-	filter := bson.D{primitive.E{Key: "_id", Value: subscriptionId}}
-	var subscription model.Subscription
-	if err := r.subscriptionsCollection.FindOne(ctx, filter).Decode(&subscription); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, errors.ErrSubscriptionNotFound
-		}
-		return nil, err
-	}
-	return &subscription, nil
-}
-
 // Upsert creates or updates a subscription in the subscriptions collection
 func (r *SubscriptionRepository) Upsert(ctx context.Context, subscription model.Subscription) error {
 	filter := bson.M{"account_id": subscription.AccountID}
