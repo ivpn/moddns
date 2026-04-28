@@ -12,6 +12,18 @@
     "schedule": "@hourly"
   },
   {
+    "blocklist_id": "hagezi_multi_normal",
+    "name": "Hagezi Multi NORMAL",
+    "description": "Broom - Cleans the Internet and protects your privacy! Blocks Ads, Affiliate, Tracking, Metrics, Telemetry, Phishing, Malware, Scam, Fake, Coins and other \"Crap\".",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/multi.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "general",
+    "intensity": [],
+    "tags": ["hagezi"],
+    "schedule": "@hourly"
+  },
+  {
     "blocklist_id": "hagezi_multi_pro",
     "name": "Hagezi Multi PRO",
     "description": "Big broom - Cleans the Internet and protects your privacy! Blocks Ads, Affiliate, Tracking, Metrics, Telemetry, Phishing, Malware, Scam, Fake, Coins and other \"Crap\".",
@@ -21,6 +33,18 @@
     "kind": "general",
     "intensity": ["comprehensive"],
     "tags": ["hagezi", "comprehensive"],
+    "schedule": "@hourly"
+  },
+  {
+    "blocklist_id": "hagezi_multi_pro_plus",
+    "name": "Hagezi Multi PRO++",
+    "description": "Sweeper - Aggressive cleans the Internet and protects your privacy! Blocks Ads, Affiliate, Tracking, Metrics, Telemetry, Phishing, Malware, Scam, Fake, Coins and other \"Crap\".",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.plus.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "general",
+    "intensity": [],
+    "tags": ["hagezi"],
     "schedule": "@hourly"
   },
   {

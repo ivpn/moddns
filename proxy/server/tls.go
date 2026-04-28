@@ -6,10 +6,17 @@ import (
 	"os"
 )
 
-// NewTLSConfig returns a TLS config that includes a certificate
-// Use for server TLS config or when using a client certificate
-// If caPath is empty, system CAs will be used
-func newTLSConfig(minVersion, maxVersion float32, certPath, keyPath string) (*tls.Config, error) {
+// newTLSConfig returns a TLS config that includes one or more certificates.
+// certPaths and keyPaths are parallel slices; each pair is loaded so that
+// Go's crypto/tls can auto-select the matching certificate by SNI.
+func newTLSConfig(minVersion, maxVersion float32, certPaths, keyPaths []string) (*tls.Config, error) {
+	if len(certPaths) == 0 {
+		return nil, fmt.Errorf("no TLS certificate paths provided")
+	}
+	if len(certPaths) != len(keyPaths) {
+		return nil, fmt.Errorf("TLS_CERT_PATH has %d entries but TLS_KEY_PATH has %d; they must match", len(certPaths), len(keyPaths))
+	}
+
 	// Set default TLS min/max versions
 	tlsMinVersion := tls.VersionTLS10 // Default for crypto/tls
 	tlsMaxVersion := tls.VersionTLS13 // Default for crypto/tls
@@ -30,14 +37,18 @@ func newTLSConfig(minVersion, maxVersion float32, certPath, keyPath string) (*tl
 		tlsMaxVersion = tls.VersionTLS12
 	}
 
-	cert, err := loadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not load TLS cert: %s", err)
+	certs := make([]tls.Certificate, 0, len(certPaths))
+	for i := range certPaths {
+		cert, err := loadX509KeyPair(certPaths[i], keyPaths[i])
+		if err != nil {
+			return nil, fmt.Errorf("could not load TLS cert pair %d (%s): %s", i, certPaths[i], err)
+		}
+		certs = append(certs, cert)
 	}
 
 	// #nosec G402 -- TLS MinVersion is configured by user.
 	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
+		Certificates: certs,
 		MinVersion:   uint16(tlsMinVersion), // nolint
 		MaxVersion:   uint16(tlsMaxVersion), // nolint
 	}, nil

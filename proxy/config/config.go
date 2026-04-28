@@ -82,7 +82,7 @@ type SentryConfig struct {
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Name                    string
+	Names                   []string // SERVER_NAME: comma-separated list of host server names (e.g. "dns.moddns.net,ams1.dns.moddns.net")
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
@@ -101,10 +101,12 @@ type UpstreamConfig struct {
 	Default   string
 }
 
-// TLSConfig represents the TLS configuration
+// TLSConfig represents the TLS configuration.
+// CertPaths and KeyPaths are parallel slices; each pair is loaded into tls.Config.Certificates
+// so Go's TLS stack can auto-select the right cert by SNI.
 type TLSConfig struct {
-	CertPath string
-	KeyPath  string
+	CertPaths []string
+	KeyPaths  []string
 }
 
 // PlainDNSConfig represents the plain DNS configuration
@@ -126,6 +128,17 @@ type DoTConfig struct {
 // DoQConfig represents the DNS-over-QUIC configuration
 type DoQConfig struct {
 	ListenAddr int
+}
+
+// parseCSV splits a comma-separated string into trimmed, non-empty values.
+func parseCSV(s string) []string {
+	var out []string
+	for _, v := range strings.Split(s, ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // getEnvBool returns true if the environment variable is set to "true" or "1" (case-insensitive).
@@ -325,7 +338,7 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Name:                    os.Getenv("SERVER_NAME"),
+			Names:                   parseCSV(os.Getenv("SERVER_NAME")),
 			DnsCheckDomain:          dnsCheckDomain,
 			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
 			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
@@ -364,8 +377,8 @@ func New() (*Config, error) {
 			TCPListenAddr: tcpListenAddr,
 		},
 		TLS: &TLSConfig{
-			CertPath: os.Getenv("TLS_CERT_PATH"),
-			KeyPath:  os.Getenv("TLS_KEY_PATH"),
+			CertPaths: parseCSV(os.Getenv("TLS_CERT_PATH")),
+			KeyPaths:  parseCSV(os.Getenv("TLS_KEY_PATH")),
 		},
 		DoH: &DoHConfig{
 			ListenAddr: dohListenAddr,

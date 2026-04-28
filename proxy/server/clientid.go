@@ -196,8 +196,7 @@ func (s *Server) clientIDFromDNSContext(pctx *proxy.DNSContext) (clientID, devic
 		return "", "", nil
 	}
 
-	hostSrvName := s.Config.Server.Name
-	if hostSrvName == "" {
+	if len(s.Config.Server.Names) == 0 {
 		return "", "", nil
 	}
 
@@ -206,18 +205,39 @@ func (s *Server) clientIDFromDNSContext(pctx *proxy.DNSContext) (clientID, devic
 		return "", "", err
 	}
 
-	clientID, deviceId, err = clientIDFromClientServerName(
-		hostSrvName,
-		cliSrvName,
-		false, // TODO: check
-		proto,
-	)
-	zerolog.Info().Str("cliSrvName", cliSrvName).Str("hostSrvName", hostSrvName).Str("clientID", clientID).Str("deviceId", deviceId).Msg("client and server names ")
-	if err != nil {
-		return "", "", fmt.Errorf("clientid check: %w", err)
+	// Try each configured server name; the first match wins.
+	// This allows a single proxy to serve both the anycast domain
+	// (e.g. dns.moddns.net) and a location-specific domain
+	// (e.g. ams1.dns.moddns.net).
+	var lastErr error
+	for _, hostSrvName := range s.Config.Server.Names {
+		clientID, deviceId, err = clientIDFromClientServerName(
+			hostSrvName,
+			cliSrvName,
+			false,
+			proto,
+		)
+		if err == nil && clientID != "" {
+			zerolog.Info().Str("cliSrvName", cliSrvName).Str("hostSrvName", hostSrvName).Str("clientID", clientID).Str("deviceId", deviceId).Msg("client and server names")
+			return clientID, deviceId, nil
+		}
+		if err != nil {
+			lastErr = err
+		}
 	}
 
-	return clientID, deviceId, nil
+	// No server name matched — if the SNI exactly equals one of the server
+	// names (bare domain, no profile), that's fine (returns empty clientID).
+	for _, hostSrvName := range s.Config.Server.Names {
+		if hostSrvName == cliSrvName {
+			return "", "", nil
+		}
+	}
+
+	if lastErr != nil {
+		return "", "", fmt.Errorf("clientid check: %w", lastErr)
+	}
+	return "", "", nil
 }
 
 // clientServerName returns the TLS server name based on the protocol.  For
