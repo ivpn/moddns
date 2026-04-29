@@ -157,7 +157,7 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 }
 
 // UpdateSubscriptionFromPASession validates the PASession, updates subscription fields from preauth, and persists.
-func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, subID string, sessionID string) error {
+func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string) error {
 	preauth, err := s.ValidateAndGetPreauth(ctx, sessionID)
 	if err != nil {
 		return err
@@ -174,6 +174,7 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 		return err
 	}
 
+	subID := sub.ID.String()
 	if err := s.Http.SignupWebhook(subID); err != nil {
 		log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
 		return err

@@ -1,10 +1,7 @@
 package api
 
 import (
-	"strings"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/model"
 )
@@ -35,12 +32,10 @@ func (s *APIServer) getSubscription() fiber.Handler {
 }
 
 // @Summary Update subscription via PASession
-// @Description Resync subscription using a pre-auth session
+// @Description Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
 // @Tags Subscription
-// @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param body body requests.SubscriptionUpdateReq true "Subscription update request"
 // @Success 200 {object} fiber.Map
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
@@ -50,22 +45,12 @@ func (s *APIServer) updateSubscription() fiber.Handler {
 		sessionID := c.Cookies(PASessionCookie)
 		accountId := auth.GetAccountID(c)
 
-		req := new(requests.SubscriptionUpdateReq)
-		if err := c.BodyParser(req); err != nil {
-			return HandleError(c, err, ErrInvalidRequestBody.Error())
-		}
-
-		errMsgs := s.Validator.ValidateRequest(c, req, ErrInvalidRequestBody.Error())
-		if len(errMsgs) > 0 {
-			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
-		}
-
 		sub, err := s.Service.GetSubscription(c.Context(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetSubscription.Error())
 		}
 
-		if err := s.Service.UpdateSubscriptionFromPASession(c.Context(), sub, req.SubID, sessionID); err != nil {
+		if err := s.Service.UpdateSubscriptionFromPASession(c.Context(), sub, sessionID); err != nil {
 			return HandleError(c, err, "failed to update subscription")
 		}
 

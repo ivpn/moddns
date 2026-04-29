@@ -1856,10 +1856,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Resync subscription using a pre-auth session",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).",
                 "produces": [
                     "application/json"
                 ],
@@ -1867,17 +1864,6 @@ const docTemplate = `{
                     "Subscription"
                 ],
                 "summary": "Update subscription via PASession",
-                "parameters": [
-                    {
-                        "description": "Subscription update request",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/requests.SubscriptionUpdateReq"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -3604,21 +3590,6 @@ const docTemplate = `{
             ],
             "properties": {
                 "sessionid": {
-                    "type": "string"
-                }
-            }
-        },
-        "requests.SubscriptionUpdateReq": {
-            "type": "object",
-            "required": [
-                "id",
-                "subid"
-            ],
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "subid": {
                     "type": "string"
                 }
             }

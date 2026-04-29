@@ -875,16 +875,6 @@ definitions:
     required:
     - sessionid
     type: object
-  requests.SubscriptionUpdateReq:
-    properties:
-      id:
-        type: string
-      subid:
-        type: string
-    required:
-    - id
-    - subid
-    type: object
   requests.TotpReq:
     properties:
       otp:
@@ -2201,16 +2191,8 @@ paths:
       - Subscription
   /api/v1/sub/update:
     put:
-      consumes:
-      - application/json
-      description: Resync subscription using a pre-auth session
-      parameters:
-      - description: Subscription update request
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/requests.SubscriptionUpdateReq'
+      description: Resync subscription using a pre-auth session. Requires pa_session
+        cookie (set by prior PASession rotation).
       produces:
       - application/json
       responses:
