@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Info } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import StatusBadge from "@/components/general/StatusBadge";
 import api from "@/api/api";
@@ -34,6 +35,7 @@ export default function AccountSubscription() {
             await api.Client.paSessionApi.apiV1PasessionRotatePut({ sessionid });
             await api.Client.subscriptionApi.apiV1SubUpdatePut();
             await fetchSubscription();
+            toast.success("Your account has been successfully synced.");
         } catch {
             setError("Failed to sync subscription. Please try again.");
         } finally {
