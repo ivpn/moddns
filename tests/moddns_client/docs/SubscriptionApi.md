@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v1_sub_get**](SubscriptionApi.md#api_v1_sub_get) | **GET** /api/v1/sub | Get subscription data
+[**api_v1_sub_update_put**](SubscriptionApi.md#api_v1_sub_update_put) | **PUT** /api/v1/sub/update | Update subscription via PASession
 
 
 # **api_v1_sub_get**
@@ -71,6 +72,71 @@ No authorization required
 **401** | Unauthorized |  -  |
 **404** | Not Found |  -  |
 **500** | Internal Server Error |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **api_v1_sub_update_put**
+> Dict[str, object] api_v1_sub_update_put()
+
+Update subscription via PASession
+
+Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+
+### Example
+
+
+```python
+import moddns
+from moddns.rest import ApiException
+from pprint import pprint
+
+# Defining the host is optional and defaults to http://localhost
+# See configuration.py for a list of all supported configuration parameters.
+configuration = moddns.Configuration(
+    host = "http://localhost"
+)
+
+
+# Enter a context with an instance of the API client
+with moddns.ApiClient(configuration) as api_client:
+    # Create an instance of the API class
+    api_instance = moddns.SubscriptionApi(api_client)
+
+    try:
+        # Update subscription via PASession
+        api_response = api_instance.api_v1_sub_update_put()
+        print("The response of SubscriptionApi->api_v1_sub_update_put:\n")
+        pprint(api_response)
+    except Exception as e:
+        print("Exception when calling SubscriptionApi->api_v1_sub_update_put: %s\n" % e)
+```
+
+
+
+### Parameters
+
+This endpoint does not need any parameter.
+
+### Return type
+
+**Dict[str, object]**
+
+### Authorization
+
+No authorization required
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+**200** | OK |  -  |
+**400** | Bad Request |  -  |
+**401** | Unauthorized |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

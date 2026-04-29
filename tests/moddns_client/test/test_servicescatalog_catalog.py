@@ -40,6 +40,9 @@ class TestServicescatalogCatalog(unittest.TestCase):
                         asns = [
                             56
                             ], 
+                        domains = [
+                            ''
+                            ], 
                         id = '', 
                         logo_key = '', 
                         name = '', )

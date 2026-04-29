@@ -129,6 +129,7 @@ Class | Method | HTTP request | Description
 *SessionsApi* | [**api_v1_sessions_delete**](docs/SessionsApi.md#api_v1_sessions_delete) | **DELETE** /api/v1/sessions | Delete all other sessions
 *StatisticsApi* | [**api_v1_profiles_id_statistics_get**](docs/StatisticsApi.md#api_v1_profiles_id_statistics_get) | **GET** /api/v1/profiles/{id}/statistics | Get statistics data for a profile
 *SubscriptionApi* | [**api_v1_sub_get**](docs/SubscriptionApi.md#api_v1_sub_get) | **GET** /api/v1/sub | Get subscription data
+*SubscriptionApi* | [**api_v1_sub_update_put**](docs/SubscriptionApi.md#api_v1_sub_update_put) | **PUT** /api/v1/sub/update | Update subscription via PASession
 *VerificationApi* | [**api_v1_verify_email_otp_confirm_post**](docs/VerificationApi.md#api_v1_verify_email_otp_confirm_post) | **POST** /api/v1/verify/email/otp/confirm | Confirm email verification OTP
 *VerificationApi* | [**api_v1_verify_email_otp_request_post**](docs/VerificationApi.md#api_v1_verify_email_otp_request_post) | **POST** /api/v1/verify/email/otp/request | Request email verification OTP
 *VerificationApi* | [**api_v1_verify_reset_password_post**](docs/VerificationApi.md#api_v1_verify_reset_password_post) | **POST** /api/v1/verify/reset-password | Confirm password reset
