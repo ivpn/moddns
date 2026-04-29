@@ -64,7 +64,7 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 			return HandleError(c, err, ErrFailedToRegisterAccount.Error())
 		}
 
-		options, token, err := s.Service.BeginRegistration(c.Context(), acc)
+		options, token, err := s.Service.BeginRegistration(c.Context(), acc, req.SubID)
 		if err != nil {
 			return HandleError(c, err, "Failed to begin registration")
 		}

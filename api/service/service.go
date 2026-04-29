@@ -85,7 +85,7 @@ type CredentialServicer interface {
 }
 
 type PasskeyServicer interface {
-	BeginRegistration(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error)
+	BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error)
 	FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error
 	BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error)
 	FinishLogin(ctx context.Context, token string, httpReq *http.Request, saveSession bool) (*model.Account, string, string, error)
@@ -97,7 +97,7 @@ type PasskeyServicer interface {
 
 type SessionServicer interface {
 	GetSession(context.Context, string) (model.Session, bool, error)
-	SaveSession(context.Context, webauthn.SessionData, string, string, string) error
+	SaveSession(context.Context, webauthn.SessionData, string, string, string, string) error
 	DeleteSession(context.Context, string) error
 	DeleteSessionsByAccountID(ctx context.Context, accID string) error
 	DeleteSessionsByAccountIDExceptCurrent(ctx context.Context, accID, currentToken string) error

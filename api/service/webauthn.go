@@ -19,8 +19,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// BeginRegistration starts the WebAuthn registration process
-func (s *Service) BeginRegistration(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error) {
+// BeginRegistration starts the WebAuthn registration process.
+// subID is the external subscription ID from the signup request; it is stored
+// in the transient session so FinishRegistration can forward it to the webhook.
+func (s *Service) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error) {
 	// Create a user object with credentials
 	user := &passkey.WebAuthnUser{
 		Account:     account,
@@ -39,8 +41,8 @@ func (s *Service) BeginRegistration(ctx context.Context, account *model.Account)
 		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
 	}
 
-	// Save session
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "")
+	// Save session (includes subID so FinishRegistration can forward it to the webhook)
+	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", subID)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to save session: %w", err)
 	}
@@ -74,12 +76,8 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
-	// Get subscription ID
-	sub, err := s.Store.GetSubscriptionByAccountId(ctx, account.ID.Hex())
-	if err != nil {
-		return fmt.Errorf("failed to get subscription ID for account: %w", err)
-	}
-	if err = s.CompleteRegistration(ctx, account, sub.ID.String(), paSessionID); err != nil {
+	// Use the external subID preserved in the session from BeginRegistration
+	if err = s.CompleteRegistration(ctx, account, session.SubID, paSessionID); err != nil {
 		return fmt.Errorf("failed to complete registration: %w", err)
 	}
 
@@ -129,7 +127,7 @@ func (s *Service) BeginLogin(ctx context.Context, email string) (*protocol.Crede
 	}
 
 	// Save session
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "") // s.sessionDuration
+	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", "")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to save session: %w", err)
 	}
@@ -185,7 +183,7 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
 	}
 
-	if err = s.SaveSession(ctx, *sessionData, token, acc.ID.Hex(), purpose); err != nil {
+	if err = s.SaveSession(ctx, *sessionData, token, acc.ID.Hex(), purpose, ""); err != nil {
 		return nil, "", fmt.Errorf("failed to save reauth session: %w", err)
 	}
 
@@ -290,7 +288,7 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 			return nil, "", purpose, fmt.Errorf("failed to generate session token: %w", err)
 		}
 
-		err = s.SaveSession(ctx, sessionData, token, account.ID.Hex(), "")
+		err = s.SaveSession(ctx, sessionData, token, account.ID.Hex(), "", "")
 		if err != nil {
 			return nil, "", purpose, fmt.Errorf("failed to save session: %w", err)
 		}
@@ -333,7 +331,7 @@ func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (
 	}
 
 	// Save session
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "")
+	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", "")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to save session: %w", err)
 	}
