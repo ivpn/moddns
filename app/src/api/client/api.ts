@@ -1613,25 +1613,6 @@ export interface RequestsRotatePASessionReq {
 /**
  * 
  * @export
- * @interface RequestsSubscriptionUpdateReq
- */
-export interface RequestsSubscriptionUpdateReq {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsSubscriptionUpdateReq
-     */
-    'id': string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsSubscriptionUpdateReq
-     */
-    'subid': string;
-}
-/**
- * 
- * @export
  * @interface RequestsTotpReq
  */
 export interface RequestsTotpReq {
@@ -5545,15 +5526,12 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
             };
         },
         /**
-         * Resync subscription using a pre-auth session
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
          * @summary Update subscription via PASession
-         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubUpdatePut: async (body: RequestsSubscriptionUpdateReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'body' is not null or undefined
-            assertParamExists('apiV1SubUpdatePut', 'body', body)
+        apiV1SubUpdatePut: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/sub/update`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -5568,12 +5546,9 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
 
 
     
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -5603,14 +5578,13 @@ export const SubscriptionApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Resync subscription using a pre-auth session
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
          * @summary Update subscription via PASession
-         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(body, options);
+        async apiV1SubUpdatePut(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubUpdatePut']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -5635,14 +5609,13 @@ export const SubscriptionApiFactory = function (configuration?: Configuration, b
             return localVarFp.apiV1SubGet(options).then((request) => request(axios, basePath));
         },
         /**
-         * Resync subscription using a pre-auth session
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
          * @summary Update subscription via PASession
-         * @param {RequestsSubscriptionUpdateReq} body Subscription update request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
-            return localVarFp.apiV1SubUpdatePut(body, options).then((request) => request(axios, basePath));
+        apiV1SubUpdatePut(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.apiV1SubUpdatePut(options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -5666,15 +5639,14 @@ export class SubscriptionApi extends BaseAPI {
     }
 
     /**
-     * Resync subscription using a pre-auth session
+     * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
      * @summary Update subscription via PASession
-     * @param {RequestsSubscriptionUpdateReq} body Subscription update request
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof SubscriptionApi
      */
-    public apiV1SubUpdatePut(body: RequestsSubscriptionUpdateReq, options?: RawAxiosRequestConfig) {
-        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(body, options).then((request) => request(this.axios, this.basePath));
+    public apiV1SubUpdatePut(options?: RawAxiosRequestConfig) {
+        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

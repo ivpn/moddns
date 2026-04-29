@@ -15,7 +15,6 @@ export default function AccountSubscription() {
     const [searchParams] = useSearchParams();
 
     const sessionid = searchParams.get("sessionid") || "";
-    const subid = searchParams.get("subid") || "";
 
     const fetchSubscription = async () => {
         try {
@@ -27,17 +26,13 @@ export default function AccountSubscription() {
     };
 
     const resync = async () => {
-        if (!sessionid || !subid) return;
+        if (!sessionid) return;
 
         setSyncing(true);
         setError("");
         try {
             await api.Client.paSessionApi.apiV1PasessionRotatePut({ sessionid });
-            const currentSub = await api.Client.subscriptionApi.apiV1SubGet();
-            await api.Client.subscriptionApi.apiV1SubUpdatePut({
-                id: currentSub.data.id || "",
-                subid,
-            });
+            await api.Client.subscriptionApi.apiV1SubUpdatePut();
             await fetchSubscription();
         } catch {
             setError("Failed to sync subscription. Please try again.");
@@ -49,8 +44,8 @@ export default function AccountSubscription() {
     useEffect(() => { fetchSubscription(); }, []);
 
     useEffect(() => {
-        if (sessionid && subid) { resync(); }
-    }, [sessionid, subid]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (sessionid) { resync(); }
+    }, [sessionid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!sub) return null;
 
