@@ -30,8 +30,9 @@ type Subscription struct {
 	Tier        string             `json:"tier,omitempty" bson:"tier,omitempty"`
 	TokenHash   string             `json:"-" bson:"token_hash,omitempty"`
 	UpdatedAt   time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
-	Notified    bool               `json:"-" bson:"notified"`
-	Limits      SubscriptionLimits `json:"-" bson:"limits"`
+	Notified              bool               `json:"-" bson:"notified"`
+	NotifiedPendingDelete bool               `json:"-" bson:"notified_pending_delete"`
+	Limits                SubscriptionLimits `json:"-" bson:"limits"`
 
 	// Computed fields (not persisted)
 	Status SubscriptionStatus `json:"status" bson:"-"`

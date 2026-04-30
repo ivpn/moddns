@@ -145,6 +145,7 @@ func (s *APIServer) RegisterRoutes() {
 
 	// Protected endpoints start here (note: only v1 group is protected)
 	v1.Use(middleware.NewAuth(&s.Service, s.Config.API, func(c *fiber.Ctx) bool { return true }))
+	v1.Use(middleware.NewSubscriptionGuard(s.Service.SubscriptionServicer))
 
 	// Subscription (protected) endpoint (session auth only)
 	sub.Get("", middleware.NewLimit(40, 1*time.Minute), s.getSubscription())
