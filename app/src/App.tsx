@@ -27,6 +27,7 @@ const AccountPreferences = lazyWithRetry(() => import('@/pages/account_preferenc
 const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigPage'));
 const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigDownload'));
 const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
+const Landing = lazyWithRetry(() => import('./pages/landing/Landing'));
 
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
@@ -75,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Public route predicate (keep in sync with router public section)
   const isPublicPath = (p: string) => (
+    p === '/' ||
     p === '/login' ||
     p === '/signup' ||
     p === '/tos' ||
@@ -503,9 +505,14 @@ function ProtectedLayout() {
 function RootIndexRedirect() {
   const { isAuthenticated } = useAuth();
   const localAuthed = typeof window !== 'undefined' ? localStorage.getItem(AUTH_KEY) === 'true' : isAuthenticated;
-  const target = isAuthenticated && localAuthed ? '/home' : '/login';
 
-  return <Navigate to={target} replace />;
+  // Authenticated users go straight to the dashboard. Everyone else sees the
+  // public marketing landing page (full-bleed, manages its own layout — no
+  // PublicLayout wrapper).
+  if (isAuthenticated && localAuthed) {
+    return <Navigate to="/home" replace />;
+  }
+  return <Suspense fallback={<div />}><Landing /></Suspense>;
 }
 
 function SetupWithLoader() {
