@@ -90,7 +90,7 @@ func (suite *AccountTestSuite) SetupSuite() {
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatsRepo)
 	suite.mockSubscriptionRepo = mocks.NewSubscriptionRepository(suite.T())
-	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
+	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
 
 	// Create the profile service with mocks
 	suite.profileService = profile.NewProfileService(
@@ -151,7 +151,7 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 
 	// Re-create subscription service and account service with the httptest server URL
 	httpClient := webhookClient.Http{Cfg: config.APIConfig{PreauthURL: preauthServer.URL}}
-	subSvc := subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{PreauthURL: preauthServer.URL}, httpClient)
+	subSvc := subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{PreauthURL: preauthServer.URL}, httpClient)
 
 	suite.service = account.NewAccountService(
 		suite.serviceConfig,
