@@ -15,4 +15,7 @@ type SubscriptionRepository interface {
 	ResetNotifiedForActive(ctx context.Context) error
 	FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error)
 	MarkNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error
+	FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error)
+	MarkPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error
+	ResetPendingDeleteNotifiedForActive(ctx context.Context) error
 }

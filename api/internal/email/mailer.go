@@ -21,6 +21,7 @@ type Mailer interface {
 	SendPasswordResetEmail(ctx context.Context, sendTo, passwordResetToken string) error
 	SendEmailVerificationOTP(ctx context.Context, sendTo, otp string) error
 	SendSubscriptionExpiryEmail(ctx context.Context, sendTo string) error
+	SendPendingDeleteEmail(ctx context.Context, sendTo string) error
 	Verify(email string) error
 }
 

@@ -38,6 +38,15 @@ func SubscriptionExpiryContent() EmailContent {
 	}
 }
 
+// PendingDeleteContent returns the pending deletion notification email content.
+func PendingDeleteContent() EmailContent {
+	return EmailContent{
+		Subject: "Your modDNS account is pending deletion",
+		Plain:   "Hello,\n\nYour modDNS account has been in limited access mode for 14 days and is now pending deletion. DNS resolution has been disabled for your profiles.\n\nTo reinstate full access, add time to your IVPN account: https://www.ivpn.net\n\nRegards,\nmodDNS Staff",
+		Html:    "<p>Hello,</p><p>Your modDNS account has been in limited access mode for 14 days and is now pending deletion. DNS resolution has been disabled for your profiles.</p><p>To reinstate full access, add time to your IVPN account: <a href=\"https://www.ivpn.net\">https://www.ivpn.net</a></p><p>Regards,<br>modDNS Staff</p>",
+	}
+}
+
 // EmailVerificationOTPContent returns the email verification OTP content.
 func EmailVerificationOTPContent(otp string) EmailContent {
 	return EmailContent{

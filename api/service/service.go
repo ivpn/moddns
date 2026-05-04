@@ -48,7 +48,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	statsSrv := statistics.NewStatisticsService(store)
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, blocklistSrv, queryLogsSrv, statsSrv, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
-	subSrv := subscription.NewSubscriptionService(store, cache, *cfg.Service, *cfg.API, *httpClient)
+	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
 	return Service{

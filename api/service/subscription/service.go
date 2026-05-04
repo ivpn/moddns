@@ -29,14 +29,16 @@ type SubscriptionService struct {
 	ServiceCfg             config.ServiceConfig
 	APICfg                 config.APIConfig
 	SubscriptionRepository repository.SubscriptionRepository
+	ProfileRepository      repository.ProfileRepository
 	Cache                  cache.Cache
 	Http                   client.Http
 }
 
 // NewSubscriptionService creates a new subscription service
-func NewSubscriptionService(db repository.SubscriptionRepository, cache cache.Cache, srvCfg config.ServiceConfig, apiCfg config.APIConfig, http client.Http) *SubscriptionService {
+func NewSubscriptionService(db repository.SubscriptionRepository, profileRepo repository.ProfileRepository, cache cache.Cache, srvCfg config.ServiceConfig, apiCfg config.APIConfig, http client.Http) *SubscriptionService {
 	return &SubscriptionService{
 		SubscriptionRepository: db,
+		ProfileRepository:      profileRepo,
 		Cache:                  cache,
 		ServiceCfg:             srvCfg,
 		APICfg:                 apiCfg,
@@ -174,6 +176,10 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 		return err
 	}
 
+	// Re-populate Redis profile settings for the account's profiles.
+	// This handles recovery from pending-delete state where DNS was cut (profile settings deleted from Redis).
+	s.repopulateProfileCache(ctx, sub.AccountID.Hex())
+
 	subID := sub.ID.String()
 	if err := s.Http.SignupWebhook(subID); err != nil {
 		log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
@@ -181,4 +187,23 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 	}
 
 	return nil
+}
+
+// repopulateProfileCache loads the account's profiles from MongoDB and writes their settings to Redis.
+// Errors are logged but do not fail the caller -- DNS recovery is best-effort during resync.
+func (s *SubscriptionService) repopulateProfileCache(ctx context.Context, accountID string) {
+	profiles, err := s.ProfileRepository.GetProfilesByAccountId(ctx, accountID)
+	if err != nil {
+		log.Error().Err(err).Str("account_id", accountID).Msg("Failed to load profiles for cache repopulation")
+		return
+	}
+
+	for _, profile := range profiles {
+		if profile.Settings == nil {
+			continue
+		}
+		if err := s.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
+			log.Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Failed to repopulate profile settings in cache")
+		}
+	}
 }

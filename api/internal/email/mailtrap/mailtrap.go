@@ -114,6 +114,19 @@ func (m *Mailtrap) SendSubscriptionExpiryEmail(ctx context.Context, sendTo strin
 	return m.sendEmail(ctx, sendTo, req)
 }
 
+// SendPendingDeleteEmail notifies the user their account is pending deletion.
+func (m *Mailtrap) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
+	c := content.PendingDeleteContent()
+	req := SendEmailRequest{
+		From:    From{Email: "moddns@demomailtrap.com", Name: "modDNS Team"},
+		To:      []To{{Email: sendTo}},
+		Subject: c.Subject,
+		Text:    c.Plain,
+		Html:    c.Html,
+	}
+	return m.sendEmail(ctx, sendTo, req)
+}
+
 // Verify checks if email provided is valid
 func (m *Mailtrap) Verify(email string) error {
 	initVerRes, err := m.verifier.Verify(email)

@@ -119,3 +119,50 @@ func (r *SubscriptionRepository) MarkNotified(ctx context.Context, subscriptionI
 	}
 	return err
 }
+
+// FindPendingDeleteUnnotified returns subscriptions where notified_pending_delete=false
+// and active_until + 14 days < now (both grace periods exceeded).
+func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
+	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
+	filter := bson.M{
+		"notified_pending_delete": false,
+		"active_until":            bson.M{"$lt": fourteenDaysAgo},
+	}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// MarkPendingDeleteNotified sets notified_pending_delete=true for the given subscription IDs.
+func (r *SubscriptionRepository) MarkPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
+	if len(subscriptionIDs) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": subscriptionIDs}}
+	update := bson.M{"$set": bson.M{"notified_pending_delete": true}}
+	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to mark subscriptions as pending delete notified")
+	}
+	return err
+}
+
+// ResetPendingDeleteNotifiedForActive sets notified_pending_delete=false for all subscriptions
+// where active_until >= now.
+func (r *SubscriptionRepository) ResetPendingDeleteNotifiedForActive(ctx context.Context) error {
+	filter := bson.M{"active_until": bson.M{"$gte": time.Now()}}
+	update := bson.M{"$set": bson.M{"notified_pending_delete": false}}
+	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to reset notified_pending_delete flag for active subscriptions")
+	}
+	return err
+}

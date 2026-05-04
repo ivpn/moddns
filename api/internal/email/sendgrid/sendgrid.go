@@ -80,6 +80,12 @@ func (m *Mailer) SendSubscriptionExpiryEmail(ctx context.Context, sendTo string)
 	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
 }
 
+// SendPendingDeleteEmail notifies the user their account is pending deletion.
+func (m *Mailer) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
+	c := content.PendingDeleteContent()
+	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
+}
+
 // Verify performs basic syntax validation. Extend with more advanced service if needed.
 func (m *Mailer) Verify(email string) error {
 	if email == "" {
