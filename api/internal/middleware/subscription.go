@@ -87,6 +87,8 @@ func isAlwaysAllowed(method, path string) bool {
 		{method: "DELETE", prefix: "/api/v1/accounts/current", exact: true},
 		// Export (future — pre-whitelisted)
 		{method: "GET", prefix: "/api/v1/accounts/current/export"},
+		// View passkeys (read-only, shown grayed out on account-preferences during PD)
+		{method: "GET", prefix: "/api/v1/webauthn/passkeys"},
 		// Password reset
 		{method: "POST", prefix: "/api/v1/verify/reset-password"},
 		{method: "POST", prefix: "/api/v1/accounts/reset-password"},
@@ -106,8 +108,7 @@ func isLimitedAccessAllowed(method, path string) bool {
 		// Read-only catalogs
 		{method: "GET", prefix: "/api/v1/blocklists"},
 		{method: "GET", prefix: "/api/v1/services"},
-		// Passkey management
-		{method: "GET", prefix: "/api/v1/webauthn/passkeys"},
+		// Passkey management (GET passkeys moved to alwaysAllowed)
 		{method: "POST", prefix: "/api/v1/webauthn/passkey/add/"},
 		{method: "DELETE", prefix: "/api/v1/webauthn/passkey/"},
 		// Reauth

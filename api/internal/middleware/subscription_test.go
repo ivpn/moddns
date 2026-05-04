@@ -27,6 +27,7 @@ func TestIsAlwaysAllowed(t *testing.T) {
 		{"GET", "/api/v1/accounts/current/export", true},
 		{"POST", "/api/v1/verify/reset-password", true},
 		{"POST", "/api/v1/accounts/reset-password", true},
+		{"GET", "/api/v1/webauthn/passkeys", true},
 
 		// POST /accounts is exact — sub-paths are NOT always allowed
 		{"POST", "/api/v1/accounts/mfa/totp/enable", false},
@@ -71,7 +72,7 @@ func TestIsLimitedAccessAllowed(t *testing.T) {
 		{"GET", "/api/v1/profiles/abc123/statistics", true},
 		{"GET", "/api/v1/blocklists", true},
 		{"GET", "/api/v1/services", true},
-		{"GET", "/api/v1/webauthn/passkeys", true},
+		// GET /webauthn/passkeys moved to alwaysAllowed — not tested here
 		{"POST", "/api/v1/webauthn/passkey/add/begin", true},
 		{"POST", "/api/v1/webauthn/passkey/add/finish", true},
 		{"DELETE", "/api/v1/webauthn/passkey/abc123", true},
