@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import StatusBadge from "@/components/general/StatusBadge";
 import api from "@/api/api";
 import type { ModelSubscription } from "@/api/client/api";
+import { useAppStore } from "@/store/general";
 
 const RESYNC_URL = import.meta.env.VITE_RESYNC_URL || "https://www.ivpn.net/en/account/";
 
@@ -14,6 +15,7 @@ export default function AccountSubscription() {
     const [error, setError] = useState("");
     const [syncing, setSyncing] = useState(false);
     const [searchParams] = useSearchParams();
+    const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
 
     const sessionid = searchParams.get("sessionid") || "";
 
@@ -21,6 +23,7 @@ export default function AccountSubscription() {
         try {
             const res = await api.Client.subscriptionApi.apiV1SubGet();
             setSub(res.data);
+            setSubscriptionStatus(res.data.status ?? null);
         } catch {
             setError("Failed to load subscription.");
         }
@@ -88,8 +91,8 @@ export default function AccountSubscription() {
             {hasAlerts && (
                 <div className="col-span-full flex flex-col gap-3 order-first">
                     {isLimited && (
-                        <div className="flex items-start gap-3 rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] px-4 py-3">
-                            <Info className="w-5 h-5 text-[var(--tailwind-colors-rdns-500)] mt-0.5 flex-shrink-0" />
+                        <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] px-4 py-3">
+                            <Info className="w-5 h-5 text-[var(--tailwind-colors-rdns-500)] flex-shrink-0" />
                             <div className="min-w-0">
                                 <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
                                     Limited Access Mode
@@ -102,31 +105,16 @@ export default function AccountSubscription() {
                         </div>
                     )}
 
-                    {isPendingDelete && (
-                        <div className="flex items-start gap-3 rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] px-4 py-3">
-                            <Info className="w-5 h-5 text-[var(--tailwind-colors-rdns-500)] mt-0.5 flex-shrink-0" />
-                            <div className="min-w-0">
-                                <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
-                                    Pending Deletion
-                                </p>
-                                <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
-                                    Your account is pending deletion. To reinstate access add time to your{" "}
-                                    <a href={RESYNC_URL} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">IVPN account</a>.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     {sub.outage && (
-                        <div className="flex items-start gap-3 rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] px-4 py-3">
-                            <Info className="w-5 h-5 text-[var(--tailwind-colors-rdns-500)] mt-0.5 flex-shrink-0" />
+                        <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] px-4 py-3">
+                            <Info className="w-5 h-5 text-[var(--tailwind-colors-rdns-500)] flex-shrink-0" />
                             <div className="min-w-0">
                                 <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
                                     Out of sync
                                 </p>
                                 <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
                                     Your last account status update was {sub.updated_at ? formatDate(sub.updated_at) : "unknown"}.{" "}
-                                    <a href={`${RESYNC_URL}?action=sync`} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">Sync with IVPN</a>
+                                    <a href={`${RESYNC_URL}?action=sync&service=dns`} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">Sync with IVPN</a>
                                 </p>
                             </div>
                         </div>

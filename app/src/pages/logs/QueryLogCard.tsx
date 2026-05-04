@@ -13,9 +13,10 @@ interface QueryLogCardProps {
     isLast?: boolean;
     lastLogRef?: (node: HTMLDivElement | null) => void;
     onQuickRule?: (domain?: string, defaultAction?: "denylist" | "allowlist") => void;
+    quickRuleRestricted?: boolean;
 }
 
-const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProps): JSX.Element | null => {
+const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricted }: QueryLogCardProps): JSX.Element | null => {
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
     const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
@@ -23,9 +24,12 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     const quickRuleAvailable = Boolean(normalizedDomain);
     const isBlocked = log.status === "blocked";
     const isProcessed = log.status === "processed";
-    const quickRuleTooltip = quickRuleAvailable ? "Create a custom rule" : "Domain unavailable";
+    const quickRuleDisabled = !quickRuleAvailable || quickRuleRestricted;
+    const quickRuleTooltip = quickRuleRestricted
+        ? "Feature unavailable in limited access mode"
+        : quickRuleAvailable ? "Create a custom rule" : "Domain unavailable";
     const handleQuickRule = () => {
-        if (!quickRuleAvailable) return;
+        if (quickRuleDisabled) return;
         const defaultAction = isBlocked ? "allowlist" : "denylist";
         onQuickRule?.(normalizedDomain, defaultAction);
     };
@@ -37,14 +41,15 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule }: QueryLogCardProp
     const renderQuickRuleButton = (wrapperClassName: string) => (
         <div className={wrapperClassName}>
             <Tooltip content={quickRuleTooltip} side="top" align="center" delay={150}>
-                <span>
+                {/* span hosts cursor-not-allowed because the disabled button itself doesn't receive pointer events */}
+                <span className={quickRuleRestricted ? 'inline-block cursor-not-allowed' : undefined}>
                     <Button
                         variant="ghost"
                         size="icon"
                         type="button"
                         aria-label="Quick custom rule"
                         onClick={handleQuickRule}
-                        disabled={!quickRuleAvailable}
+                        disabled={quickRuleDisabled}
                         className={`h-9 w-9 lg:min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
                         data-testid="logs-quick-rule-button"
                     >

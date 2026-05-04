@@ -15,6 +15,8 @@ import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 
 const QUERY_LIMIT = 25;
 
@@ -24,6 +26,7 @@ interface QueryLogsProps {
 }
 
 const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
+    const { isRestricted } = useSubscriptionGuard();
     const [logs, setLogs] = useState<ModelQueryLog[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
@@ -95,10 +98,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     const handleOpenQuickRule = useCallback((domain?: string, defaultAction: QuickRuleAction = "denylist") => {
         if (!domain) return;
+        if (isRestricted) return; // POST custom_rules is blocked in Limited Access / Pending Delete
         setQuickRuleDomain(domain);
         setQuickRuleDefaultAction(defaultAction);
         setIsQuickRuleSheetOpen(true);
-    }, []);
+    }, [isRestricted]);
 
     const handleQuickRuleSheetChange = useCallback((nextOpen: boolean) => {
         setIsQuickRuleSheetOpen(nextOpen);
@@ -323,6 +327,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     return (
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible bg-[var(--shadcn-ui-app-background)]">
+            <LimitedAccessBanner />
+            {/* GET /profiles/{id}/logs and DELETE /profiles/{id}/logs are LA-allowed; only the per-row Quick rule action (POST custom_rules) is gated below. */}
             <div className="flex flex-col items-start gap-6 relative flex-1 self-stretch grow w-full">
                 {/* Page Description */}
                 <section className="w-full">
@@ -403,6 +409,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                                 isLast={isLast}
                                                 lastLogRef={isLast ? lastLogRef : undefined}
                                                 onQuickRule={handleOpenQuickRule}
+                                                quickRuleRestricted={isRestricted}
                                             />
                                         );
                                     })}

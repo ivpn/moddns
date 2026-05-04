@@ -26,6 +26,8 @@ import {
 } from "@/api/client/api";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { toast } from "sonner";
 import axios from "axios";
@@ -79,6 +81,7 @@ export const formatUpdatedRelative = (isoDate?: string): string => {
 };
 
 export default function MainContentSection(): JSX.Element {
+    const { isRestricted } = useSubscriptionGuard();
     const [activeTab, setActiveTab] = useState("blocklists");
     const blocklistsAlertDismissed = useAppStore((state) => state.blocklistsAlertDismissed);
     const setBlocklistsAlertDismissed = useAppStore((state) => state.setBlocklistsAlertDismissed);
@@ -303,7 +306,9 @@ export default function MainContentSection(): JSX.Element {
 
     return (
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <LimitedAccessBanner />
+            <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={isRestricted ? 'cursor-not-allowed' : ''}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
                 <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
@@ -393,10 +398,10 @@ export default function MainContentSection(): JSX.Element {
                                         aria-label="Enable listed blocklists"
                                         variant="outline"
                                         size="icon"
-                                        className={`w-11 h-11 min-h-11 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive ? "opacity-100" : "opacity-50"}`}
-                                        disabled={!enableListedActive || updating === "all"}
+                                        className={`w-11 h-11 min-h-11 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive && !isRestricted ? "opacity-100" : "opacity-50"}`}
+                                        disabled={!enableListedActive || updating === "all" || isRestricted}
                                         onClick={handleEnableListed}
-                                        title="Enable currently listed blocklists"
+                                        title={isRestricted ? "Feature unavailable in limited access mode" : "Enable currently listed blocklists"}
                                     >
                                         <ToggleLeftIcon className={`w-4 h-4 ${enableListedActive ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
                                     </Button>
@@ -464,10 +469,10 @@ export default function MainContentSection(): JSX.Element {
                                         aria-label="Enable listed blocklists"
                                         variant="outline"
                                         size="icon"
-                                        className={`w-11 h-11 md:h-11 lg:h-9 min-h-11 md:min-h-11 lg:min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive ? "opacity-100" : "opacity-50"}`}
-                                        disabled={!enableListedActive || updating === "all"}
+                                        className={`w-11 h-11 md:h-11 lg:h-9 min-h-11 md:min-h-11 lg:min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive && !isRestricted ? "opacity-100" : "opacity-50"}`}
+                                        disabled={!enableListedActive || updating === "all" || isRestricted}
                                         onClick={handleEnableListed}
-                                        title="Enable currently listed blocklists"
+                                        title={isRestricted ? "Feature unavailable in limited access mode" : "Enable currently listed blocklists"}
                                     >
                                         <ToggleLeftIcon className={`w-4 h-4 ${enableListedActive ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
                                     </Button>
@@ -519,7 +524,7 @@ export default function MainContentSection(): JSX.Element {
                                                     updated={formatUpdatedRelative(blocklist.last_modified)}
                                                     onSwitchChange={(checked) => handleBlocklistSwitch(blocklistId, checked)}
                                                     switchChecked={isEnabled}
-                                                    switchDisabled={updating === blocklistId}
+                                                    switchDisabled={updating === blocklistId || isRestricted}
                                                     homepage={blocklist.homepage}
                                                 />
                                             );
@@ -532,7 +537,7 @@ export default function MainContentSection(): JSX.Element {
                 </TabsContent>
 
                 <TabsContent value="services" className="mt-4">
-                    {activeTab === "services" ? <ServicesContentSection /> : null}
+                    {activeTab === "services" ? <ServicesContentSection restricted={isRestricted} /> : null}
                 </TabsContent>
 
                 <TabsContent value="categories" className="mt-4">
@@ -544,10 +549,12 @@ export default function MainContentSection(): JSX.Element {
                             onCategoryToggle={handleCategoryToggle}
                             updating={updating}
                             loading={loading}
+                            restricted={isRestricted}
                         />
                     ) : null}
                 </TabsContent>
             </Tabs>
+            </div>
         </div>
     );
 }

@@ -7,6 +7,7 @@ import { DropdownMenuSeparator } from "@radix-ui/react-dropdown-menu";
 import { Check, Plus, Settings } from "lucide-react";
 import api from "@/api/api";
 import { toast } from "sonner";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 interface ProfileDropdownProps {
     profiles: ModelProfile[];
@@ -23,6 +24,7 @@ export default function ProfileDropdown({
     setProfiles,
     className = "",
 }: ProfileDropdownProps) {
+    const { isRestricted } = useSubscriptionGuard();
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [editProfile, setEditProfile] = useState<ModelProfile | null>(null);
@@ -134,7 +136,7 @@ export default function ProfileDropdown({
                                         return truncated ? <span title={profile.name}>{display}</span> : profile.name;
                                     })()}
                                 </div>
-                                {isSelected && (
+                                {isSelected && !isRestricted && (
                                     <Settings
                                         className="relative w-4 h-4 text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-rdns-600)] cursor-pointer"
                                         data-testid="edit-profile-settings"
@@ -151,16 +153,16 @@ export default function ProfileDropdown({
                     })}
                     <DropdownMenuSeparator className="bg-[var(--tailwind-colors-slate-600)] h-[1px] w-full" />
                     <div
-                        className="flex min-w-32 items-center gap-2 pl-2.5 pr-2 py-1.5 w-full bg-[var(--tailwind-colors-slate-950)] cursor-pointer
-                            hover:bg-[var(--tailwind-colors-slate-800)] transition-colors duration-100 rounded-[4px]"
+                        className={`flex min-w-32 items-center gap-2 pl-2.5 pr-2 py-1.5 w-full bg-[var(--tailwind-colors-slate-950)] rounded-[4px] transition-colors duration-100 ${isRestricted ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-[var(--tailwind-colors-slate-800)]'}`}
                         onClick={() => {
+                            if (isRestricted) return;
                             setSelectOpen(false);
                             setShowCreateDialog(true);
                         }}
+                        title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
                     >
                         <Plus className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
-                        <div className="flex-1 mt-[-1.00px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-rdns-600)] text-[14px] leading-[20px]
-                            hover:text-[var(--tailwind-colors-rdns-900)] transition-colors duration-100">
+                        <div className={`flex-1 mt-[-1.00px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-rdns-600)] text-[14px] leading-[20px] ${isRestricted ? '' : 'hover:text-[var(--tailwind-colors-rdns-900)]'} transition-colors duration-100`}>
                             Create profile
                         </div>
                     </div>

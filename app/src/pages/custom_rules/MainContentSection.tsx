@@ -6,6 +6,8 @@ import AlertCard from "@/components/general/AlertCard";
 import { useNavigate } from "react-router-dom";
 import CustomRulesSearch from "@/pages/custom_rules/Search";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import api from "@/api/api";
 import { toast } from "sonner";
 import type { ModelAccount, ModelCustomRule, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
@@ -51,6 +53,7 @@ interface MainContentSectionProps {
 }
 
 export default function MainContentSection({ profiles = [] }: Omit<MainContentSectionProps, "account">): JSX.Element {
+    const { isRestricted } = useSubscriptionGuard();
     const customRulesAlertDismissed = useAppStore((state) => state.customRulesAlertDismissed);
     const setCustomRulesAlertDismissed = useAppStore((state) => state.setCustomRulesAlertDismissed);
     const [showSearch, setShowSearch] = useState(false);
@@ -257,7 +260,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
 
     return (
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible">
-
+            <LimitedAccessBanner />
             <div className="flex w-full h-full flex-1 items-start relative min-h-0">
                 <div className="flex flex-col flex-1 h-full w-full min-h-0">
                     <Tabs
@@ -267,8 +270,9 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                             setActiveTab(tab as "denylist" | "allowlist");
                             setSelectedIds([]); // Reset selection when switching tabs
                         }}
-                        className="w-full"
+                        className="w-full flex flex-col flex-1 min-h-0"
                     >
+                        {/* TabsList stays interactive in LA so the user can switch tabs to view their existing rules in either list. */}
                         <div className="w-full border-b border-[var(--tailwind-colors-slate-700)] overflow-x-auto no-scrollbar">
                             <TabsList className="flex h-auto w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 min-w-max">
                                 <TabsTrigger
@@ -286,6 +290,9 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                             </TabsList>
                         </div>
 
+                        {/* Mutations (composer / delete / bulk delete) are blocked in LA — gate everything below the tab strip. */}
+                        <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`flex flex-col flex-1 w-full min-h-0${isRestricted ? ' cursor-not-allowed' : ''}`}>
+                        <div className={`flex flex-col flex-1 w-full min-h-0${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
                         {/* Page Description */}
                         <section className="w-full mt-4">
                             <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
@@ -327,7 +334,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                         tokens={composerTokens[activeTab]}
                                         onTokensChange={(next) => updateComposerTokens(activeTab, next)}
                                         onSubmit={() => handleComposerSubmit(activeTab)}
-                                        loading={loading || !activeProfile?.profile_id}
+                                        loading={loading || !activeProfile?.profile_id || isRestricted}
                                         className="flex-1 min-w-0"
                                     />
                                     <Button
@@ -383,7 +390,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
-                                loading={loading}
+                                loading={loading || isRestricted}
                                 type="denied"
                                 searchQuery={searchValue}
                             />
@@ -397,11 +404,13 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
-                                loading={loading}
+                                loading={loading || isRestricted}
                                 type="allowed"
                                 searchQuery={searchValue}
                             />
                         </TabsContent>
+                        </div>
+                        </div>
                     </Tabs>
                 </div>
             </div>

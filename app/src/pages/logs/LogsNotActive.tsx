@@ -7,13 +7,16 @@ import api from "@/api/api";
 import { toast } from "sonner";
 import type { ModelProfile } from "@/api/client";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const { setActiveProfile } = useAppStore();
+    const { isRestricted } = useSubscriptionGuard();
 
     const handleEnableLogs = async () => {
+        if (isRestricted) return; // PATCH /profiles/{id} is blocked in Limited Access / Pending Delete
         setLoading(true);
         try {
             const response = await api.Client.profilesApi.apiV1ProfilesIdPatch(profile.profile_id, {
@@ -74,19 +77,24 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
                         </p>
                     </div>
 
-                    {/* Action button */}
-                    <Button
-                        className="h-auto bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] rounded-md px-6 py-2 cursor-pointer transition-colors"
-                        style={{
-                            '--hover-bg': 'var(--tailwind-colors-rdns-800)',
-                        } as React.CSSProperties}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--tailwind-colors-rdns-800)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'var(--tailwind-colors-rdns-600)')}
-                        onClick={handleEnableLogs}
-                        disabled={loading}
+                    {/* Action button — PATCH /profiles/{id} blocked in LA, disable + cursor-not-allowed */}
+                    <span
+                        title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
+                        className={isRestricted ? 'inline-block cursor-not-allowed' : undefined}
                     >
-                        {loading ? "Enabling..." : "Enable logs"}
-                    </Button>
+                        <Button
+                            className={`h-auto bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] rounded-md px-6 py-2 transition-colors ${isRestricted ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+                            style={{
+                                '--hover-bg': 'var(--tailwind-colors-rdns-800)',
+                            } as React.CSSProperties}
+                            onMouseEnter={e => { if (!isRestricted) e.currentTarget.style.background = 'var(--tailwind-colors-rdns-800)'; }}
+                            onMouseLeave={e => { if (!isRestricted) e.currentTarget.style.background = 'var(--tailwind-colors-rdns-600)'; }}
+                            onClick={handleEnableLogs}
+                            disabled={loading || isRestricted}
+                        >
+                            {loading ? "Enabling..." : "Enable logs"}
+                        </Button>
+                    </span>
 
                     <div className="p-4 flex items-center justify-center relative">
                         <div
