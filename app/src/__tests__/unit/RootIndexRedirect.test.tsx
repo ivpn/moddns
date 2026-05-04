@@ -13,6 +13,11 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+// Stub the lazy-loaded Landing component so the unauth case renders synchronously.
+vi.mock('@/pages/landing/Landing', () => ({
+    default: () => <div data-testid="landing-page" />,
+}));
+
 describe('RootIndexRedirect', () => {
     type AuthContextValue = React.ContextType<typeof AuthContext>;
 
@@ -43,19 +48,21 @@ describe('RootIndexRedirect', () => {
         expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/home');
     });
 
-    it('navigates to /login when auth state is false', () => {
+    it('renders the landing page when auth state is false', async () => {
         localStorage.setItem(AUTH_KEY, 'true');
 
         renderWithAuth({ isAuthenticated: false });
 
-        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/login');
+        expect(await screen.findByTestId('landing-page')).toBeInTheDocument();
+        expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
     });
 
-    it('falls back to /login when local storage flag is missing', () => {
+    it('renders the landing page when local storage flag is missing', async () => {
         localStorage.removeItem(AUTH_KEY);
 
         renderWithAuth({ isAuthenticated: true });
 
-        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/login');
+        expect(await screen.findByTestId('landing-page')).toBeInTheDocument();
+        expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
     });
 });

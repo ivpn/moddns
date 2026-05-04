@@ -86,17 +86,20 @@ test.describe('@functional Authentication', () => {
 });
 
 test.describe('@functional Root index redirects', () => {
-  test('unauthenticated visit to root redirects to /login', async ({ page }) => {
+  test('unauthenticated visit to root shows the landing page', async ({ page }) => {
     await registerMocks(page, { authenticated: false });
     await page.goto('/');
-    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+    // Stay on / and render the landing chrome (CRT-themed marketing page).
+    await expect.poll(async () => page.url()).toMatch(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
   });
 
-  test('stale auth flag with expired session still redirects to /login', async ({ page }) => {
+  test('stale auth flag with expired session falls back to landing page', async ({ page }) => {
     await registerMocks(page, { authenticated: false });
     await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
     await page.goto('/');
-    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+    await expect.poll(async () => page.url()).toMatch(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
   });
 
   test('valid session at root immediately navigates to /home', async ({ page }) => {
