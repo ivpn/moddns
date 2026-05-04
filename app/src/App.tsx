@@ -34,6 +34,7 @@ import api from "@/api/api";
 import type { ModelAccount, ModelProfile } from "@/api/client/api";
 import { AUTH_KEY } from "@/lib/consts"
 import { useAppStore } from "@/store/general"
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard"
 import { Toaster } from "@/components/ui/sonner"
 import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
 import { RouterErrorBoundary } from "@/components/errors/RouterErrorBoundary";
@@ -106,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useAppStore.getState().setAccount(null);
     useAppStore.getState().setProfiles([]);
     useAppStore.getState().setActiveProfile(null);
+    useAppStore.getState().setSubscriptionStatus(null);
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -277,6 +279,31 @@ function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'publ
 const AppLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='app'>{children}</BaseLayout>;
 const PublicLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='public'>{children}</BaseLayout>;
 
+// Route guard: redirect all protected routes to /account-preferences when pending_delete.
+// Fetches subscription status on mount if not yet in the store (e.g. after fresh login).
+function PendingDeleteGuard() {
+  const { isPendingDelete } = useSubscriptionGuard();
+  const subscriptionStatus = useAppStore(s => s.subscriptionStatus);
+  const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (subscriptionStatus !== null) return;
+    api.Client.subscriptionApi.apiV1SubGet()
+      .then(res => setSubscriptionStatus(res.data.status ?? null))
+      .catch(() => {}); // no subscription = no restriction
+  }, [subscriptionStatus, setSubscriptionStatus]);
+
+  useEffect(() => {
+    if (isPendingDelete && location.pathname !== '/account-preferences') {
+      navigate('/account-preferences', { replace: true });
+    }
+  }, [isPendingDelete, location.pathname, navigate]);
+
+  return null;
+}
+
 // Layout for protected routes
 function ProtectedLayout() {
   const { isAuthenticated } = useAuth();
@@ -371,6 +398,7 @@ function ProtectedLayout() {
   return (
     <>
       <AppLayout>
+        <PendingDeleteGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
         {isDesktop && connectionStatusVisible && (
