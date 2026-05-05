@@ -94,12 +94,15 @@ test.describe('@functional Root index redirects', () => {
     await expect(page.locator('.moddns-landing')).toBeVisible();
   });
 
-  test('stale auth flag with expired session falls back to landing page', async ({ page }) => {
+  test('stale auth flag with expired session redirects to /login', async ({ page }) => {
+    // With AUTH_KEY=true in localStorage, RootIndexRedirect treats the user as
+    // authenticated and routes to /home; the protected loader then gets a 401
+    // from the mocked API and finally bounces to /login. Landing is not shown
+    // in this flow — only fresh unauthenticated visitors see it.
     await registerMocks(page, { authenticated: false });
     await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
     await page.goto('/');
-    await expect.poll(async () => page.url()).toMatch(/\/$/);
-    await expect(page.locator('.moddns-landing')).toBeVisible();
+    await expect.poll(async () => page.url()).toMatch(/\/login$/);
   });
 
   test('valid session at root immediately navigates to /home', async ({ page }) => {
