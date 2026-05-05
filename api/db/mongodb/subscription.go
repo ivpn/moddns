@@ -75,9 +75,16 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 	return nil
 }
 
-// ResetNotifiedForActive sets notified=false for all subscriptions where active_until >= now.
+// ResetNotifiedForActive sets notified=false for subscriptions that are genuinely
+// Active per model.Subscription.Active(): active_until in the future AND updated_at
+// recent enough that IsOutage() returns false (within the last 48h). Tier1 is a
+// string check the cron filters in Go via GetStatus().
 func (r *SubscriptionRepository) ResetNotifiedForActive(ctx context.Context) error {
-	filter := bson.M{"active_until": bson.M{"$gte": time.Now()}}
+	now := time.Now()
+	filter := bson.M{
+		"active_until": bson.M{"$gte": now},
+		"updated_at":   bson.M{"$gte": now.Add(-48 * time.Hour)},
+	}
 	update := bson.M{"$set": bson.M{"notified": false}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
@@ -86,12 +93,20 @@ func (r *SubscriptionRepository) ResetNotifiedForActive(ctx context.Context) err
 	return err
 }
 
-// FindExpiredUnnotified returns subscriptions where notified=false and active_until < now - 24h.
+// FindExpiredUnnotified returns subscriptions that may be in LimitedAccess (per
+// model.Subscription.LimitedAccess()) and have not been notified yet. It is a
+// coarse pre-filter: matches any sub whose active_until elapsed >24h ago OR
+// whose updated_at is >48h old (outage-triggered LA path). The caller (the cron)
+// must additionally verify sub.GetStatus() == StatusLimitedAccess so GracePeriod
+// and PendingDelete subs are not emailed as LA.
 func (r *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
-	oneDayAgo := time.Now().Add(-24 * time.Hour)
+	now := time.Now()
 	filter := bson.M{
-		"notified":     false,
-		"active_until": bson.M{"$lt": oneDayAgo},
+		"notified": false,
+		"$or": []bson.M{
+			{"active_until": bson.M{"$lt": now.Add(-24 * time.Hour)}},
+			{"updated_at": bson.M{"$lt": now.Add(-48 * time.Hour)}},
+		},
 	}
 	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
 	if err != nil {
@@ -120,13 +135,18 @@ func (r *SubscriptionRepository) MarkNotified(ctx context.Context, subscriptionI
 	return err
 }
 
-// FindPendingDeleteUnnotified returns subscriptions where notified_pending_delete=false
-// and active_until + 14 days < now (both grace periods exceeded).
+// FindPendingDeleteUnnotified returns subscriptions where the model considers
+// the sub PendingDelete (active_until + 14d < now OR updated_at + 14d < now)
+// and notified_pending_delete is still false. This mirrors model.Subscription.PendingDelete()
+// exactly so no Go-side post-filter is required.
 func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
 	filter := bson.M{
 		"notified_pending_delete": false,
-		"active_until":            bson.M{"$lt": fourteenDaysAgo},
+		"$or": []bson.M{
+			{"active_until": bson.M{"$lt": fourteenDaysAgo}},
+			{"updated_at": bson.M{"$lt": fourteenDaysAgo}},
+		},
 	}
 	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
 	if err != nil {
@@ -155,10 +175,15 @@ func (r *SubscriptionRepository) MarkPendingDeleteNotified(ctx context.Context, 
 	return err
 }
 
-// ResetPendingDeleteNotifiedForActive sets notified_pending_delete=false for all subscriptions
-// where active_until >= now.
+// ResetPendingDeleteNotifiedForActive sets notified_pending_delete=false for
+// subscriptions that are genuinely Active again (active_until in future AND
+// updated_at within the last 48h, mirroring model.Subscription.Active()).
 func (r *SubscriptionRepository) ResetPendingDeleteNotifiedForActive(ctx context.Context) error {
-	filter := bson.M{"active_until": bson.M{"$gte": time.Now()}}
+	now := time.Now()
+	filter := bson.M{
+		"active_until": bson.M{"$gte": now},
+		"updated_at":   bson.M{"$gte": now.Add(-48 * time.Hour)},
+	}
 	update := bson.M{"$set": bson.M{"notified_pending_delete": false}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
