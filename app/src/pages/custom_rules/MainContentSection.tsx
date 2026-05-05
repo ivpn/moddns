@@ -270,7 +270,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                             setActiveTab(tab as "denylist" | "allowlist");
                             setSelectedIds([]); // Reset selection when switching tabs
                         }}
-                        className="w-full flex flex-col flex-1 min-h-0"
+                        className="w-full"
                     >
                         {/* TabsList stays interactive in LA so the user can switch tabs to view their existing rules in either list. */}
                         <div className="w-full border-b border-[var(--tailwind-colors-slate-700)] overflow-x-auto no-scrollbar">
@@ -291,8 +291,10 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         </div>
 
                         {/* Mutations (composer / delete / bulk delete) are blocked in LA — gate everything below the tab strip. */}
-                        <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`flex flex-col flex-1 w-full min-h-0${isRestricted ? ' cursor-not-allowed' : ''}`}>
-                        <div className={`flex flex-col flex-1 w-full min-h-0${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
+                        {/* Inner uses `flex flex-col gap-2` because shadcn Tabs applies the same on its children — wrapping the children
+                            in plain divs would otherwise drop the inter-section spacing develop relies on. */}
+                        <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full${isRestricted ? ' cursor-not-allowed' : ''}`}>
+                        <div className={`flex flex-col gap-2 w-full${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
                         {/* Page Description */}
                         <section className="w-full mt-4">
                             <p className="text-[var(--tailwind-colors-slate-200)] text-base leading-6">
