@@ -5,7 +5,20 @@ import { LINKS } from './links';
 import dashboardScreenshot from '@/assets/landing/dashboard-screenshot.png';
 import './landing.css';
 
-export default function Landing() {
+type LandingProps = {
+    /**
+     * When true, the page swaps the [01 LOGIN] CTA for [01 DASHBOARD] (linking
+     * to /home). Authenticated users still see the marketing page at `/`;
+     * this prop simply gives them a direct path back into the app.
+     *
+     * Defaults to `false` so the component stays trivially renderable in
+     * tests, Storybook, etc. — the auth-aware caller (RootIndexRedirect) is
+     * responsible for passing the real value.
+     */
+    isAuthenticated?: boolean;
+};
+
+export default function Landing({ isAuthenticated = false }: LandingProps) {
     return (
         <div className="moddns-landing">
             <div className="container">
@@ -14,9 +27,15 @@ export default function Landing() {
                 <header className="sys-nav">
                     <div>
                         <span>
-                            <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>
-                                [01 LOGIN]
-                            </Link>
+                            {isAuthenticated ? (
+                                <Link to="/home" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                    [01 DASHBOARD]
+                                </Link>
+                            ) : (
+                                <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>
+                                    [01 LOGIN]
+                                </Link>
+                            )}
                         </span>
                         <span>
                             <a

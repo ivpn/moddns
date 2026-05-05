@@ -503,16 +503,19 @@ function ProtectedLayout() {
 }
 
 function RootIndexRedirect() {
+  // The public landing page is the canonical face of `/` for everyone —
+  // authenticated visitors see it too. The auth check below is read at the
+  // routing layer (with the localStorage belt-and-braces guard against stale
+  // React state vs. localStorage drift) and passed down so Landing can swap
+  // [01 LOGIN] for [01 DASHBOARD]. Landing itself stays a "dumb" component.
+  //
+  // The function name is kept for backwards-compat with the existing
+  // unit/e2e tests and the `export { RootIndexRedirect }` at the bottom of
+  // this file; it no longer actually redirects.
   const { isAuthenticated } = useAuth();
   const localAuthed = typeof window !== 'undefined' ? localStorage.getItem(AUTH_KEY) === 'true' : isAuthenticated;
-
-  // Authenticated users go straight to the dashboard. Everyone else sees the
-  // public marketing landing page (full-bleed, manages its own layout — no
-  // PublicLayout wrapper).
-  if (isAuthenticated && localAuthed) {
-    return <Navigate to="/home" replace />;
-  }
-  return <Suspense fallback={<div />}><Landing /></Suspense>;
+  const authed = isAuthenticated && localAuthed;
+  return <Suspense fallback={<div />}><Landing isAuthenticated={authed} /></Suspense>;
 }
 
 function SetupWithLoader() {
