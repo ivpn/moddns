@@ -78,8 +78,13 @@ export default function AccountSubscription() {
 
     const rows: { label: string; value: React.ReactNode }[] = [
         { label: "Status", value: statusBadge },
-        { label: "Active until", value: formatDate(sub.active_until) },
     ];
+
+    // "Active until" is only meaningful while the subscription is still active or in grace —
+    // hide it once the user lands in Limited Access or Pending Delete.
+    if (!isLimited && !isPendingDelete) {
+        rows.push({ label: "Active until", value: formatDate(sub.active_until) });
+    }
 
     return (
         <>
