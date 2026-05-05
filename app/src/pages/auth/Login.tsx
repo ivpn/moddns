@@ -3,18 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import api from "@/api/api";
 import LoginCard from "@/pages/auth/LoginCard";
 import AuthFooter from "@/components/auth/AuthFooter";
-import { Alert } from "@/components/ui/alert";
-import { Info } from "lucide-react";
 import { authToasts } from "@/lib/authToasts";
 import { AuthContext } from "@/App";
 import { authenticateWithPasskey, isWebAuthnSupported } from "@/lib/webauthn";
 import SessionLimitDialog from "@/components/dialogs/SessionLimitDialog";
-
-const infoAlertData = {
-    title: "Here to try modDNS? You need an active IVPN account.",
-    linkUrl: "https://ivpn.net/account/",
-    linkText: "ivpn.net",
-};
 
 export default function Login() {
     const location = useLocation();
@@ -251,29 +243,6 @@ export default function Login() {
                         showOtp={showOtp}
                         initialPasskeyMode={webAuthnSupported}
                     />
-
-                    {/* Info alert */}
-                    <Alert className="bg-[var(--alert-card-bg)] border border-[var(--alert-card-bg)] rounded-lg">
-                        <Info className="h-[18px] w-[18px] text-[var(--alert-card-icon)]" />
-                        <div className="flex flex-col gap-2">
-                            <h4 className="text-sm leading-5 font-semibold text-[var(--alert-card-fg)]">
-                                Here to try modDNS? You need an active IVPN account.
-                            </h4>
-                            <div className="text-sm leading-5 text-[var(--alert-card-fg)] opacity-80">
-                                Sign up or log in on{" "}
-                                <a
-                                    href={infoAlertData.linkUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline p-0 m-0 h-auto align-baseline !underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
-                                    aria-label={`Open ${infoAlertData.linkText} in a new tab`}
-                                >
-                                    {infoAlertData.linkText}
-                                </a>{" "}
-                                and look for "ModDNS" in your account settings.
-                            </div>
-                        </div>
-                    </Alert>
                 </div>
             </div>
 
