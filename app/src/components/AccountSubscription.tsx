@@ -81,10 +81,6 @@ export default function AccountSubscription() {
         { label: "Active until", value: formatDate(sub.active_until) },
     ];
 
-    if (sub.updated_at) {
-        rows.push({ label: "Last synced", value: formatDate(sub.updated_at) });
-    }
-
     return (
         <>
             {/* Alerts — rendered first, meant to be placed above the cards by parent */}
@@ -135,7 +131,10 @@ export default function AccountSubscription() {
                         </h2>
                     </div>
 
-                    <div className="flex flex-col gap-3">
+                    {/* min-h preserves the card height it had when a third "Last synced" row was rendered:
+                        mobile rows stack (label+value, ~44px each) → 3*44 + 2*12 ≈ 156px;
+                        desktop rows are single-line (~20px each) → 3*20 + 2*12 ≈ 84px. */}
+                    <div className="flex flex-col gap-3 min-h-[9.75rem] sm:min-h-[5.25rem]">
                         {rows.map((item, index) => (
                             <div
                                 key={index}
