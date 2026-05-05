@@ -406,13 +406,17 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                         textAlign: 'center',
                         borderTop: '1px solid var(--phosphor-dim)',
                         paddingTop: '1rem',
-                        color: 'var(--phosphor-dim)',
+                        color: 'var(--phosphor)',
                         fontSize: '12px',
                         marginTop: '2rem',
                     }}
                 >
                     modDNS ::{' '}
-                    <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>LOGIN</Link>
+                    {isAuthenticated ? (
+                        <Link to="/home" style={{ color: 'inherit', textDecoration: 'none' }}>DASHBOARD</Link>
+                    ) : (
+                        <Link to="/login" style={{ color: 'inherit', textDecoration: 'none' }}>LOGIN</Link>
+                    )}
                     {' '}::{' '}
                     <Link to="/faq" style={{ color: 'inherit', textDecoration: 'none' }}>FAQ</Link>
                     {' '}::{' '}
