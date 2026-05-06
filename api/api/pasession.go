@@ -50,7 +50,11 @@ func (s *APIServer) addPASession() fiber.Handler {
 }
 
 // @Summary Rotate pre-auth session ID
-// @Description Rotate pre-auth session ID and set new ID as cookie
+// @Description Rotate pre-auth session ID and set new ID as cookie. The endpoint
+// @Description is idempotent against an already-rotated session: if the URL
+// @Description sessionid is no longer in the cache but the caller already holds
+// @Description a valid pa_session cookie, the call succeeds as a no-op so the
+// @Description user can continue with their existing session.
 // @Tags PASession
 // @Accept json
 // @Produce json
@@ -70,21 +74,35 @@ func (s *APIServer) rotatePASession() fiber.Handler {
 			return c.Status(400).JSON(fiber.Map{"error": "This signup link has expired."})
 		}
 
-		newID, err := s.Service.RotatePASessionID(c.Context(), req.SessionID)
-		if err != nil {
-			return c.Status(400).JSON(fiber.Map{"error": "This signup link has expired."})
+		if newID, err := s.Service.RotatePASessionID(c.Context(), req.SessionID); err == nil {
+			setPASessionCookie(c, newID)
+			return c.SendStatus(fiber.StatusOK)
 		}
 
-		c.Cookie(&fiber.Cookie{
-			Name:     PASessionCookie,
-			Value:    newID,
-			HTTPOnly: true,
-			Secure:   true,
-			SameSite: fiber.CookieSameSiteLaxMode,
-			MaxAge:   900,
-			Expires:  time.Now().Add(15 * time.Minute),
-		})
+		// Fallback: the URL sessionid was already consumed (typical when the
+		// signup link is opened a second time in the same browser). If the
+		// existing pa_session cookie still points to a valid cache entry, the
+		// caller can continue with what they have — no rotate needed.
+		if existing := c.Cookies(PASessionCookie); existing != "" {
+			if _, err := s.Service.ValidateAndGetPreauth(c.Context(), existing); err == nil {
+				return c.SendStatus(fiber.StatusOK)
+			}
+		}
 
-		return c.SendStatus(fiber.StatusOK)
+		return c.Status(400).JSON(fiber.Map{"error": "This signup link has expired."})
 	}
+}
+
+// setPASessionCookie writes the pa_session cookie used by subsequent /accounts
+// and /sub/update calls during the signup / resync flow.
+func setPASessionCookie(c *fiber.Ctx, sessionID string) {
+	c.Cookie(&fiber.Cookie{
+		Name:     PASessionCookie,
+		Value:    sessionID,
+		HTTPOnly: true,
+		Secure:   true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+		MaxAge:   900,
+		Expires:  time.Now().Add(15 * time.Minute),
+	})
 }
