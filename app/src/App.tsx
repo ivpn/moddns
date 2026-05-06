@@ -162,14 +162,28 @@ async function rootLoader() {
       throw redirect("/login");
     }
 
-    const [accountRes, profilesRes] = await Promise.all([
+    // Use allSettled so a partial failure (e.g. /profiles returning 403 in
+    // pending_delete subscription state, where /accounts/current is still
+    // allowlisted by the server's subscription guard) does not collapse the
+    // whole loader. Without this, the AccountInfoCard on /account-preferences
+    // would lose `account.email` (the modDNS ID) and render an empty value.
+    const [accountResult, profilesResult] = await Promise.allSettled([
       api.Client.accountsApi.apiV1AccountsCurrentGet(),
       api.Client.profilesApi.apiV1ProfilesGet(),
     ]);
 
-    // Save to Zustand store
-    const account = accountRes.data as ModelAccount;
-    const profiles = profilesRes.data as ModelProfile[];
+    // Account is the load-bearing fetch — if it fails, fall through to the
+    // shared catch handler so 401/404/429 are surfaced exactly as before.
+    if (accountResult.status === 'rejected') {
+      throw accountResult.reason;
+    }
+
+    const account = accountResult.value.data as ModelAccount;
+    // Profiles is best-effort: a non-200 (e.g. 403 in PD) leaves the user with
+    // an empty profile list rather than a broken account-preferences screen.
+    const profiles: ModelProfile[] = profilesResult.status === 'fulfilled'
+      ? (profilesResult.value.data as ModelProfile[])
+      : [];
 
     // This will run on the client, so we can update the store here:
     if (typeof window !== "undefined") {
