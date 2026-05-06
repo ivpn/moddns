@@ -3,6 +3,7 @@ import SystemClock from './SystemClock';
 import TopologyDiagram from './TopologyDiagram';
 import { LINKS } from './links';
 import dashboardScreenshot from '@/assets/landing/dashboard-screenshot.png';
+import dashboardScreenshotMobile from '@/assets/landing/dashboard-screenshot-mobile.png';
 import './landing.css';
 
 type LandingProps = {
@@ -70,7 +71,7 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                     <div className="hero-layout">
                         <div>
                             <h1 className="glitch-block" data-text="RESIST_DNS_SURVEILLANCE">
-                                RESIST_DNS_SURVEILLANCE<span className="blink">_</span>
+                                <span className="hero-h1-part">RESIST_DNS_</span><span className="hero-h1-part">SURVEILLANCE<span className="blink">_</span></span>
                             </h1>
                             <p>
                                 Block ads and trackers at the DNS level using modDNS, an open-source
@@ -111,12 +112,20 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                 <section className="window">
                     <div className="window-title">[ MODDNS_DASHBOARD ]</div>
                     <div className="screenshot-container">
-                        <img
-                            src={dashboardScreenshot}
-                            alt="modDNS Dashboard — Custom Rules Interface"
-                            loading="lazy"
-                            decoding="async"
-                        />
+                        <picture>
+                            {/* Mobile-tuned screenshot at ≤768 px (smaller, narrower aspect).
+                                Desktop falls back to the wide screenshot below. */}
+                            <source
+                                media="(max-width: 768px)"
+                                srcSet={dashboardScreenshotMobile}
+                            />
+                            <img
+                                src={dashboardScreenshot}
+                                alt="modDNS Dashboard — Custom Rules Interface"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </picture>
                     </div>
                 </section>
 
@@ -328,7 +337,7 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                             .
                         </p>
                     </div>
-                    <div className="vector-diagram" style={{ marginTop: '50px' }}>
+                    <div className="vector-diagram">
                         <span className="meta-data meta-tr">SVC_TOPOLOGY</span>
                         <TopologyDiagram />
                     </div>

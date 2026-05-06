@@ -353,14 +353,20 @@
     text-shadow: 0 0 3px var(--phosphor-glow);
 }
 
+/* Two-column grid with an explicit 3-row track and column-flow. Items 1-3
+   land in the left column, items 4-5 in the right. Deterministic — does not
+   rely on the browser's column-balancing algorithm, which was overriding the
+   earlier `break-before: column` hint. */
 .moddns-landing .constraints-list {
-    column-count: 2;
-    column-gap: 2rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+    gap: 0.5rem 2rem;
 }
 
 .moddns-landing .constraints-list li {
     color: #aaa;
-    margin-bottom: 0.5rem;
 }
 
 .moddns-landing .constraints-list li::before {
@@ -398,6 +404,12 @@
     width: 100%;
     height: 100%;
 }
+
+/* Desktop offset: pushes the diagram down so its rows align with the
+   text-column body copy instead of the section title. Removed on mobile (see
+   ≤768px override) where the diagram stacks below the text and any extra top
+   margin only widens the gap. */
+.moddns-landing .suite-section .vector-diagram { margin-top: 50px; }
 
 .moddns-landing .node {
     fill: var(--bg);
@@ -489,6 +501,68 @@
 }
 
 @media (max-width: 768px) {
+    .moddns-landing .container {
+        padding: 1rem;
+        gap: 1.25rem;
+    }
+
+    /* Stack the two sys-nav rows; status/clock falls below the link row, right-justified. */
+    .moddns-landing .sys-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .moddns-landing .sys-nav > div {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: 0.75rem;
+        row-gap: 0.25rem;
+    }
+    /* STATUS: ONLINE + SYS.TIME are decorative chrome — hide on mobile to give
+       the link grid the full width and keep the nav focused on actions. */
+    .moddns-landing .sys-nav > div:last-child { display: none; }
+    .moddns-landing .sys-nav span { margin-right: 0; }
+
+    /* Top nav link group becomes a 2×2 grid of bordered tap targets:
+       row 1: [01 LOGIN] [02 START], row 2: [03 PRIVACY] [04 FAQ]. Each link
+       gets a real frame (matching the dashed sys-nav rule colour) plus 44px
+       minimum height for comfortable tapping. */
+    .moddns-landing .sys-nav > div:first-child {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    .moddns-landing .sys-nav > div:first-child span {
+        margin: 0;
+        display: block;
+    }
+    .moddns-landing .sys-nav > div:first-child a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 0.5rem;
+        border: 1px solid var(--phosphor-dim);
+        min-height: 44px;
+        text-align: center;
+    }
+
+    /* Hero: smaller padding and fluid h1 that allows the underscore-separated
+       word to wrap (which is on-brand for the snake_case identifier feel). */
+    .moddns-landing .hero {
+        padding: 2rem 1rem 1.25rem;
+    }
+    .moddns-landing .hero h1 {
+        font-size: clamp(1.75rem, 8vw, 4rem);
+        margin-top: 1.25rem;
+        margin-bottom: 1.5rem;
+        overflow-wrap: anywhere;
+    }
+    .moddns-landing .hero p {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* All section grids collapse to single column. */
     .moddns-landing .features-grid,
     .moddns-landing .specs-grid,
     .moddns-landing .trust-grid,
@@ -496,10 +570,97 @@
     .moddns-landing .pricing-grid {
         grid-template-columns: 1fr;
     }
-
     .moddns-landing .constraints-list {
-        column-count: 1;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        grid-auto-flow: row;
     }
 
-    .moddns-landing .hero h1 { font-size: 3rem; }
+    /* Vector diagram: hug content rather than holding a fixed 300px slot. */
+    .moddns-landing .vector-diagram {
+        aspect-ratio: 450 / 308;
+        height: auto;
+    }
+    /* Tight stacking in the Unlinked Access section: drop the desktop 50px
+       diagram offset and shrink the section gap from 3rem to 1.5rem so the
+       text and diagram sit close together when stacked in a single column. */
+    .moddns-landing .suite-section { gap: 1.5rem; }
+    .moddns-landing .suite-section .vector-diagram { margin-top: 0; }
+
+    /* Verifiable Privacy: each trust-box's bottom link ([ MEET THE TEAM ],
+       [ REVIEW CODE ], [ READ THE REPORT ], [ REVIEW OUR POLICIES ]) becomes a
+       full-width bordered tap target so the section reads as four equally-
+       weighted CTAs instead of inline footnote links. */
+    .moddns-landing .trust-box a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--phosphor-dim);
+        min-height: 44px;
+        text-align: center;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .moddns-landing .container { padding: 0.75rem; }
+
+    .moddns-landing .hero { padding: 1.5rem 0.75rem 1rem; }
+    /* Bigger headline because it's the page's main statement, and the two
+       intentional halves (RESIST_DNS_ / SURVEILLANCE_) each fit on their own
+       line at this width. */
+    .moddns-landing .hero h1 {
+        font-size: clamp(3rem, 16vw, 4.5rem);
+        line-height: 1.1;
+    }
+    .moddns-landing .hero h1 .hero-h1-part { display: block; }
+
+    /* Hero CTAs: stack vertically and span the full width of the hero so each
+       button is a generous tap target on phones. */
+    .moddns-landing .hero .btn-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .moddns-landing .hero .btn-group .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Spec rows: label on top, value indented below — preserves the data-row
+       terminal feel without the right-side overflow on long values like
+       "Win/Mac/Linux/iOS/Android". */
+    .moddns-landing .spec-col ul li {
+        flex-direction: column;
+        gap: 0.15rem;
+        align-items: flex-start;
+        padding-bottom: 0.4rem;
+    }
+    .moddns-landing .spec-col ul li span:last-child {
+        padding-left: 0.75rem;
+        border-left: 1px dotted var(--phosphor-dim);
+    }
+
+    /* Section title decorations are too noisy at this width; keep the bare label. */
+    .moddns-landing .section-title::before,
+    .moddns-landing .section-title::after { content: none; }
+
+    /* Plan-box header: allow the [ START ] button to wrap below the price block. */
+    .moddns-landing .pricing-grid .plan-box .plan-header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+}
+
+/* Touch-device tap targets — meets WCAG AA 44x44 minimum. */
+@media (hover: none) and (pointer: coarse) {
+    .moddns-landing a.btn,
+    .moddns-landing .btn {
+        padding: 0.5rem 1rem;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
