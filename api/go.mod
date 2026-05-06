@@ -4,6 +4,7 @@ go 1.25.8
 
 require (
 	github.com/AfterShip/email-verifier v1.4.0
+	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/fiber v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
@@ -95,6 +96,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect

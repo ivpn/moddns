@@ -9,8 +9,14 @@ import (
 )
 
 // Start initializes the gocron scheduler with all periodic jobs.
-func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer) {
-	s, err := gocron.NewScheduler()
+//
+// The locker enforces single-flight execution across load-balanced API
+// instances: only the instance that acquires the per-job Redis lock for
+// a given tick runs the job body; the others silently skip. The MongoDB
+// notified flags remain the durable dedup safety net for the rare cases
+// where the lock cannot serialise (e.g. Redis failover mid-tick).
+func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer, locker gocron.Locker) {
+	s, err := gocron.NewScheduler(gocron.WithDistributedLocker(locker))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create cron scheduler")
 		return

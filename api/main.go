@@ -16,6 +16,7 @@ import (
 	"github.com/ivpn/dns/api/internal/migrations"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/service"
+	libscache "github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/store"
 
@@ -29,6 +30,11 @@ import (
 const (
 	shortUrlTTL         = 5 * time.Minute
 	shortUrlLogInterval = 1 * time.Hour
+	// cronLockTTL is the expiry for the Redis lock that serialises cron
+	// runs across API instances. Comfortably larger than the worst-case
+	// runtime of any current job; if a holder crashes the lock is
+	// reclaimed by the next tick after at most this duration.
+	cronLockTTL = 10 * time.Minute
 )
 
 // @title           modDNS REST API
@@ -105,11 +111,15 @@ func main() {
 		}
 	}
 
-	// cache create, load data on startup
-	cache, err := cache.NewCache(appConfig.Cache, cache.CacheTypeRedis)
+	// Build a single Redis client so the cache and the cron locker share
+	// one connection pool. The locker uses SET NX EX on the same Redis to
+	// guarantee that exactly one API instance runs each cron tick.
+	redisClient, err := libscache.NewRedisClient(appConfig.Cache)
 	if err != nil {
-		log.Panic().Err(err).Msg("Failed to create cache")
+		log.Panic().Err(err).Msg("Failed to create Redis client")
 	}
+	cache := cache.NewRedisCacheFromClient(redisClient)
+	cronLocker := cron.NewRedisLocker(redisClient, cronLockTTL)
 
 	idGen, err := idgen.NewGenerator(idgen.TypeSqids, appConfig.API.ProfileIDMinLength)
 	if err != nil {
@@ -158,7 +168,7 @@ func main() {
 	}
 	server.RegisterRoutes()
 
-	cron.Start(db, db, db, cache, mailer)
+	cron.Start(db, db, db, cache, mailer, cronLocker)
 
 	err = server.App.Listen(appConfig.API.Port)
 	log.Panic().Err(err).Msg("Failed to start REST API")

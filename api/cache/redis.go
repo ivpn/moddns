@@ -21,16 +21,31 @@ type RedisCache struct {
 	client *redis.Client
 }
 
-// NewRedisCache creates a new RedisCache instance
+// NewRedisCache creates a new RedisCache instance, opening its own Redis
+// connection from the provided config.
 func NewRedisCache(cfg *cache.Config) (*RedisCache, error) {
 	rdb, err := cache.NewRedisClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
+	return NewRedisCacheFromClient(rdb), nil
+}
+
+// NewRedisCacheFromClient creates a new RedisCache that reuses an
+// already-constructed *redis.Client. Use this when the same client must
+// be shared with other Redis-backed components (e.g. the cron locker)
+// to avoid maintaining multiple connection pools.
+func NewRedisCacheFromClient(client *redis.Client) *RedisCache {
 	return &RedisCache{
-		client: rdb,
-	}, nil
+		client: client,
+	}
+}
+
+// Client exposes the underlying Redis client so callers that need to
+// share the same connection pool (e.g. the cron locker) can reuse it.
+func (c *RedisCache) Client() *redis.Client {
+	return c.client
 }
 
 // Incr atomically increments the integer value of a key by one.
