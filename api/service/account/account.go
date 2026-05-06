@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	validatorv10 "github.com/go-playground/validator/v10"
@@ -46,6 +47,19 @@ type AccountService struct {
 	IDGenerator          idgen.Generator
 	Validate             *validatorv10.Validate
 	Http                 client.Http
+
+	// bgTasks tracks fire-and-forget goroutines spawned for best-effort work
+	// (e.g. welcome email send). Used by tests to deterministically wait for
+	// completion via WaitBackground().
+	bgTasks sync.WaitGroup
+}
+
+// WaitBackground blocks until all in-flight best-effort background tasks
+// (currently: welcome email dispatch) have completed. Production code does
+// not call this; it exists so tests can deterministically observe the side
+// effects of fire-and-forget goroutines before asserting on mocks.
+func (a *AccountService) WaitBackground() {
+	a.bgTasks.Wait()
 }
 
 // NewAccountService creates a new profile service
@@ -150,44 +164,68 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 	return acc, nil
 }
 
-// CompleteRegistration finalizes registration steps for an account.
-// Sends signup webhook, removes PASession cache entry, sends welcome email.
+// CompleteRegistration finalizes registration steps for an account. The blocking
+// part is just address-level validation; everything else (signup webhook,
+// PASession cache cleanup, welcome email) is best-effort and never aborts the
+// HTTP signup response — the account row is the durable source of truth and is
+// already persisted by the time this is called.
 func (a *AccountService) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
-	err := a.Http.SignupWebhook(subscriptionID)
-	if err != nil {
-		log.Debug().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to send signup webhook")
-	}
-
-	if err == nil {
-		// Remove PASession cache key (idempotent)
-		if rmErr := a.Cache.RemovePASession(ctx, sessionID); rmErr != nil {
-			log.Debug().Err(rmErr).Str("session_id", sessionID).Msg("Failed to remove PA session cache entry")
-		}
-		err = a.sendWelcomeEmail(ctx, account, account.Email)
-		if err != nil {
-			return err
-		}
-	}
-	return err
-}
-
-func (a *AccountService) sendWelcomeEmail(ctx context.Context, acc *model.Account, email string) error {
-	eg, _ := errgroup.WithContext(ctx)
-	eg.Go(func() (err error) { return a.Mailer.Verify(email) })
-	eg.Go(func() error {
-		return a.sendEmailCategory(acc, EmailCategoryWelcome, func() error {
-			err := a.Mailer.SendWelcomeEmail(ctx, email, "")
-			if err != nil {
-				log.Err(err).Msg("Failed to send welcome email")
-			}
-			return err
-		})
-	})
-	if err := eg.Wait(); err != nil {
-		log.Err(err).Msg(ErrFailedToCreateAccount.Error())
+	// Blocking: invalid email syntax / unreachable MX is a legitimate signup
+	// failure; better to surface it than to async-send into the void.
+	if err := a.validateEmailAddress(account.Email); err != nil {
+		log.Warn().Err(err).Str("email", account.Email).Msg("Email address validation failed during registration")
 		return err
 	}
+
+	// Best-effort: each step logs on failure and continues. Webhook failures
+	// are warn-level because the external IVPN account state is then out of
+	// sync until the user makes another request that re-fires it.
+	if err := a.Http.SignupWebhook(subscriptionID); err != nil {
+		log.Warn().Err(err).Str("subscription_id", subscriptionID).Msg("Signup webhook failed; will be retried on next user action")
+	}
+
+	if err := a.Cache.RemovePASession(ctx, sessionID); err != nil {
+		log.Debug().Err(err).Str("session_id", sessionID).Msg("Failed to remove PA session cache entry (TTL will eventually evict)")
+	}
+
+	a.dispatchWelcomeEmail(account, account.Email)
+
 	return nil
+}
+
+// validateEmailAddress runs the synchronous syntax/MX check. Failure should
+// fail signup because the address is unusable for any future communication.
+func (a *AccountService) validateEmailAddress(email string) error {
+	return a.Mailer.Verify(email)
+}
+
+// dispatchWelcomeEmail sends the welcome email in the background. The send
+// uses context.Background() so cancellation of the request context (which
+// happens as soon as the HTTP handler returns 201) does not abort the SMTP
+// call. Errors are logged but never propagated — welcome email is courtesy
+// and must not block signup.
+func (a *AccountService) dispatchWelcomeEmail(acc *model.Account, email string) {
+	a.bgTasks.Add(1)
+	go func() {
+		defer a.bgTasks.Done()
+		ctx := context.Background()
+		err := a.sendEmailCategory(acc, EmailCategoryWelcome, func() error {
+			return a.Mailer.SendWelcomeEmail(ctx, email, "")
+		})
+		if err != nil {
+			log.Warn().Err(err).
+				Str("account_id", acc.ID.Hex()).
+				Str("email", email).
+				Str("category", EmailCategoryWelcome).
+				Msg("Welcome email send failed; signup is unaffected")
+			return
+		}
+		log.Info().
+			Str("account_id", acc.ID.Hex()).
+			Str("email", email).
+			Str("category", EmailCategoryWelcome).
+			Msg("Welcome email sent")
+	}()
 }
 
 // RegisterAccountWithPreauth creates a new account with subscription from preauth data.

@@ -288,6 +288,11 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 			}
 			result, err := suite.service.GetUnfinishedSignupOrPostAccount(context.Background(), targetEmail, password, subID, sessionID)
 
+			// Welcome email is dispatched in a fire-and-forget goroutine; drain
+			// it before the subtest ends so its mailer mock call doesn't leak
+			// into the next subtest's expectations.
+			suite.service.WaitBackground()
+
 			if tt.expectError != "" {
 				suite.Error(err)
 				suite.Contains(err.Error(), tt.expectError)
@@ -2639,6 +2644,149 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 			suite.mockAccountRepo.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// TestCompleteRegistration_BlockingVsBestEffort asserts the design contract that
+// only address-level validation aborts the signup HTTP response; webhook,
+// PASession cache cleanup, and the welcome email send must all be best-effort
+// (logged on failure but never returned).
+//
+// Each subtest covers one row of the spec table T1-T7 in
+// /home/maciek/.claude/plans/whimsical-toasting-kahan.md.
+func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
+	const (
+		subID     = "subscription-id"
+		sessionID = "session-id"
+		email     = "user@example.com"
+	)
+	mkAcc := func(verified bool) *model.Account {
+		return &model.Account{
+			ID:            primitive.NewObjectID(),
+			Email:         email,
+			EmailVerified: verified,
+		}
+	}
+
+	suite.Run("T1 Verify failure aborts registration (syntax error)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(errors.New("invalid email format"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+
+		suite.Error(err)
+		suite.Contains(err.Error(), "invalid email format")
+		// Webhook / cache / send must not be attempted.
+		suite.service.WaitBackground()
+		suite.mockMailer.AssertNotCalled(suite.T(), "SendWelcomeEmail", mock.Anything, mock.Anything, mock.Anything)
+		suite.mockCache.AssertNotCalled(suite.T(), "RemovePASession", mock.Anything, mock.Anything)
+	})
+
+	suite.Run("T2 Verify failure aborts registration (MX not found)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(errors.New("MX record not found"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+
+		suite.Error(err)
+		suite.Contains(err.Error(), "MX record not found")
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T3 SendWelcomeEmail failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+
+		// Mailer fails, but the goroutine swallows the error.
+		callObserved := make(chan struct{})
+		suite.mockMailer.
+			On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) { close(callObserved) }).
+			Return(errors.New("smtp 4xx"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err, "signup must succeed even when SendWelcomeEmail fails")
+
+		suite.service.WaitBackground()
+		select {
+		case <-callObserved:
+		default:
+			suite.Failf("SendWelcomeEmail not invoked", "expected the dispatched goroutine to call SendWelcomeEmail")
+		}
+	})
+
+	suite.Run("T4 SignupWebhook failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		// SignupWebhook is called via the unconfigured HTTP client which fails
+		// against a non-existent URL. CompleteRegistration must still return nil.
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+
+		// Welcome email still dispatched (independent of webhook outcome).
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T5 RemovePASession failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(errors.New("redis nil"))
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T6 Unverified account still allowed for the welcome category (regression guard)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(false) // unverified — sendEmailCategory must still permit "welcome"
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T7 Goroutine uses an uncancelled context.Background()", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", mock.Anything, sessionID).Return(nil)
+
+		// Caller passes a context that we cancel immediately. The dispatched
+		// SendWelcomeEmail call must observe a fresh, uncancelled context.
+		reqCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		var observedCtxErr error
+		ctxRecorded := make(chan struct{})
+		suite.mockMailer.
+			On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				observedCtxErr = ctx.Err()
+				close(ctxRecorded)
+			}).
+			Return(nil)
+
+		err := suite.service.CompleteRegistration(reqCtx, acc, subID, sessionID)
+		suite.NoError(err)
+
+		suite.service.WaitBackground()
+		<-ctxRecorded
+		suite.NoError(observedCtxErr, "SendWelcomeEmail must run on an uncancelled context.Background()")
+	})
 }
 
 func TestAccountTestSuite(t *testing.T) {
