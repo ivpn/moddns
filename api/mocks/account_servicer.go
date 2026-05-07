@@ -41,16 +41,16 @@ func (_m *AccountServicer) EXPECT() *AccountServicer_Expecter {
 }
 
 // CompleteRegistration provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string) error {
-	ret := _mock.Called(ctx, account, subscriptionID)
+func (_mock *AccountServicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
+	ret := _mock.Called(ctx, account, subscriptionID, sessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CompleteRegistration")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) error); ok {
-		r0 = returnFunc(ctx, account, subscriptionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string, string) error); ok {
+		r0 = returnFunc(ctx, account, subscriptionID, sessionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,11 +66,12 @@ type AccountServicer_CompleteRegistration_Call struct {
 //   - ctx context.Context
 //   - account *model.Account
 //   - subscriptionID string
-func (_e *AccountServicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}) *AccountServicer_CompleteRegistration_Call {
-	return &AccountServicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID)}
+//   - sessionID string
+func (_e *AccountServicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}, sessionID interface{}) *AccountServicer_CompleteRegistration_Call {
+	return &AccountServicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID, sessionID)}
 }
 
-func (_c *AccountServicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string)) *AccountServicer_CompleteRegistration_Call {
+func (_c *AccountServicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string)) *AccountServicer_CompleteRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -84,10 +85,15 @@ func (_c *AccountServicer_CompleteRegistration_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -98,7 +104,7 @@ func (_c *AccountServicer_CompleteRegistration_Call) Return(err error) *AccountS
 	return _c
 }
 
-func (_c *AccountServicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string) error) *AccountServicer_CompleteRegistration_Call {
+func (_c *AccountServicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error) *AccountServicer_CompleteRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -383,8 +389,8 @@ func (_c *AccountServicer_GetAccountMetrics_Call) RunAndReturn(run func(ctx cont
 }
 
 // GetUnfinishedSignupOrPostAccount provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) GetUnfinishedSignupOrPostAccount(ctx context.Context, email string, password string, subscriptionID string) (*model.Account, error) {
-	ret := _mock.Called(ctx, email, password, subscriptionID)
+func (_mock *AccountServicer) GetUnfinishedSignupOrPostAccount(ctx context.Context, email string, password string, subscriptionID string, sessionID string) (*model.Account, error) {
+	ret := _mock.Called(ctx, email, password, subscriptionID, sessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUnfinishedSignupOrPostAccount")
@@ -392,18 +398,18 @@ func (_mock *AccountServicer) GetUnfinishedSignupOrPostAccount(ctx context.Conte
 
 	var r0 *model.Account
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.Account, error)); ok {
-		return returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*model.Account, error)); ok {
+		return returnFunc(ctx, email, password, subscriptionID, sessionID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.Account); ok {
-		r0 = returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *model.Account); ok {
+		r0 = returnFunc(ctx, email, password, subscriptionID, sessionID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.Account)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, email, password, subscriptionID, sessionID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -420,11 +426,12 @@ type AccountServicer_GetUnfinishedSignupOrPostAccount_Call struct {
 //   - email string
 //   - password string
 //   - subscriptionID string
-func (_e *AccountServicer_Expecter) GetUnfinishedSignupOrPostAccount(ctx interface{}, email interface{}, password interface{}, subscriptionID interface{}) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
-	return &AccountServicer_GetUnfinishedSignupOrPostAccount_Call{Call: _e.mock.On("GetUnfinishedSignupOrPostAccount", ctx, email, password, subscriptionID)}
+//   - sessionID string
+func (_e *AccountServicer_Expecter) GetUnfinishedSignupOrPostAccount(ctx interface{}, email interface{}, password interface{}, subscriptionID interface{}, sessionID interface{}) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
+	return &AccountServicer_GetUnfinishedSignupOrPostAccount_Call{Call: _e.mock.On("GetUnfinishedSignupOrPostAccount", ctx, email, password, subscriptionID, sessionID)}
 }
 
-func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ctx context.Context, email string, password string, subscriptionID string)) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
+func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ctx context.Context, email string, password string, subscriptionID string, sessionID string)) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -442,11 +449,16 @@ func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ct
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -457,7 +469,7 @@ func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) Return(account 
 	return _c
 }
 
-func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subscriptionID string) (*model.Account, error)) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
+func (_c *AccountServicer_GetUnfinishedSignupOrPostAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subscriptionID string, sessionID string) (*model.Account, error)) *AccountServicer_GetUnfinishedSignupOrPostAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -521,86 +533,6 @@ func (_c *AccountServicer_MfaCheck_Call) Return(err error) *AccountServicer_MfaC
 }
 
 func (_c *AccountServicer_MfaCheck_Call) RunAndReturn(run func(ctx context.Context, acc *model.Account, mfa *model.MfaData) error) *AccountServicer_MfaCheck_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// RegisterAccount provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) RegisterAccount(ctx context.Context, email string, password string, subID string) (*model.Account, error) {
-	ret := _mock.Called(ctx, email, password, subID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for RegisterAccount")
-	}
-
-	var r0 *model.Account
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.Account, error)); ok {
-		return returnFunc(ctx, email, password, subID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.Account); ok {
-		r0 = returnFunc(ctx, email, password, subID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.Account)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, email, password, subID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// AccountServicer_RegisterAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterAccount'
-type AccountServicer_RegisterAccount_Call struct {
-	*mock.Call
-}
-
-// RegisterAccount is a helper method to define mock.On call
-//   - ctx context.Context
-//   - email string
-//   - password string
-//   - subID string
-func (_e *AccountServicer_Expecter) RegisterAccount(ctx interface{}, email interface{}, password interface{}, subID interface{}) *AccountServicer_RegisterAccount_Call {
-	return &AccountServicer_RegisterAccount_Call{Call: _e.mock.On("RegisterAccount", ctx, email, password, subID)}
-}
-
-func (_c *AccountServicer_RegisterAccount_Call) Run(run func(ctx context.Context, email string, password string, subID string)) *AccountServicer_RegisterAccount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *AccountServicer_RegisterAccount_Call) Return(account *model.Account, err error) *AccountServicer_RegisterAccount_Call {
-	_c.Call.Return(account, err)
-	return _c
-}
-
-func (_c *AccountServicer_RegisterAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subID string) (*model.Account, error)) *AccountServicer_RegisterAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

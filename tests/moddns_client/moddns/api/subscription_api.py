@@ -16,11 +16,8 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field
 from typing import Any, Dict
-from typing_extensions import Annotated
 from moddns.models.model_subscription import ModelSubscription
-from moddns.models.requests_subscription_req import RequestsSubscriptionReq
 
 from moddns.api_client import ApiClient, RequestSerialized
 from moddns.api_response import ApiResponse
@@ -295,9 +292,8 @@ class SubscriptionApi:
 
 
     @validate_call
-    def api_v1_subscription_add_post(
+    def api_v1_sub_update_put(
         self,
-        body: Annotated[RequestsSubscriptionReq, Field(description="Subscription request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -311,12 +307,10 @@ class SubscriptionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> Dict[str, object]:
-        """Add subscription
+        """Update subscription via PASession
 
-        Add subscription and cache its presence
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
 
-        :param body: Subscription request (required)
-        :type body: RequestsSubscriptionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -339,8 +333,7 @@ class SubscriptionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_subscription_add_post_serialize(
-            body=body,
+        _param = self._api_v1_sub_update_put_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -350,7 +343,7 @@ class SubscriptionApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, object]",
             '400': "ApiErrResponse",
-            '500': "ApiErrResponse",
+            '401': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -364,9 +357,8 @@ class SubscriptionApi:
 
 
     @validate_call
-    def api_v1_subscription_add_post_with_http_info(
+    def api_v1_sub_update_put_with_http_info(
         self,
-        body: Annotated[RequestsSubscriptionReq, Field(description="Subscription request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -380,12 +372,10 @@ class SubscriptionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[Dict[str, object]]:
-        """Add subscription
+        """Update subscription via PASession
 
-        Add subscription and cache its presence
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
 
-        :param body: Subscription request (required)
-        :type body: RequestsSubscriptionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -408,8 +398,7 @@ class SubscriptionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_subscription_add_post_serialize(
-            body=body,
+        _param = self._api_v1_sub_update_put_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -419,7 +408,7 @@ class SubscriptionApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, object]",
             '400': "ApiErrResponse",
-            '500': "ApiErrResponse",
+            '401': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -433,9 +422,8 @@ class SubscriptionApi:
 
 
     @validate_call
-    def api_v1_subscription_add_post_without_preload_content(
+    def api_v1_sub_update_put_without_preload_content(
         self,
-        body: Annotated[RequestsSubscriptionReq, Field(description="Subscription request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -449,12 +437,10 @@ class SubscriptionApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Add subscription
+        """Update subscription via PASession
 
-        Add subscription and cache its presence
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
 
-        :param body: Subscription request (required)
-        :type body: RequestsSubscriptionReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -477,8 +463,7 @@ class SubscriptionApi:
         :return: Returns the result object.
         """ # noqa: E501
 
-        _param = self._api_v1_subscription_add_post_serialize(
-            body=body,
+        _param = self._api_v1_sub_update_put_serialize(
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -488,7 +473,7 @@ class SubscriptionApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "Dict[str, object]",
             '400': "ApiErrResponse",
-            '500': "ApiErrResponse",
+            '401': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -497,9 +482,8 @@ class SubscriptionApi:
         return response_data.response
 
 
-    def _api_v1_subscription_add_post_serialize(
+    def _api_v1_sub_update_put_serialize(
         self,
-        body,
         _request_auth,
         _content_type,
         _headers,
@@ -525,8 +509,6 @@ class SubscriptionApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
-        if body is not None:
-            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -537,27 +519,14 @@ class SubscriptionApi:
                 ]
             )
 
-        # set the HTTP header `Content-Type`
-        if _content_type:
-            _header_params['Content-Type'] = _content_type
-        else:
-            _default_content_type = (
-                self.api_client.select_header_content_type(
-                    [
-                        'application/json'
-                    ]
-                )
-            )
-            if _default_content_type is not None:
-                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
         ]
 
         return self.api_client.param_serialize(
-            method='POST',
-            resource_path='/api/v1/subscription/add',
+            method='PUT',
+            resource_path='/api/v1/sub/update',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

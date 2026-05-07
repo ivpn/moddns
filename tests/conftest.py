@@ -13,12 +13,17 @@ import redis
 from retry import retry
 from testcontainers.compose import DockerCompose
 
+import hashlib
+import base64
+import requests as http_requests
+
 import moddns.api_client as client
 import moddns.api as api
 import moddns.configuration as api_config
 from moddns import RequestsLoginBody
-from moddns.models.requests_subscription_req import RequestsSubscriptionReq
-from moddns.api.subscription_api import SubscriptionApi
+from moddns.api.pa_session_api import PASessionApi
+from moddns.models.requests_pa_session_req import RequestsPASessionReq
+from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
 from helpers import generate_complex_password
 from libs.settings import get_settings
@@ -94,39 +99,73 @@ def create_account_and_login():
     #     print(f"Warning: Failed to delete test account {account.id}: {str(e)}")
 
 
-def create_temp_subscription(validity_days: int = 30) -> str:
-    """Provision a temporary subscription using the public API instead of direct Redis write.
+def create_temp_subscription(validity_days: int = 30) -> tuple[str, str]:
+    """Provision a pre-auth session (PASession) for the ZLA signup flow.
 
     Flow:
-      1. Generate UUIDv4 subscription id
-      2. Compute ActiveUntil (UTC RFC3339)
-      3. Call POST /api/v1/subscription/add with PSK bearer token (API_PSK env var)
-      4. Return subscription id
-
-    The backend will cache the subscription presence with its configured TTL.
+      1. Generate a random token and compute its SHA256 hash
+      2. Create a preauth entry in the mock preauth service
+      3. Call POST /api/v1/pasession/add with PSK to cache the PASession
+      4. Call PUT /api/v1/pasession/rotate to get a rotated session cookie
+      5. Return (subscription_id, pa_session_cookie)
     """
+    config = get_settings()
+
     subscription_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    preauth_id = str(uuid.uuid4())
+    token = str(uuid.uuid4())  # random token
+
     active_until_dt = datetime.utcnow().replace(tzinfo=timezone.utc) + timedelta(
         days=validity_days
     )
     active_until = active_until_dt.isoformat().replace("+00:00", "Z")
 
-    config = get_settings()
+    # Compute token hash (SHA256, base64-encoded) matching what the API validates
+    token_hash = base64.b64encode(hashlib.sha256(token.encode()).digest()).decode()
+
+    # 1. Create preauth entry in mock preauth service
+    mock_preauth_url = _os.getenv("MOCK_PREAUTH_URL", "http://localhost:8080")
+    http_requests.post(
+        f"{mock_preauth_url}/entry",
+        json={
+            "id": preauth_id,
+            "token_hash": token_hash,
+            "is_active": True,
+            "active_until": active_until,
+            "tier": "Tier 2",
+        },
+    ).raise_for_status()
+
+    # 2. Add PASession via API (PSK-protected endpoint)
     api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    psk = ""  # _os.getenv("API_PSK", "supersecretpsk")  # empty PSK works fine if no PSK is set in API .env
+    psk = ""  # empty PSK works if no PSK is set in API .env
 
     with client.ApiClient(api_conf) as api_client:
-        sub_api = SubscriptionApi(api_client)
-        # Provide PSK via Authorization header
-        sub_api.api_client.default_headers["Authorization"] = f"Bearer {psk}"
-        body = RequestsSubscriptionReq(id=subscription_id, active_until=active_until)
-        resp = sub_api.api_v1_subscription_add_post(body=body)
-        # Expect 200 with message
+        pa_api = PASessionApi(api_client)
+        pa_api.api_client.default_headers["Authorization"] = f"Bearer {psk}"
+        body = RequestsPASessionReq(id=session_id, preauth_id=preauth_id, token=token)
+        resp = pa_api.api_v1_pasession_add_post(body=body)
         assert (
-            resp.get("message") == "subscription added"
-        ), f"Unexpected subscription add response: {resp}"
+            resp.get("message") == "pre-auth session added"
+        ), f"Unexpected PASession add response: {resp}"
 
-    return subscription_id
+    # 3. Rotate PASession to get cookie
+    with client.ApiClient(api_conf) as api_client:
+        pa_api = PASessionApi(api_client)
+        rotate_body = RequestsRotatePASessionReq(sessionid=session_id)
+        rotate_resp = pa_api.api_v1_pasession_rotate_put_with_http_info(
+            body=rotate_body
+        )
+        assert rotate_resp.status_code == 200, (
+            f"PASession rotation failed: {rotate_resp.status_code}"
+        )
+        pa_cookie = rotate_resp.headers.get("Set-Cookie", "")
+        assert "pa_session=" in pa_cookie, (
+            f"No pa_session cookie in rotation response: {pa_cookie}"
+        )
+
+    return subscription_id, pa_cookie
 
 
 def create_acc_and_login_func():
@@ -149,9 +188,11 @@ def create_acc_and_login_func():
         )
         password = generate_complex_password()
 
-        # Prepare subscription marker in cache
-        subscription_id = create_temp_subscription()
+        # Prepare PASession for ZLA signup flow
+        subscription_id, pa_cookie = create_temp_subscription()
 
+        # Set pa_session cookie for registration
+        account_api.api_client.default_headers["Cookie"] = pa_cookie
         reg_resp = account_api.api_v1_accounts_post_with_http_info(
             body={"email": email, "password": password, "subid": subscription_id}
         )

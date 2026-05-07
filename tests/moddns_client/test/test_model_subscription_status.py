@@ -14,10 +14,10 @@
 
 import unittest
 
-from moddns.models.model_subscription_type import ModelSubscriptionType
+from moddns.models.model_subscription_status import ModelSubscriptionStatus
 
-class TestModelSubscriptionType(unittest.TestCase):
-    """ModelSubscriptionType unit test stubs"""
+class TestModelSubscriptionStatus(unittest.TestCase):
+    """ModelSubscriptionStatus unit test stubs"""
 
     def setUp(self):
         pass
@@ -25,9 +25,9 @@ class TestModelSubscriptionType(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def testModelSubscriptionType(self):
-        """Test ModelSubscriptionType"""
-        # inst = ModelSubscriptionType()
+    def testModelSubscriptionStatus(self):
+        """Test ModelSubscriptionStatus"""
+        # inst = ModelSubscriptionStatus()
 
 if __name__ == '__main__':
     unittest.main()

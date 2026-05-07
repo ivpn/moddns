@@ -14,6 +14,8 @@ import QRCode from "react-qr-code";
 import api from "@/api/api";
 import { RequestsAdvancedOptionsReqEncryptionTypeEnum } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import type { JSX } from "react";
 
 interface FormData {
@@ -37,6 +39,7 @@ export default function MobileconfigGenerator(): JSX.Element {
         navigate('/setup', { state: { platform, fromMobileconfig: true } });
     };
     const activeProfile = useAppStore((state) => state.activeProfile);
+    const { isRestricted } = useSubscriptionGuard();
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isGeneratingQR, setIsGeneratingQR] = useState(false);
@@ -236,6 +239,7 @@ export default function MobileconfigGenerator(): JSX.Element {
     return (
         <div className="w-full px-4 sm:px-6 py-6 mt-20 overflow-x-hidden break-words min-w-0 [word-break:break-word]">
             <div className="max-w-[840px] xl:max-w-[760px] 2xl:max-w-[700px] mx-auto space-y-6">
+                <LimitedAccessBanner />
                 <div className="flex justify-center mb-6">
                     <Button
                         onClick={handleBack}
@@ -437,17 +441,22 @@ export default function MobileconfigGenerator(): JSX.Element {
                             </div>
                         )}
 
-                        {/* Action Buttons */}
+                        {/* Action Buttons — POST /mobileconfig is blocked in LA; span hosts cursor-not-allowed + title because disabled buttons don't receive pointer events */}
                         <div className="space-y-4">
-                            <Button
-                                onClick={downloadMobileConfig}
-                                disabled={!activeProfile?.profile_id || isDownloading || !deviceIdValid}
-                                className="w-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-slate-900)] font-medium"
-                                size="lg"
+                            <span
+                                title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
+                                className={isRestricted ? 'block w-full cursor-not-allowed' : undefined}
                             >
-                                <Download className="w-4 h-4 mr-2" />
-                                {isDownloading ? "Downloading..." : "Download Configuration Profile"}
-                            </Button>
+                                <Button
+                                    onClick={downloadMobileConfig}
+                                    disabled={!activeProfile?.profile_id || isDownloading || !deviceIdValid || isRestricted}
+                                    className={`w-full bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-slate-900)] font-medium ${isRestricted ? 'pointer-events-none opacity-50' : ''}`}
+                                    size="lg"
+                                >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    {isDownloading ? "Downloading..." : "Download Configuration Profile"}
+                                </Button>
+                            </span>
 
                             <div className="flex items-center gap-4">
                                 <Separator className="flex-1 bg-[var(--tailwind-colors-slate-600)]" />
@@ -455,16 +464,21 @@ export default function MobileconfigGenerator(): JSX.Element {
                                 <Separator className="flex-1 bg-[var(--tailwind-colors-slate-600)]" />
                             </div>
 
-                            <Button
-                                onClick={generateQRCode}
-                                disabled={!activeProfile?.profile_id || isGeneratingQR || !deviceIdValid}
-                                variant="outline"
-                                className="w-full border-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-slate-900)]"
-                                size="lg"
+                            <span
+                                title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
+                                className={isRestricted ? 'block w-full cursor-not-allowed' : undefined}
                             >
-                                <QrCode className="w-4 h-4 mr-2" />
-                                {isGeneratingQR ? "Generating QR Code..." : "Generate QR Code"}
-                            </Button>
+                                <Button
+                                    onClick={generateQRCode}
+                                    disabled={!activeProfile?.profile_id || isGeneratingQR || !deviceIdValid || isRestricted}
+                                    variant="outline"
+                                    className={`w-full border-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-slate-900)] ${isRestricted ? 'pointer-events-none opacity-50' : ''}`}
+                                    size="lg"
+                                >
+                                    <QrCode className="w-4 h-4 mr-2" />
+                                    {isGeneratingQR ? "Generating QR Code..." : "Generate QR Code"}
+                                </Button>
+                            </span>
                         </div>
                     </CardContent>
                 </Card>

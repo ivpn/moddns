@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import api from "@/api/api";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import {
     Dialog,
     DialogContent,
@@ -36,6 +37,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
 }) => {
     const [showClearDialog, setShowClearDialog] = useState(false);
     const [clearLoading, setClearLoading] = useState(false);
+    const { isRestricted } = useSubscriptionGuard();
 
     const handleClearLogs = async () => {
         setClearLoading(true);
@@ -62,6 +64,9 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                         </div>
                     </div>
 
+                    {/* Toggle group — PATCH /profiles/{id} blocked in LA, so gate visually */}
+                    <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>
+                    <div className={`flex flex-col items-start gap-6 w-full ${isRestricted ? 'opacity-50 pointer-events-none' : ''}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full">
                         <div className="flex flex-col items-start gap-2 min-w-0 max-w-full">
                             <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words">Query logs</div>
@@ -138,7 +143,9 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                             />
                         </div>
                     ))}
-
+                    </div>
+                    </div>
+                    {/* Action buttons — Download (GET) and Clear (DELETE on logs) are LA-allowed at API level */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
                         <Button
                             variant="outline"

@@ -119,7 +119,7 @@ func (r *SessionRepository) GetSession(ctx context.Context, token string) (model
 }
 
 // SaveSession saves a webauthn session
-func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, accID string, purpose string) error {
+func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, accID string, purpose string, subID string) error {
 	// Serialize the webauthn session data to JSON
 	dataBytes, err := json.Marshal(sessionData)
 	if err != nil {
@@ -132,6 +132,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 		AccountID:    accID,
 		Data:         dataBytes,
 		Purpose:      purpose,
+		SubID:        subID,
 		LastModified: time.Now(),
 	}
 

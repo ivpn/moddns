@@ -109,10 +109,13 @@ func (s *APIServer) RegisterRoutes() {
 
 	v1.Post("/login", middleware.NewLimit(10, 1*time.Minute), s.login())
 
-	// PSK-provisioning subscription endpoint (outside v1 auth chain)
-	subscriptions := s.App.Group("/api/v1/subscription")
-	subscriptions.Use(middleware.NewPSK(*s.Config.API))
-	subscriptions.Post("/add", middleware.NewLimit(10, 1*time.Minute), s.addSubscription())
+	// PSK-protected PASession add endpoint (outside v1 auth chain)
+	pasessionPSK := s.App.Group("/api/v1/pasession/add")
+	pasessionPSK.Use(middleware.NewPSK(*s.Config.API))
+	pasessionPSK.Post("", middleware.NewLimit(10, 1*time.Minute), s.addPASession())
+
+	// Public PASession rotation endpoint (no auth, rate limited only)
+	v1.Put("/pasession/rotate", middleware.NewLimit(10, 1*time.Minute), s.rotatePASession())
 
 	accounts := v1.Group("/accounts")
 	profiles := v1.Group("/profiles")
@@ -142,9 +145,11 @@ func (s *APIServer) RegisterRoutes() {
 
 	// Protected endpoints start here (note: only v1 group is protected)
 	v1.Use(middleware.NewAuth(&s.Service, s.Config.API, func(c *fiber.Ctx) bool { return true }))
+	v1.Use(middleware.NewSubscriptionGuard(s.Service.SubscriptionServicer))
 
 	// Subscription (protected) endpoint (session auth only)
 	sub.Get("", middleware.NewLimit(40, 1*time.Minute), s.getSubscription())
+	sub.Put("/update", middleware.NewLimit(10, 1*time.Minute), s.updateSubscription())
 
 	// Email verification OTP (requires auth)
 	verify.Post("/email/otp/request", middleware.NewLimit(10, 1*time.Minute), s.requestEmailVerificationOTP())

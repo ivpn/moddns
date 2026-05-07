@@ -2,7 +2,7 @@
 
 Tests interactions between domain-phase (pre-resolve) and IP-phase
 (post-resolve) filters, covering scenarios from the behaviour table
-in docs/proxy-filtering-behaviour.md.
+in docs/specs/proxy-filtering-behaviour.md.
 
 Test domains (controlled via testhosts.txt -> sdns hostsfile):
   - test.com             -> 104.18.74.230  (Cloudflare AS13335, NOT in catalog)

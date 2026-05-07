@@ -96,7 +96,7 @@ func (s *APIServer) login() fiber.Handler {
 			})
 		}
 
-		err = s.Service.SaveSession(c.Context(), sessionData, token, acc.ID.Hex(), "")
+		err = s.Service.SaveSession(c.Context(), sessionData, token, acc.ID.Hex(), "", "")
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
 				"error": ErrSaveSession,

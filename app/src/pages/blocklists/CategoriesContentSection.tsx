@@ -139,6 +139,7 @@ interface CategoriesContentSectionProps {
     onCategoryToggle: (blocklistIds: string[], enable: boolean) => void;
     updating: string | null;
     loading: boolean;
+    restricted?: boolean;
 }
 
 interface PreparedCategory {
@@ -159,6 +160,7 @@ export default function CategoriesContentSection({
     onCategoryToggle,
     updating,
     loading,
+    restricted = false,
 }: CategoriesContentSectionProps): JSX.Element {
     const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
@@ -270,6 +272,7 @@ export default function CategoriesContentSection({
                                 setExpandedCategory(expandedCategory === key ? null : key)
                             }
                             onBlocklistToggle={onToggle}
+                            restricted={restricted}
                         />
                     )}
                 </ScrollArea>
@@ -320,6 +323,7 @@ interface CategoriesGridProps {
     onCategoryToggle: (key: string) => void;
     onExpandToggle: (key: string) => void;
     onBlocklistToggle: (id: string, checked: boolean) => void;
+    restricted?: boolean;
 }
 
 function CategoriesGrid({
@@ -331,6 +335,7 @@ function CategoriesGrid({
     onCategoryToggle,
     onExpandToggle,
     onBlocklistToggle,
+    restricted = false,
 }: CategoriesGridProps) {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6 pb-8">
@@ -347,7 +352,7 @@ function CategoriesGrid({
                             totalEntries={cat.totalEntries}
                             lastUpdated={formatUpdatedRelative(cat.mostRecent)}
                             onToggle={() => onCategoryToggle(cat.key)}
-                            toggleDisabled={updating !== null}
+                            toggleDisabled={updating !== null || restricted}
                             expanded={isExpanded}
                             onExpandToggle={() => onExpandToggle(cat.key)}
                         />
@@ -370,7 +375,7 @@ function CategoriesGrid({
                                                 updated={formatUpdatedRelative(bl.last_modified)}
                                                 onSwitchChange={(checked) => onBlocklistToggle(bl.blocklist_id, checked)}
                                                 switchChecked={isEnabled}
-                                                switchDisabled={updating === bl.blocklist_id}
+                                                switchDisabled={updating === bl.blocklist_id || restricted}
                                                 homepage={bl.homepage}
                                             />
                                         );

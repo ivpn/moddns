@@ -28,7 +28,7 @@ function formatASNsTitle(asns?: Array<number>): string {
 
 type StatusFilter = "all" | "blocked" | "unblocked";
 
-export default function ServicesContentSection(): JSX.Element {
+export default function ServicesContentSection({ restricted = false }: { restricted?: boolean }): JSX.Element {
     const activeProfile = useAppStore((state) => state.activeProfile);
     const setActiveProfile = useAppStore((state) => state.setActiveProfile);
     const { theme } = useTheme();
@@ -216,7 +216,7 @@ export default function ServicesContentSection(): JSX.Element {
                                         logoSrc={logoSrc}
                                         onSwitchChange={(checked) => handleServiceSwitch(id, checked)}
                                         switchChecked={isBlocked}
-                                        switchDisabled={updating === id || !id}
+                                        switchDisabled={updating === id || !id || restricted}
                                     />
                                 );
                             })

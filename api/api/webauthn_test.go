@@ -122,7 +122,7 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
-	suite.mockDB.On("SaveSession", mock.Anything, mock.Anything, mock.AnythingOfType("string"), accountID.Hex(), "email_change").Return(nil).Once()
+	suite.mockDB.On("SaveSession", mock.Anything, mock.Anything, mock.AnythingOfType("string"), accountID.Hex(), "email_change", "").Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
 

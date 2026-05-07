@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -1204,6 +1205,130 @@ func (_c *Db_EnableServices_Call) RunAndReturn(run func(ctx context.Context, pro
 	return _c
 }
 
+// FindExpiredUnnotified provides a mock function for the type Db
+func (_mock *Db) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindExpiredUnnotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindExpiredUnnotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindExpiredUnnotified'
+type Db_FindExpiredUnnotified_Call struct {
+	*mock.Call
+}
+
+// FindExpiredUnnotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) FindExpiredUnnotified(ctx interface{}) *Db_FindExpiredUnnotified_Call {
+	return &Db_FindExpiredUnnotified_Call{Call: _e.mock.On("FindExpiredUnnotified", ctx)}
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) Run(run func(ctx context.Context)) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindExpiredUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindExpiredUnnotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindPendingDeleteUnnotified provides a mock function for the type Db
+func (_mock *Db) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindPendingDeleteUnnotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindPendingDeleteUnnotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindPendingDeleteUnnotified'
+type Db_FindPendingDeleteUnnotified_Call struct {
+	*mock.Call
+}
+
+// FindPendingDeleteUnnotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) FindPendingDeleteUnnotified(ctx interface{}) *Db_FindPendingDeleteUnnotified_Call {
+	return &Db_FindPendingDeleteUnnotified_Call{Call: _e.mock.On("FindPendingDeleteUnnotified", ctx)}
+}
+
+func (_c *Db_FindPendingDeleteUnnotified_Call) Run(run func(ctx context.Context)) *Db_FindPendingDeleteUnnotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindPendingDeleteUnnotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindPendingDeleteUnnotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindPendingDeleteUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindPendingDeleteUnnotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function for the type Db
 func (_mock *Db) Get(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
 	ret := _mock.Called(ctx, filter, sortBy)
@@ -2270,55 +2395,44 @@ func (_c *Db_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
-// GetSubscriptionById provides a mock function for the type Db
-func (_mock *Db) GetSubscriptionById(ctx context.Context, subscriptionId string) (*model.Subscription, error) {
-	ret := _mock.Called(ctx, subscriptionId)
+// MarkNotified provides a mock function for the type Db
+func (_mock *Db) MarkNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
+	ret := _mock.Called(ctx, subscriptionIDs)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetSubscriptionById")
+		panic("no return value specified for MarkNotified")
 	}
 
-	var r0 *model.Subscription
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.Subscription, error)); ok {
-		return returnFunc(ctx, subscriptionId)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.Subscription); ok {
-		r0 = returnFunc(ctx, subscriptionId)
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.Subscription)
-		}
+		r0 = ret.Error(0)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, subscriptionId)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
-// Db_GetSubscriptionById_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSubscriptionById'
-type Db_GetSubscriptionById_Call struct {
+// Db_MarkNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkNotified'
+type Db_MarkNotified_Call struct {
 	*mock.Call
 }
 
-// GetSubscriptionById is a helper method to define mock.On call
+// MarkNotified is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subscriptionId string
-func (_e *Db_Expecter) GetSubscriptionById(ctx interface{}, subscriptionId interface{}) *Db_GetSubscriptionById_Call {
-	return &Db_GetSubscriptionById_Call{Call: _e.mock.On("GetSubscriptionById", ctx, subscriptionId)}
+//   - subscriptionIDs []uuid.UUID
+func (_e *Db_Expecter) MarkNotified(ctx interface{}, subscriptionIDs interface{}) *Db_MarkNotified_Call {
+	return &Db_MarkNotified_Call{Call: _e.mock.On("MarkNotified", ctx, subscriptionIDs)}
 }
 
-func (_c *Db_GetSubscriptionById_Call) Run(run func(ctx context.Context, subscriptionId string)) *Db_GetSubscriptionById_Call {
+func (_c *Db_MarkNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID)) *Db_MarkNotified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 []uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].([]uuid.UUID)
 		}
 		run(
 			arg0,
@@ -2328,12 +2442,69 @@ func (_c *Db_GetSubscriptionById_Call) Run(run func(ctx context.Context, subscri
 	return _c
 }
 
-func (_c *Db_GetSubscriptionById_Call) Return(subscription *model.Subscription, err error) *Db_GetSubscriptionById_Call {
-	_c.Call.Return(subscription, err)
+func (_c *Db_MarkNotified_Call) Return(err error) *Db_MarkNotified_Call {
+	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Db_GetSubscriptionById_Call) RunAndReturn(run func(ctx context.Context, subscriptionId string) (*model.Subscription, error)) *Db_GetSubscriptionById_Call {
+func (_c *Db_MarkNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID) error) *Db_MarkNotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkPendingDeleteNotified provides a mock function for the type Db
+func (_mock *Db) MarkPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
+	ret := _mock.Called(ctx, subscriptionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPendingDeleteNotified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_MarkPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPendingDeleteNotified'
+type Db_MarkPendingDeleteNotified_Call struct {
+	*mock.Call
+}
+
+// MarkPendingDeleteNotified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subscriptionIDs []uuid.UUID
+func (_e *Db_Expecter) MarkPendingDeleteNotified(ctx interface{}, subscriptionIDs interface{}) *Db_MarkPendingDeleteNotified_Call {
+	return &Db_MarkPendingDeleteNotified_Call{Call: _e.mock.On("MarkPendingDeleteNotified", ctx, subscriptionIDs)}
+}
+
+func (_c *Db_MarkPendingDeleteNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID)) *Db_MarkPendingDeleteNotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_MarkPendingDeleteNotified_Call) Return(err error) *Db_MarkPendingDeleteNotified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_MarkPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID) error) *Db_MarkPendingDeleteNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2508,6 +2679,108 @@ func (_c *Db_RemoveProfileFromAccount_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// ResetNotifiedForActive provides a mock function for the type Db
+func (_mock *Db) ResetNotifiedForActive(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetNotifiedForActive")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_ResetNotifiedForActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetNotifiedForActive'
+type Db_ResetNotifiedForActive_Call struct {
+	*mock.Call
+}
+
+// ResetNotifiedForActive is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ResetNotifiedForActive(ctx interface{}) *Db_ResetNotifiedForActive_Call {
+	return &Db_ResetNotifiedForActive_Call{Call: _e.mock.On("ResetNotifiedForActive", ctx)}
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) Run(run func(ctx context.Context)) *Db_ResetNotifiedForActive_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) Return(err error) *Db_ResetNotifiedForActive_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_ResetNotifiedForActive_Call) RunAndReturn(run func(ctx context.Context) error) *Db_ResetNotifiedForActive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetPendingDeleteNotifiedForActive provides a mock function for the type Db
+func (_mock *Db) ResetPendingDeleteNotifiedForActive(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetPendingDeleteNotifiedForActive")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_ResetPendingDeleteNotifiedForActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetPendingDeleteNotifiedForActive'
+type Db_ResetPendingDeleteNotifiedForActive_Call struct {
+	*mock.Call
+}
+
+// ResetPendingDeleteNotifiedForActive is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ResetPendingDeleteNotifiedForActive(ctx interface{}) *Db_ResetPendingDeleteNotifiedForActive_Call {
+	return &Db_ResetPendingDeleteNotifiedForActive_Call{Call: _e.mock.On("ResetPendingDeleteNotifiedForActive", ctx)}
+}
+
+func (_c *Db_ResetPendingDeleteNotifiedForActive_Call) Run(run func(ctx context.Context)) *Db_ResetPendingDeleteNotifiedForActive_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ResetPendingDeleteNotifiedForActive_Call) Return(err error) *Db_ResetPendingDeleteNotifiedForActive_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_ResetPendingDeleteNotifiedForActive_Call) RunAndReturn(run func(ctx context.Context) error) *Db_ResetPendingDeleteNotifiedForActive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveCredential provides a mock function for the type Db
 func (_mock *Db) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
 	ret := _mock.Called(ctx, credential, accountID)
@@ -2572,16 +2845,16 @@ func (_c *Db_SaveCredential_Call) RunAndReturn(run func(ctx context.Context, cre
 }
 
 // SaveSession provides a mock function for the type Db
-func (_mock *Db) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string) error {
-	ret := _mock.Called(ctx, sessionData, token, userID, purpose)
+func (_mock *Db) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string) error {
+	ret := _mock.Called(ctx, sessionData, token, userID, purpose, subID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string) error); ok {
-		r0 = returnFunc(ctx, sessionData, token, userID, purpose)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string, string) error); ok {
+		r0 = returnFunc(ctx, sessionData, token, userID, purpose, subID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2599,11 +2872,12 @@ type Db_SaveSession_Call struct {
 //   - token string
 //   - userID string
 //   - purpose string
-func (_e *Db_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}, purpose interface{}) *Db_SaveSession_Call {
-	return &Db_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID, purpose)}
+//   - subID string
+func (_e *Db_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}, purpose interface{}, subID interface{}) *Db_SaveSession_Call {
+	return &Db_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID, purpose, subID)}
 }
 
-func (_c *Db_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string)) *Db_SaveSession_Call {
+func (_c *Db_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string)) *Db_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2625,12 +2899,17 @@ func (_c *Db_SaveSession_Call) Run(run func(ctx context.Context, sessionData web
 		if args[4] != nil {
 			arg4 = args[4].(string)
 		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5,
 		)
 	})
 	return _c
@@ -2641,7 +2920,7 @@ func (_c *Db_SaveSession_Call) Return(err error) *Db_SaveSession_Call {
 	return _c
 }
 
-func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string) error) *Db_SaveSession_Call {
+func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string) error) *Db_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

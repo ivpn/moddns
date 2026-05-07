@@ -108,6 +108,8 @@ Class | Method | HTTP request | Description
 *AuthenticationApi* | [**api_v1_webauthn_register_begin_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_begin_post) | **POST** /api/v1/webauthn/register/begin | Begin passkey registration
 *AuthenticationApi* | [**api_v1_webauthn_register_finish_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_finish_post) | **POST** /api/v1/webauthn/register/finish | Finish passkey registration
 *BlocklistsApi* | [**api_v1_blocklists_get**](docs/BlocklistsApi.md#api_v1_blocklists_get) | **GET** /api/v1/blocklists | Get blocklists data
+*PASessionApi* | [**api_v1_pasession_add_post**](docs/PASessionApi.md#api_v1_pasession_add_post) | **POST** /api/v1/pasession/add | Add pre-auth session
+*PASessionApi* | [**api_v1_pasession_rotate_put**](docs/PASessionApi.md#api_v1_pasession_rotate_put) | **PUT** /api/v1/pasession/rotate | Rotate pre-auth session ID
 *ProfileApi* | [**api_v1_profiles_get**](docs/ProfileApi.md#api_v1_profiles_get) | **GET** /api/v1/profiles | Get profiles data
 *ProfileApi* | [**api_v1_profiles_id_blocklists_delete**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_delete) | **DELETE** /api/v1/profiles/{id}/blocklists | Disable blocklists
 *ProfileApi* | [**api_v1_profiles_id_blocklists_post**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_post) | **POST** /api/v1/profiles/{id}/blocklists | Enable blocklists
@@ -127,7 +129,7 @@ Class | Method | HTTP request | Description
 *SessionsApi* | [**api_v1_sessions_delete**](docs/SessionsApi.md#api_v1_sessions_delete) | **DELETE** /api/v1/sessions | Delete all other sessions
 *StatisticsApi* | [**api_v1_profiles_id_statistics_get**](docs/StatisticsApi.md#api_v1_profiles_id_statistics_get) | **GET** /api/v1/profiles/{id}/statistics | Get statistics data for a profile
 *SubscriptionApi* | [**api_v1_sub_get**](docs/SubscriptionApi.md#api_v1_sub_get) | **GET** /api/v1/sub | Get subscription data
-*SubscriptionApi* | [**api_v1_subscription_add_post**](docs/SubscriptionApi.md#api_v1_subscription_add_post) | **POST** /api/v1/subscription/add | Add subscription
+*SubscriptionApi* | [**api_v1_sub_update_put**](docs/SubscriptionApi.md#api_v1_sub_update_put) | **PUT** /api/v1/sub/update | Update subscription via PASession
 *VerificationApi* | [**api_v1_verify_email_otp_confirm_post**](docs/VerificationApi.md#api_v1_verify_email_otp_confirm_post) | **POST** /api/v1/verify/email/otp/confirm | Confirm email verification OTP
 *VerificationApi* | [**api_v1_verify_email_otp_request_post**](docs/VerificationApi.md#api_v1_verify_email_otp_request_post) | **POST** /api/v1/verify/email/otp/request | Request email verification OTP
 *VerificationApi* | [**api_v1_verify_reset_password_post**](docs/VerificationApi.md#api_v1_verify_reset_password_post) | **POST** /api/v1/verify/reset-password | Confirm password reset
@@ -163,7 +165,7 @@ Class | Method | HTTP request | Description
  - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)
  - [ModelStatisticsSettings](docs/ModelStatisticsSettings.md)
  - [ModelSubscription](docs/ModelSubscription.md)
- - [ModelSubscriptionType](docs/ModelSubscriptionType.md)
+ - [ModelSubscriptionStatus](docs/ModelSubscriptionStatus.md)
  - [ModelTOTPBackup](docs/ModelTOTPBackup.md)
  - [ModelTOTPNew](docs/ModelTOTPNew.md)
  - [ModelTotpSettings](docs/ModelTotpSettings.md)
@@ -193,9 +195,10 @@ Class | Method | HTTP request | Description
  - [RequestsCreateProfileCustomRulesBatchBody](docs/RequestsCreateProfileCustomRulesBatchBody.md)
  - [RequestsLoginBody](docs/RequestsLoginBody.md)
  - [RequestsMobileConfigReq](docs/RequestsMobileConfigReq.md)
+ - [RequestsPASessionReq](docs/RequestsPASessionReq.md)
  - [RequestsProfileUpdates](docs/RequestsProfileUpdates.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
- - [RequestsSubscriptionReq](docs/RequestsSubscriptionReq.md)
+ - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
  - [RequestsWebAuthnReauthBeginRequest](docs/RequestsWebAuthnReauthBeginRequest.md)
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)

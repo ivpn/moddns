@@ -4,6 +4,7 @@ import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { Button } from "@/components/ui/button";
 import type { ModelProfile } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import ProfileDropdown from "@/pages/header/ProfileDropdown";
 import BlocklistsPreferencesDialog from '@/pages/header/BlocklistsPreferencesDialog';
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
@@ -56,6 +57,9 @@ export default function Header({
 
     // State to control BlocklistsPreferencesDialog open/close
     const [showBlocklistsDialog, setShowBlocklistsDialog] = useState(false);
+    // The Preferences dialog mutates profile settings (PATCH /api/v1/profiles/{id}),
+    // which is blocked in LA / PD. Disable the trigger and show cursor-not-allowed.
+    const { isRestricted } = useSubscriptionGuard();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const [logoutLoading, setLogoutLoading] = useState(false);
     // Logout handler
@@ -121,15 +125,24 @@ export default function Header({
                     ) : null}
                     {showDialogTrigger && (
                         <>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="w-9 h-9 p-0 flex items-center justify-center bg-[var(--tailwind-colors-slate-800)] rounded-md border-0"
-                                onClick={() => setShowBlocklistsDialog(true)}
+                            <span
+                                title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
+                                className={isRestricted ? 'inline-block cursor-not-allowed' : undefined}
                             >
-                                <Settings2 className="h-4 w-4 text-[var(--tailwind-colors-rdns-600)]" />
-                            </Button>
-                            <BlocklistsPreferencesDialog currentProfile={currentProfile!} open={showBlocklistsDialog} onOpenChange={setShowBlocklistsDialog} />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    aria-label="Open blocklists preferences"
+                                    disabled={isRestricted}
+                                    className={`w-9 h-9 p-0 flex items-center justify-center bg-[var(--tailwind-colors-slate-800)] rounded-md border-0 ${isRestricted ? 'pointer-events-none opacity-50' : ''}`}
+                                    onClick={() => setShowBlocklistsDialog(true)}
+                                >
+                                    <Settings2 className="h-4 w-4 text-[var(--tailwind-colors-rdns-600)]" />
+                                </Button>
+                            </span>
+                            {!isRestricted && (
+                                <BlocklistsPreferencesDialog currentProfile={currentProfile!} open={showBlocklistsDialog} onOpenChange={setShowBlocklistsDialog} />
+                            )}
                         </>
                     )}
                 </div>
@@ -185,21 +198,27 @@ export default function Header({
                         {currentPageName}
                     </h2>
                     {location.pathname === '/blocklists' && (
-                        <Button
-                            variant="outline"
-                            size="icon"
-                            aria-label="Open blocklists preferences"
-                            className="w-11 h-11 min-h-11 p-0 flex items-center justify-center bg-[var(--tailwind-colors-slate-800)] border-0 rounded-lg"
-                            onClick={() => setShowBlocklistsDialog(true)}
+                        <span
+                            title={isRestricted ? "Feature unavailable in limited access mode" : undefined}
+                            className={isRestricted ? 'inline-block cursor-not-allowed' : undefined}
                         >
-                            <Settings2 className="h-5 w-5 text-[var(--tailwind-colors-rdns-600)]" />
-                        </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                aria-label="Open blocklists preferences"
+                                disabled={isRestricted}
+                                className={`w-11 h-11 min-h-11 p-0 flex items-center justify-center bg-[var(--tailwind-colors-slate-800)] border-0 rounded-lg ${isRestricted ? 'pointer-events-none opacity-50' : ''}`}
+                                onClick={() => setShowBlocklistsDialog(true)}
+                            >
+                                <Settings2 className="h-5 w-5 text-[var(--tailwind-colors-rdns-600)]" />
+                            </Button>
+                        </span>
                     )}
                 </div>
             )}
 
-            {/* Settings Dialog for mobile */}
-            {showDialogTrigger && (
+            {/* Settings Dialog for mobile — only mounted when the user can actually use it */}
+            {showDialogTrigger && !isRestricted && (
                 <BlocklistsPreferencesDialog
                     currentProfile={currentProfile!}
                     open={showBlocklistsDialog}

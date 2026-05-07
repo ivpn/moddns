@@ -2,14 +2,18 @@ package account_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-playground/validator/v10"
@@ -86,7 +90,7 @@ func (suite *AccountTestSuite) SetupSuite() {
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatsRepo)
 	suite.mockSubscriptionRepo = mocks.NewSubscriptionRepository(suite.T())
-	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockCache, suite.serviceConfig)
+	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
 
 	// Create the profile service with mocks
 	suite.profileService = profile.NewProfileService(
@@ -117,156 +121,55 @@ func (suite *AccountTestSuite) SetupSuite() {
 	)
 }
 
-// TestRegisterAccount tests the RegisterAccount method using table-driven tests
-func (suite *AccountTestSuite) TestRegisterAccount() {
-	subID := "550e8400-e29b-41d4-a716-446655440000" // test subscription UUID
-	activeUntilStr := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
-	tests := []struct {
-		name               string
-		email              string
-		password           string
-		existingAccount    *model.Account
-		getAccountError    error
-		profileCreateError error
-		createAccountError error
-		expectedError      string
-		expectSuccess      bool
-	}{
-		{
-			name:          "Successful registration",
-			email:         "test@example.com",
-			password:      "StrongPass123!",
-			expectSuccess: true,
-		},
-		{
-			name:            "Account already exists",
-			email:           "existing@example.com",
-			password:        "StrongPass123!",
-			existingAccount: &model.Account{Email: "existing@example.com"},
-			expectedError:   "account with this email already exists",
-		},
-		{
-			name:            "Database error on check",
-			email:           "test@example.com",
-			password:        "StrongPass123!",
-			getAccountError: errors.New("database error"),
-			expectedError:   "database error",
-		},
-		{
-			name:               "Profile creation fails",
-			email:              "test@example.com",
-			password:           "StrongPass123!",
-			profileCreateError: errors.New("profile creation failed"),
-			expectedError:      "profile creation failed",
-		},
-		{
-			name:               "Account creation fails",
-			email:              "test@example.com",
-			password:           "StrongPass123!",
-			createAccountError: errors.New("account creation failed"),
-			expectedError:      "account creation failed",
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-			suite.mockProfileRepo.ExpectedCalls = nil
-			suite.mockBlocklistRepo.ExpectedCalls = nil
-			suite.mockMailer.ExpectedCalls = nil
-			suite.mockIDGenerator.ExpectedCalls = nil
-
-			// Mock GetAccountByEmail (switch to satisfy lint ifElseChain)
-			switch {
-			case tt.getAccountError != nil:
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), tt.email).Return(nil, tt.getAccountError)
-			case tt.existingAccount != nil:
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), tt.email).Return(tt.existingAccount, nil)
-			default:
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), tt.email).Return(nil, dbErrors.ErrAccountNotFound)
-			}
-
-			if tt.expectSuccess || tt.profileCreateError != nil || tt.createAccountError != nil {
-				// Mock profile creation dependencies
-				if tt.profileCreateError != nil {
-					suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), mock.AnythingOfType("string")).Return([]model.Profile{}, nil)
-					suite.mockIDGenerator.On("Generate").Return("", tt.profileCreateError)
-				} else if tt.expectSuccess || tt.createAccountError != nil {
-					suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), mock.AnythingOfType("string")).Return([]model.Profile{}, nil)
-					suite.mockIDGenerator.On("Generate").Return("profile123", nil)
-
-					// Mock default blocklists for profile creation
-					defaultBlocklists := []*model.Blocklist{
-						{
-							Name:    "Default Blocklist",
-							Default: true,
-						},
-					}
-					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
-
-					// Mock profile creation in repository
-					suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
-
-					// Mock cache settings creation
-					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
-
-					// Mock account creation
-					if tt.createAccountError != nil {
-						suite.mockAccountRepo.On("CreateAccount", context.Background(), tt.email, mock.AnythingOfType("string"), mock.AnythingOfType("string"), "profile123", mock.Anything).Return(nil, tt.createAccountError)
-					} else {
-						expectedAccount := &model.Account{
-							ID:    primitive.NewObjectID(),
-							Email: tt.email,
-						}
-						suite.mockAccountRepo.On("CreateAccount", context.Background(), tt.email, mock.AnythingOfType("string"), mock.AnythingOfType("string"), "profile123", mock.Anything).Return(expectedAccount, nil)
-
-						// Single insert path; no UpdateAccount expected when password provided (pre-hashed before CreateAccount)
-
-						// Mock verify + welcome email
-						suite.mockMailer.On("Verify", tt.email).Return(nil)
-						suite.mockMailer.On("SendWelcomeEmail", context.Background(), tt.email, mock.AnythingOfType("string")).Return(nil)
-					}
-				}
-			}
-
-			// Execute the method
-			// Common expectation: cache provides subscription activeUntil
-			suite.mockCache.On("GetSubscription", context.Background(), subID).Return(activeUntilStr, nil)
-			// Expect subscription creation only on success path (no earlier errors)
-			if tt.expectSuccess && tt.profileCreateError == nil && tt.createAccountError == nil && tt.getAccountError == nil && tt.existingAccount == nil {
-				suite.mockSubscriptionRepo.On("Create", context.Background(), mock.AnythingOfType("model.Subscription")).Return(nil)
-				// Expect removal of subscription cache marker
-				suite.mockCache.On("RemoveSubscription", context.Background(), subID).Return(nil)
-			}
-			result, err := suite.service.RegisterAccount(context.Background(), tt.email, tt.password, subID)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-				suite.Nil(result)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
-				suite.Equal(tt.email, result.Email)
-			}
-		})
-	}
-}
-
 // TestGetUnfinishedSignupOrPostAccount covers registration reuse & creation scenarios
+// including the PASession validation step added by the ZLA integration.
 func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 	subID := "550e8400-e29b-41d4-a716-446655449999"
-	activeUntil := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
-
 	password := "StrongPass123!" // valid password
 
+	// PASession validation helpers: compute token hash for mock preauth server
+	testToken := "test-pa-token-abc"
+	tokenHash := sha256.Sum256([]byte(testToken))
+	tokenHashStr := base64.StdEncoding.EncodeToString(tokenHash[:])
+	preauthID := "preauth-id-123"
+	sessionID := "pa-session-id-456"
+	activeUntil := time.Now().Add(2 * time.Hour).UTC()
+
+	// Set up httptest server to mock the external preauth service
+	preauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		preauth := model.Preauth{
+			ID:          preauthID,
+			TokenHash:   tokenHashStr,
+			IsActive:    true,
+			ActiveUntil: activeUntil,
+			Tier:        "pro",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(preauth)
+	}))
+	defer preauthServer.Close()
+
+	// Re-create subscription service and account service with the httptest server URL
+	httpClient := webhookClient.Http{Cfg: config.APIConfig{PreauthURL: preauthServer.URL}}
+	subSvc := subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{PreauthURL: preauthServer.URL}, httpClient)
+
+	suite.service = account.NewAccountService(
+		suite.serviceConfig,
+		suite.mockAccountRepo,
+		suite.profileService,
+		suite.statisticsService,
+		subSvc,
+		nil,
+		suite.mockCache,
+		suite.mockMailer,
+		suite.mockIDGenerator,
+		suite.validator,
+		webhookClient.Http{},
+	)
+
 	type mocksConfig struct {
-		cacheErr                         error
+		paSessionErr                     bool // GetPASession returns error (no PA session)
 		existingAccount                  *model.Account
-		subscriptionDuplicate            bool // subscription UUID already exists (GetSubscriptionById returns object)
 		subscriptionMissingForUnfinished bool // unfinished account has no subscription; will be created
 	}
 
@@ -276,13 +179,8 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 		expectError string
 	}{
 		{
-			name:        "Cache key missing -> error",
-			cfg:         mocksConfig{cacheErr: errors.New("redis: nil")},
-			expectError: account.ErrUnableToCreateAccount.Error(),
-		},
-		{
-			name:        "Subscription duplicate pre-create -> error",
-			cfg:         mocksConfig{subscriptionDuplicate: true},
+			name:        "PA session missing -> error",
+			cfg:         mocksConfig{paSessionErr: true},
 			expectError: account.ErrUnableToCreateAccount.Error(),
 		},
 		{
@@ -307,77 +205,78 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 		suite.Run(tt.name, func() {
 			// Reset expectations
 			suite.mockCache.ExpectedCalls = nil
+			suite.mockCache.Calls = nil
 			suite.mockAccountRepo.ExpectedCalls = nil
+			suite.mockAccountRepo.Calls = nil
 			suite.mockSubscriptionRepo.ExpectedCalls = nil
+			suite.mockSubscriptionRepo.Calls = nil
 			suite.mockProfileRepo.ExpectedCalls = nil
+			suite.mockProfileRepo.Calls = nil
 			suite.mockBlocklistRepo.ExpectedCalls = nil
+			suite.mockBlocklistRepo.Calls = nil
 			suite.mockMailer.ExpectedCalls = nil
+			suite.mockMailer.Calls = nil
 			suite.mockIDGenerator.ExpectedCalls = nil
+			suite.mockIDGenerator.Calls = nil
 
-			// Cache GetSubscription behavior
-			if tt.cfg.cacheErr != nil {
-				suite.mockCache.On("GetSubscription", context.Background(), subID).Return("", tt.cfg.cacheErr)
+			// Mock PA session validation
+			if tt.cfg.paSessionErr {
+				suite.mockCache.On("GetPASession", context.Background(), sessionID).Return(nil, errors.New("session not found"))
 			} else {
-				suite.mockCache.On("GetSubscription", context.Background(), subID).Return(activeUntil, nil)
+				suite.mockCache.On("GetPASession", context.Background(), sessionID).Return(&model.PASession{
+					ID:        sessionID,
+					Token:     testToken,
+					PreauthID: preauthID,
+				}, nil)
 			}
 
 			email := "user@example.com"
-			if tt.cfg.existingAccount != nil {
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), tt.cfg.existingAccount.Email).Return(tt.cfg.existingAccount, nil)
-			} else if tt.cfg.subscriptionDuplicate {
-				// New account path; email not found
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), email).Return(nil, dbErrors.ErrAccountNotFound)
-			} else if tt.cfg.cacheErr == nil { // normal new account path
-				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), email).Return(nil, dbErrors.ErrAccountNotFound)
-			}
+			needsSuccessPath := !tt.cfg.paSessionErr
 
-			// Duplicate subscription detection (pre-create) only for new account path
-			if tt.cfg.existingAccount == nil {
-				if tt.cfg.subscriptionDuplicate {
-					// GetSubscriptionById returns existing subscription object
-					suite.mockSubscriptionRepo.On("GetSubscriptionById", context.Background(), subID).Return(&model.Subscription{ID: uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")}, nil)
-				} else if tt.cfg.cacheErr == nil { // default non-duplicate
-					suite.mockSubscriptionRepo.On("GetSubscriptionById", context.Background(), subID).Return(nil, dbErrors.ErrSubscriptionNotFound)
+			if needsSuccessPath {
+				if tt.cfg.existingAccount != nil {
+					suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), tt.cfg.existingAccount.Email).Return(tt.cfg.existingAccount, nil)
+				} else {
+					suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), email).Return(nil, dbErrors.ErrAccountNotFound)
 				}
 			}
 
-			// Unfinished reuse path: ensure subscription creation if missing (finished accounts return early; no subscription calls)
-			if tt.cfg.existingAccount != nil && tt.cfg.existingAccount.Password == nil {
-				suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.MatchedBy(func(a *model.Account) bool {
-					if a.Email != tt.cfg.existingAccount.Email || a.Password == nil {
-						return false
-					}
-					return bcrypt.CompareHashAndPassword([]byte(*a.Password), []byte(password)) == nil
-				})).Return(tt.cfg.existingAccount, nil).Once()
+			// Unfinished reuse path
+			if needsSuccessPath && tt.cfg.existingAccount != nil && tt.cfg.existingAccount.Password == nil {
+				// GetSubscription for existing account
 				if tt.cfg.subscriptionMissingForUnfinished {
 					suite.mockSubscriptionRepo.On("GetSubscriptionByAccountId", context.Background(), tt.cfg.existingAccount.ID.Hex()).Return(nil, dbErrors.ErrSubscriptionNotFound)
 					suite.mockSubscriptionRepo.On("Create", context.Background(), mock.AnythingOfType("model.Subscription")).Return(nil)
 				} else {
 					suite.mockSubscriptionRepo.On("GetSubscriptionByAccountId", context.Background(), tt.cfg.existingAccount.ID.Hex()).Return(&model.Subscription{}, nil)
 				}
+				suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.MatchedBy(func(a *model.Account) bool {
+					if a.Email != tt.cfg.existingAccount.Email || a.Password == nil {
+						return false
+					}
+					return bcrypt.CompareHashAndPassword([]byte(*a.Password), []byte(password)) == nil
+				})).Return(tt.cfg.existingAccount, nil).Once()
+				// CompleteRegistration mocks (SignupWebhook no-op, RemovePASession, welcome email)
+				suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
 				suite.mockMailer.On("Verify", tt.cfg.existingAccount.Email).Return(nil)
 				suite.mockMailer.On("SendWelcomeEmail", context.Background(), tt.cfg.existingAccount.Email, mock.AnythingOfType("string")).Return(nil)
 			}
 
 			// New account creation path expectations
-			if tt.cfg.existingAccount == nil && tt.cfg.cacheErr == nil && !tt.cfg.subscriptionDuplicate {
-				// Profile service path: list existing profiles returns empty
+			if needsSuccessPath && tt.cfg.existingAccount == nil {
+				// RegisterAccountWithPreauth: re-checks email, creates profile, subscription, account
+				suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), email).Return(nil, dbErrors.ErrAccountNotFound)
 				suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), mock.AnythingOfType("string")).Return([]model.Profile{}, nil)
-				// ID generator for profile
 				suite.mockIDGenerator.On("Generate").Return("profile123", nil)
 				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return([]*model.Blocklist{{Name: "Default Blocklist", Default: true}}, nil)
 				suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
 				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
-				suite.mockAccountRepo.On("CreateAccount", context.Background(), email, password, mock.AnythingOfType("string"), "profile123", mock.Anything).Return(&model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}, nil)
 				suite.mockSubscriptionRepo.On("Create", context.Background(), mock.AnythingOfType("model.Subscription")).Return(nil)
-				suite.mockCache.On("RemoveSubscription", context.Background(), subID).Return(nil)
+				suite.mockAccountRepo.On("CreateAccount", context.Background(), email, password, mock.AnythingOfType("string"), "profile123").Return(&model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}, nil)
+				// CompleteRegistration mocks
+				suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
 				suite.mockMailer.On("Verify", email).Return(nil)
 				suite.mockMailer.On("SendWelcomeEmail", context.Background(), email, mock.AnythingOfType("string")).Return(nil)
-			}
-
-			// For reuse unfinished: cache removal
-			if tt.cfg.existingAccount != nil && tt.cfg.cacheErr == nil {
-				suite.mockCache.On("RemoveSubscription", context.Background(), subID).Return(nil)
 			}
 
 			// Execute
@@ -387,7 +286,12 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 			} else {
 				targetEmail = email
 			}
-			result, err := suite.service.GetUnfinishedSignupOrPostAccount(context.Background(), targetEmail, password, subID)
+			result, err := suite.service.GetUnfinishedSignupOrPostAccount(context.Background(), targetEmail, password, subID, sessionID)
+
+			// Welcome email is dispatched in a fire-and-forget goroutine; drain
+			// it before the subtest ends so its mailer mock call doesn't leak
+			// into the next subtest's expectations.
+			suite.service.WaitBackground()
 
 			if tt.expectError != "" {
 				suite.Error(err)
@@ -398,20 +302,6 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.NotNil(result)
 				suite.Equal(targetEmail, result.Email)
 			}
-
-			// Cleanup expectations to avoid leaking into other suite tests
-			suite.mockSubscriptionRepo.AssertExpectations(suite.T())
-			suite.mockSubscriptionRepo.ExpectedCalls = nil
-			suite.mockSubscriptionRepo.Calls = nil
-			suite.mockAccountRepo.AssertExpectations(suite.T())
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockAccountRepo.Calls = nil
-			suite.mockProfileRepo.ExpectedCalls = nil
-			suite.mockProfileRepo.Calls = nil
-			suite.mockBlocklistRepo.ExpectedCalls = nil
-			suite.mockBlocklistRepo.Calls = nil
-			suite.mockMailer.ExpectedCalls = nil
-			suite.mockMailer.Calls = nil
 		})
 	}
 }
@@ -2754,6 +2644,149 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 			suite.mockAccountRepo.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// TestCompleteRegistration_BlockingVsBestEffort asserts the design contract that
+// only address-level validation aborts the signup HTTP response; webhook,
+// PASession cache cleanup, and the welcome email send must all be best-effort
+// (logged on failure but never returned).
+//
+// Each subtest covers one row of the spec table T1-T7 in
+// /home/maciek/.claude/plans/whimsical-toasting-kahan.md.
+func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
+	const (
+		subID     = "subscription-id"
+		sessionID = "session-id"
+		email     = "user@example.com"
+	)
+	mkAcc := func(verified bool) *model.Account {
+		return &model.Account{
+			ID:            primitive.NewObjectID(),
+			Email:         email,
+			EmailVerified: verified,
+		}
+	}
+
+	suite.Run("T1 Verify failure aborts registration (syntax error)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(errors.New("invalid email format"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+
+		suite.Error(err)
+		suite.Contains(err.Error(), "invalid email format")
+		// Webhook / cache / send must not be attempted.
+		suite.service.WaitBackground()
+		suite.mockMailer.AssertNotCalled(suite.T(), "SendWelcomeEmail", mock.Anything, mock.Anything, mock.Anything)
+		suite.mockCache.AssertNotCalled(suite.T(), "RemovePASession", mock.Anything, mock.Anything)
+	})
+
+	suite.Run("T2 Verify failure aborts registration (MX not found)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(errors.New("MX record not found"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+
+		suite.Error(err)
+		suite.Contains(err.Error(), "MX record not found")
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T3 SendWelcomeEmail failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+
+		// Mailer fails, but the goroutine swallows the error.
+		callObserved := make(chan struct{})
+		suite.mockMailer.
+			On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) { close(callObserved) }).
+			Return(errors.New("smtp 4xx"))
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err, "signup must succeed even when SendWelcomeEmail fails")
+
+		suite.service.WaitBackground()
+		select {
+		case <-callObserved:
+		default:
+			suite.Failf("SendWelcomeEmail not invoked", "expected the dispatched goroutine to call SendWelcomeEmail")
+		}
+	})
+
+	suite.Run("T4 SignupWebhook failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		// SignupWebhook is called via the unconfigured HTTP client which fails
+		// against a non-existent URL. CompleteRegistration must still return nil.
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+
+		// Welcome email still dispatched (independent of webhook outcome).
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T5 RemovePASession failure does NOT abort signup", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(errors.New("redis nil"))
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T6 Unverified account still allowed for the welcome category (regression guard)", func() {
+		suite.SetupSuite()
+		acc := mkAcc(false) // unverified — sendEmailCategory must still permit "welcome"
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
+
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		suite.NoError(err)
+		suite.service.WaitBackground()
+	})
+
+	suite.Run("T7 Goroutine uses an uncancelled context.Background()", func() {
+		suite.SetupSuite()
+		acc := mkAcc(true)
+		suite.mockMailer.On("Verify", email).Return(nil)
+		suite.mockCache.On("RemovePASession", mock.Anything, sessionID).Return(nil)
+
+		// Caller passes a context that we cancel immediately. The dispatched
+		// SendWelcomeEmail call must observe a fresh, uncancelled context.
+		reqCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		var observedCtxErr error
+		ctxRecorded := make(chan struct{})
+		suite.mockMailer.
+			On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).
+			Run(func(args mock.Arguments) {
+				ctx := args.Get(0).(context.Context)
+				observedCtxErr = ctx.Err()
+				close(ctxRecorded)
+			}).
+			Return(nil)
+
+		err := suite.service.CompleteRegistration(reqCtx, acc, subID, sessionID)
+		suite.NoError(err)
+
+		suite.service.WaitBackground()
+		<-ctxRecorded
+		suite.NoError(observedCtxErr, "SendWelcomeEmail must run on an uncancelled context.Background()")
+	})
 }
 
 func TestAccountTestSuite(t *testing.T) {

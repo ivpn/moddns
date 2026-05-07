@@ -1,31 +1,102 @@
 package model
 
 import (
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type SubscriptionType string
+// SubscriptionStatus represents the computed lifecycle state of a subscription.
+type SubscriptionStatus string
 
 const (
-	Free    SubscriptionType = "Free"
-	Managed SubscriptionType = "Managed"
+	StatusActive        SubscriptionStatus = "active"
+	StatusGracePeriod   SubscriptionStatus = "grace_period"
+	StatusLimitedAccess SubscriptionStatus = "limited_access"
+	StatusPendingDelete SubscriptionStatus = "pending_delete"
 )
+
+const Tier1 = "Tier 1"
 
 // Subscription represents a subscription with its properties
 type Subscription struct {
 	// ID is the primary key (UUIDv4) stored in Mongo _id
-	ID          uuid.UUID          `json:"-" bson:"_id"`
-	AccountID   primitive.ObjectID `json:"-" bson:"account_id"`
-	Type        SubscriptionType   `json:"type" bson:"type"`
-	ActiveUntil time.Time          `json:"active_until" bson:"active_until"`
-	Limits      SubscriptionLimits `json:"-" bson:"limits"`
+	ID                    uuid.UUID          `json:"-" bson:"_id"`
+	AccountID             primitive.ObjectID `json:"-" bson:"account_id"`
+	ActiveUntil           time.Time          `json:"active_until" bson:"active_until"`
+	IsActive              bool               `json:"-" bson:"is_active"`
+	Tier                  string             `json:"tier,omitempty" bson:"tier,omitempty"`
+	TokenHash             string             `json:"-" bson:"token_hash,omitempty"`
+	UpdatedAt             time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
+	Notified              bool               `json:"-" bson:"notified"`
+	NotifiedPendingDelete bool               `json:"-" bson:"notified_pending_delete"`
+	Limits                SubscriptionLimits `json:"-" bson:"limits"`
+
+	// Computed fields (not persisted)
+	Status SubscriptionStatus `json:"status" bson:"-"`
+	Outage bool               `json:"outage" bson:"-"`
 }
 
-func (s *Subscription) IsActive() bool {
-	return s.ActiveUntil.After(time.Now())
+func (s *Subscription) Active() bool {
+	return s.ActiveUntil.After(time.Now()) && !strings.Contains(s.Tier, Tier1) && !s.IsOutage()
+}
+
+func (s *Subscription) GracePeriod() bool {
+	return s.IsOutage() && s.GracePeriodDays(3) && s.OutageGracePeriodDays(3)
+}
+
+func (s *Subscription) LimitedAccess() bool {
+	return s.GracePeriodDays(14) || (s.OutageGracePeriodDays(14) && s.IsOutage())
+}
+
+func (s *Subscription) PendingDelete() bool {
+	if s.UpdatedAt.AddDate(0, 0, 14).Before(time.Now()) {
+		return true
+	}
+
+	if s.ActiveUntil.AddDate(0, 0, 14).Before(time.Now()) {
+		return true
+	}
+
+	return false
+}
+
+func (s *Subscription) ActiveStatus() bool {
+	return s.Active() || s.GracePeriod()
+}
+
+func (s *Subscription) IsOutage() bool {
+	if s.UpdatedAt.IsZero() {
+		return false
+	}
+
+	return s.UpdatedAt.Add(time.Duration(48) * time.Hour).Before(time.Now())
+}
+
+func (s *Subscription) GracePeriodDays(days int) bool {
+	return s.ActiveUntil.AddDate(0, 0, days).After(time.Now()) && s.ActiveUntil.Before(time.Now())
+}
+
+func (s *Subscription) OutageGracePeriodDays(days int) bool {
+	return s.UpdatedAt.AddDate(0, 0, days).After(time.Now()) && s.UpdatedAt.Before(time.Now())
+}
+
+func (s *Subscription) GetStatus() SubscriptionStatus {
+	if s.Active() {
+		return StatusActive
+	}
+	if s.GracePeriod() {
+		return StatusGracePeriod
+	}
+	if s.PendingDelete() {
+		return StatusPendingDelete
+	}
+	if s.LimitedAccess() {
+		return StatusLimitedAccess
+	}
+	return StatusPendingDelete
 }
 
 type SubscriptionLimits struct {

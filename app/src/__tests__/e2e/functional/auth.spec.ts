@@ -86,22 +86,50 @@ test.describe('@functional Authentication', () => {
 });
 
 test.describe('@functional Root index redirects', () => {
-  test('unauthenticated visit to root redirects to /login', async ({ page }) => {
+  test('unauthenticated visit to root shows the landing page with [01 LOGIN]', async ({ page }) => {
     await registerMocks(page, { authenticated: false });
     await page.goto('/');
-    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+    // Stay on / and render the landing chrome (CRT-themed marketing page).
+    await expect.poll(async () => page.url()).toMatch(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
+    // Unauth nav surfaces the LOGIN entry point, not the dashboard shortcut.
+    await expect(page.getByRole('link', { name: '[01 LOGIN]' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '[01 DASHBOARD]' })).toHaveCount(0);
   });
 
-  test('stale auth flag with expired session still redirects to /login', async ({ page }) => {
+  test('stale auth flag at root still shows the landing page', async ({ page }) => {
+    // `/` is now unconditionally the landing page. Even a stale AUTH_KEY=true
+    // in localStorage no longer triggers a redirect away from /. The 401 path
+    // through /home → /login only kicks in when the user actively visits a
+    // protected route (covered by the protected-route test above).
     await registerMocks(page, { authenticated: false });
     await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
     await page.goto('/');
-    await expect.poll(async () => page.url()).toMatch(/\/login$/);
+    await expect.poll(async () => page.url()).toMatch(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
   });
 
-  test('valid session at root immediately navigates to /home', async ({ page }) => {
+  test('valid session at root stays on the landing page with [01 DASHBOARD]', async ({ page }) => {
+    // Authenticated visitors see the marketing landing page too. The
+    // [01 LOGIN] CTA in the nav swaps to [01 DASHBOARD] linking straight to
+    // /home; [01 LOGIN] should not be shown to a logged-in user.
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
+    await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
     await page.goto('/');
+    await expect.poll(async () => page.url()).toMatch(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
+    const dashboardLink = page.getByRole('link', { name: '[01 DASHBOARD]' });
+    await expect(dashboardLink).toBeVisible();
+    await expect(dashboardLink).toHaveAttribute('href', '/home');
+    await expect(page.getByRole('link', { name: '[01 LOGIN]' })).toHaveCount(0);
+  });
+
+  test('authenticated visit to /login redirects to /home', async ({ page }) => {
+    // Counterpart to the change above: authed users who click LOGIN from the
+    // landing page (or otherwise land on /login) should still bounce to /home.
+    await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
+    await page.addInitScript((key: string) => { window.localStorage.setItem(key, 'true'); }, AUTH_KEY);
+    await page.goto('/login');
     await expect.poll(async () => page.url()).toMatch(/\/home$/);
   });
 });

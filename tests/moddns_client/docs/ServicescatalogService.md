@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **asns** | **List[int]** |  | [optional] 
+**domains** | **List[str]** |  | [optional] 
 **id** | **str** |  | [optional] 
 **logo_key** | **str** |  | [optional] 
 **name** | **str** |  | [optional] 

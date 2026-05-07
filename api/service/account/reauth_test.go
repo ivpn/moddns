@@ -43,7 +43,8 @@ func (suite *ReauthTokenSuite) SetupSuite() {
 	val := validatorv10.New()
 	// Provide a minimal subscription service dependency required by constructor
 	mockSubRepo := mocks.NewSubscriptionRepository(suite.T())
-	subService := subscription.NewSubscriptionService(mockSubRepo, suite.mockCache, config.ServiceConfig{})
+	mockProfileRepo := mocks.NewProfileRepository(suite.T())
+	subService := subscription.NewSubscriptionService(mockSubRepo, mockProfileRepo, suite.mockCache, config.ServiceConfig{}, config.APIConfig{}, webhookClient.Http{})
 	// credential repo is not used in these tests; pass nil
 	suite.service = account.NewAccountService(*cfg.Service, suite.mockAccountRepo, nil, nil, subService, nil, suite.mockCache, suite.mockMailer, nil, val, webhookClient.Http{})
 }
