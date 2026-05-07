@@ -112,7 +112,7 @@ func (s *APIServer) RegisterRoutes() {
 	// PSK-protected PASession add endpoint (outside v1 auth chain)
 	pasessionPSK := s.App.Group("/api/v1/pasession/add")
 	pasessionPSK.Use(middleware.NewPSK(*s.Config.API))
-	pasessionPSK.Post("", middleware.NewLimit(10, 1*time.Minute), s.addPASession())
+	pasessionPSK.Post("", middleware.NewLimit(1000, 1*time.Minute), s.addPASession())
 
 	// Public PASession rotation endpoint (no auth, rate limited only)
 	v1.Put("/pasession/rotate", middleware.NewLimit(10, 1*time.Minute), s.rotatePASession())
