@@ -13,6 +13,14 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+// Stub the lazy-loaded Landing component so it renders synchronously and
+// surfaces its `isAuthenticated` prop in the DOM for assertion.
+vi.mock('@/pages/landing/Landing', () => ({
+    default: ({ isAuthenticated }: { isAuthenticated?: boolean }) => (
+        <div data-testid="landing-page" data-authed={String(Boolean(isAuthenticated))} />
+    ),
+}));
+
 describe('RootIndexRedirect', () => {
     type AuthContextValue = React.ContextType<typeof AuthContext>;
 
@@ -35,27 +43,38 @@ describe('RootIndexRedirect', () => {
         localStorage.clear();
     });
 
-    it('navigates to /home when both auth state and local storage are true', () => {
+    it('renders the landing page with isAuthenticated=true when both auth state and local storage agree', async () => {
         localStorage.setItem(AUTH_KEY, 'true');
 
         renderWithAuth({ isAuthenticated: true });
 
-        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/home');
+        const landing = await screen.findByTestId('landing-page');
+        expect(landing).toBeInTheDocument();
+        expect(landing).toHaveAttribute('data-authed', 'true');
+        expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
     });
 
-    it('navigates to /login when auth state is false', () => {
+    it('renders the landing page with isAuthenticated=false when auth state is false', async () => {
         localStorage.setItem(AUTH_KEY, 'true');
 
         renderWithAuth({ isAuthenticated: false });
 
-        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/login');
+        const landing = await screen.findByTestId('landing-page');
+        expect(landing).toBeInTheDocument();
+        expect(landing).toHaveAttribute('data-authed', 'false');
+        expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
     });
 
-    it('falls back to /login when local storage flag is missing', () => {
+    it('renders the landing page with isAuthenticated=false when local storage flag is missing', async () => {
         localStorage.removeItem(AUTH_KEY);
 
         renderWithAuth({ isAuthenticated: true });
 
-        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/login');
+        const landing = await screen.findByTestId('landing-page');
+        expect(landing).toBeInTheDocument();
+        // Belt-and-braces guard: stale React state without localStorage backing
+        // does not flip the page into the authenticated UI.
+        expect(landing).toHaveAttribute('data-authed', 'false');
+        expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
     });
 });

@@ -27,6 +27,7 @@ const AccountPreferences = lazyWithRetry(() => import('@/pages/account_preferenc
 const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigPage'));
 const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigDownload'));
 const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
+const Landing = lazyWithRetry(() => import('./pages/landing/Landing'));
 
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
@@ -75,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Public route predicate (keep in sync with router public section)
   const isPublicPath = (p: string) => (
+    p === '/' ||
     p === '/login' ||
     p === '/signup' ||
     p === '/tos' ||
@@ -501,11 +503,19 @@ function ProtectedLayout() {
 }
 
 function RootIndexRedirect() {
+  // The public landing page is the canonical face of `/` for everyone —
+  // authenticated visitors see it too. The auth check below is read at the
+  // routing layer (with the localStorage belt-and-braces guard against stale
+  // React state vs. localStorage drift) and passed down so Landing can swap
+  // [01 LOGIN] for [01 DASHBOARD]. Landing itself stays a "dumb" component.
+  //
+  // The function name is kept for backwards-compat with the existing
+  // unit/e2e tests and the `export { RootIndexRedirect }` at the bottom of
+  // this file; it no longer actually redirects.
   const { isAuthenticated } = useAuth();
   const localAuthed = typeof window !== 'undefined' ? localStorage.getItem(AUTH_KEY) === 'true' : isAuthenticated;
-  const target = isAuthenticated && localAuthed ? '/home' : '/login';
-
-  return <Navigate to={target} replace />;
+  const authed = isAuthenticated && localAuthed;
+  return <Suspense fallback={<div />}><Landing isAuthenticated={authed} /></Suspense>;
 }
 
 function SetupWithLoader() {

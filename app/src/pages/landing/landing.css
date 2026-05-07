@@ -1,0 +1,666 @@
+/*
+ * modDNS landing page — scoped CRT/phosphor terminal aesthetic.
+ *
+ * All rules are scoped to .moddns-landing so the global app design system
+ * (Tailwind, shadcn/ui, --shadcn-ui-* tokens) is unaffected. The :root
+ * variables defined here use phosphor/CRT-specific names and will not
+ * collide with existing app variables.
+ *
+ * Self-hosted fonts (VT323, IBM Plex Mono) live in app/public/fonts/ and
+ * are loaded via the @font-face declarations below. Falls back to the
+ * generic monospace stack while the woff2 files transfer (font-display: swap).
+ */
+
+@font-face {
+    font-family: 'VT323';
+    src: url('/fonts/VT323-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'IBM Plex Mono';
+    src: url('/fonts/IBMPlexMono-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+.moddns-landing {
+    --bg: #030408;
+    --phosphor: #4AF6C3;
+    --phosphor-dim: #154535;
+    --phosphor-glow: rgba(74, 246, 195, 0.4);
+    --alert: #FF3366;
+    --font-display: 'VT323', monospace;
+    --font-data: 'IBM Plex Mono', monospace;
+    --grid-gap: 1.5rem;
+
+    background-color: var(--bg);
+    color: var(--phosphor);
+    font-family: var(--font-data);
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.moddns-landing *,
+.moddns-landing *::before,
+.moddns-landing *::after {
+    box-sizing: border-box;
+}
+
+.moddns-landing ::selection {
+    background: var(--phosphor);
+    color: var(--bg);
+}
+
+.moddns-landing::before {
+    content: " ";
+    display: block;
+    position: fixed;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.08) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.01), rgba(0, 255, 0, 0.005), rgba(0, 0, 255, 0.01));
+    z-index: 998;
+    background-size: 100% 2px, 3px 100%;
+    pointer-events: none;
+    opacity: 0.4;
+}
+
+.moddns-landing::after {
+    content: " ";
+    display: block;
+    position: fixed;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: radial-gradient(circle, rgba(0,0,0,0) 75%, rgba(0,0,0,0.6) 100%);
+    z-index: 999;
+    pointer-events: none;
+}
+
+@keyframes flicker {
+    0% { opacity: 0.95; }
+    100% { opacity: 1; }
+}
+
+.moddns-landing .glitch-block {
+    position: relative;
+}
+
+.moddns-landing .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.moddns-landing h1,
+.moddns-landing h2,
+.moddns-landing h3 {
+    font-family: var(--font-display);
+    font-weight: normal;
+    text-transform: uppercase;
+    /* glow reduced to 40% of original 8px → 3px */
+    text-shadow: 0 0 3px var(--phosphor-glow);
+    letter-spacing: 1px;
+    margin: 0;
+}
+
+.moddns-landing p {
+    margin: 0;
+}
+
+.moddns-landing .blink {
+    animation: blinker 1s step-start infinite;
+}
+
+@keyframes blinker { 50% { opacity: 0; } }
+
+.moddns-landing .window {
+    border: 1px solid var(--phosphor-dim);
+    padding: 1.5rem;
+    position: relative;
+    background: rgba(3, 4, 8, 0.8);
+}
+
+.moddns-landing .window::before {
+    content: '+';
+    position: absolute; top: -7px; left: -4px;
+    background: var(--bg); padding: 0 2px; color: var(--phosphor-dim);
+}
+
+.moddns-landing .window::after {
+    content: '+';
+    position: absolute; bottom: -7px; right: -4px;
+    background: var(--bg); padding: 0 2px; color: var(--phosphor-dim);
+}
+
+.moddns-landing .window-sealed::after { content: none; }
+
+.moddns-landing .window-title {
+    position: absolute;
+    top: -10px;
+    left: 1rem;
+    background: var(--bg);
+    padding: 0 0.5rem;
+    font-family: var(--font-data);
+    font-size: 12px;
+    color: var(--phosphor);
+}
+
+.moddns-landing .meta-data {
+    font-size: 10px;
+    color: var(--phosphor-dim);
+    position: absolute;
+}
+
+.moddns-landing .meta-tr { top: 0.5rem; right: 0.5rem; }
+.moddns-landing .meta-bl { bottom: 0.5rem; left: 0.5rem; }
+
+.moddns-landing ul { list-style: none; padding: 0; margin: 0; }
+
+.moddns-landing li::before {
+    content: "> ";
+    color: var(--phosphor-dim);
+}
+
+.moddns-landing a.btn,
+.moddns-landing .btn {
+    display: inline-block;
+    padding: 0.25rem 1rem;
+    border: 1px solid var(--phosphor);
+    color: var(--phosphor);
+    text-decoration: none;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.1s;
+    background: transparent;
+    font-family: var(--font-data);
+}
+
+.moddns-landing a.btn:hover,
+.moddns-landing .btn:hover {
+    background: var(--phosphor);
+    color: var(--bg);
+    /* glow reduced to 40% of original 10px → 4px */
+    box-shadow: 0 0 4px var(--phosphor-glow);
+}
+
+.moddns-landing .sys-nav {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dashed var(--phosphor-dim);
+    padding-bottom: 0.5rem;
+    font-size: 14px;
+}
+
+.moddns-landing .sys-nav span { margin-right: 1rem; }
+
+.moddns-landing .hero {
+    padding: 4rem 2rem 1.5rem;
+    text-align: left;
+}
+
+.moddns-landing .hero h1 {
+    font-size: 4rem;
+    margin-top: 2rem;
+    margin-bottom: 2.5rem;
+    line-height: 1;
+}
+
+.moddns-landing .hero p {
+    font-size: 1.2rem;
+    max-width: 600px;
+    margin-bottom: 3.5rem;
+}
+
+.moddns-landing .hero .btn-group {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    justify-content: flex-start;
+}
+
+.moddns-landing .hero .hero-explain {
+    font-size: 0.9rem;
+    color: #888;
+    max-width: calc(100% - 30px);
+    margin-top: 2rem;
+    border-top: 1px dotted var(--phosphor-dim);
+    padding-top: 1rem;
+    text-align: left;
+}
+
+.moddns-landing .hero-diagram {
+    width: 100%;
+    height: 390px;
+    border: 1px solid var(--phosphor-dim);
+    position: relative;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 19px,
+        rgba(21, 69, 53, 0.2) 20px
+    ),
+    repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 19px,
+        rgba(21, 69, 53, 0.2) 20px
+    );
+}
+
+.moddns-landing .hero-diagram svg {
+    width: 100%;
+    height: 100%;
+}
+
+.moddns-landing .screenshot-container {
+    position: relative;
+    border: 2px solid var(--phosphor-dim);
+    overflow: hidden;
+}
+
+.moddns-landing .screenshot-container img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.moddns-landing .screenshot-container::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.06) 50%);
+    background-size: 100% 3px;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.moddns-landing .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+}
+
+.moddns-landing .feature-item {
+    border-left: 1px solid var(--phosphor-dim);
+    padding-left: 1rem;
+}
+
+.moddns-landing .feature-item h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--phosphor-dim);
+    display: inline-block;
+    padding-bottom: 2px;
+}
+
+.moddns-landing .specs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--grid-gap);
+}
+
+.moddns-landing .spec-col ul li {
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px dotted var(--phosphor-dim);
+}
+
+.moddns-landing .spec-col ul li::before { content: none; }
+
+.moddns-landing .spec-col ul li span:last-child { color: #fff; }
+
+.moddns-landing .trust-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+}
+
+.moddns-landing .trust-box {
+    padding: 1.5rem;
+}
+
+.moddns-landing .trust-box h3 {
+    font-size: 1.8rem;
+    margin-bottom: 0.75rem;
+}
+
+.moddns-landing .trust-box p {
+    margin-bottom: 1rem;
+    color: #aaa;
+}
+
+.moddns-landing .trust-box a {
+    color: var(--phosphor);
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.moddns-landing .trust-box a:hover {
+    /* glow reduced to 40% of original 8px → 3px */
+    text-shadow: 0 0 3px var(--phosphor-glow);
+}
+
+/* Two-column grid with an explicit 3-row track and column-flow. Items 1-3
+   land in the left column, items 4-5 in the right. Deterministic — does not
+   rely on the browser's column-balancing algorithm, which was overriding the
+   earlier `break-before: column` hint. */
+.moddns-landing .constraints-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+    gap: 0.5rem 2rem;
+}
+
+.moddns-landing .constraints-list li {
+    color: #aaa;
+}
+
+.moddns-landing .constraints-list li::before {
+    color: var(--alert);
+    content: "X ";
+}
+
+.moddns-landing .suite-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3rem;
+    align-items: center;
+}
+
+.moddns-landing .vector-diagram {
+    width: 100%;
+    height: 300px;
+    border: 1px solid var(--phosphor-dim);
+    position: relative;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 19px,
+        rgba(21, 69, 53, 0.2) 20px
+    ),
+    repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 19px,
+        rgba(21, 69, 53, 0.2) 20px
+    );
+}
+
+.moddns-landing .vector-diagram svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Desktop offset: pushes the diagram down so its rows align with the
+   text-column body copy instead of the section title. Removed on mobile (see
+   ≤768px override) where the diagram stacks below the text and any extra top
+   margin only widens the gap. */
+.moddns-landing .suite-section .vector-diagram { margin-top: 50px; }
+
+.moddns-landing .node {
+    fill: var(--bg);
+    stroke: var(--phosphor);
+    stroke-width: 1;
+}
+
+.moddns-landing .link {
+    stroke: var(--phosphor);
+    stroke-width: 1;
+    stroke-dasharray: 4;
+    animation: dash 60s linear infinite;
+}
+
+@keyframes dash {
+    to { stroke-dashoffset: -1000; }
+}
+
+.moddns-landing .section-title {
+    font-family: var(--font-data);
+    font-size: 1rem;
+    color: #2a7a55;
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+}
+
+.moddns-landing .section-title::before,
+.moddns-landing .section-title::after {
+    content: "---";
+    margin: 0 0.5rem;
+}
+
+.moddns-landing .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--grid-gap);
+}
+
+.moddns-landing .plan-box {
+    border: 1px solid var(--phosphor-dim);
+    padding: 1.5rem;
+    position: relative;
+    background: rgba(3, 4, 8, 0.8);
+}
+
+.moddns-landing .plan-box .plan-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.moddns-landing .plan-box .plan-name {
+    font-family: var(--font-data);
+    font-size: 13px;
+    color: var(--phosphor);
+    margin-bottom: 0.25rem;
+}
+
+.moddns-landing .plan-box .plan-price {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    /* glow reduced to 40% of original 8px → 3px */
+    text-shadow: 0 0 3px var(--phosphor-glow);
+}
+
+.moddns-landing .plan-box .plan-price span {
+    font-size: 1.2rem;
+}
+
+.moddns-landing .plan-box .plan-divider {
+    border: none;
+    border-top: 1px dashed var(--phosphor-dim);
+    margin: 1rem 0;
+}
+
+.moddns-landing .plan-box ul li {
+    margin-bottom: 0.5rem;
+    color: #fff;
+}
+
+.moddns-landing .cmd-label {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--phosphor-dim);
+    font-size: 12px;
+    color: var(--phosphor-dim);
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .moddns-landing .container {
+        padding: 1rem;
+        gap: 1.25rem;
+    }
+
+    /* Stack the two sys-nav rows; status/clock falls below the link row, right-justified. */
+    .moddns-landing .sys-nav {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    .moddns-landing .sys-nav > div {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: 0.75rem;
+        row-gap: 0.25rem;
+    }
+    /* STATUS: ONLINE + SYS.TIME are decorative chrome — hide on mobile to give
+       the link grid the full width and keep the nav focused on actions. */
+    .moddns-landing .sys-nav > div:last-child { display: none; }
+    .moddns-landing .sys-nav span { margin-right: 0; }
+
+    /* Top nav link group becomes a 2×2 grid of bordered tap targets:
+       row 1: [01 LOGIN] [02 START], row 2: [03 PRIVACY] [04 FAQ]. Each link
+       gets a real frame (matching the dashed sys-nav rule colour) plus 44px
+       minimum height for comfortable tapping. */
+    .moddns-landing .sys-nav > div:first-child {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    .moddns-landing .sys-nav > div:first-child span {
+        margin: 0;
+        display: block;
+    }
+    .moddns-landing .sys-nav > div:first-child a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 0.5rem;
+        border: 1px solid var(--phosphor-dim);
+        min-height: 44px;
+        text-align: center;
+    }
+
+    /* Hero: smaller padding and fluid h1 that allows the underscore-separated
+       word to wrap (which is on-brand for the snake_case identifier feel). */
+    .moddns-landing .hero {
+        padding: 2rem 1rem 1.25rem;
+    }
+    .moddns-landing .hero h1 {
+        font-size: clamp(1.75rem, 8vw, 4rem);
+        margin-top: 1.25rem;
+        margin-bottom: 1.5rem;
+        overflow-wrap: anywhere;
+    }
+    .moddns-landing .hero p {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    /* All section grids collapse to single column. */
+    .moddns-landing .features-grid,
+    .moddns-landing .specs-grid,
+    .moddns-landing .trust-grid,
+    .moddns-landing .suite-section,
+    .moddns-landing .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+    .moddns-landing .constraints-list {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        grid-auto-flow: row;
+    }
+
+    /* Vector diagram: hug content rather than holding a fixed 300px slot. */
+    .moddns-landing .vector-diagram {
+        aspect-ratio: 450 / 308;
+        height: auto;
+    }
+    /* Tight stacking in the Unlinked Access section: drop the desktop 50px
+       diagram offset and shrink the section gap from 3rem to 1.5rem so the
+       text and diagram sit close together when stacked in a single column. */
+    .moddns-landing .suite-section { gap: 1.5rem; }
+    .moddns-landing .suite-section .vector-diagram { margin-top: 0; }
+
+    /* Verifiable Privacy: each trust-box's bottom link ([ MEET THE TEAM ],
+       [ REVIEW CODE ], [ READ THE REPORT ], [ REVIEW OUR POLICIES ]) becomes a
+       full-width bordered tap target so the section reads as four equally-
+       weighted CTAs instead of inline footnote links. */
+    .moddns-landing .trust-box a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 0.75rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--phosphor-dim);
+        min-height: 44px;
+        text-align: center;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .moddns-landing .container { padding: 0.75rem; }
+
+    .moddns-landing .hero { padding: 1.5rem 0.75rem 1rem; }
+    /* Bigger headline because it's the page's main statement, and the two
+       intentional halves (RESIST_DNS_ / SURVEILLANCE_) each fit on their own
+       line at this width. */
+    .moddns-landing .hero h1 {
+        font-size: clamp(3rem, 16vw, 4.5rem);
+        line-height: 1.1;
+    }
+    .moddns-landing .hero h1 .hero-h1-part { display: block; }
+
+    /* Hero CTAs: stack vertically and span the full width of the hero so each
+       button is a generous tap target on phones. */
+    .moddns-landing .hero .btn-group {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .moddns-landing .hero .btn-group .btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Spec rows: label on top, value indented below — preserves the data-row
+       terminal feel without the right-side overflow on long values like
+       "Win/Mac/Linux/iOS/Android". */
+    .moddns-landing .spec-col ul li {
+        flex-direction: column;
+        gap: 0.15rem;
+        align-items: flex-start;
+        padding-bottom: 0.4rem;
+    }
+    .moddns-landing .spec-col ul li span:last-child {
+        padding-left: 0.75rem;
+        border-left: 1px dotted var(--phosphor-dim);
+    }
+
+    /* Section title decorations are too noisy at this width; keep the bare label. */
+    .moddns-landing .section-title::before,
+    .moddns-landing .section-title::after { content: none; }
+
+    /* Plan-box header: allow the [ START ] button to wrap below the price block. */
+    .moddns-landing .pricing-grid .plan-box .plan-header {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+}
+
+/* Touch-device tap targets — meets WCAG AA 44x44 minimum. */
+@media (hover: none) and (pointer: coarse) {
+    .moddns-landing a.btn,
+    .moddns-landing .btn {
+        padding: 0.5rem 1rem;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}

@@ -320,7 +320,7 @@ export function RuleComposer({
                         Input: CustomInput,
                     }}
                     classNamePrefix="rule-composer"
-                    placeholder="Paste or type domains, IPs, or ASNs"
+                    placeholder="Domain, IP, or ASN"
                     value={tokens}
                     inputValue={inputValue}
                     onChange={handleChange}
