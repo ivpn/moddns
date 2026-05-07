@@ -156,14 +156,12 @@ dev_check: ## Starts the development dnscheck service.
 	docker exec -it dnscheck make gow
 
 gen_python_client: ## Generates the python client from swagger spec (renamed to moddns_client, package moddns).
-	sudo rm -r tests/moddns_client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --rm -it openapitools/openapi-generator-cli generate --package-name moddns -i swagger.yaml -g python -o /app/tests/moddns_client --skip-validate-spec
-	sudo chmod -R 777 tests/moddns_client/
+	rm -rf tests/moddns_client/ || true
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name moddns -i swagger.yaml -g python -o /app/tests/moddns_client --skip-validate-spec
 
 gen_ts_client: ## Generates the typescript client from swagger spec.
-	sudo rm -r app/src/api/client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --rm -it openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
-	sudo chmod -R 777 app/src/api/client/
+	rm -rf app/src/api/client/ || true
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
 
 build_tests_image: ## Builds the smoke / integration tests image.
 	docker build -f tests/Dockerfile -t dns_tests:latest .

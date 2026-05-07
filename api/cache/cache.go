@@ -25,9 +25,9 @@ type Cache interface {
 	RemoveBlocklistsFromProfileSettings(ctx context.Context, profileId string, blocklistIds ...string) error
 	AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error
 	RemoveServicesBlockedFromProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error
-	AddSubscription(ctx context.Context, subscriptionId string, activeUntil string, expiresIn time.Duration) error
-	GetSubscription(ctx context.Context, subscriptionId string) (string, error)
-	RemoveSubscription(ctx context.Context, subscriptionId string) error
+	AddPASession(ctx context.Context, session *model.PASession, expiresIn time.Duration) error
+	GetPASession(ctx context.Context, sessionID string) (*model.PASession, error)
+	RemovePASession(ctx context.Context, sessionID string) error
 }
 
 // NewCache creates a new BlocklistCache instance

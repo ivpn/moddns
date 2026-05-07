@@ -18,20 +18,22 @@ from enum import Enum
 from typing_extensions import Self
 
 
-class ModelSubscriptionType(str, Enum):
+class ModelSubscriptionStatus(str, Enum):
     """
-    ModelSubscriptionType
+    ModelSubscriptionStatus
     """
 
     """
     allowed enum values
     """
-    FREE = 'Free'
-    MANAGED = 'Managed'
+    ACTIVE = 'active'
+    GRACE_PERIOD = 'grace_period'
+    LIMITED_ACCESS = 'limited_access'
+    PENDING_DELETE = 'pending_delete'
 
     @classmethod
     def from_json(cls, json_str: str) -> Self:
-        """Create an instance of ModelSubscriptionType from a JSON string"""
+        """Create an instance of ModelSubscriptionStatus from a JSON string"""
         return cls(json.loads(json_str))
 
 

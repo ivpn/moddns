@@ -195,8 +195,8 @@ func (_c *PasskeyServicer_BeginReauth_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // BeginRegistration provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) BeginRegistration(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error) {
-	ret := _mock.Called(ctx, account)
+func (_mock *PasskeyServicer) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error) {
+	ret := _mock.Called(ctx, account, subID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginRegistration")
@@ -205,23 +205,23 @@ func (_mock *PasskeyServicer) BeginRegistration(ctx context.Context, account *mo
 	var r0 *protocol.CredentialCreation
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account) (*protocol.CredentialCreation, string, error)); ok {
-		return returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) (*protocol.CredentialCreation, string, error)); ok {
+		return returnFunc(ctx, account, subID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account) *protocol.CredentialCreation); ok {
-		r0 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) *protocol.CredentialCreation); ok {
+		r0 = returnFunc(ctx, account, subID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*protocol.CredentialCreation)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account) string); ok {
-		r1 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account, string) string); ok {
+		r1 = returnFunc(ctx, account, subID)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, *model.Account) error); ok {
-		r2 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, *model.Account, string) error); ok {
+		r2 = returnFunc(ctx, account, subID)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -236,11 +236,12 @@ type PasskeyServicer_BeginRegistration_Call struct {
 // BeginRegistration is a helper method to define mock.On call
 //   - ctx context.Context
 //   - account *model.Account
-func (_e *PasskeyServicer_Expecter) BeginRegistration(ctx interface{}, account interface{}) *PasskeyServicer_BeginRegistration_Call {
-	return &PasskeyServicer_BeginRegistration_Call{Call: _e.mock.On("BeginRegistration", ctx, account)}
+//   - subID string
+func (_e *PasskeyServicer_Expecter) BeginRegistration(ctx interface{}, account interface{}, subID interface{}) *PasskeyServicer_BeginRegistration_Call {
+	return &PasskeyServicer_BeginRegistration_Call{Call: _e.mock.On("BeginRegistration", ctx, account, subID)}
 }
 
-func (_c *PasskeyServicer_BeginRegistration_Call) Run(run func(ctx context.Context, account *model.Account)) *PasskeyServicer_BeginRegistration_Call {
+func (_c *PasskeyServicer_BeginRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subID string)) *PasskeyServicer_BeginRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -250,9 +251,14 @@ func (_c *PasskeyServicer_BeginRegistration_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(*model.Account)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -263,7 +269,7 @@ func (_c *PasskeyServicer_BeginRegistration_Call) Return(credentialCreation *pro
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error)) *PasskeyServicer_BeginRegistration_Call {
+func (_c *PasskeyServicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error)) *PasskeyServicer_BeginRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -435,16 +441,16 @@ func (_c *PasskeyServicer_FinishReauth_Call) RunAndReturn(run func(ctx context.C
 }
 
 // FinishRegistration provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request) error {
-	ret := _mock.Called(ctx, token, httpReq)
+func (_mock *PasskeyServicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
+	ret := _mock.Called(ctx, token, httpReq, paSessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FinishRegistration")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request) error); ok {
-		r0 = returnFunc(ctx, token, httpReq)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request, string) error); ok {
+		r0 = returnFunc(ctx, token, httpReq, paSessionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -460,11 +466,12 @@ type PasskeyServicer_FinishRegistration_Call struct {
 //   - ctx context.Context
 //   - token string
 //   - httpReq *http.Request
-func (_e *PasskeyServicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}) *PasskeyServicer_FinishRegistration_Call {
-	return &PasskeyServicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq)}
+//   - paSessionID string
+func (_e *PasskeyServicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}, paSessionID interface{}) *PasskeyServicer_FinishRegistration_Call {
+	return &PasskeyServicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq, paSessionID)}
 }
 
-func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request)) *PasskeyServicer_FinishRegistration_Call {
+func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string)) *PasskeyServicer_FinishRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -478,10 +485,15 @@ func (_c *PasskeyServicer_FinishRegistration_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].(*http.Request)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -492,7 +504,7 @@ func (_c *PasskeyServicer_FinishRegistration_Call) Return(err error) *PasskeySer
 	return _c
 }
 
-func (_c *PasskeyServicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request) error) *PasskeyServicer_FinishRegistration_Call {
+func (_c *PasskeyServicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error) *PasskeyServicer_FinishRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }

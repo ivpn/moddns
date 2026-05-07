@@ -1,0 +1,24 @@
+[
+  {
+    "update": "subscriptions",
+    "updates": [
+      {
+        "q": { "notified": { "$exists": false } },
+        "u": { "$set": { "notified": false } },
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  },
+  {
+    "update": "subscriptions",
+    "updates": [
+      {
+        "q": { "notified_pending_delete": { "$exists": false } },
+        "u": { "$set": { "notified_pending_delete": false } },
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

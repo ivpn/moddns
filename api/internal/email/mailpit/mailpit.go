@@ -90,6 +90,30 @@ func (m *Mailpit) SendEmailVerificationOTP(ctx context.Context, sendTo, otp stri
 	return m.sendEmail(ctx, sendTo, reqBody)
 }
 
+// SendSubscriptionExpiryEmail notifies the user their subscription has expired.
+func (m *Mailpit) SendSubscriptionExpiryEmail(ctx context.Context, sendTo string) error {
+	c := content.SubscriptionExpiryContent()
+	reqBody := mailpitSendRequest{
+		From:    Email{Email: "info@moddns.net", Name: "modDNS"},
+		To:      []Email{{Email: sendTo, Name: "User"}},
+		Subject: c.Subject,
+		Text:    c.Plain,
+	}
+	return m.sendEmail(ctx, sendTo, reqBody)
+}
+
+// SendPendingDeleteEmail notifies the user their account is pending deletion.
+func (m *Mailpit) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
+	c := content.PendingDeleteContent()
+	reqBody := mailpitSendRequest{
+		From:    Email{Email: "info@moddns.net", Name: "modDNS"},
+		To:      []Email{{Email: sendTo, Name: "User"}},
+		Subject: c.Subject,
+		Text:    c.Plain,
+	}
+	return m.sendEmail(ctx, sendTo, reqBody)
+}
+
 // sendEmail sends an email using the Mailpit API
 func (m *Mailpit) sendEmail(ctx context.Context, email string, reqBody mailpitSendRequest) error {
 	payload, err := json.Marshal(reqBody)

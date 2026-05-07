@@ -1,4 +1,5 @@
 import {
+    AlertTriangle,
     LogOutIcon,
     ShieldCheck,
     ShieldX,
@@ -24,6 +25,8 @@ import PasskeySettings from "@/pages/account_preferences/PasskeySettings";
 import VerifyEmailDialog from "@/pages/account_preferences/VerifyEmailDialog";
 import ChangeEmailDialog from "@/pages/account_preferences/ChangeEmailDialog";
 import { useAppStore } from "@/store/general";
+import AccountSubscription from "@/components/AccountSubscription";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 interface PreferencesSectionProps {
     account: ModelAccount | null;
@@ -51,10 +54,13 @@ interface SectionDef {
     items: SectionItem[];
 }
 
+const RESYNC_URL = import.meta.env.VITE_RESYNC_URL || "https://www.ivpn.net/en/account/";
+
 const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element => {
     // Local account state to allow refresh post-verification
     const [currentAccount, setCurrentAccount] = useState<ModelAccount | null>(account);
     const setAccount = useAppStore(s => s.setAccount);
+    const { isPendingDelete } = useSubscriptionGuard();
 
     // State for error reports consent
     const [errorReportsConsent, setErrorReportsConsent] = useState(
@@ -220,17 +226,31 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
             </div>
 
             <div className="flex flex-col gap-6">
-                {/* Account Info Card */}
-                <div className="flex flex-col gap-6 w-full">
-                    <div
-                        className="flex w-full justify-start md:max-w-[572px] lg:max-w-[640px] md:px-0"
-                        data-testid="account-info-card-wrapper"
-                    >
+                {isPendingDelete && (
+                    <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-red-400)] bg-[var(--danger-zone-bg)] px-4 py-3">
+                        <AlertTriangle className="w-5 h-5 text-[var(--tailwind-colors-red-400)] flex-shrink-0" />
+                        <div className="min-w-0">
+                            <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
+                                Your account is pending deletion.
+                            </p>
+                            <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
+                                To reinstate access add time to your{" "}
+                                <a href={RESYNC_URL} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">IVPN account</a>.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Alerts + Account Info + Subscription Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full items-start">
+                    <AccountSubscription />
+                    <div data-testid="account-info-card-wrapper">
                         <AccountInfoCard accountInfo={accountInfo} />
                     </div>
                 </div>
 
-                {/* Sections */}
+                {/* Sections - disabled during pending_delete */}
+                <div className={`flex flex-col gap-6${isPendingDelete ? ' opacity-50 pointer-events-none' : ''}`}>
                 {sections.map((section, sectionIndex) => (
                     <Card key={sectionIndex} className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                         <CardContent>
@@ -344,6 +364,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
 
                 {/* Passkey Management Section */}
                 <PasskeySettings />
+                </div>
 
                 {/* Delete Account Section */}
                 <Card className="w-full bg-transparent dark:bg-[var(--danger-zone-bg)] border border-[var(--tailwind-colors-red-400)] dark:border-transparent rounded-[var(--primitives-radius-radius)]">

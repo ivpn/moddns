@@ -34,6 +34,7 @@ import api from "@/api/api";
 import type { ModelAccount, ModelProfile } from "@/api/client/api";
 import { AUTH_KEY } from "@/lib/consts"
 import { useAppStore } from "@/store/general"
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard"
 import { Toaster } from "@/components/ui/sonner"
 import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
 import { RouterErrorBoundary } from "@/components/errors/RouterErrorBoundary";
@@ -75,8 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Public route predicate (keep in sync with router public section)
   const isPublicPath = (p: string) => (
     p === '/login' ||
-    // Dynamic signup route requires subid; plain /signup should not be treated as public and will fall through to 404
-    p.startsWith('/signup/') ||
+    p === '/signup' ||
     p === '/tos' ||
     p === '/privacy' ||
     p === '/faq' ||
@@ -107,6 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useAppStore.getState().setAccount(null);
     useAppStore.getState().setProfiles([]);
     useAppStore.getState().setActiveProfile(null);
+    useAppStore.getState().setSubscriptionStatus(null);
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -161,14 +162,28 @@ async function rootLoader() {
       throw redirect("/login");
     }
 
-    const [accountRes, profilesRes] = await Promise.all([
+    // Use allSettled so a partial failure (e.g. /profiles returning 403 in
+    // pending_delete subscription state, where /accounts/current is still
+    // allowlisted by the server's subscription guard) does not collapse the
+    // whole loader. Without this, the AccountInfoCard on /account-preferences
+    // would lose `account.email` (the modDNS ID) and render an empty value.
+    const [accountResult, profilesResult] = await Promise.allSettled([
       api.Client.accountsApi.apiV1AccountsCurrentGet(),
       api.Client.profilesApi.apiV1ProfilesGet(),
     ]);
 
-    // Save to Zustand store
-    const account = accountRes.data as ModelAccount;
-    const profiles = profilesRes.data as ModelProfile[];
+    // Account is the load-bearing fetch — if it fails, fall through to the
+    // shared catch handler so 401/404/429 are surfaced exactly as before.
+    if (accountResult.status === 'rejected') {
+      throw accountResult.reason;
+    }
+
+    const account = accountResult.value.data as ModelAccount;
+    // Profiles is best-effort: a non-200 (e.g. 403 in PD) leaves the user with
+    // an empty profile list rather than a broken account-preferences screen.
+    const profiles: ModelProfile[] = profilesResult.status === 'fulfilled'
+      ? (profilesResult.value.data as ModelProfile[])
+      : [];
 
     // This will run on the client, so we can update the store here:
     if (typeof window !== "undefined") {
@@ -278,6 +293,31 @@ function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'publ
 const AppLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='app'>{children}</BaseLayout>;
 const PublicLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='public'>{children}</BaseLayout>;
 
+// Route guard: redirect all protected routes to /account-preferences when pending_delete.
+// Fetches subscription status on mount if not yet in the store (e.g. after fresh login).
+function PendingDeleteGuard() {
+  const { isPendingDelete } = useSubscriptionGuard();
+  const subscriptionStatus = useAppStore(s => s.subscriptionStatus);
+  const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (subscriptionStatus !== null) return;
+    api.Client.subscriptionApi.apiV1SubGet()
+      .then(res => setSubscriptionStatus(res.data.status ?? null))
+      .catch(() => {}); // no subscription = no restriction
+  }, [subscriptionStatus, setSubscriptionStatus]);
+
+  useEffect(() => {
+    if (isPendingDelete && location.pathname !== '/account-preferences') {
+      navigate('/account-preferences', { replace: true });
+    }
+  }, [isPendingDelete, location.pathname, navigate]);
+
+  return null;
+}
+
 // Layout for protected routes
 function ProtectedLayout() {
   const { isAuthenticated } = useAuth();
@@ -372,6 +412,7 @@ function ProtectedLayout() {
   return (
     <>
       <AppLayout>
+        <PendingDeleteGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
         {isDesktop && connectionStatusVisible && (
@@ -555,7 +596,7 @@ const router = createBrowserRouter([
         element: <PublicLayout><Outlet /></PublicLayout>,
         children: [
           { path: "login", element: <LoginWrapper /> },
-          { path: "signup/:subid", element: <Suspense fallback={<div />}><Signup /></Suspense> },
+          { path: "signup", element: <Suspense fallback={<div />}><Signup /></Suspense> },
           { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
           { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
           { path: "faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },

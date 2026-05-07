@@ -73,7 +73,7 @@ func (l *Loader) Reload() error {
 		return err
 	}
 
-	log.Debug().Str("path", l.path).Int("services", len(cat.Services)).Msg("Services catalog loaded")
+	log.Trace().Str("path", l.path).Int("services", len(cat.Services)).Msg("Services catalog loaded")
 	return nil
 }
 

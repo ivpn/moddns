@@ -77,6 +77,7 @@ const Client = {
   appleMobileconfigApi: new client.AppleMobileconfigApi(config),
   sessionsApi: new client.SessionsApi(config),
   subscriptionApi: new client.SubscriptionApi(config),
+  paSessionApi: new client.PASessionApi(config),
 };
 
 function clearSession() {

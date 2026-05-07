@@ -23,6 +23,8 @@ interface AppState {
   setCustomRulesAlertDismissed: (dismissed: boolean) => void;
   passkeys: ModelCredential[];
   setPasskeys: (passkeys: ModelCredential[]) => void;
+  subscriptionStatus: string | null;
+  setSubscriptionStatus: (status: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -63,6 +65,8 @@ export const useAppStore = create<AppState>()(
       setCustomRulesAlertDismissed: (dismissed) => set({ customRulesAlertDismissed: dismissed }),
       passkeys: [],
       setPasskeys: (passkeys) => set({ passkeys }),
+      subscriptionStatus: null,
+      setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
     }),
     {
       name: "moddns-storage",

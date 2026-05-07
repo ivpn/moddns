@@ -45,65 +45,59 @@ func (_m *Servicer) EXPECT() *Servicer_Expecter {
 	return &Servicer_Expecter{mock: &_m.Mock}
 }
 
-// AddSubscription provides a mock function for the type Servicer
-func (_mock *Servicer) AddSubscription(ctx context.Context, subscriptionId string, activeUntil string) error {
-	ret := _mock.Called(ctx, subscriptionId, activeUntil)
+// AddPASession provides a mock function for the type Servicer
+func (_mock *Servicer) AddPASession(ctx context.Context, session *model.PASession) error {
+	ret := _mock.Called(ctx, session)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AddSubscription")
+		panic("no return value specified for AddPASession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = returnFunc(ctx, subscriptionId, activeUntil)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.PASession) error); ok {
+		r0 = returnFunc(ctx, session)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// Servicer_AddSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddSubscription'
-type Servicer_AddSubscription_Call struct {
+// Servicer_AddPASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddPASession'
+type Servicer_AddPASession_Call struct {
 	*mock.Call
 }
 
-// AddSubscription is a helper method to define mock.On call
+// AddPASession is a helper method to define mock.On call
 //   - ctx context.Context
-//   - subscriptionId string
-//   - activeUntil string
-func (_e *Servicer_Expecter) AddSubscription(ctx interface{}, subscriptionId interface{}, activeUntil interface{}) *Servicer_AddSubscription_Call {
-	return &Servicer_AddSubscription_Call{Call: _e.mock.On("AddSubscription", ctx, subscriptionId, activeUntil)}
+//   - session *model.PASession
+func (_e *Servicer_Expecter) AddPASession(ctx interface{}, session interface{}) *Servicer_AddPASession_Call {
+	return &Servicer_AddPASession_Call{Call: _e.mock.On("AddPASession", ctx, session)}
 }
 
-func (_c *Servicer_AddSubscription_Call) Run(run func(ctx context.Context, subscriptionId string, activeUntil string)) *Servicer_AddSubscription_Call {
+func (_c *Servicer_AddPASession_Call) Run(run func(ctx context.Context, session *model.PASession)) *Servicer_AddPASession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 *model.PASession
 		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg1 = args[1].(*model.PASession)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *Servicer_AddSubscription_Call) Return(err error) *Servicer_AddSubscription_Call {
+func (_c *Servicer_AddPASession_Call) Return(err error) *Servicer_AddPASession_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Servicer_AddSubscription_Call) RunAndReturn(run func(ctx context.Context, subscriptionId string, activeUntil string) error) *Servicer_AddSubscription_Call {
+func (_c *Servicer_AddPASession_Call) RunAndReturn(run func(ctx context.Context, session *model.PASession) error) *Servicer_AddPASession_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -263,8 +257,8 @@ func (_c *Servicer_BeginReauth_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // BeginRegistration provides a mock function for the type Servicer
-func (_mock *Servicer) BeginRegistration(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error) {
-	ret := _mock.Called(ctx, account)
+func (_mock *Servicer) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error) {
+	ret := _mock.Called(ctx, account, subID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginRegistration")
@@ -273,23 +267,23 @@ func (_mock *Servicer) BeginRegistration(ctx context.Context, account *model.Acc
 	var r0 *protocol.CredentialCreation
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account) (*protocol.CredentialCreation, string, error)); ok {
-		return returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) (*protocol.CredentialCreation, string, error)); ok {
+		return returnFunc(ctx, account, subID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account) *protocol.CredentialCreation); ok {
-		r0 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) *protocol.CredentialCreation); ok {
+		r0 = returnFunc(ctx, account, subID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*protocol.CredentialCreation)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account) string); ok {
-		r1 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account, string) string); ok {
+		r1 = returnFunc(ctx, account, subID)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, *model.Account) error); ok {
-		r2 = returnFunc(ctx, account)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, *model.Account, string) error); ok {
+		r2 = returnFunc(ctx, account, subID)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -304,69 +298,12 @@ type Servicer_BeginRegistration_Call struct {
 // BeginRegistration is a helper method to define mock.On call
 //   - ctx context.Context
 //   - account *model.Account
-func (_e *Servicer_Expecter) BeginRegistration(ctx interface{}, account interface{}) *Servicer_BeginRegistration_Call {
-	return &Servicer_BeginRegistration_Call{Call: _e.mock.On("BeginRegistration", ctx, account)}
+//   - subID string
+func (_e *Servicer_Expecter) BeginRegistration(ctx interface{}, account interface{}, subID interface{}) *Servicer_BeginRegistration_Call {
+	return &Servicer_BeginRegistration_Call{Call: _e.mock.On("BeginRegistration", ctx, account, subID)}
 }
 
-func (_c *Servicer_BeginRegistration_Call) Run(run func(ctx context.Context, account *model.Account)) *Servicer_BeginRegistration_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *model.Account
-		if args[1] != nil {
-			arg1 = args[1].(*model.Account)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Servicer_BeginRegistration_Call) Return(credentialCreation *protocol.CredentialCreation, s string, err error) *Servicer_BeginRegistration_Call {
-	_c.Call.Return(credentialCreation, s, err)
-	return _c
-}
-
-func (_c *Servicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error)) *Servicer_BeginRegistration_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CompleteRegistration provides a mock function for the type Servicer
-func (_mock *Servicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string) error {
-	ret := _mock.Called(ctx, account, subscriptionID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CompleteRegistration")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) error); ok {
-		r0 = returnFunc(ctx, account, subscriptionID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Servicer_CompleteRegistration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CompleteRegistration'
-type Servicer_CompleteRegistration_Call struct {
-	*mock.Call
-}
-
-// CompleteRegistration is a helper method to define mock.On call
-//   - ctx context.Context
-//   - account *model.Account
-//   - subscriptionID string
-func (_e *Servicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}) *Servicer_CompleteRegistration_Call {
-	return &Servicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID)}
-}
-
-func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string)) *Servicer_CompleteRegistration_Call {
+func (_c *Servicer_BeginRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subID string)) *Servicer_BeginRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -389,12 +326,81 @@ func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
+func (_c *Servicer_BeginRegistration_Call) Return(credentialCreation *protocol.CredentialCreation, s string, err error) *Servicer_BeginRegistration_Call {
+	_c.Call.Return(credentialCreation, s, err)
+	return _c
+}
+
+func (_c *Servicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error)) *Servicer_BeginRegistration_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CompleteRegistration provides a mock function for the type Servicer
+func (_mock *Servicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
+	ret := _mock.Called(ctx, account, subscriptionID, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CompleteRegistration")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string, string) error); ok {
+		r0 = returnFunc(ctx, account, subscriptionID, sessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_CompleteRegistration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CompleteRegistration'
+type Servicer_CompleteRegistration_Call struct {
+	*mock.Call
+}
+
+// CompleteRegistration is a helper method to define mock.On call
+//   - ctx context.Context
+//   - account *model.Account
+//   - subscriptionID string
+//   - sessionID string
+func (_e *Servicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}, sessionID interface{}) *Servicer_CompleteRegistration_Call {
+	return &Servicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID, sessionID)}
+}
+
+func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string)) *Servicer_CompleteRegistration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *model.Account
+		if args[1] != nil {
+			arg1 = args[1].(*model.Account)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
 func (_c *Servicer_CompleteRegistration_Call) Return(err error) *Servicer_CompleteRegistration_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Servicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string) error) *Servicer_CompleteRegistration_Call {
+func (_c *Servicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error) *Servicer_CompleteRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -700,38 +706,37 @@ func (_c *Servicer_CreateProfile_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
-// CreateSubscription provides a mock function for the type Servicer
-func (_mock *Servicer) CreateSubscription(ctx context.Context, accountId string, subscriptionId string, activeUntil string) error {
-	ret := _mock.Called(ctx, accountId, subscriptionId, activeUntil)
+// CreateSubscriptionFromPreauth provides a mock function for the type Servicer
+func (_mock *Servicer) CreateSubscriptionFromPreauth(ctx context.Context, accountId string, preauth *model.Preauth) error {
+	ret := _mock.Called(ctx, accountId, preauth)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateSubscription")
+		panic("no return value specified for CreateSubscriptionFromPreauth")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = returnFunc(ctx, accountId, subscriptionId, activeUntil)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.Preauth) error); ok {
+		r0 = returnFunc(ctx, accountId, preauth)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// Servicer_CreateSubscription_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSubscription'
-type Servicer_CreateSubscription_Call struct {
+// Servicer_CreateSubscriptionFromPreauth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSubscriptionFromPreauth'
+type Servicer_CreateSubscriptionFromPreauth_Call struct {
 	*mock.Call
 }
 
-// CreateSubscription is a helper method to define mock.On call
+// CreateSubscriptionFromPreauth is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountId string
-//   - subscriptionId string
-//   - activeUntil string
-func (_e *Servicer_Expecter) CreateSubscription(ctx interface{}, accountId interface{}, subscriptionId interface{}, activeUntil interface{}) *Servicer_CreateSubscription_Call {
-	return &Servicer_CreateSubscription_Call{Call: _e.mock.On("CreateSubscription", ctx, accountId, subscriptionId, activeUntil)}
+//   - preauth *model.Preauth
+func (_e *Servicer_Expecter) CreateSubscriptionFromPreauth(ctx interface{}, accountId interface{}, preauth interface{}) *Servicer_CreateSubscriptionFromPreauth_Call {
+	return &Servicer_CreateSubscriptionFromPreauth_Call{Call: _e.mock.On("CreateSubscriptionFromPreauth", ctx, accountId, preauth)}
 }
 
-func (_c *Servicer_CreateSubscription_Call) Run(run func(ctx context.Context, accountId string, subscriptionId string, activeUntil string)) *Servicer_CreateSubscription_Call {
+func (_c *Servicer_CreateSubscriptionFromPreauth_Call) Run(run func(ctx context.Context, accountId string, preauth *model.Preauth)) *Servicer_CreateSubscriptionFromPreauth_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -741,30 +746,25 @@ func (_c *Servicer_CreateSubscription_Call) Run(run func(ctx context.Context, ac
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 string
+		var arg2 *model.Preauth
 		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
+			arg2 = args[2].(*model.Preauth)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
 }
 
-func (_c *Servicer_CreateSubscription_Call) Return(err error) *Servicer_CreateSubscription_Call {
+func (_c *Servicer_CreateSubscriptionFromPreauth_Call) Return(err error) *Servicer_CreateSubscriptionFromPreauth_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *Servicer_CreateSubscription_Call) RunAndReturn(run func(ctx context.Context, accountId string, subscriptionId string, activeUntil string) error) *Servicer_CreateSubscription_Call {
+func (_c *Servicer_CreateSubscriptionFromPreauth_Call) RunAndReturn(run func(ctx context.Context, accountId string, preauth *model.Preauth) error) *Servicer_CreateSubscriptionFromPreauth_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1871,16 +1871,16 @@ func (_c *Servicer_FinishReauth_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // FinishRegistration provides a mock function for the type Servicer
-func (_mock *Servicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request) error {
-	ret := _mock.Called(ctx, token, httpReq)
+func (_mock *Servicer) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
+	ret := _mock.Called(ctx, token, httpReq, paSessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for FinishRegistration")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request) error); ok {
-		r0 = returnFunc(ctx, token, httpReq)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *http.Request, string) error); ok {
+		r0 = returnFunc(ctx, token, httpReq, paSessionID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1896,11 +1896,12 @@ type Servicer_FinishRegistration_Call struct {
 //   - ctx context.Context
 //   - token string
 //   - httpReq *http.Request
-func (_e *Servicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}) *Servicer_FinishRegistration_Call {
-	return &Servicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq)}
+//   - paSessionID string
+func (_e *Servicer_Expecter) FinishRegistration(ctx interface{}, token interface{}, httpReq interface{}, paSessionID interface{}) *Servicer_FinishRegistration_Call {
+	return &Servicer_FinishRegistration_Call{Call: _e.mock.On("FinishRegistration", ctx, token, httpReq, paSessionID)}
 }
 
-func (_c *Servicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request)) *Servicer_FinishRegistration_Call {
+func (_c *Servicer_FinishRegistration_Call) Run(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string)) *Servicer_FinishRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1914,10 +1915,15 @@ func (_c *Servicer_FinishRegistration_Call) Run(run func(ctx context.Context, to
 		if args[2] != nil {
 			arg2 = args[2].(*http.Request)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -1928,7 +1934,7 @@ func (_c *Servicer_FinishRegistration_Call) Return(err error) *Servicer_FinishRe
 	return _c
 }
 
-func (_c *Servicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request) error) *Servicer_FinishRegistration_Call {
+func (_c *Servicer_FinishRegistration_Call) RunAndReturn(run func(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error) *Servicer_FinishRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2918,8 +2924,8 @@ func (_c *Servicer_GetSubscription_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // GetUnfinishedSignupOrPostAccount provides a mock function for the type Servicer
-func (_mock *Servicer) GetUnfinishedSignupOrPostAccount(ctx context.Context, email string, password string, subscriptionID string) (*model.Account, error) {
-	ret := _mock.Called(ctx, email, password, subscriptionID)
+func (_mock *Servicer) GetUnfinishedSignupOrPostAccount(ctx context.Context, email string, password string, subscriptionID string, sessionID string) (*model.Account, error) {
+	ret := _mock.Called(ctx, email, password, subscriptionID, sessionID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUnfinishedSignupOrPostAccount")
@@ -2927,18 +2933,18 @@ func (_mock *Servicer) GetUnfinishedSignupOrPostAccount(ctx context.Context, ema
 
 	var r0 *model.Account
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.Account, error)); ok {
-		return returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*model.Account, error)); ok {
+		return returnFunc(ctx, email, password, subscriptionID, sessionID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.Account); ok {
-		r0 = returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *model.Account); ok {
+		r0 = returnFunc(ctx, email, password, subscriptionID, sessionID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.Account)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, email, password, subscriptionID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, email, password, subscriptionID, sessionID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2955,11 +2961,12 @@ type Servicer_GetUnfinishedSignupOrPostAccount_Call struct {
 //   - email string
 //   - password string
 //   - subscriptionID string
-func (_e *Servicer_Expecter) GetUnfinishedSignupOrPostAccount(ctx interface{}, email interface{}, password interface{}, subscriptionID interface{}) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
-	return &Servicer_GetUnfinishedSignupOrPostAccount_Call{Call: _e.mock.On("GetUnfinishedSignupOrPostAccount", ctx, email, password, subscriptionID)}
+//   - sessionID string
+func (_e *Servicer_Expecter) GetUnfinishedSignupOrPostAccount(ctx interface{}, email interface{}, password interface{}, subscriptionID interface{}, sessionID interface{}) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
+	return &Servicer_GetUnfinishedSignupOrPostAccount_Call{Call: _e.mock.On("GetUnfinishedSignupOrPostAccount", ctx, email, password, subscriptionID, sessionID)}
 }
 
-func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ctx context.Context, email string, password string, subscriptionID string)) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
+func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ctx context.Context, email string, password string, subscriptionID string, sessionID string)) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2977,11 +2984,16 @@ func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) Run(run func(ctx conte
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -2992,7 +3004,7 @@ func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) Return(account *model.
 	return _c
 }
 
-func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subscriptionID string) (*model.Account, error)) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
+func (_c *Servicer_GetUnfinishedSignupOrPostAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subscriptionID string, sessionID string) (*model.Account, error)) *Servicer_GetUnfinishedSignupOrPostAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3060,86 +3072,6 @@ func (_c *Servicer_MfaCheck_Call) RunAndReturn(run func(ctx context.Context, acc
 	return _c
 }
 
-// RegisterAccount provides a mock function for the type Servicer
-func (_mock *Servicer) RegisterAccount(ctx context.Context, email string, password string, subID string) (*model.Account, error) {
-	ret := _mock.Called(ctx, email, password, subID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for RegisterAccount")
-	}
-
-	var r0 *model.Account
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.Account, error)); ok {
-		return returnFunc(ctx, email, password, subID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.Account); ok {
-		r0 = returnFunc(ctx, email, password, subID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.Account)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, email, password, subID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Servicer_RegisterAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterAccount'
-type Servicer_RegisterAccount_Call struct {
-	*mock.Call
-}
-
-// RegisterAccount is a helper method to define mock.On call
-//   - ctx context.Context
-//   - email string
-//   - password string
-//   - subID string
-func (_e *Servicer_Expecter) RegisterAccount(ctx interface{}, email interface{}, password interface{}, subID interface{}) *Servicer_RegisterAccount_Call {
-	return &Servicer_RegisterAccount_Call{Call: _e.mock.On("RegisterAccount", ctx, email, password, subID)}
-}
-
-func (_c *Servicer_RegisterAccount_Call) Run(run func(ctx context.Context, email string, password string, subID string)) *Servicer_RegisterAccount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *Servicer_RegisterAccount_Call) Return(account *model.Account, err error) *Servicer_RegisterAccount_Call {
-	_c.Call.Return(account, err)
-	return _c
-}
-
-func (_c *Servicer_RegisterAccount_Call) RunAndReturn(run func(ctx context.Context, email string, password string, subID string) (*model.Account, error)) *Servicer_RegisterAccount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // RequestEmailVerificationOTP provides a mock function for the type Servicer
 func (_mock *Servicer) RequestEmailVerificationOTP(ctx context.Context, accountId string) error {
 	ret := _mock.Called(ctx, accountId)
@@ -3193,6 +3125,72 @@ func (_c *Servicer_RequestEmailVerificationOTP_Call) Return(err error) *Servicer
 }
 
 func (_c *Servicer_RequestEmailVerificationOTP_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *Servicer_RequestEmailVerificationOTP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RotatePASessionID provides a mock function for the type Servicer
+func (_mock *Servicer) RotatePASessionID(ctx context.Context, oldID string) (string, error) {
+	ret := _mock.Called(ctx, oldID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RotatePASessionID")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, oldID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, oldID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, oldID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Servicer_RotatePASessionID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RotatePASessionID'
+type Servicer_RotatePASessionID_Call struct {
+	*mock.Call
+}
+
+// RotatePASessionID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - oldID string
+func (_e *Servicer_Expecter) RotatePASessionID(ctx interface{}, oldID interface{}) *Servicer_RotatePASessionID_Call {
+	return &Servicer_RotatePASessionID_Call{Call: _e.mock.On("RotatePASessionID", ctx, oldID)}
+}
+
+func (_c *Servicer_RotatePASessionID_Call) Run(run func(ctx context.Context, oldID string)) *Servicer_RotatePASessionID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_RotatePASessionID_Call) Return(s string, err error) *Servicer_RotatePASessionID_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Servicer_RotatePASessionID_Call) RunAndReturn(run func(ctx context.Context, oldID string) (string, error)) *Servicer_RotatePASessionID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3261,16 +3259,16 @@ func (_c *Servicer_SaveCredential_Call) RunAndReturn(run func(context1 context.C
 }
 
 // SaveSession provides a mock function for the type Servicer
-func (_mock *Servicer) SaveSession(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string) error {
-	ret := _mock.Called(context1, sessionData, s, s1, s2)
+func (_mock *Servicer) SaveSession(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string) error {
+	ret := _mock.Called(context1, sessionData, s, s1, s2, s3)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string) error); ok {
-		r0 = returnFunc(context1, sessionData, s, s1, s2)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string, string) error); ok {
+		r0 = returnFunc(context1, sessionData, s, s1, s2, s3)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3288,11 +3286,12 @@ type Servicer_SaveSession_Call struct {
 //   - s string
 //   - s1 string
 //   - s2 string
-func (_e *Servicer_Expecter) SaveSession(context1 interface{}, sessionData interface{}, s interface{}, s1 interface{}, s2 interface{}) *Servicer_SaveSession_Call {
-	return &Servicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionData, s, s1, s2)}
+//   - s3 string
+func (_e *Servicer_Expecter) SaveSession(context1 interface{}, sessionData interface{}, s interface{}, s1 interface{}, s2 interface{}, s3 interface{}) *Servicer_SaveSession_Call {
+	return &Servicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionData, s, s1, s2, s3)}
 }
 
-func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string)) *Servicer_SaveSession_Call {
+func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string)) *Servicer_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3314,12 +3313,17 @@ func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sess
 		if args[4] != nil {
 			arg4 = args[4].(string)
 		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5,
 		)
 	})
 	return _c
@@ -3330,7 +3334,7 @@ func (_c *Servicer_SaveSession_Call) Return(err error) *Servicer_SaveSession_Cal
 	return _c
 }
 
-func (_c *Servicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string) error) *Servicer_SaveSession_Call {
+func (_c *Servicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string) error) *Servicer_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3890,6 +3894,137 @@ func (_c *Servicer_UpdateSubscription_Call) Return(subscription *model.Subscript
 }
 
 func (_c *Servicer_UpdateSubscription_Call) RunAndReturn(run func(ctx context.Context, accountId string, updates []model.SubscriptionUpdate) (*model.Subscription, error)) *Servicer_UpdateSubscription_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateSubscriptionFromPASession provides a mock function for the type Servicer
+func (_mock *Servicer) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string) error {
+	ret := _mock.Called(ctx, sub, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateSubscriptionFromPASession")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Subscription, string) error); ok {
+		r0 = returnFunc(ctx, sub, sessionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_UpdateSubscriptionFromPASession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateSubscriptionFromPASession'
+type Servicer_UpdateSubscriptionFromPASession_Call struct {
+	*mock.Call
+}
+
+// UpdateSubscriptionFromPASession is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sub *model.Subscription
+//   - sessionID string
+func (_e *Servicer_Expecter) UpdateSubscriptionFromPASession(ctx interface{}, sub interface{}, sessionID interface{}) *Servicer_UpdateSubscriptionFromPASession_Call {
+	return &Servicer_UpdateSubscriptionFromPASession_Call{Call: _e.mock.On("UpdateSubscriptionFromPASession", ctx, sub, sessionID)}
+}
+
+func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Run(run func(ctx context.Context, sub *model.Subscription, sessionID string)) *Servicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *model.Subscription
+		if args[1] != nil {
+			arg1 = args[1].(*model.Subscription)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Return(err error) *Servicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_UpdateSubscriptionFromPASession_Call) RunAndReturn(run func(ctx context.Context, sub *model.Subscription, sessionID string) error) *Servicer_UpdateSubscriptionFromPASession_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateAndGetPreauth provides a mock function for the type Servicer
+func (_mock *Servicer) ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error) {
+	ret := _mock.Called(ctx, sessionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateAndGetPreauth")
+	}
+
+	var r0 *model.Preauth
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.Preauth, error)); ok {
+		return returnFunc(ctx, sessionID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.Preauth); ok {
+		r0 = returnFunc(ctx, sessionID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Preauth)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, sessionID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Servicer_ValidateAndGetPreauth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateAndGetPreauth'
+type Servicer_ValidateAndGetPreauth_Call struct {
+	*mock.Call
+}
+
+// ValidateAndGetPreauth is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sessionID string
+func (_e *Servicer_Expecter) ValidateAndGetPreauth(ctx interface{}, sessionID interface{}) *Servicer_ValidateAndGetPreauth_Call {
+	return &Servicer_ValidateAndGetPreauth_Call{Call: _e.mock.On("ValidateAndGetPreauth", ctx, sessionID)}
+}
+
+func (_c *Servicer_ValidateAndGetPreauth_Call) Run(run func(ctx context.Context, sessionID string)) *Servicer_ValidateAndGetPreauth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_ValidateAndGetPreauth_Call) Return(preauth *model.Preauth, err error) *Servicer_ValidateAndGetPreauth_Call {
+	_c.Call.Return(preauth, err)
+	return _c
+}
+
+func (_c *Servicer_ValidateAndGetPreauth_Call) RunAndReturn(run func(ctx context.Context, sessionID string) (*model.Preauth, error)) *Servicer_ValidateAndGetPreauth_Call {
 	_c.Call.Return(run)
 	return _c
 }

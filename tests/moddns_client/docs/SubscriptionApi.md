@@ -5,7 +5,7 @@ All URIs are relative to *http://localhost*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**api_v1_sub_get**](SubscriptionApi.md#api_v1_sub_get) | **GET** /api/v1/sub | Get subscription data
-[**api_v1_subscription_add_post**](SubscriptionApi.md#api_v1_subscription_add_post) | **POST** /api/v1/subscription/add | Add subscription
+[**api_v1_sub_update_put**](SubscriptionApi.md#api_v1_sub_update_put) | **PUT** /api/v1/sub/update | Update subscription via PASession
 
 
 # **api_v1_sub_get**
@@ -75,19 +75,18 @@ No authorization required
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **api_v1_subscription_add_post**
-> Dict[str, object] api_v1_subscription_add_post(body)
+# **api_v1_sub_update_put**
+> Dict[str, object] api_v1_sub_update_put()
 
-Add subscription
+Update subscription via PASession
 
-Add subscription and cache its presence
+Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
 
 ### Example
 
 
 ```python
 import moddns
-from moddns.models.requests_subscription_req import RequestsSubscriptionReq
 from moddns.rest import ApiException
 from pprint import pprint
 
@@ -102,25 +101,21 @@ configuration = moddns.Configuration(
 with moddns.ApiClient(configuration) as api_client:
     # Create an instance of the API class
     api_instance = moddns.SubscriptionApi(api_client)
-    body = moddns.RequestsSubscriptionReq() # RequestsSubscriptionReq | Subscription request
 
     try:
-        # Add subscription
-        api_response = api_instance.api_v1_subscription_add_post(body)
-        print("The response of SubscriptionApi->api_v1_subscription_add_post:\n")
+        # Update subscription via PASession
+        api_response = api_instance.api_v1_sub_update_put()
+        print("The response of SubscriptionApi->api_v1_sub_update_put:\n")
         pprint(api_response)
     except Exception as e:
-        print("Exception when calling SubscriptionApi->api_v1_subscription_add_post: %s\n" % e)
+        print("Exception when calling SubscriptionApi->api_v1_sub_update_put: %s\n" % e)
 ```
 
 
 
 ### Parameters
 
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **body** | [**RequestsSubscriptionReq**](RequestsSubscriptionReq.md)| Subscription request | 
+This endpoint does not need any parameter.
 
 ### Return type
 
@@ -132,7 +127,7 @@ No authorization required
 
 ### HTTP request headers
 
- - **Content-Type**: application/json
+ - **Content-Type**: Not defined
  - **Accept**: application/json
 
 ### HTTP response details
@@ -141,7 +136,7 @@ No authorization required
 |-------------|-------------|------------------|
 **200** | OK |  -  |
 **400** | Bad Request |  -  |
-**500** | Internal Server Error |  -  |
+**401** | Unauthorized |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 

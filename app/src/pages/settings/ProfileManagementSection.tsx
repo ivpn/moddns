@@ -3,6 +3,8 @@ import { type JSX, useState, useEffect } from "react";
 import type { ModelProfile } from "@/api/client/api";
 import { ModelProfileUpdateOperationEnum, ModelProfileUpdatePathEnum } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { toast } from "sonner";
 import DeleteProfileDialog from "@/pages/settings/DeleteProfileDialog";
 import QueryLogsSection from "./QueryLogsSection";
@@ -16,6 +18,7 @@ interface ProfileManagementSectionProps {
 }
 
 export default function ProfileManagementSection({ profiles }: ProfileManagementSectionProps): JSX.Element {
+    const { isRestricted } = useSubscriptionGuard();
     // Get active profile from store
     const activeProfile = useAppStore((state) => state.activeProfile);
     const setActiveProfile = useAppStore((state) => state.setActiveProfile);
@@ -381,37 +384,45 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
     }, [activeProfile, profiles]);
 
     return (
+        <>
+        <LimitedAccessBanner />
         <div className="flex flex-col items-start gap-4 w-full overflow-x-hidden max-w-full">
-            {/* BLOCKLISTS Section */}
-            <BlocklistsSection
-                blocklistSettings={blocklistSettings}
-                handleBlocklistChange={handleBlocklistChange}
-            />
+            {/* BLOCKLISTS + CUSTOM RULES — mutations blocked in LA */}
+            <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>
+                <div className={`flex flex-col gap-4 w-full ${isRestricted ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <BlocklistsSection
+                        blocklistSettings={blocklistSettings}
+                        handleBlocklistChange={handleBlocklistChange}
+                    />
 
-            {/* CUSTOM RULES Section */}
-            <CustomRulesSection
-                customRulesSettings={customRulesSettings}
-                handleCustomRulesSettingsChange={handleCustomRulesSettingsChange}
-            />
+                    <CustomRulesSection
+                        customRulesSettings={customRulesSettings}
+                        handleCustomRulesSettingsChange={handleCustomRulesSettingsChange}
+                    />
+                </div>
+            </div>
 
-            {/* LOGS Section */}
+            {/* LOGS Section — gates toggles internally; Download/Clear buttons stay active in LA */}
             <QueryLogsSection
                 logsSettings={logsSettings}
                 activeProfile={activeProfile}
                 handleLogsChange={handleLogsChange}
             />
 
-            {/* ADVANCED SETTINGS Section */}
-            <AdvancedSettingsSection
-                advancedSettings={advancedSettings}
-                advancedLoading={advancedLoading}
-                handleAdvancedChange={handleAdvancedChange}
-                currentRecursor={currentRecursor}
-                onRecursorChange={handleRecursorChange}
-            />
+            {/* ADVANCED + DELETE — mutations blocked in LA */}
+            <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>
+                <div className={`flex flex-col gap-4 w-full ${isRestricted ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <AdvancedSettingsSection
+                        advancedSettings={advancedSettings}
+                        advancedLoading={advancedLoading}
+                        handleAdvancedChange={handleAdvancedChange}
+                        currentRecursor={currentRecursor}
+                        onRecursorChange={handleRecursorChange}
+                    />
 
-            {/* Delete Profile Section */}
-            <DeleteProfileSection onDeleteClick={() => setShowDeleteDialog(true)} />
+                    <DeleteProfileSection onDeleteClick={() => setShowDeleteDialog(true)} />
+                </div>
+            </div>
 
             {/* Delete Profile Dialog */}
             {showDeleteDialog && (
@@ -425,5 +436,6 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 />
             )}
         </div>
+        </>
     );
 }

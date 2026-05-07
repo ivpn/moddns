@@ -33,7 +33,7 @@ class ModelBlocklist(BaseModel):
     entries: Optional[StrictInt] = None
     homepage: Optional[StrictStr] = None
     id: Optional[StrictStr] = None
-    intensity: Optional[StrictStr] = Field(default=None, description="basic, comprehensive, restrictive")
+    intensity: Optional[List[StrictStr]] = Field(default=None, description="basic, comprehensive, restrictive")
     kind: Optional[StrictStr] = Field(default=None, description="general, category, security")
     last_modified: Optional[StrictStr] = None
     name: StrictStr = Field(description="conventional blocklist name, displayed to the user")

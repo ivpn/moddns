@@ -14,10 +14,10 @@
 
 import unittest
 
-from moddns.models.model_services_settings import ModelServicesSettings
+from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
-class TestModelServicesSettings(unittest.TestCase):
-    """ModelServicesSettings unit test stubs"""
+class TestRequestsRotatePASessionReq(unittest.TestCase):
+    """RequestsRotatePASessionReq unit test stubs"""
 
     def setUp(self):
         pass
@@ -25,27 +25,26 @@ class TestModelServicesSettings(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def make_instance(self, include_optional) -> ModelServicesSettings:
-        """Test ModelServicesSettings
+    def make_instance(self, include_optional) -> RequestsRotatePASessionReq:
+        """Test RequestsRotatePASessionReq
             include_optional is a boolean, when False only required
             params are included, when True both required and
             optional params are included """
-        # uncomment below to create an instance of `ModelServicesSettings`
+        # uncomment below to create an instance of `RequestsRotatePASessionReq`
         """
-        model = ModelServicesSettings()
+        model = RequestsRotatePASessionReq()
         if include_optional:
-            return ModelServicesSettings(
-                blocked = [
-                    ''
-                    ]
+            return RequestsRotatePASessionReq(
+                sessionid = ''
             )
         else:
-            return ModelServicesSettings(
+            return RequestsRotatePASessionReq(
+                sessionid = '',
         )
         """
 
-    def testModelServicesSettings(self):
-        """Test ModelServicesSettings"""
+    def testRequestsRotatePASessionReq(self):
+        """Test RequestsRotatePASessionReq"""
         # inst_req_only = self.make_instance(include_optional=False)
         # inst_req_and_optional = self.make_instance(include_optional=True)
 

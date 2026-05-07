@@ -36,7 +36,10 @@ class TestModelSubscription(unittest.TestCase):
         if include_optional:
             return ModelSubscription(
                 active_until = '',
-                type = 'Free'
+                outage = True,
+                status = 'active',
+                tier = '',
+                updated_at = ''
             )
         else:
             return ModelSubscription(
