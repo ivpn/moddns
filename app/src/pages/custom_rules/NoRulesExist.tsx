@@ -16,7 +16,7 @@ export default function NoRulesExist({
     showInput = false,
     composer,
 }: NoRulesExistProps): JSX.Element {
-    const defaultTitle = type === "denied" ? "There are no denied domains yet" : "There are no allowed domains yet";
+    const defaultTitle = type === "denied" ? "There are no denied domains yet." : "There are no allowed domains yet.";
 
     return (
         // On mobile we want this block higher (no scroll). Remove vertical centering on mobile, keep it on md+.
