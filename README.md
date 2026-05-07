@@ -170,7 +170,7 @@ Please see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for detailed guidelines 
 
 ## Code of Conduct & Security
 
-Please refer to [`CODE_OF_CONDUCT.md`](.github/CODE_OF_CONDUCT.md) for expectations in all community spaces.
+Please refer to [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for expectations in all community spaces.
 
 Security vulnerabilities should **not** be disclosed in public issues. Follow the process described in [`SECURITY.md`](.github/SECURITY.md) to report them responsibly.
 
