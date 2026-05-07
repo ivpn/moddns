@@ -321,11 +321,16 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                             </li>
                         </ul>
                         <p style={{ marginTop: '1.5rem', color: '#aaa', fontSize: '13px' }}>
-                            {/* TODO(landing): wrap "Read more about Unlinked Access" in
-                                <a href="https://ivpn.net/unlinked-access" target="_blank" rel="noopener noreferrer">…</a>
-                                once the IVPN explainer page is published. Until then the prose stays
-                                unlinked and only the source-code link is active. */}
-                            Read more about Unlinked Access and review the{' '}
+                            Read more about{' '}
+                            <a
+                                href={LINKS.unlinkedAccess}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#aaa', textDecoration: 'underline' }}
+                            >
+                                Unlinked Access
+                            </a>
+                            {' '}and review the{' '}
                             <a
                                 href={LINKS.unlinkedRepo}
                                 target="_blank"

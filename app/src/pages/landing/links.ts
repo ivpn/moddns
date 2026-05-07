@@ -11,6 +11,7 @@ export const LINKS = Object.freeze({
     ivpnHome,
     pricing: `${ivpnHome}/pricing/`,
     ivpnTeam: `${ivpnHome}/en/team/`,
+    unlinkedAccess: `${ivpnHome}/en/unlinked-access/`,
     auditReport: `${ivpnHome}/resources/IVP-08-report.pdf`,
     moddnsRepo: 'https://github.com/ivpn/moddns',
     unlinkedRepo: 'https://github.com/ivpn/unlinked-access',
