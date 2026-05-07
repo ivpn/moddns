@@ -6,7 +6,8 @@ import {
     Smartphone,
     Router,
     Gamepad2,
-    Tv2
+    Tv2,
+    Shield
 } from "lucide-react";
 import React, { type JSX, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +26,7 @@ import { deviceIdentificationBadges, createDeviceIdentificationSteps } from "./g
 import BrowsersGuide, { createBrowsersSteps, browsersBadges } from "./guides/Browsers";
 import { androidBadges, createAndroidSteps } from "./guides/Android";
 import RoutersGuide, { createRoutersSteps } from "./guides/Routers";
+import { vpnAppsBadges, createVpnAppsSteps } from "./guides/VpnApps";
 import IOS from "./guides/AppleIOS";
 import MacOS from "./guides/AppleMacOS";
 
@@ -49,6 +51,7 @@ interface SetupGuidePanelProps {
     onClose: () => void;
     isVisible?: boolean;
     mode?: 'sidepanel' | 'overlay';
+    onPlatformChange?: (platform: string) => void;
 }
 
 const platformIcons: { [key: string]: React.ReactNode } = {
@@ -59,6 +62,7 @@ const platformIcons: { [key: string]: React.ReactNode } = {
     "Android": <Smartphone className="w-5 h-5" />,
     "iOS": <img src={AppleLogo} alt="iOS" className="w-5 h-5 brightness-0 dark:invert" />,
     "Routers": <Router className="w-5 h-5" />,
+    "VPN apps": <Shield className="w-5 h-5" />,
     "Console": <Gamepad2 className="w-5 h-5" />,
     "Smart TV": <Tv2 className="w-5 h-5" />,
     "Device Identification": <Smartphone className="w-5 h-5" />,
@@ -71,11 +75,12 @@ const platformGuides: { [key: string]: { badges?: { label: string }[]; steps?: {
     "macOS": { badges: macOSBadges },
     "iOS": { badges: iosBadges },
     "Routers": RoutersGuide,
+    "VPN apps": { badges: vpnAppsBadges },
     "Browsers": BrowsersGuide,
     "Device Identification": null, // Handle dynamically
 };
 
-export default function SetupGuidePanel({ platform, onClose, isVisible = true, mode = 'sidepanel' }: SetupGuidePanelProps): JSX.Element {
+export default function SetupGuidePanel({ platform, onClose, isVisible = true, mode = 'sidepanel', onPlatformChange }: SetupGuidePanelProps): JSX.Element {
     const profileData = useProfileData();
     const effectivePrimaryIp = profileData?.ipv4 || '0.0.0.0';
     const effectiveDomain = profileData?.domain || 'example.com';
@@ -130,6 +135,16 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                 anycastIpv4: effectivePrimaryIp,
                 dnsServerDomain: effectiveDomain,
                 dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`
+            })
+        };
+    } else if (platform === "VPN apps") {
+        guide = {
+            badges: vpnAppsBadges,
+            steps: createVpnAppsSteps({
+                dohEndpoint,
+                dotEndpoint: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`,
+                primaryIp: effectivePrimaryIp,
+                onPlatformChange,
             })
         };
     } else {

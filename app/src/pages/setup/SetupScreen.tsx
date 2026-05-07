@@ -9,9 +9,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
     AppWindow,
     Clipboard,
-    Gamepad2,
     Info,
     Router,
+    Shield,
     Smartphone,
     Tv2,
 } from "lucide-react";
@@ -50,7 +50,7 @@ const platformCards: PlatformCard[][] = [
     ],
     [
         { icon: <Router className="w-6 h-6" />, name: "Routers" },
-        { icon: <Gamepad2 className="w-6 h-6" />, name: "Console", disabled: true },
+        { icon: <Shield className="w-6 h-6" />, name: "VPN apps" },
         { icon: <Tv2 className="w-6 h-6" />, name: "Smart TV", disabled: true },
     ],
 ];
@@ -366,6 +366,7 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                     isVisible={showPanel}
                     // Force overlay for widths <=1024 to avoid header overlap issues on tablets / iPhone landscape
                     mode={isDesktop ? 'sidepanel' : 'overlay'}
+                    onPlatformChange={handlePlatformClick}
                 />
             )}
         </div>
