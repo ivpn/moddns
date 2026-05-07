@@ -207,7 +207,13 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
     const EXTRA_BUFFER = 24;
     const bufferedTop = mode === 'overlay' ? mobileTop + EXTRA_BUFFER : 0;
     const topOffsetValue = mode === 'overlay' ? `${bufferedTop}px` : '0';
-    const height = mode === 'overlay' ? `calc(100dvh - ${bufferedTop}px)` : '100dvh';
+    // In overlay mode, reserve room for the fixed BottomNav (z-50) which otherwise
+    // covers the panel's lower edge and hides the last step. Matches the offset
+    // App.tsx applies to the main content area (App.tsx:469).
+    const BOTTOM_NAV_OFFSET = 'calc(72px + env(safe-area-inset-bottom, 0px))';
+    const height = mode === 'overlay'
+        ? `calc(100dvh - ${bufferedTop}px - ${BOTTOM_NAV_OFFSET})`
+        : '100dvh';
 
     const isOverlay = mode === 'overlay';
 
@@ -279,9 +285,9 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                         )}
 
                         {/* Steps */}
-                        <div className="flex flex-col gap-6">
+                        <div className="flex flex-col gap-6" data-testid="setup-guide-steps">
                             {guide.steps?.map((step: { instruction: React.ReactNode; step?: number }, index: number) => (
-                                <div key={index} className="flex flex-col gap-3">
+                                <div key={index} className="flex flex-col gap-3" data-testid="setup-guide-step">
                                     {step.step && (
                                         <div className="flex items-center gap-2.5">
                                             <div className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
