@@ -22,7 +22,7 @@ const StepBlock = ({ number, children }: { number: number; children: React.React
 interface TabDef { key: string; label: string; content: React.ReactNode }
 
 // We now rely on DI; provided context supplies primaryIp, profileId, domain
-const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => `[Resolve]\nDNS=${ctx.primaryIp}#${ctx.profileId}.${ctx.domain}\nDNSOverTLS=yes`;
+const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => `[Resolve]\nDNS=${ctx.primaryIp}#${ctx.profileId}.${ctx.domain}\nDNSOverTLS=yes\nDomains=~.`;
 const buildDnsmasqConfig = (ctx: LinuxGuideDeps) => `no-resolv\nbogus-priv\nstrict-order\nserver=${ctx.primaryIp}\nadd-cpe-id=${ctx.profileId}`;
 const systemdRestartCmd = 'sudo systemctl restart systemd-resolved';
 const dnsmasqRestartCmd = 'sudo systemctl restart dnsmasq';
@@ -47,6 +47,9 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
                         <StepBlock number={2}>
                             Edit <code className="font-mono text-xs">/etc/systemd/resolved.conf</code>:
                             <CodeBlock value={systemdResolvedConfig} />
+                            <div className="mt-3 text-xs text-[var(--tailwind-colors-slate-300)] leading-relaxed">
+                                <strong>Domains=~.</strong> routes all DNS queries through this server. This is required when running alongside a VPN client (e.g. IVPN) — without it, queries can fall back to other resolvers and break DNS connectivity.
+                            </div>
                         </StepBlock>
                         <StepBlock number={3}>
                             Restart the systemd-resolved service: <code className="font-mono text-xs">{systemdRestartCmd}</code>

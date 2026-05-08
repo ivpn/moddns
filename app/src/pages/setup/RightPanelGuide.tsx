@@ -6,7 +6,8 @@ import {
     Smartphone,
     Router,
     Gamepad2,
-    Tv2
+    Tv2,
+    Shield
 } from "lucide-react";
 import React, { type JSX, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -25,6 +26,7 @@ import { deviceIdentificationBadges, createDeviceIdentificationSteps } from "./g
 import BrowsersGuide, { createBrowsersSteps, browsersBadges } from "./guides/Browsers";
 import { androidBadges, createAndroidSteps } from "./guides/Android";
 import RoutersGuide, { createRoutersSteps } from "./guides/Routers";
+import { vpnAppsBadges, createVpnAppsSteps } from "./guides/VpnApps";
 import IOS from "./guides/AppleIOS";
 import MacOS from "./guides/AppleMacOS";
 
@@ -49,6 +51,7 @@ interface SetupGuidePanelProps {
     onClose: () => void;
     isVisible?: boolean;
     mode?: 'sidepanel' | 'overlay';
+    onPlatformChange?: (platform: string) => void;
 }
 
 const platformIcons: { [key: string]: React.ReactNode } = {
@@ -59,6 +62,7 @@ const platformIcons: { [key: string]: React.ReactNode } = {
     "Android": <Smartphone className="w-5 h-5" />,
     "iOS": <img src={AppleLogo} alt="iOS" className="w-5 h-5 brightness-0 dark:invert" />,
     "Routers": <Router className="w-5 h-5" />,
+    "VPN apps": <Shield className="w-5 h-5" />,
     "Console": <Gamepad2 className="w-5 h-5" />,
     "Smart TV": <Tv2 className="w-5 h-5" />,
     "Device Identification": <Smartphone className="w-5 h-5" />,
@@ -71,11 +75,12 @@ const platformGuides: { [key: string]: { badges?: { label: string }[]; steps?: {
     "macOS": { badges: macOSBadges },
     "iOS": { badges: iosBadges },
     "Routers": RoutersGuide,
+    "VPN apps": { badges: vpnAppsBadges },
     "Browsers": BrowsersGuide,
     "Device Identification": null, // Handle dynamically
 };
 
-export default function SetupGuidePanel({ platform, onClose, isVisible = true, mode = 'sidepanel' }: SetupGuidePanelProps): JSX.Element {
+export default function SetupGuidePanel({ platform, onClose, isVisible = true, mode = 'sidepanel', onPlatformChange }: SetupGuidePanelProps): JSX.Element {
     const profileData = useProfileData();
     const effectivePrimaryIp = profileData?.ipv4 || '0.0.0.0';
     const effectiveDomain = profileData?.domain || 'example.com';
@@ -130,6 +135,16 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                 anycastIpv4: effectivePrimaryIp,
                 dnsServerDomain: effectiveDomain,
                 dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`
+            })
+        };
+    } else if (platform === "VPN apps") {
+        guide = {
+            badges: vpnAppsBadges,
+            steps: createVpnAppsSteps({
+                dohEndpoint,
+                dotEndpoint: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`,
+                primaryIp: effectivePrimaryIp,
+                onPlatformChange,
             })
         };
     } else {
@@ -192,7 +207,13 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
     const EXTRA_BUFFER = 24;
     const bufferedTop = mode === 'overlay' ? mobileTop + EXTRA_BUFFER : 0;
     const topOffsetValue = mode === 'overlay' ? `${bufferedTop}px` : '0';
-    const height = mode === 'overlay' ? `calc(100dvh - ${bufferedTop}px)` : '100dvh';
+    // In overlay mode, reserve room for the fixed BottomNav (z-50) which otherwise
+    // covers the panel's lower edge and hides the last step. Matches the offset
+    // App.tsx applies to the main content area (App.tsx:469).
+    const BOTTOM_NAV_OFFSET = 'calc(72px + env(safe-area-inset-bottom, 0px))';
+    const height = mode === 'overlay'
+        ? `calc(100dvh - ${bufferedTop}px - ${BOTTOM_NAV_OFFSET})`
+        : '100dvh';
 
     const isOverlay = mode === 'overlay';
 
@@ -264,9 +285,9 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                         )}
 
                         {/* Steps */}
-                        <div className="flex flex-col gap-6">
+                        <div className="flex flex-col gap-6" data-testid="setup-guide-steps">
                             {guide.steps?.map((step: { instruction: React.ReactNode; step?: number }, index: number) => (
-                                <div key={index} className="flex flex-col gap-3">
+                                <div key={index} className="flex flex-col gap-3" data-testid="setup-guide-step">
                                     {step.step && (
                                         <div className="flex items-center gap-2.5">
                                             <div className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
