@@ -46,6 +46,7 @@ type AccountTestSuite struct {
 	mockQueryLogsRepo    *mocks.QueryLogsRepository
 	mockStatsRepo        *mocks.StatisticsRepository
 	mockSubscriptionRepo *mocks.SubscriptionRepository
+	mockCredentialRepo   *mocks.WebAuthnCredentialRepository
 	mockCache            *mocks.Cachecache
 	mockMailer           *mocks.Maileremail
 	mockIDGenerator      *mocks.Generatoridgen
@@ -90,6 +91,7 @@ func (suite *AccountTestSuite) SetupSuite() {
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatsRepo)
 	suite.mockSubscriptionRepo = mocks.NewSubscriptionRepository(suite.T())
+	suite.mockCredentialRepo = mocks.NewWebAuthnCredentialRepository(suite.T())
 	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
 
 	// Create the profile service with mocks
@@ -112,7 +114,7 @@ func (suite *AccountTestSuite) SetupSuite() {
 		suite.profileService,
 		suite.statisticsService,
 		suite.subscriptionService,
-		nil, // credential repository not required for these tests
+		suite.mockCredentialRepo,
 		suite.mockCache,
 		suite.mockMailer,
 		suite.mockIDGenerator,
@@ -153,6 +155,8 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 	httpClient := webhookClient.Http{Cfg: config.APIConfig{PreauthURL: preauthServer.URL}}
 	subSvc := subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{PreauthURL: preauthServer.URL}, httpClient)
 
+	// This sub-suite was designed around CredentialRepository being nil so that
+	// isFinished() short-circuits the GetCredentialsCount lookup. Keep that contract.
 	suite.service = account.NewAccountService(
 		suite.serviceConfig,
 		suite.mockAccountRepo,
@@ -352,6 +356,11 @@ func (suite *AccountTestSuite) TestGetAccount() {
 		suite.Run(tt.name, func() {
 			// Reset mock expectations
 			suite.mockAccountRepo.ExpectedCalls = nil
+			suite.mockCredentialRepo.ExpectedCalls = nil
+
+			// populateAuthMethods reads passkey count for the account it returned;
+			// these tests don't care about the result, so allow any call.
+			suite.mockCredentialRepo.On("GetCredentialsCount", mock.Anything, mock.AnythingOfType("primitive.ObjectID")).Return(0, nil).Maybe()
 
 			// Mock repository call for all IDs
 			if tt.repoError != nil {
@@ -1014,18 +1023,20 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 	}
 
 	tests := []struct {
-		name               string
-		accountID          string
-		request            requests.AccountDeletionRequest
-		mfa                *model.MfaData
-		account            *model.Account
-		getAccountError    error
-		deleteProfileError error
-		deleteAccountError error
-		expectedError      string
-		setupProfiles      bool
-		setupDeleteAccount bool
-		verifyTotpAccount  *model.Account
+		name                   string
+		accountID              string
+		request                requests.AccountDeletionRequest
+		mfa                    *model.MfaData
+		account                *model.Account
+		getAccountError        error
+		deleteProfileError     error
+		deleteCredentialsError error
+		deleteSubscriptionErr  error
+		deleteAccountError     error
+		expectedError          string
+		setupProfiles          bool
+		setupDeleteAccount     bool
+		verifyTotpAccount      *model.Account
 	}{
 		{
 			name:      "Successful deletion",
@@ -1151,6 +1162,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			verifyTotpAccount:  totpVerifyAccount,
 		},
 		{
+			// Profile deletion fails after cred + sub already succeeded (new ordering).
 			name:      "Profile deletion fails",
 			accountID: "507f1f77bcf86cd799439011",
 			request: requests.AccountDeletionRequest{
@@ -1173,6 +1185,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			deleteProfileError: errors.New("profile deletion failed"),
 			expectedError:      "profile deletion failed",
 			setupProfiles:      true,
+			setupDeleteAccount: true,
 		},
 		{
 			name:      "Account deletion fails",
@@ -1199,6 +1212,59 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			setupProfiles:      true,
 			setupDeleteAccount: true,
 		},
+		{
+			// Credentials cleanup failure: profile loop, subscription, and account
+			// doc must NOT be touched (verified by the strict mocks — no
+			// expectations registered for any of those calls).
+			name:      "Credential cleanup fails",
+			accountID: "507f1f77bcf86cd799439011",
+			request: requests.AccountDeletionRequest{
+				DeletionCode: "DELETE123",
+				ReauthToken:  strPtr(reauthValue),
+			},
+			mfa: &model.MfaData{},
+			account: &model.Account{
+				ID:                  primitive.NewObjectID(),
+				Email:               "test@example.com",
+				DeletionCode:        "DELETE123",
+				DeletionCodeExpires: &validExpires,
+				Profiles:            []string{"profile1"},
+				Tokens: []model.Token{{
+					Type:      auth.TokenTypeReauthAccountDeletion,
+					Value:     reauthValue,
+					ExpiresAt: validExpires,
+				}},
+			},
+			deleteCredentialsError: errors.New("credentials deletion failed"),
+			expectedError:          "credentials deletion failed",
+			setupDeleteAccount:     true,
+		},
+		{
+			// Subscription cleanup failure: profile loop and account doc must NOT
+			// be touched.
+			name:      "Subscription cleanup fails",
+			accountID: "507f1f77bcf86cd799439011",
+			request: requests.AccountDeletionRequest{
+				DeletionCode: "DELETE123",
+				ReauthToken:  strPtr(reauthValue),
+			},
+			mfa: &model.MfaData{},
+			account: &model.Account{
+				ID:                  primitive.NewObjectID(),
+				Email:               "test@example.com",
+				DeletionCode:        "DELETE123",
+				DeletionCodeExpires: &validExpires,
+				Profiles:            []string{"profile1"},
+				Tokens: []model.Token{{
+					Type:      auth.TokenTypeReauthAccountDeletion,
+					Value:     reauthValue,
+					ExpiresAt: validExpires,
+				}},
+			},
+			deleteSubscriptionErr: errors.New("subscription deletion failed"),
+			expectedError:         "subscription deletion failed",
+			setupDeleteAccount:    true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1206,6 +1272,8 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			// Reset mock expectations
 			suite.mockAccountRepo.ExpectedCalls = nil
 			suite.mockProfileRepo.ExpectedCalls = nil
+			suite.mockCredentialRepo.ExpectedCalls = nil
+			suite.mockSubscriptionRepo.ExpectedCalls = nil
 
 			// Prepare account state when password verification is required
 			if tt.account != nil && tt.request.CurrentPassword != nil {
@@ -1230,7 +1298,35 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.verifyTotpAccount, nil)
 				}
 
-				if shouldProcess && tt.setupProfiles {
+				// Phase 1 — cleanup phase reached: credentials runs, then (if it
+				// succeeds) subscription. Both happen BEFORE the profile loop in
+				// the new ordering, so cred/sub mocks must be set up even when the
+				// profile loop is the failure point.
+				if shouldProcess && tt.setupDeleteAccount {
+					accountObjID, parseErr := primitive.ObjectIDFromHex(tt.accountID)
+					suite.Require().NoError(parseErr)
+
+					suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(tt.deleteCredentialsError)
+
+					if tt.deleteCredentialsError == nil {
+						suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), tt.accountID).Return(tt.deleteSubscriptionErr)
+					}
+				}
+
+				// Phase 2 — profile loop reached: only if cred + sub succeeded.
+				// Loop is driven by GetProfilesByAccountId (live query), and each
+				// successful per-profile deletion is followed by RemoveProfileFromAccount.
+				reachProfileLoop := shouldProcess && tt.setupProfiles && tt.deleteCredentialsError == nil && tt.deleteSubscriptionErr == nil
+				if reachProfileLoop {
+					var profiles []model.Profile
+					for _, profileID := range tt.account.Profiles {
+						profiles = append(profiles, model.Profile{
+							ProfileId: profileID,
+							AccountId: tt.accountID,
+						})
+					}
+					suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), tt.accountID).Return(profiles, nil)
+
 					for _, profileID := range tt.account.Profiles {
 						if tt.deleteProfileError != nil {
 							suite.mockProfileRepo.On("GetProfileById", context.Background(), profileID).Return(&model.Profile{
@@ -1247,10 +1343,12 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 						suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
 						suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
+						suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
 					}
 				}
 
-				if shouldProcess && tt.setupDeleteAccount && tt.deleteProfileError == nil {
+				// Phase 3 — account doc delete: only if everything before succeeded.
+				if shouldProcess && tt.setupDeleteAccount && tt.deleteCredentialsError == nil && tt.deleteSubscriptionErr == nil && tt.deleteProfileError == nil {
 					if tt.deleteAccountError != nil {
 						suite.mockAccountRepo.On("DeleteAccountById", context.Background(), tt.accountID).Return(tt.deleteAccountError)
 					} else {
@@ -1269,6 +1367,125 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			}
 		})
 	}
+}
+
+// TestDeleteAccount_RetryAfterPartialProfileLoop simulates the second attempt
+// after a prior credential cleanup failure that already deleted some profiles.
+// account.Profiles is stale but GetProfilesByAccountId returns only what still
+// exists; the loop drains the remaining profiles cleanly.
+func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() {
+	suite.mockAccountRepo.ExpectedCalls = nil
+	suite.mockAccountRepo.Calls = nil
+	suite.mockProfileRepo.ExpectedCalls = nil
+	suite.mockProfileRepo.Calls = nil
+	suite.mockCredentialRepo.ExpectedCalls = nil
+	suite.mockCredentialRepo.Calls = nil
+	suite.mockSubscriptionRepo.ExpectedCalls = nil
+	suite.mockSubscriptionRepo.Calls = nil
+
+	validExpires := time.Now().Add(10 * time.Minute)
+	reauthValue := "reauth-token"
+	accountID := "507f1f77bcf86cd799439011"
+	accountObjID, err := primitive.ObjectIDFromHex(accountID)
+	suite.Require().NoError(err)
+
+	// account.Profiles still references profile1 even though it was deleted by
+	// a previous failed attempt. profile2 is the only one that actually exists.
+	account := &model.Account{
+		ID:                  accountObjID,
+		Email:               "test@example.com",
+		DeletionCode:        "DELETE123",
+		DeletionCodeExpires: &validExpires,
+		Profiles:            []string{"profile1", "profile2"},
+		Tokens: []model.Token{{
+			Type:      auth.TokenTypeReauthAccountDeletion,
+			Value:     reauthValue,
+			ExpiresAt: validExpires,
+		}},
+	}
+
+	suite.mockAccountRepo.On("GetAccount", context.Background(), accountID).Return(account, nil)
+
+	// Cleanup phase: idempotent, succeeds on retry.
+	suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(nil)
+	suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), accountID).Return(nil)
+
+	// Live profile query returns only profile2 — profile1 is already gone.
+	suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), accountID).Return(
+		[]model.Profile{{ProfileId: "profile2", AccountId: accountID}},
+		nil,
+	)
+	suite.mockProfileRepo.On("GetProfileById", context.Background(), "profile2").Return(
+		&model.Profile{ProfileId: "profile2", AccountId: accountID}, nil,
+	)
+	suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), "profile2").Return(nil)
+	suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), "profile2").Return(nil)
+	suite.mockCache.On("DeleteProfileSettings", context.Background(), "profile2").Return(nil)
+	suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, "profile2").Return(nil)
+
+	// Account doc nukes any orphan profile1 reference still in the array.
+	suite.mockAccountRepo.On("DeleteAccountById", context.Background(), accountID).Return(nil)
+
+	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
+		DeletionCode: "DELETE123",
+		ReauthToken:  &reauthValue,
+	}, &model.MfaData{})
+	suite.NoError(err)
+
+	// profile1 must NEVER have been touched on this retry — strict mocks
+	// would have failed if it had.
+	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, "profile1")
+	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RemoveProfileFromAccount", mock.Anything, mock.Anything, "profile1")
+}
+
+// TestDeleteAccount_RetryWithAllProfilesAlreadyGone covers the case where a
+// previous attempt deleted every profile but the account doc still references
+// them. The live profile query returns an empty slice so the loop is a no-op.
+func (suite *AccountTestSuite) TestDeleteAccount_RetryWithAllProfilesAlreadyGone() {
+	suite.mockAccountRepo.ExpectedCalls = nil
+	suite.mockAccountRepo.Calls = nil
+	suite.mockProfileRepo.ExpectedCalls = nil
+	suite.mockProfileRepo.Calls = nil
+	suite.mockCredentialRepo.ExpectedCalls = nil
+	suite.mockCredentialRepo.Calls = nil
+	suite.mockSubscriptionRepo.ExpectedCalls = nil
+	suite.mockSubscriptionRepo.Calls = nil
+
+	validExpires := time.Now().Add(10 * time.Minute)
+	reauthValue := "reauth-token"
+	accountID := "507f1f77bcf86cd799439011"
+	accountObjID, err := primitive.ObjectIDFromHex(accountID)
+	suite.Require().NoError(err)
+
+	account := &model.Account{
+		ID:                  accountObjID,
+		Email:               "test@example.com",
+		DeletionCode:        "DELETE123",
+		DeletionCodeExpires: &validExpires,
+		Profiles:            []string{"profile1"}, // stale reference
+		Tokens: []model.Token{{
+			Type:      auth.TokenTypeReauthAccountDeletion,
+			Value:     reauthValue,
+			ExpiresAt: validExpires,
+		}},
+	}
+
+	suite.mockAccountRepo.On("GetAccount", context.Background(), accountID).Return(account, nil)
+	suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(nil)
+	suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), accountID).Return(nil)
+	// Live query returns empty — nothing left to do in the loop.
+	suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), accountID).Return([]model.Profile{}, nil)
+	suite.mockAccountRepo.On("DeleteAccountById", context.Background(), accountID).Return(nil)
+
+	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
+		DeletionCode: "DELETE123",
+		ReauthToken:  &reauthValue,
+	}, &model.MfaData{})
+	suite.NoError(err)
+
+	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, mock.Anything)
+	suite.mockProfileRepo.AssertNotCalled(suite.T(), "DeleteProfileById", mock.Anything, mock.Anything)
+	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RemoveProfileFromAccount", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestGenerateDeletionCode tests the GenerateDeletionCode method

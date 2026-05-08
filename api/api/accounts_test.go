@@ -887,6 +887,103 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ValidationFailureInvalidU
 	suite.Contains(errResp.Details, "uuid4")
 }
 
+// TestDeleteAccount_Success exercises the happy path: handler reaches Service.DeleteAccount
+// (which the wrapper covers) and returns 204.
+func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
+	accountID := testAccountID
+	reauth := "reauth-token"
+	payload := requests.AccountDeletionRequest{
+		DeletionCode: "DELETE123",
+		ReauthToken:  &reauth,
+	}
+
+	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
+		model.Session{AccountID: accountID},
+		true,
+		nil,
+	)
+	suite.mockService.On(
+		"DeleteAccount",
+		mock.Anything,
+		accountID,
+		payload,
+		mock.AnythingOfType("*model.MfaData"),
+	).Return(nil)
+	// Service.DeleteAccount wrapper invokes Store.DeleteSessionsByAccountID after
+	// the inner deletion succeeds.
+	suite.mockDB.On("DeleteSessionsByAccountID", mock.Anything, accountID).Return(nil)
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/current", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: testSessionToken})
+
+	server := suite.createTestServer()
+	resp, err := server.App.Test(req, -1)
+	suite.NoError(err)
+	suite.Equal(http.StatusNoContent, resp.StatusCode)
+}
+
+// TestDeleteAccount_ServiceError surfaces a service-layer error (e.g. cleanup failure)
+// as a non-2xx response carrying the unified error message.
+func (suite *AccountsAPITestSuite) TestDeleteAccount_ServiceError() {
+	accountID := testAccountID
+	reauth := "reauth-token"
+	payload := requests.AccountDeletionRequest{
+		DeletionCode: "DELETE123",
+		ReauthToken:  &reauth,
+	}
+
+	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
+		model.Session{AccountID: accountID},
+		true,
+		nil,
+	)
+	suite.mockService.On(
+		"DeleteAccount",
+		mock.Anything,
+		accountID,
+		payload,
+		mock.AnythingOfType("*model.MfaData"),
+	).Return(errors.New("cleanup boom"))
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/current", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: testSessionToken})
+
+	server := suite.createTestServer()
+	resp, err := server.App.Test(req, -1)
+	suite.NoError(err)
+	suite.NotEqual(http.StatusNoContent, resp.StatusCode)
+
+	var errResp ErrResponse
+	suite.NoError(json.NewDecoder(resp.Body).Decode(&errResp))
+	suite.Equal(ErrFailedToDeleteAccount.Error(), errResp.Error)
+}
+
+// TestDeleteAccount_ValidationFailure rejects a body missing the required deletion_code.
+func (suite *AccountsAPITestSuite) TestDeleteAccount_ValidationFailure() {
+	accountID := testAccountID
+
+	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
+		model.Session{AccountID: accountID},
+		true,
+		nil,
+	)
+	// Service.DeleteAccount must never be called when validation fails (strict mock will fail otherwise).
+
+	body, _ := json.Marshal(map[string]any{}) // no deletion_code
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/accounts/current", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: testSessionToken})
+
+	server := suite.createTestServer()
+	resp, err := server.App.Test(req, -1)
+	suite.NoError(err)
+	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+}
+
 func TestAccountsAPITestSuite(t *testing.T) {
 	suite.Run(t, new(AccountsAPITestSuite))
 }
