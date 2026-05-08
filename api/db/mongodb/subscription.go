@@ -92,6 +92,21 @@ func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscript
 	return nil
 }
 
+// DeleteSubscriptionByAccountId removes the subscription document for an account.
+// Returns nil if no subscription exists (some accounts never had one).
+func (r *SubscriptionRepository) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	objID, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	filter := bson.D{{Key: "account_id", Value: objID}}
+	if _, err := r.subscriptionsCollection.DeleteOne(ctx, filter); err != nil {
+		log.Error().Err(err).Msg("Failed to delete subscription for account")
+		return err
+	}
+	return nil
+}
+
 // ResetNotifiedForActive sets notified=false for subscriptions that are genuinely
 // Active per model.Subscription.Active(): active_until in the future AND updated_at
 // recent enough that IsOutage() returns false (within the last 48h). Tier1 is a

@@ -16,5 +16,6 @@ type WebAuthnCredentialRepository interface {
 	GetCredentialByID(ctx context.Context, credentialID primitive.ObjectID) (*model.Credential, error)
 	DeleteCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID) error
 	DeleteCredentialByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID) error
+	DeleteCredentialsByAccountID(ctx context.Context, accountID primitive.ObjectID) error
 	GetCredentialsCount(ctx context.Context, accountID primitive.ObjectID) (int, error)
 }

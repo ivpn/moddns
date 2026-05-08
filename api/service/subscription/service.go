@@ -74,6 +74,12 @@ func (s *SubscriptionService) UpdateSubscription(ctx context.Context, accountId 
 	return subscription, err
 }
 
+// DeleteSubscriptionByAccountId removes the subscription document for an account.
+// Returns nil if no subscription exists.
+func (s *SubscriptionService) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	return s.SubscriptionRepository.DeleteSubscriptionByAccountId(ctx, accountId)
+}
+
 // CreateSubscriptionFromPreauth creates a new subscription using preauth entry data.
 func (s *SubscriptionService) CreateSubscriptionFromPreauth(ctx context.Context, accountId string, preauth *model.Preauth) error {
 	accOID, err := primitive.ObjectIDFromHex(accountId)
