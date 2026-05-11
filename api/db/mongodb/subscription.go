@@ -136,10 +136,11 @@ func (r *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]m
 
 // FindPendingDeleteUnnotified is a coarse pre-filter: returns any sub with
 // notified_pending_delete=false whose active_until or updated_at is older
-// than 14 days, OR whose tier contains "Tier 1" (IVPN Standard — terminal
-// PD state). Callers MUST post-filter via sub.GetStatus() == StatusPendingDelete.
-// If model.PendingDelete() is extended in future, this filter may need to
-// widen, but never to narrow.
+// than 14 days, OR whose tier identifies the IVPN Standard plan (substring
+// "Tier 1" or "Standard" — terminal PD state). Callers MUST post-filter
+// via sub.GetStatus() == StatusPendingDelete. The tier regex mirrors
+// model.hasStandardTier; if the model rule is extended, this filter may
+// need to widen, but never to narrow.
 func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
 	filter := bson.M{
@@ -147,7 +148,7 @@ func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context
 		"$or": []bson.M{
 			{"active_until": bson.M{"$lt": fourteenDaysAgo}},
 			{"updated_at": bson.M{"$lt": fourteenDaysAgo}},
-			{"tier": bson.M{"$regex": "Tier 1"}},
+			{"tier": bson.M{"$regex": "Tier 1|Standard"}},
 		},
 	}
 	cursor, err := r.subscriptionsCollection.Find(ctx, filter)

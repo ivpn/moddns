@@ -159,6 +159,16 @@ func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesFr
 	s.True(containsID(subs, id), "Tier 1 Lite variant must also match the regex pre-filter")
 }
 
+func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesFreshIVPNStandard() {
+	now := time.Now()
+	id := s.seedSub("IVPN Standard", now.Add(30*24*time.Hour), now, false, false)
+
+	ctx := context.Background()
+	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	s.Require().NoError(err)
+	s.True(containsID(subs, id), "IVPN Standard product name must match the regex pre-filter")
+}
+
 func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_ExcludesPaidFresh() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 2", now.Add(30*24*time.Hour), now, false, false)

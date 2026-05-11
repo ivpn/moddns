@@ -18,7 +18,25 @@ const (
 	StatusPendingDelete SubscriptionStatus = "pending_delete"
 )
 
-const Tier1 = "Tier 1"
+const (
+	// Tier1 is the legacy substring IVPN uses for the Standard plan,
+	// e.g. "IVPN Tier 1".
+	Tier1 = "Tier 1"
+	// TierStandard is the product-name substring IVPN may also use
+	// for the same Standard plan, e.g. "IVPN Standard".
+	TierStandard = "Standard"
+)
+
+// hasStandardTier reports whether the tier string identifies the IVPN
+// Standard plan, which is not entitled to modDNS. IVPN may send the plan
+// name as either "IVPN Tier 1" / "IVPN Tier 1 Lite" or as "IVPN Standard";
+// either substring identifies the same (terminal PD) product. Centralised
+// here so all callers (Active, PendingDelete) stay in sync; the Mongo
+// pre-filter in FindPendingDeleteUnnotified mirrors this rule with
+// regex `"Tier 1|Standard"`.
+func hasStandardTier(tier string) bool {
+	return strings.Contains(tier, Tier1) || strings.Contains(tier, TierStandard)
+}
 
 // Subscription represents a subscription with its properties
 type Subscription struct {
@@ -44,7 +62,7 @@ type Subscription struct {
 }
 
 func (s *Subscription) Active() bool {
-	return s.ActiveUntil.After(time.Now()) && !strings.Contains(s.Tier, Tier1) && !s.IsOutage()
+	return s.ActiveUntil.After(time.Now()) && !hasStandardTier(s.Tier) && !s.IsOutage()
 }
 
 func (s *Subscription) GracePeriod() bool {
@@ -56,9 +74,7 @@ func (s *Subscription) LimitedAccess() bool {
 }
 
 func (s *Subscription) PendingDelete() bool {
-	// Tier1 (IVPN Standard) is not entitled to modDNS — terminal PD state
-	// regardless of date freshness. See docs/specs/subscription-lifecycle-enforcement.md.
-	if strings.Contains(s.Tier, Tier1) {
+	if hasStandardTier(s.Tier) {
 		return true
 	}
 
