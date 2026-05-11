@@ -56,6 +56,12 @@ func (s *Subscription) LimitedAccess() bool {
 }
 
 func (s *Subscription) PendingDelete() bool {
+	// Tier1 (IVPN Standard) is not entitled to modDNS — terminal PD state
+	// regardless of date freshness. See docs/specs/subscription-lifecycle-enforcement.md.
+	if strings.Contains(s.Tier, Tier1) {
+		return true
+	}
+
 	if s.UpdatedAt.AddDate(0, 0, 14).Before(time.Now()) {
 		return true
 	}

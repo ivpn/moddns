@@ -32,7 +32,7 @@ type Stats struct {
 // binary subtype 0x00 (generic). A registered codec in libs/store/mongodb.go
 // now writes subtype 0x04 going forward, but existing documents in staging
 // and production still carry subtype 0x00 and therefore stop matching
-// MarkNotified queries sent by the new code.
+// SetNotified queries sent by the new code.
 //
 // The migration is idempotent: re-running it on a fully-migrated collection
 // scans every doc, sees subtype 0x04, increments Skipped, and returns with
