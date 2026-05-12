@@ -22,6 +22,11 @@ interface HeaderProps {
     showLogoutButton?: boolean;
     currentPageName?: string;
     showConnectionStatusRestoreButton?: boolean;
+    // When true, the "DNS Status" button is rendered but visually disabled
+    // (grayed out, cursor-not-allowed on hover). Used in PendingDelete state
+    // where the proxy has stopped resolving and the connection test would
+    // be meaningless.
+    connectionStatusRestoreDisabled?: boolean;
     onRestoreConnectionStatus?: () => void;
 }
 
@@ -32,6 +37,7 @@ export default function Header({
     showLogoutButton = false,
     currentPageName,
     showConnectionStatusRestoreButton = false,
+    connectionStatusRestoreDisabled = false,
     onRestoreConnectionStatus,
 }: HeaderProps): React.JSX.Element {
     const { navDesktop } = useScreenDetector();
@@ -95,15 +101,22 @@ export default function Header({
                 {/* Right: Profile dropdown/Logout button and Settings button */}
                 <div className="ml-auto flex items-center gap-3 w-auto">
                     {showConnectionStatusRestoreButton && (
-                        <Button
-                            variant="secondary"
-                            className="flex items-center gap-2 h-8 px-3 rounded-md border border-[var(--tailwind-colors-slate-700)] bg-[var(--shadcn-ui-app-background)] text-[var(--tailwind-colors-slate-50)] hover:bg-[var(--tailwind-colors-slate-900)]/60"
-                            onClick={() => onRestoreConnectionStatus?.()}
-                            data-testid="conn-header-show"
-                            aria-label="Show DNS connection status"
+                        <span
+                            title={connectionStatusRestoreDisabled ? "Feature unavailable in Pending deletion mode" : undefined}
+                            className={connectionStatusRestoreDisabled ? 'inline-block cursor-not-allowed' : undefined}
                         >
-                            <span className="text-[11px] font-semibold tracking-[0.08em]">DNS Status</span>
-                        </Button>
+                            <Button
+                                variant="secondary"
+                                disabled={connectionStatusRestoreDisabled}
+                                className={`flex items-center gap-2 h-8 px-3 rounded-md border border-[var(--tailwind-colors-slate-700)] bg-[var(--shadcn-ui-app-background)] text-[var(--tailwind-colors-slate-50)] hover:bg-[var(--tailwind-colors-slate-900)]/60 ${connectionStatusRestoreDisabled ? 'pointer-events-none opacity-50' : ''}`}
+                                onClick={() => { if (!connectionStatusRestoreDisabled) onRestoreConnectionStatus?.(); }}
+                                data-testid="conn-header-show"
+                                aria-label="Show DNS connection status"
+                                aria-disabled={connectionStatusRestoreDisabled || undefined}
+                            >
+                                <span className="text-[11px] font-semibold tracking-[0.08em]">DNS Status</span>
+                            </Button>
+                        </span>
                     )}
                     {showLogoutButton ? (
                         <Button
