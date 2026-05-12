@@ -452,7 +452,7 @@ export interface ModelBlocklist {
      */
     'tags'?: Array<string>;
     /**
-     * ownership: public (platform-provided) or private (user-uploaded)
+     * ownership: currently always \"public\" (platform-provided)
      * @type {string}
      * @memberof ModelBlocklist
      */

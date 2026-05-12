@@ -39,7 +39,7 @@ class ModelBlocklist(BaseModel):
     name: StrictStr = Field(description="conventional blocklist name, displayed to the user")
     source_url: Optional[StrictStr] = None
     tags: Optional[List[StrictStr]] = None
-    type: Optional[StrictStr] = Field(default=None, description="ownership: public (platform-provided) or private (user-uploaded)")
+    type: Optional[StrictStr] = Field(default=None, description="ownership: currently always \"public\" (platform-provided)")
     __properties: ClassVar[List[str]] = ["blocklist_id", "category", "default", "description", "entries", "homepage", "id", "intensity", "kind", "last_modified", "name", "source_url", "tags", "type"]
 
     model_config = ConfigDict(

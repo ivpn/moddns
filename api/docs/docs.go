@@ -2745,7 +2745,7 @@ const docTemplate = `{
                     }
                 },
                 "type": {
-                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
+                    "description": "ownership: currently always \"public\" (platform-provided)",
                     "type": "string"
                 }
             }

@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	BlocklistTypePublic  = "public"
-	BlocklistTypePrivate = "private"
+	BlocklistTypePublic = "public"
 )
 
 // Blocklist represents the metadata of a blocklist without the actual content
@@ -23,7 +22,7 @@ type Blocklist struct {
 	SourceUrl    string             `json:"source_url" bson:"source_url"`
 	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
 	Tags         []string           `json:"tags" bson:"tags"`
-	Type         string             `json:"type" bson:"type"`           // ownership: public (platform-provided) or private (user-uploaded)
+	Type         string             `json:"type" bson:"type"`           // ownership: currently always "public" (platform-provided)
 	Kind         string             `json:"kind" bson:"kind"`           // general, category, security
 	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
 	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
