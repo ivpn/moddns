@@ -80,3 +80,92 @@ func Test_wildcardFQDNValidation(t *testing.T) {
 		})
 	}
 }
+
+func Test_safeNameValidation(t *testing.T) {
+	apiValidator, err := NewAPIValidator()
+	if err != nil {
+		t.Fatalf("Error creating APIValidator: %v", err)
+	}
+
+	type testStruct struct {
+		Value string `validate:"safe_name"`
+	}
+
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		// Accepted: international display names.
+		{"plain ASCII", "Work", false},
+		{"ASCII with spaces", "Home Network", false},
+		{"latin diacritics", "Café", false},
+		{"cyrillic", "Работа", false},
+		{"CJK", "我的家", false},
+		{"emoji", "🏠 Home", false},
+		{"punctuation", "Kids' Devices (2026)", false},
+
+		// Rejected: empty / whitespace-only.
+		{"empty", "", true},
+		{"ascii spaces only", "   ", true},
+		{"unicode whitespace only", "\u00a0\u2003", true},
+
+		// Rejected: Cc control characters.
+		{"newline", "Work\nHome", true},
+		{"tab", "Work\tHome", true},
+		{"ansi escape", "Work\x1b[31mRed", true},
+		{"null byte", "Work\x00", true},
+
+		// Rejected: Cf format characters (bidi, zero-width).
+		{"RLO bidi override", "Work\u202eHome", true},
+		{"LRO bidi override", "\u202dSpoofed", true},
+		{"zero-width space", "Work\u200bHome", true},
+		{"zero-width joiner", "Work\u200dHome", true},
+		{"BOM", "\ufeffWork", true},
+
+		// Rejected: Cs surrogate (invalid Unicode in a string).
+		// We can't construct a valid UTF-8 string containing a lone surrogate
+		// in Go source, so this case is covered by the rune-walk loop
+		// implicitly — skipped here.
+
+		// Rejected: Co private-use.
+		{"private use area", "Work\ue000Home", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := testStruct{Value: tt.value}
+			err := apiValidator.Validator.Struct(ts)
+			if tt.wantErr && err == nil {
+				t.Errorf("safeNameValidation(%q) should return error", tt.value)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("safeNameValidation(%q) should not return error, got %v", tt.value, err)
+			}
+		})
+	}
+}
+
+func Test_NormalizeName(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"trims ASCII spaces", "  Work  ", "Work"},
+		{"trims unicode whitespace", " Work ", "Work"},
+		// "Café" composed (U+00E9) vs decomposed (e + U+0301) — both must normalize to NFC.
+		{"NFC decomposed -> composed", "Cafe\u0301", "Caf\u00e9"},
+		{"NFC composed stays composed", "Caf\u00e9", "Caf\u00e9"},
+		{"empty stays empty", "", ""},
+		{"whitespace-only collapses to empty", "   ", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NormalizeName(tt.in)
+			if got != tt.want {
+				t.Errorf("NormalizeName(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}

@@ -9,6 +9,7 @@ import (
 
 var (
 	ErrProfileNameEmpty             = errors.New("profile name cannot be empty")
+	ErrProfileNameInvalid           = errors.New("profile name contains invalid characters")
 	ErrFailedToDeleteProfile        = errors.New("failed to delete profile")
 	ErrProfileNameAlreadyExists     = errors.New("profile with this name already exists")
 	ErrProfileNameCannotBeEmpty     = errors.New("profile name cannot be empty")

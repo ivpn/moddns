@@ -14,6 +14,7 @@ import (
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/utils"
+	apivalidator "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/blocklist"
 	querylogs "github.com/ivpn/dns/api/service/query_logs"
@@ -57,8 +58,12 @@ func NewProfileService(serverCfg config.ServerConfig, serviceCfg config.ServiceC
 
 // Create creates a new profile
 func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId string) (*model.Profile, error) {
+	name = apivalidator.NormalizeName(name)
 	if name == "" {
 		return nil, ErrProfileNameEmpty
+	}
+	if !apivalidator.IsSafeName(name) {
+		return nil, ErrProfileNameInvalid
 	}
 	profile, err := model.NewProfile(p.IdGen, name, accountId)
 	if err != nil {
@@ -414,6 +419,18 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 		if err != nil {
 			return err
 		}
+		newName = apivalidator.NormalizeName(newName)
+		if newName == "" {
+			return ErrProfileNameCannotBeEmpty
+		}
+		err = p.Validate.Struct(model.Profile{
+			Name: newName,
+		})
+		if err != nil {
+			log.Debug().Err(err).Msg("Failed to validate profile name")
+			return ErrProfileNameInvalid
+		}
+
 		profiles, err := p.ProfileRepository.GetProfilesByAccountId(ctx, accountId)
 		if err != nil {
 			return err
@@ -423,14 +440,6 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			if profile.Name == newName {
 				return ErrProfileNameAlreadyExists
 			}
-		}
-
-		err = p.Validate.Struct(model.Profile{
-			Name: newName,
-		})
-		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate profile name")
-			return ErrProfileNameCannotBeEmpty
 		}
 
 		profile.Name = newName

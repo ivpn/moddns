@@ -14,7 +14,7 @@ import (
 )
 
 type createProfileBody struct {
-	Name string `json:"name" validate:"required,min=1,max=50"`
+	Name string `json:"name" validate:"required,min=1,max=50,safe_name"`
 }
 
 // @Summary Create profile
