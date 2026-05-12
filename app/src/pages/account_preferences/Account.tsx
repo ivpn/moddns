@@ -254,8 +254,15 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                     </div>
                 </div>
 
-                {/* Sections - disabled during pending_delete */}
-                <div className={`flex flex-col gap-6${isPendingDelete ? ' opacity-50 pointer-events-none' : ''}`}>
+                {/* Sections - disabled during pending_delete.
+                    Outer wrapper carries cursor-not-allowed + tooltip; the inner
+                    element keeps pointer-events-none so the disabled buttons/toggles
+                    don't intercept clicks. */}
+                <div
+                    className={isPendingDelete ? 'cursor-not-allowed' : undefined}
+                    title={isPendingDelete ? "Feature unavailable in Pending deletion mode" : undefined}
+                >
+                <div className={`flex flex-col gap-6${isPendingDelete ? ' opacity-50 pointer-events-none select-none' : ''}`}>
                 {sections.map((section, sectionIndex) => (
                     <Card key={sectionIndex} className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                         <CardContent>
@@ -369,6 +376,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
 
                 {/* Passkey Management Section */}
                 <PasskeySettings />
+                </div>
                 </div>
 
                 {/* Delete Account Section */}
