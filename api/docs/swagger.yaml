@@ -172,7 +172,7 @@ definitions:
           type: string
         type: array
       type:
-        description: 'ownership: public (platform-provided) or private (user-uploaded)'
+        description: 'ownership: currently always "public" (platform-provided)'
         type: string
     required:
     - blocklist_id
@@ -1489,7 +1489,12 @@ paths:
     put:
       consumes:
       - application/json
-      description: Rotate pre-auth session ID and set new ID as cookie
+      description: |-
+        Rotate pre-auth session ID and set new ID as cookie. The endpoint
+        is idempotent against an already-rotated session: if the URL
+        sessionid is no longer in the cache but the caller already holds
+        a valid pa_session cookie, the call succeeds as a no-op so the
+        user can continue with their existing session.
       parameters:
       - description: Rotate pre-auth session request
         in: body

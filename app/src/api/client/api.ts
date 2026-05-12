@@ -349,7 +349,7 @@ export interface ModelBlocklist {
      */
     'tags'?: Array<string>;
     /**
-     * ownership: public (platform-provided) or private (user-uploaded)
+     * ownership: currently always \"public\" (platform-provided)
      * @type {string}
      * @memberof ModelBlocklist
      */
@@ -3790,7 +3790,7 @@ export const PASessionApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3849,7 +3849,7 @@ export const PASessionApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3882,7 +3882,7 @@ export const PASessionApiFactory = function (configuration?: Configuration, base
             return localVarFp.apiV1PasessionAddPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3914,7 +3914,7 @@ export class PASessionApi extends BaseAPI {
     }
 
     /**
-     * Rotate pre-auth session ID and set new ID as cookie
+     * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
      * @summary Rotate pre-auth session ID
      * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
      * @param {*} [options] Override http request option.

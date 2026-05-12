@@ -756,7 +756,7 @@ const docTemplate = `{
         },
         "/api/v1/pasession/rotate": {
             "put": {
-                "description": "Rotate pre-auth session ID and set new ID as cookie",
+                "description": "Rotate pre-auth session ID and set new ID as cookie. The endpoint\nis idempotent against an already-rotated session: if the URL\nsessionid is no longer in the cache but the caller already holds\na valid pa_session cookie, the call succeeds as a no-op so the\nuser can continue with their existing session.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2640,7 +2640,7 @@ const docTemplate = `{
                     }
                 },
                 "type": {
-                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
+                    "description": "ownership: currently always \"public\" (platform-provided)",
                     "type": "string"
                 }
             }
