@@ -137,6 +137,13 @@ func (v APIValidator) wildcardValidation(fl validator.FieldLevel) bool {
 		return false
 	}
 
+	// Reject patterns with no domain content (e.g. "*", "*.", "**"). The FQDN
+	// regex permits empty pre/post sides, which would let "*" through and
+	// match every domain in the proxy filter.
+	if strings.Trim(value, "*.") == "" {
+		return false
+	}
+
 	// Check if the value matches any of the wildcard patterns
 	for _, re := range v.WildcardRegexes {
 		matched := re.MatchString(value)

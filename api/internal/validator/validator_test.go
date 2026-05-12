@@ -53,6 +53,17 @@ func Test_wildcardFQDNValidation(t *testing.T) {
 		{"Contains wildcard matches", "*ads*", false},
 		{"Contains wildcard with dots", "*ads.example*", false},
 		{"Contains wildcard missing middle", "**ads*", true},
+
+		// Degenerate wildcard cases (match-everything footguns)
+		{"Bare wildcard rejected", "*", true},
+		{"Double wildcard rejected", "**", true},
+		{"Trailing-dot wildcard rejected", "*.", true},
+		{"Leading-dot wildcard rejected", ".*", true},
+		{"Dot-only rejected", ".", true},
+
+		// TLD-level wildcards are accepted (structurally identical to *.io etc.)
+		{"TLD wildcard com", "*.com", false},
+		{"TLD wildcard io", "*.io", false},
 	}
 
 	for _, tt := range tests {
