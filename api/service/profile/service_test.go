@@ -57,7 +57,9 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	suite.mockStatisticsRepo = mocks.NewStatisticsRepository(suite.T())
 	suite.mockCache = mocks.NewCachecache(suite.T())
 	suite.mockIDGen = mocks.NewGeneratoridgen(suite.T())
-	suite.validator = validator.New()
+	apiValidator, vErr := intvldtr.NewAPIValidator()
+	suite.Require().NoError(vErr, "Failed to create APIValidator")
+	suite.validator = apiValidator.Validator
 
 	// Extract configs
 	suite.serverConfig = *cfg.Server
@@ -115,6 +117,37 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 			accountID:     "account123",
 			maxProfiles:   5,
 			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Whitespace-only profile name",
+			profileName:   "   ",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Profile name with RLO bidi override",
+			profileName:   "Work\u202eHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:          "Profile name with zero-width space",
+			profileName:   "Work\u200bHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:        "Profile name trimmed before dup check",
+			profileName: "  Existing Profile  ",
+			accountID:   "account123",
+			maxProfiles: 5,
+			existingProfiles: []model.Profile{
+				{Name: "Existing Profile", AccountId: "account123"},
+			},
+			expectedError: "profile with this name already exists",
 		},
 		{
 			name:        "Profile name already exists",
