@@ -886,6 +886,139 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/profiles/export": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Export user's profiles as a downloadable JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Export profiles",
+                "parameters": [
+                    {
+                        "description": "Export request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.ExportEnvelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/import": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Import profiles from a previously exported JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Import profiles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF guard header — must equal \\",
+                        "name": "X-modDNS-Import",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Import request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.ImportResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}": {
             "get": {
                 "security": [
@@ -3040,6 +3173,189 @@ const docTemplate = `{
                 }
             }
         },
+        "profile.ExportEnvelope": {
+            "type": "object",
+            "properties": {
+                "exportedAt": {
+                    "type": "string"
+                },
+                "exportedFrom": {
+                    "$ref": "#/definitions/profile.ExportedFromInfo"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "profiles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/profile.ExportedProfile"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                }
+            }
+        },
+        "profile.ExportedAdvanced": {
+            "type": "object",
+            "properties": {
+                "recursor": {
+                    "type": "string"
+                }
+            }
+        },
+        "profile.ExportedCustomRule": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "comment": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "profile.ExportedDNSSEC": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "sendDoBit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "profile.ExportedFromInfo": {
+            "type": "object",
+            "properties": {
+                "appVersion": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                }
+            }
+        },
+        "profile.ExportedLogs": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "logClientsIPs": {
+                    "type": "boolean"
+                },
+                "logDomains": {
+                    "type": "boolean"
+                },
+                "retention": {
+                    "type": "string"
+                }
+            }
+        },
+        "profile.ExportedPrivacy": {
+            "type": "object",
+            "properties": {
+                "blocklists": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blocklistsSubdomainsRule": {
+                    "type": "string"
+                },
+                "customRulesSubdomainsRule": {
+                    "type": "string"
+                },
+                "defaultRule": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "profile.ExportedProfile": {
+            "type": "object",
+            "properties": {
+                "comment": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/profile.ExportedSettings"
+                }
+            }
+        },
+        "profile.ExportedSecurity": {
+            "type": "object",
+            "properties": {
+                "dnssec": {
+                    "$ref": "#/definitions/profile.ExportedDNSSEC"
+                }
+            }
+        },
+        "profile.ExportedSettings": {
+            "type": "object",
+            "properties": {
+                "advanced": {
+                    "$ref": "#/definitions/profile.ExportedAdvanced"
+                },
+                "customRules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/profile.ExportedCustomRule"
+                    }
+                },
+                "logs": {
+                    "$ref": "#/definitions/profile.ExportedLogs"
+                },
+                "privacy": {
+                    "$ref": "#/definitions/profile.ExportedPrivacy"
+                },
+                "security": {
+                    "$ref": "#/definitions/profile.ExportedSecurity"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/profile.ExportedStatistics"
+                }
+            }
+        },
+        "profile.ExportedStatistics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "profile.ImportResult": {
+            "type": "object",
+            "properties": {
+                "createdProfileIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "protocol.AttestationFormat": {
             "type": "string",
             "enum": [
@@ -3506,6 +3822,282 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ExportRequest": {
+            "type": "object",
+            "required": [
+                "scope"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "profileIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "selected"
+                    ]
+                }
+            }
+        },
+        "requests.ExportedFromInfo": {
+            "type": "object",
+            "properties": {
+                "appVersion": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.ImportAdvanced": {
+            "type": "object",
+            "properties": {
+                "recursor": {
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "unbound"
+                    ]
+                }
+            }
+        },
+        "requests.ImportCustomRule": {
+            "type": "object",
+            "required": [
+                "action",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "requests.ImportDNSSEC": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "sendDoBit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "requests.ImportLogs": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "logClientsIPs": {
+                    "type": "boolean"
+                },
+                "logDomains": {
+                    "type": "boolean"
+                },
+                "retention": {
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "6h",
+                        "1d",
+                        "1w",
+                        "1m"
+                    ]
+                }
+            }
+        },
+        "requests.ImportPayload": {
+            "type": "object",
+            "required": [
+                "exportedAt",
+                "kind",
+                "profiles",
+                "schemaVersion"
+            ],
+            "properties": {
+                "exportedAt": {
+                    "type": "string"
+                },
+                "exportedFrom": {
+                    "$ref": "#/definitions/requests.ExportedFromInfo"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "profiles": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/requests.ImportProfile"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                }
+            }
+        },
+        "requests.ImportPrivacy": {
+            "type": "object",
+            "required": [
+                "blocklists",
+                "services"
+            ],
+            "properties": {
+                "blocklists": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blocklistsSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "customRulesSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "include",
+                        "exact"
+                    ]
+                },
+                "defaultRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "services": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "requests.ImportProfile": {
+            "type": "object",
+            "required": [
+                "name",
+                "settings"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "settings": {
+                    "$ref": "#/definitions/requests.ImportSettings"
+                }
+            }
+        },
+        "requests.ImportRequest": {
+            "type": "object",
+            "required": [
+                "mode",
+                "payload"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "create_new"
+                    ]
+                },
+                "payload": {
+                    "$ref": "#/definitions/requests.ImportPayload"
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "requests.ImportSecurity": {
+            "type": "object",
+            "properties": {
+                "dnssec": {
+                    "$ref": "#/definitions/requests.ImportDNSSEC"
+                }
+            }
+        },
+        "requests.ImportSettings": {
+            "type": "object",
+            "properties": {
+                "advanced": {
+                    "$ref": "#/definitions/requests.ImportAdvanced"
+                },
+                "customRules": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "items": {
+                        "$ref": "#/definitions/requests.ImportCustomRule"
+                    }
+                },
+                "logs": {
+                    "$ref": "#/definitions/requests.ImportLogs"
+                },
+                "privacy": {
+                    "$ref": "#/definitions/requests.ImportPrivacy"
+                },
+                "security": {
+                    "$ref": "#/definitions/requests.ImportSecurity"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/requests.ImportStatistics"
+                }
+            }
+        },
+        "requests.ImportStatistics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "requests.LoginBody": {
             "type": "object",
             "required": [
@@ -3617,7 +4209,9 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "email_change",
-                        "account_deletion"
+                        "account_deletion",
+                        "profile_export",
+                        "profile_import"
                     ]
                 }
             }

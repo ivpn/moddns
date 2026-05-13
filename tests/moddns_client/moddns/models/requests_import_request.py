@@ -17,23 +17,28 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
+from moddns.models.requests_import_payload import RequestsImportPayload
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsWebAuthnReauthBeginRequest(BaseModel):
+class RequestsImportRequest(BaseModel):
     """
-    RequestsWebAuthnReauthBeginRequest
+    RequestsImportRequest
     """ # noqa: E501
-    purpose: StrictStr
-    __properties: ClassVar[List[str]] = ["purpose"]
+    current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
+    mode: StrictStr
+    payload: RequestsImportPayload
+    reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
+    __properties: ClassVar[List[str]] = ["current_password", "mode", "payload", "reauth_token"]
 
-    @field_validator('purpose')
-    def purpose_validate_enum(cls, value):
+    @field_validator('mode')
+    def mode_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import']):
-            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import')")
+        if value not in set(['create_new']):
+            raise ValueError("must be one of enum values ('create_new')")
         return value
 
     model_config = ConfigDict(
@@ -54,7 +59,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a JSON string"""
+        """Create an instance of RequestsImportRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,11 +80,14 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of payload
+        if self.payload:
+            _dict['payload'] = self.payload.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a dict"""
+        """Create an instance of RequestsImportRequest from a dict"""
         if obj is None:
             return None
 
@@ -87,7 +95,10 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "purpose": obj.get("purpose")
+            "current_password": obj.get("current_password"),
+            "mode": obj.get("mode"),
+            "payload": RequestsImportPayload.from_dict(obj["payload"]) if obj.get("payload") is not None else None,
+            "reauth_token": obj.get("reauth_token")
         })
         return _obj
 

@@ -454,6 +454,124 @@ definitions:
         description: Indicates if TOTP is enabled.
         type: boolean
     type: object
+  profile.ExportEnvelope:
+    properties:
+      exportedAt:
+        type: string
+      exportedFrom:
+        $ref: '#/definitions/profile.ExportedFromInfo'
+      kind:
+        type: string
+      profiles:
+        items:
+          $ref: '#/definitions/profile.ExportedProfile'
+        type: array
+      schemaVersion:
+        type: integer
+    type: object
+  profile.ExportedAdvanced:
+    properties:
+      recursor:
+        type: string
+    type: object
+  profile.ExportedCustomRule:
+    properties:
+      action:
+        type: string
+      comment:
+        type: string
+      value:
+        type: string
+    type: object
+  profile.ExportedDNSSEC:
+    properties:
+      enabled:
+        type: boolean
+      sendDoBit:
+        type: boolean
+    type: object
+  profile.ExportedFromInfo:
+    properties:
+      appVersion:
+        type: string
+      service:
+        type: string
+    type: object
+  profile.ExportedLogs:
+    properties:
+      enabled:
+        type: boolean
+      logClientsIPs:
+        type: boolean
+      logDomains:
+        type: boolean
+      retention:
+        type: string
+    type: object
+  profile.ExportedPrivacy:
+    properties:
+      blocklists:
+        items:
+          type: string
+        type: array
+      blocklistsSubdomainsRule:
+        type: string
+      customRulesSubdomainsRule:
+        type: string
+      defaultRule:
+        type: string
+      services:
+        items:
+          type: string
+        type: array
+    type: object
+  profile.ExportedProfile:
+    properties:
+      comment:
+        type: string
+      name:
+        type: string
+      settings:
+        $ref: '#/definitions/profile.ExportedSettings'
+    type: object
+  profile.ExportedSecurity:
+    properties:
+      dnssec:
+        $ref: '#/definitions/profile.ExportedDNSSEC'
+    type: object
+  profile.ExportedSettings:
+    properties:
+      advanced:
+        $ref: '#/definitions/profile.ExportedAdvanced'
+      customRules:
+        items:
+          $ref: '#/definitions/profile.ExportedCustomRule'
+        type: array
+      logs:
+        $ref: '#/definitions/profile.ExportedLogs'
+      privacy:
+        $ref: '#/definitions/profile.ExportedPrivacy'
+      security:
+        $ref: '#/definitions/profile.ExportedSecurity'
+      statistics:
+        $ref: '#/definitions/profile.ExportedStatistics'
+    type: object
+  profile.ExportedStatistics:
+    properties:
+      enabled:
+        type: boolean
+    type: object
+  profile.ImportResult:
+    properties:
+      createdProfileIds:
+        items:
+          type: string
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
   protocol.AttestationFormat:
     enum:
     - packed
@@ -812,6 +930,196 @@ definitions:
     - action
     - values
     type: object
+  requests.ExportRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      profileIds:
+        items:
+          type: string
+        type: array
+      reauth_token:
+        minLength: 1
+        type: string
+      scope:
+        enum:
+        - all
+        - selected
+        type: string
+    required:
+    - scope
+    type: object
+  requests.ExportedFromInfo:
+    properties:
+      appVersion:
+        type: string
+      service:
+        type: string
+    type: object
+  requests.ImportAdvanced:
+    properties:
+      recursor:
+        enum:
+        - sdns
+        - unbound
+        type: string
+    type: object
+  requests.ImportCustomRule:
+    properties:
+      action:
+        enum:
+        - block
+        - allow
+        - comment
+        type: string
+      comment:
+        maxLength: 200
+        type: string
+      value:
+        maxLength: 255
+        type: string
+    required:
+    - action
+    - value
+    type: object
+  requests.ImportDNSSEC:
+    properties:
+      enabled:
+        type: boolean
+      sendDoBit:
+        type: boolean
+    type: object
+  requests.ImportLogs:
+    properties:
+      enabled:
+        type: boolean
+      logClientsIPs:
+        type: boolean
+      logDomains:
+        type: boolean
+      retention:
+        enum:
+        - 1h
+        - 6h
+        - 1d
+        - 1w
+        - 1m
+        type: string
+    type: object
+  requests.ImportPayload:
+    properties:
+      exportedAt:
+        type: string
+      exportedFrom:
+        $ref: '#/definitions/requests.ExportedFromInfo'
+      kind:
+        type: string
+      profiles:
+        items:
+          $ref: '#/definitions/requests.ImportProfile'
+        maxItems: 10
+        minItems: 1
+        type: array
+      schemaVersion:
+        type: integer
+    required:
+    - exportedAt
+    - kind
+    - profiles
+    - schemaVersion
+    type: object
+  requests.ImportPrivacy:
+    properties:
+      blocklists:
+        items:
+          type: string
+        maxItems: 100
+        type: array
+      blocklistsSubdomainsRule:
+        enum:
+        - block
+        - allow
+        type: string
+      customRulesSubdomainsRule:
+        enum:
+        - include
+        - exact
+        type: string
+      defaultRule:
+        enum:
+        - block
+        - allow
+        type: string
+      services:
+        items:
+          type: string
+        maxItems: 100
+        type: array
+    required:
+    - blocklists
+    - services
+    type: object
+  requests.ImportProfile:
+    properties:
+      comment:
+        maxLength: 200
+        type: string
+      name:
+        maxLength: 50
+        type: string
+      settings:
+        $ref: '#/definitions/requests.ImportSettings'
+    required:
+    - name
+    - settings
+    type: object
+  requests.ImportRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      mode:
+        enum:
+        - create_new
+        type: string
+      payload:
+        $ref: '#/definitions/requests.ImportPayload'
+      reauth_token:
+        minLength: 1
+        type: string
+    required:
+    - mode
+    - payload
+    type: object
+  requests.ImportSecurity:
+    properties:
+      dnssec:
+        $ref: '#/definitions/requests.ImportDNSSEC'
+    type: object
+  requests.ImportSettings:
+    properties:
+      advanced:
+        $ref: '#/definitions/requests.ImportAdvanced'
+      customRules:
+        items:
+          $ref: '#/definitions/requests.ImportCustomRule'
+        maxItems: 10000
+        type: array
+      logs:
+        $ref: '#/definitions/requests.ImportLogs'
+      privacy:
+        $ref: '#/definitions/requests.ImportPrivacy'
+      security:
+        $ref: '#/definitions/requests.ImportSecurity'
+      statistics:
+        $ref: '#/definitions/requests.ImportStatistics'
+    type: object
+  requests.ImportStatistics:
+    properties:
+      enabled:
+        type: boolean
+    type: object
   requests.LoginBody:
     properties:
       email:
@@ -890,6 +1198,8 @@ definitions:
         enum:
         - email_change
         - account_deletion
+        - profile_export
+        - profile_import
         type: string
     required:
     - purpose
@@ -2095,6 +2405,91 @@ paths:
       summary: Get statistics data for a profile
       tags:
       - Statistics
+  /api/v1/profiles/export:
+    post:
+      consumes:
+      - application/json
+      description: Export user's profiles as a downloadable JSON file
+      parameters:
+      - description: Export request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ExportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/profile.ExportEnvelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Export profiles
+      tags:
+      - Profile
+  /api/v1/profiles/import:
+    post:
+      consumes:
+      - application/json
+      description: Import profiles from a previously exported JSON file
+      parameters:
+      - description: CSRF guard header — must equal \
+        in: header
+        name: X-modDNS-Import
+        required: true
+        type: string
+      - description: Import request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ImportRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/profile.ImportResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "415":
+          description: Unsupported Media Type
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Import profiles
+      tags:
+      - Profile
   /api/v1/services:
     get:
       description: Get available ASN-based services presets

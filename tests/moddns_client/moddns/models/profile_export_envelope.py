@@ -17,24 +17,23 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.profile_exported_from_info import ProfileExportedFromInfo
+from moddns.models.profile_exported_profile import ProfileExportedProfile
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsWebAuthnReauthBeginRequest(BaseModel):
+class ProfileExportEnvelope(BaseModel):
     """
-    RequestsWebAuthnReauthBeginRequest
+    ProfileExportEnvelope
     """ # noqa: E501
-    purpose: StrictStr
-    __properties: ClassVar[List[str]] = ["purpose"]
-
-    @field_validator('purpose')
-    def purpose_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import']):
-            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import')")
-        return value
+    exported_at: Optional[StrictStr] = Field(default=None, alias="exportedAt")
+    exported_from: Optional[ProfileExportedFromInfo] = Field(default=None, alias="exportedFrom")
+    kind: Optional[StrictStr] = None
+    profiles: Optional[List[ProfileExportedProfile]] = None
+    schema_version: Optional[StrictInt] = Field(default=None, alias="schemaVersion")
+    __properties: ClassVar[List[str]] = ["exportedAt", "exportedFrom", "kind", "profiles", "schemaVersion"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -54,7 +53,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a JSON string"""
+        """Create an instance of ProfileExportEnvelope from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,11 +74,21 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of exported_from
+        if self.exported_from:
+            _dict['exportedFrom'] = self.exported_from.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in profiles (list)
+        _items = []
+        if self.profiles:
+            for _item_profiles in self.profiles:
+                if _item_profiles:
+                    _items.append(_item_profiles.to_dict())
+            _dict['profiles'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a dict"""
+        """Create an instance of ProfileExportEnvelope from a dict"""
         if obj is None:
             return None
 
@@ -87,7 +96,11 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "purpose": obj.get("purpose")
+            "exportedAt": obj.get("exportedAt"),
+            "exportedFrom": ProfileExportedFromInfo.from_dict(obj["exportedFrom"]) if obj.get("exportedFrom") is not None else None,
+            "kind": obj.get("kind"),
+            "profiles": [ProfileExportedProfile.from_dict(_item) for _item in obj["profiles"]] if obj.get("profiles") is not None else None,
+            "schemaVersion": obj.get("schemaVersion")
         })
         return _obj
 

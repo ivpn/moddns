@@ -17,24 +17,21 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsWebAuthnReauthBeginRequest(BaseModel):
+class ProfileExportedPrivacy(BaseModel):
     """
-    RequestsWebAuthnReauthBeginRequest
+    ProfileExportedPrivacy
     """ # noqa: E501
-    purpose: StrictStr
-    __properties: ClassVar[List[str]] = ["purpose"]
-
-    @field_validator('purpose')
-    def purpose_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import']):
-            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import')")
-        return value
+    blocklists: Optional[List[StrictStr]] = None
+    blocklists_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="blocklistsSubdomainsRule")
+    custom_rules_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="customRulesSubdomainsRule")
+    default_rule: Optional[StrictStr] = Field(default=None, alias="defaultRule")
+    services: Optional[List[StrictStr]] = None
+    __properties: ClassVar[List[str]] = ["blocklists", "blocklistsSubdomainsRule", "customRulesSubdomainsRule", "defaultRule", "services"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -54,7 +51,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a JSON string"""
+        """Create an instance of ProfileExportedPrivacy from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,7 +76,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a dict"""
+        """Create an instance of ProfileExportedPrivacy from a dict"""
         if obj is None:
             return None
 
@@ -87,7 +84,11 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "purpose": obj.get("purpose")
+            "blocklists": obj.get("blocklists"),
+            "blocklistsSubdomainsRule": obj.get("blocklistsSubdomainsRule"),
+            "customRulesSubdomainsRule": obj.get("customRulesSubdomainsRule"),
+            "defaultRule": obj.get("defaultRule"),
+            "services": obj.get("services")
         })
         return _obj
 
