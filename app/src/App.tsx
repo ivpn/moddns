@@ -110,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useAppStore.getState().setProfiles([]);
     useAppStore.getState().setActiveProfile(null);
     useAppStore.getState().setSubscriptionStatus(null);
+    useAppStore.getState().setSubscriptionType(null);
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -301,15 +302,19 @@ function PendingDeleteGuard() {
   const { isPendingDelete } = useSubscriptionGuard();
   const subscriptionStatus = useAppStore(s => s.subscriptionStatus);
   const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
+  const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (subscriptionStatus !== null) return;
     api.Client.subscriptionApi.apiV1SubGet()
-      .then(res => setSubscriptionStatus(res.data.status ?? null))
+      .then(res => {
+        setSubscriptionStatus(res.data.status ?? null);
+        setSubscriptionType(res.data.type ?? null);
+      })
       .catch(() => {}); // no subscription = no restriction
-  }, [subscriptionStatus, setSubscriptionStatus]);
+  }, [subscriptionStatus, setSubscriptionStatus, setSubscriptionType]);
 
   useEffect(() => {
     if (isPendingDelete && location.pathname !== '/account-preferences') {

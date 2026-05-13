@@ -25,6 +25,10 @@ interface AppState {
   setPasskeys: (passkeys: ModelCredential[]) => void;
   subscriptionStatus: string | null;
   setSubscriptionStatus: (status: string | null) => void;
+  // Legacy pre-0.1.8 enum surfaced from the API; "Managed" gates the
+  // beta-ending banner. Cleared to "" by the backend after a successful resync.
+  subscriptionType: string | null;
+  setSubscriptionType: (type: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -67,6 +71,8 @@ export const useAppStore = create<AppState>()(
       setPasskeys: (passkeys) => set({ passkeys }),
       subscriptionStatus: null,
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
+      subscriptionType: null,
+      setSubscriptionType: (type) => set({ subscriptionType: type }),
     }),
     {
       name: "moddns-storage",
