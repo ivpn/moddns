@@ -95,14 +95,16 @@ func (suite *AccountTestSuite) SetupSuite() {
 	suite.mockCredentialRepo = mocks.NewWebAuthnCredentialRepository(suite.T())
 	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
 
-	// Create the profile service with mocks
+	// Create the profile service with mocks (no catalog needed for account tests)
 	suite.profileService = profile.NewProfileService(
 		suite.serverConfig,
 		suite.serviceConfig,
 		suite.mockProfileRepo,
+		suite.mockAccountRepo,
 		suite.blocklistService,
 		suite.queryLogsService,
 		suite.statisticsService,
+		nil,
 		suite.mockCache,
 		suite.mockIDGenerator,
 		suite.validator,

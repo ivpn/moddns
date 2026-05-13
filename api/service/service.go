@@ -27,6 +27,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// servicesCatalogReader is satisfied by *servicescatalogcache.Loader and any
+// test stub.  Declared here to avoid importing the cache package from the
+// service package, which would create a cross-layer dependency.
+type servicesCatalogReader = profile.ServicesCatalogReader
+
 type Service struct {
 	Cfg      config.Config
 	Store    db.Db
@@ -42,11 +47,14 @@ type Service struct {
 	PasskeyServicer
 }
 
-func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn) Service {
+// New constructs the service layer. servicesCatalog is used by ProfileService
+// for service-ID validation on import (spec row V9); pass nil to skip catalog
+// validation (safe-default for environments without a catalog file).
+func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
 	statsSrv := statistics.NewStatisticsService(store)
-	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, blocklistSrv, queryLogsSrv, statsSrv, cache, idGen, apiValidator.Validator)
+	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, store, blocklistSrv, queryLogsSrv, statsSrv, servicesCatalog, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
@@ -151,6 +159,10 @@ type ProfileServicer interface {
 	// Services (ASN presets)
 	EnableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error
 	DisableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error
+
+	// Export / Import
+	Export(ctx context.Context, accountId, scope string, profileIds []string, currentPassword, reauthToken *string) (*profile.ExportEnvelope, error)
+	Import(ctx context.Context, accountId, mode string, payload *profile.ExportEnvelope, currentPassword, reauthToken *string) (*profile.ImportResult, error)
 }
 
 // QueryLogsServicer defines the interface for managing query logs
