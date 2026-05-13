@@ -12,16 +12,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-
 	"github.com/ivpn/dns/api/config"
 	webhookClient "github.com/ivpn/dns/api/internal/client"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/subscription"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // TestUpdateSubscriptionFromPASession covers the conditional signup webhook
@@ -108,6 +107,7 @@ func (s *UpdateSubscriptionFromPASessionSuite) primeValidationMocks(sessionID, t
 
 func (s *UpdateSubscriptionFromPASessionSuite) primePersistMocks(sub *model.Subscription) {
 	s.mockSubscriptionRepo.On("Upsert", mock.Anything, mock.AnythingOfType("model.Subscription")).Return(nil)
+	s.mockSubscriptionRepo.On("ClearLegacyType", mock.Anything, sub.AccountID.Hex()).Return(nil)
 	s.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, sub.AccountID.Hex()).Return([]model.Profile{}, nil)
 }
 
@@ -176,4 +176,75 @@ func (s *UpdateSubscriptionFromPASessionSuite) TestWebhookFailurePropagates() {
 func TestUpdateSubscriptionFromPASession(t *testing.T) {
 	require.NotPanics(t, func() {})
 	suite.Run(t, new(UpdateSubscriptionFromPASessionSuite))
+}
+
+// TestUpdateSubscriptionFromPASession_ClearsLegacyType verifies the chore/banner-beta
+// contract: a successful resync via PASession must clear the pre-0.1.8 `type` field
+// so the beta-ending banner stops rendering for the account.
+func TestUpdateSubscriptionFromPASession_ClearsLegacyType(t *testing.T) {
+	accountOID := primitive.NewObjectID()
+	subID := uuid.New()
+	sessionID := "pa-session-test"
+	preauthID := "preauth-id-test"
+	token := "pa-token-test"
+	tokenHash := sha256.Sum256([]byte(token))
+	tokenHashStr := base64.StdEncoding.EncodeToString(tokenHash[:])
+	activeUntil := time.Now().Add(30 * 24 * time.Hour).UTC()
+
+	// httptest preauth service: returns the entry whose token_hash matches our
+	// session token so ValidateAndGetPreauth succeeds without divergence.
+	preauthServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		preauth := model.Preauth{
+			ID:          preauthID,
+			TokenHash:   tokenHashStr,
+			IsActive:    true,
+			ActiveUntil: activeUntil,
+			Tier:        "IVPN Tier 2",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(preauth))
+	}))
+	t.Cleanup(preauthServer.Close)
+
+	mockRepo := mocks.NewSubscriptionRepository(t)
+	mockProfileRepo := mocks.NewProfileRepository(t)
+	mockCache := mocks.NewCachecache(t)
+
+	apiCfg := config.APIConfig{PreauthURL: preauthServer.URL}
+	svc := subscription.NewSubscriptionService(
+		mockRepo,
+		mockProfileRepo,
+		mockCache,
+		config.ServiceConfig{},
+		apiCfg,
+		webhookClient.Http{Cfg: apiCfg},
+	)
+
+	mockCache.On("GetPASession", mock.Anything, sessionID).Return(&model.PASession{
+		ID:        sessionID,
+		Token:     token,
+		PreauthID: preauthID,
+	}, nil)
+
+	// Upsert must succeed for the clear-legacy-type call to be reached.
+	mockRepo.On("Upsert", mock.Anything, mock.AnythingOfType("model.Subscription")).Return(nil)
+
+	// Core assertion: ClearLegacyType is called with the account's hex ID after
+	// a successful resync. If this expectation isn't met, mockery fails the test.
+	mockRepo.On("ClearLegacyType", mock.Anything, accountOID.Hex()).Return(nil)
+
+	// repopulateProfileCache fetches profiles; no profiles == best-effort no-op.
+	mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, accountOID.Hex()).Return([]model.Profile{}, nil)
+
+	sub := &model.Subscription{
+		ID:          subID,
+		AccountID:   accountOID,
+		Type:        "Managed", // pre-0.1.8 legacy value, must be cleared by the resync flow
+		ActiveUntil: time.Now().Add(-1 * time.Hour),
+	}
+
+	// subID empty: webhook is skipped per SY7, so the call returns nil and
+	// the ClearLegacyType mockery assertion is the contract being verified.
+	err := svc.UpdateSubscriptionFromPASession(context.Background(), sub, sessionID, "")
+	require.NoError(t, err)
 }

@@ -63,6 +63,23 @@ func (r *SubscriptionRepository) Upsert(ctx context.Context, subscription model.
 	return nil
 }
 
+// ClearLegacyType writes type="" on the account's subscription document so the
+// pre-0.1.8 banner stops rendering after a successful resync. Set semantics
+// (vs $unset) preserve a deterministic, queryable empty-string sentinel.
+func (r *SubscriptionRepository) ClearLegacyType(ctx context.Context, accountId string) error {
+	objID, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return errors.ErrSubscriptionNotFound
+	}
+	filter := bson.M{"account_id": objID}
+	update := bson.M{"$set": bson.M{"type": ""}}
+	_, err = r.subscriptionsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		log.Error().Err(err).Str("account_id", accountId).Msg("Failed to clear legacy subscription type")
+	}
+	return err
+}
+
 // Create inserts a new subscription; fails if already exists
 func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscription) error {
 	_, err := r.subscriptionsCollection.InsertOne(ctx, sub)

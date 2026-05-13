@@ -27,6 +27,10 @@ type Subscription struct {
 	AccountID             primitive.ObjectID `json:"-" bson:"account_id"`
 	ActiveUntil           time.Time          `json:"active_until" bson:"active_until"`
 	IsActive              bool               `json:"-" bson:"is_active"`
+	// Type is a legacy pre-0.1.8 enum ("Free"/"Managed") retained so old documents
+	// surface to clients (the beta-ending banner gates on Type == "Managed").
+	// Cleared to "" by the resync flow once the user re-syncs with IVPN.
+	Type                  string             `json:"type,omitempty" bson:"type,omitempty"`
 	Tier                  string             `json:"tier,omitempty" bson:"tier,omitempty"`
 	TokenHash             string             `json:"-" bson:"token_hash,omitempty"`
 	UpdatedAt             time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`

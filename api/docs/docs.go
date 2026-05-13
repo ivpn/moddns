@@ -3007,6 +3007,10 @@ const docTemplate = `{
                 "tier": {
                     "type": "string"
                 },
+                "type": {
+                    "description": "Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents\nsurface to clients (the beta-ending banner gates on Type == \"Managed\").\nCleared to \"\" by the resync flow once the user re-syncs with IVPN.",
+                    "type": "string"
+                },
                 "updated_at": {
                     "type": "string"
                 }
