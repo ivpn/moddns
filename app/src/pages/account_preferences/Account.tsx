@@ -27,6 +27,7 @@ import ChangeEmailDialog from "@/pages/account_preferences/ChangeEmailDialog";
 import { useAppStore } from "@/store/general";
 import AccountSubscription from "@/components/AccountSubscription";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import BackupRestoreSection from "@/components/BackupRestoreSection";
 
 interface PreferencesSectionProps {
     account: ModelAccount | null;
@@ -361,6 +362,9 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                         </CardContent>
                     </Card>
                 ))}
+
+                {/* Backup & Restore Section */}
+                <BackupRestoreSection />
 
                 {/* Passkey Management Section */}
                 <PasskeySettings />
