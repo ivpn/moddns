@@ -160,7 +160,7 @@ func main() {
 	}
 	go servicesCatalog.Start(context.Background())
 
-	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn)
+	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn, servicesCatalog)
 
 	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener, servicesCatalog)
 	if err != nil {

@@ -85,8 +85,8 @@ func isAlwaysAllowed(method, path string) bool {
 		// Account deletion
 		{method: "POST", prefix: "/api/v1/accounts/current/deletion-code"},
 		{method: "DELETE", prefix: "/api/v1/accounts/current", exact: true},
-		// Export (future — pre-whitelisted)
-		{method: "GET", prefix: "/api/v1/accounts/current/export"},
+		// Export profiles (Article 20 portability — allowed in all subscription states)
+		{method: "POST", prefix: "/api/v1/profiles/export", exact: true},
 		// View passkeys (read-only, shown grayed out on account-preferences during PD)
 		{method: "GET", prefix: "/api/v1/webauthn/passkeys"},
 		// Password reset

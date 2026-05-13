@@ -24,6 +24,7 @@ type ProfileTestSuite struct {
 	suite.Suite
 	service            *profile.ProfileService
 	mockProfileRepo    *mocks.ProfileRepository
+	mockAccountRepo    *mocks.AccountRepository
 	mockBlocklistRepo  *mocks.BlocklistRepository
 	mockQueryLogsRepo  *mocks.QueryLogsRepository
 	mockStatisticsRepo *mocks.StatisticsRepository
@@ -52,6 +53,7 @@ func (suite *ProfileTestSuite) SetupSuite() {
 
 	// Initialize mocks
 	suite.mockProfileRepo = mocks.NewProfileRepository(suite.T())
+	suite.mockAccountRepo = mocks.NewAccountRepository(suite.T())
 	suite.mockBlocklistRepo = mocks.NewBlocklistRepository(suite.T())
 	suite.mockQueryLogsRepo = mocks.NewQueryLogsRepository(suite.T())
 	suite.mockStatisticsRepo = mocks.NewStatisticsRepository(suite.T())
@@ -74,14 +76,16 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	// Create the StatisticsService with mocked dependencies
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo)
 
-	// Create the ProfileService with mocks
+	// Create the ProfileService with mocks (no catalog needed for non-import tests)
 	suite.service = profile.NewProfileService(
 		suite.serverConfig,
 		suite.serviceConfig,
 		suite.mockProfileRepo,
+		suite.mockAccountRepo,
 		suite.blocklistService,
 		suite.queryLogsService,
 		suite.statisticsService,
+		nil,
 		suite.mockCache,
 		suite.mockIDGen,
 		suite.validator,
@@ -2218,9 +2222,11 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 				suite.serverConfig,
 				suite.serviceConfig,
 				mockProfileRepo,
+				suite.mockAccountRepo,
 				suite.blocklistService,
 				suite.queryLogsService,
 				suite.statisticsService,
+				nil,
 				mockCache,
 				suite.mockIDGen,
 				apiVldtr.Validator,
