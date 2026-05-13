@@ -22,6 +22,7 @@ require (
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.mongodb.org/mongo-driver v1.17.3
+	golang.org/x/net v0.45.0
 )
 
 replace github.com/ivpn/dns/libs => ../libs
@@ -104,7 +105,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/tools v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
