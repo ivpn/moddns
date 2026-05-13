@@ -17,24 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict
+from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.profile_exported_dnssec import ProfileExportedDNSSEC
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsWebAuthnReauthBeginRequest(BaseModel):
+class ProfileExportedSecurity(BaseModel):
     """
-    RequestsWebAuthnReauthBeginRequest
+    ProfileExportedSecurity
     """ # noqa: E501
-    purpose: StrictStr
-    __properties: ClassVar[List[str]] = ["purpose"]
-
-    @field_validator('purpose')
-    def purpose_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import']):
-            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import')")
-        return value
+    dnssec: Optional[ProfileExportedDNSSEC] = None
+    __properties: ClassVar[List[str]] = ["dnssec"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -54,7 +48,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a JSON string"""
+        """Create an instance of ProfileExportedSecurity from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,11 +69,14 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of dnssec
+        if self.dnssec:
+            _dict['dnssec'] = self.dnssec.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsWebAuthnReauthBeginRequest from a dict"""
+        """Create an instance of ProfileExportedSecurity from a dict"""
         if obj is None:
             return None
 
@@ -87,7 +84,7 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "purpose": obj.get("purpose")
+            "dnssec": ProfileExportedDNSSEC.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None
         })
         return _obj
 
