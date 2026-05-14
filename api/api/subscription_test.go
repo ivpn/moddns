@@ -1,8 +1,11 @@
 package api
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,6 +119,94 @@ func (suite *SubscriptionAPITestSuite) TestGetSubscription_NotFound() {
 	resp, err := server.App.Test(req, -1)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusNotFound, resp.StatusCode)
+}
+
+// TestUpdateSubscription_NoBody verifies that PUT /sub/update with no request
+// body succeeds, and the service is called with an empty subID (so the
+// downstream signup webhook is skipped).
+// specRef: SY7
+func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_NoBody() {
+	accountID := "507f1f77bcf86cd799439011"
+	sessionToken := "test-session-token"
+
+	suite.mockDB.On("GetSession", mock.Anything, sessionToken).Return(model.Session{AccountID: accountID}, true, nil)
+	sub := &model.Subscription{}
+	suite.mockService.On("GetSubscription", mock.Anything, accountID).Return(sub, nil)
+	suite.mockService.On(
+		"UpdateSubscriptionFromPASession",
+		mock.Anything,
+		sub,
+		"pa-session-cookie-value",
+		"",
+	).Return(nil).Once()
+
+	server := suite.createTestServer()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/sub/update", nil)
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: sessionToken})
+	req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
+
+	resp, err := server.App.Test(req, -1)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+}
+
+// TestUpdateSubscription_WithSubID verifies that a valid `subid` in the body
+// is propagated to the service layer (which then fires the signup webhook).
+// specRef: SY7
+func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_WithSubID() {
+	accountID := "507f1f77bcf86cd799439011"
+	sessionToken := "test-session-token"
+	subID := "550e8400-e29b-41d4-a716-446655440000"
+
+	suite.mockDB.On("GetSession", mock.Anything, sessionToken).Return(model.Session{AccountID: accountID}, true, nil)
+	sub := &model.Subscription{}
+	suite.mockService.On("GetSubscription", mock.Anything, accountID).Return(sub, nil)
+	suite.mockService.On(
+		"UpdateSubscriptionFromPASession",
+		mock.Anything,
+		sub,
+		"pa-session-cookie-value",
+		subID,
+	).Return(nil).Once()
+
+	server := suite.createTestServer()
+	body, _ := json.Marshal(map[string]string{"subid": subID})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/sub/update", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: sessionToken})
+	req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
+
+	resp, err := server.App.Test(req, -1)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+}
+
+// TestUpdateSubscription_InvalidSubID verifies that a non-UUID4 `subid` is
+// rejected at validation with 400 and a `uuid4` tag in the error body.
+// specRef: SY7
+func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_InvalidSubID() {
+	accountID := "507f1f77bcf86cd799439011"
+	sessionToken := "test-session-token"
+
+	suite.mockDB.On("GetSession", mock.Anything, sessionToken).Return(model.Session{AccountID: accountID}, true, nil)
+	// SubscriptionGuard middleware fetches the subscription before the handler
+	// runs; the body validation in updateSubscription() rejects the request
+	// after that, before UpdateSubscriptionFromPASession is reached.
+	suite.mockService.On("GetSubscription", mock.Anything, accountID).Return(&model.Subscription{}, nil)
+
+	server := suite.createTestServer()
+	body := `{"subid": "not-a-uuid"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/sub/update", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: sessionToken})
+	req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
+
+	resp, err := server.App.Test(req, -1)
+	assert.NoError(suite.T(), err)
+	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
+
+	respBody, _ := io.ReadAll(resp.Body)
+	assert.Contains(suite.T(), string(respBody), "uuid4")
 }
 
 func TestSubscriptionAPITestSuite(t *testing.T) {

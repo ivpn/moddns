@@ -47,6 +47,7 @@ from moddns.models.api_create_profile_body import ApiCreateProfileBody
 from moddns.models.api_err_response import ApiErrResponse
 from moddns.models.api_register_account_body import ApiRegisterAccountBody
 from moddns.models.api_services_updates import ApiServicesUpdates
+from moddns.models.api_update_subscription_body import ApiUpdateSubscriptionBody
 from moddns.models.api_verify_email_otp_body import ApiVerifyEmailOTPBody
 from moddns.models.api_web_authn_login_begin_request import ApiWebAuthnLoginBeginRequest
 from moddns.models.api_web_authn_register_begin_request import ApiWebAuthnRegisterBeginRequest

@@ -159,7 +159,9 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 }
 
 // UpdateSubscriptionFromPASession validates the PASession, updates subscription fields from preauth, and persists.
-func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string) error {
+// When subID is non-empty, the signup webhook is fired with that id (mirroring the signup flow).
+// When subID is empty, the webhook is skipped — the caller did not supply a subscription id to relay.
+func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string, subID string) error {
 	preauth, err := s.ValidateAndGetPreauth(ctx, sessionID)
 	if err != nil {
 		return err
@@ -176,14 +178,22 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 		return err
 	}
 
+	// Clear legacy pre-0.1.8 `type` field so the beta-ending banner stops
+	// rendering for this account. Best-effort: a failure here must not roll
+	// back the successful sync — the banner remains visible until next resync.
+	if err := s.SubscriptionRepository.ClearLegacyType(ctx, sub.AccountID.Hex()); err != nil {
+		log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Failed to clear legacy subscription type after resync")
+	}
+
 	// Re-populate Redis profile settings for the account's profiles.
 	// This handles recovery from pending-delete state where DNS was cut (profile settings deleted from Redis).
 	s.repopulateProfileCache(ctx, sub.AccountID.Hex())
 
-	subID := sub.ID.String()
-	if err := s.Http.SignupWebhook(subID); err != nil {
-		log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
-		return err
+	if subID != "" {
+		if err := s.Http.SignupWebhook(subID); err != nil {
+			log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
+			return err
+		}
 	}
 
 	return nil

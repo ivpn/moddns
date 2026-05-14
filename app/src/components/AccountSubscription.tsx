@@ -10,20 +10,26 @@ import { useAppStore } from "@/store/general";
 
 const RESYNC_URL = import.meta.env.VITE_RESYNC_URL || "https://www.ivpn.net/en/account/";
 
+const UUID_V4_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+const isUUIDv4 = (id: string): boolean => UUID_V4_RE.test(id);
+
 export default function AccountSubscription() {
     const [sub, setSub] = useState<ModelSubscription | null>(null);
     const [error, setError] = useState("");
     const [syncing, setSyncing] = useState(false);
     const [searchParams] = useSearchParams();
     const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
+    const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
 
     const sessionid = searchParams.get("sessionid") || "";
+    const subid = searchParams.get("subid") || "";
 
     const fetchSubscription = async () => {
         try {
             const res = await api.Client.subscriptionApi.apiV1SubGet();
             setSub(res.data);
             setSubscriptionStatus(res.data.status ?? null);
+            setSubscriptionType(res.data.type ?? null);
         } catch {
             setError("Failed to load subscription.");
         }
@@ -36,7 +42,10 @@ export default function AccountSubscription() {
         setError("");
         try {
             await api.Client.paSessionApi.apiV1PasessionRotatePut({ sessionid });
-            await api.Client.subscriptionApi.apiV1SubUpdatePut();
+            // Only forward subid when it's a valid UUIDv4; backend skips the
+            // signup webhook entirely when subid is absent.
+            const body = isUUIDv4(subid) ? { subid } : undefined;
+            await api.Client.subscriptionApi.apiV1SubUpdatePut(body);
             await fetchSubscription();
             toast.success("Your account has been successfully synced.");
         } catch {

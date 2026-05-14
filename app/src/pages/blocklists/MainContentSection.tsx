@@ -28,6 +28,7 @@ import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { toast } from "sonner";
 import axios from "axios";
@@ -306,6 +307,7 @@ export default function MainContentSection(): JSX.Element {
 
     return (
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
+            <BetaEndingBanner />
             <LimitedAccessBanner />
             <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={isRestricted ? 'cursor-not-allowed' : ''}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>

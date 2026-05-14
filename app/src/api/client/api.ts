@@ -109,6 +109,19 @@ export interface ApiServicesUpdates {
 /**
  * 
  * @export
+ * @interface ApiUpdateSubscriptionBody
+ */
+export interface ApiUpdateSubscriptionBody {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiUpdateSubscriptionBody
+     */
+    'subid'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ApiVerifyEmailOTPBody
  */
 export interface ApiVerifyEmailOTPBody {
@@ -837,6 +850,12 @@ export interface ModelSubscription {
      * @memberof ModelSubscription
      */
     'tier'?: string;
+    /**
+     * Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'type'?: string;
     /**
      * 
      * @type {string}
@@ -3790,7 +3809,7 @@ export const PASessionApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3849,7 +3868,7 @@ export const PASessionApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3882,7 +3901,7 @@ export const PASessionApiFactory = function (configuration?: Configuration, base
             return localVarFp.apiV1PasessionAddPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Rotate pre-auth session ID and set new ID as cookie
+         * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
          * @summary Rotate pre-auth session ID
          * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
          * @param {*} [options] Override http request option.
@@ -3914,7 +3933,7 @@ export class PASessionApi extends BaseAPI {
     }
 
     /**
-     * Rotate pre-auth session ID and set new ID as cookie
+     * Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
      * @summary Rotate pre-auth session ID
      * @param {RequestsRotatePASessionReq} body Rotate pre-auth session request
      * @param {*} [options] Override http request option.
@@ -5526,12 +5545,13 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
             };
         },
         /**
-         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
          * @summary Update subscription via PASession
+         * @param {ApiUpdateSubscriptionBody} [body] Optional subid (UUID4) — when supplied, fires the signup webhook
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubUpdatePut: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1SubUpdatePut: async (body?: ApiUpdateSubscriptionBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/sub/update`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -5546,9 +5566,12 @@ export const SubscriptionApiAxiosParamCreator = function (configuration?: Config
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -5578,13 +5601,14 @@ export const SubscriptionApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
          * @summary Update subscription via PASession
+         * @param {ApiUpdateSubscriptionBody} [body] Optional subid (UUID4) — when supplied, fires the signup webhook
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1SubUpdatePut(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(options);
+        async apiV1SubUpdatePut(body?: ApiUpdateSubscriptionBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<{ [key: string]: any; }>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SubUpdatePut(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SubscriptionApi.apiV1SubUpdatePut']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -5609,13 +5633,14 @@ export const SubscriptionApiFactory = function (configuration?: Configuration, b
             return localVarFp.apiV1SubGet(options).then((request) => request(axios, basePath));
         },
         /**
-         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+         * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
          * @summary Update subscription via PASession
+         * @param {ApiUpdateSubscriptionBody} [body] Optional subid (UUID4) — when supplied, fires the signup webhook
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SubUpdatePut(options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
-            return localVarFp.apiV1SubUpdatePut(options).then((request) => request(axios, basePath));
+        apiV1SubUpdatePut(body?: ApiUpdateSubscriptionBody, options?: RawAxiosRequestConfig): AxiosPromise<{ [key: string]: any; }> {
+            return localVarFp.apiV1SubUpdatePut(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -5639,14 +5664,15 @@ export class SubscriptionApi extends BaseAPI {
     }
 
     /**
-     * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+     * Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
      * @summary Update subscription via PASession
+     * @param {ApiUpdateSubscriptionBody} [body] Optional subid (UUID4) — when supplied, fires the signup webhook
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof SubscriptionApi
      */
-    public apiV1SubUpdatePut(options?: RawAxiosRequestConfig) {
-        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(options).then((request) => request(this.axios, this.basePath));
+    public apiV1SubUpdatePut(body?: ApiUpdateSubscriptionBody, options?: RawAxiosRequestConfig) {
+        return SubscriptionApiFp(this.configuration).apiV1SubUpdatePut(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

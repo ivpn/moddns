@@ -39,6 +39,63 @@ func (_m *SubscriptionRepository) EXPECT() *SubscriptionRepository_Expecter {
 	return &SubscriptionRepository_Expecter{mock: &_m.Mock}
 }
 
+// ClearLegacyType provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) ClearLegacyType(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearLegacyType")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// SubscriptionRepository_ClearLegacyType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearLegacyType'
+type SubscriptionRepository_ClearLegacyType_Call struct {
+	*mock.Call
+}
+
+// ClearLegacyType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *SubscriptionRepository_Expecter) ClearLegacyType(ctx interface{}, accountId interface{}) *SubscriptionRepository_ClearLegacyType_Call {
+	return &SubscriptionRepository_ClearLegacyType_Call{Call: _e.mock.On("ClearLegacyType", ctx, accountId)}
+}
+
+func (_c *SubscriptionRepository_ClearLegacyType_Call) Run(run func(ctx context.Context, accountId string)) *SubscriptionRepository_ClearLegacyType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_ClearLegacyType_Call) Return(err error) *SubscriptionRepository_ClearLegacyType_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_ClearLegacyType_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *SubscriptionRepository_ClearLegacyType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Create provides a mock function for the type SubscriptionRepository
 func (_mock *SubscriptionRepository) Create(ctx context.Context, subscription model.Subscription) error {
 	ret := _mock.Called(ctx, subscription)
