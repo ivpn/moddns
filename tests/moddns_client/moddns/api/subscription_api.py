@@ -16,7 +16,10 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from typing import Any, Dict
+from pydantic import Field
+from typing import Any, Dict, Optional
+from typing_extensions import Annotated
+from moddns.models.api_update_subscription_body import ApiUpdateSubscriptionBody
 from moddns.models.model_subscription import ModelSubscription
 
 from moddns.api_client import ApiClient, RequestSerialized
@@ -294,6 +297,7 @@ class SubscriptionApi:
     @validate_call
     def api_v1_sub_update_put(
         self,
+        body: Annotated[Optional[ApiUpdateSubscriptionBody], Field(description="Optional subid (UUID4) — when supplied, fires the signup webhook")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -309,8 +313,10 @@ class SubscriptionApi:
     ) -> Dict[str, object]:
         """Update subscription via PASession
 
-        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
 
+        :param body: Optional subid (UUID4) — when supplied, fires the signup webhook
+        :type body: ApiUpdateSubscriptionBody
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -334,6 +340,7 @@ class SubscriptionApi:
         """ # noqa: E501
 
         _param = self._api_v1_sub_update_put_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -359,6 +366,7 @@ class SubscriptionApi:
     @validate_call
     def api_v1_sub_update_put_with_http_info(
         self,
+        body: Annotated[Optional[ApiUpdateSubscriptionBody], Field(description="Optional subid (UUID4) — when supplied, fires the signup webhook")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -374,8 +382,10 @@ class SubscriptionApi:
     ) -> ApiResponse[Dict[str, object]]:
         """Update subscription via PASession
 
-        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
 
+        :param body: Optional subid (UUID4) — when supplied, fires the signup webhook
+        :type body: ApiUpdateSubscriptionBody
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -399,6 +409,7 @@ class SubscriptionApi:
         """ # noqa: E501
 
         _param = self._api_v1_sub_update_put_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -424,6 +435,7 @@ class SubscriptionApi:
     @validate_call
     def api_v1_sub_update_put_without_preload_content(
         self,
+        body: Annotated[Optional[ApiUpdateSubscriptionBody], Field(description="Optional subid (UUID4) — when supplied, fires the signup webhook")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -439,8 +451,10 @@ class SubscriptionApi:
     ) -> RESTResponseType:
         """Update subscription via PASession
 
-        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+        Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
 
+        :param body: Optional subid (UUID4) — when supplied, fires the signup webhook
+        :type body: ApiUpdateSubscriptionBody
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -464,6 +478,7 @@ class SubscriptionApi:
         """ # noqa: E501
 
         _param = self._api_v1_sub_update_put_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -484,6 +499,7 @@ class SubscriptionApi:
 
     def _api_v1_sub_update_put_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -509,6 +525,8 @@ class SubscriptionApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -519,6 +537,19 @@ class SubscriptionApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [

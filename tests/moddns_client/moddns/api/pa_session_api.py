@@ -338,7 +338,7 @@ class PASessionApi:
     ) -> None:
         """Rotate pre-auth session ID
 
-        Rotate pre-auth session ID and set new ID as cookie
+        Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
 
         :param body: Rotate pre-auth session request (required)
         :type body: RequestsRotatePASessionReq
@@ -406,7 +406,7 @@ class PASessionApi:
     ) -> ApiResponse[None]:
         """Rotate pre-auth session ID
 
-        Rotate pre-auth session ID and set new ID as cookie
+        Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
 
         :param body: Rotate pre-auth session request (required)
         :type body: RequestsRotatePASessionReq
@@ -474,7 +474,7 @@ class PASessionApi:
     ) -> RESTResponseType:
         """Rotate pre-auth session ID
 
-        Rotate pre-auth session ID and set new ID as cookie
+        Rotate pre-auth session ID and set new ID as cookie. The endpoint is idempotent against an already-rotated session: if the URL sessionid is no longer in the cache but the caller already holds a valid pa_session cookie, the call succeeds as a no-op so the user can continue with their existing session.
 
         :param body: Rotate pre-auth session request (required)
         :type body: RequestsRotatePASessionReq

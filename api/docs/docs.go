@@ -756,7 +756,7 @@ const docTemplate = `{
         },
         "/api/v1/pasession/rotate": {
             "put": {
-                "description": "Rotate pre-auth session ID and set new ID as cookie",
+                "description": "Rotate pre-auth session ID and set new ID as cookie. The endpoint\nis idempotent against an already-rotated session: if the URL\nsessionid is no longer in the cache but the caller already holds\na valid pa_session cookie, the call succeeds as a no-op so the\nuser can continue with their existing session.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1856,7 +1856,10 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).",
+                "description": "Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If ` + "`" + `subid` + "`" + ` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -1864,6 +1867,16 @@ const docTemplate = `{
                     "Subscription"
                 ],
                 "summary": "Update subscription via PASession",
+                "parameters": [
+                    {
+                        "description": "Optional subid (UUID4) — when supplied, fires the signup webhook",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/api.updateSubscriptionBody"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2483,6 +2496,14 @@ const docTemplate = `{
                 "password": {
                     "type": "string"
                 },
+                "subid": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.updateSubscriptionBody": {
+            "type": "object",
+            "properties": {
                 "subid": {
                     "type": "string"
                 }
