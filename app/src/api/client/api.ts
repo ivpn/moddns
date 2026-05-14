@@ -851,6 +851,12 @@ export interface ModelSubscription {
      */
     'tier'?: string;
     /**
+     * Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'type'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelSubscription

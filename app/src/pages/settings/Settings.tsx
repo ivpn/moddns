@@ -1,5 +1,7 @@
 import { type JSX } from "react";
 import ProfileManagementSection from "@/pages/settings/ProfileManagementSection";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { ModelProfile } from "@/api/client/api";
 
 interface SettingsProps {
@@ -8,7 +10,10 @@ interface SettingsProps {
 
 export default function FrameScreen({ profiles }: SettingsProps): JSX.Element {
     return (
-        <div className="flex flex-col w-full gap-6 p-4 pt-8 md:pt-0 sm:p-8 max-w-full overflow-x-hidden">
+        <div className="flex flex-col w-full gap-6 p-4 pt-8 sm:p-8 max-w-full overflow-x-hidden">
+            <BetaEndingBanner />
+            <LimitedAccessBanner />
+
             {/* Page Description */}
             <section className="w-full">
                 <div className="flex flex-col gap-1">

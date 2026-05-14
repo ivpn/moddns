@@ -422,6 +422,12 @@ definitions:
         description: Computed fields (not persisted)
       tier:
         type: string
+      type:
+        description: |-
+          Type is a legacy pre-0.1.8 enum ("Free"/"Managed") retained so old documents
+          surface to clients (the beta-ending banner gates on Type == "Managed").
+          Cleared to "" by the resync flow once the user re-syncs with IVPN.
+        type: string
       updated_at:
         type: string
     type: object

@@ -19,6 +19,7 @@ export default function AccountSubscription() {
     const [syncing, setSyncing] = useState(false);
     const [searchParams] = useSearchParams();
     const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
+    const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
 
     const sessionid = searchParams.get("sessionid") || "";
     const subid = searchParams.get("subid") || "";
@@ -28,6 +29,7 @@ export default function AccountSubscription() {
             const res = await api.Client.subscriptionApi.apiV1SubGet();
             setSub(res.data);
             setSubscriptionStatus(res.data.status ?? null);
+            setSubscriptionType(res.data.type ?? null);
         } catch {
             setError("Failed to load subscription.");
         }

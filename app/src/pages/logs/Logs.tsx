@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 const QUERY_LIMIT = 25;
 
@@ -323,6 +324,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     return (
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible bg-[var(--shadcn-ui-app-background)]">
+            <BetaEndingBanner />
             <LimitedAccessBanner />
             {/* GET /profiles/{id}/logs and DELETE /profiles/{id}/logs are LA-allowed; only the per-row Quick rule action (POST custom_rules) is gated below. */}
             <div className="flex flex-col items-start gap-6 relative flex-1 self-stretch grow w-full">

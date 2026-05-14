@@ -16,6 +16,7 @@ import { RequestsAdvancedOptionsReqEncryptionTypeEnum } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { JSX } from "react";
 
 interface FormData {
@@ -239,6 +240,7 @@ export default function MobileconfigGenerator(): JSX.Element {
     return (
         <div className="w-full px-4 sm:px-6 py-6 mt-20 overflow-x-hidden break-words min-w-0 [word-break:break-word]">
             <div className="max-w-[840px] xl:max-w-[760px] 2xl:max-w-[700px] mx-auto space-y-6">
+                <BetaEndingBanner />
                 <LimitedAccessBanner />
                 <div className="flex justify-center mb-6">
                     <Button
