@@ -31,11 +31,17 @@ func (s *APIServer) getSubscription() fiber.Handler {
 	}
 }
 
+type updateSubscriptionBody struct {
+	SubID string `json:"subid" validate:"omitempty,uuid4"`
+}
+
 // @Summary Update subscription via PASession
-// @Description Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation).
+// @Description Resync subscription using a pre-auth session. Requires pa_session cookie (set by prior PASession rotation). If `subid` is supplied in the body, a signup webhook is fired with that id; otherwise the webhook is skipped.
 // @Tags Subscription
+// @Accept json
 // @Produce json
 // @Security ApiKeyAuth
+// @Param body body updateSubscriptionBody false "Optional subid (UUID4) — when supplied, fires the signup webhook"
 // @Success 200 {object} fiber.Map
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
@@ -45,12 +51,28 @@ func (s *APIServer) updateSubscription() fiber.Handler {
 		sessionID := c.Cookies(PASessionCookie)
 		accountId := auth.GetAccountID(c)
 
+		p := new(updateSubscriptionBody)
+		if len(c.Body()) > 0 {
+			if err := c.BodyParser(p); err != nil {
+				return HandleError(c, err, ErrInvalidRequestBody.Error())
+			}
+		}
+
+		errs := s.Validator.Validate(p)
+		if len(errs) > 0 {
+			tags := make([]string, 0)
+			for _, err := range errs {
+				tags = append(tags, err.Tag)
+			}
+			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
+		}
+
 		sub, err := s.Service.GetSubscription(c.Context(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetSubscription.Error())
 		}
 
-		if err := s.Service.UpdateSubscriptionFromPASession(c.Context(), sub, sessionID); err != nil {
+		if err := s.Service.UpdateSubscriptionFromPASession(c.Context(), sub, sessionID, p.SubID); err != nil {
 			return HandleError(c, err, "failed to update subscription")
 		}
 

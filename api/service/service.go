@@ -176,7 +176,7 @@ type SubscriptionServicer interface {
 	AddPASession(ctx context.Context, session *model.PASession) error
 	RotatePASessionID(ctx context.Context, oldID string) (string, error)
 	ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error)
-	UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string) error
+	UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string, subID string) error
 }
 
 // DeleteAccount deletes account with all connected data including sessions
