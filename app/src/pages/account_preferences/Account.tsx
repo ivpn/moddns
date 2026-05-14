@@ -27,6 +27,8 @@ import ChangeEmailDialog from "@/pages/account_preferences/ChangeEmailDialog";
 import { useAppStore } from "@/store/general";
 import AccountSubscription from "@/components/AccountSubscription";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 interface PreferencesSectionProps {
     account: ModelAccount | null;
@@ -226,6 +228,9 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
             </div>
 
             <div className="flex flex-col gap-6">
+                <BetaEndingBanner />
+                <LimitedAccessBanner />
+
                 {isPendingDelete && (
                     <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-red-400)] bg-[var(--danger-zone-bg)] px-4 py-3">
                         <AlertTriangle className="w-5 h-5 text-[var(--tailwind-colors-red-400)] flex-shrink-0" />
