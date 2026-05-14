@@ -14,15 +14,25 @@ import (
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/utils"
+	apivalidator "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/blocklist"
 	querylogs "github.com/ivpn/dns/api/service/query_logs"
 	"github.com/ivpn/dns/api/service/statistics"
+	"github.com/ivpn/dns/libs/servicescatalog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/sync/errgroup"
 )
+
+// ServicesCatalogReader is a narrow interface for looking up service IDs in the
+// catalog. It matches the public surface of *servicescatalogcache.Loader that
+// the importer needs. Defined here (consumer-side) to avoid a dependency on the
+// cache package and to keep mocking straightforward in tests.
+type ServicesCatalogReader interface {
+	Get() (*servicescatalog.Catalog, error)
+}
 
 // Account-based rate limiting for query logs retrieval.
 const queryLogsRateLimitMax = 120
@@ -30,9 +40,11 @@ const queryLogsRateLimitWindow = time.Minute
 
 type ProfileService struct {
 	ProfileRepository repository.ProfileRepository
+	AccountRepository repository.AccountRepository
 	QueryLogsService  *querylogs.QueryLogsService
 	StatisticsService *statistics.StatisticsService
 	BlocklistService  *blocklist.BlocklistService
+	ServicesCatalog   ServicesCatalogReader
 	Cache             cache.Cache
 	IdGen             idgen.Generator
 	Validate          *validator.Validate
@@ -40,11 +52,16 @@ type ProfileService struct {
 	ServiceConfig     config.ServiceConfig
 }
 
-// NewProfileService creates a new profile service
-func NewProfileService(serverCfg config.ServerConfig, serviceCfg config.ServiceConfig, db repository.ProfileRepository, blocklistService *blocklist.BlocklistService, qlService *querylogs.QueryLogsService, statsService *statistics.StatisticsService, cache cache.Cache, idGen idgen.Generator, validator *validator.Validate) *ProfileService {
+// NewProfileService creates a new profile service.
+// servicesCatalog may be nil; when nil, service-ID catalog validation during
+// import is skipped and all service IDs are accepted (safe-default for callers
+// that do not need catalog validation, such as tests for unrelated features).
+func NewProfileService(serverCfg config.ServerConfig, serviceCfg config.ServiceConfig, db repository.ProfileRepository, accountRepo repository.AccountRepository, blocklistService *blocklist.BlocklistService, qlService *querylogs.QueryLogsService, statsService *statistics.StatisticsService, servicesCatalog ServicesCatalogReader, cache cache.Cache, idGen idgen.Generator, validator *validator.Validate) *ProfileService {
 	return &ProfileService{
 		ProfileRepository: db,
+		AccountRepository: accountRepo,
 		BlocklistService:  blocklistService,
+		ServicesCatalog:   servicesCatalog,
 		QueryLogsService:  qlService,
 		StatisticsService: statsService,
 		Cache:             cache,
@@ -57,8 +74,12 @@ func NewProfileService(serverCfg config.ServerConfig, serviceCfg config.ServiceC
 
 // Create creates a new profile
 func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId string) (*model.Profile, error) {
+	name = apivalidator.NormalizeName(name)
 	if name == "" {
 		return nil, ErrProfileNameEmpty
+	}
+	if !apivalidator.IsSafeName(name) {
+		return nil, ErrProfileNameInvalid
 	}
 	profile, err := model.NewProfile(p.IdGen, name, accountId)
 	if err != nil {
@@ -414,6 +435,18 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 		if err != nil {
 			return err
 		}
+		newName = apivalidator.NormalizeName(newName)
+		if newName == "" {
+			return ErrProfileNameCannotBeEmpty
+		}
+		err = p.Validate.Struct(model.Profile{
+			Name: newName,
+		})
+		if err != nil {
+			log.Debug().Err(err).Msg("Failed to validate profile name")
+			return ErrProfileNameInvalid
+		}
+
 		profiles, err := p.ProfileRepository.GetProfilesByAccountId(ctx, accountId)
 		if err != nil {
 			return err
@@ -423,14 +456,6 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			if profile.Name == newName {
 				return ErrProfileNameAlreadyExists
 			}
-		}
-
-		err = p.Validate.Struct(model.Profile{
-			Name: newName,
-		})
-		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate profile name")
-			return ErrProfileNameCannotBeEmpty
 		}
 
 		profile.Name = newName

@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Pre-compiled regexes for password validation (avoid re-compilation on every call).
@@ -69,6 +71,10 @@ func NewAPIValidator() (*APIValidator, error) {
 		return nil, err
 	}
 	err = apiValidator.Validator.RegisterValidation("device_id", deviceIDValidation)
+	if err != nil {
+		return nil, err
+	}
+	err = apiValidator.Validator.RegisterValidation("safe_name", safeNameValidation)
 	if err != nil {
 		return nil, err
 	}
@@ -134,6 +140,13 @@ func (v APIValidator) wildcardValidation(fl validator.FieldLevel) bool {
 
 	// If still no wildcard, skip validation (handled by other validators)
 	if !strings.Contains(value, "*") {
+		return false
+	}
+
+	// Reject patterns with no domain content (e.g. "*", "*.", "**"). The FQDN
+	// regex permits empty pre/post sides, which would let "*" through and
+	// match every domain in the proxy filter.
+	if strings.Trim(value, "*.") == "" {
 		return false
 	}
 
@@ -207,4 +220,35 @@ func ValidatePassword(password string) bool {
 func deviceIDValidation(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
 	return value == deviceid.Normalize(value)
+}
+
+// safeNameValidation accepts a user-facing display name that:
+//   - is non-empty after trimming Unicode whitespace
+//   - contains no Unicode control (Cc), format (Cf — bidi overrides, zero-width
+//     joiners, etc.), surrogate (Cs), or private-use (Co) runes
+//
+// Length is checked separately via min/max tags. Allows Unicode letters, marks,
+// digits, punctuation, symbols, and ordinary spaces so international names work.
+func safeNameValidation(fl validator.FieldLevel) bool {
+	return IsSafeName(fl.Field().String())
+}
+
+// IsSafeName reports whether s is a safe display name. See safeNameValidation.
+func IsSafeName(s string) bool {
+	if strings.TrimSpace(s) == "" {
+		return false
+	}
+	for _, r := range s {
+		if unicode.In(r, unicode.Cc, unicode.Cf, unicode.Cs, unicode.Co) {
+			return false
+		}
+	}
+	return true
+}
+
+// NormalizeName trims surrounding Unicode whitespace and returns the NFC form.
+// Apply at the storage boundary so duplicate-name checks see canonical strings
+// (e.g. "Café" vs "Café" collapse to the same form).
+func NormalizeName(s string) string {
+	return norm.NFC.String(strings.TrimSpace(s))
 }

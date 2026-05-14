@@ -151,7 +151,10 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", err
 	}
 
-	if purpose != "email_change" && purpose != "account_deletion" {
+	switch purpose {
+	case "email_change", "account_deletion", "profile_export", "profile_import":
+		// supported purposes
+	default:
 		return nil, "", fmt.Errorf("unsupported reauth purpose: %s", purpose)
 	}
 
@@ -203,6 +206,10 @@ func (s *Service) FinishReauth(ctx context.Context, tmpToken string, httpReq *ht
 		tokenType = auth.TokenTypeReauthEmailChange
 	case "account_deletion":
 		tokenType = auth.TokenTypeReauthAccountDeletion
+	case "profile_export":
+		tokenType = auth.TokenTypeReauthProfileExport
+	case "profile_import":
+		tokenType = auth.TokenTypeReauthProfileImport
 	default:
 		return nil, account.ErrInvalidReauthToken
 	}

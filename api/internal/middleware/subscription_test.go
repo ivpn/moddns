@@ -24,7 +24,8 @@ func TestIsAlwaysAllowed(t *testing.T) {
 		{"GET", "/api/v1/accounts/current", true},
 		{"POST", "/api/v1/accounts/current/deletion-code", true},
 		{"DELETE", "/api/v1/accounts/current", true},
-		{"GET", "/api/v1/accounts/current/export", true},
+		// Export profiles (Article 20 portability — specRef: M1, E18, E19)
+		{"POST", "/api/v1/profiles/export", true},
 		{"POST", "/api/v1/verify/reset-password", true},
 		{"POST", "/api/v1/accounts/reset-password", true},
 		{"GET", "/api/v1/webauthn/passkeys", true},
@@ -33,7 +34,9 @@ func TestIsAlwaysAllowed(t *testing.T) {
 		{"POST", "/api/v1/accounts/mfa/totp/enable", false},
 
 		// GET /accounts/current is exact — sub-paths are NOT always allowed
-		{"GET", "/api/v1/accounts/current/export", true}, // export IS explicitly listed
+		{"GET", "/api/v1/accounts/current/export", false}, // old placeholder removed (specRef: M3)
+		// POST /profiles/export is exact — sub-paths are NOT always allowed
+		{"POST", "/api/v1/profiles/export/extra", false},
 
 		// NOT always allowed — require LimitedAccess
 		{"GET", "/api/v1/profiles", false},

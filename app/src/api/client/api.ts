@@ -362,7 +362,7 @@ export interface ModelBlocklist {
      */
     'tags'?: Array<string>;
     /**
-     * ownership: public (platform-provided) or private (user-uploaded)
+     * ownership: currently always \"public\" (platform-provided)
      * @type {string}
      * @memberof ModelBlocklist
      */
@@ -925,6 +925,300 @@ export interface ModelTotpSettings {
      * @memberof ModelTotpSettings
      */
     'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportEnvelope
+ */
+export interface ProfileExportEnvelope {
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportEnvelope
+     */
+    'exportedAt'?: string;
+    /**
+     * 
+     * @type {ProfileExportedFromInfo}
+     * @memberof ProfileExportEnvelope
+     */
+    'exportedFrom'?: ProfileExportedFromInfo;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportEnvelope
+     */
+    'kind'?: string;
+    /**
+     * 
+     * @type {Array<ProfileExportedProfile>}
+     * @memberof ProfileExportEnvelope
+     */
+    'profiles'?: Array<ProfileExportedProfile>;
+    /**
+     * 
+     * @type {number}
+     * @memberof ProfileExportEnvelope
+     */
+    'schemaVersion'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedAdvanced
+ */
+export interface ProfileExportedAdvanced {
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedAdvanced
+     */
+    'recursor'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedCustomRule
+ */
+export interface ProfileExportedCustomRule {
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedCustomRule
+     */
+    'action'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedCustomRule
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedCustomRule
+     */
+    'value'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedDNSSEC
+ */
+export interface ProfileExportedDNSSEC {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedDNSSEC
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedDNSSEC
+     */
+    'sendDoBit'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedFromInfo
+ */
+export interface ProfileExportedFromInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedFromInfo
+     */
+    'appVersion'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedFromInfo
+     */
+    'service'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedLogs
+ */
+export interface ProfileExportedLogs {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedLogs
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedLogs
+     */
+    'logClientsIPs'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedLogs
+     */
+    'logDomains'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedLogs
+     */
+    'retention'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedPrivacy
+ */
+export interface ProfileExportedPrivacy {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ProfileExportedPrivacy
+     */
+    'blocklists'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedPrivacy
+     */
+    'blocklistsSubdomainsRule'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedPrivacy
+     */
+    'customRulesSubdomainsRule'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedPrivacy
+     */
+    'defaultRule'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ProfileExportedPrivacy
+     */
+    'services'?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedProfile
+ */
+export interface ProfileExportedProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedProfile
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ProfileExportedProfile
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {ProfileExportedSettings}
+     * @memberof ProfileExportedProfile
+     */
+    'settings'?: ProfileExportedSettings;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedSecurity
+ */
+export interface ProfileExportedSecurity {
+    /**
+     * 
+     * @type {ProfileExportedDNSSEC}
+     * @memberof ProfileExportedSecurity
+     */
+    'dnssec'?: ProfileExportedDNSSEC;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedSettings
+ */
+export interface ProfileExportedSettings {
+    /**
+     * 
+     * @type {ProfileExportedAdvanced}
+     * @memberof ProfileExportedSettings
+     */
+    'advanced'?: ProfileExportedAdvanced;
+    /**
+     * 
+     * @type {Array<ProfileExportedCustomRule>}
+     * @memberof ProfileExportedSettings
+     */
+    'customRules'?: Array<ProfileExportedCustomRule>;
+    /**
+     * 
+     * @type {ProfileExportedLogs}
+     * @memberof ProfileExportedSettings
+     */
+    'logs'?: ProfileExportedLogs;
+    /**
+     * 
+     * @type {ProfileExportedPrivacy}
+     * @memberof ProfileExportedSettings
+     */
+    'privacy'?: ProfileExportedPrivacy;
+    /**
+     * 
+     * @type {ProfileExportedSecurity}
+     * @memberof ProfileExportedSettings
+     */
+    'security'?: ProfileExportedSecurity;
+    /**
+     * 
+     * @type {ProfileExportedStatistics}
+     * @memberof ProfileExportedSettings
+     */
+    'statistics'?: ProfileExportedStatistics;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileExportedStatistics
+ */
+export interface ProfileExportedStatistics {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ProfileExportedStatistics
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface ProfileImportResult
+ */
+export interface ProfileImportResult {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ProfileImportResult
+     */
+    'createdProfileIds'?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ProfileImportResult
+     */
+    'warnings'?: Array<string>;
 }
 /**
  * 
@@ -1518,6 +1812,406 @@ export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof Request
 /**
  * 
  * @export
+ * @interface RequestsExportRequest
+ */
+export interface RequestsExportRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsExportRequest
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RequestsExportRequest
+     */
+    'profileIds'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsExportRequest
+     */
+    'reauth_token'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsExportRequest
+     */
+    'scope': RequestsExportRequestScopeEnum;
+}
+
+export const RequestsExportRequestScopeEnum = {
+    All: 'all',
+    Selected: 'selected'
+} as const;
+
+export type RequestsExportRequestScopeEnum = typeof RequestsExportRequestScopeEnum[keyof typeof RequestsExportRequestScopeEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsExportedFromInfo
+ */
+export interface RequestsExportedFromInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsExportedFromInfo
+     */
+    'appVersion'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsExportedFromInfo
+     */
+    'service'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportAdvanced
+ */
+export interface RequestsImportAdvanced {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportAdvanced
+     */
+    'recursor'?: RequestsImportAdvancedRecursorEnum;
+}
+
+export const RequestsImportAdvancedRecursorEnum = {
+    Sdns: 'sdns',
+    Unbound: 'unbound'
+} as const;
+
+export type RequestsImportAdvancedRecursorEnum = typeof RequestsImportAdvancedRecursorEnum[keyof typeof RequestsImportAdvancedRecursorEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsImportCustomRule
+ */
+export interface RequestsImportCustomRule {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportCustomRule
+     */
+    'action': RequestsImportCustomRuleActionEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportCustomRule
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportCustomRule
+     */
+    'value': string;
+}
+
+export const RequestsImportCustomRuleActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type RequestsImportCustomRuleActionEnum = typeof RequestsImportCustomRuleActionEnum[keyof typeof RequestsImportCustomRuleActionEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsImportDNSSEC
+ */
+export interface RequestsImportDNSSEC {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportDNSSEC
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportDNSSEC
+     */
+    'sendDoBit'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportLogs
+ */
+export interface RequestsImportLogs {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportLogs
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportLogs
+     */
+    'logClientsIPs'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportLogs
+     */
+    'logDomains'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportLogs
+     */
+    'retention'?: RequestsImportLogsRetentionEnum;
+}
+
+export const RequestsImportLogsRetentionEnum = {
+    _1h: '1h',
+    _6h: '6h',
+    _1d: '1d',
+    _1w: '1w',
+    _1m: '1m'
+} as const;
+
+export type RequestsImportLogsRetentionEnum = typeof RequestsImportLogsRetentionEnum[keyof typeof RequestsImportLogsRetentionEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsImportPayload
+ */
+export interface RequestsImportPayload {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportPayload
+     */
+    'exportedAt': string;
+    /**
+     * 
+     * @type {RequestsExportedFromInfo}
+     * @memberof RequestsImportPayload
+     */
+    'exportedFrom'?: RequestsExportedFromInfo;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportPayload
+     */
+    'kind': string;
+    /**
+     * 
+     * @type {Array<RequestsImportProfile>}
+     * @memberof RequestsImportPayload
+     */
+    'profiles': Array<RequestsImportProfile>;
+    /**
+     * 
+     * @type {number}
+     * @memberof RequestsImportPayload
+     */
+    'schemaVersion': number;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportPrivacy
+ */
+export interface RequestsImportPrivacy {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RequestsImportPrivacy
+     */
+    'blocklists': Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportPrivacy
+     */
+    'blocklistsSubdomainsRule'?: RequestsImportPrivacyBlocklistsSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportPrivacy
+     */
+    'customRulesSubdomainsRule'?: RequestsImportPrivacyCustomRulesSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportPrivacy
+     */
+    'defaultRule'?: RequestsImportPrivacyDefaultRuleEnum;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RequestsImportPrivacy
+     */
+    'services': Array<string>;
+}
+
+export const RequestsImportPrivacyBlocklistsSubdomainsRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type RequestsImportPrivacyBlocklistsSubdomainsRuleEnum = typeof RequestsImportPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof RequestsImportPrivacyBlocklistsSubdomainsRuleEnum];
+export const RequestsImportPrivacyCustomRulesSubdomainsRuleEnum = {
+    Include: 'include',
+    Exact: 'exact'
+} as const;
+
+export type RequestsImportPrivacyCustomRulesSubdomainsRuleEnum = typeof RequestsImportPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof RequestsImportPrivacyCustomRulesSubdomainsRuleEnum];
+export const RequestsImportPrivacyDefaultRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type RequestsImportPrivacyDefaultRuleEnum = typeof RequestsImportPrivacyDefaultRuleEnum[keyof typeof RequestsImportPrivacyDefaultRuleEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsImportProfile
+ */
+export interface RequestsImportProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportProfile
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportProfile
+     */
+    'name': string;
+    /**
+     * 
+     * @type {RequestsImportSettings}
+     * @memberof RequestsImportProfile
+     */
+    'settings': RequestsImportSettings;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportRequest
+ */
+export interface RequestsImportRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportRequest
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportRequest
+     */
+    'mode': RequestsImportRequestModeEnum;
+    /**
+     * 
+     * @type {RequestsImportPayload}
+     * @memberof RequestsImportRequest
+     */
+    'payload': RequestsImportPayload;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsImportRequest
+     */
+    'reauth_token'?: string;
+}
+
+export const RequestsImportRequestModeEnum = {
+    CreateNew: 'create_new'
+} as const;
+
+export type RequestsImportRequestModeEnum = typeof RequestsImportRequestModeEnum[keyof typeof RequestsImportRequestModeEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsImportSecurity
+ */
+export interface RequestsImportSecurity {
+    /**
+     * 
+     * @type {RequestsImportDNSSEC}
+     * @memberof RequestsImportSecurity
+     */
+    'dnssec'?: RequestsImportDNSSEC;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportSettings
+ */
+export interface RequestsImportSettings {
+    /**
+     * 
+     * @type {RequestsImportAdvanced}
+     * @memberof RequestsImportSettings
+     */
+    'advanced'?: RequestsImportAdvanced;
+    /**
+     * 
+     * @type {Array<RequestsImportCustomRule>}
+     * @memberof RequestsImportSettings
+     */
+    'customRules'?: Array<RequestsImportCustomRule>;
+    /**
+     * 
+     * @type {RequestsImportLogs}
+     * @memberof RequestsImportSettings
+     */
+    'logs'?: RequestsImportLogs;
+    /**
+     * 
+     * @type {RequestsImportPrivacy}
+     * @memberof RequestsImportSettings
+     */
+    'privacy'?: RequestsImportPrivacy;
+    /**
+     * 
+     * @type {RequestsImportSecurity}
+     * @memberof RequestsImportSettings
+     */
+    'security'?: RequestsImportSecurity;
+    /**
+     * 
+     * @type {RequestsImportStatistics}
+     * @memberof RequestsImportSettings
+     */
+    'statistics'?: RequestsImportStatistics;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsImportStatistics
+ */
+export interface RequestsImportStatistics {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof RequestsImportStatistics
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface RequestsLoginBody
  */
 export interface RequestsLoginBody {
@@ -1652,7 +2346,9 @@ export interface RequestsWebAuthnReauthBeginRequest {
 
 export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     EmailChange: 'email_change',
-    AccountDeletion: 'account_deletion'
+    AccountDeletion: 'account_deletion',
+    ProfileExport: 'profile_export',
+    ProfileImport: 'profile_import'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3948,6 +4644,42 @@ export class PASessionApi extends BaseAPI {
 export const ProfileApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
+         * Export user\'s profiles as a downloadable JSON file
+         * @summary Export profiles
+         * @param {RequestsExportRequest} body Export request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesExportPost: async (body: RequestsExportRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesExportPost', 'body', body)
+            const localVarPath = `/api/v1/profiles/export`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Get profiles data
          * @summary Get profiles data
          * @param {*} [options] Override http request option.
@@ -4364,6 +5096,48 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Import profiles from a previously exported JSON file
+         * @summary Import profiles
+         * @param {string} xModDNSImport CSRF guard header — must equal \\
+         * @param {RequestsImportRequest} body Import request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesImportPost: async (xModDNSImport: string, body: RequestsImportRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'xModDNSImport' is not null or undefined
+            assertParamExists('apiV1ProfilesImportPost', 'xModDNSImport', xModDNSImport)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesImportPost', 'body', body)
+            const localVarPath = `/api/v1/profiles/import`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            if (xModDNSImport != null) {
+                localVarHeaderParameter['X-modDNS-Import'] = String(xModDNSImport);
+            }
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Create profile
          * @summary Create profile
          * @param {ApiCreateProfileBody} body Create profile request
@@ -4409,6 +5183,19 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
 export const ProfileApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = ProfileApiAxiosParamCreator(configuration)
     return {
+        /**
+         * Export user\'s profiles as a downloadable JSON file
+         * @summary Export profiles
+         * @param {RequestsExportRequest} body Export request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProfileExportEnvelope>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesExportPost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesExportPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * Get profiles data
          * @summary Get profiles data
@@ -4560,6 +5347,20 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Import profiles from a previously exported JSON file
+         * @summary Import profiles
+         * @param {string} xModDNSImport CSRF guard header — must equal \\
+         * @param {RequestsImportRequest} body Import request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesImportPost(xModDNSImport: string, body: RequestsImportRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProfileImportResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesImportPost(xModDNSImport, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesImportPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Create profile
          * @summary Create profile
          * @param {ApiCreateProfileBody} body Create profile request
@@ -4582,6 +5383,16 @@ export const ProfileApiFp = function(configuration?: Configuration) {
 export const ProfileApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = ProfileApiFp(configuration)
     return {
+        /**
+         * Export user\'s profiles as a downloadable JSON file
+         * @summary Export profiles
+         * @param {RequestsExportRequest} body Export request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ProfileExportEnvelope> {
+            return localVarFp.apiV1ProfilesExportPost(body, options).then((request) => request(axios, basePath));
+        },
         /**
          * Get profiles data
          * @summary Get profiles data
@@ -4700,6 +5511,17 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdServicesPost(id, serviceIds, options).then((request) => request(axios, basePath));
         },
         /**
+         * Import profiles from a previously exported JSON file
+         * @summary Import profiles
+         * @param {string} xModDNSImport CSRF guard header — must equal \\
+         * @param {RequestsImportRequest} body Import request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesImportPost(xModDNSImport: string, body: RequestsImportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ProfileImportResult> {
+            return localVarFp.apiV1ProfilesImportPost(xModDNSImport, body, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Create profile
          * @summary Create profile
          * @param {ApiCreateProfileBody} body Create profile request
@@ -4719,6 +5541,18 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
  * @extends {BaseAPI}
  */
 export class ProfileApi extends BaseAPI {
+    /**
+     * Export user\'s profiles as a downloadable JSON file
+     * @summary Export profiles
+     * @param {RequestsExportRequest} body Export request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesExportPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * Get profiles data
      * @summary Get profiles data
@@ -4856,6 +5690,19 @@ export class ProfileApi extends BaseAPI {
      */
     public apiV1ProfilesIdServicesPost(id: string, serviceIds: ApiServicesUpdates, options?: RawAxiosRequestConfig) {
         return ProfileApiFp(this.configuration).apiV1ProfilesIdServicesPost(id, serviceIds, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Import profiles from a previously exported JSON file
+     * @summary Import profiles
+     * @param {string} xModDNSImport CSRF guard header — must equal \\
+     * @param {RequestsImportRequest} body Import request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesImportPost(xModDNSImport: string, body: RequestsImportRequest, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesImportPost(xModDNSImport, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

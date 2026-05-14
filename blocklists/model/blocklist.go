@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	BlocklistTypePublic  = "public"
-	BlocklistTypePrivate = "private"
+	BlocklistTypePublic = "public"
 )
 
 // BlocklistMetadata is a blocklist model
@@ -25,7 +24,7 @@ type BlocklistMetadata struct {
 	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
 	Version      string             `json:"version"`
 	Tags         []string           `json:"tags"`
-	Type         string             `json:"type"` // ownership: public (platform-provided) or private (user-uploaded)
+	Type         string             `json:"type"` // ownership: currently always "public" (platform-provided)
 	Kind         string             `json:"kind" bson:"kind"`           // general, category, security
 	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
 	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive

@@ -203,6 +203,10 @@ func (s *APIServer) RegisterRoutes() {
 	profiles.Post("/:id/custom_rules/batch", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRulesBatch())
 	profiles.Post("/:id/custom_rules", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRule())
 
+	// Export / import endpoints
+	profiles.Post("/export", middleware.NewLimit(5, 1*time.Hour), s.exportProfiles())
+	profiles.Post("/import", middleware.NewLimit(3, 10*time.Minute), s.importProfiles())
+
 	// Blocklists endpoints
 	profiles.Post("/:id/blocklists", middleware.NewLimit(20, 1*time.Minute), s.enableBlocklists())
 	profiles.Delete("/:id/blocklists", middleware.NewLimit(20, 1*time.Minute), s.disableBlocklists())
