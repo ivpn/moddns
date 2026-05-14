@@ -3899,16 +3899,16 @@ func (_c *Servicer_UpdateSubscription_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // UpdateSubscriptionFromPASession provides a mock function for the type Servicer
-func (_mock *Servicer) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string) error {
-	ret := _mock.Called(ctx, sub, sessionID)
+func (_mock *Servicer) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string, subID string) error {
+	ret := _mock.Called(ctx, sub, sessionID, subID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateSubscriptionFromPASession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Subscription, string) error); ok {
-		r0 = returnFunc(ctx, sub, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Subscription, string, string) error); ok {
+		r0 = returnFunc(ctx, sub, sessionID, subID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3924,11 +3924,12 @@ type Servicer_UpdateSubscriptionFromPASession_Call struct {
 //   - ctx context.Context
 //   - sub *model.Subscription
 //   - sessionID string
-func (_e *Servicer_Expecter) UpdateSubscriptionFromPASession(ctx interface{}, sub interface{}, sessionID interface{}) *Servicer_UpdateSubscriptionFromPASession_Call {
-	return &Servicer_UpdateSubscriptionFromPASession_Call{Call: _e.mock.On("UpdateSubscriptionFromPASession", ctx, sub, sessionID)}
+//   - subID string
+func (_e *Servicer_Expecter) UpdateSubscriptionFromPASession(ctx interface{}, sub interface{}, sessionID interface{}, subID interface{}) *Servicer_UpdateSubscriptionFromPASession_Call {
+	return &Servicer_UpdateSubscriptionFromPASession_Call{Call: _e.mock.On("UpdateSubscriptionFromPASession", ctx, sub, sessionID, subID)}
 }
 
-func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Run(run func(ctx context.Context, sub *model.Subscription, sessionID string)) *Servicer_UpdateSubscriptionFromPASession_Call {
+func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Run(run func(ctx context.Context, sub *model.Subscription, sessionID string, subID string)) *Servicer_UpdateSubscriptionFromPASession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3942,10 +3943,15 @@ func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Run(run func(ctx contex
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -3956,7 +3962,7 @@ func (_c *Servicer_UpdateSubscriptionFromPASession_Call) Return(err error) *Serv
 	return _c
 }
 
-func (_c *Servicer_UpdateSubscriptionFromPASession_Call) RunAndReturn(run func(ctx context.Context, sub *model.Subscription, sessionID string) error) *Servicer_UpdateSubscriptionFromPASession_Call {
+func (_c *Servicer_UpdateSubscriptionFromPASession_Call) RunAndReturn(run func(ctx context.Context, sub *model.Subscription, sessionID string, subID string) error) *Servicer_UpdateSubscriptionFromPASession_Call {
 	_c.Call.Return(run)
 	return _c
 }

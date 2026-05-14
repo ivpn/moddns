@@ -29,6 +29,7 @@ moddns/models/api_create_profile_body.py
 moddns/models/api_err_response.py
 moddns/models/api_register_account_body.py
 moddns/models/api_services_updates.py
+moddns/models/api_update_subscription_body.py
 moddns/models/api_verify_email_otp_body.py
 moddns/models/api_web_authn_login_begin_request.py
 moddns/models/api_web_authn_register_begin_request.py

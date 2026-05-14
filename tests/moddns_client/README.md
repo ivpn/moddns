@@ -142,6 +142,7 @@ Class | Method | HTTP request | Description
  - [ApiErrResponse](docs/ApiErrResponse.md)
  - [ApiRegisterAccountBody](docs/ApiRegisterAccountBody.md)
  - [ApiServicesUpdates](docs/ApiServicesUpdates.md)
+ - [ApiUpdateSubscriptionBody](docs/ApiUpdateSubscriptionBody.md)
  - [ApiVerifyEmailOTPBody](docs/ApiVerifyEmailOTPBody.md)
  - [ApiWebAuthnLoginBeginRequest](docs/ApiWebAuthnLoginBeginRequest.md)
  - [ApiWebAuthnRegisterBeginRequest](docs/ApiWebAuthnRegisterBeginRequest.md)
