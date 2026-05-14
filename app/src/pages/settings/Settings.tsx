@@ -10,7 +10,7 @@ interface SettingsProps {
 
 export default function FrameScreen({ profiles }: SettingsProps): JSX.Element {
     return (
-        <div className="flex flex-col w-full gap-6 p-4 pt-8 md:pt-0 sm:p-8 max-w-full overflow-x-hidden">
+        <div className="flex flex-col w-full gap-6 p-4 pt-8 sm:p-8 max-w-full overflow-x-hidden">
             <BetaEndingBanner />
             <LimitedAccessBanner />
 

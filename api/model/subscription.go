@@ -23,10 +23,10 @@ const Tier1 = "Tier 1"
 // Subscription represents a subscription with its properties
 type Subscription struct {
 	// ID is the primary key (UUIDv4) stored in Mongo _id
-	ID                    uuid.UUID          `json:"-" bson:"_id"`
-	AccountID             primitive.ObjectID `json:"-" bson:"account_id"`
-	ActiveUntil           time.Time          `json:"active_until" bson:"active_until"`
-	IsActive              bool               `json:"-" bson:"is_active"`
+	ID          uuid.UUID          `json:"-" bson:"_id"`
+	AccountID   primitive.ObjectID `json:"-" bson:"account_id"`
+	ActiveUntil time.Time          `json:"active_until" bson:"active_until"`
+	IsActive    bool               `json:"-" bson:"is_active"`
 	// Type is a legacy pre-0.1.8 enum ("Free"/"Managed") retained so old documents
 	// surface to clients (the beta-ending banner gates on Type == "Managed").
 	// Cleared to "" by the resync flow once the user re-syncs with IVPN.
