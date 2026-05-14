@@ -69,6 +69,11 @@ definitions:
     - password
     - subid
     type: object
+  api.updateSubscriptionBody:
+    properties:
+      subid:
+        type: string
+    type: object
   api.verifyEmailOTPBody:
     properties:
       otp:
@@ -1489,7 +1494,12 @@ paths:
     put:
       consumes:
       - application/json
-      description: Rotate pre-auth session ID and set new ID as cookie
+      description: |-
+        Rotate pre-auth session ID and set new ID as cookie. The endpoint
+        is idempotent against an already-rotated session: if the URL
+        sessionid is no longer in the cache but the caller already holds
+        a valid pa_session cookie, the call succeeds as a no-op so the
+        user can continue with their existing session.
       parameters:
       - description: Rotate pre-auth session request
         in: body
@@ -2191,8 +2201,17 @@ paths:
       - Subscription
   /api/v1/sub/update:
     put:
+      consumes:
+      - application/json
       description: Resync subscription using a pre-auth session. Requires pa_session
-        cookie (set by prior PASession rotation).
+        cookie (set by prior PASession rotation). If `subid` is supplied in the body,
+        a signup webhook is fired with that id; otherwise the webhook is skipped.
+      parameters:
+      - description: Optional subid (UUID4) — when supplied, fires the signup webhook
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/api.updateSubscriptionBody'
       produces:
       - application/json
       responses:
