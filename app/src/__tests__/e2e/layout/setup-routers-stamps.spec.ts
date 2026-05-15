@@ -26,14 +26,50 @@ const STAMPS_WITH_DEVICE = {
     await registerMocks(page, {
       authenticated: true,
       customProfiles: [{ id: 'abc123def4', profile_id: 'abc123def4', name: 'Default', settings: { custom_rules: [] } }],
-      extraRoutes: async (p) => {
-        await p.route(/\/api\/v1\/dnsstamp(\/?|\?.*)$/i, async (r: Route) => {
-          const body = r.request().postDataJSON() as { profile_id?: string; device_id?: string };
-          calls.push(body);
-          const payload = body.device_id ? STAMPS_WITH_DEVICE : STAMPS_NO_DEVICE;
-          return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+    });
+
+    // Register AFTER registerMocks so this handler takes precedence over the
+    // catch-all `/api/v1/` route registered inside registerMocks (which would
+    // otherwise call r.continue() on POSTs and send them to a dead backend).
+    // Also handle the CORS preflight — cross-origin POST + JSON triggers OPTIONS.
+    // CORS: api.ts sets `withCredentials: true`, so the response must include
+    // `Access-Control-Allow-Credentials: true` AND `Access-Control-Allow-Origin`
+    // set to the exact request origin (NOT '*' — that combination is rejected
+    // by browsers per the CORS spec).
+    await page.route(/\/api\/v1\/dnsstamp(\/?|\?.*)$/i, async (r: Route) => {
+      // headerValue() is async — must be awaited. The page is served at
+      // http://localhost:5173 (vite dev server), api calls go to http://localhost:3000.
+      const origin = (await r.request().headerValue('origin')) ?? 'http://localhost:5173';
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Vary': 'Origin',
+      };
+
+      const method = r.request().method();
+      if (method === 'OPTIONS') {
+        return r.fulfill({
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'content-type, cookie',
+          },
+          body: '',
         });
-      },
+      }
+      if (method !== 'POST') {
+        return r.continue();
+      }
+      const body = r.request().postDataJSON() as { profile_id?: string; device_id?: string };
+      calls.push(body);
+      const payload = body.device_id ? STAMPS_WITH_DEVICE : STAMPS_NO_DEVICE;
+      return r.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: 'application/json',
+        body: JSON.stringify(payload),
+      });
     });
 
     await page.goto('/setup');
