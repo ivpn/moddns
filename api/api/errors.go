@@ -53,6 +53,7 @@ var (
 	ErrInvalidTotpCode              = errors.New("invalid 2FA code")
 	ErrInvalidCustomRuleSyntax      = errors.New("the rule needs to be a valid domain name, IPv4 or IPv6 address, or ASN")
 	ErrFailedToGenerateMobileConfig = errors.New("failed to generate .mobileconfig")
+	ErrFailedToGenerateDNSStamp     = errors.New("failed to generate DNS stamp")
 	ErrGetSession                   = errors.New("could not get session")
 	ErrSaveSession                  = errors.New("could not save session")
 	ErrDeleteSession                = errors.New("could not delete session")

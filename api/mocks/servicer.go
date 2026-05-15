@@ -2150,6 +2150,72 @@ func (_c *Servicer_GenerateMobileConfig_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// GenerateStamps provides a mock function for the type Servicer
+func (_mock *Servicer) GenerateStamps(ctx context.Context, req requests.DNSStampReq) (responses.DNSStampResponse, error) {
+	ret := _mock.Called(ctx, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GenerateStamps")
+	}
+
+	var r0 responses.DNSStampResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, requests.DNSStampReq) (responses.DNSStampResponse, error)); ok {
+		return returnFunc(ctx, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, requests.DNSStampReq) responses.DNSStampResponse); ok {
+		r0 = returnFunc(ctx, req)
+	} else {
+		r0 = ret.Get(0).(responses.DNSStampResponse)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, requests.DNSStampReq) error); ok {
+		r1 = returnFunc(ctx, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Servicer_GenerateStamps_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GenerateStamps'
+type Servicer_GenerateStamps_Call struct {
+	*mock.Call
+}
+
+// GenerateStamps is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req requests.DNSStampReq
+func (_e *Servicer_Expecter) GenerateStamps(ctx interface{}, req interface{}) *Servicer_GenerateStamps_Call {
+	return &Servicer_GenerateStamps_Call{Call: _e.mock.On("GenerateStamps", ctx, req)}
+}
+
+func (_c *Servicer_GenerateStamps_Call) Run(run func(ctx context.Context, req requests.DNSStampReq)) *Servicer_GenerateStamps_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 requests.DNSStampReq
+		if args[1] != nil {
+			arg1 = args[1].(requests.DNSStampReq)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_GenerateStamps_Call) Return(dNSStampResponse responses.DNSStampResponse, err error) *Servicer_GenerateStamps_Call {
+	_c.Call.Return(dNSStampResponse, err)
+	return _c
+}
+
+func (_c *Servicer_GenerateStamps_Call) RunAndReturn(run func(ctx context.Context, req requests.DNSStampReq) (responses.DNSStampResponse, error)) *Servicer_GenerateStamps_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAccount provides a mock function for the type Servicer
 func (_mock *Servicer) GetAccount(ctx context.Context, accountId string) (*model.Account, error) {
 	ret := _mock.Called(ctx, accountId)

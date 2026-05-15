@@ -21,6 +21,7 @@ from moddns.api.account_api import AccountApi
 from moddns.api.apple_mobileconfig_api import AppleMobileconfigApi
 from moddns.api.authentication_api import AuthenticationApi
 from moddns.api.blocklists_api import BlocklistsApi
+from moddns.api.dns_stamps_api import DNSStampsApi
 from moddns.api.pa_session_api import PASessionApi
 from moddns.api.profile_api import ProfileApi
 from moddns.api.query_logs_api import QueryLogsApi
@@ -99,6 +100,7 @@ from moddns.models.requests_advanced_options_req import RequestsAdvancedOptionsR
 from moddns.models.requests_confirm_reset_password_body import RequestsConfirmResetPasswordBody
 from moddns.models.requests_create_profile_custom_rule_body import RequestsCreateProfileCustomRuleBody
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
+from moddns.models.requests_dns_stamp_req import RequestsDNSStampReq
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_mobile_config_req import RequestsMobileConfigReq
 from moddns.models.requests_pa_session_req import RequestsPASessionReq
@@ -110,6 +112,7 @@ from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAut
 from moddns.models.responses_create_profile_custom_rules_batch_response import ResponsesCreateProfileCustomRulesBatchResponse
 from moddns.models.responses_custom_rule_batch_created import ResponsesCustomRuleBatchCreated
 from moddns.models.responses_custom_rule_batch_skipped import ResponsesCustomRuleBatchSkipped
+from moddns.models.responses_dns_stamp_response import ResponsesDNSStampResponse
 from moddns.models.responses_deletion_code_response import ResponsesDeletionCodeResponse
 from moddns.models.responses_registration_success_response import ResponsesRegistrationSuccessResponse
 from moddns.models.responses_short_link_response import ResponsesShortLinkResponse

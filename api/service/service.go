@@ -19,6 +19,7 @@ import (
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/apple"
 	"github.com/ivpn/dns/api/service/blocklist"
+	"github.com/ivpn/dns/api/service/dnsstamp"
 	"github.com/ivpn/dns/api/service/profile"
 	querylogs "github.com/ivpn/dns/api/service/query_logs"
 	"github.com/ivpn/dns/api/service/statistics"
@@ -40,6 +41,7 @@ type Service struct {
 	SubscriptionServicer
 	SessionServicer
 	PasskeyServicer
+	dnsstamp.DNSStampServicer
 }
 
 func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn) Service {
@@ -51,6 +53,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
+	dnsstampSrv := dnsstamp.NewDNSStampService(&cfg)
 	return Service{
 		Cfg:                  cfg,
 		Store:                store,
@@ -62,6 +65,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		SubscriptionServicer: subSrv,
 		Webauthn:             webauthn,
 		HTTP:                 *httpClient,
+		DNSStampServicer:     dnsstampSrv,
 	}
 }
 
@@ -74,6 +78,7 @@ type Servicer interface {
 	SubscriptionServicer
 	PasskeyServicer
 	CredentialServicer
+	dnsstamp.DNSStampServicer
 }
 
 type CredentialServicer interface {

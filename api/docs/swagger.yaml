@@ -823,6 +823,21 @@ definitions:
     - action
     - values
     type: object
+  requests.DNSStampReq:
+    properties:
+      device_id:
+        description: |-
+          DeviceId is an optional human-friendly identifier for the device.
+          It is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -])
+          before being embedded in the stamps. Empty means "profile-only stamp".
+        type: string
+      profile_id:
+        maxLength: 64
+        minLength: 10
+        type: string
+    required:
+    - profile_id
+    type: object
   requests.LoginBody:
     properties:
       email:
@@ -934,6 +949,15 @@ definitions:
       reason:
         type: string
       value:
+        type: string
+    type: object
+  responses.DNSStampResponse:
+    properties:
+      doh:
+        type: string
+      doq:
+        type: string
+      dot:
         type: string
     type: object
   responses.DeletionCodeResponse:
@@ -1353,6 +1377,46 @@ paths:
       summary: Get blocklists data
       tags:
       - Blocklists
+  /api/v1/dnsstamp:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Returns DoH, DoT, and DoQ sdns:// strings for the given profile,
+        optionally scoped to a specific device label. Stamps are
+        consumed by clients that don't expose separate hostname/path
+        fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+      parameters:
+      - description: Generate DNS stamp request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.DNSStampReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.DNSStampResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Generate DNS Stamps for a modDNS profile
+      tags:
+      - DNS Stamps
   /api/v1/login:
     post:
       consumes:

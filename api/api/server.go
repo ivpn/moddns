@@ -121,6 +121,7 @@ func (s *APIServer) RegisterRoutes() {
 	profiles := v1.Group("/profiles")
 	verify := v1.Group("/verify")
 	mobileconfig := v1.Group("/mobileconfig")
+	dnsstamp := v1.Group("/dnsstamp")
 	sessions := v1.Group("/sessions")
 	blocklists := v1.Group("/blocklists")
 	services := v1.Group("/services")
@@ -170,6 +171,9 @@ func (s *APIServer) RegisterRoutes() {
 	// MobileConfig endpoints
 	mobileconfig.Post("", middleware.NewLimit(20, 1*time.Minute), s.generateMobileConfig())
 	mobileconfig.Post("/short", middleware.NewLimit(20, 1*time.Minute), s.generateMobileConfigShortLink())
+
+	// DNS Stamp endpoint — returns sdns:// strings for the given profile.
+	dnsstamp.Post("", middleware.NewLimit(20, 1*time.Minute), s.generateDNSStamps())
 
 	// Accounts endpoints
 	accounts.Post("/logout", middleware.NewLimit(20, 1*time.Minute), s.logout())

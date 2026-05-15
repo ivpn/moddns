@@ -11,6 +11,7 @@ moddns/api/account_api.py
 moddns/api/apple_mobileconfig_api.py
 moddns/api/authentication_api.py
 moddns/api/blocklists_api.py
+moddns/api/dns_stamps_api.py
 moddns/api/pa_session_api.py
 moddns/api/profile_api.py
 moddns/api/query_logs_api.py
@@ -81,6 +82,7 @@ moddns/models/requests_advanced_options_req.py
 moddns/models/requests_confirm_reset_password_body.py
 moddns/models/requests_create_profile_custom_rule_body.py
 moddns/models/requests_create_profile_custom_rules_batch_body.py
+moddns/models/requests_dns_stamp_req.py
 moddns/models/requests_login_body.py
 moddns/models/requests_mobile_config_req.py
 moddns/models/requests_pa_session_req.py
@@ -93,6 +95,7 @@ moddns/models/responses_create_profile_custom_rules_batch_response.py
 moddns/models/responses_custom_rule_batch_created.py
 moddns/models/responses_custom_rule_batch_skipped.py
 moddns/models/responses_deletion_code_response.py
+moddns/models/responses_dns_stamp_response.py
 moddns/models/responses_registration_success_response.py
 moddns/models/responses_short_link_response.py
 moddns/models/responses_web_authn_reauth_finish_response.py

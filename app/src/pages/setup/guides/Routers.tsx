@@ -1,5 +1,8 @@
 import React from 'react';
+import { ShieldCheck, EyeOff, ChevronRight } from 'lucide-react';
 import CodeBlock from '@/components/setup/CodeBlock';
+import api from '@/api/api';
+import type { ResponsesDNSStampResponse } from '@/api/client';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const routersBadges = [
@@ -14,6 +17,7 @@ export interface RoutersGuideDeps {
     anycastIpv4: string;      // primary IPv4 from env list
     dnsServerDomain: string;  // e.g. dns.moddns.net (from env)
     dotHostname: string;      // <profileId>.<dnsServerDomain>
+    profileId: string;        // active profile id — required by the DNS Stamps tab
 }
 
 interface RouterTabDef {
@@ -65,6 +69,181 @@ const buildOpenWrtCommands = ({ dohEndpoint, anycastIpv4 }: RoutersGuideDeps) =>
     `service https-dns-proxy restart`
 );
 
+const StampsCrossLink = () => (
+    <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
+        Device only accepts <code className="font-mono">sdns://</code> strings? See the DNS Stamps tab.
+    </div>
+);
+
+const StampRow = ({ label, compat, value, loading }: { label: string; compat: string; value: string; loading: boolean }) => (
+    <div className="flex flex-col gap-1.5">
+        <SectionLabel>{label}</SectionLabel>
+        <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">{compat}</div>
+        {loading ? (
+            <div className="h-9 rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] animate-pulse" />
+        ) : (
+            <CodeBlock value={value} noWrap />
+        )}
+    </div>
+);
+
+const TrustPill = ({ icon: Icon, label }: { icon: typeof ShieldCheck; label: string }) => (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] text-xs text-[var(--tailwind-colors-slate-300)]">
+        <Icon className="w-3 h-3" aria-hidden />
+        {label}
+    </span>
+);
+
+const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
+    const [stamps, setStamps] = React.useState<ResponsesDNSStampResponse | null>(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+    const [advancedOpen, setAdvancedOpen] = React.useState(false);
+    const [deviceLabel, setDeviceLabel] = React.useState('');
+
+    const fetchStamps = React.useCallback(async (deviceId: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.Client.dnsStampsApi.apiV1DnsstampPost({
+                profile_id: deps.profileId,
+                device_id: deviceId,
+            });
+            setStamps(res.data);
+        } catch {
+            setError('Could not generate stamps. Try again.');
+            setStamps(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [deps.profileId]);
+
+    // Initial fetch without a device id.
+    React.useEffect(() => { fetchStamps(''); }, [fetchStamps]);
+
+    // Debounce device-label edits — refetch 300ms after the user stops typing.
+    React.useEffect(() => {
+        if (!advancedOpen) return;
+        const handle = setTimeout(() => { fetchStamps(deviceLabel); }, 300);
+        return () => clearTimeout(handle);
+    }, [deviceLabel, advancedOpen, fetchStamps]);
+
+    return (
+        <div className="flex flex-col gap-6" data-testid="stamps-tab">
+            <div className="flex flex-col gap-3">
+                <p className="text-sm leading-6 text-[var(--tailwind-colors-slate-50)]">
+                    Paste these into UniFi Network, dnscrypt-proxy, AdGuard Home upstreams,
+                    or any client that accepts the <code className="font-mono">sdns://</code> format.
+                </p>
+                <p className="text-xs leading-relaxed text-[var(--tailwind-colors-slate-200)]">
+                    DNS Stamps bundle a resolver's address, protocol, and certificate hints
+                    into one <code className="font-mono">sdns://</code> string. See{' '}
+                    <a
+                        href="https://dnscrypt.info/stamps-specifications/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="!underline !text-[var(--tailwind-colors-slate-300)]"
+                    >
+                        <code className="font-mono">dnscrypt.info/stamps-specifications</code>
+                    </a>{' '}
+                    for the format spec.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--tailwind-colors-slate-200)]">
+                    <span>Resolver advertises:</span>
+                    <TrustPill icon={ShieldCheck} label="DNSSEC" />
+                    <TrustPill icon={EyeOff} label="No logs" />
+                    <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="!underline !text-[var(--tailwind-colors-slate-300)]"
+                    >
+                        How modDNS handles logs
+                    </a>
+                </div>
+            </div>
+
+            <SectionDivider />
+
+            {error ? (
+                <div
+                    role="alert"
+                    className="flex items-center justify-between rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] px-3 py-2 text-sm text-[var(--tailwind-colors-slate-200)]"
+                >
+                    <span>{error}</span>
+                    <button
+                        type="button"
+                        onClick={() => fetchStamps(advancedOpen ? deviceLabel : '')}
+                        className="text-xs px-2 py-1 rounded-md bg-[var(--tailwind-colors-rdns-600)] text-white hover:opacity-90"
+                    >
+                        Retry
+                    </button>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-4" data-testid="stamps-list">
+                    <StampRow
+                        label="DNS over HTTPS"
+                        compat="Works with: UniFi Network, AdGuard Home, dnscrypt-proxy"
+                        value={stamps?.doh ?? ''}
+                        loading={loading}
+                    />
+                    <StampRow
+                        label="DNS over TLS"
+                        compat="Works with: Android Private DNS, pfSense, OPNsense"
+                        value={stamps?.dot ?? ''}
+                        loading={loading}
+                    />
+                    <StampRow
+                        label="DNS over QUIC"
+                        compat="Works with: AdGuard Home, recent dnscrypt-proxy"
+                        value={stamps?.doq ?? ''}
+                        loading={loading}
+                    />
+                </div>
+            )}
+
+            <SectionDivider />
+
+            <details
+                className="text-sm group"
+                open={advancedOpen}
+                onToggle={(e) => setAdvancedOpen((e.target as HTMLDetailsElement).open)}
+                data-testid="stamps-advanced"
+            >
+                <summary className="flex items-center gap-2 cursor-pointer text-[var(--tailwind-colors-slate-300)] hover:text-[var(--tailwind-colors-slate-100)] select-none list-none [&::-webkit-details-marker]:hidden">
+                    <ChevronRight
+                        className={`w-4 h-4 transition-transform duration-200 ${advancedOpen ? 'rotate-90' : ''}`}
+                        aria-hidden
+                    />
+                    <span>Advanced options</span>
+                </summary>
+                <div className="mt-3 flex flex-col gap-2 pl-6">
+                    <label
+                        htmlFor="stamps-device-label"
+                        className="text-xs font-semibold tracking-[0.04em] text-[var(--tailwind-colors-slate-300)]"
+                    >
+                        Device label (optional)
+                    </label>
+                    <input
+                        id="stamps-device-label"
+                        type="text"
+                        value={deviceLabel}
+                        onChange={(e) => setDeviceLabel(e.target.value)}
+                        placeholder="e.g. Living Room"
+                        maxLength={36}
+                        data-testid="stamps-device-input"
+                        className="px-3 py-2 rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] text-sm text-[var(--tailwind-colors-slate-50)] focus:outline-none focus:border-[var(--tailwind-colors-rdns-600)]"
+                    />
+                    <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
+                        Tag stamps per device for separate query logs. Stamps update automatically.
+                        Allowed: letters, digits, spaces, hyphens.
+                    </div>
+                </div>
+            </details>
+        </div>
+    );
+};
+
 const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
     {
         key: 'mikrotik',
@@ -75,6 +254,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                 <div>
                     <CodeBlock value={buildMikrotikCommands(deps)} />
                 </div>
+                <StampsCrossLink />
             </div>
         )
     },
@@ -117,6 +297,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                     />
                     <StepBlock number={3} text={<span className="font-medium">Save and Apply</span>} />
                 </div>
+                <StampsCrossLink />
             </div>
         )
     },
@@ -167,6 +348,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                     />
                     <StepBlock number={3} text={<span className="font-medium">Save</span>} />
                 </div>
+                <StampsCrossLink />
             </div>
         )
     },
@@ -179,8 +361,14 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                 <div>
                     <CodeBlock value={buildOpenWrtCommands(deps)} />
                 </div>
+                <StampsCrossLink />
             </div>
         )
+    },
+    {
+        key: 'stamps',
+        label: 'DNS Stamps',
+        content: <StampsTab deps={deps} />
     }
 ];
 
@@ -233,7 +421,8 @@ export const routersSteps = createRoutersSteps({
     dohEndpoint: 'https://example.com/dns-query/your-profile-id',
     anycastIpv4: '0.0.0.0',
     dnsServerDomain: 'example.com',
-    dotHostname: 'your-profile-id.example.com'
+    dotHostname: 'your-profile-id.example.com',
+    profileId: 'your-profile-id'
 });
 
 const RoutersGuide = {
