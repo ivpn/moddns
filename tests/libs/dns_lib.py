@@ -1,6 +1,6 @@
-import glob
 import os
 import time
+from pathlib import Path
 
 import httpx
 from dns import resolver, message
@@ -15,17 +15,41 @@ LOCAL_PROXY_HOST = "127.0.0.1"
 
 
 def _mkcert_ca_path() -> str:
-    """Locate the mkcert dev CA bundle. Override via MODDNS_TEST_CA_PATH."""
-    override = os.getenv("MODDNS_TEST_CA_PATH")
-    if override:
-        return override
-    matches = sorted(glob.glob("/home/maciek/git/dns/certs/mkcert_development_CA_*.crt"))
-    if not matches:
-        raise RuntimeError(
-            "mkcert dev CA not found at certs/mkcert_development_CA_*.crt — "
-            "set MODDNS_TEST_CA_PATH or regenerate the test certs"
-        )
-    return matches[0]
+    """Locate the mkcert dev CA bundle.
+
+    DoT/DoQ via dns.query.tls/quic uses Python's system trust store (NOT certifi),
+    so we must pass the CA path explicitly — relying on the CI workflow's certifi
+    append works for DoH only. This helper resolves the path portably:
+
+    Resolution order:
+      1. MODDNS_TEST_CA_PATH env var (explicit override / escape hatch).
+      2. IVPN_CERT_PATH env var (already set by .github/workflows/integration_tests.yml).
+      3. Walk up from this file to find <repo>/certs/mkcert_development_CA_*.crt.
+         Works identically on dev machines and CI runners — only the repo root path
+         differs.
+    """
+    for env_name in ("MODDNS_TEST_CA_PATH", "IVPN_CERT_PATH"):
+        value = os.getenv(env_name)
+        if value:
+            p = Path(value).resolve()
+            if not p.is_file():
+                raise RuntimeError(
+                    f"{env_name}={value} but file does not exist (resolved: {p})"
+                )
+            return str(p)
+
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        cert_dir = parent / "certs"
+        if cert_dir.is_dir():
+            matches = sorted(cert_dir.glob("mkcert_development_CA_*.crt"))
+            if matches:
+                return str(matches[0])
+
+    raise RuntimeError(
+        "mkcert dev CA not found. Expected <repo>/certs/mkcert_development_CA_*.crt; "
+        "override via MODDNS_TEST_CA_PATH or IVPN_CERT_PATH env."
+    )
 
 
 class DNSLib:

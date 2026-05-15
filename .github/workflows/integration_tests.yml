@@ -30,7 +30,7 @@ jobs:
           python_certs_path=`python -m certifi`
           echo "Python CA store path: ${python_certs_path}"
           echo "PYTHON_CERTS_PATH=${python_certs_path}" >> $GITHUB_ENV
-          echo "IVPN_CERT_PATH=./certs/mkcert_development_CA_307611231582065277882115426409270736451.crt" >> $GITHUB_ENV
+          echo "IVPN_CERT_PATH=${GITHUB_WORKSPACE}/certs/mkcert_development_CA_307611231582065277882115426409270736451.crt" >> $GITHUB_ENV
 
       - name: SSL cert setup
         run: |
