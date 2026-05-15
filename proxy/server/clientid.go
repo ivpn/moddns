@@ -14,6 +14,7 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 
 	"github.com/ivpn/dns/libs/deviceid"
+	"github.com/ivpn/dns/libs/dohpath"
 )
 
 // profileIDMinLength holds the minimum length considered valid for profile IDs.
@@ -140,7 +141,7 @@ func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId str
 		parts = parts[1:]
 	}
 
-	if len(parts) == 0 || parts[0] != "dns-query" {
+	if len(parts) == 0 || parts[0] != dohpath.Segment {
 		return "", "", fmt.Errorf("clientid check: invalid path %q", origPath)
 	}
 
