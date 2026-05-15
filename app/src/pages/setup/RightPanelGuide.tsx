@@ -134,7 +134,8 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                 dohEndpoint,
                 anycastIpv4: effectivePrimaryIp,
                 dnsServerDomain: effectiveDomain,
-                dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`
+                dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`,
+                profileId: profileData?.id || 'your-profile-id'
             })
         };
     } else if (platform === "VPN apps") {
