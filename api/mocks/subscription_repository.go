@@ -334,6 +334,130 @@ func (_c *SubscriptionRepository_FindPendingDeleteUnnotified_Call) RunAndReturn(
 	return _c
 }
 
+// FindWithLANotified provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) FindWithLANotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindWithLANotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// SubscriptionRepository_FindWithLANotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindWithLANotified'
+type SubscriptionRepository_FindWithLANotified_Call struct {
+	*mock.Call
+}
+
+// FindWithLANotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *SubscriptionRepository_Expecter) FindWithLANotified(ctx interface{}) *SubscriptionRepository_FindWithLANotified_Call {
+	return &SubscriptionRepository_FindWithLANotified_Call{Call: _e.mock.On("FindWithLANotified", ctx)}
+}
+
+func (_c *SubscriptionRepository_FindWithLANotified_Call) Run(run func(ctx context.Context)) *SubscriptionRepository_FindWithLANotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindWithLANotified_Call) Return(subscriptions []model.Subscription, err error) *SubscriptionRepository_FindWithLANotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindWithLANotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *SubscriptionRepository_FindWithLANotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindWithPendingDeleteNotified provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) FindWithPendingDeleteNotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindWithPendingDeleteNotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// SubscriptionRepository_FindWithPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindWithPendingDeleteNotified'
+type SubscriptionRepository_FindWithPendingDeleteNotified_Call struct {
+	*mock.Call
+}
+
+// FindWithPendingDeleteNotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *SubscriptionRepository_Expecter) FindWithPendingDeleteNotified(ctx interface{}) *SubscriptionRepository_FindWithPendingDeleteNotified_Call {
+	return &SubscriptionRepository_FindWithPendingDeleteNotified_Call{Call: _e.mock.On("FindWithPendingDeleteNotified", ctx)}
+}
+
+func (_c *SubscriptionRepository_FindWithPendingDeleteNotified_Call) Run(run func(ctx context.Context)) *SubscriptionRepository_FindWithPendingDeleteNotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindWithPendingDeleteNotified_Call) Return(subscriptions []model.Subscription, err error) *SubscriptionRepository_FindWithPendingDeleteNotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindWithPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *SubscriptionRepository_FindWithPendingDeleteNotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSubscriptionByAccountId provides a mock function for the type SubscriptionRepository
 func (_mock *SubscriptionRepository) GetSubscriptionByAccountId(ctx context.Context, accountId string) (*model.Subscription, error) {
 	ret := _mock.Called(ctx, accountId)
@@ -402,36 +526,37 @@ func (_c *SubscriptionRepository_GetSubscriptionByAccountId_Call) RunAndReturn(r
 	return _c
 }
 
-// MarkNotified provides a mock function for the type SubscriptionRepository
-func (_mock *SubscriptionRepository) MarkNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
-	ret := _mock.Called(ctx, subscriptionIDs)
+// SetNotified provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) SetNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
+	ret := _mock.Called(ctx, subscriptionIDs, value)
 
 	if len(ret) == 0 {
-		panic("no return value specified for MarkNotified")
+		panic("no return value specified for SetNotified")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, subscriptionIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs, value)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// SubscriptionRepository_MarkNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkNotified'
-type SubscriptionRepository_MarkNotified_Call struct {
+// SubscriptionRepository_SetNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetNotified'
+type SubscriptionRepository_SetNotified_Call struct {
 	*mock.Call
 }
 
-// MarkNotified is a helper method to define mock.On call
+// SetNotified is a helper method to define mock.On call
 //   - ctx context.Context
 //   - subscriptionIDs []uuid.UUID
-func (_e *SubscriptionRepository_Expecter) MarkNotified(ctx interface{}, subscriptionIDs interface{}) *SubscriptionRepository_MarkNotified_Call {
-	return &SubscriptionRepository_MarkNotified_Call{Call: _e.mock.On("MarkNotified", ctx, subscriptionIDs)}
+//   - value bool
+func (_e *SubscriptionRepository_Expecter) SetNotified(ctx interface{}, subscriptionIDs interface{}, value interface{}) *SubscriptionRepository_SetNotified_Call {
+	return &SubscriptionRepository_SetNotified_Call{Call: _e.mock.On("SetNotified", ctx, subscriptionIDs, value)}
 }
 
-func (_c *SubscriptionRepository_MarkNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID)) *SubscriptionRepository_MarkNotified_Call {
+func (_c *SubscriptionRepository_SetNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool)) *SubscriptionRepository_SetNotified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -441,54 +566,60 @@ func (_c *SubscriptionRepository_MarkNotified_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *SubscriptionRepository_MarkNotified_Call) Return(err error) *SubscriptionRepository_MarkNotified_Call {
+func (_c *SubscriptionRepository_SetNotified_Call) Return(err error) *SubscriptionRepository_SetNotified_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *SubscriptionRepository_MarkNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID) error) *SubscriptionRepository_MarkNotified_Call {
+func (_c *SubscriptionRepository_SetNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *SubscriptionRepository_SetNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// MarkPendingDeleteNotified provides a mock function for the type SubscriptionRepository
-func (_mock *SubscriptionRepository) MarkPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID) error {
-	ret := _mock.Called(ctx, subscriptionIDs)
+// SetPendingDeleteNotified provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) SetPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
+	ret := _mock.Called(ctx, subscriptionIDs, value)
 
 	if len(ret) == 0 {
-		panic("no return value specified for MarkPendingDeleteNotified")
+		panic("no return value specified for SetPendingDeleteNotified")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, subscriptionIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs, value)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// SubscriptionRepository_MarkPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPendingDeleteNotified'
-type SubscriptionRepository_MarkPendingDeleteNotified_Call struct {
+// SubscriptionRepository_SetPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPendingDeleteNotified'
+type SubscriptionRepository_SetPendingDeleteNotified_Call struct {
 	*mock.Call
 }
 
-// MarkPendingDeleteNotified is a helper method to define mock.On call
+// SetPendingDeleteNotified is a helper method to define mock.On call
 //   - ctx context.Context
 //   - subscriptionIDs []uuid.UUID
-func (_e *SubscriptionRepository_Expecter) MarkPendingDeleteNotified(ctx interface{}, subscriptionIDs interface{}) *SubscriptionRepository_MarkPendingDeleteNotified_Call {
-	return &SubscriptionRepository_MarkPendingDeleteNotified_Call{Call: _e.mock.On("MarkPendingDeleteNotified", ctx, subscriptionIDs)}
+//   - value bool
+func (_e *SubscriptionRepository_Expecter) SetPendingDeleteNotified(ctx interface{}, subscriptionIDs interface{}, value interface{}) *SubscriptionRepository_SetPendingDeleteNotified_Call {
+	return &SubscriptionRepository_SetPendingDeleteNotified_Call{Call: _e.mock.On("SetPendingDeleteNotified", ctx, subscriptionIDs, value)}
 }
 
-func (_c *SubscriptionRepository_MarkPendingDeleteNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID)) *SubscriptionRepository_MarkPendingDeleteNotified_Call {
+func (_c *SubscriptionRepository_SetPendingDeleteNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool)) *SubscriptionRepository_SetPendingDeleteNotified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -498,122 +629,25 @@ func (_c *SubscriptionRepository_MarkPendingDeleteNotified_Call) Run(run func(ct
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *SubscriptionRepository_MarkPendingDeleteNotified_Call) Return(err error) *SubscriptionRepository_MarkPendingDeleteNotified_Call {
+func (_c *SubscriptionRepository_SetPendingDeleteNotified_Call) Return(err error) *SubscriptionRepository_SetPendingDeleteNotified_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *SubscriptionRepository_MarkPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID) error) *SubscriptionRepository_MarkPendingDeleteNotified_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ResetNotifiedForActive provides a mock function for the type SubscriptionRepository
-func (_mock *SubscriptionRepository) ResetNotifiedForActive(ctx context.Context) error {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ResetNotifiedForActive")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// SubscriptionRepository_ResetNotifiedForActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetNotifiedForActive'
-type SubscriptionRepository_ResetNotifiedForActive_Call struct {
-	*mock.Call
-}
-
-// ResetNotifiedForActive is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *SubscriptionRepository_Expecter) ResetNotifiedForActive(ctx interface{}) *SubscriptionRepository_ResetNotifiedForActive_Call {
-	return &SubscriptionRepository_ResetNotifiedForActive_Call{Call: _e.mock.On("ResetNotifiedForActive", ctx)}
-}
-
-func (_c *SubscriptionRepository_ResetNotifiedForActive_Call) Run(run func(ctx context.Context)) *SubscriptionRepository_ResetNotifiedForActive_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *SubscriptionRepository_ResetNotifiedForActive_Call) Return(err error) *SubscriptionRepository_ResetNotifiedForActive_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *SubscriptionRepository_ResetNotifiedForActive_Call) RunAndReturn(run func(ctx context.Context) error) *SubscriptionRepository_ResetNotifiedForActive_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ResetPendingDeleteNotifiedForActive provides a mock function for the type SubscriptionRepository
-func (_mock *SubscriptionRepository) ResetPendingDeleteNotifiedForActive(ctx context.Context) error {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ResetPendingDeleteNotifiedForActive")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetPendingDeleteNotifiedForActive'
-type SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call struct {
-	*mock.Call
-}
-
-// ResetPendingDeleteNotifiedForActive is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *SubscriptionRepository_Expecter) ResetPendingDeleteNotifiedForActive(ctx interface{}) *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call {
-	return &SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call{Call: _e.mock.On("ResetPendingDeleteNotifiedForActive", ctx)}
-}
-
-func (_c *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call) Run(run func(ctx context.Context)) *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call) Return(err error) *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call) RunAndReturn(run func(ctx context.Context) error) *SubscriptionRepository_ResetPendingDeleteNotifiedForActive_Call {
+func (_c *SubscriptionRepository_SetPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *SubscriptionRepository_SetPendingDeleteNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }

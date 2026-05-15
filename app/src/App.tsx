@@ -335,6 +335,11 @@ function ProtectedLayout() {
   const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
   const profiles = useAppStore((state) => state.profiles);
   const location = useLocation();
+  // PendingDelete subscriptions are no longer entitled to DNS service —
+  // the connection-status surface (live header bar + "DNS Status" toggle
+  // button) is hidden/disabled so the (now stopped) connection test does
+  // not run and the UI does not advertise functionality the user has lost.
+  const { isPendingDelete } = useSubscriptionGuard();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
@@ -406,8 +411,11 @@ function ProtectedLayout() {
   const sidebarWidth = navDesktop ? (collapsed ? 64 : 220) : 0;
   const rightPanelWidth = 600;
   const headerRightOffset = rightPanelOpen ? rightPanelWidth : 0;
-  const headerTopOffset = (isDesktop && connectionStatusVisible) ? 48 : 0;
-  const shouldShowConnectionStatusRestore = isDesktop && !connectionStatusVisible;
+  const shouldRenderConnectionHeader = isDesktop && connectionStatusVisible && !isPendingDelete;
+  const headerTopOffset = shouldRenderConnectionHeader ? 48 : 0;
+  // In PD the button is rendered but visually disabled (see Header.tsx); on
+  // non-PD it appears only while the header is hidden, as before.
+  const shouldShowConnectionStatusRestore = isDesktop && (isPendingDelete || !connectionStatusVisible);
 
   const shellOffset = isDesktop && viewportWidth >= 1400
     ? Math.max((viewportWidth - (sidebarWidth + ULTRAWIDE_CONTENT_MAX_WIDTH)) / 2, 0)
@@ -422,7 +430,7 @@ function ProtectedLayout() {
         <PendingDeleteGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
-        {isDesktop && connectionStatusVisible && (
+        {shouldRenderConnectionHeader && (
           <div
             ref={connectionHeaderRef}
             className="fixed top-0 right-0 z-50 transition-all duration-500"
@@ -455,6 +463,7 @@ function ProtectedLayout() {
               showDialogTrigger={showDialogTrigger}
               currentPageName={currentPageName}
               showConnectionStatusRestoreButton={shouldShowConnectionStatusRestore}
+              connectionStatusRestoreDisabled={isPendingDelete}
               onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
             />
           </div>
