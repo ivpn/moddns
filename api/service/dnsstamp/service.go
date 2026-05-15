@@ -43,10 +43,10 @@ type DNSStampServicer interface {
 // All fields are derived from config at construction time. The service holds
 // no mutable state and is safe for concurrent use.
 type DNSStampService struct {
-	Domain      string                            // cfg.Server.DnsDomain, e.g. "dns.moddns.net"
-	PrimaryIPv4 string                            // cfg.Server.ServerAddresses[0]
-	DoTPort     int                               // cfg.Server.DoTPort (production: 853)
-	DoQPort     int                               // cfg.Server.DoQPort (production: 853, NOT the library default 784)
+	Domain      string // cfg.Server.DnsDomain, e.g. "dns.moddns.net"
+	PrimaryIPv4 string // cfg.Server.ServerAddresses[0]
+	DoTPort     int    // cfg.Server.DoTPort (production: 853)
+	DoQPort     int    // cfg.Server.DoQPort (production: 853, NOT the library default 784)
 	Props       dnsstamps.ServerInformalProperties
 }
 
