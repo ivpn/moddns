@@ -1,5 +1,7 @@
 certifi==2024.6.2
 dnspython==2.6.1
+dnsstamps==1.4.1
+aioquic==1.3.0  # optional dnspython dep — required for dns.query.quic() (DoQ stamps)
 httpx==0.27.0
 ./moddns_client
 pytest==8.2.2
