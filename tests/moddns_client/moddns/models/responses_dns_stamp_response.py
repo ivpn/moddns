@@ -17,23 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_subscription_status import ModelSubscriptionStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelSubscription(BaseModel):
+class ResponsesDNSStampResponse(BaseModel):
     """
-    ModelSubscription
+    ResponsesDNSStampResponse
     """ # noqa: E501
-    active_until: Optional[StrictStr] = None
-    outage: Optional[StrictBool] = None
-    status: Optional[ModelSubscriptionStatus] = Field(default=None, description="Computed fields (not persisted)")
-    tier: Optional[StrictStr] = None
-    type: Optional[StrictStr] = Field(default=None, description="Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.")
-    updated_at: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "type", "updated_at"]
+    doh: Optional[StrictStr] = None
+    doq: Optional[StrictStr] = None
+    dot: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["doh", "doq", "dot"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -53,7 +49,7 @@ class ModelSubscription(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelSubscription from a JSON string"""
+        """Create an instance of ResponsesDNSStampResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,7 +74,7 @@ class ModelSubscription(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelSubscription from a dict"""
+        """Create an instance of ResponsesDNSStampResponse from a dict"""
         if obj is None:
             return None
 
@@ -86,12 +82,9 @@ class ModelSubscription(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "active_until": obj.get("active_until"),
-            "outage": obj.get("outage"),
-            "status": obj.get("status"),
-            "tier": obj.get("tier"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at")
+            "doh": obj.get("doh"),
+            "doq": obj.get("doq"),
+            "dot": obj.get("dot")
         })
         return _obj
 

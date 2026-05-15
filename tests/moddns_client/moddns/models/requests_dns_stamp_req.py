@@ -17,23 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_subscription_status import ModelSubscriptionStatus
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelSubscription(BaseModel):
+class RequestsDNSStampReq(BaseModel):
     """
-    ModelSubscription
+    RequestsDNSStampReq
     """ # noqa: E501
-    active_until: Optional[StrictStr] = None
-    outage: Optional[StrictBool] = None
-    status: Optional[ModelSubscriptionStatus] = Field(default=None, description="Computed fields (not persisted)")
-    tier: Optional[StrictStr] = None
-    type: Optional[StrictStr] = Field(default=None, description="Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.")
-    updated_at: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "type", "updated_at"]
+    device_id: Optional[StrictStr] = Field(default=None, description="DeviceId is an optional human-friendly identifier for the device. It is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -]) before being embedded in the stamps. Empty means \"profile-only stamp\".")
+    profile_id: Annotated[str, Field(min_length=10, strict=True, max_length=64)]
+    __properties: ClassVar[List[str]] = ["device_id", "profile_id"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -53,7 +49,7 @@ class ModelSubscription(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelSubscription from a JSON string"""
+        """Create an instance of RequestsDNSStampReq from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,7 +74,7 @@ class ModelSubscription(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelSubscription from a dict"""
+        """Create an instance of RequestsDNSStampReq from a dict"""
         if obj is None:
             return None
 
@@ -86,12 +82,8 @@ class ModelSubscription(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "active_until": obj.get("active_until"),
-            "outage": obj.get("outage"),
-            "status": obj.get("status"),
-            "tier": obj.get("tier"),
-            "type": obj.get("type"),
-            "updated_at": obj.get("updated_at")
+            "device_id": obj.get("device_id"),
+            "profile_id": obj.get("profile_id")
         })
         return _obj
 

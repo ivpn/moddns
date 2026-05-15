@@ -108,6 +108,7 @@ Class | Method | HTTP request | Description
 *AuthenticationApi* | [**api_v1_webauthn_register_begin_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_begin_post) | **POST** /api/v1/webauthn/register/begin | Begin passkey registration
 *AuthenticationApi* | [**api_v1_webauthn_register_finish_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_finish_post) | **POST** /api/v1/webauthn/register/finish | Finish passkey registration
 *BlocklistsApi* | [**api_v1_blocklists_get**](docs/BlocklistsApi.md#api_v1_blocklists_get) | **GET** /api/v1/blocklists | Get blocklists data
+*DNSStampsApi* | [**api_v1_dnsstamp_post**](docs/DNSStampsApi.md#api_v1_dnsstamp_post) | **POST** /api/v1/dnsstamp | Generate DNS Stamps for a modDNS profile
 *PASessionApi* | [**api_v1_pasession_add_post**](docs/PASessionApi.md#api_v1_pasession_add_post) | **POST** /api/v1/pasession/add | Add pre-auth session
 *PASessionApi* | [**api_v1_pasession_rotate_put**](docs/PASessionApi.md#api_v1_pasession_rotate_put) | **PUT** /api/v1/pasession/rotate | Rotate pre-auth session ID
 *ProfileApi* | [**api_v1_profiles_get**](docs/ProfileApi.md#api_v1_profiles_get) | **GET** /api/v1/profiles | Get profiles data
@@ -194,6 +195,7 @@ Class | Method | HTTP request | Description
  - [RequestsConfirmResetPasswordBody](docs/RequestsConfirmResetPasswordBody.md)
  - [RequestsCreateProfileCustomRuleBody](docs/RequestsCreateProfileCustomRuleBody.md)
  - [RequestsCreateProfileCustomRulesBatchBody](docs/RequestsCreateProfileCustomRulesBatchBody.md)
+ - [RequestsDNSStampReq](docs/RequestsDNSStampReq.md)
  - [RequestsLoginBody](docs/RequestsLoginBody.md)
  - [RequestsMobileConfigReq](docs/RequestsMobileConfigReq.md)
  - [RequestsPASessionReq](docs/RequestsPASessionReq.md)
@@ -205,6 +207,7 @@ Class | Method | HTTP request | Description
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)
  - [ResponsesCustomRuleBatchCreated](docs/ResponsesCustomRuleBatchCreated.md)
  - [ResponsesCustomRuleBatchSkipped](docs/ResponsesCustomRuleBatchSkipped.md)
+ - [ResponsesDNSStampResponse](docs/ResponsesDNSStampResponse.md)
  - [ResponsesDeletionCodeResponse](docs/ResponsesDeletionCodeResponse.md)
  - [ResponsesRegistrationSuccessResponse](docs/ResponsesRegistrationSuccessResponse.md)
  - [ResponsesShortLinkResponse](docs/ResponsesShortLinkResponse.md)
