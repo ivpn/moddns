@@ -173,6 +173,7 @@ type SubscriptionServicer interface {
 	GetSubscription(ctx context.Context, accountId string) (*model.Subscription, error)
 	UpdateSubscription(ctx context.Context, accountId string, updates []model.SubscriptionUpdate) (*model.Subscription, error)
 	CreateSubscriptionFromPreauth(ctx context.Context, accountId string, preauth *model.Preauth) error
+	DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error
 	AddPASession(ctx context.Context, session *model.PASession) error
 	RotatePASessionID(ctx context.Context, oldID string) (string, error)
 	ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error)

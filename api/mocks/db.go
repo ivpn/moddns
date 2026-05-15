@@ -675,6 +675,63 @@ func (_c *Db_DeleteCredentialByID_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// DeleteCredentialsByAccountID provides a mock function for the type Db
+func (_mock *Db) DeleteCredentialsByAccountID(ctx context.Context, accountID primitive.ObjectID) error {
+	ret := _mock.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteCredentialsByAccountID")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, primitive.ObjectID) error); ok {
+		r0 = returnFunc(ctx, accountID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_DeleteCredentialsByAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCredentialsByAccountID'
+type Db_DeleteCredentialsByAccountID_Call struct {
+	*mock.Call
+}
+
+// DeleteCredentialsByAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID primitive.ObjectID
+func (_e *Db_Expecter) DeleteCredentialsByAccountID(ctx interface{}, accountID interface{}) *Db_DeleteCredentialsByAccountID_Call {
+	return &Db_DeleteCredentialsByAccountID_Call{Call: _e.mock.On("DeleteCredentialsByAccountID", ctx, accountID)}
+}
+
+func (_c *Db_DeleteCredentialsByAccountID_Call) Run(run func(ctx context.Context, accountID primitive.ObjectID)) *Db_DeleteCredentialsByAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 primitive.ObjectID
+		if args[1] != nil {
+			arg1 = args[1].(primitive.ObjectID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DeleteCredentialsByAccountID_Call) Return(err error) *Db_DeleteCredentialsByAccountID_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_DeleteCredentialsByAccountID_Call) RunAndReturn(run func(ctx context.Context, accountID primitive.ObjectID) error) *Db_DeleteCredentialsByAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteProfileById provides a mock function for the type Db
 func (_mock *Db) DeleteProfileById(ctx context.Context, profileId string) error {
 	ret := _mock.Called(ctx, profileId)
@@ -962,6 +1019,63 @@ func (_c *Db_DeleteSessionsByAccountIDExceptCurrent_Call) Return(err error) *Db_
 }
 
 func (_c *Db_DeleteSessionsByAccountIDExceptCurrent_Call) RunAndReturn(run func(ctx context.Context, accID string, currentToken string) error) *Db_DeleteSessionsByAccountIDExceptCurrent_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteSubscriptionByAccountId provides a mock function for the type Db
+func (_mock *Db) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSubscriptionByAccountId")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_DeleteSubscriptionByAccountId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSubscriptionByAccountId'
+type Db_DeleteSubscriptionByAccountId_Call struct {
+	*mock.Call
+}
+
+// DeleteSubscriptionByAccountId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *Db_Expecter) DeleteSubscriptionByAccountId(ctx interface{}, accountId interface{}) *Db_DeleteSubscriptionByAccountId_Call {
+	return &Db_DeleteSubscriptionByAccountId_Call{Call: _e.mock.On("DeleteSubscriptionByAccountId", ctx, accountId)}
+}
+
+func (_c *Db_DeleteSubscriptionByAccountId_Call) Run(run func(ctx context.Context, accountId string)) *Db_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DeleteSubscriptionByAccountId_Call) Return(err error) *Db_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_DeleteSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *Db_DeleteSubscriptionByAccountId_Call {
 	_c.Call.Return(run)
 	return _c
 }

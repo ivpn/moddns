@@ -627,14 +627,40 @@ func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, re
 		account.Tokens = remaining
 	}
 
-	// Delete all profiles associated with the account
-	for _, profileId := range account.Profiles {
-		if err = a.ProfileService.DeleteProfile(ctx, accountId, profileId, true); err != nil {
+	// Cheap idempotent cleanup runs first. Both DeleteCredentialsByAccountID
+	// (DeleteMany) and DeleteSubscriptionByAccountId (DeleteOne, tolerates
+	// missing) are safe to re-run, so a transient failure here can be retried
+	// without leaving any irreversible state behind.
+	accountObjID, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	if err := a.CredentialRepository.DeleteCredentialsByAccountID(ctx, accountObjID); err != nil {
+		return err
+	}
+	if err := a.SubscriptionService.DeleteSubscriptionByAccountId(ctx, accountId); err != nil {
+		return err
+	}
+
+	// Drive the profile loop from a live query rather than the (possibly stale)
+	// account.Profiles slice — on retry after a partial failure, only profiles
+	// that still exist are revisited. Each successful per-profile deletion is
+	// followed by RemoveProfileFromAccount so the account doc shrinks in step.
+	profiles, err := a.ProfileService.GetProfiles(ctx, accountId)
+	if err != nil {
+		return err
+	}
+	for _, p := range profiles {
+		if err := a.ProfileService.DeleteProfile(ctx, accountId, p.ProfileId, true); err != nil {
+			return err
+		}
+		if err := a.AccountRepository.RemoveProfileFromAccount(ctx, accountId, p.ProfileId); err != nil {
 			return err
 		}
 	}
 
-	// Delete the account
+	// Delete the account doc last. Any orphan profile id still in the array
+	// dies with the doc.
 	err = a.AccountRepository.DeleteAccountById(ctx, accountId)
 	if err != nil {
 		return err

@@ -153,6 +153,63 @@ func (_c *SubscriptionRepository_Create_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// DeleteSubscriptionByAccountId provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSubscriptionByAccountId")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// SubscriptionRepository_DeleteSubscriptionByAccountId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSubscriptionByAccountId'
+type SubscriptionRepository_DeleteSubscriptionByAccountId_Call struct {
+	*mock.Call
+}
+
+// DeleteSubscriptionByAccountId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *SubscriptionRepository_Expecter) DeleteSubscriptionByAccountId(ctx interface{}, accountId interface{}) *SubscriptionRepository_DeleteSubscriptionByAccountId_Call {
+	return &SubscriptionRepository_DeleteSubscriptionByAccountId_Call{Call: _e.mock.On("DeleteSubscriptionByAccountId", ctx, accountId)}
+}
+
+func (_c *SubscriptionRepository_DeleteSubscriptionByAccountId_Call) Run(run func(ctx context.Context, accountId string)) *SubscriptionRepository_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_DeleteSubscriptionByAccountId_Call) Return(err error) *SubscriptionRepository_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_DeleteSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *SubscriptionRepository_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindExpiredUnnotified provides a mock function for the type SubscriptionRepository
 func (_mock *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	ret := _mock.Called(ctx)
