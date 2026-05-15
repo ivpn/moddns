@@ -522,6 +522,63 @@
                 }
             }
         },
+        "/api/v1/dnsstamp": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns DoH, DoT, and DoQ sdns:// strings for the given profile,\noptionally scoped to a specific device label. Stamps are\nconsumed by clients that don't expose separate hostname/path\nfields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DNS Stamps"
+                ],
+                "summary": "Generate DNS Stamps for a modDNS profile",
+                "parameters": [
+                    {
+                        "description": "Generate DNS stamp request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.DNSStampReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DNSStampResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "description": "Login endpoint",
@@ -3523,6 +3580,23 @@
                 }
             }
         },
+        "requests.DNSStampReq": {
+            "type": "object",
+            "required": [
+                "profile_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "description": "DeviceId is an optional human-friendly identifier for the device.\nIt is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -])\nbefore being embedded in the stamps. Empty means \"profile-only stamp\".",
+                    "type": "string"
+                },
+                "profile_id": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 10
+                }
+            }
+        },
         "requests.LoginBody": {
             "type": "object",
             "required": [
@@ -3683,6 +3757,20 @@
                     "type": "string"
                 },
                 "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.DNSStampResponse": {
+            "type": "object",
+            "properties": {
+                "doh": {
+                    "type": "string"
+                },
+                "doq": {
+                    "type": "string"
+                },
+                "dot": {
                     "type": "string"
                 }
             }
