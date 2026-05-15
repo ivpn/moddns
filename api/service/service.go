@@ -19,6 +19,7 @@ import (
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/apple"
 	"github.com/ivpn/dns/api/service/blocklist"
+	"github.com/ivpn/dns/api/service/dnsstamp"
 	"github.com/ivpn/dns/api/service/profile"
 	querylogs "github.com/ivpn/dns/api/service/query_logs"
 	"github.com/ivpn/dns/api/service/statistics"
@@ -45,6 +46,7 @@ type Service struct {
 	SubscriptionServicer
 	SessionServicer
 	PasskeyServicer
+	dnsstamp.DNSStampServicer
 }
 
 // New constructs the service layer. servicesCatalog is used by ProfileService
@@ -62,6 +64,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	// Wired post-construction because profSrv is built before accSrv.
 	profSrv.SetMfaVerifier(accSrv)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
+	dnsstampSrv := dnsstamp.NewDNSStampService(&cfg)
 	return Service{
 		Cfg:                  cfg,
 		Store:                store,
@@ -73,6 +76,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		SubscriptionServicer: subSrv,
 		Webauthn:             webauthn,
 		HTTP:                 *httpClient,
+		DNSStampServicer:     dnsstampSrv,
 	}
 }
 
@@ -85,6 +89,7 @@ type Servicer interface {
 	SubscriptionServicer
 	PasskeyServicer
 	CredentialServicer
+	dnsstamp.DNSStampServicer
 }
 
 type CredentialServicer interface {
