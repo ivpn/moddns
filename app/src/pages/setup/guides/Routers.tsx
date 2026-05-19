@@ -185,19 +185,30 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
                 <div className="flex flex-col gap-4" data-testid="stamps-list">
                     <StampRow
                         label="DNS over HTTPS"
-                        compat="Works with: UniFi Network, AdGuard Home, dnscrypt-proxy"
+                        compat="Works with: UniFi Network, AdGuard Home, dnscrypt-proxy, Intra, Pi-hole (via dnscrypt-proxy), and most sdns:// consumers"
                         value={stamps?.doh ?? ''}
                         loading={loading}
                     />
+
+                    <div className="flex flex-col gap-1.5 pt-2">
+                        <SectionLabel>Niche: AdGuard ecosystem only</SectionLabel>
+                        <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
+                            DoT and DoQ stamps are part of the sdns:// spec but only{' '}
+                            <strong>AdGuard Home</strong> and <strong>AdGuard dnsproxy</strong> parse them today.
+                            For routers, firewalls, and most other clients, use the DoH stamp above or follow the
+                            per-platform guides under <strong>Setup</strong>.
+                        </div>
+                    </div>
+
                     <StampRow
                         label="DNS over TLS"
-                        compat="Works with: Android Private DNS, pfSense, OPNsense"
+                        compat="Works with: AdGuard Home, AdGuard dnsproxy"
                         value={stamps?.dot ?? ''}
                         loading={loading}
                     />
                     <StampRow
                         label="DNS over QUIC"
-                        compat="Works with: AdGuard Home, recent dnscrypt-proxy"
+                        compat="Works with: AdGuard Home, AdGuard dnsproxy"
                         value={stamps?.doq ?? ''}
                         loading={loading}
                     />

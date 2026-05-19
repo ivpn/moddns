@@ -101,9 +101,12 @@ const STAMPS_WITH_DEVICE = {
     await expect(tab.getByText(/^DNSSEC$/)).toBeVisible();
     await expect(tab.getByText(/^No logs$/)).toBeVisible();
     // Per-protocol compatibility hints are rendered alongside each stamp.
+    // DoH has a broad consumer list; DoT/DoQ share the narrower "AdGuard ecosystem only" hint.
     await expect(tab.getByText(/Works with: UniFi Network/)).toBeVisible();
-    await expect(tab.getByText(/Works with: Android Private DNS/)).toBeVisible();
-    await expect(tab.getByText(/Works with: AdGuard Home, recent dnscrypt-proxy/)).toBeVisible();
+    await expect(tab.getByText(/Works with: AdGuard Home, AdGuard dnsproxy/).first()).toBeVisible();
+    // The "Niche" callout makes the asymmetry explicit so users don't paste DoT/DoQ stamps
+    // into clients that won't parse them.
+    await expect(tab.getByText(/Niche: AdGuard ecosystem only/)).toBeVisible();
 
     // dnscrypt.info reference is a real external link that opens in a new tab.
     const specLink = tab.getByRole('link', { name: /dnscrypt\.info\/stamps-specifications/i });
