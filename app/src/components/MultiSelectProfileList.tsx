@@ -65,7 +65,14 @@ export function MultiSelectProfileList({
         </Badge>
       </div>
 
-      <div className="flex flex-col divide-y divide-[var(--tailwind-colors-slate-700)]">
+      {/* Bounded scroll region for the profile rows. The Select-all / count
+          bar above stays pinned. Cap at 280px (≈6 rows) on desktop and at
+          50dvh on small viewports so the dialog footer (action buttons) is
+          never pushed off-screen. */}
+      <div
+        data-testid="profile-list-scroll"
+        className="flex flex-col divide-y divide-[var(--tailwind-colors-slate-700)] max-h-[min(280px,50dvh)] overflow-y-auto pr-1"
+      >
         {profiles.map((profile) => {
           const checked = selectedIds.includes(profile.id);
           return (
