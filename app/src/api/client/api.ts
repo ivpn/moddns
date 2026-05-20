@@ -1040,7 +1040,7 @@ export interface ProfileExportEnvelope {
      * @type {string}
      * @memberof ProfileExportEnvelope
      */
-    'exportedAt'?: string;
+    'exportedAt': string;
     /**
      * 
      * @type {ProfileExportedFromInfo}
@@ -1052,19 +1052,19 @@ export interface ProfileExportEnvelope {
      * @type {string}
      * @memberof ProfileExportEnvelope
      */
-    'kind'?: string;
+    'kind': string;
     /**
      * 
      * @type {Array<ProfileExportedProfile>}
      * @memberof ProfileExportEnvelope
      */
-    'profiles'?: Array<ProfileExportedProfile>;
+    'profiles': Array<ProfileExportedProfile>;
     /**
      * 
      * @type {number}
      * @memberof ProfileExportEnvelope
      */
-    'schemaVersion'?: number;
+    'schemaVersion': number;
 }
 /**
  * 
@@ -1077,8 +1077,16 @@ export interface ProfileExportedAdvanced {
      * @type {string}
      * @memberof ProfileExportedAdvanced
      */
-    'recursor'?: string;
+    'recursor'?: ProfileExportedAdvancedRecursorEnum;
 }
+
+export const ProfileExportedAdvancedRecursorEnum = {
+    Sdns: 'sdns',
+    Unbound: 'unbound'
+} as const;
+
+export type ProfileExportedAdvancedRecursorEnum = typeof ProfileExportedAdvancedRecursorEnum[keyof typeof ProfileExportedAdvancedRecursorEnum];
+
 /**
  * 
  * @export
@@ -1090,7 +1098,7 @@ export interface ProfileExportedCustomRule {
      * @type {string}
      * @memberof ProfileExportedCustomRule
      */
-    'action'?: string;
+    'action': ProfileExportedCustomRuleActionEnum;
     /**
      * 
      * @type {string}
@@ -1102,8 +1110,17 @@ export interface ProfileExportedCustomRule {
      * @type {string}
      * @memberof ProfileExportedCustomRule
      */
-    'value'?: string;
+    'value': string;
 }
+
+export const ProfileExportedCustomRuleActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type ProfileExportedCustomRuleActionEnum = typeof ProfileExportedCustomRuleActionEnum[keyof typeof ProfileExportedCustomRuleActionEnum];
+
 /**
  * 
  * @export
@@ -1171,8 +1188,19 @@ export interface ProfileExportedLogs {
      * @type {string}
      * @memberof ProfileExportedLogs
      */
-    'retention'?: string;
+    'retention'?: ProfileExportedLogsRetentionEnum;
 }
+
+export const ProfileExportedLogsRetentionEnum = {
+    _1h: '1h',
+    _6h: '6h',
+    _1d: '1d',
+    _1w: '1w',
+    _1m: '1m'
+} as const;
+
+export type ProfileExportedLogsRetentionEnum = typeof ProfileExportedLogsRetentionEnum[keyof typeof ProfileExportedLogsRetentionEnum];
+
 /**
  * 
  * @export
@@ -1184,32 +1212,52 @@ export interface ProfileExportedPrivacy {
      * @type {Array<string>}
      * @memberof ProfileExportedPrivacy
      */
-    'blocklists'?: Array<string>;
+    'blocklists': Array<string>;
     /**
      * 
      * @type {string}
      * @memberof ProfileExportedPrivacy
      */
-    'blocklistsSubdomainsRule'?: string;
+    'blocklistsSubdomainsRule'?: ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum;
     /**
      * 
      * @type {string}
      * @memberof ProfileExportedPrivacy
      */
-    'customRulesSubdomainsRule'?: string;
+    'customRulesSubdomainsRule'?: ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum;
     /**
      * 
      * @type {string}
      * @memberof ProfileExportedPrivacy
      */
-    'defaultRule'?: string;
+    'defaultRule'?: ProfileExportedPrivacyDefaultRuleEnum;
     /**
      * 
      * @type {Array<string>}
      * @memberof ProfileExportedPrivacy
      */
-    'services'?: Array<string>;
+    'services': Array<string>;
 }
+
+export const ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum = typeof ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum];
+export const ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum = {
+    Include: 'include',
+    Exact: 'exact'
+} as const;
+
+export type ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum = typeof ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum];
+export const ProfileExportedPrivacyDefaultRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ProfileExportedPrivacyDefaultRuleEnum = typeof ProfileExportedPrivacyDefaultRuleEnum[keyof typeof ProfileExportedPrivacyDefaultRuleEnum];
+
 /**
  * 
  * @export
@@ -1227,13 +1275,13 @@ export interface ProfileExportedProfile {
      * @type {string}
      * @memberof ProfileExportedProfile
      */
-    'name'?: string;
+    'name': string;
     /**
      * 
      * @type {ProfileExportedSettings}
      * @memberof ProfileExportedProfile
      */
-    'settings'?: ProfileExportedSettings;
+    'settings': ProfileExportedSettings;
 }
 /**
  * 
@@ -1954,260 +2002,6 @@ export type RequestsExportRequestScopeEnum = typeof RequestsExportRequestScopeEn
 /**
  * 
  * @export
- * @interface RequestsExportedFromInfo
- */
-export interface RequestsExportedFromInfo {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsExportedFromInfo
-     */
-    'appVersion'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsExportedFromInfo
-     */
-    'service'?: string;
-}
-/**
- * 
- * @export
- * @interface RequestsImportAdvanced
- */
-export interface RequestsImportAdvanced {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportAdvanced
-     */
-    'recursor'?: RequestsImportAdvancedRecursorEnum;
-}
-
-export const RequestsImportAdvancedRecursorEnum = {
-    Sdns: 'sdns',
-    Unbound: 'unbound'
-} as const;
-
-export type RequestsImportAdvancedRecursorEnum = typeof RequestsImportAdvancedRecursorEnum[keyof typeof RequestsImportAdvancedRecursorEnum];
-
-/**
- * 
- * @export
- * @interface RequestsImportCustomRule
- */
-export interface RequestsImportCustomRule {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportCustomRule
-     */
-    'action': RequestsImportCustomRuleActionEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportCustomRule
-     */
-    'comment'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportCustomRule
-     */
-    'value': string;
-}
-
-export const RequestsImportCustomRuleActionEnum = {
-    Block: 'block',
-    Allow: 'allow',
-    Comment: 'comment'
-} as const;
-
-export type RequestsImportCustomRuleActionEnum = typeof RequestsImportCustomRuleActionEnum[keyof typeof RequestsImportCustomRuleActionEnum];
-
-/**
- * 
- * @export
- * @interface RequestsImportDNSSEC
- */
-export interface RequestsImportDNSSEC {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportDNSSEC
-     */
-    'enabled'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportDNSSEC
-     */
-    'sendDoBit'?: boolean;
-}
-/**
- * 
- * @export
- * @interface RequestsImportLogs
- */
-export interface RequestsImportLogs {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportLogs
-     */
-    'enabled'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportLogs
-     */
-    'logClientsIPs'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportLogs
-     */
-    'logDomains'?: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportLogs
-     */
-    'retention'?: RequestsImportLogsRetentionEnum;
-}
-
-export const RequestsImportLogsRetentionEnum = {
-    _1h: '1h',
-    _6h: '6h',
-    _1d: '1d',
-    _1w: '1w',
-    _1m: '1m'
-} as const;
-
-export type RequestsImportLogsRetentionEnum = typeof RequestsImportLogsRetentionEnum[keyof typeof RequestsImportLogsRetentionEnum];
-
-/**
- * 
- * @export
- * @interface RequestsImportPayload
- */
-export interface RequestsImportPayload {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportPayload
-     */
-    'exportedAt': string;
-    /**
-     * 
-     * @type {RequestsExportedFromInfo}
-     * @memberof RequestsImportPayload
-     */
-    'exportedFrom'?: RequestsExportedFromInfo;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportPayload
-     */
-    'kind': string;
-    /**
-     * 
-     * @type {Array<RequestsImportProfile>}
-     * @memberof RequestsImportPayload
-     */
-    'profiles': Array<RequestsImportProfile>;
-    /**
-     * 
-     * @type {number}
-     * @memberof RequestsImportPayload
-     */
-    'schemaVersion': number;
-}
-/**
- * 
- * @export
- * @interface RequestsImportPrivacy
- */
-export interface RequestsImportPrivacy {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof RequestsImportPrivacy
-     */
-    'blocklists': Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportPrivacy
-     */
-    'blocklistsSubdomainsRule'?: RequestsImportPrivacyBlocklistsSubdomainsRuleEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportPrivacy
-     */
-    'customRulesSubdomainsRule'?: RequestsImportPrivacyCustomRulesSubdomainsRuleEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportPrivacy
-     */
-    'defaultRule'?: RequestsImportPrivacyDefaultRuleEnum;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof RequestsImportPrivacy
-     */
-    'services': Array<string>;
-}
-
-export const RequestsImportPrivacyBlocklistsSubdomainsRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type RequestsImportPrivacyBlocklistsSubdomainsRuleEnum = typeof RequestsImportPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof RequestsImportPrivacyBlocklistsSubdomainsRuleEnum];
-export const RequestsImportPrivacyCustomRulesSubdomainsRuleEnum = {
-    Include: 'include',
-    Exact: 'exact'
-} as const;
-
-export type RequestsImportPrivacyCustomRulesSubdomainsRuleEnum = typeof RequestsImportPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof RequestsImportPrivacyCustomRulesSubdomainsRuleEnum];
-export const RequestsImportPrivacyDefaultRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type RequestsImportPrivacyDefaultRuleEnum = typeof RequestsImportPrivacyDefaultRuleEnum[keyof typeof RequestsImportPrivacyDefaultRuleEnum];
-
-/**
- * 
- * @export
- * @interface RequestsImportProfile
- */
-export interface RequestsImportProfile {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportProfile
-     */
-    'comment'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportProfile
-     */
-    'name': string;
-    /**
-     * 
-     * @type {RequestsImportSettings}
-     * @memberof RequestsImportProfile
-     */
-    'settings': RequestsImportSettings;
-}
-/**
- * 
- * @export
  * @interface RequestsImportRequest
  */
 export interface RequestsImportRequest {
@@ -2225,10 +2019,10 @@ export interface RequestsImportRequest {
     'mode': RequestsImportRequestModeEnum;
     /**
      * 
-     * @type {RequestsImportPayload}
+     * @type {ProfileExportEnvelope}
      * @memberof RequestsImportRequest
      */
-    'payload': RequestsImportPayload;
+    'payload': ProfileExportEnvelope;
     /**
      * 
      * @type {string}
@@ -2243,75 +2037,6 @@ export const RequestsImportRequestModeEnum = {
 
 export type RequestsImportRequestModeEnum = typeof RequestsImportRequestModeEnum[keyof typeof RequestsImportRequestModeEnum];
 
-/**
- * 
- * @export
- * @interface RequestsImportSecurity
- */
-export interface RequestsImportSecurity {
-    /**
-     * 
-     * @type {RequestsImportDNSSEC}
-     * @memberof RequestsImportSecurity
-     */
-    'dnssec'?: RequestsImportDNSSEC;
-}
-/**
- * 
- * @export
- * @interface RequestsImportSettings
- */
-export interface RequestsImportSettings {
-    /**
-     * 
-     * @type {RequestsImportAdvanced}
-     * @memberof RequestsImportSettings
-     */
-    'advanced'?: RequestsImportAdvanced;
-    /**
-     * 
-     * @type {Array<RequestsImportCustomRule>}
-     * @memberof RequestsImportSettings
-     */
-    'customRules'?: Array<RequestsImportCustomRule>;
-    /**
-     * 
-     * @type {RequestsImportLogs}
-     * @memberof RequestsImportSettings
-     */
-    'logs'?: RequestsImportLogs;
-    /**
-     * 
-     * @type {RequestsImportPrivacy}
-     * @memberof RequestsImportSettings
-     */
-    'privacy'?: RequestsImportPrivacy;
-    /**
-     * 
-     * @type {RequestsImportSecurity}
-     * @memberof RequestsImportSettings
-     */
-    'security'?: RequestsImportSecurity;
-    /**
-     * 
-     * @type {RequestsImportStatistics}
-     * @memberof RequestsImportSettings
-     */
-    'statistics'?: RequestsImportStatistics;
-}
-/**
- * 
- * @export
- * @interface RequestsImportStatistics
- */
-export interface RequestsImportStatistics {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof RequestsImportStatistics
-     */
-    'enabled'?: boolean;
-}
 /**
  * 
  * @export

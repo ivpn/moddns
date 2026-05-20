@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from moddns.models.profile_exported_settings import ProfileExportedSettings
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,9 +28,9 @@ class ProfileExportedProfile(BaseModel):
     """
     ProfileExportedProfile
     """ # noqa: E501
-    comment: Optional[StrictStr] = None
-    name: Optional[StrictStr] = None
-    settings: Optional[ProfileExportedSettings] = None
+    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
+    name: Annotated[str, Field(strict=True, max_length=50)]
+    settings: ProfileExportedSettings
     __properties: ClassVar[List[str]] = ["comment", "name", "settings"]
 
     model_config = ConfigDict(

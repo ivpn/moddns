@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,12 +27,42 @@ class ProfileExportedPrivacy(BaseModel):
     """
     ProfileExportedPrivacy
     """ # noqa: E501
-    blocklists: Optional[List[StrictStr]] = None
+    blocklists: Annotated[List[StrictStr], Field(max_length=100)]
     blocklists_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="blocklistsSubdomainsRule")
     custom_rules_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="customRulesSubdomainsRule")
     default_rule: Optional[StrictStr] = Field(default=None, alias="defaultRule")
-    services: Optional[List[StrictStr]] = None
+    services: Annotated[List[StrictStr], Field(max_length=100)]
     __properties: ClassVar[List[str]] = ["blocklists", "blocklistsSubdomainsRule", "customRulesSubdomainsRule", "defaultRule", "services"]
+
+    @field_validator('blocklists_subdomains_rule')
+    def blocklists_subdomains_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
+        return value
+
+    @field_validator('custom_rules_subdomains_rule')
+    def custom_rules_subdomains_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['include', 'exact']):
+            raise ValueError("must be one of enum values ('include', 'exact')")
+        return value
+
+    @field_validator('default_rule')
+    def default_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

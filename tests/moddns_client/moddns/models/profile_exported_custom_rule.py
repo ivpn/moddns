@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,10 +27,17 @@ class ProfileExportedCustomRule(BaseModel):
     """
     ProfileExportedCustomRule
     """ # noqa: E501
-    action: Optional[StrictStr] = None
-    comment: Optional[StrictStr] = None
-    value: Optional[StrictStr] = None
+    action: StrictStr
+    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
+    value: Annotated[str, Field(strict=True, max_length=255)]
     __properties: ClassVar[List[str]] = ["action", "comment", "value"]
+
+    @field_validator('action')
+    def action_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['block', 'allow', 'comment']):
+            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

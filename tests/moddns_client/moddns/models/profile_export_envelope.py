@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from moddns.models.profile_exported_from_info import ProfileExportedFromInfo
 from moddns.models.profile_exported_profile import ProfileExportedProfile
 from typing import Optional, Set
@@ -28,11 +29,11 @@ class ProfileExportEnvelope(BaseModel):
     """
     ProfileExportEnvelope
     """ # noqa: E501
-    exported_at: Optional[StrictStr] = Field(default=None, alias="exportedAt")
+    exported_at: StrictStr = Field(alias="exportedAt")
     exported_from: Optional[ProfileExportedFromInfo] = Field(default=None, alias="exportedFrom")
-    kind: Optional[StrictStr] = None
-    profiles: Optional[List[ProfileExportedProfile]] = None
-    schema_version: Optional[StrictInt] = Field(default=None, alias="schemaVersion")
+    kind: StrictStr
+    profiles: Annotated[List[ProfileExportedProfile], Field(min_length=1, max_length=10)]
+    schema_version: StrictInt = Field(alias="schemaVersion")
     __properties: ClassVar[List[str]] = ["exportedAt", "exportedFrom", "kind", "profiles", "schemaVersion"]
 
     model_config = ConfigDict(

@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,6 +28,16 @@ class ProfileExportedAdvanced(BaseModel):
     """ # noqa: E501
     recursor: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["recursor"]
+
+    @field_validator('recursor')
+    def recursor_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['sdns', 'unbound']):
+            raise ValueError("must be one of enum values ('sdns', 'unbound')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

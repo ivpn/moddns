@@ -14,73 +14,101 @@ import (
 // Mirrors the schema defined in docs/specs/account-export-import-behaviour.md
 // (Section F).
 //
+// The same type is used in two directions:
+//   - Outbound (export): the service marshals it into the downloadable file.
+//   - Inbound (import): the HTTP handler decodes the request body's `payload`
+//     field into it, and s.Validator.ValidateRequest runs the `validate:` tags
+//     recursively. Validation tags are inert during marshaling.
+//
 // The export file carries no embedded warning text. The export UI displays a
 // sensitivity warning at the download point instead, keeping the import-side
 // DisallowUnknownFields() allowlist strict.
+//
+// specRef: V1–V6, F1–F9
 type ExportEnvelope struct {
-	SchemaVersion int               `json:"schemaVersion"`
-	Kind          string            `json:"kind"`
-	ExportedAt    time.Time         `json:"exportedAt"`
+	SchemaVersion int               `json:"schemaVersion" validate:"required,eq=1"`
+	Kind          string            `json:"kind"          validate:"required,eq=moddns-export"`
+	ExportedAt    time.Time         `json:"exportedAt"    validate:"required"`
 	ExportedFrom  *ExportedFromInfo `json:"exportedFrom,omitempty"`
-	Profiles      []ExportedProfile `json:"profiles"`
+	Profiles      []ExportedProfile `json:"profiles"      validate:"required,min=1,max=10,dive"`
 }
 
+// ExportedFromInfo carries informational metadata about the exporting service.
+// The contents are not trusted and not validated for semantics.
+// specRef: V4
 type ExportedFromInfo struct {
 	Service    string `json:"service,omitempty"`
 	AppVersion string `json:"appVersion,omitempty"`
 }
 
+// ExportedProfile represents a single profile in the envelope.
+// specRef: V7–V15, F1–F9
 type ExportedProfile struct {
-	Name     string            `json:"name"`
-	Comment  string            `json:"comment,omitempty"`
-	Settings *ExportedSettings `json:"settings"`
+	Name     string            `json:"name"              validate:"required,max=50,safe_name"`
+	Comment  string            `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
+	Settings *ExportedSettings `json:"settings"          validate:"required"`
 }
 
 type ExportedSettings struct {
 	Privacy     *ExportedPrivacy     `json:"privacy,omitempty"`
 	Security    *ExportedSecurity    `json:"security,omitempty"`
-	CustomRules []ExportedCustomRule `json:"customRules,omitempty"`
+	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=10000,dive"`
 	Logs        *ExportedLogs        `json:"logs,omitempty"`
 	Statistics  *ExportedStatistics  `json:"statistics,omitempty"`
 	Advanced    *ExportedAdvanced    `json:"advanced,omitempty"`
 }
 
+// ExportedPrivacy carries the privacy section of a profile.
+// specRef: V8, V9, F1–F4
 type ExportedPrivacy struct {
-	Blocklists                []string `json:"blocklists,omitempty"`
-	Services                  []string `json:"services,omitempty"`
-	DefaultRule               string   `json:"defaultRule,omitempty"`
-	BlocklistsSubdomainsRule  string   `json:"blocklistsSubdomainsRule,omitempty"`
-	CustomRulesSubdomainsRule string   `json:"customRulesSubdomainsRule,omitempty"`
+	Blocklists                []string `json:"blocklists,omitempty"                validate:"max=100,dive,required,max=64"`
+	Services                  []string `json:"services,omitempty"                  validate:"max=100,dive,required,max=64"`
+	DefaultRule               string   `json:"defaultRule,omitempty"               validate:"omitempty,oneof=block allow"`
+	BlocklistsSubdomainsRule  string   `json:"blocklistsSubdomainsRule,omitempty"  validate:"omitempty,oneof=block allow"`
+	CustomRulesSubdomainsRule string   `json:"customRulesSubdomainsRule,omitempty" validate:"omitempty,oneof=include exact"`
 }
 
+// ExportedSecurity carries the security section of a profile.
+// specRef: F5
 type ExportedSecurity struct {
 	DNSSEC *ExportedDNSSEC `json:"dnssec,omitempty"`
 }
 
+// ExportedDNSSEC carries DNSSEC settings.
+// specRef: F5
 type ExportedDNSSEC struct {
 	Enabled   bool `json:"enabled"`
 	SendDoBit bool `json:"sendDoBit"`
 }
 
+// ExportedCustomRule represents a single user-authored filtering rule.
+// Note: addedAt is not in v1 -- CustomRule model has no timestamp field.
+// specRef: V10–V14, F4
 type ExportedCustomRule struct {
-	Action  string `json:"action"`
-	Value   string `json:"value"`
-	Comment string `json:"comment,omitempty"`
+	Action  string `json:"action"            validate:"required,oneof=block allow comment"`
+	Value   string `json:"value"             validate:"required,max=255"`
+	Comment string `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
 }
 
+// ExportedLogs carries the log settings for a profile.
+// specRef: F6
 type ExportedLogs struct {
 	Enabled       bool   `json:"enabled"`
 	LogClientsIPs bool   `json:"logClientsIPs"`
 	LogDomains    bool   `json:"logDomains"`
-	Retention     string `json:"retention,omitempty"`
+	Retention     string `json:"retention,omitempty" validate:"omitempty,oneof=1h 6h 1d 1w 1m"`
 }
 
+// ExportedStatistics carries the statistics toggle for a profile.
+// specRef: F6
 type ExportedStatistics struct {
 	Enabled bool `json:"enabled"`
 }
 
+// ExportedAdvanced carries advanced settings for a profile.
+// specRef: F7
 type ExportedAdvanced struct {
-	Recursor string `json:"recursor,omitempty"`
+	Recursor string `json:"recursor,omitempty" validate:"omitempty,oneof=sdns unbound"`
 }
 
 // ExportScope enumerates the supported selection scopes for Export.

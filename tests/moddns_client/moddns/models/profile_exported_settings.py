@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from moddns.models.profile_exported_advanced import ProfileExportedAdvanced
 from moddns.models.profile_exported_custom_rule import ProfileExportedCustomRule
 from moddns.models.profile_exported_logs import ProfileExportedLogs
@@ -33,7 +34,7 @@ class ProfileExportedSettings(BaseModel):
     ProfileExportedSettings
     """ # noqa: E501
     advanced: Optional[ProfileExportedAdvanced] = None
-    custom_rules: Optional[List[ProfileExportedCustomRule]] = Field(default=None, alias="customRules")
+    custom_rules: Optional[Annotated[List[ProfileExportedCustomRule], Field(max_length=10000)]] = Field(default=None, alias="customRules")
     logs: Optional[ProfileExportedLogs] = None
     privacy: Optional[ProfileExportedPrivacy] = None
     security: Optional[ProfileExportedSecurity] = None

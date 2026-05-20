@@ -5,9 +5,7 @@ package profile_test
 // Spec: docs/specs/account-export-import-behaviour.md
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -18,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/config"
 	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/mocks"
@@ -701,63 +698,3 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 	env.profileRepo.AssertExpectations(t)
 }
 
-// ---------------------------------------------------------------------------
-// Export -> Import round-trip contract guard
-// ---------------------------------------------------------------------------
-
-// TestImport_AcceptsFreshExport_Roundtrip asserts the contract:
-// the bytes emitted by Export() must be decodable by the same strict decoder
-// that the import handler uses (json.Decoder with DisallowUnknownFields()).
-// Prevents emitter/importer schema drift.
-//
-// specRef:"V1,V6"
-func TestImport_AcceptsFreshExport_Roundtrip(t *testing.T) {
-	const accountId = "acct-roundtrip"
-
-	// Build a profile with populated settings to exercise the full field-mapping
-	// path -- a minimal profile with empty settings would not catch field-name
-	// mismatches in nested sections.
-	src := fullProfile(accountId)
-
-	profileRepo := mocks.NewProfileRepository(t)
-	accountRepo := mocks.NewAccountRepository(t)
-	profileRepo.On("GetProfilesByAccountId", context.Background(), accountId).
-		Return([]model.Profile{*src}, nil)
-	accountRepo.On("GetAccountById", context.Background(), accountId).
-		Return(authorisedAccount(t), nil)
-
-	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
-
-	// Step 1: produce a fresh export envelope.
-	envelope, err := svc.Export(
-		context.Background(),
-		accountId,
-		profile.ExportScopeAll,
-		nil,
-		ptrStr("testpw"),
-		nil,
-	)
-	require.NoError(t, err)
-	require.NotNil(t, envelope)
-
-	// Step 2: marshal the envelope to JSON bytes -- this is exactly what the
-	// export handler sends down to the browser.
-	exportBytes, err := json.Marshal(envelope)
-	require.NoError(t, err)
-
-	// Step 3: decode those bytes with the same strict decoder the import handler
-	// uses (json.Decoder + DisallowUnknownFields()).  The target type is
-	// requests.ImportPayload, which is the struct the handler decodes the
-	// payload field into before handing control to the service.
-	// Any field present in ExportEnvelope but absent from ImportPayload would
-	// produce an "unknown field" error here -- the precise bug this test guards
-	// against.
-	var importPayload requests.ImportPayload
-	dec := json.NewDecoder(bytes.NewReader(exportBytes))
-	dec.DisallowUnknownFields()
-	decodeErr := dec.Decode(&importPayload)
-	assert.NoError(t, decodeErr,
-		"export envelope bytes must be accepted by the strict import decoder; "+
-			"a non-nil error means ExportEnvelope emits a field that ImportPayload "+
-			"does not declare -- update one or the other to re-align them")
-}

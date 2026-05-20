@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -31,6 +31,16 @@ class ProfileExportedLogs(BaseModel):
     log_domains: Optional[StrictBool] = Field(default=None, alias="logDomains")
     retention: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["enabled", "logClientsIPs", "logDomains", "retention"]
+
+    @field_validator('retention')
+    def retention_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['1h', '6h', '1d', '1w', '1m']):
+            raise ValueError("must be one of enum values ('1h', '6h', '1d', '1w', '1m')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

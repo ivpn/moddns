@@ -116,115 +116,13 @@ func (s *APIServer) importProfiles() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, "provide only one of current_password or reauth_token")
 		}
 
-		envelope := mapImportPayload(req.Payload)
-
-		result, err := s.Service.Import(c.Context(), accountId, req.Mode, envelope, req.CurrentPassword, req.ReauthToken)
+		result, err := s.Service.Import(c.Context(), accountId, req.Mode, req.Payload, req.CurrentPassword, req.ReauthToken)
 		if err != nil {
 			return handleExportImportError(c, err)
 		}
 
 		return c.JSON(result)
 	}
-}
-
-// mapImportPayload converts the validated import DTO into the ExportEnvelope
-// shape that ProfileService.Import() expects.  The two struct trees are
-// intentionally parallel; this function is a pure field copy with no
-// filtering logic — business rules live in the service layer.
-//
-// specRef: I1, V1-V6
-func mapImportPayload(p *requests.ImportPayload) *profile.ExportEnvelope {
-	if p == nil {
-		return nil
-	}
-
-	env := &profile.ExportEnvelope{
-		SchemaVersion: p.SchemaVersion,
-		Kind:          p.Kind,
-		ExportedAt:    p.ExportedAt,
-	}
-
-	if p.ExportedFrom != nil {
-		env.ExportedFrom = &profile.ExportedFromInfo{
-			Service:    p.ExportedFrom.Service,
-			AppVersion: p.ExportedFrom.AppVersion,
-		}
-	}
-
-	env.Profiles = make([]profile.ExportedProfile, 0, len(p.Profiles))
-	for _, ip := range p.Profiles {
-		ep := profile.ExportedProfile{
-			Name:    ip.Name,
-			Comment: ip.Comment,
-		}
-		if ip.Settings != nil {
-			ep.Settings = mapImportSettings(ip.Settings)
-		}
-		env.Profiles = append(env.Profiles, ep)
-	}
-
-	return env
-}
-
-// mapImportSettings converts the per-profile settings section of the import
-// DTO into the ExportedSettings shape the service expects.
-func mapImportSettings(s *requests.ImportSettings) *profile.ExportedSettings {
-	if s == nil {
-		return nil
-	}
-
-	es := &profile.ExportedSettings{}
-
-	if s.Privacy != nil {
-		ep := &profile.ExportedPrivacy{
-			DefaultRule:               s.Privacy.DefaultRule,
-			BlocklistsSubdomainsRule:  s.Privacy.BlocklistsSubdomainsRule,
-			CustomRulesSubdomainsRule: s.Privacy.CustomRulesSubdomainsRule,
-			Blocklists:                s.Privacy.Blocklists,
-			Services:                  s.Privacy.Services,
-		}
-		es.Privacy = ep
-	}
-
-	if s.Security != nil && s.Security.DNSSEC != nil {
-		es.Security = &profile.ExportedSecurity{
-			DNSSEC: &profile.ExportedDNSSEC{
-				Enabled:   s.Security.DNSSEC.Enabled,
-				SendDoBit: s.Security.DNSSEC.SendDoBit,
-			},
-		}
-	}
-
-	for _, cr := range s.CustomRules {
-		es.CustomRules = append(es.CustomRules, profile.ExportedCustomRule{
-			Action:  cr.Action,
-			Value:   cr.Value,
-			Comment: cr.Comment,
-		})
-	}
-
-	if s.Logs != nil {
-		es.Logs = &profile.ExportedLogs{
-			Enabled:       s.Logs.Enabled,
-			LogClientsIPs: s.Logs.LogClientsIPs,
-			LogDomains:    s.Logs.LogDomains,
-			Retention:     s.Logs.Retention,
-		}
-	}
-
-	if s.Statistics != nil {
-		es.Statistics = &profile.ExportedStatistics{
-			Enabled: s.Statistics.Enabled,
-		}
-	}
-
-	if s.Advanced != nil {
-		es.Advanced = &profile.ExportedAdvanced{
-			Recursor: s.Advanced.Recursor,
-		}
-	}
-
-	return es
 }
 
 // handleExportImportError maps profile service errors to HTTP status codes for

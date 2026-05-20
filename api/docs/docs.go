@@ -3290,6 +3290,12 @@ const docTemplate = `{
         },
         "profile.ExportEnvelope": {
             "type": "object",
+            "required": [
+                "exportedAt",
+                "kind",
+                "profiles",
+                "schemaVersion"
+            ],
             "properties": {
                 "exportedAt": {
                     "type": "string"
@@ -3302,6 +3308,8 @@ const docTemplate = `{
                 },
                 "profiles": {
                     "type": "array",
+                    "maxItems": 10,
+                    "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/profile.ExportedProfile"
                     }
@@ -3315,21 +3323,36 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "recursor": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "unbound"
+                    ]
                 }
             }
         },
         "profile.ExportedCustomRule": {
             "type": "object",
+            "required": [
+                "action",
+                "value"
+            ],
             "properties": {
                 "action": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
                 },
                 "comment": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 200
                 },
                 "value": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 255
                 }
             }
         },
@@ -3368,30 +3391,55 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "retention": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "6h",
+                        "1d",
+                        "1w",
+                        "1m"
+                    ]
                 }
             }
         },
         "profile.ExportedPrivacy": {
             "type": "object",
+            "required": [
+                "blocklists",
+                "services"
+            ],
             "properties": {
                 "blocklists": {
                     "type": "array",
+                    "maxItems": 100,
                     "items": {
                         "type": "string"
                     }
                 },
                 "blocklistsSubdomainsRule": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
                 },
                 "customRulesSubdomainsRule": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "include",
+                        "exact"
+                    ]
                 },
                 "defaultRule": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
                 },
                 "services": {
                     "type": "array",
+                    "maxItems": 100,
                     "items": {
                         "type": "string"
                     }
@@ -3400,12 +3448,18 @@ const docTemplate = `{
         },
         "profile.ExportedProfile": {
             "type": "object",
+            "required": [
+                "name",
+                "settings"
+            ],
             "properties": {
                 "comment": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 200
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 50
                 },
                 "settings": {
                     "$ref": "#/definitions/profile.ExportedSettings"
@@ -3428,6 +3482,7 @@ const docTemplate = `{
                 },
                 "customRules": {
                     "type": "array",
+                    "maxItems": 10000,
                     "items": {
                         "$ref": "#/definitions/profile.ExportedCustomRule"
                     }
@@ -3966,184 +4021,6 @@ const docTemplate = `{
                 }
             }
         },
-        "requests.ExportedFromInfo": {
-            "type": "object",
-            "properties": {
-                "appVersion": {
-                    "type": "string"
-                },
-                "service": {
-                    "type": "string"
-                }
-            }
-        },
-        "requests.ImportAdvanced": {
-            "type": "object",
-            "properties": {
-                "recursor": {
-                    "type": "string",
-                    "enum": [
-                        "sdns",
-                        "unbound"
-                    ]
-                }
-            }
-        },
-        "requests.ImportCustomRule": {
-            "type": "object",
-            "required": [
-                "action",
-                "value"
-            ],
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow",
-                        "comment"
-                    ]
-                },
-                "comment": {
-                    "type": "string",
-                    "maxLength": 200
-                },
-                "value": {
-                    "type": "string",
-                    "maxLength": 255
-                }
-            }
-        },
-        "requests.ImportDNSSEC": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "sendDoBit": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "requests.ImportLogs": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "logClientsIPs": {
-                    "type": "boolean"
-                },
-                "logDomains": {
-                    "type": "boolean"
-                },
-                "retention": {
-                    "type": "string",
-                    "enum": [
-                        "1h",
-                        "6h",
-                        "1d",
-                        "1w",
-                        "1m"
-                    ]
-                }
-            }
-        },
-        "requests.ImportPayload": {
-            "type": "object",
-            "required": [
-                "exportedAt",
-                "kind",
-                "profiles",
-                "schemaVersion"
-            ],
-            "properties": {
-                "exportedAt": {
-                    "type": "string"
-                },
-                "exportedFrom": {
-                    "$ref": "#/definitions/requests.ExportedFromInfo"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "profiles": {
-                    "type": "array",
-                    "maxItems": 10,
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/requests.ImportProfile"
-                    }
-                },
-                "schemaVersion": {
-                    "type": "integer"
-                }
-            }
-        },
-        "requests.ImportPrivacy": {
-            "type": "object",
-            "required": [
-                "blocklists",
-                "services"
-            ],
-            "properties": {
-                "blocklists": {
-                    "type": "array",
-                    "maxItems": 100,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "blocklistsSubdomainsRule": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow"
-                    ]
-                },
-                "customRulesSubdomainsRule": {
-                    "type": "string",
-                    "enum": [
-                        "include",
-                        "exact"
-                    ]
-                },
-                "defaultRule": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow"
-                    ]
-                },
-                "services": {
-                    "type": "array",
-                    "maxItems": 100,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "requests.ImportProfile": {
-            "type": "object",
-            "required": [
-                "name",
-                "settings"
-            ],
-            "properties": {
-                "comment": {
-                    "type": "string",
-                    "maxLength": 200
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "settings": {
-                    "$ref": "#/definitions/requests.ImportSettings"
-                }
-            }
-        },
         "requests.ImportRequest": {
             "type": "object",
             "required": [
@@ -4162,54 +4039,11 @@ const docTemplate = `{
                     ]
                 },
                 "payload": {
-                    "$ref": "#/definitions/requests.ImportPayload"
+                    "$ref": "#/definitions/profile.ExportEnvelope"
                 },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
-                }
-            }
-        },
-        "requests.ImportSecurity": {
-            "type": "object",
-            "properties": {
-                "dnssec": {
-                    "$ref": "#/definitions/requests.ImportDNSSEC"
-                }
-            }
-        },
-        "requests.ImportSettings": {
-            "type": "object",
-            "properties": {
-                "advanced": {
-                    "$ref": "#/definitions/requests.ImportAdvanced"
-                },
-                "customRules": {
-                    "type": "array",
-                    "maxItems": 10000,
-                    "items": {
-                        "$ref": "#/definitions/requests.ImportCustomRule"
-                    }
-                },
-                "logs": {
-                    "$ref": "#/definitions/requests.ImportLogs"
-                },
-                "privacy": {
-                    "$ref": "#/definitions/requests.ImportPrivacy"
-                },
-                "security": {
-                    "$ref": "#/definitions/requests.ImportSecurity"
-                },
-                "statistics": {
-                    "$ref": "#/definitions/requests.ImportStatistics"
-                }
-            }
-        },
-        "requests.ImportStatistics": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
                 }
             }
         },
