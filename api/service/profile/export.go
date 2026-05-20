@@ -7,6 +7,7 @@ import (
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/version"
 	"github.com/ivpn/dns/api/model"
 )
 
@@ -55,9 +56,8 @@ func (p *ProfileService) Export(
 		Kind:          "moddns-export",
 		ExportedAt:    time.Now().UTC(),
 		ExportedFrom: &model.ExportedFromInfo{
-			Service: "modDNS",
-			// TODO: wire app version when available (no Version field on ServerConfig or ServiceConfig today)
-			AppVersion: "",
+			Service:    "modDNS",
+			AppVersion: version.Version,
 		},
 		Profiles: exportedProfiles,
 	}

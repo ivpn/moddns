@@ -24,6 +24,7 @@ import (
 
 	"github.com/ivpn/dns/api/config"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/version"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/profile"
@@ -381,6 +382,12 @@ func TestExport_EnvelopeMetadata(t *testing.T) {
 
 	require.NotNil(t, env.ExportedFrom)
 	assert.Equal(t, "modDNS", env.ExportedFrom.Service)
+	// specRef: V4 — AppVersion is populated from the build-stamped version
+	// package. Under `go test` the package default "dev" is what's stamped.
+	assert.Equal(t, version.Version, env.ExportedFrom.AppVersion,
+		"appVersion must reflect the build-stamped version.Version")
+	assert.NotEmpty(t, env.ExportedFrom.AppVersion,
+		"appVersion must never be empty; expected at least the \"dev\" fallback")
 }
 
 // ---- Edge cases ------------------------------------------------------------
