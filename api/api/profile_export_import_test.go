@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -334,6 +335,40 @@ func (s *ProfileExportImportSuite) TestExport_SetsPragmaNoCache() {
 	s.Equal(http.StatusOK, resp.StatusCode)
 	// specRef:"E15"
 	s.Equal("no-cache", resp.Header.Get("Pragma"))
+}
+
+// TestExport_BodyIsPrettyPrinted asserts that the export body is emitted with
+// 2-space indentation and a trailing newline. The export is a user-facing file
+// (Content-Disposition: attachment); readability is the contract here, and
+// downstream tooling like `cat` and `wc -l` rely on the trailing newline.
+func (s *ProfileExportImportSuite) TestExport_BodyIsPrettyPrinted() {
+	now := time.Now().UTC()
+	envelope := &profile.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    now,
+		Profiles:      []profile.ExportedProfile{{Name: "p"}},
+	}
+	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all",
+		mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil),
+	).Return(envelope, nil)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
+	s.auth(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusOK, resp.StatusCode)
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	require.NoError(s.T(), err)
+	body := string(bodyBytes)
+
+	// First line opens the JSON object; second line indents the first key.
+	s.True(strings.HasPrefix(body, "{\n  \"schemaVersion\""),
+		"body must start with `{\\n  \"schemaVersion\"`; got: %q", body[:min(80, len(body))])
+	s.True(strings.HasSuffix(body, "}\n"),
+		"body must end with `}\\n`; got tail: %q", body[max(0, len(body)-20):])
 }
 
 // specRef: (no specific row) — generic service error path

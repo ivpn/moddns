@@ -60,7 +60,17 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 		c.Set("Cache-Control", "no-store")
 		c.Set("Pragma", "no-cache")
 
-		return c.JSON(envelope, "application/vnd.moddns.export+json; charset=utf-8")
+		// Pretty-print with 2-space indent + trailing newline. The export is a
+		// downloadable file (Content-Disposition: attachment) that users open
+		// in a text editor; readability is the whole point. Whitespace is
+		// insignificant on the import side (json.Decoder ignores it).
+		body, err := json.MarshalIndent(envelope, "", "  ")
+		if err != nil {
+			return HandleError(c, err, err.Error())
+		}
+		body = append(body, '\n')
+		c.Set("Content-Type", "application/vnd.moddns.export+json; charset=utf-8")
+		return c.Send(body)
 	}
 }
 
