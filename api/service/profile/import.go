@@ -76,7 +76,7 @@ const staleExportThreshold = 90 * 24 * time.Hour
 func (p *ProfileService) Import(
 	ctx context.Context,
 	accountId, mode string,
-	payload *ExportEnvelope,
+	payload *model.ExportEnvelope,
 	currentPassword, reauthToken *string,
 ) (*ImportResult, error) {
 	if err := p.verifyReauth(ctx, accountId, auth.TokenTypeReauthProfileImport, currentPassword, reauthToken); err != nil {
@@ -173,7 +173,7 @@ func (p *ProfileService) Import(
 	}, nil
 }
 
-// importOneProfile creates a single profile from an ExportedProfile entry.
+// importOneProfile creates a single profile from a model.ExportedProfile entry.
 // It returns the fresh ProfileId, any non-fatal warnings, and a fatal error (nil on success).
 // All IDs are regenerated server-side; none are carried from the payload.
 // resolvedName is the post-collision-resolution name (see resolveImportName); use
@@ -183,7 +183,7 @@ func (p *ProfileService) Import(
 func (p *ProfileService) importOneProfile(
 	ctx context.Context,
 	accountId string,
-	ep ExportedProfile,
+	ep model.ExportedProfile,
 	resolvedName string,
 ) (profileId string, warnings []string, err error) {
 	warnings = make([]string, 0)
@@ -262,10 +262,10 @@ func (p *ProfileService) importOneProfile(
 	return freshProfileId, warnings, nil
 }
 
-// mapExportedSettings converts ExportedSettings into model.ProfileSettings,
+// mapExportedSettings converts model.ExportedSettings into model.ProfileSettings,
 // falling back to model.NewSettings() defaults for any nil section.
 // specRef: F1-F7
-func (p *ProfileService) mapExportedSettings(src *ExportedSettings, profileId string) *model.ProfileSettings {
+func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profileId string) *model.ProfileSettings {
 	s := model.NewSettings()
 	s.ProfileId = profileId
 
@@ -312,7 +312,7 @@ func (p *ProfileService) mapExportedSettings(src *ExportedSettings, profileId st
 	// Advanced section — specRef: F7
 	// Silently ignored on import. The recursor is a staging-only control;
 	// imported profiles always inherit RECURSOR_DEFAULT from model.NewSettings(),
-	// matching the regular create-profile path. ExportedAdvanced is still
+	// matching the regular create-profile path. model.ExportedAdvanced is still
 	// tolerated by the DTO decoder so old or hand-edited files import cleanly.
 	_ = src.Advanced
 
@@ -387,7 +387,7 @@ func (p *ProfileService) filterServiceRefs(
 // are skipped with a warning. IDN rules produce an additional warning.
 // specRef: V11, V12, S5
 func (p *ProfileService) validateAndMapRules(
-	rules []ExportedCustomRule,
+	rules []model.ExportedCustomRule,
 	profileName string,
 	accountId string,
 	existingWarnings []string,

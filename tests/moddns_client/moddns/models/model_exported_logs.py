@@ -17,18 +17,30 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.profile_exported_dnssec import ProfileExportedDNSSEC
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedSecurity(BaseModel):
+class ModelExportedLogs(BaseModel):
     """
-    ProfileExportedSecurity
+    ModelExportedLogs
     """ # noqa: E501
-    dnssec: Optional[ProfileExportedDNSSEC] = None
-    __properties: ClassVar[List[str]] = ["dnssec"]
+    enabled: Optional[StrictBool] = None
+    log_clients_ips: Optional[StrictBool] = Field(default=None, alias="logClientsIPs")
+    log_domains: Optional[StrictBool] = Field(default=None, alias="logDomains")
+    retention: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["enabled", "logClientsIPs", "logDomains", "retention"]
+
+    @field_validator('retention')
+    def retention_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['1h', '6h', '1d', '1w', '1m']):
+            raise ValueError("must be one of enum values ('1h', '6h', '1d', '1w', '1m')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +60,7 @@ class ProfileExportedSecurity(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedSecurity from a JSON string"""
+        """Create an instance of ModelExportedLogs from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -69,14 +81,11 @@ class ProfileExportedSecurity(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of dnssec
-        if self.dnssec:
-            _dict['dnssec'] = self.dnssec.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedSecurity from a dict"""
+        """Create an instance of ModelExportedLogs from a dict"""
         if obj is None:
             return None
 
@@ -84,7 +93,10 @@ class ProfileExportedSecurity(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "dnssec": ProfileExportedDNSSEC.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None
+            "enabled": obj.get("enabled"),
+            "logClientsIPs": obj.get("logClientsIPs"),
+            "logDomains": obj.get("logDomains"),
+            "retention": obj.get("retention")
         })
         return _obj
 

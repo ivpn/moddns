@@ -17,18 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedDNSSEC(BaseModel):
+class ModelExportedFromInfo(BaseModel):
     """
-    ProfileExportedDNSSEC
+    ModelExportedFromInfo
     """ # noqa: E501
-    enabled: Optional[StrictBool] = None
-    send_do_bit: Optional[StrictBool] = Field(default=None, alias="sendDoBit")
-    __properties: ClassVar[List[str]] = ["enabled", "sendDoBit"]
+    app_version: Optional[StrictStr] = Field(default=None, alias="appVersion")
+    service: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["appVersion", "service"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +48,7 @@ class ProfileExportedDNSSEC(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedDNSSEC from a JSON string"""
+        """Create an instance of ModelExportedFromInfo from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ class ProfileExportedDNSSEC(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedDNSSEC from a dict"""
+        """Create an instance of ModelExportedFromInfo from a dict"""
         if obj is None:
             return None
 
@@ -81,8 +81,8 @@ class ProfileExportedDNSSEC(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "enabled": obj.get("enabled"),
-            "sendDoBit": obj.get("sendDoBit")
+            "appVersion": obj.get("appVersion"),
+            "service": obj.get("service")
         })
         return _obj
 

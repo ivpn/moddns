@@ -17,27 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedCustomRule(BaseModel):
+class ModelExportedStatistics(BaseModel):
     """
-    ProfileExportedCustomRule
+    ModelExportedStatistics
     """ # noqa: E501
-    action: StrictStr
-    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
-    value: Annotated[str, Field(strict=True, max_length=255)]
-    __properties: ClassVar[List[str]] = ["action", "comment", "value"]
-
-    @field_validator('action')
-    def action_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow', 'comment']):
-            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
-        return value
+    enabled: Optional[StrictBool] = None
+    __properties: ClassVar[List[str]] = ["enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -57,7 +47,7 @@ class ProfileExportedCustomRule(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedCustomRule from a JSON string"""
+        """Create an instance of ModelExportedStatistics from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,7 +72,7 @@ class ProfileExportedCustomRule(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedCustomRule from a dict"""
+        """Create an instance of ModelExportedStatistics from a dict"""
         if obj is None:
             return None
 
@@ -90,9 +80,7 @@ class ProfileExportedCustomRule(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "action": obj.get("action"),
-            "comment": obj.get("comment"),
-            "value": obj.get("value")
+            "enabled": obj.get("enabled")
         })
         return _obj
 

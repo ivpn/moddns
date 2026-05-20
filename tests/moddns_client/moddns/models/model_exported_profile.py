@@ -17,27 +17,21 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
+from moddns.models.model_exported_settings import ModelExportedSettings
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedAdvanced(BaseModel):
+class ModelExportedProfile(BaseModel):
     """
-    ProfileExportedAdvanced
+    ModelExportedProfile
     """ # noqa: E501
-    recursor: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["recursor"]
-
-    @field_validator('recursor')
-    def recursor_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['sdns', 'unbound']):
-            raise ValueError("must be one of enum values ('sdns', 'unbound')")
-        return value
+    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
+    name: Annotated[str, Field(strict=True, max_length=50)]
+    settings: ModelExportedSettings
+    __properties: ClassVar[List[str]] = ["comment", "name", "settings"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -57,7 +51,7 @@ class ProfileExportedAdvanced(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedAdvanced from a JSON string"""
+        """Create an instance of ModelExportedProfile from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,11 +72,14 @@ class ProfileExportedAdvanced(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of settings
+        if self.settings:
+            _dict['settings'] = self.settings.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedAdvanced from a dict"""
+        """Create an instance of ModelExportedProfile from a dict"""
         if obj is None:
             return None
 
@@ -90,7 +87,9 @@ class ProfileExportedAdvanced(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "recursor": obj.get("recursor")
+            "comment": obj.get("comment"),
+            "name": obj.get("name"),
+            "settings": ModelExportedSettings.from_dict(obj["settings"]) if obj.get("settings") is not None else None
         })
         return _obj
 

@@ -134,15 +134,15 @@ func newImportTestEnv(t *testing.T, password string, maxProfiles int) *importTes
 
 // minimalEnvelope returns a minimal valid ExportEnvelope with n profiles, each
 // named "Profile" with no custom rules.
-func minimalEnvelope(n int) *profile.ExportEnvelope {
-	profiles := make([]profile.ExportedProfile, n)
+func minimalEnvelope(n int) *model.ExportEnvelope {
+	profiles := make([]model.ExportedProfile, n)
 	for i := range profiles {
-		profiles[i] = profile.ExportedProfile{
+		profiles[i] = model.ExportedProfile{
 			Name:     "Profile",
-			Settings: &profile.ExportedSettings{},
+			Settings: &model.ExportedSettings{},
 		}
 	}
-	return &profile.ExportEnvelope{
+	return &model.ExportEnvelope{
 		SchemaVersion: 1,
 		Kind:          "moddns-export",
 		ExportedAt:    time.Now(),
@@ -374,8 +374,8 @@ func TestImport_MissingBlocklistId_AddsWarning(t *testing.T) {
 		Return([]*model.Blocklist{}, nil).Once()
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		Privacy: &profile.ExportedPrivacy{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		Privacy: &model.ExportedPrivacy{
 			Blocklists: []string{"unknown-bl"},
 		},
 	}
@@ -406,8 +406,8 @@ func TestImport_InvalidRuleAction_SkipsWithWarning(t *testing.T) {
 	expectOneSuccessfulCreate(env, "acct1", []model.Profile{}, "fresh-id-1")
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		CustomRules: []profile.ExportedCustomRule{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		CustomRules: []model.ExportedCustomRule{
 			{Action: "weird", Value: "example.com"},
 		},
 	}
@@ -434,8 +434,8 @@ func TestImport_InvalidRuleSyntax_SkipsWithWarning(t *testing.T) {
 	expectOneSuccessfulCreate(env, "acct1", []model.Profile{}, "fresh-id-1")
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		CustomRules: []profile.ExportedCustomRule{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		CustomRules: []model.ExportedCustomRule{
 			{Action: "block", Value: "not a domain!!!"},
 		},
 	}
@@ -547,8 +547,8 @@ func TestImport_PunycodeRule_AddsIDNWarning(t *testing.T) {
 		mock.AnythingOfType("*model.CustomRule")).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		CustomRules: []profile.ExportedCustomRule{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		CustomRules: []model.ExportedCustomRule{
 			// xn--mller-kva.de = müller.de in Punycode
 			{Action: "block", Value: "xn--mller-kva.de"},
 		},
@@ -584,8 +584,8 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 		mock.AnythingOfType("*model.CustomRule")).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		CustomRules: []profile.ExportedCustomRule{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		CustomRules: []model.ExportedCustomRule{
 			{Action: "block", Value: "ads.example.com"},
 		},
 	}
@@ -628,13 +628,13 @@ func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
 		mock.AnythingOfType("*model.CustomRule")).Return(nil).Times(10_000)
 
 	// Build 10,001 valid rules -- one over the cap.
-	rules := make([]profile.ExportedCustomRule, 10_001)
+	rules := make([]model.ExportedCustomRule, 10_001)
 	for i := range rules {
-		rules[i] = profile.ExportedCustomRule{Action: "block", Value: "example.com"}
+		rules[i] = model.ExportedCustomRule{Action: "block", Value: "example.com"}
 	}
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{CustomRules: rules}
+	envelope.Profiles[0].Settings = &model.ExportedSettings{CustomRules: rules}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelope, ptr("secret"), nil)
@@ -673,8 +673,8 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		Privacy: &profile.ExportedPrivacy{
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		Privacy: &model.ExportedPrivacy{
 			Services: []string{"known-svc", "unknown-svc"},
 		},
 	}
@@ -704,15 +704,15 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // envelopeWithNames returns a minimal envelope with one profile per name.
-func envelopeWithNames(names ...string) *profile.ExportEnvelope {
-	profiles := make([]profile.ExportedProfile, len(names))
+func envelopeWithNames(names ...string) *model.ExportEnvelope {
+	profiles := make([]model.ExportedProfile, len(names))
 	for i, n := range names {
-		profiles[i] = profile.ExportedProfile{
+		profiles[i] = model.ExportedProfile{
 			Name:     n,
-			Settings: &profile.ExportedSettings{},
+			Settings: &model.ExportedSettings{},
 		}
 	}
-	return &profile.ExportEnvelope{
+	return &model.ExportEnvelope{
 		SchemaVersion: 1,
 		Kind:          "moddns-export",
 		ExportedAt:    time.Now(),
@@ -849,8 +849,8 @@ func TestImport_AdvancedSection_SilentlyIgnored(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
 
 	envelope := envelopeWithNames("Imported")
-	envelope.Profiles[0].Settings = &profile.ExportedSettings{
-		Advanced: &profile.ExportedAdvanced{Recursor: "unbound"},
+	envelope.Profiles[0].Settings = &model.ExportedSettings{
+		Advanced: &model.ExportedAdvanced{Recursor: "unbound"},
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",

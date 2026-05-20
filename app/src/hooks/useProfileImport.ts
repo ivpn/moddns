@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import API from '@/api/api';
-import type { ProfileExportEnvelope } from '@/api/client/api';
+import type { ModelExportEnvelope } from '@/api/client/api';
 import { RequestsImportRequestModeEnum } from '@/api/client/api';
 
 export interface ImportProfilesInput {
-  payload: ProfileExportEnvelope;
+  payload: ModelExportEnvelope;
   currentPassword?: string;
   reauthToken?: string;
   /** 6-digit TOTP code — forwarded only when password method is used and 2FA is enabled. */

@@ -17,24 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
-from moddns.models.profile_exported_from_info import ProfileExportedFromInfo
-from moddns.models.profile_exported_profile import ProfileExportedProfile
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportEnvelope(BaseModel):
+class ModelExportedDNSSEC(BaseModel):
     """
-    ProfileExportEnvelope
+    ModelExportedDNSSEC
     """ # noqa: E501
-    exported_at: StrictStr = Field(alias="exportedAt")
-    exported_from: Optional[ProfileExportedFromInfo] = Field(default=None, alias="exportedFrom")
-    kind: StrictStr
-    profiles: Annotated[List[ProfileExportedProfile], Field(min_length=1, max_length=10)]
-    schema_version: StrictInt = Field(alias="schemaVersion")
-    __properties: ClassVar[List[str]] = ["exportedAt", "exportedFrom", "kind", "profiles", "schemaVersion"]
+    enabled: Optional[StrictBool] = None
+    send_do_bit: Optional[StrictBool] = Field(default=None, alias="sendDoBit")
+    __properties: ClassVar[List[str]] = ["enabled", "sendDoBit"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -54,7 +48,7 @@ class ProfileExportEnvelope(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportEnvelope from a JSON string"""
+        """Create an instance of ModelExportedDNSSEC from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -75,21 +69,11 @@ class ProfileExportEnvelope(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of exported_from
-        if self.exported_from:
-            _dict['exportedFrom'] = self.exported_from.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in profiles (list)
-        _items = []
-        if self.profiles:
-            for _item_profiles in self.profiles:
-                if _item_profiles:
-                    _items.append(_item_profiles.to_dict())
-            _dict['profiles'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportEnvelope from a dict"""
+        """Create an instance of ModelExportedDNSSEC from a dict"""
         if obj is None:
             return None
 
@@ -97,11 +81,8 @@ class ProfileExportEnvelope(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "exportedAt": obj.get("exportedAt"),
-            "exportedFrom": ProfileExportedFromInfo.from_dict(obj["exportedFrom"]) if obj.get("exportedFrom") is not None else None,
-            "kind": obj.get("kind"),
-            "profiles": [ProfileExportedProfile.from_dict(_item) for _item in obj["profiles"]] if obj.get("profiles") is not None else None,
-            "schemaVersion": obj.get("schemaVersion")
+            "enabled": obj.get("enabled"),
+            "sendDoBit": obj.get("sendDoBit")
         })
         return _obj
 

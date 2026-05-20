@@ -20,7 +20,7 @@ import (
 // @Produce json
 // @Security ApiKeyAuth
 // @Param body body requests.ExportRequest true "Export request"
-// @Success 200 {object} profile.ExportEnvelope
+// @Success 200 {object} model.ExportEnvelope
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
 // @Failure 404 {object} ErrResponse

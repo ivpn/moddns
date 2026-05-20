@@ -20,25 +20,25 @@ import json
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from moddns.models.profile_exported_advanced import ProfileExportedAdvanced
-from moddns.models.profile_exported_custom_rule import ProfileExportedCustomRule
-from moddns.models.profile_exported_logs import ProfileExportedLogs
-from moddns.models.profile_exported_privacy import ProfileExportedPrivacy
-from moddns.models.profile_exported_security import ProfileExportedSecurity
-from moddns.models.profile_exported_statistics import ProfileExportedStatistics
+from moddns.models.model_exported_advanced import ModelExportedAdvanced
+from moddns.models.model_exported_custom_rule import ModelExportedCustomRule
+from moddns.models.model_exported_logs import ModelExportedLogs
+from moddns.models.model_exported_privacy import ModelExportedPrivacy
+from moddns.models.model_exported_security import ModelExportedSecurity
+from moddns.models.model_exported_statistics import ModelExportedStatistics
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedSettings(BaseModel):
+class ModelExportedSettings(BaseModel):
     """
-    ProfileExportedSettings
+    ModelExportedSettings
     """ # noqa: E501
-    advanced: Optional[ProfileExportedAdvanced] = None
-    custom_rules: Optional[Annotated[List[ProfileExportedCustomRule], Field(max_length=10000)]] = Field(default=None, alias="customRules")
-    logs: Optional[ProfileExportedLogs] = None
-    privacy: Optional[ProfileExportedPrivacy] = None
-    security: Optional[ProfileExportedSecurity] = None
-    statistics: Optional[ProfileExportedStatistics] = None
+    advanced: Optional[ModelExportedAdvanced] = None
+    custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=10000)]] = Field(default=None, alias="customRules")
+    logs: Optional[ModelExportedLogs] = None
+    privacy: Optional[ModelExportedPrivacy] = None
+    security: Optional[ModelExportedSecurity] = None
+    statistics: Optional[ModelExportedStatistics] = None
     __properties: ClassVar[List[str]] = ["advanced", "customRules", "logs", "privacy", "security", "statistics"]
 
     model_config = ConfigDict(
@@ -59,7 +59,7 @@ class ProfileExportedSettings(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedSettings from a JSON string"""
+        """Create an instance of ModelExportedSettings from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -106,7 +106,7 @@ class ProfileExportedSettings(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedSettings from a dict"""
+        """Create an instance of ModelExportedSettings from a dict"""
         if obj is None:
             return None
 
@@ -114,12 +114,12 @@ class ProfileExportedSettings(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "advanced": ProfileExportedAdvanced.from_dict(obj["advanced"]) if obj.get("advanced") is not None else None,
-            "customRules": [ProfileExportedCustomRule.from_dict(_item) for _item in obj["customRules"]] if obj.get("customRules") is not None else None,
-            "logs": ProfileExportedLogs.from_dict(obj["logs"]) if obj.get("logs") is not None else None,
-            "privacy": ProfileExportedPrivacy.from_dict(obj["privacy"]) if obj.get("privacy") is not None else None,
-            "security": ProfileExportedSecurity.from_dict(obj["security"]) if obj.get("security") is not None else None,
-            "statistics": ProfileExportedStatistics.from_dict(obj["statistics"]) if obj.get("statistics") is not None else None
+            "advanced": ModelExportedAdvanced.from_dict(obj["advanced"]) if obj.get("advanced") is not None else None,
+            "customRules": [ModelExportedCustomRule.from_dict(_item) for _item in obj["customRules"]] if obj.get("customRules") is not None else None,
+            "logs": ModelExportedLogs.from_dict(obj["logs"]) if obj.get("logs") is not None else None,
+            "privacy": ModelExportedPrivacy.from_dict(obj["privacy"]) if obj.get("privacy") is not None else None,
+            "security": ModelExportedSecurity.from_dict(obj["security"]) if obj.get("security") is not None else None,
+            "statistics": ModelExportedStatistics.from_dict(obj["statistics"]) if obj.get("statistics") is not None else None
         })
         return _obj
 

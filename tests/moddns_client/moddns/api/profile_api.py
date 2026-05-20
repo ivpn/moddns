@@ -22,8 +22,8 @@ from typing_extensions import Annotated
 from moddns.models.api_blocklists_updates import ApiBlocklistsUpdates
 from moddns.models.api_create_profile_body import ApiCreateProfileBody
 from moddns.models.api_services_updates import ApiServicesUpdates
+from moddns.models.model_export_envelope import ModelExportEnvelope
 from moddns.models.model_profile import ModelProfile
-from moddns.models.profile_export_envelope import ProfileExportEnvelope
 from moddns.models.profile_import_result import ProfileImportResult
 from moddns.models.requests_create_profile_custom_rule_body import RequestsCreateProfileCustomRuleBody
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
@@ -66,7 +66,7 @@ class ProfileApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ProfileExportEnvelope:
+    ) -> ModelExportEnvelope:
         """Export profiles
 
         Export user's profiles as a downloadable JSON file
@@ -104,7 +104,7 @@ class ProfileApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ProfileExportEnvelope",
+            '200': "ModelExportEnvelope",
             '400': "ApiErrResponse",
             '401': "ApiErrResponse",
             '404': "ApiErrResponse",
@@ -137,7 +137,7 @@ class ProfileApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[ProfileExportEnvelope]:
+    ) -> ApiResponse[ModelExportEnvelope]:
         """Export profiles
 
         Export user's profiles as a downloadable JSON file
@@ -175,7 +175,7 @@ class ProfileApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ProfileExportEnvelope",
+            '200': "ModelExportEnvelope",
             '400': "ApiErrResponse",
             '401': "ApiErrResponse",
             '404': "ApiErrResponse",
@@ -246,7 +246,7 @@ class ProfileApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "ProfileExportEnvelope",
+            '200': "ModelExportEnvelope",
             '400': "ApiErrResponse",
             '401': "ApiErrResponse",
             '404': "ApiErrResponse",

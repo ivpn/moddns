@@ -17,29 +17,51 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedLogs(BaseModel):
+class ModelExportedPrivacy(BaseModel):
     """
-    ProfileExportedLogs
+    ModelExportedPrivacy
     """ # noqa: E501
-    enabled: Optional[StrictBool] = None
-    log_clients_ips: Optional[StrictBool] = Field(default=None, alias="logClientsIPs")
-    log_domains: Optional[StrictBool] = Field(default=None, alias="logDomains")
-    retention: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["enabled", "logClientsIPs", "logDomains", "retention"]
+    blocklists: Annotated[List[StrictStr], Field(max_length=100)]
+    blocklists_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="blocklistsSubdomainsRule")
+    custom_rules_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="customRulesSubdomainsRule")
+    default_rule: Optional[StrictStr] = Field(default=None, alias="defaultRule")
+    services: Annotated[List[StrictStr], Field(max_length=100)]
+    __properties: ClassVar[List[str]] = ["blocklists", "blocklistsSubdomainsRule", "customRulesSubdomainsRule", "defaultRule", "services"]
 
-    @field_validator('retention')
-    def retention_validate_enum(cls, value):
+    @field_validator('blocklists_subdomains_rule')
+    def blocklists_subdomains_rule_validate_enum(cls, value):
         """Validates the enum"""
         if value is None:
             return value
 
-        if value not in set(['1h', '6h', '1d', '1w', '1m']):
-            raise ValueError("must be one of enum values ('1h', '6h', '1d', '1w', '1m')")
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
+        return value
+
+    @field_validator('custom_rules_subdomains_rule')
+    def custom_rules_subdomains_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['include', 'exact']):
+            raise ValueError("must be one of enum values ('include', 'exact')")
+        return value
+
+    @field_validator('default_rule')
+    def default_rule_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
         return value
 
     model_config = ConfigDict(
@@ -60,7 +82,7 @@ class ProfileExportedLogs(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedLogs from a JSON string"""
+        """Create an instance of ModelExportedPrivacy from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -85,7 +107,7 @@ class ProfileExportedLogs(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedLogs from a dict"""
+        """Create an instance of ModelExportedPrivacy from a dict"""
         if obj is None:
             return None
 
@@ -93,10 +115,11 @@ class ProfileExportedLogs(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "enabled": obj.get("enabled"),
-            "logClientsIPs": obj.get("logClientsIPs"),
-            "logDomains": obj.get("logDomains"),
-            "retention": obj.get("retention")
+            "blocklists": obj.get("blocklists"),
+            "blocklistsSubdomainsRule": obj.get("blocklistsSubdomainsRule"),
+            "customRulesSubdomainsRule": obj.get("customRulesSubdomainsRule"),
+            "defaultRule": obj.get("defaultRule"),
+            "services": obj.get("services")
         })
         return _obj
 

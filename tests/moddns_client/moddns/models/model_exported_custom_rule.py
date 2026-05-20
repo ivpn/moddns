@@ -23,45 +23,20 @@ from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedPrivacy(BaseModel):
+class ModelExportedCustomRule(BaseModel):
     """
-    ProfileExportedPrivacy
+    ModelExportedCustomRule
     """ # noqa: E501
-    blocklists: Annotated[List[StrictStr], Field(max_length=100)]
-    blocklists_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="blocklistsSubdomainsRule")
-    custom_rules_subdomains_rule: Optional[StrictStr] = Field(default=None, alias="customRulesSubdomainsRule")
-    default_rule: Optional[StrictStr] = Field(default=None, alias="defaultRule")
-    services: Annotated[List[StrictStr], Field(max_length=100)]
-    __properties: ClassVar[List[str]] = ["blocklists", "blocklistsSubdomainsRule", "customRulesSubdomainsRule", "defaultRule", "services"]
+    action: StrictStr
+    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
+    value: Annotated[str, Field(strict=True, max_length=255)]
+    __properties: ClassVar[List[str]] = ["action", "comment", "value"]
 
-    @field_validator('blocklists_subdomains_rule')
-    def blocklists_subdomains_rule_validate_enum(cls, value):
+    @field_validator('action')
+    def action_validate_enum(cls, value):
         """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['block', 'allow']):
-            raise ValueError("must be one of enum values ('block', 'allow')")
-        return value
-
-    @field_validator('custom_rules_subdomains_rule')
-    def custom_rules_subdomains_rule_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['include', 'exact']):
-            raise ValueError("must be one of enum values ('include', 'exact')")
-        return value
-
-    @field_validator('default_rule')
-    def default_rule_validate_enum(cls, value):
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['block', 'allow']):
-            raise ValueError("must be one of enum values ('block', 'allow')")
+        if value not in set(['block', 'allow', 'comment']):
+            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
         return value
 
     model_config = ConfigDict(
@@ -82,7 +57,7 @@ class ProfileExportedPrivacy(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedPrivacy from a JSON string"""
+        """Create an instance of ModelExportedCustomRule from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -107,7 +82,7 @@ class ProfileExportedPrivacy(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedPrivacy from a dict"""
+        """Create an instance of ModelExportedCustomRule from a dict"""
         if obj is None:
             return None
 
@@ -115,11 +90,9 @@ class ProfileExportedPrivacy(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "blocklists": obj.get("blocklists"),
-            "blocklistsSubdomainsRule": obj.get("blocklistsSubdomainsRule"),
-            "customRulesSubdomainsRule": obj.get("customRulesSubdomainsRule"),
-            "defaultRule": obj.get("defaultRule"),
-            "services": obj.get("services")
+            "action": obj.get("action"),
+            "comment": obj.get("comment"),
+            "value": obj.get("value")
         })
         return _obj
 

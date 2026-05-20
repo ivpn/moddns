@@ -10,106 +10,10 @@ import (
 	"github.com/ivpn/dns/api/model"
 )
 
-// ExportEnvelope is the top-level shape of a modDNS profile export.
-// Mirrors the schema defined in docs/specs/account-export-import-behaviour.md
-// (Section F).
-//
-// The same type is used in two directions:
-//   - Outbound (export): the service marshals it into the downloadable file.
-//   - Inbound (import): the HTTP handler decodes the request body's `payload`
-//     field into it, and s.Validator.ValidateRequest runs the `validate:` tags
-//     recursively. Validation tags are inert during marshaling.
-//
-// The export file carries no embedded warning text. The export UI displays a
-// sensitivity warning at the download point instead, keeping the import-side
-// DisallowUnknownFields() allowlist strict.
-//
-// specRef: V1–V6, F1–F9
-type ExportEnvelope struct {
-	SchemaVersion int               `json:"schemaVersion" validate:"required,eq=1"`
-	Kind          string            `json:"kind"          validate:"required,eq=moddns-export"`
-	ExportedAt    time.Time         `json:"exportedAt"    validate:"required"`
-	ExportedFrom  *ExportedFromInfo `json:"exportedFrom,omitempty"`
-	Profiles      []ExportedProfile `json:"profiles"      validate:"required,min=1,max=10,dive"`
-}
-
-// ExportedFromInfo carries informational metadata about the exporting service.
-// The contents are not trusted and not validated for semantics.
-// specRef: V4
-type ExportedFromInfo struct {
-	Service    string `json:"service,omitempty"`
-	AppVersion string `json:"appVersion,omitempty"`
-}
-
-// ExportedProfile represents a single profile in the envelope.
-// specRef: V7–V15, F1–F9
-type ExportedProfile struct {
-	Name     string            `json:"name"              validate:"required,max=50,safe_name"`
-	Comment  string            `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
-	Settings *ExportedSettings `json:"settings"          validate:"required"`
-}
-
-type ExportedSettings struct {
-	Privacy     *ExportedPrivacy     `json:"privacy,omitempty"`
-	Security    *ExportedSecurity    `json:"security,omitempty"`
-	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=10000,dive"`
-	Logs        *ExportedLogs        `json:"logs,omitempty"`
-	Statistics  *ExportedStatistics  `json:"statistics,omitempty"`
-	Advanced    *ExportedAdvanced    `json:"advanced,omitempty"`
-}
-
-// ExportedPrivacy carries the privacy section of a profile.
-// specRef: V8, V9, F1–F4
-type ExportedPrivacy struct {
-	Blocklists                []string `json:"blocklists,omitempty"                validate:"max=100,dive,required,max=64"`
-	Services                  []string `json:"services,omitempty"                  validate:"max=100,dive,required,max=64"`
-	DefaultRule               string   `json:"defaultRule,omitempty"               validate:"omitempty,oneof=block allow"`
-	BlocklistsSubdomainsRule  string   `json:"blocklistsSubdomainsRule,omitempty"  validate:"omitempty,oneof=block allow"`
-	CustomRulesSubdomainsRule string   `json:"customRulesSubdomainsRule,omitempty" validate:"omitempty,oneof=include exact"`
-}
-
-// ExportedSecurity carries the security section of a profile.
-// specRef: F5
-type ExportedSecurity struct {
-	DNSSEC *ExportedDNSSEC `json:"dnssec,omitempty"`
-}
-
-// ExportedDNSSEC carries DNSSEC settings.
-// specRef: F5
-type ExportedDNSSEC struct {
-	Enabled   bool `json:"enabled"`
-	SendDoBit bool `json:"sendDoBit"`
-}
-
-// ExportedCustomRule represents a single user-authored filtering rule.
-// Note: addedAt is not in v1 -- CustomRule model has no timestamp field.
-// specRef: V10–V14, F4
-type ExportedCustomRule struct {
-	Action  string `json:"action"            validate:"required,oneof=block allow comment"`
-	Value   string `json:"value"             validate:"required,max=255"`
-	Comment string `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
-}
-
-// ExportedLogs carries the log settings for a profile.
-// specRef: F6
-type ExportedLogs struct {
-	Enabled       bool   `json:"enabled"`
-	LogClientsIPs bool   `json:"logClientsIPs"`
-	LogDomains    bool   `json:"logDomains"`
-	Retention     string `json:"retention,omitempty" validate:"omitempty,oneof=1h 6h 1d 1w 1m"`
-}
-
-// ExportedStatistics carries the statistics toggle for a profile.
-// specRef: F6
-type ExportedStatistics struct {
-	Enabled bool `json:"enabled"`
-}
-
-// ExportedAdvanced carries advanced settings for a profile.
-// specRef: F7
-type ExportedAdvanced struct {
-	Recursor string `json:"recursor,omitempty" validate:"omitempty,oneof=sdns unbound"`
-}
+// The envelope types (ExportEnvelope, ExportedProfile, …) live in package
+// `model` (see api/model/export.go) so the DTO layer in api/api/requests/
+// can reference them without depending on this service package. Use the
+// model.* prefix throughout this file.
 
 // ExportScope enumerates the supported selection scopes for Export.
 // Mirrors spec rows E5-E8.
@@ -131,7 +35,7 @@ func (p *ProfileService) Export(
 	accountId, scope string,
 	profileIds []string,
 	currentPassword, reauthToken *string,
-) (*ExportEnvelope, error) {
+) (*model.ExportEnvelope, error) {
 	if err := p.verifyReauth(ctx, accountId, auth.TokenTypeReauthProfileExport, currentPassword, reauthToken); err != nil {
 		return nil, err
 	}
@@ -141,16 +45,16 @@ func (p *ProfileService) Export(
 		return nil, err
 	}
 
-	exportedProfiles := make([]ExportedProfile, 0, len(profiles))
+	exportedProfiles := make([]model.ExportedProfile, 0, len(profiles))
 	for i := range profiles {
 		exportedProfiles = append(exportedProfiles, exportProfile(&profiles[i]))
 	}
 
-	envelope := &ExportEnvelope{
+	envelope := &model.ExportEnvelope{
 		SchemaVersion: 1,
 		Kind:          "moddns-export",
 		ExportedAt:    time.Now().UTC(),
-		ExportedFrom: &ExportedFromInfo{
+		ExportedFrom: &model.ExportedFromInfo{
 			Service: "modDNS",
 			// TODO: wire app version when available (no Version field on ServerConfig or ServiceConfig today)
 			AppVersion: "",
@@ -209,8 +113,8 @@ func (p *ProfileService) enumerateExportProfiles(
 // exportProfile transforms a model.Profile into an ExportedProfile envelope entry.
 // Internal identifiers (ID, ProfileId, AccountId) are deliberately omitted.
 // specRef: F1-F9
-func exportProfile(p *model.Profile) ExportedProfile {
-	ep := ExportedProfile{
+func exportProfile(p *model.Profile) model.ExportedProfile {
+	ep := model.ExportedProfile{
 		Name:     p.Name,
 		Settings: exportSettings(p.Settings),
 	}
@@ -220,8 +124,8 @@ func exportProfile(p *model.Profile) ExportedProfile {
 // exportSettings builds the ExportedSettings from a ProfileSettings record.
 // A nil Settings pointer results in an empty (but non-nil) ExportedSettings so
 // that the envelope is always structurally valid.
-func exportSettings(s *model.ProfileSettings) *ExportedSettings {
-	es := &ExportedSettings{}
+func exportSettings(s *model.ProfileSettings) *model.ExportedSettings {
+	es := &model.ExportedSettings{}
 
 	if s == nil {
 		return es
@@ -229,7 +133,7 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 
 	// Privacy section — specRef: F1, F2, F3, F4, F5
 	if s.Privacy != nil {
-		es.Privacy = &ExportedPrivacy{
+		es.Privacy = &model.ExportedPrivacy{
 			DefaultRule:               s.Privacy.DefaultRule,
 			BlocklistsSubdomainsRule:  s.Privacy.BlocklistsSubdomainsRule,
 			CustomRulesSubdomainsRule: s.Privacy.CustomRulesSubdomainsRule,
@@ -240,8 +144,8 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 
 	// Security section — specRef: F6
 	if s.Security != nil {
-		es.Security = &ExportedSecurity{
-			DNSSEC: &ExportedDNSSEC{
+		es.Security = &model.ExportedSecurity{
+			DNSSEC: &model.ExportedDNSSEC{
 				Enabled:   s.Security.DNSSECSettings.Enabled,
 				SendDoBit: s.Security.DNSSECSettings.SendDoBit,
 			},
@@ -250,12 +154,12 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 
 	// Custom rules — specRef: F7; internal ID field stripped per F9
 	if len(s.CustomRules) > 0 {
-		rules := make([]ExportedCustomRule, 0, len(s.CustomRules))
+		rules := make([]model.ExportedCustomRule, 0, len(s.CustomRules))
 		for _, r := range s.CustomRules {
 			if r == nil {
 				continue
 			}
-			rules = append(rules, ExportedCustomRule{
+			rules = append(rules, model.ExportedCustomRule{
 				Action: string(r.Action),
 				Value:  r.Value,
 				// Comment and AddedAt are not present in the model today — omit.
@@ -266,7 +170,7 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 
 	// Logs section — specRef: F3 (logs sub-fields)
 	if s.Logs != nil {
-		es.Logs = &ExportedLogs{
+		es.Logs = &model.ExportedLogs{
 			Enabled:       s.Logs.Enabled,
 			LogClientsIPs: s.Logs.LogClientsIPs,
 			LogDomains:    s.Logs.LogDomains,
@@ -276,7 +180,7 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 
 	// Statistics section
 	if s.Statistics != nil {
-		es.Statistics = &ExportedStatistics{
+		es.Statistics = &model.ExportedStatistics{
 			Enabled: s.Statistics.Enabled,
 		}
 	}

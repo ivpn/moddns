@@ -942,7 +942,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/profile.ExportEnvelope"
+                            "$ref": "#/definitions/model.ExportEnvelope"
                         }
                     },
                     "400": {
@@ -2945,6 +2945,227 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExportEnvelope": {
+            "type": "object",
+            "required": [
+                "exportedAt",
+                "kind",
+                "profiles",
+                "schemaVersion"
+            ],
+            "properties": {
+                "exportedAt": {
+                    "type": "string"
+                },
+                "exportedFrom": {
+                    "$ref": "#/definitions/model.ExportedFromInfo"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "profiles": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedProfile"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ExportedAdvanced": {
+            "type": "object",
+            "properties": {
+                "recursor": {
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "unbound"
+                    ]
+                }
+            }
+        },
+        "model.ExportedCustomRule": {
+            "type": "object",
+            "required": [
+                "action",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "model.ExportedDNSSEC": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "sendDoBit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.ExportedFromInfo": {
+            "type": "object",
+            "properties": {
+                "appVersion": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExportedLogs": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "logClientsIPs": {
+                    "type": "boolean"
+                },
+                "logDomains": {
+                    "type": "boolean"
+                },
+                "retention": {
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "6h",
+                        "1d",
+                        "1w",
+                        "1m"
+                    ]
+                }
+            }
+        },
+        "model.ExportedPrivacy": {
+            "type": "object",
+            "required": [
+                "blocklists",
+                "services"
+            ],
+            "properties": {
+                "blocklists": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blocklistsSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "customRulesSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "include",
+                        "exact"
+                    ]
+                },
+                "defaultRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "services": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.ExportedProfile": {
+            "type": "object",
+            "required": [
+                "name",
+                "settings"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 50
+                },
+                "settings": {
+                    "$ref": "#/definitions/model.ExportedSettings"
+                }
+            }
+        },
+        "model.ExportedSecurity": {
+            "type": "object",
+            "properties": {
+                "dnssec": {
+                    "$ref": "#/definitions/model.ExportedDNSSEC"
+                }
+            }
+        },
+        "model.ExportedSettings": {
+            "type": "object",
+            "properties": {
+                "advanced": {
+                    "$ref": "#/definitions/model.ExportedAdvanced"
+                },
+                "customRules": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedCustomRule"
+                    }
+                },
+                "logs": {
+                    "$ref": "#/definitions/model.ExportedLogs"
+                },
+                "privacy": {
+                    "$ref": "#/definitions/model.ExportedPrivacy"
+                },
+                "security": {
+                    "$ref": "#/definitions/model.ExportedSecurity"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/model.ExportedStatistics"
+                }
+            }
+        },
+        "model.ExportedStatistics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.LogsSettings": {
             "type": "object",
             "required": [
@@ -3284,227 +3505,6 @@ const docTemplate = `{
             "properties": {
                 "enabled": {
                     "description": "Indicates if TOTP is enabled.",
-                    "type": "boolean"
-                }
-            }
-        },
-        "profile.ExportEnvelope": {
-            "type": "object",
-            "required": [
-                "exportedAt",
-                "kind",
-                "profiles",
-                "schemaVersion"
-            ],
-            "properties": {
-                "exportedAt": {
-                    "type": "string"
-                },
-                "exportedFrom": {
-                    "$ref": "#/definitions/profile.ExportedFromInfo"
-                },
-                "kind": {
-                    "type": "string"
-                },
-                "profiles": {
-                    "type": "array",
-                    "maxItems": 10,
-                    "minItems": 1,
-                    "items": {
-                        "$ref": "#/definitions/profile.ExportedProfile"
-                    }
-                },
-                "schemaVersion": {
-                    "type": "integer"
-                }
-            }
-        },
-        "profile.ExportedAdvanced": {
-            "type": "object",
-            "properties": {
-                "recursor": {
-                    "type": "string",
-                    "enum": [
-                        "sdns",
-                        "unbound"
-                    ]
-                }
-            }
-        },
-        "profile.ExportedCustomRule": {
-            "type": "object",
-            "required": [
-                "action",
-                "value"
-            ],
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow",
-                        "comment"
-                    ]
-                },
-                "comment": {
-                    "type": "string",
-                    "maxLength": 200
-                },
-                "value": {
-                    "type": "string",
-                    "maxLength": 255
-                }
-            }
-        },
-        "profile.ExportedDNSSEC": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "sendDoBit": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "profile.ExportedFromInfo": {
-            "type": "object",
-            "properties": {
-                "appVersion": {
-                    "type": "string"
-                },
-                "service": {
-                    "type": "string"
-                }
-            }
-        },
-        "profile.ExportedLogs": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "logClientsIPs": {
-                    "type": "boolean"
-                },
-                "logDomains": {
-                    "type": "boolean"
-                },
-                "retention": {
-                    "type": "string",
-                    "enum": [
-                        "1h",
-                        "6h",
-                        "1d",
-                        "1w",
-                        "1m"
-                    ]
-                }
-            }
-        },
-        "profile.ExportedPrivacy": {
-            "type": "object",
-            "required": [
-                "blocklists",
-                "services"
-            ],
-            "properties": {
-                "blocklists": {
-                    "type": "array",
-                    "maxItems": 100,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "blocklistsSubdomainsRule": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow"
-                    ]
-                },
-                "customRulesSubdomainsRule": {
-                    "type": "string",
-                    "enum": [
-                        "include",
-                        "exact"
-                    ]
-                },
-                "defaultRule": {
-                    "type": "string",
-                    "enum": [
-                        "block",
-                        "allow"
-                    ]
-                },
-                "services": {
-                    "type": "array",
-                    "maxItems": 100,
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "profile.ExportedProfile": {
-            "type": "object",
-            "required": [
-                "name",
-                "settings"
-            ],
-            "properties": {
-                "comment": {
-                    "type": "string",
-                    "maxLength": 200
-                },
-                "name": {
-                    "type": "string",
-                    "maxLength": 50
-                },
-                "settings": {
-                    "$ref": "#/definitions/profile.ExportedSettings"
-                }
-            }
-        },
-        "profile.ExportedSecurity": {
-            "type": "object",
-            "properties": {
-                "dnssec": {
-                    "$ref": "#/definitions/profile.ExportedDNSSEC"
-                }
-            }
-        },
-        "profile.ExportedSettings": {
-            "type": "object",
-            "properties": {
-                "advanced": {
-                    "$ref": "#/definitions/profile.ExportedAdvanced"
-                },
-                "customRules": {
-                    "type": "array",
-                    "maxItems": 10000,
-                    "items": {
-                        "$ref": "#/definitions/profile.ExportedCustomRule"
-                    }
-                },
-                "logs": {
-                    "$ref": "#/definitions/profile.ExportedLogs"
-                },
-                "privacy": {
-                    "$ref": "#/definitions/profile.ExportedPrivacy"
-                },
-                "security": {
-                    "$ref": "#/definitions/profile.ExportedSecurity"
-                },
-                "statistics": {
-                    "$ref": "#/definitions/profile.ExportedStatistics"
-                }
-            }
-        },
-        "profile.ExportedStatistics": {
-            "type": "object",
-            "properties": {
-                "enabled": {
                     "type": "boolean"
                 }
             }
@@ -4045,7 +4045,7 @@ const docTemplate = `{
                     ]
                 },
                 "payload": {
-                    "$ref": "#/definitions/profile.ExportEnvelope"
+                    "$ref": "#/definitions/model.ExportEnvelope"
                 },
                 "reauth_token": {
                     "type": "string",

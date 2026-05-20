@@ -17,21 +17,24 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from moddns.models.profile_exported_settings import ProfileExportedSettings
+from moddns.models.model_exported_from_info import ModelExportedFromInfo
+from moddns.models.model_exported_profile import ModelExportedProfile
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedProfile(BaseModel):
+class ModelExportEnvelope(BaseModel):
     """
-    ProfileExportedProfile
+    ModelExportEnvelope
     """ # noqa: E501
-    comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
-    name: Annotated[str, Field(strict=True, max_length=50)]
-    settings: ProfileExportedSettings
-    __properties: ClassVar[List[str]] = ["comment", "name", "settings"]
+    exported_at: StrictStr = Field(alias="exportedAt")
+    exported_from: Optional[ModelExportedFromInfo] = Field(default=None, alias="exportedFrom")
+    kind: StrictStr
+    profiles: Annotated[List[ModelExportedProfile], Field(min_length=1, max_length=10)]
+    schema_version: StrictInt = Field(alias="schemaVersion")
+    __properties: ClassVar[List[str]] = ["exportedAt", "exportedFrom", "kind", "profiles", "schemaVersion"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +54,7 @@ class ProfileExportedProfile(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedProfile from a JSON string"""
+        """Create an instance of ModelExportEnvelope from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,14 +75,21 @@ class ProfileExportedProfile(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of settings
-        if self.settings:
-            _dict['settings'] = self.settings.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of exported_from
+        if self.exported_from:
+            _dict['exportedFrom'] = self.exported_from.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in profiles (list)
+        _items = []
+        if self.profiles:
+            for _item_profiles in self.profiles:
+                if _item_profiles:
+                    _items.append(_item_profiles.to_dict())
+            _dict['profiles'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedProfile from a dict"""
+        """Create an instance of ModelExportEnvelope from a dict"""
         if obj is None:
             return None
 
@@ -87,9 +97,11 @@ class ProfileExportedProfile(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "comment": obj.get("comment"),
-            "name": obj.get("name"),
-            "settings": ProfileExportedSettings.from_dict(obj["settings"]) if obj.get("settings") is not None else None
+            "exportedAt": obj.get("exportedAt"),
+            "exportedFrom": ModelExportedFromInfo.from_dict(obj["exportedFrom"]) if obj.get("exportedFrom") is not None else None,
+            "kind": obj.get("kind"),
+            "profiles": [ModelExportedProfile.from_dict(_item) for _item in obj["profiles"]] if obj.get("profiles") is not None else None,
+            "schemaVersion": obj.get("schemaVersion")
         })
         return _obj
 

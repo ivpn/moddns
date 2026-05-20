@@ -555,6 +555,329 @@ export interface ModelDNSSECSettings {
 /**
  * 
  * @export
+ * @interface ModelExportEnvelope
+ */
+export interface ModelExportEnvelope {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportEnvelope
+     */
+    'exportedAt': string;
+    /**
+     * 
+     * @type {ModelExportedFromInfo}
+     * @memberof ModelExportEnvelope
+     */
+    'exportedFrom'?: ModelExportedFromInfo;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportEnvelope
+     */
+    'kind': string;
+    /**
+     * 
+     * @type {Array<ModelExportedProfile>}
+     * @memberof ModelExportEnvelope
+     */
+    'profiles': Array<ModelExportedProfile>;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelExportEnvelope
+     */
+    'schemaVersion': number;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedAdvanced
+ */
+export interface ModelExportedAdvanced {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedAdvanced
+     */
+    'recursor'?: ModelExportedAdvancedRecursorEnum;
+}
+
+export const ModelExportedAdvancedRecursorEnum = {
+    Sdns: 'sdns',
+    Unbound: 'unbound'
+} as const;
+
+export type ModelExportedAdvancedRecursorEnum = typeof ModelExportedAdvancedRecursorEnum[keyof typeof ModelExportedAdvancedRecursorEnum];
+
+/**
+ * 
+ * @export
+ * @interface ModelExportedCustomRule
+ */
+export interface ModelExportedCustomRule {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedCustomRule
+     */
+    'action': ModelExportedCustomRuleActionEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedCustomRule
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedCustomRule
+     */
+    'value': string;
+}
+
+export const ModelExportedCustomRuleActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type ModelExportedCustomRuleActionEnum = typeof ModelExportedCustomRuleActionEnum[keyof typeof ModelExportedCustomRuleActionEnum];
+
+/**
+ * 
+ * @export
+ * @interface ModelExportedDNSSEC
+ */
+export interface ModelExportedDNSSEC {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedDNSSEC
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedDNSSEC
+     */
+    'sendDoBit'?: boolean;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedFromInfo
+ */
+export interface ModelExportedFromInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedFromInfo
+     */
+    'appVersion'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedFromInfo
+     */
+    'service'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedLogs
+ */
+export interface ModelExportedLogs {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedLogs
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedLogs
+     */
+    'logClientsIPs'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedLogs
+     */
+    'logDomains'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedLogs
+     */
+    'retention'?: ModelExportedLogsRetentionEnum;
+}
+
+export const ModelExportedLogsRetentionEnum = {
+    _1h: '1h',
+    _6h: '6h',
+    _1d: '1d',
+    _1w: '1w',
+    _1m: '1m'
+} as const;
+
+export type ModelExportedLogsRetentionEnum = typeof ModelExportedLogsRetentionEnum[keyof typeof ModelExportedLogsRetentionEnum];
+
+/**
+ * 
+ * @export
+ * @interface ModelExportedPrivacy
+ */
+export interface ModelExportedPrivacy {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ModelExportedPrivacy
+     */
+    'blocklists': Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedPrivacy
+     */
+    'blocklistsSubdomainsRule'?: ModelExportedPrivacyBlocklistsSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedPrivacy
+     */
+    'customRulesSubdomainsRule'?: ModelExportedPrivacyCustomRulesSubdomainsRuleEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedPrivacy
+     */
+    'defaultRule'?: ModelExportedPrivacyDefaultRuleEnum;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ModelExportedPrivacy
+     */
+    'services': Array<string>;
+}
+
+export const ModelExportedPrivacyBlocklistsSubdomainsRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ModelExportedPrivacyBlocklistsSubdomainsRuleEnum = typeof ModelExportedPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof ModelExportedPrivacyBlocklistsSubdomainsRuleEnum];
+export const ModelExportedPrivacyCustomRulesSubdomainsRuleEnum = {
+    Include: 'include',
+    Exact: 'exact'
+} as const;
+
+export type ModelExportedPrivacyCustomRulesSubdomainsRuleEnum = typeof ModelExportedPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof ModelExportedPrivacyCustomRulesSubdomainsRuleEnum];
+export const ModelExportedPrivacyDefaultRuleEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type ModelExportedPrivacyDefaultRuleEnum = typeof ModelExportedPrivacyDefaultRuleEnum[keyof typeof ModelExportedPrivacyDefaultRuleEnum];
+
+/**
+ * 
+ * @export
+ * @interface ModelExportedProfile
+ */
+export interface ModelExportedProfile {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedProfile
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelExportedProfile
+     */
+    'name': string;
+    /**
+     * 
+     * @type {ModelExportedSettings}
+     * @memberof ModelExportedProfile
+     */
+    'settings': ModelExportedSettings;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedSecurity
+ */
+export interface ModelExportedSecurity {
+    /**
+     * 
+     * @type {ModelExportedDNSSEC}
+     * @memberof ModelExportedSecurity
+     */
+    'dnssec'?: ModelExportedDNSSEC;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedSettings
+ */
+export interface ModelExportedSettings {
+    /**
+     * 
+     * @type {ModelExportedAdvanced}
+     * @memberof ModelExportedSettings
+     */
+    'advanced'?: ModelExportedAdvanced;
+    /**
+     * 
+     * @type {Array<ModelExportedCustomRule>}
+     * @memberof ModelExportedSettings
+     */
+    'customRules'?: Array<ModelExportedCustomRule>;
+    /**
+     * 
+     * @type {ModelExportedLogs}
+     * @memberof ModelExportedSettings
+     */
+    'logs'?: ModelExportedLogs;
+    /**
+     * 
+     * @type {ModelExportedPrivacy}
+     * @memberof ModelExportedSettings
+     */
+    'privacy'?: ModelExportedPrivacy;
+    /**
+     * 
+     * @type {ModelExportedSecurity}
+     * @memberof ModelExportedSettings
+     */
+    'security'?: ModelExportedSecurity;
+    /**
+     * 
+     * @type {ModelExportedStatistics}
+     * @memberof ModelExportedSettings
+     */
+    'statistics'?: ModelExportedStatistics;
+}
+/**
+ * 
+ * @export
+ * @interface ModelExportedStatistics
+ */
+export interface ModelExportedStatistics {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedStatistics
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ModelLogsSettings
  */
 export interface ModelLogsSettings {
@@ -1026,329 +1349,6 @@ export interface ModelTotpSettings {
      * Indicates if TOTP is enabled.
      * @type {boolean}
      * @memberof ModelTotpSettings
-     */
-    'enabled'?: boolean;
-}
-/**
- * 
- * @export
- * @interface ProfileExportEnvelope
- */
-export interface ProfileExportEnvelope {
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportEnvelope
-     */
-    'exportedAt': string;
-    /**
-     * 
-     * @type {ProfileExportedFromInfo}
-     * @memberof ProfileExportEnvelope
-     */
-    'exportedFrom'?: ProfileExportedFromInfo;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportEnvelope
-     */
-    'kind': string;
-    /**
-     * 
-     * @type {Array<ProfileExportedProfile>}
-     * @memberof ProfileExportEnvelope
-     */
-    'profiles': Array<ProfileExportedProfile>;
-    /**
-     * 
-     * @type {number}
-     * @memberof ProfileExportEnvelope
-     */
-    'schemaVersion': number;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedAdvanced
- */
-export interface ProfileExportedAdvanced {
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedAdvanced
-     */
-    'recursor'?: ProfileExportedAdvancedRecursorEnum;
-}
-
-export const ProfileExportedAdvancedRecursorEnum = {
-    Sdns: 'sdns',
-    Unbound: 'unbound'
-} as const;
-
-export type ProfileExportedAdvancedRecursorEnum = typeof ProfileExportedAdvancedRecursorEnum[keyof typeof ProfileExportedAdvancedRecursorEnum];
-
-/**
- * 
- * @export
- * @interface ProfileExportedCustomRule
- */
-export interface ProfileExportedCustomRule {
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedCustomRule
-     */
-    'action': ProfileExportedCustomRuleActionEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedCustomRule
-     */
-    'comment'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedCustomRule
-     */
-    'value': string;
-}
-
-export const ProfileExportedCustomRuleActionEnum = {
-    Block: 'block',
-    Allow: 'allow',
-    Comment: 'comment'
-} as const;
-
-export type ProfileExportedCustomRuleActionEnum = typeof ProfileExportedCustomRuleActionEnum[keyof typeof ProfileExportedCustomRuleActionEnum];
-
-/**
- * 
- * @export
- * @interface ProfileExportedDNSSEC
- */
-export interface ProfileExportedDNSSEC {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedDNSSEC
-     */
-    'enabled'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedDNSSEC
-     */
-    'sendDoBit'?: boolean;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedFromInfo
- */
-export interface ProfileExportedFromInfo {
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedFromInfo
-     */
-    'appVersion'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedFromInfo
-     */
-    'service'?: string;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedLogs
- */
-export interface ProfileExportedLogs {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedLogs
-     */
-    'enabled'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedLogs
-     */
-    'logClientsIPs'?: boolean;
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedLogs
-     */
-    'logDomains'?: boolean;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedLogs
-     */
-    'retention'?: ProfileExportedLogsRetentionEnum;
-}
-
-export const ProfileExportedLogsRetentionEnum = {
-    _1h: '1h',
-    _6h: '6h',
-    _1d: '1d',
-    _1w: '1w',
-    _1m: '1m'
-} as const;
-
-export type ProfileExportedLogsRetentionEnum = typeof ProfileExportedLogsRetentionEnum[keyof typeof ProfileExportedLogsRetentionEnum];
-
-/**
- * 
- * @export
- * @interface ProfileExportedPrivacy
- */
-export interface ProfileExportedPrivacy {
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof ProfileExportedPrivacy
-     */
-    'blocklists': Array<string>;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedPrivacy
-     */
-    'blocklistsSubdomainsRule'?: ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedPrivacy
-     */
-    'customRulesSubdomainsRule'?: ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedPrivacy
-     */
-    'defaultRule'?: ProfileExportedPrivacyDefaultRuleEnum;
-    /**
-     * 
-     * @type {Array<string>}
-     * @memberof ProfileExportedPrivacy
-     */
-    'services': Array<string>;
-}
-
-export const ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum = typeof ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum[keyof typeof ProfileExportedPrivacyBlocklistsSubdomainsRuleEnum];
-export const ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum = {
-    Include: 'include',
-    Exact: 'exact'
-} as const;
-
-export type ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum = typeof ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum[keyof typeof ProfileExportedPrivacyCustomRulesSubdomainsRuleEnum];
-export const ProfileExportedPrivacyDefaultRuleEnum = {
-    Block: 'block',
-    Allow: 'allow'
-} as const;
-
-export type ProfileExportedPrivacyDefaultRuleEnum = typeof ProfileExportedPrivacyDefaultRuleEnum[keyof typeof ProfileExportedPrivacyDefaultRuleEnum];
-
-/**
- * 
- * @export
- * @interface ProfileExportedProfile
- */
-export interface ProfileExportedProfile {
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedProfile
-     */
-    'comment'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ProfileExportedProfile
-     */
-    'name': string;
-    /**
-     * 
-     * @type {ProfileExportedSettings}
-     * @memberof ProfileExportedProfile
-     */
-    'settings': ProfileExportedSettings;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedSecurity
- */
-export interface ProfileExportedSecurity {
-    /**
-     * 
-     * @type {ProfileExportedDNSSEC}
-     * @memberof ProfileExportedSecurity
-     */
-    'dnssec'?: ProfileExportedDNSSEC;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedSettings
- */
-export interface ProfileExportedSettings {
-    /**
-     * 
-     * @type {ProfileExportedAdvanced}
-     * @memberof ProfileExportedSettings
-     */
-    'advanced'?: ProfileExportedAdvanced;
-    /**
-     * 
-     * @type {Array<ProfileExportedCustomRule>}
-     * @memberof ProfileExportedSettings
-     */
-    'customRules'?: Array<ProfileExportedCustomRule>;
-    /**
-     * 
-     * @type {ProfileExportedLogs}
-     * @memberof ProfileExportedSettings
-     */
-    'logs'?: ProfileExportedLogs;
-    /**
-     * 
-     * @type {ProfileExportedPrivacy}
-     * @memberof ProfileExportedSettings
-     */
-    'privacy'?: ProfileExportedPrivacy;
-    /**
-     * 
-     * @type {ProfileExportedSecurity}
-     * @memberof ProfileExportedSettings
-     */
-    'security'?: ProfileExportedSecurity;
-    /**
-     * 
-     * @type {ProfileExportedStatistics}
-     * @memberof ProfileExportedSettings
-     */
-    'statistics'?: ProfileExportedStatistics;
-}
-/**
- * 
- * @export
- * @interface ProfileExportedStatistics
- */
-export interface ProfileExportedStatistics {
-    /**
-     * 
-     * @type {boolean}
-     * @memberof ProfileExportedStatistics
      */
     'enabled'?: boolean;
 }
@@ -2025,10 +2025,10 @@ export interface RequestsImportRequest {
     'mode': RequestsImportRequestModeEnum;
     /**
      * 
-     * @type {ProfileExportEnvelope}
+     * @type {ModelExportEnvelope}
      * @memberof RequestsImportRequest
      */
-    'payload': ProfileExportEnvelope;
+    'payload': ModelExportEnvelope;
     /**
      * 
      * @type {string}
@@ -5125,7 +5125,7 @@ export const ProfileApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ProfileExportEnvelope>> {
+        async apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelExportEnvelope>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesExportPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesExportPost']?.[localVarOperationServerIndex]?.url;
@@ -5325,7 +5325,7 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ProfileExportEnvelope> {
+        apiV1ProfilesExportPost(body: RequestsExportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ModelExportEnvelope> {
             return localVarFp.apiV1ProfilesExportPost(body, options).then((request) => request(axios, basePath));
         },
         /**

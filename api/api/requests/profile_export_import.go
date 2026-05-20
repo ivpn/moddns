@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ivpn/dns/api/service/profile"
+	"github.com/ivpn/dns/api/model"
 )
 
 // ErrInvalidScopeSelection is returned when the scope and profileIds fields are
@@ -37,13 +37,13 @@ func (r *ExportRequest) Validate() error {
 // Exactly one of CurrentPassword or ReauthToken must be provided (spec rows I2, M4).
 //
 // Payload is the same envelope type the export endpoint emits. Validation tags
-// on profile.ExportEnvelope and its nested types are enforced recursively by
+// on model.ExportEnvelope and its nested types are enforced recursively by
 // s.Validator.ValidateRequest.
 //
 // specRef: I1, I8–I11, V1–V15
 type ImportRequest struct {
-	Mode            string                  `json:"mode"                         validate:"required,oneof=create_new"`
-	Payload         *profile.ExportEnvelope `json:"payload"                      validate:"required"`
-	CurrentPassword *string                 `json:"current_password,omitempty"   validate:"excluded_with=ReauthToken,omitempty,min=1"`
-	ReauthToken     *string                 `json:"reauth_token,omitempty"       validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+	Mode            string                `json:"mode"                         validate:"required,oneof=create_new"`
+	Payload         *model.ExportEnvelope `json:"payload"                      validate:"required"`
+	CurrentPassword *string               `json:"current_password,omitempty"   validate:"excluded_with=ReauthToken,omitempty,min=1"`
+	ReauthToken     *string               `json:"reauth_token,omitempty"       validate:"excluded_with=CurrentPassword,omitempty,min=1"`
 }

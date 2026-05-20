@@ -161,8 +161,8 @@ type ProfileServicer interface {
 	DisableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error
 
 	// Export / Import
-	Export(ctx context.Context, accountId, scope string, profileIds []string, currentPassword, reauthToken *string) (*profile.ExportEnvelope, error)
-	Import(ctx context.Context, accountId, mode string, payload *profile.ExportEnvelope, currentPassword, reauthToken *string) (*profile.ImportResult, error)
+	Export(ctx context.Context, accountId, scope string, profileIds []string, currentPassword, reauthToken *string) (*model.ExportEnvelope, error)
+	Import(ctx context.Context, accountId, mode string, payload *model.ExportEnvelope, currentPassword, reauthToken *string) (*profile.ImportResult, error)
 }
 
 // QueryLogsServicer defines the interface for managing query logs

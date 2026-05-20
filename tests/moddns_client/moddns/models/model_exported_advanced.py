@@ -17,17 +17,27 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ProfileExportedStatistics(BaseModel):
+class ModelExportedAdvanced(BaseModel):
     """
-    ProfileExportedStatistics
+    ModelExportedAdvanced
     """ # noqa: E501
-    enabled: Optional[StrictBool] = None
-    __properties: ClassVar[List[str]] = ["enabled"]
+    recursor: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["recursor"]
+
+    @field_validator('recursor')
+    def recursor_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['sdns', 'unbound']):
+            raise ValueError("must be one of enum values ('sdns', 'unbound')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -47,7 +57,7 @@ class ProfileExportedStatistics(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ProfileExportedStatistics from a JSON string"""
+        """Create an instance of ModelExportedAdvanced from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,7 +82,7 @@ class ProfileExportedStatistics(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ProfileExportedStatistics from a dict"""
+        """Create an instance of ModelExportedAdvanced from a dict"""
         if obj is None:
             return None
 
@@ -80,7 +90,7 @@ class ProfileExportedStatistics(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "enabled": obj.get("enabled")
+            "recursor": obj.get("recursor")
         })
         return _obj
 

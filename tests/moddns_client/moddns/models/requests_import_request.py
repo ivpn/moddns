@@ -20,7 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from moddns.models.profile_export_envelope import ProfileExportEnvelope
+from moddns.models.model_export_envelope import ModelExportEnvelope
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,7 +30,7 @@ class RequestsImportRequest(BaseModel):
     """ # noqa: E501
     current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     mode: StrictStr
-    payload: ProfileExportEnvelope
+    payload: ModelExportEnvelope
     reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     __properties: ClassVar[List[str]] = ["current_password", "mode", "payload", "reauth_token"]
 
@@ -97,7 +97,7 @@ class RequestsImportRequest(BaseModel):
         _obj = cls.model_validate({
             "current_password": obj.get("current_password"),
             "mode": obj.get("mode"),
-            "payload": ProfileExportEnvelope.from_dict(obj["payload"]) if obj.get("payload") is not None else None,
+            "payload": ModelExportEnvelope.from_dict(obj["payload"]) if obj.get("payload") is not None else None,
             "reauth_token": obj.get("reauth_token")
         })
         return _obj

@@ -162,11 +162,11 @@ func decodeJSON(t *testing.T, resp *http.Response, dst any) {
 // specRef:"E1"
 func (s *ProfileExportImportSuite) TestExport_HappyPath_ReturnsEnvelope() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{
+	envelope := &model.ExportEnvelope{
 		SchemaVersion: 1,
 		Kind:          "moddns-export",
 		ExportedAt:    now,
-		Profiles: []profile.ExportedProfile{
+		Profiles: []model.ExportedProfile{
 			{Name: "My Profile"},
 		},
 	}
@@ -184,7 +184,7 @@ func (s *ProfileExportImportSuite) TestExport_HappyPath_ReturnsEnvelope() {
 	require.NoError(s.T(), err)
 	s.Equal(http.StatusOK, resp.StatusCode)
 
-	var got profile.ExportEnvelope
+	var got model.ExportEnvelope
 	decodeJSON(s.T(), resp, &got)
 	s.Equal(1, got.SchemaVersion)
 	s.Equal("moddns-export", got.Kind)
@@ -216,7 +216,7 @@ func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns401() {
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
 		(*string)(nil), (*string)(nil),
-	).Return((*profile.ExportEnvelope)(nil), profile.ErrReauthRequired)
+	).Return((*model.ExportEnvelope)(nil), profile.ErrReauthRequired)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -269,7 +269,7 @@ func (s *ProfileExportImportSuite) TestExport_InvalidScope_Returns400() {
 // specRef:"E12"
 func (s *ProfileExportImportSuite) TestExport_SetsContentTypeHeader() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []profile.ExportedProfile{{Name: "p"}}}
+	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -287,7 +287,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsContentTypeHeader() {
 // specRef:"E13"
 func (s *ProfileExportImportSuite) TestExport_SetsContentDispositionHeader() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []profile.ExportedProfile{{Name: "p"}}}
+	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -308,7 +308,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsContentDispositionHeader() {
 // specRef:"E14"
 func (s *ProfileExportImportSuite) TestExport_SetsCacheControlNoStore() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []profile.ExportedProfile{{Name: "p"}}}
+	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -324,7 +324,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsCacheControlNoStore() {
 // specRef:"E15"
 func (s *ProfileExportImportSuite) TestExport_SetsPragmaNoCache() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []profile.ExportedProfile{{Name: "p"}}}
+	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -343,11 +343,11 @@ func (s *ProfileExportImportSuite) TestExport_SetsPragmaNoCache() {
 // downstream tooling like `cat` and `wc -l` rely on the trailing newline.
 func (s *ProfileExportImportSuite) TestExport_BodyIsPrettyPrinted() {
 	now := time.Now().UTC()
-	envelope := &profile.ExportEnvelope{
+	envelope := &model.ExportEnvelope{
 		SchemaVersion: 1,
 		Kind:          "moddns-export",
 		ExportedAt:    now,
-		Profiles:      []profile.ExportedProfile{{Name: "p"}},
+		Profiles:      []model.ExportedProfile{{Name: "p"}},
 	}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all",
 		mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil),
@@ -377,7 +377,7 @@ func (s *ProfileExportImportSuite) TestExport_ServiceError_Returns500() {
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
 		(*string)(nil), (*string)(nil),
-	).Return((*profile.ExportEnvelope)(nil), assert.AnError)
+	).Return((*model.ExportEnvelope)(nil), assert.AnError)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -397,7 +397,7 @@ func (s *ProfileExportImportSuite) TestImport_HappyPath_ReturnsResult() {
 	}
 	s.mockProfileSvc.On(
 		"Import",
-		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*profile.ExportEnvelope"),
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
 		(*string)(nil), (*string)(nil),
 	).Return(result, nil)
 
@@ -419,7 +419,7 @@ func (s *ProfileExportImportSuite) TestImport_HappyPath_ReturnsResult() {
 func (s *ProfileExportImportSuite) TestImport_NoReauth_Returns401() {
 	s.mockProfileSvc.On(
 		"Import",
-		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*profile.ExportEnvelope"),
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
 		(*string)(nil), (*string)(nil),
 	).Return((*profile.ImportResult)(nil), profile.ErrReauthRequired)
 
@@ -544,7 +544,7 @@ func (s *ProfileExportImportSuite) TestImport_ResponseIncludesCreatedIds() {
 	}
 	s.mockProfileSvc.On(
 		"Import",
-		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*profile.ExportEnvelope"),
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
 		(*string)(nil), (*string)(nil),
 	).Return(result, nil)
 
@@ -575,7 +575,7 @@ func (s *ProfileExportImportSuite) TestImport_ResponseIncludesWarningsArray() {
 	}
 	s.mockProfileSvc.On(
 		"Import",
-		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*profile.ExportEnvelope"),
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
 		(*string)(nil), (*string)(nil),
 	).Return(result, nil)
 

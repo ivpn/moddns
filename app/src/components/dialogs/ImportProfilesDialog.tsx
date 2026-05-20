@@ -20,7 +20,7 @@ import { useProfileImport } from '@/hooks/useProfileImport';
 import { beginProfileImportReauth } from '@/lib/webauthn';
 import { cn } from '@/lib/utils';
 import API from '@/api/api';
-import type { ProfileExportEnvelope } from '@/api/client/api';
+import type { ModelExportEnvelope } from '@/api/client/api';
 
 export interface ImportProfilesDialogProps {
     open: boolean;
@@ -39,7 +39,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
     const restoreActiveProfile = useAppStore(s => s.restoreActiveProfile);
 
     const [step, setStep] = useState<Step>('pick');
-    const [parsedPayload, setParsedPayload] = useState<ProfileExportEnvelope | null>(null);
+    const [parsedPayload, setParsedPayload] = useState<ModelExportEnvelope | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [fileError, setFileError] = useState<string | null>(null);
     const [importError, setImportError] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                     setFileError('Invalid export file. Expected a moddns-export JSON with at least one profile.');
                     return;
                 }
-                const payload = parsed as ProfileExportEnvelope;
+                const payload = parsed as ModelExportEnvelope;
                 setParsedPayload(payload);
                 setSelectedIds(payload.profiles.map((_, i) => i.toString()));
                 setStep('confirm');
@@ -181,7 +181,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
             .filter(i => i >= 0 && i < parsedPayload.profiles.length)
             .map(i => parsedPayload.profiles[i]);
 
-        const filteredPayload: ProfileExportEnvelope = {
+        const filteredPayload: ModelExportEnvelope = {
             ...parsedPayload,
             profiles: filteredProfiles,
         };
