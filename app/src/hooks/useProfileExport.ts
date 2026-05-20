@@ -25,7 +25,7 @@ export function useProfileExport(): {
     try {
       const body: RequestsExportRequest = {
         scope: input.scope as RequestsExportRequestScopeEnum,
-        ...(input.profileIds !== undefined && { profileIds: input.profileIds }),
+        ...(input.profileIds !== undefined && { profile_ids: input.profileIds }),
         ...(input.currentPassword !== undefined && { current_password: input.currentPassword }),
         ...(input.reauthToken !== undefined && { reauth_token: input.reauthToken }),
       };

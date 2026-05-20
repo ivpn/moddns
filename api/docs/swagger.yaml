@@ -1050,7 +1050,7 @@ definitions:
       current_password:
         minLength: 1
         type: string
-      profileIds:
+      profile_ids:
         items:
           type: string
         type: array

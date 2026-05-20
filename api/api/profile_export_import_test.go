@@ -234,7 +234,7 @@ func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns401() {
 func (s *ProfileExportImportSuite) TestExport_ScopeAllWithProfileIds_Returns400() {
 	body, _ := json.Marshal(map[string]any{
 		"scope":      "all",
-		"profileIds": []string{"abc123"},
+		"profile_ids": []string{"abc123"},
 	})
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", body)
 	s.auth(req)

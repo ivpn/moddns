@@ -4008,7 +4008,7 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
-                "profileIds": {
+                "profile_ids": {
                     "type": "array",
                     "items": {
                         "type": "string"

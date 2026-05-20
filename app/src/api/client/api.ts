@@ -1983,7 +1983,7 @@ export interface RequestsExportRequest {
      * @type {Array<string>}
      * @memberof RequestsExportRequest
      */
-    'profileIds'?: Array<string>;
+    'profile_ids'?: Array<string>;
     /**
      * 
      * @type {string}

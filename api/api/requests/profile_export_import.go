@@ -16,7 +16,7 @@ var ErrInvalidScopeSelection = errors.New("profileIds must be empty when scope=a
 // specRef: E2, E5–E11
 type ExportRequest struct {
 	Scope           string   `json:"scope"                        validate:"required,oneof=all selected"`
-	ProfileIds      []string `json:"profileIds,omitempty"`
+	ProfileIds      []string `json:"profile_ids,omitempty"`
 	CurrentPassword *string  `json:"current_password,omitempty"   validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string  `json:"reauth_token,omitempty"       validate:"excluded_with=CurrentPassword,omitempty,min=1"`
 }
