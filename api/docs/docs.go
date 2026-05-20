@@ -3518,6 +3518,12 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "createdProfileNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "warnings": {
                     "type": "array",
                     "items": {

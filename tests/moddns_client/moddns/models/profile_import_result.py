@@ -27,8 +27,9 @@ class ProfileImportResult(BaseModel):
     ProfileImportResult
     """ # noqa: E501
     created_profile_ids: Optional[List[StrictStr]] = Field(default=None, alias="createdProfileIds")
+    created_profile_names: Optional[List[StrictStr]] = Field(default=None, alias="createdProfileNames")
     warnings: Optional[List[StrictStr]] = None
-    __properties: ClassVar[List[str]] = ["createdProfileIds", "warnings"]
+    __properties: ClassVar[List[str]] = ["createdProfileIds", "createdProfileNames", "warnings"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,6 +83,7 @@ class ProfileImportResult(BaseModel):
 
         _obj = cls.model_validate({
             "createdProfileIds": obj.get("createdProfileIds"),
+            "createdProfileNames": obj.get("createdProfileNames"),
             "warnings": obj.get("warnings")
         })
         return _obj

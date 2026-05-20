@@ -562,20 +562,40 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                     </p>
                                 ) : (
                                     <ul className="flex flex-col gap-1.5">
-                                        {result.createdProfileIds.map(id => {
-                                            // Attempt to match the created ID back to a name from the
-                                            // parsed payload. The backend assigns new IDs, so we can
-                                            // only show IDs directly — names are not returned.
+                                        {result.createdProfileIds.map((id, idx) => {
+                                            // createdProfileNames is parallel to createdProfileIds
+                                            // (spec I19b). The name reflects any I24 collision
+                                            // rename, so it's what the user will see in the profile
+                                            // list. Fall back to "(unnamed)" if the backend omitted
+                                            // the name — shouldn't happen, but avoids a blank label.
+                                            const name = result.createdProfileNames[idx] ?? '(unnamed)';
                                             return (
                                                 <li
                                                     key={id}
-                                                    className="flex items-center gap-2 rounded-md bg-[var(--tailwind-colors-slate-800)] px-3 py-2 text-sm"
+                                                    data-testid="created-profile-row"
+                                                    className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-[var(--tailwind-colors-slate-800)] px-3 py-2 text-sm"
                                                 >
-                                                    <span className="font-mono text-[var(--tailwind-colors-rdns-600)] text-xs">
-                                                        ID:
+                                                    <span className="flex items-center gap-2 min-w-0">
+                                                        <span className="font-mono text-[var(--tailwind-colors-rdns-600)] text-xs">
+                                                            ID:
+                                                        </span>
+                                                        <span
+                                                            data-testid="created-profile-id"
+                                                            className="font-mono text-[var(--tailwind-colors-slate-200)] truncate"
+                                                        >
+                                                            {id}
+                                                        </span>
                                                     </span>
-                                                    <span className="font-mono text-[var(--tailwind-colors-slate-200)] truncate">
-                                                        {id}
+                                                    <span className="flex items-center gap-2 min-w-0">
+                                                        <span className="font-mono text-[var(--tailwind-colors-rdns-600)] text-xs">
+                                                            Name:
+                                                        </span>
+                                                        <span
+                                                            data-testid="created-profile-name"
+                                                            className="text-[var(--tailwind-colors-slate-200)] truncate"
+                                                        >
+                                                            {name}
+                                                        </span>
                                                     </span>
                                                 </li>
                                             );

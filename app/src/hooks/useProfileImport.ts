@@ -14,6 +14,9 @@ export interface ImportProfilesInput {
 
 export interface ImportResult {
   createdProfileIds: string[];
+  /** Resolved profile names in the same order as createdProfileIds. Reflects
+   *  any I24 collision rename, so it's the name the user will see in the UI. */
+  createdProfileNames: string[];
   warnings: string[];
 }
 
@@ -50,6 +53,7 @@ export function useProfileImport(): {
 
       const importResult: ImportResult = {
         createdProfileIds: response.data.createdProfileIds ?? [],
+        createdProfileNames: response.data.createdProfileNames ?? [],
         warnings: response.data.warnings ?? [],
       };
       setResult(importResult);

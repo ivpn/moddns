@@ -182,7 +182,7 @@ test.describe('Backup & Restore — Import', () => {
             route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ createdProfileIds: ['new-p1'], warnings: [] }),
+                body: JSON.stringify({ createdProfileIds: ['new-p1'], createdProfileNames: ['Home'], warnings: [] }),
             })
         );
 
@@ -237,7 +237,11 @@ test.describe('Backup & Restore — Import', () => {
             return route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ createdProfileIds: ['new-p1', 'new-p2'], warnings: [] }),
+                body: JSON.stringify({
+                    createdProfileIds: ['new-p1', 'new-p2'],
+                    createdProfileNames: ['Home', 'Work'],
+                    warnings: [],
+                }),
             });
         });
 
@@ -281,6 +285,7 @@ test.describe('Backup & Restore — Import', () => {
                 contentType: 'application/json',
                 body: JSON.stringify({
                     createdProfileIds: ['new-p1'],
+                    createdProfileNames: ['Home'],
                     warnings: [
                         'customRules[0] contains internationalized domain — decoded form: xn--nxasmq6b.com',
                         'blocklist "unknown-list" not found in catalog',

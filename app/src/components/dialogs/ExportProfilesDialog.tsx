@@ -149,7 +149,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
                     '[&_[data-slot=dialog-close]_svg]:text-[var(--tailwind-colors-rdns-600)]'
                 )}
             >
-                <DialogHeader className="p-6 space-y-1.5">
+                <DialogHeader className="px-6 pt-6 pb-3 space-y-1.5">
                     <DialogTitle className="text-lg font-semibold text-[var(--tailwind-colors-slate-50)] tracking-[-0.45px] leading-[18px] font-['Roboto_Flex-SemiBold',Helvetica] mt-[-1px]">
                         Export profiles
                     </DialogTitle>

@@ -1369,6 +1369,12 @@ export interface ProfileImportResult {
      * @type {Array<string>}
      * @memberof ProfileImportResult
      */
+    'createdProfileNames'?: Array<string>;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ProfileImportResult
+     */
     'warnings'?: Array<string>;
 }
 /**

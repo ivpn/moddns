@@ -678,6 +678,10 @@ definitions:
         items:
           type: string
         type: array
+      createdProfileNames:
+        items:
+          type: string
+        type: array
       warnings:
         items:
           type: string
