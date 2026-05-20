@@ -698,3 +698,213 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 	env.profileRepo.AssertExpectations(t)
 }
 
+
+// ---------------------------------------------------------------------------
+// Name-collision resolution
+// ---------------------------------------------------------------------------
+
+// envelopeWithNames returns a minimal envelope with one profile per name.
+func envelopeWithNames(names ...string) *profile.ExportEnvelope {
+	profiles := make([]profile.ExportedProfile, len(names))
+	for i, n := range names {
+		profiles[i] = profile.ExportedProfile{
+			Name:     n,
+			Settings: &profile.ExportedSettings{},
+		}
+	}
+	return &profile.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    time.Now(),
+		Profiles:      profiles,
+	}
+}
+
+// specRef: I24 — single collision against an existing account profile.
+func TestImport_NameCollision_RenamesAgainstExisting(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	existing := []model.Profile{{Name: "Home"}}
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return(existing, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+
+	var persistedName string
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		persistedName = p.Name
+		return p.AccountId == "acct1"
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Home (imported)", persistedName)
+	assert.Contains(t, result.Warnings, "profile 'Home' renamed to 'Home (imported)' to avoid name collision")
+}
+
+// specRef: I24 — two payload entries with the same source name must resolve
+// against each other, not just against the account state.
+func TestImport_NameCollision_WithinSameBatch(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("id-a", nil).Once()
+	env.idGen.On("Generate").Return("id-b", nil).Once()
+
+	persisted := make([]string, 0, 2)
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		persisted = append(persisted, p.Name)
+		return p.AccountId == "acct1"
+	})).Return(nil).Times(2)
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Times(2)
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames("Work", "Work"), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	require.Len(t, persisted, 2)
+	assert.Equal(t, "Work", persisted[0])
+	assert.Equal(t, "Work (imported)", persisted[1])
+	assert.Contains(t, result.Warnings, "profile 'Work' renamed to 'Work (imported)' to avoid name collision")
+}
+
+// specRef: I24 — cascade: existing has Home AND Home (imported), so the
+// resolver must keep counting.
+func TestImport_NameCollision_CascadeAcrossSuffixes(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	existing := []model.Profile{
+		{Name: "Home"},
+		{Name: "Home (imported)"},
+		{Name: "Home (imported 2)"},
+	}
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return(existing, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+
+	var persistedName string
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		persistedName = p.Name
+		return p.AccountId == "acct1"
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Home (imported 3)", persistedName)
+	assert.Contains(t, result.Warnings, "profile 'Home' renamed to 'Home (imported 3)' to avoid name collision")
+}
+
+// specRef: I24 — when adding the suffix would push the name past 50 chars,
+// the original is truncated and the suffix is preserved in full.
+func TestImport_NameCollision_TruncatesToMaxLength(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	// 50-char original — adding " (imported)" (11 chars) would yield 61.
+	original := strings.Repeat("A", 50)
+	existing := []model.Profile{{Name: original}}
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return(existing, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+
+	var persistedName string
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		persistedName = p.Name
+		return p.AccountId == "acct1"
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	_, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames(original), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	assert.LessOrEqual(t, len(persistedName), 50, "resolved name must fit in max=50; got %d chars", len(persistedName))
+	assert.True(t, strings.HasSuffix(persistedName, " (imported)"), "suffix must be preserved intact; got %q", persistedName)
+}
+
+// ---------------------------------------------------------------------------
+// Advanced section — silent ignore on import (spec F7)
+// ---------------------------------------------------------------------------
+
+// specRef: F7 — an import payload containing a non-default recursor under
+// advanced is silently ignored. The persisted profile inherits the default
+// recursor (sdns) from model.NewSettings(), no warning is emitted.
+func TestImport_AdvancedSection_SilentlyIgnored(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+
+	var persistedSettings *model.ProfileSettings
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		persistedSettings = p.Settings
+		return p.AccountId == "acct1"
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	envelope := envelopeWithNames("Imported")
+	envelope.Profiles[0].Settings = &profile.ExportedSettings{
+		Advanced: &profile.ExportedAdvanced{Recursor: "unbound"},
+	}
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelope, ptr("secret"), nil)
+	require.NoError(t, err)
+
+	require.NotNil(t, persistedSettings)
+	require.NotNil(t, persistedSettings.Advanced)
+	assert.Equal(t, model.RECURSOR_DEFAULT, persistedSettings.Advanced.Recursor,
+		"recursor must fall back to the default; staging-only value must not be persisted")
+	assert.Empty(t, result.Warnings, "silent ignore — no warning should be emitted")
+}
+
+// ---------------------------------------------------------------------------
+// CreatedProfileNames — Response Body row I19b
+// ---------------------------------------------------------------------------
+
+// specRef: I19b — names come back in payload order, one per created profile.
+func TestImport_Response_CreatedNamesParallelToIds(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("id-a", nil).Once()
+	env.idGen.On("Generate").Return("id-b", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).
+		Return(nil).Times(2)
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Times(2)
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames("Alpha", "Beta"), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"id-a", "id-b"}, result.CreatedProfileIds)
+	require.Equal(t, []string{"Alpha", "Beta"}, result.CreatedProfileNames)
+}
+
+// specRef: I19b, I24 — when a profile is renamed via I24, CreatedProfileNames
+// holds the resolved name (the one the user will see), not the source name.
+func TestImport_Response_CreatedNamesReflectI24Rename(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	existing := []model.Profile{{Name: "Home"}}
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return(existing, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).
+		Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil)
+	require.NoError(t, err)
+
+	require.Equal(t, []string{"Home (imported)"}, result.CreatedProfileNames,
+		"name in response must be the resolved name, not the source")
+}

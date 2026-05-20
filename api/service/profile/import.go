@@ -4,15 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/internal/idn"
+	apivalidator "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+// maxProfileNameLen mirrors model.Profile.Name's `max=50` validator. It bounds
+// the resolved name produced by resolveImportName so renamed profiles still
+// pass model-level validation.
+const maxProfileNameLen = 50
 
 // ImportMode enumerates the supported import modes.
 // v1: create_new only. replace is reserved for a future PR (spec rows I8-I11).
@@ -21,10 +26,14 @@ const (
 )
 
 // ImportResult is the response payload of a successful import.
-// Mirrors spec rows I19-I20.
+// CreatedProfileIds and CreatedProfileNames are parallel slices of equal length
+// in payload order; CreatedProfileNames[i] holds the *resolved* name (post
+// collision-resolution per I24) so the UI can echo back what the user will
+// actually see in the profile list. Mirrors spec rows I19, I19b, I20.
 type ImportResult struct {
-	CreatedProfileIds []string `json:"createdProfileIds"`
-	Warnings          []string `json:"warnings"`
+	CreatedProfileIds   []string `json:"createdProfileIds"`
+	CreatedProfileNames []string `json:"createdProfileNames"`
+	Warnings            []string `json:"warnings"`
 }
 
 // ErrImportNotImplemented is returned by Import until the implementation lands.
@@ -122,36 +131,60 @@ func (p *ProfileService) Import(
 		))
 	}
 
-	// createdIds accumulates the fresh ProfileId of each successfully created profile,
-	// in payload order. On partial failure these are used to roll back via deletion.
+	// specRef: I24 -- seed the taken-name set with every existing account profile
+	// so name-collision resolution sees the current account state. The set is
+	// updated in-place as each payload profile is allocated a (possibly renamed)
+	// name, so two payload profiles with the same source name also collide
+	// against each other.
+	takenNames := make(map[string]struct{}, len(existingProfiles))
+	for _, existing := range existingProfiles {
+		takenNames[apivalidator.NormalizeName(existing.Name)] = struct{}{}
+	}
+
+	// createdIds and createdNames accumulate per-profile output in payload
+	// order. On partial failure createdIds is used to roll back via deletion.
+	// specRef: I19, I19b
 	createdIds := make([]string, 0, len(payload.Profiles))
+	createdNames := make([]string, 0, len(payload.Profiles))
 
 	for _, ep := range payload.Profiles {
-		profileId, profileWarnings, err := p.importOneProfile(ctx, accountId, ep, payload)
+		// specRef: I24 -- resolve name collisions before persisting.
+		resolvedName, renameWarning := resolveImportName(ep.Name, takenNames)
+		if renameWarning != "" {
+			warnings = append(warnings, renameWarning)
+		}
+		takenNames[apivalidator.NormalizeName(resolvedName)] = struct{}{}
+
+		profileId, profileWarnings, err := p.importOneProfile(ctx, accountId, ep, resolvedName)
 		if err != nil {
 			// specRef: I21, I22 -- rollback: delete every profile created so far in this batch.
 			p.rollbackImportedProfiles(ctx, accountId, createdIds)
 			return nil, err
 		}
 		createdIds = append(createdIds, profileId)
+		createdNames = append(createdNames, apivalidator.NormalizeName(resolvedName))
 		warnings = append(warnings, profileWarnings...)
 	}
 
 	return &ImportResult{
-		CreatedProfileIds: createdIds,
-		Warnings:          warnings,
+		CreatedProfileIds:   createdIds,
+		CreatedProfileNames: createdNames,
+		Warnings:            warnings,
 	}, nil
 }
 
 // importOneProfile creates a single profile from an ExportedProfile entry.
 // It returns the fresh ProfileId, any non-fatal warnings, and a fatal error (nil on success).
 // All IDs are regenerated server-side; none are carried from the payload.
-// specRef: S3, I19, V8, V9, V11, V12, S5, V14
+// resolvedName is the post-collision-resolution name (see resolveImportName); use
+// it for both the persisted Name and any user-facing warning text so the user
+// sees consistent naming end-to-end.
+// specRef: S3, I19, I24, V8, V9, V11, V12, S5, V14
 func (p *ProfileService) importOneProfile(
 	ctx context.Context,
 	accountId string,
 	ep ExportedProfile,
-	envelope *ExportEnvelope,
+	resolvedName string,
 ) (profileId string, warnings []string, err error) {
 	warnings = make([]string, 0)
 
@@ -190,10 +223,10 @@ func (p *ProfileService) importOneProfile(
 			rulesInput = rulesInput[:maxCustomRulesPerProfile]
 			warnings = append(warnings, fmt.Sprintf(
 				"profile '%s': custom rules capped at %d; %d rules were discarded",
-				ep.Name, maxCustomRulesPerProfile, len(ep.Settings.CustomRules)-maxCustomRulesPerProfile,
+				resolvedName, maxCustomRulesPerProfile, len(ep.Settings.CustomRules)-maxCustomRulesPerProfile,
 			))
 		}
-		validRules, warnings = p.validateAndMapRules(rulesInput, ep.Name, accountId, warnings)
+		validRules, warnings = p.validateAndMapRules(rulesInput, resolvedName, accountId, warnings)
 	}
 
 	// Persist the profile document (without custom rules — those go via CreateCustomRules).
@@ -201,7 +234,7 @@ func (p *ProfileService) importOneProfile(
 		ID:        primitive.NewObjectID(),
 		ProfileId: freshProfileId,
 		AccountId: accountId,
-		Name:      ep.Name,
+		Name:      apivalidator.NormalizeName(resolvedName),
 		Settings:  settings,
 	}
 
@@ -276,12 +309,12 @@ func (p *ProfileService) mapExportedSettings(src *ExportedSettings, profileId st
 		s.Statistics.Enabled = src.Statistics.Enabled
 	}
 
-	if src.Advanced != nil {
-		if slices.Contains(model.RECURSORS, src.Advanced.Recursor) {
-			s.Advanced.Recursor = src.Advanced.Recursor
-		}
-		// Unrecognised recursor falls back to RECURSOR_DEFAULT.
-	}
+	// Advanced section — specRef: F7
+	// Silently ignored on import. The recursor is a staging-only control;
+	// imported profiles always inherit RECURSOR_DEFAULT from model.NewSettings(),
+	// matching the regular create-profile path. ExportedAdvanced is still
+	// tolerated by the DTO decoder so old or hand-edited files import cleanly.
+	_ = src.Advanced
 
 	return s
 }
@@ -429,4 +462,68 @@ func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId
 				Msg("import rollback: failed to delete partially-created profile")
 		}
 	}
+}
+
+// resolveImportName returns a name that does not collide with any entry in
+// takenNames. If original is already free, it is returned unchanged with an
+// empty warning. Otherwise the resolver tries "{original} (imported)" and then
+// "{original} (imported 2)", "(imported 3)", … capping the final name at
+// maxProfileNameLen by trimming the original portion (suffix is always
+// preserved so the rename remains visible to the user).
+//
+// The takenNames keys are NFC-normalized (apivalidator.NormalizeName) so that
+// visually-equivalent names ("Café" vs "Café") collide as expected.
+//
+// specRef: I24
+func resolveImportName(original string, takenNames map[string]struct{}) (resolved, warning string) {
+	if _, exists := takenNames[apivalidator.NormalizeName(original)]; !exists {
+		return original, ""
+	}
+
+	// First retry: simple " (imported)" suffix.
+	candidate := fitNameWithSuffix(original, " (imported)", maxProfileNameLen)
+	if _, exists := takenNames[apivalidator.NormalizeName(candidate)]; !exists {
+		return candidate, fmt.Sprintf(
+			"profile '%s' renamed to '%s' to avoid name collision",
+			original, candidate,
+		)
+	}
+
+	// Counter retries. Bound the loop at MaxProfiles (10 per batch) + an existing
+	// account's MaxProfiles (100) plus safety headroom — well under 1000.
+	for n := 2; n < 1000; n++ {
+		candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", n), maxProfileNameLen)
+		if _, exists := takenNames[apivalidator.NormalizeName(candidate)]; !exists {
+			return candidate, fmt.Sprintf(
+				"profile '%s' renamed to '%s' to avoid name collision",
+				original, candidate,
+			)
+		}
+	}
+
+	// Defensive fallback: 1000 collisions for the same source name is far past
+	// any realistic account state. Fall back to a ProfileId-style suffix; the
+	// safe_name and length validators still pass.
+	candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", time.Now().UTC().UnixNano()), maxProfileNameLen)
+	return candidate, fmt.Sprintf(
+		"profile '%s' renamed to '%s' to avoid name collision",
+		original, candidate,
+	)
+}
+
+// fitNameWithSuffix concatenates base + suffix, trimming base if needed to keep
+// the result within max runes. Suffix is preserved in full so the rename
+// remains legible. Operates on runes, not bytes, to handle multi-byte UTF-8
+// names correctly.
+func fitNameWithSuffix(base, suffix string, max int) string {
+	baseRunes := []rune(base)
+	suffixRunes := []rune(suffix)
+	if len(baseRunes)+len(suffixRunes) <= max {
+		return base + suffix
+	}
+	keep := max - len(suffixRunes)
+	if keep < 0 {
+		keep = 0
+	}
+	return string(baseRunes[:keep]) + suffix
 }

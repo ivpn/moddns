@@ -281,12 +281,11 @@ func exportSettings(s *model.ProfileSettings) *ExportedSettings {
 		}
 	}
 
-	// Advanced section — specRef: F7 (recursor)
-	if s.Advanced != nil {
-		es.Advanced = &ExportedAdvanced{
-			Recursor: s.Advanced.Recursor,
-		}
-	}
+	// Advanced section — specRef: F7
+	// Deliberately not emitted. The recursor is a staging-only control and
+	// must not leak into other environments via export files. ExportedAdvanced
+	// stays as a type so the import DTO can silently accept-and-ignore the
+	// field for forward-compat with hand-edited files.
 
 	return es
 }

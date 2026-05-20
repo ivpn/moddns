@@ -281,9 +281,10 @@ func TestExport_ProfileMapping_Includes(t *testing.T) {
 	require.NotNil(t, ep.Settings.Statistics)
 	assert.True(t, ep.Settings.Statistics.Enabled)
 
-	// Advanced — specRef: F7 (recursor)
-	require.NotNil(t, ep.Settings.Advanced)
-	assert.Equal(t, "unbound", ep.Settings.Advanced.Recursor)
+	// Advanced — specRef: F7
+	// Advanced settings are deliberately not emitted; the staging-only
+	// recursor toggle must not leak into export files. See spec row F7.
+	assert.Nil(t, ep.Settings.Advanced, "advanced must not be present in export")
 }
 
 // specRef:"F8"
@@ -407,4 +408,36 @@ func TestExport_EmptyProfileList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(raw), `"profiles":[]`,
 		"empty profiles must marshal as JSON array, not null")
+}
+
+// specRef: F7 — Advanced section is deliberately not emitted on export,
+// even when the source profile has a non-default recursor configured.
+// Verified at the JSON-bytes level: the export envelope must contain no
+// "advanced" key under settings.
+func TestExport_AdvancedSection_NotEmitted_EvenWhenNonDefault(t *testing.T) {
+	const accountId = "acct-f7-noemit"
+
+	src := minimalProfile("Staging Profile", accountId)
+	src.Settings.Advanced = &model.Advanced{Recursor: "unbound"}
+
+	profileRepo := mocks.NewProfileRepository(t)
+	accountRepo := mocks.NewAccountRepository(t)
+	profileRepo.On("GetProfilesByAccountId", context.Background(), accountId).
+		Return([]model.Profile{*src}, nil)
+	accountRepo.On("GetAccountById", context.Background(), accountId).
+		Return(authorisedAccount(t), nil)
+
+	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
+
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	require.NoError(t, err)
+	require.Len(t, env.Profiles, 1)
+	assert.Nil(t, env.Profiles[0].Settings.Advanced, "advanced must not be set on the envelope")
+
+	raw, err := json.Marshal(env)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), `"advanced"`,
+		"export JSON must not contain an advanced section; got: %s", string(raw))
+	assert.NotContains(t, string(raw), `"unbound"`,
+		"staging-only recursor value must not appear in the export")
 }
