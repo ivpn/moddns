@@ -5,6 +5,14 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// MaxProfileNameLen is the canonical maximum length (in characters) for a
+// profile name. Mirrors the `max=50` literal in the Profile.Name struct tag
+// below, in the corresponding ExportedProfile.Name tag in export.go, and in
+// the createProfileBody.Name tag in api/api/profiles.go. The reflection-based
+// regression tests in profile_test.go and api/api/profiles_test.go assert
+// the tags and this const stay aligned — do not change one without the other.
+const MaxProfileNameLen = 50
+
 // Profile represents a DNS profile
 type Profile struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id" binding:"required"`

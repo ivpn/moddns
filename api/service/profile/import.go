@@ -14,11 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// maxProfileNameLen mirrors model.Profile.Name's `max=50` validator. It bounds
-// the resolved name produced by resolveImportName so renamed profiles still
-// pass model-level validation.
-const maxProfileNameLen = 50
-
 // ImportMode enumerates the supported import modes.
 // v1: create_new only. replace is reserved for a future PR (spec rows I8-I11).
 const (
@@ -468,7 +463,7 @@ func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId
 // takenNames. If original is already free, it is returned unchanged with an
 // empty warning. Otherwise the resolver tries "{original} (imported)" and then
 // "{original} (imported 2)", "(imported 3)", … capping the final name at
-// maxProfileNameLen by trimming the original portion (suffix is always
+// model.MaxProfileNameLen by trimming the original portion (suffix is always
 // preserved so the rename remains visible to the user).
 //
 // The takenNames keys are NFC-normalized (apivalidator.NormalizeName) so that
@@ -481,7 +476,7 @@ func resolveImportName(original string, takenNames map[string]struct{}) (resolve
 	}
 
 	// First retry: simple " (imported)" suffix.
-	candidate := fitNameWithSuffix(original, " (imported)", maxProfileNameLen)
+	candidate := fitNameWithSuffix(original, " (imported)", model.MaxProfileNameLen)
 	if _, exists := takenNames[apivalidator.NormalizeName(candidate)]; !exists {
 		return candidate, fmt.Sprintf(
 			"profile '%s' renamed to '%s' to avoid name collision",
@@ -492,7 +487,7 @@ func resolveImportName(original string, takenNames map[string]struct{}) (resolve
 	// Counter retries. Bound the loop at MaxProfiles (10 per batch) + an existing
 	// account's MaxProfiles (100) plus safety headroom — well under 1000.
 	for n := 2; n < 1000; n++ {
-		candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", n), maxProfileNameLen)
+		candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", n), model.MaxProfileNameLen)
 		if _, exists := takenNames[apivalidator.NormalizeName(candidate)]; !exists {
 			return candidate, fmt.Sprintf(
 				"profile '%s' renamed to '%s' to avoid name collision",
@@ -504,7 +499,7 @@ func resolveImportName(original string, takenNames map[string]struct{}) (resolve
 	// Defensive fallback: 1000 collisions for the same source name is far past
 	// any realistic account state. Fall back to a ProfileId-style suffix; the
 	// safe_name and length validators still pass.
-	candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", time.Now().UTC().UnixNano()), maxProfileNameLen)
+	candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", time.Now().UTC().UnixNano()), model.MaxProfileNameLen)
 	return candidate, fmt.Sprintf(
 		"profile '%s' renamed to '%s' to avoid name collision",
 		original, candidate,
