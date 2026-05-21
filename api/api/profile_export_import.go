@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/service/profile"
 )
 
 // @Summary Export profiles
@@ -50,9 +49,9 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, "provide only one of current_password or reauth_token")
 		}
 
-		envelope, err := s.Service.Export(c.Context(), accountId, req.Scope, req.ProfileIds, req.CurrentPassword, req.ReauthToken)
+		envelope, err := s.Service.Export(c.Context(), accountId, req.Scope, req.ProfileIds, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return handleExportImportError(c, err)
+			return HandleError(c, err, err.Error())
 		}
 
 		// specRef: E12, E13, E14, E15
@@ -126,25 +125,12 @@ func (s *APIServer) importProfiles() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, "provide only one of current_password or reauth_token")
 		}
 
-		result, err := s.Service.Import(c.Context(), accountId, req.Mode, req.Payload, req.CurrentPassword, req.ReauthToken)
+		result, err := s.Service.Import(c.Context(), accountId, req.Mode, req.Payload, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return handleExportImportError(c, err)
+			return HandleError(c, err, err.Error())
 		}
 
 		return c.JSON(result)
 	}
 }
 
-// handleExportImportError maps profile service errors to HTTP status codes for
-// the export and import endpoints.  Reauth errors become 401; all other errors
-// fall through to the shared HandleError helper.
-//
-// specRef: M5, M6
-func handleExportImportError(c *fiber.Ctx, err error) error {
-	switch err {
-	case profile.ErrReauthRequired, profile.ErrReauthInvalid:
-		return c.Status(fiber.StatusUnauthorized).JSON(ErrResponse{Error: err.Error()})
-	default:
-		return HandleError(c, err, err.Error())
-	}
-}

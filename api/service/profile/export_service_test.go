@@ -124,7 +124,7 @@ func TestExport_ScopeAll_ReturnsAllOwnedProfiles(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, env)
 	require.Len(t, env.Profiles, 3)
@@ -151,7 +151,7 @@ func TestExport_ScopeSelected_ReturnsRequestedProfiles(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{"prf-1", "prf-3"}, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{"prf-1", "prf-3"}, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, env)
 	require.Len(t, env.Profiles, 2)
@@ -176,7 +176,7 @@ func TestExport_ScopeSelected_ForeignProfileId_ReturnsNotFound(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{foreignId}, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{foreignId}, ptrStr("testpw"), nil, nil)
 	assert.ErrorIs(t, err, dbErrors.ErrProfileNotFound)
 	assert.Nil(t, env, "no profile data must be returned when ownership check fails")
 }
@@ -193,7 +193,7 @@ func TestExport_ScopeSelected_NonExistentProfileId_ReturnsNotFound(t *testing.T)
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{missingId}, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, []string{missingId}, ptrStr("testpw"), nil, nil)
 	assert.ErrorIs(t, err, dbErrors.ErrProfileNotFound)
 	assert.Nil(t, env)
 }
@@ -212,7 +212,7 @@ func TestExport_ScopeSelected_TooManyIds(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: maxProfiles})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, ids, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeSelected, ids, ptrStr("testpw"), nil, nil)
 	assert.ErrorIs(t, err, profile.ErrTooManyProfileIds)
 	assert.Nil(t, env)
 }
@@ -232,7 +232,7 @@ func TestExport_ProfileMapping_Includes(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 	require.Len(t, env.Profiles, 1)
 
@@ -301,7 +301,7 @@ func TestExport_AccountFields_AreNotIncluded(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(env)
@@ -327,7 +327,7 @@ func TestExport_InternalIDs_AreStripped(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(env)
@@ -368,7 +368,7 @@ func TestExport_EnvelopeMetadata(t *testing.T) {
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
 	before := time.Now().UTC()
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	after := time.Now().UTC()
 
 	require.NoError(t, err)
@@ -405,7 +405,7 @@ func TestExport_EmptyProfileList(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, env)
 	assert.NotNil(t, env.Profiles, "profiles slice must not be nil")
@@ -436,7 +436,7 @@ func TestExport_AdvancedSection_NotEmitted_EvenWhenNonDefault(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
 	require.NoError(t, err)
 	require.Len(t, env.Profiles, 1)
 	assert.Nil(t, env.Profiles[0].Settings.Advanced, "advanced must not be set on the envelope")

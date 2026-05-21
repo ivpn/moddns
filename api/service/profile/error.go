@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/model"
 )
 
@@ -28,12 +29,19 @@ var (
 	ErrServiceAlreadyEnabled        = errors.New("service already enabled")
 	ErrInvalidServiceValue          = errors.New("invalid service value")
 
-	// ErrReauthRequired is returned when neither currentPassword nor reauthToken is provided.
+	// ErrReauthRequired aliases reauth.ErrMissingAuthMethod for legacy callers.
+	// New code should reference reauth.ErrMissingAuthMethod directly.
 	// specRef: M5
-	ErrReauthRequired = errors.New("missing current_password or reauth_token")
+	ErrReauthRequired = reauth.ErrMissingAuthMethod
 
-	// ErrReauthInvalid is returned when the provided credential does not match the account record.
+	// ErrReauthInvalid is the legacy conflated sentinel that the deleted
+	// ProfileService.verifyReauth used to return for both wrong password and
+	// invalid/expired tokens. Kept for backward compatibility with any caller
+	// that errors.Is against it; new code uses reauth.ErrInvalidPassword /
+	// reauth.ErrInvalidReauthToken / reauth.ErrReauthTokenExpired.
 	// specRef: M6
+	//
+	// Deprecated: prefer the specific sentinel from package reauth.
 	ErrReauthInvalid = errors.New("invalid reauth credential")
 
 	// ErrTooManyProfileIds is returned when the selected profile ID list exceeds MAX_PROFILES.

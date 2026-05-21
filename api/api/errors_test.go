@@ -105,6 +105,10 @@ func TestHandleError(t *testing.T) {
 			expectedError:  account.ErrSameEmailAddress.Error(),
 		},
 		{
+			// Unified reauth: bad password is mapped to 400. The session is
+			// still valid; the failure is a piece of the request body. (We
+			// deliberately avoid 401 here because the global axios interceptor
+			// treats any 401 as session expiry and triggers a global logout.)
 			name:           "Invalid Current Password",
 			err:            account.ErrInvalidCurrentPassword,
 			errMsg:         "failed to update email",

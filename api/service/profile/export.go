@@ -7,6 +7,7 @@ import (
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/version"
 	"github.com/ivpn/dns/api/model"
 )
@@ -36,8 +37,16 @@ func (p *ProfileService) Export(
 	accountId, scope string,
 	profileIds []string,
 	currentPassword, reauthToken *string,
+	mfa *model.MfaData,
 ) (*model.ExportEnvelope, error) {
-	if err := p.verifyReauth(ctx, accountId, auth.TokenTypeReauthProfileExport, currentPassword, reauthToken); err != nil {
+	if _, err := reauth.Verify(ctx, p.AccountRepository, p.MfaVerifier, reauth.Params{
+		AccountId:        accountId,
+		TokenType:        auth.TokenTypeReauthProfileExport,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	}); err != nil {
 		return nil, err
 	}
 

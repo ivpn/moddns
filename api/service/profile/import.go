@@ -8,6 +8,7 @@ import (
 
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/internal/idn"
+	"github.com/ivpn/dns/api/internal/reauth"
 	apivalidator "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
@@ -73,8 +74,16 @@ func (p *ProfileService) Import(
 	accountId, mode string,
 	payload *model.ExportEnvelope,
 	currentPassword, reauthToken *string,
+	mfa *model.MfaData,
 ) (*ImportResult, error) {
-	if err := p.verifyReauth(ctx, accountId, auth.TokenTypeReauthProfileImport, currentPassword, reauthToken); err != nil {
+	if _, err := reauth.Verify(ctx, p.AccountRepository, p.MfaVerifier, reauth.Params{
+		AccountId:        accountId,
+		TokenType:        auth.TokenTypeReauthProfileImport,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	}); err != nil {
 		return nil, err
 	}
 

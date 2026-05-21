@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/account"
@@ -77,6 +78,27 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Details = details
 	}
 	if errors.Is(err, strconv.ErrSyntax) {
+		resp.Error = err.Error()
+		return c.Status(400).JSON(resp)
+	}
+
+	// Unified reauth-credential failures map to 400. Checked BEFORE the
+	// *ServiceAccountError type switch because the reauth sentinels (plus the
+	// aliased ErrInvalidCurrentPassword) are plain errors.New(...) values and
+	// would otherwise fall through to the default 500. Order also matters
+	// against the lower switch: ErrInvalidCurrentPassword is aliased to
+	// reauth.ErrInvalidPassword, so this single check covers both names.
+	//
+	// Rationale for 400 (not 401): the caller's session is valid — what failed
+	// is a piece of the request body (wrong password, wrong reauth_token, or a
+	// missing/wrong x-mfa-code). Returning 401 would trigger the global axios
+	// interceptor's session-expired logout flow, which is the wrong UX for a
+	// typo'd password. 400 lets the dialog surface the error inline.
+	if errors.Is(err, reauth.ErrMissingAuthMethod) ||
+		errors.Is(err, reauth.ErrMultipleAuthMethods) ||
+		errors.Is(err, reauth.ErrInvalidPassword) ||
+		errors.Is(err, reauth.ErrInvalidReauthToken) ||
+		errors.Is(err, reauth.ErrReauthTokenExpired) {
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
 	}

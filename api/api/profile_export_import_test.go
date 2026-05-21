@@ -17,6 +17,7 @@ import (
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
+	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/profile"
 	"github.com/ivpn/dns/libs/urlshort"
 	"github.com/stretchr/testify/assert"
@@ -174,7 +175,7 @@ func (s *ProfileExportImportSuite) TestExport_HappyPath_ReturnsEnvelope() {
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -208,14 +209,18 @@ func (s *ProfileExportImportSuite) TestExport_MissingScope_Returns400() {
 }
 
 // specRef:"E3"
-func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns401() {
+// After the reauth unification (and the user-facing decision to keep
+// credential-rejection responses at HTTP 400, not 401, so the global axios
+// interceptor does not misfire as session-expiry), missing reauth credentials
+// produce 400 with an error body.
+func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns400() {
 	// Mock service to simulate the reauth-required path.
 	// The handler passes nil/nil credentials to the service when neither field
 	// is provided; the service returns ErrReauthRequired.
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return((*model.ExportEnvelope)(nil), profile.ErrReauthRequired)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -223,7 +228,7 @@ func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns401() {
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 
 	var errResp ErrResponse
 	decodeJSON(s.T(), resp, &errResp)
@@ -233,7 +238,7 @@ func (s *ProfileExportImportSuite) TestExport_NoReauthCreds_Returns401() {
 // specRef:"E6"
 func (s *ProfileExportImportSuite) TestExport_ScopeAllWithProfileIds_Returns400() {
 	body, _ := json.Marshal(map[string]any{
-		"scope":      "all",
+		"scope":       "all",
 		"profile_ids": []string{"abc123"},
 	})
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", body)
@@ -270,7 +275,7 @@ func (s *ProfileExportImportSuite) TestExport_InvalidScope_Returns400() {
 func (s *ProfileExportImportSuite) TestExport_SetsContentTypeHeader() {
 	now := time.Now().UTC()
 	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
-	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
+	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData")).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -288,7 +293,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsContentTypeHeader() {
 func (s *ProfileExportImportSuite) TestExport_SetsContentDispositionHeader() {
 	now := time.Now().UTC()
 	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
-	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
+	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData")).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -309,7 +314,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsContentDispositionHeader() {
 func (s *ProfileExportImportSuite) TestExport_SetsCacheControlNoStore() {
 	now := time.Now().UTC()
 	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
-	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
+	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData")).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -325,7 +330,7 @@ func (s *ProfileExportImportSuite) TestExport_SetsCacheControlNoStore() {
 func (s *ProfileExportImportSuite) TestExport_SetsPragmaNoCache() {
 	now := time.Now().UTC()
 	envelope := &model.ExportEnvelope{SchemaVersion: 1, Kind: "moddns-export", ExportedAt: now, Profiles: []model.ExportedProfile{{Name: "p"}}}
-	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil)).Return(envelope, nil)
+	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData")).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
 	s.auth(req)
@@ -350,7 +355,7 @@ func (s *ProfileExportImportSuite) TestExport_BodyIsPrettyPrinted() {
 		Profiles:      []model.ExportedProfile{{Name: "p"}},
 	}
 	s.mockProfileSvc.On("Export", mock.Anything, eiAccountID, "all",
-		mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil),
+		mock.AnythingOfType("[]string"), (*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return(envelope, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -376,7 +381,7 @@ func (s *ProfileExportImportSuite) TestExport_ServiceError_Returns500() {
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return((*model.ExportEnvelope)(nil), assert.AnError)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
@@ -398,7 +403,7 @@ func (s *ProfileExportImportSuite) TestImport_HappyPath_ReturnsResult() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return(result, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
@@ -416,11 +421,12 @@ func (s *ProfileExportImportSuite) TestImport_HappyPath_ReturnsResult() {
 }
 
 // specRef:"I2"
-func (s *ProfileExportImportSuite) TestImport_NoReauth_Returns401() {
+// After unification: reauth credential failures map to 400 (not 401).
+func (s *ProfileExportImportSuite) TestImport_NoReauth_Returns400() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return((*profile.ImportResult)(nil), profile.ErrReauthRequired)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
@@ -429,7 +435,7 @@ func (s *ProfileExportImportSuite) TestImport_NoReauth_Returns401() {
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 
 	var errResp ErrResponse
 	decodeJSON(s.T(), resp, &errResp)
@@ -545,7 +551,7 @@ func (s *ProfileExportImportSuite) TestImport_ResponseIncludesCreatedIds() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return(result, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
@@ -576,7 +582,7 @@ func (s *ProfileExportImportSuite) TestImport_ResponseIncludesWarningsArray() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
-		(*string)(nil), (*string)(nil),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
 	).Return(result, nil)
 
 	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
@@ -678,6 +684,105 @@ func (s *ProfileExportImportSuite) TestExportImport_OnlyAcceptsPOST() {
 			)
 		})
 	}
+}
+
+// ---- MFA-gate forwarding tests --------------------------------------------
+//
+// These assert that the handler plumbs `x-mfa-code` into the service via
+// the new `mfa *model.MfaData` argument, and that 2FA-failure errors returned
+// by the service are mapped to HTTP 401 by the unified HandleError.
+//
+// Pre-unification the profile export/import handler ignored x-mfa-code
+// entirely; a TOTP-enabled account that reauth'd with password would bypass
+// MFA. This guards against regression.
+
+// TestExport_ForwardsMfaCodeHeaderToService — the x-mfa-code header is
+// extracted by auth.GetMfaData and passed as the final argument to
+// ProfileServicer.Export.
+func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeHeaderToService() {
+	envelope := &model.ExportEnvelope{
+		SchemaVersion: 1, Kind: "moddns-export",
+		ExportedAt: time.Now().UTC(),
+		Profiles:   []model.ExportedProfile{{Name: "p"}},
+	}
+	// Match the MfaData by content — OTP must be the value of the header.
+	s.mockProfileSvc.On(
+		"Export",
+		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
+		(*string)(nil), (*string)(nil),
+		mock.MatchedBy(func(mfa *model.MfaData) bool {
+			return mfa != nil && mfa.OTP == "123456"
+		}),
+	).Return(envelope, nil)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
+	req.Header.Set("x-mfa-code", "123456")
+	s.auth(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.mockProfileSvc.AssertExpectations(s.T())
+}
+
+// TestExport_TOTPRequiredFromService_Returns401 — when the service returns a
+// TOTP-required error (the unified reauth.Verify path when MFA is enabled
+// but the OTP header is absent), HandleError maps it to 401.
+func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns401() {
+	s.mockProfileSvc.On(
+		"Export",
+		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
+	).Return((*model.ExportEnvelope)(nil), account.ErrTOTPRequired)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
+	s.auth(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+}
+
+// TestImport_ForwardsMfaCodeHeaderToService — same as the Export variant
+// but for the Import handler. Confirms the MFA plumbing is symmetric.
+func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeHeaderToService() {
+	result := &profile.ImportResult{CreatedProfileIds: []string{"p1"}, Warnings: []string{}}
+	s.mockProfileSvc.On(
+		"Import",
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
+		(*string)(nil), (*string)(nil),
+		mock.MatchedBy(func(mfa *model.MfaData) bool {
+			return mfa != nil && mfa.OTP == "654321"
+		}),
+	).Return(result, nil)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
+	req.Header.Set("X-modDNS-Import", "confirm")
+	req.Header.Set("x-mfa-code", "654321")
+	s.authAndSubscription(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.mockProfileSvc.AssertExpectations(s.T())
+}
+
+// TestImport_InvalidTOTPCodeFromService_Returns401 — wrong OTP returned by
+// the service must produce 401, matching the password-mismatch shape.
+func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns401() {
+	s.mockProfileSvc.On(
+		"Import",
+		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
+	).Return((*profile.ImportResult)(nil), account.ErrInvalidTOTPCode)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
+	req.Header.Set("X-modDNS-Import", "confirm")
+	s.authAndSubscription(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusUnauthorized, resp.StatusCode)
 }
 
 // ---- Suite runner ---------------------------------------------------------

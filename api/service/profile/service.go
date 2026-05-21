@@ -13,6 +13,7 @@ import (
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/internal/idgen"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/utils"
 	apivalidator "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
@@ -45,11 +46,28 @@ type ProfileService struct {
 	StatisticsService *statistics.StatisticsService
 	BlocklistService  *blocklist.BlocklistService
 	ServicesCatalog   ServicesCatalogReader
-	Cache             cache.Cache
-	IdGen             idgen.Generator
-	Validate          *validator.Validate
-	ServerConfig      config.ServerConfig
-	ServiceConfig     config.ServiceConfig
+
+	// MfaVerifier gates the password path of profile export/import reauth.
+	// It is wired post-construction via SetMfaVerifier (typically pointed at
+	// AccountService) because the construction order in service.New builds
+	// ProfileService before AccountService. A nil MfaVerifier means "skip
+	// MFA" — preserves the no-MFA test-setup behaviour and is appropriate
+	// for unit tests that do not exercise the MFA path.
+	MfaVerifier reauth.MfaVerifier
+
+	Cache         cache.Cache
+	IdGen         idgen.Generator
+	Validate      *validator.Validate
+	ServerConfig  config.ServerConfig
+	ServiceConfig config.ServiceConfig
+}
+
+// SetMfaVerifier wires the MFA verifier used by the password path of profile
+// export/import reauth. Call once during service-graph construction; the
+// helper is safe to invoke before this is set (MFA is simply skipped — same
+// behaviour as before the unification).
+func (p *ProfileService) SetMfaVerifier(v reauth.MfaVerifier) {
+	p.MfaVerifier = v
 }
 
 // NewProfileService creates a new profile service.
