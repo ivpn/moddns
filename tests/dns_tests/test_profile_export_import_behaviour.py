@@ -228,22 +228,6 @@ class TestNameCollision:
             f"Rename warning missing original/resolved names; warnings={body['warnings']}"
         )
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason=(
-            "Intermittent: import-batch produced two identical profile_ids "
-            "(E11000 on profiles.profile_id_unique, observed value "
-            "'s74m095jl4'). Root cause not yet pinned down — the underlying "
-            "teris-io/shortid Generate() uses ms timestamp + worker + counter "
-            "and *should* be sequential-safe, but empirically isn't here. "
-            "Reproduces only sometimes (XPASS possible). Suggested mitigation "
-            "at api/service/profile/import.go:219: retry IdGen.Generate() on "
-            "duplicate-key error from CreateProfile, or pre-generate the full "
-            "batch of fresh IDs and verify uniqueness before any insert. Spec "
-            "I24 collision-rename path is only partially exercised until this "
-            "is resolved."
-        ),
-    )
     def test_import_two_payload_profiles_same_name_get_unique_names(self):
         """Two payload profiles with the same name collide against each other within the batch. specRef: I24."""
         _, cookie, password, _ = create_account_with_password()
