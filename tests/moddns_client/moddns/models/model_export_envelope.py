@@ -32,7 +32,7 @@ class ModelExportEnvelope(BaseModel):
     exported_at: StrictStr = Field(alias="exportedAt")
     exported_from: Optional[ModelExportedFromInfo] = Field(default=None, alias="exportedFrom")
     kind: StrictStr
-    profiles: Annotated[List[ModelExportedProfile], Field(min_length=1, max_length=10)]
+    profiles: Annotated[List[ModelExportedProfile], Field(min_length=1, max_length=100)]
     schema_version: StrictInt = Field(alias="schemaVersion")
     __properties: ClassVar[List[str]] = ["exportedAt", "exportedFrom", "kind", "profiles", "schemaVersion"]
 

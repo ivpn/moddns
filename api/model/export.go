@@ -33,7 +33,7 @@ type ExportEnvelope struct {
 	Kind          string            `json:"kind"          validate:"required,eq=moddns-export"`
 	ExportedAt    time.Time         `json:"exportedAt"    validate:"required"`
 	ExportedFrom  *ExportedFromInfo `json:"exportedFrom,omitempty"`
-	Profiles      []ExportedProfile `json:"profiles"      validate:"required,min=1,max=10,dive"`
+	Profiles      []ExportedProfile `json:"profiles"      validate:"required,min=1,max=100,dive"`
 }
 
 // ExportedFromInfo carries informational metadata about the exporting service.

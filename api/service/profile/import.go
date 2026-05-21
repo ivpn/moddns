@@ -493,8 +493,9 @@ func resolveImportName(original string, takenNames map[string]struct{}) (resolve
 		)
 	}
 
-	// Counter retries. Bound the loop at MaxProfiles (10 per batch) + an existing
-	// account's MaxProfiles (100) plus safety headroom — well under 1000.
+	// Counter retries. Bound the loop at MaxProfiles (100 per batch) + an existing
+	// account's MaxProfiles (100) — worst-case 200 collisions, still well under
+	// the 1000-iteration cap.
 	for n := 2; n < 1000; n++ {
 		candidate = fitNameWithSuffix(original, fmt.Sprintf(" (imported %d)", n), model.MaxProfileNameLen)
 		if _, exists := takenNames[apivalidator.NormalizeName(candidate)]; !exists {

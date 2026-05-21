@@ -133,4 +133,3 @@ func (s *APIServer) importProfiles() fiber.Handler {
 		return c.JSON(result)
 	}
 }
-

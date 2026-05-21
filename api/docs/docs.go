@@ -2965,7 +2965,7 @@ const docTemplate = `{
                 },
                 "profiles": {
                     "type": "array",
-                    "maxItems": 10,
+                    "maxItems": 100,
                     "minItems": 1,
                     "items": {
                         "$ref": "#/definitions/model.ExportedProfile"
