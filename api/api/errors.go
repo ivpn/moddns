@@ -103,6 +103,15 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		return c.Status(400).JSON(resp)
 	}
 
+	{
+		var profileErr *profile.ProfileError
+		if errors.As(err, &profileErr) {
+			log.Debug().Str("code", profileErr.Code).Msg(err.Error())
+			resp.Error = err.Error()
+			return c.Status(400).JSON(resp)
+		}
+	}
+
 	if e, ok := err.(mongo.WriteException); ok {
 		for _, we := range e.WriteErrors {
 			if we.Code == 11000 {

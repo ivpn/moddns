@@ -59,14 +59,37 @@ const staleExportThreshold = 90 * 24 * time.Hour
 // destroys more value than it protects. Users can inspect the warning list and
 // recreate the rejected rules manually.
 //
-// # Decision: importBatchId rollback (spec row I22)
+// # Decision: best-effort in-process rollback (spec row I22)
 //
 // The MongoDB deployment does not use replica-set sessions (no WithTransaction
-// usage found anywhere in api/db/mongodb/). We therefore use the importBatchId
-// rollback pattern: all created profiles carry a transient importBatchId tag so
-// that, on partial failure, a cleanup pass can delete every profile created in
-// this batch. importBatchId is not persisted as a schema field; it is the
-// ProfileId prefix we use to find and delete partial results.
+// usage found anywhere in api/db/mongodb/). We therefore implement rollback
+// in-process: as each profile is successfully written we append its server-
+// generated ProfileId to a Go slice (createdIds). On the first fatal error
+// we call rollbackImportedProfiles which iterates that slice and best-effort
+// deletes every entry from both the profile repository AND the Redis cache
+// (the cache eviction matters because the proxy treats cached settings as
+// live for one TTL — see import.go:454-479).
+//
+// # Failure mode: process death mid-import
+//
+// The rollback runs in the same goroutine as the import, so if the process
+// dies before it gets a chance to execute (OOM kill, SIGKILL, container
+// restart, hard request timeout, panic in an unrelated goroutine that takes
+// down the runtime) any profiles already persisted to MongoDB will remain.
+// They appear in the user's profile list and the user (or support) can
+// delete them manually. The blast radius is bounded by the per-import cap
+// (ServiceConfig.MaxProfiles, currently 100), and the import endpoint is
+// rate-limited to 3 calls / 10 min per account, so the practical exposure
+// is small. No security or data-loss impact — orphans are owned by the
+// importing account, never leaked across accounts (specRef S3, all IDs
+// regenerated server-side).
+//
+// If orphan profiles become a recurring user complaint, or if import volume
+// grows substantially (e.g. admin-driven bulk migrations), revisit with a
+// persisted batch-id tag and an off-process cleanup pass that reaps un-
+// committed batches. That design adds a schema field, a commit step, and
+// a new set of race-condition surfaces; today the cost outweighs the bound
+// on orphan visibility.
 //
 // specRef: M4, M5, M6, I1, I8, I11, I16-I23, V1-V17, S2-S6
 func (p *ProfileService) Import(
@@ -452,9 +475,11 @@ func (p *ProfileService) validateAndMapRules(
 }
 
 // rollbackImportedProfiles deletes every profile in profileIds. This is the
-// importBatchId fallback rollback path (spec row I22). Errors are logged at
-// Warn level but not returned; the caller has already encountered a fatal
-// error and this is best-effort cleanup.
+// in-process rollback path (spec row I22) — the only rollback path; there is
+// no persisted-tag cleanup pass behind it. Errors are logged at Warn level
+// but not returned; the caller has already encountered a fatal error and
+// this is best-effort cleanup. See the # Failure mode section in Import()
+// for what happens when the process dies before this function runs.
 //
 // Mirror the cleanup of the regular DeleteProfile path (service.go:171-173):
 // importOneProfile populates Redis via Cache.CreateOrUpdateProfileSettings and

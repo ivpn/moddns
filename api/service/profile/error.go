@@ -8,6 +8,34 @@ import (
 	"github.com/ivpn/dns/api/model"
 )
 
+// ProfileError tags an error as a client-class profile-service error. Mirrors
+// the *PasskeyError pattern: any sentinel built via NewProfileError is mapped
+// to HTTP 400 by api/api/errors.go via errors.As, so wrapped instances (e.g.
+// fmt.Errorf("%w: ...", ErrMaxProfilesExceeded, ...)) are also caught.
+//
+// Use this type for sentinels that represent a client-fixable problem with the
+// request — bad schema version, oversized batch, unsupported mode, etc. — and
+// must surface as 400 with a typed error body. Don't use it for server-class
+// failures (DB outages, internal panics) which should fall through to the
+// default 500 mapping.
+type ProfileError struct {
+	Code    string
+	Message error
+}
+
+// Error implements the error interface.
+func (e *ProfileError) Error() string {
+	return e.Message.Error()
+}
+
+// NewProfileError returns a new client-class profile-service error.
+func NewProfileError(msg string) *ProfileError {
+	return &ProfileError{
+		Code:    "PROFILE_ERROR",
+		Message: errors.New(msg),
+	}
+}
+
 var (
 	ErrProfileNameEmpty             = errors.New("profile name cannot be empty")
 	ErrProfileNameInvalid           = errors.New("profile name contains invalid characters")
@@ -44,32 +72,38 @@ var (
 	// Deprecated: prefer the specific sentinel from package reauth.
 	ErrReauthInvalid = errors.New("invalid reauth credential")
 
+	// The seven export/import client-class sentinels below are typed as
+	// *ProfileError so HandleError maps them to HTTP 400 via the errors.As
+	// arm. The `errors.Is` semantics are preserved (pointer-equality on the
+	// singleton sentinel, and errors.Is walks the wrap chain for
+	// ErrMaxProfilesExceeded's fmt.Errorf("%w: ...", ...) augmentation).
+
 	// ErrTooManyProfileIds is returned when the selected profile ID list exceeds MAX_PROFILES.
 	// specRef: E10
-	ErrTooManyProfileIds = errors.New("too many profile IDs requested")
+	ErrTooManyProfileIds = NewProfileError("too many profile IDs requested")
 
 	// ErrInvalidExportScope is returned when the scope field is not a recognised value.
 	// specRef: E11
-	ErrInvalidExportScope = errors.New("invalid export scope")
+	ErrInvalidExportScope = NewProfileError("invalid export scope")
 
 	// ErrUnsupportedImportMode is returned when mode is not ImportModeCreateNew.
 	// specRef: I8, I9
-	ErrUnsupportedImportMode = errors.New("unsupported import mode")
+	ErrUnsupportedImportMode = NewProfileError("unsupported import mode")
 
 	// ErrUnsupportedSchemaVersion is returned when schemaVersion != 1.
 	// specRef: V1
-	ErrUnsupportedSchemaVersion = errors.New("unsupported schema version")
+	ErrUnsupportedSchemaVersion = NewProfileError("unsupported schema version")
 
 	// ErrInvalidExportKind is returned when kind != "moddns-export".
 	// specRef: V2
-	ErrInvalidExportKind = errors.New("invalid export kind")
+	ErrInvalidExportKind = NewProfileError("invalid export kind")
 
 	// ErrEmptyImportPayload is returned when the profiles array is empty.
 	// specRef: V5
-	ErrEmptyImportPayload = errors.New("import payload contains no profiles")
+	ErrEmptyImportPayload = NewProfileError("import payload contains no profiles")
 
 	// ErrMaxProfilesExceeded is returned when importing would push the account
 	// over the ServiceConfig.MaxProfiles cap.
 	// specRef: I16, I17, I18
-	ErrMaxProfilesExceeded = errors.New("import would exceed maximum profile limit")
+	ErrMaxProfilesExceeded = NewProfileError("import would exceed maximum profile limit")
 )
