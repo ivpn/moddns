@@ -905,3 +905,95 @@ func TestImport_Response_CreatedNamesReflectI24Rename(t *testing.T) {
 	require.Equal(t, []string{"Home (imported)"}, result.CreatedProfileNames,
 		"name in response must be the resolved name, not the source")
 }
+
+// ---------------------------------------------------------------------------
+// Rollback cache cleanup — H3 regression guard
+// ---------------------------------------------------------------------------
+
+// specRef: I22 — when a profile mid-batch fails to create, every profile
+// already inserted in this batch must be deleted AND have its Redis cache
+// entry evicted. Without the cache eviction, the proxy would treat the
+// rolled-back profile as live for up to one cache TTL (~30s), and a fresh
+// import that happened to reuse the same generated profileId could be
+// shadowed by the stale cache entry. (Code-review item H3.)
+func TestImport_Rollback_EvictsCacheForCreatedProfiles(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+
+	// Profile #1: creates successfully (profile doc + cache write).
+	env.idGen.On("Generate").Return("created-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything,
+		mock.MatchedBy(func(p *model.Profile) bool {
+			return p.ProfileId == "created-id-1"
+		})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	// Profile #2: fails at CreateProfile, triggering rollback of #1.
+	env.idGen.On("Generate").Return("doomed-id-2", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything,
+		mock.MatchedBy(func(p *model.Profile) bool {
+			return p.ProfileId == "doomed-id-2"
+		})).Return(assert.AnError).Once()
+
+	// Rollback must hit BOTH the repository AND the cache for the
+	// already-created profile. doomed-id-2 was never added to createdIds
+	// (CreateProfile errored before the appends), so it must NOT be touched.
+	env.profileRepo.On("DeleteProfileById", mock.Anything, "created-id-1").
+		Return(nil).Once()
+	env.cache.On("DeleteProfileSettings", mock.Anything, "created-id-1").
+		Return(nil).Once()
+
+	_, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, minimalEnvelope(2), ptr("secret"), nil, nil)
+	require.Error(t, err)
+
+	// AssertExpectations on the cache mock catches both directions:
+	// - "DeleteProfileSettings was called for created-id-1" (the fix).
+	// - "DeleteProfileSettings was NOT called for doomed-id-2" (the mock
+	//   only registered the created-id-1 expectation, so a call for
+	//   doomed-id-2 would be flagged as unexpected by mockery).
+	env.cache.AssertExpectations(t)
+	env.profileRepo.AssertExpectations(t)
+}
+
+// specRef: I22 — cache-cleanup errors during rollback are logged but do not
+// abort the rollback loop. A failing cache.DeleteProfileSettings for one
+// profile must not prevent the next profile from being cleaned up.
+func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+
+	// Two successful creates then a third that fails.
+	for i, id := range []string{"a", "b"} {
+		_ = i
+		env.idGen.On("Generate").Return(id, nil).Once()
+		env.profileRepo.On("CreateProfile", mock.Anything,
+			mock.MatchedBy(func(p *model.Profile) bool { return p.ProfileId == id })).
+			Return(nil).Once()
+		env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+			mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+	}
+	env.idGen.On("Generate").Return("doomed", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything,
+		mock.MatchedBy(func(p *model.Profile) bool { return p.ProfileId == "doomed" })).
+		Return(assert.AnError).Once()
+
+	// Repo deletes succeed for both. Cache delete fails for "a" — the
+	// rollback loop must still process "b".
+	env.profileRepo.On("DeleteProfileById", mock.Anything, "a").Return(nil).Once()
+	env.cache.On("DeleteProfileSettings", mock.Anything, "a").Return(assert.AnError).Once()
+	env.profileRepo.On("DeleteProfileById", mock.Anything, "b").Return(nil).Once()
+	env.cache.On("DeleteProfileSettings", mock.Anything, "b").Return(nil).Once()
+
+	_, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, minimalEnvelope(3), ptr("secret"), nil, nil)
+	require.Error(t, err)
+
+	env.cache.AssertExpectations(t)
+	env.profileRepo.AssertExpectations(t)
+}

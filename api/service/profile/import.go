@@ -455,6 +455,14 @@ func (p *ProfileService) validateAndMapRules(
 // importBatchId fallback rollback path (spec row I22). Errors are logged at
 // Warn level but not returned; the caller has already encountered a fatal
 // error and this is best-effort cleanup.
+//
+// Mirror the cleanup of the regular DeleteProfile path (service.go:171-173):
+// importOneProfile populates Redis via Cache.CreateOrUpdateProfileSettings and
+// Cache.AddCustomRule, so the rollback must also evict the cached settings
+// for every profileId in the batch. Without this, the proxy would treat the
+// rolled-back profile as live until the 30-second TTL expires, and a fresh
+// import that happens to reuse a profileId could be shadowed by the stale
+// cache entry.
 // specRef: I22
 func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId string, profileIds []string) {
 	for _, pid := range profileIds {
@@ -464,6 +472,13 @@ func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId
 				Str("profile_id", pid).
 				Err(err).
 				Msg("import rollback: failed to delete partially-created profile")
+		}
+		if err := p.Cache.DeleteProfileSettings(ctx, pid); err != nil {
+			log.Warn().
+				Str("account_id", accountId).
+				Str("profile_id", pid).
+				Err(err).
+				Msg("import rollback: failed to evict cached profile settings")
 		}
 	}
 }
