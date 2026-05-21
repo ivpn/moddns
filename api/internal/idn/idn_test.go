@@ -75,8 +75,11 @@ func TestDecode(t *testing.T) {
 		{name: "wildcard_idn", input: "*.xn--pypal-2ve.com", wantDecoded: "*.pypalЯ.com", wantOK: true},
 		// specRef:"S5" -- case 4: plain ASCII passthrough
 		{name: "plain_ascii", input: "ads.example.com", wantDecoded: "ads.example.com", wantOK: true},
-		// specRef:"S5" -- case 5: malformed punycode returns (value, false)
-		{name: "malformed_punycode", input: "xn--invalid--punycode-!@#.com", wantDecoded: "xn--invalid--punycode-!@#.com", wantOK: false},
+		// specRef:"S5" -- case 5: malformed punycode returns ("", false).
+		// Empty decoded string (not the Punycode passthrough) signals failure
+		// unambiguously — a caller that ignores ok renders "" instead of
+		// silently displaying the raw xn-- input as though it were Unicode.
+		{name: "malformed_punycode", input: "xn--invalid--punycode-!@#.com", wantDecoded: "", wantOK: false},
 		// specRef:"S5" -- case 6: uppercase ACE prefix decodes to same Unicode form
 		{name: "uppercase_prefix", input: "XN--mller-kva.de", wantDecoded: "müller.de", wantOK: true},
 		// specRef:"S5" -- case 7: mixed-case ACE prefix decodes to same Unicode form

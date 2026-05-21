@@ -33,10 +33,10 @@ func ContainsIDN(value string) bool {
 	return false
 }
 
-// Decode returns the Unicode form of value. ok is false if value contains
-// at least one xn-- label that fails to decode (malformed punycode).
-// If value contains no xn-- labels, Decode returns (value, true) -- i.e.,
-// plain ASCII passes through unchanged.
+// Decode returns the Unicode form of value. ok is true on success; false if
+// value contains at least one xn-- label that fails to decode (malformed
+// punycode). If value contains no xn-- labels, Decode returns (value, true)
+// -- i.e., plain ASCII passes through unchanged.
 //
 // Decode is intended for display only. Do not store the decoded form;
 // re-encoding may not round-trip exactly for non-canonical inputs.
@@ -56,7 +56,7 @@ func Decode(value string) (decoded string, ok bool) {
 		// RFC 3492, so lowercasing the whole label is safe.
 		unicode, err := idna.Punycode.ToUnicode(strings.ToLower(label))
 		if err != nil {
-			return value, false
+			return "", false
 		}
 		out = append(out, unicode)
 	}
