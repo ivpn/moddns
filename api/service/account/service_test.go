@@ -367,15 +367,6 @@ func (suite *AccountTestSuite) TestGetAccount() {
 				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.repoError)
 			} else {
 				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil)
-				// Mock GetAccountMetrics dependencies
-				for _, profileID := range tt.account.Profiles {
-					stats := []model.StatisticsAggregated{
-						{
-							Total: 100,
-						},
-					}
-					suite.mockStatsRepo.On("GetProfileStatistics", context.Background(), profileID, 720).Return(stats, nil)
-				}
 			}
 
 			// Execute the method
@@ -390,94 +381,6 @@ func (suite *AccountTestSuite) TestGetAccount() {
 				suite.NoError(err)
 				suite.NotNil(result)
 				suite.Equal(tt.account.Email, result.Email)
-			}
-		})
-	}
-}
-
-// TestGetAccountMetrics tests the GetAccountMetrics method
-func (suite *AccountTestSuite) TestGetAccountMetrics() {
-	tests := []struct {
-		name          string
-		account       *model.Account
-		timespan      string
-		statsError    error
-		expectedError string
-		expectSuccess bool
-	}{
-		{
-			name: "Successful metrics retrieval",
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Profiles: []string{"profile1", "profile2"},
-			},
-			timespan:      "LAST_1_DAY",
-			expectSuccess: true,
-		},
-		{
-			name: "Statistics error",
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Profiles: []string{"profile1"},
-			},
-			timespan:      "LAST_1_DAY",
-			statsError:    errors.New("stats error"),
-			expectedError: "stats error",
-		},
-		{
-			name: "No profiles",
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Profiles: []string{},
-			},
-			timespan:      "LAST_1_DAY",
-			expectSuccess: true,
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockStatsRepo.ExpectedCalls = nil
-			suite.mockProfileRepo.ExpectedCalls = nil
-
-			// Mock statistics calls for each profile
-			for _, profileID := range tt.account.Profiles {
-				stats := []model.StatisticsAggregated{
-					{
-						Total: 100,
-					},
-				}
-
-				// Mock profile validation in profile service (always successful)
-				profile := &model.Profile{
-					ProfileId: profileID,
-					AccountId: tt.account.ID.Hex(),
-				}
-				suite.mockProfileRepo.On("GetProfileById", context.Background(), profileID).Return(profile, nil)
-
-				if tt.statsError != nil {
-					suite.mockStatsRepo.On("GetProfileStatistics", context.Background(), profileID, 24).Return(nil, tt.statsError)
-					break // Only need one error to trigger the test condition
-				} else {
-					suite.mockStatsRepo.On("GetProfileStatistics", context.Background(), profileID, 24).Return(stats, nil)
-				}
-			}
-
-			// Execute the method
-			result, err := suite.service.GetAccountMetrics(context.Background(), tt.account, tt.timespan)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-				suite.Nil(result)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
 			}
 		})
 	}

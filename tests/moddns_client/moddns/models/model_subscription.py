@@ -31,8 +31,9 @@ class ModelSubscription(BaseModel):
     outage: Optional[StrictBool] = None
     status: Optional[ModelSubscriptionStatus] = Field(default=None, description="Computed fields (not persisted)")
     tier: Optional[StrictStr] = None
+    type: Optional[StrictStr] = Field(default=None, description="Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.")
     updated_at: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "updated_at"]
+    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -89,6 +90,7 @@ class ModelSubscription(BaseModel):
             "outage": obj.get("outage"),
             "status": obj.get("status"),
             "tier": obj.get("tier"),
+            "type": obj.get("type"),
             "updated_at": obj.get("updated_at")
         })
         return _obj

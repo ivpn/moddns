@@ -104,8 +104,6 @@ definitions:
         items:
           type: string
         type: array
-      queries:
-        type: integer
     type: object
   model.AccountUpdate:
     properties:

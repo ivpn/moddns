@@ -11,10 +11,6 @@ import (
 )
 
 const (
-	QUERIES_NUMBER_LIMIT = 300000
-)
-
-const (
 	AuthMethodPassword = "password"
 	AuthMethodPasskey  = "passkey"
 )
@@ -29,7 +25,6 @@ type Account struct {
 	Tokens              []Token            `json:"-" bson:"tokens"`
 	Password            *string            `json:"-" bson:"password,omitempty"`
 	Profiles            []string           `json:"profiles" bson:"profiles"`
-	Queries             int                `json:"queries" bson:"-"`
 	ErrorReportsConsent bool               `json:"error_reports_consent" bson:"error_reports_consent"`
 	MFA                 MFASettings        `json:"mfa" bson:"mfa"`
 	AuthMethods         []string           `json:"auth_methods,omitempty" bson:"-"`
@@ -68,10 +63,6 @@ func NewAccount(email, password, accountId, profileId string) (*Account, error) 
 	// Passkey method is added later upon successful WebAuthn credential registration
 
 	return acc, nil
-}
-
-func (a *Account) IsQueriesNumberExceeded() bool {
-	return a.Queries > QUERIES_NUMBER_LIMIT
 }
 
 // WebAuthnID implements webauthn.User

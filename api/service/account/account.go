@@ -317,11 +317,6 @@ func (p *AccountService) GetAccount(ctx context.Context, accountId string) (*mod
 		return nil, err
 	}
 
-	stats, err := p.GetAccountMetrics(ctx, account, model.LAST_MONTH)
-	if err != nil {
-		return nil, err
-	}
-	account.Queries = stats.Total
 	if err := p.populateAuthMethods(ctx, account); err != nil {
 		return nil, err
 	}
@@ -346,21 +341,6 @@ func (a *AccountService) populateAuthMethods(ctx context.Context, acc *model.Acc
 	}
 	acc.AuthMethods = methods
 	return nil
-}
-
-// GetAccountStatistics returns profile DNS statistics data
-func (a *AccountService) GetAccountMetrics(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error) {
-	accMetricsAggregated := &model.StatisticsAggregated{}
-	for _, profileId := range account.Profiles {
-		profileStats, err := a.ProfileService.GetStatistics(ctx, account.ID.Hex(), profileId, timespan)
-		if err != nil {
-			return nil, err
-		}
-
-		accMetricsAggregated.Total += profileStats[0].Total
-	}
-
-	return accMetricsAggregated, nil
 }
 
 // UpdateAccount updates account data

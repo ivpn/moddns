@@ -2545,9 +2545,6 @@
                     "items": {
                         "type": "string"
                     }
-                },
-                "queries": {
-                    "type": "integer"
                 }
             }
         },
