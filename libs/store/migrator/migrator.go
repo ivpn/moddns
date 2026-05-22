@@ -15,6 +15,10 @@ type DBMigrator struct {
 func NewMigrator(dbClient *mongo.Client, dbName, migrationsSource string) (*DBMigrator, error) {
 	driverMongo, err := mongodb.WithInstance(dbClient, &mongodb.Config{
 		DatabaseName: dbName,
+		Locking: mongodb.Locking{
+			Enabled: true,
+			Timeout: 300,
+		},
 	})
 	if err != nil {
 		return nil, err
