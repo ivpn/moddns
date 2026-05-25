@@ -1,17 +1,28 @@
 import { lazy, ComponentType } from 'react';
 
 /**
+ * A lazy component that can also be preloaded imperatively (e.g. on nav hover)
+ * to warm its chunk before the user clicks.
+ */
+export type PreloadableComponent<T extends ComponentType<unknown>> =
+  React.LazyExoticComponent<T> & { preload: () => Promise<{ default: T }> };
+
+/**
  * Wrapper around React.lazy that retries failed dynamic imports.
  *
  * During Vite HMR, dynamic imports can fail when modules are invalidated.
  * This wrapper catches those failures and either retries the import
  * or forces a page reload to get fresh modules.
+ *
+ * The returned component also exposes `preload()`, which kicks off the same
+ * import ahead of render. The import promise is memoized, so preload() on hover
+ * followed by React.lazy resolving on click share a single in-flight request.
  */
 export function lazyWithRetry<T extends ComponentType<unknown>>(
   importFn: () => Promise<{ default: T }>,
   retries = 2
-): React.LazyExoticComponent<T> {
-  return lazy(async () => {
+): PreloadableComponent<T> {
+  const loadWithRetry = async (): Promise<{ default: T }> => {
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
@@ -61,5 +72,23 @@ export function lazyWithRetry<T extends ComponentType<unknown>>(
 
     // If we can't reload or it didn't help, throw the error
     throw lastError;
-  });
+  };
+
+  // Memoize the in-flight import so hover-preload and lazy-on-click dedupe.
+  // On failure we clear it so a later attempt can retry rather than replaying
+  // the rejected promise.
+  let cached: Promise<{ default: T }> | undefined;
+  const load = (): Promise<{ default: T }> => {
+    if (!cached) {
+      cached = loadWithRetry().catch((error) => {
+        cached = undefined;
+        throw error;
+      });
+    }
+    return cached;
+  };
+
+  const Component = lazy(load) as PreloadableComponent<T>;
+  Component.preload = load;
+  return Component;
 }

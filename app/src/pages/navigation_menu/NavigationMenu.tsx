@@ -22,7 +22,7 @@ import modDNSLogoCollapsedBlack from '@/assets/logos/o_black_250.png';
 import { type JSX, useContext, useState } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
-import { AuthContext } from "@/App";
+import { AuthContext, routePreload } from "@/App";
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
 import api from "@/api/api";
 
@@ -181,6 +181,9 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                                 className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full justify-start gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive(item.route) ? "bg-[var(--sidebar-accent-bg)] text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "px-4"}`}
                                 title={!isMobile && collapsed ? item.label : undefined}
                                 onClick={() => handleNavigation(item.route)}
+                                onMouseEnter={() => routePreload[item.route]?.()}
+                                onFocus={() => routePreload[item.route]?.()}
+                                onTouchStart={() => routePreload[item.route]?.()}
                             >
                                 <span className={`flex items-center ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>{item.icon}</span>
                                 {showLabels && (
