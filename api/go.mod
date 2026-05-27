@@ -22,8 +22,8 @@ require (
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.mongodb.org/mongo-driver v1.17.3
-	gopkg.in/yaml.v3 v3.0.1
 	golang.org/x/net v0.45.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace github.com/ivpn/dns/libs => ../libs

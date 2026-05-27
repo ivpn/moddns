@@ -13,9 +13,17 @@ import (
 	"github.com/ivpn/dns/libs/store"
 )
 
-// parseBoolEnv returns true if the environment variable equals "true" (case-sensitive)
+// parseBoolEnv returns true if the environment variable parses to a true
+// boolean. Parsing is case-insensitive and accepts the forms understood by
+// strconv.ParseBool (1, t, T, TRUE, true, True, ...). This tolerates values
+// such as "True" that templating engines (e.g. Ansible/Jinja2 rendering a YAML
+// boolean) emit. Unset, empty, or unparseable values are treated as false.
 func parseBoolEnv(key string) bool {
-	return os.Getenv(key) == "true"
+	v, err := strconv.ParseBool(strings.TrimSpace(os.Getenv(key)))
+	if err != nil {
+		return false
+	}
+	return v
 }
 
 // envOrDefault returns the value of the environment variable or fallback if empty.
