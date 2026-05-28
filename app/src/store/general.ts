@@ -29,9 +29,10 @@ interface AppState {
   // beta-ending banner. Cleared to "" by the backend after a successful resync.
   subscriptionType: string | null;
   setSubscriptionType: (type: string | null) => void;
-  // True when the account was retired by the signup-reset flow. Distinguishes a
-  // retired account from a normal (expiry-driven) pending_delete so the webapp
-  // can show "this account was replaced" copy instead of "add time to recover".
+  // True when the account was retired by the signup-reset flow (status
+  // pending_delete). Distinguishes a retired account from a normal `inactive`
+  // account so the webapp can show "this account was replaced" copy instead of
+  // "add time to recover".
   subscriptionDeletionScheduled: boolean;
   setSubscriptionDeletionScheduled: (scheduled: boolean) => void;
 }

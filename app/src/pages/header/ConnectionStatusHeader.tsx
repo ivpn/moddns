@@ -11,14 +11,15 @@ export default function ConnectionStatusHeader(): JSX.Element | null {
     const [isHiding, setIsHiding] = useState(false);
     const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
     // Belt-and-suspenders: App-level gating already skips rendering this
-    // component when PendingDelete, but if it ever does render the poll
-    // must not fire (DNS is stopped for PD; the test would only ever fail).
-    const { isPendingDelete } = useSubscriptionGuard();
+    // component when the account is cut off (inactive / pending_delete), but if
+    // it ever does render the poll must not fire (DNS is stopped for cut-off
+    // accounts; the test would only ever fail).
+    const { isCutOff } = useSubscriptionGuard();
 
-    const { status } = useDnsConnectionStatus(5000, { enabled: !isPendingDelete });
+    const { status } = useDnsConnectionStatus(5000, { enabled: !isCutOff });
     const { badge, message, messageColor } = status;
 
-    if (isCollapsed || isPendingDelete) return null;
+    if (isCollapsed || isCutOff) return null;
 
     const handleHide = () => {
         setIsHiding(true);

@@ -49,31 +49,35 @@ afterEach(() => {
     useAppStore.getState().setConnectionStatusVisible(true);
 });
 
-describe("PendingDelete: DNS connection surface", () => {
-    it("ConnectionStatusHeader renders nothing when subscription is pending_delete", () => {
-        useAppStore.getState().setSubscriptionStatus("pending_delete");
+describe("Cut-off (inactive / pending_delete): DNS connection surface", () => {
+    // Both cut-off states stop DNS, so the connection surface must be hidden and
+    // the poll must never be enabled for either.
+    for (const status of ["inactive", "pending_delete"] as const) {
+        it(`ConnectionStatusHeader renders nothing when subscription is ${status}`, () => {
+            useAppStore.getState().setSubscriptionStatus(status);
 
-        const { container } = render(<ConnectionStatusHeader />);
+            const { container } = render(<ConnectionStatusHeader />);
 
-        expect(container.firstChild).toBeNull();
-        // Hook may be invoked during render, but must always be called with enabled=false in PD.
-        for (const call of mockedHook.mock.calls) {
-            const opts = call[1] as { enabled?: boolean } | undefined;
-            expect(opts?.enabled).toBe(false);
-        }
-    });
+            expect(container.firstChild).toBeNull();
+            // Hook may be invoked during render, but must always be called with enabled=false when cut off.
+            for (const call of mockedHook.mock.calls) {
+                const opts = call[1] as { enabled?: boolean } | undefined;
+                expect(opts?.enabled).toBe(false);
+            }
+        });
 
-    it("MobileConnectionStatusBar renders nothing when subscription is pending_delete", () => {
-        useAppStore.getState().setSubscriptionStatus("pending_delete");
+        it(`MobileConnectionStatusBar renders nothing when subscription is ${status}`, () => {
+            useAppStore.getState().setSubscriptionStatus(status);
 
-        const { container } = render(<MobileConnectionStatusBar />);
+            const { container } = render(<MobileConnectionStatusBar />);
 
-        expect(container.firstChild).toBeNull();
-        for (const call of mockedHook.mock.calls) {
-            const opts = call[1] as { enabled?: boolean } | undefined;
-            expect(opts?.enabled).toBe(false);
-        }
-    });
+            expect(container.firstChild).toBeNull();
+            for (const call of mockedHook.mock.calls) {
+                const opts = call[1] as { enabled?: boolean } | undefined;
+                expect(opts?.enabled).toBe(false);
+            }
+        });
+    }
 
     it("ConnectionStatusHeader renders normally when subscription is active", () => {
         useAppStore.getState().setSubscriptionStatus("active");
@@ -110,7 +114,7 @@ describe("PendingDelete: DNS connection surface", () => {
         // Wrapper span carries the cursor-not-allowed style and the explanatory tooltip.
         const wrapper = button.parentElement!;
         expect(wrapper.className).toContain("cursor-not-allowed");
-        expect(wrapper.getAttribute("title")).toBe("Feature unavailable in Pending deletion mode");
+        expect(wrapper.getAttribute("title")).toBe("Feature unavailable while your account is inactive");
     });
 
     it('Header "DNS Status" button is interactive when connectionStatusRestoreDisabled is false', () => {

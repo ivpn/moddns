@@ -74,8 +74,10 @@ export default function AccountSubscription() {
 
     const isActive = sub.status === "active" || sub.status === "grace_period";
     const isLimited = sub.status === "limited_access";
-    const isPendingDelete = sub.status === "pending_delete";
-    const hasAlerts = isLimited || isPendingDelete || sub.outage || !!error;
+    const isInactive = sub.status === "inactive";
+    const isPendingDelete = sub.status === "pending_delete"; // signup-reset retired
+    const isCutOff = isInactive || isPendingDelete;
+    const hasAlerts = isLimited || isCutOff || sub.outage || !!error;
 
     const statusBadge = syncing
         ? <StatusBadge intent="info" text="Syncing..." />
@@ -84,7 +86,7 @@ export default function AccountSubscription() {
             : isLimited
                 ? <StatusBadge intent="warning" text="Limited" />
                 : isPendingDelete
-                    ? <StatusBadge intent="error" text="Pending deletion" />
+                    ? <StatusBadge intent="error" text="Scheduled for deletion" />
                     : <StatusBadge intent="neutral" text="Inactive" />;
 
     const formatDate = (dateStr?: string) => {
@@ -99,8 +101,8 @@ export default function AccountSubscription() {
     ];
 
     // "Active until" is only meaningful while the subscription is still active or in grace —
-    // hide it once the user lands in Limited Access or Pending Delete.
-    if (!isLimited && !isPendingDelete) {
+    // hide it once the user lands in Limited Access, Inactive, or Pending Delete.
+    if (!isLimited && !isCutOff) {
         rows.push({ label: "Active until", value: formatDate(sub.active_until) });
     }
 
