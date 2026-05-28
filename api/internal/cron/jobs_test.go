@@ -196,6 +196,119 @@ func TestNotifyPendingDelete_EmailFailureLeavesUnnotified(t *testing.T) {
 	NotifyPendingDeleteSubscriptions(subRepo, accountRepo, profileRepo, profileCache, mailer)
 }
 
+// TestNotifyPendingDelete_SkipsRetired proves a retired (signup-reset) sub —
+// pending_delete via row L0 — is skipped by the PD cron: no DNS cutoff, no
+// generic email, no flag write. The signup-reset flow owns its messaging and
+// the DeleteRetiredAccounts cron owns its deletion.
+//
+// specRef: signup-reset-behaviour.md R-E2
+func TestNotifyPendingDelete_SkipsRetired(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	accountRepo := mocks.NewAccountRepository(t)
+	profileRepo := mocks.NewProfileRepository(t)
+	profileCache := mocks.NewCachecache(t)
+	mailer := mocks.NewMaileremail(t)
+
+	// Fresh paid dates but retired → pending_delete via L0.
+	au, ua := freshDates()
+	retired := newSub("IVPN Tier 2", au, ua)
+	scheduled := time.Now()
+	retired.DeletionScheduledAt = &scheduled
+	require.Equal(t, model.StatusPendingDelete, retired.GetStatus(), "sanity: retired sub is PD via L0")
+
+	subRepo.On("FindWithPendingDeleteNotified", mock.Anything).Return([]model.Subscription{}, nil).Once()
+	subRepo.On("FindPendingDeleteUnnotified", mock.Anything).Return([]model.Subscription{retired}, nil).Once()
+
+	// No account lookup, no DNS cutoff, no email, no flag write are registered;
+	// the strict mocks fail if any of them fire.
+
+	NotifyPendingDeleteSubscriptions(subRepo, accountRepo, profileRepo, profileCache, mailer)
+}
+
+// TestDeleteRetiredAccounts_PurgesExpired covers Phase 3: a sub scheduled for
+// deletion more than RetiredAccountRetention ago is hard-deleted via the purge
+// path; a sub scheduled too recently is not returned by the pre-filter.
+//
+// specRef: signup-reset-behaviour.md R-E6
+func TestDeleteRetiredAccounts_PurgesExpired(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	purger := mocks.NewAccountPurgercron(t)
+
+	scheduled := time.Now().Add(-model.RetiredAccountRetention - time.Hour)
+	sub := newSub("IVPN Tier 2", time.Now().Add(30*24*time.Hour), time.Now())
+	sub.DeletionScheduledAt = &scheduled
+
+	subRepo.On("FindScheduledForDeletion", mock.Anything, mock.AnythingOfType("time.Time")).Return([]model.Subscription{sub}, nil).Once()
+	purger.On("PurgeAccountData", mock.Anything, sub.AccountID.Hex()).Return(nil).Once()
+
+	DeleteRetiredAccounts(subRepo, purger)
+}
+
+// TestDeleteRetiredAccounts_NoneScheduled: empty pre-filter → no purge calls.
+func TestDeleteRetiredAccounts_NoneScheduled(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	purger := mocks.NewAccountPurgercron(t)
+
+	subRepo.On("FindScheduledForDeletion", mock.Anything, mock.AnythingOfType("time.Time")).Return([]model.Subscription{}, nil).Once()
+
+	DeleteRetiredAccounts(subRepo, purger)
+}
+
+// TestDeleteRetiredAccounts_PurgeFailureContinues: a purge failure on one
+// account is logged and does not stop the others.
+func TestDeleteRetiredAccounts_PurgeFailureContinues(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	purger := mocks.NewAccountPurgercron(t)
+
+	sched := time.Now().Add(-model.RetiredAccountRetention - time.Hour)
+	sub1 := newSub("IVPN Tier 2", time.Now(), time.Now())
+	sub1.DeletionScheduledAt = &sched
+	sub2 := newSub("IVPN Tier 2", time.Now(), time.Now())
+	sub2.DeletionScheduledAt = &sched
+
+	subRepo.On("FindScheduledForDeletion", mock.Anything, mock.AnythingOfType("time.Time")).Return([]model.Subscription{sub1, sub2}, nil).Once()
+	purger.On("PurgeAccountData", mock.Anything, sub1.AccountID.Hex()).Return(errors.New("boom")).Once()
+	purger.On("PurgeAccountData", mock.Anything, sub2.AccountID.Hex()).Return(nil).Once()
+
+	DeleteRetiredAccounts(subRepo, purger)
+}
+
+// TestReportDuplicateTokenHashAccounts_WithDuplicates: the read-only report job
+// queries the duplicate-group aggregation and writes nothing (no other repo
+// calls). The strict mocks verify it is purely diagnostic.
+//
+// specRef: signup-reset-behaviour.md (reconciliation report)
+func TestReportDuplicateTokenHashAccounts_WithDuplicates(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+
+	groups := []model.DuplicateTokenHashGroup{
+		{TokenHash: "hash-1", Count: 2, AccountIDs: []primitive.ObjectID{primitive.NewObjectID(), primitive.NewObjectID()}},
+		{TokenHash: "hash-2", Count: 3, AccountIDs: []primitive.ObjectID{primitive.NewObjectID(), primitive.NewObjectID(), primitive.NewObjectID()}},
+	}
+	subRepo.On("FindDuplicateTokenHashGroups", mock.Anything).Return(groups, nil).Once()
+
+	// No write methods are registered — the strict mock fails if the job writes.
+	ReportDuplicateTokenHashAccounts(subRepo)
+}
+
+// TestReportDuplicateTokenHashAccounts_None: clean state logs the all-clear and
+// performs no writes.
+func TestReportDuplicateTokenHashAccounts_None(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	subRepo.On("FindDuplicateTokenHashGroups", mock.Anything).Return([]model.DuplicateTokenHashGroup{}, nil).Once()
+
+	ReportDuplicateTokenHashAccounts(subRepo)
+}
+
+// TestReportDuplicateTokenHashAccounts_QueryError: a scan error is logged and
+// swallowed (the diagnostic must never panic or write).
+func TestReportDuplicateTokenHashAccounts_QueryError(t *testing.T) {
+	subRepo := mocks.NewSubscriptionRepository(t)
+	subRepo.On("FindDuplicateTokenHashGroups", mock.Anything).Return(nil, errors.New("boom")).Once()
+
+	ReportDuplicateTokenHashAccounts(subRepo)
+}
+
 // TestNotifyExpiring_PostFilterSkipsPDAndGrace verifies the LA cron's
 // strict GetStatus()==LA post-filter still rejects PD and GracePeriod subs
 // that may leak through the loose Mongo pre-filter.
