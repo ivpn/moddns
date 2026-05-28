@@ -12,6 +12,7 @@ import (
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/passkey"
 	"github.com/ivpn/dns/api/service/profile"
+	"github.com/ivpn/dns/api/service/subscription"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -138,6 +139,9 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
+	case subscription.ErrSubscriptionScheduledForDeletion:
+		resp.Error = err.Error()
+		return c.Status(409).JSON(resp)
 	case ErrSessionsLimitReached:
 		resp.Error = err.Error()
 		return c.Status(429).JSON(resp)

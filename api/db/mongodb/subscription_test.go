@@ -260,6 +260,59 @@ func (s *SubscriptionRepositorySuite) TestSetNotified_BulkRoundTrip() {
 	s.False(containsID(flagged, id))
 }
 
+// TestFindDuplicateTokenHashGroups validates the read-only reconciliation
+// aggregation against real Mongo: only token_hash values held by >1 NON-retired
+// subscription are reported. Retired subs (deletion_scheduled_at set) and
+// legacy subs (no token_hash) are excluded.
+//
+// specRef: signup-reset-behaviour.md (reconciliation report)
+func (s *SubscriptionRepositorySuite) TestFindDuplicateTokenHashGroups() {
+	now := time.Now()
+	scheduled := now
+	mk := func(tokenHash string, deletionScheduled *time.Time) {
+		sub := model.Subscription{
+			ID:                  uuid.New(),
+			AccountID:           primitive.NewObjectID(),
+			Tier:                "IVPN Tier 2",
+			ActiveUntil:         now.Add(30 * 24 * time.Hour),
+			UpdatedAt:           now,
+			IsActive:            true,
+			TokenHash:           tokenHash,
+			DeletionScheduledAt: deletionScheduled,
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		s.Require().NoError(s.repo.Create(ctx, sub))
+	}
+
+	mk("dup", nil)        // two non-retired sharing "dup" → a duplicate group
+	mk("dup", nil)        //
+	mk("unique", nil)     // single → not a duplicate
+	mk("mix", nil)        // one non-retired +
+	mk("mix", &scheduled) //   one retired (deletion_scheduled_at) → only 1 counts → not a duplicate
+	mk("", nil)           // legacy: token_hash omitted (absent) → excluded
+	mk("", nil)           //
+
+	ctx := context.Background()
+	groups, err := s.repo.FindDuplicateTokenHashGroups(ctx)
+	s.Require().NoError(err)
+
+	byHash := map[string]model.DuplicateTokenHashGroup{}
+	for _, g := range groups {
+		byHash[g.TokenHash] = g
+	}
+
+	s.Len(groups, 1, "only token_hash 'dup' is a duplicate group")
+	dup, ok := byHash["dup"]
+	s.Require().True(ok, "'dup' must be reported")
+	s.Equal(2, dup.Count)
+	s.Len(dup.AccountIDs, 2)
+	_, mixReported := byHash["mix"]
+	s.False(mixReported, "'mix' has only one non-retired sub → not a duplicate")
+	_, emptyReported := byHash[""]
+	s.False(emptyReported, "legacy empty token_hash must never be grouped")
+}
+
 // Entry point.
 func TestSubscriptionRepositorySuite(t *testing.T) {
 	suite.Run(t, new(SubscriptionRepositorySuite))

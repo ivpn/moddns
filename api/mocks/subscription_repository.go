@@ -6,10 +6,12 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // NewSubscriptionRepository creates a new instance of SubscriptionRepository. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -210,6 +212,142 @@ func (_c *SubscriptionRepository_DeleteSubscriptionByAccountId_Call) RunAndRetur
 	return _c
 }
 
+// FindActiveByTokenHash provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx, tokenHash, excludeAccountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindActiveByTokenHash")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, primitive.ObjectID) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx, tokenHash, excludeAccountID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, primitive.ObjectID) []model.Subscription); ok {
+		r0 = returnFunc(ctx, tokenHash, excludeAccountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, primitive.ObjectID) error); ok {
+		r1 = returnFunc(ctx, tokenHash, excludeAccountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// SubscriptionRepository_FindActiveByTokenHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindActiveByTokenHash'
+type SubscriptionRepository_FindActiveByTokenHash_Call struct {
+	*mock.Call
+}
+
+// FindActiveByTokenHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tokenHash string
+//   - excludeAccountID primitive.ObjectID
+func (_e *SubscriptionRepository_Expecter) FindActiveByTokenHash(ctx interface{}, tokenHash interface{}, excludeAccountID interface{}) *SubscriptionRepository_FindActiveByTokenHash_Call {
+	return &SubscriptionRepository_FindActiveByTokenHash_Call{Call: _e.mock.On("FindActiveByTokenHash", ctx, tokenHash, excludeAccountID)}
+}
+
+func (_c *SubscriptionRepository_FindActiveByTokenHash_Call) Run(run func(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID)) *SubscriptionRepository_FindActiveByTokenHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 primitive.ObjectID
+		if args[2] != nil {
+			arg2 = args[2].(primitive.ObjectID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindActiveByTokenHash_Call) Return(subscriptions []model.Subscription, err error) *SubscriptionRepository_FindActiveByTokenHash_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindActiveByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error)) *SubscriptionRepository_FindActiveByTokenHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindDuplicateTokenHashGroups provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) FindDuplicateTokenHashGroups(ctx context.Context) ([]model.DuplicateTokenHashGroup, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindDuplicateTokenHashGroups")
+	}
+
+	var r0 []model.DuplicateTokenHashGroup
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.DuplicateTokenHashGroup, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.DuplicateTokenHashGroup); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.DuplicateTokenHashGroup)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// SubscriptionRepository_FindDuplicateTokenHashGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindDuplicateTokenHashGroups'
+type SubscriptionRepository_FindDuplicateTokenHashGroups_Call struct {
+	*mock.Call
+}
+
+// FindDuplicateTokenHashGroups is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *SubscriptionRepository_Expecter) FindDuplicateTokenHashGroups(ctx interface{}) *SubscriptionRepository_FindDuplicateTokenHashGroups_Call {
+	return &SubscriptionRepository_FindDuplicateTokenHashGroups_Call{Call: _e.mock.On("FindDuplicateTokenHashGroups", ctx)}
+}
+
+func (_c *SubscriptionRepository_FindDuplicateTokenHashGroups_Call) Run(run func(ctx context.Context)) *SubscriptionRepository_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindDuplicateTokenHashGroups_Call) Return(duplicateTokenHashGroups []model.DuplicateTokenHashGroup, err error) *SubscriptionRepository_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Return(duplicateTokenHashGroups, err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindDuplicateTokenHashGroups_Call) RunAndReturn(run func(ctx context.Context) ([]model.DuplicateTokenHashGroup, error)) *SubscriptionRepository_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindExpiredUnnotified provides a mock function for the type SubscriptionRepository
 func (_mock *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	ret := _mock.Called(ctx)
@@ -330,6 +468,74 @@ func (_c *SubscriptionRepository_FindPendingDeleteUnnotified_Call) Return(subscr
 }
 
 func (_c *SubscriptionRepository_FindPendingDeleteUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *SubscriptionRepository_FindPendingDeleteUnnotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindScheduledForDeletion provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) FindScheduledForDeletion(ctx context.Context, before time.Time) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx, before)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindScheduledForDeletion")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx, before)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []model.Subscription); ok {
+		r0 = returnFunc(ctx, before)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, before)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// SubscriptionRepository_FindScheduledForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindScheduledForDeletion'
+type SubscriptionRepository_FindScheduledForDeletion_Call struct {
+	*mock.Call
+}
+
+// FindScheduledForDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - before time.Time
+func (_e *SubscriptionRepository_Expecter) FindScheduledForDeletion(ctx interface{}, before interface{}) *SubscriptionRepository_FindScheduledForDeletion_Call {
+	return &SubscriptionRepository_FindScheduledForDeletion_Call{Call: _e.mock.On("FindScheduledForDeletion", ctx, before)}
+}
+
+func (_c *SubscriptionRepository_FindScheduledForDeletion_Call) Run(run func(ctx context.Context, before time.Time)) *SubscriptionRepository_FindScheduledForDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindScheduledForDeletion_Call) Return(subscriptions []model.Subscription, err error) *SubscriptionRepository_FindScheduledForDeletion_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_FindScheduledForDeletion_Call) RunAndReturn(run func(ctx context.Context, before time.Time) ([]model.Subscription, error)) *SubscriptionRepository_FindScheduledForDeletion_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -522,6 +728,69 @@ func (_c *SubscriptionRepository_GetSubscriptionByAccountId_Call) Return(subscri
 }
 
 func (_c *SubscriptionRepository_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) (*model.Subscription, error)) *SubscriptionRepository_GetSubscriptionByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkSubscriptionRetired provides a mock function for the type SubscriptionRepository
+func (_mock *SubscriptionRepository) MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
+	ret := _mock.Called(ctx, subscriptionID, when)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkSubscriptionRetired")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) error); ok {
+		r0 = returnFunc(ctx, subscriptionID, when)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// SubscriptionRepository_MarkSubscriptionRetired_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkSubscriptionRetired'
+type SubscriptionRepository_MarkSubscriptionRetired_Call struct {
+	*mock.Call
+}
+
+// MarkSubscriptionRetired is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subscriptionID uuid.UUID
+//   - when time.Time
+func (_e *SubscriptionRepository_Expecter) MarkSubscriptionRetired(ctx interface{}, subscriptionID interface{}, when interface{}) *SubscriptionRepository_MarkSubscriptionRetired_Call {
+	return &SubscriptionRepository_MarkSubscriptionRetired_Call{Call: _e.mock.On("MarkSubscriptionRetired", ctx, subscriptionID, when)}
+}
+
+func (_c *SubscriptionRepository_MarkSubscriptionRetired_Call) Run(run func(ctx context.Context, subscriptionID uuid.UUID, when time.Time)) *SubscriptionRepository_MarkSubscriptionRetired_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *SubscriptionRepository_MarkSubscriptionRetired_Call) Return(err error) *SubscriptionRepository_MarkSubscriptionRetired_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *SubscriptionRepository_MarkSubscriptionRetired_Call) RunAndReturn(run func(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error) *SubscriptionRepository_MarkSubscriptionRetired_Call {
 	_c.Call.Return(run)
 	return _c
 }

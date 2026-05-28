@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/model"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // SubscriptionRepository represents a Subscription repository.
@@ -20,6 +22,12 @@ type SubscriptionRepository interface {
 	Create(ctx context.Context, subscription model.Subscription) error
 	ClearLegacyType(ctx context.Context, accountId string) error
 	DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error
+
+	// Reset account methods for the signup-reset flow. See docs/specs/signup-reset-behaviour.md.
+	FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error)
+	MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error
+	FindScheduledForDeletion(ctx context.Context, before time.Time) ([]model.Subscription, error)
+	FindDuplicateTokenHashGroups(ctx context.Context) ([]model.DuplicateTokenHashGroup, error)
 
 	// FindExpiredUnnotified returns LA-candidate subs with notified=false.
 	// Coarse pre-filter: cron must check sub.GetStatus() == StatusLimitedAccess.
