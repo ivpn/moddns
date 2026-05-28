@@ -9,6 +9,7 @@ import {
     LogOut,
     Mail,
     HelpCircle,
+    Megaphone,
     EyeOff,
     X,
     Sun,
@@ -101,6 +102,11 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             icon: <ListIcon className="w-5 h-5" />,
             label: "Logs",
             route: "/query-logs",
+        },
+        {
+            icon: <Megaphone className="w-5 h-5" />,
+            label: "Announcements",
+            route: "/announcements",
         },
         {
             icon: <SettingsIcon className="w-5 h-5" />,

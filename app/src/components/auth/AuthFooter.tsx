@@ -57,6 +57,10 @@ export default function AuthFooter({ variant = "absolute", openInNewTab = true }
                     FAQ
                 </InternalLink>
                 <span className="text-sm text-[var(--tailwind-colors-slate-300)]">|</span>
+                <InternalLink href="/announcements" title="Go to Announcements page" openInNewTab={openInNewTab}>
+                    Announcements
+                </InternalLink>
+                <span className="text-sm text-[var(--tailwind-colors-slate-300)]">|</span>
                 <a
                     href="https://ivpn.net"
                     target="_blank"
