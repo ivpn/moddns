@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/cache"
@@ -105,7 +106,14 @@ func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository,
 	for _, sub := range candidates {
 		if sub.GetStatus() != model.StatusPendingDelete {
 			skippedNotPD++
-			log.Debug().Str("subscription_id", sub.ID.String()).Str("status", string(sub.GetStatus())).Msg("Cron: skipping non-PD candidate from pending-delete notification")
+			continue
+		}
+
+		// Retired-by-signup-reset accounts are pending_delete via row L0, but the
+		// signup-reset flow already performed their DNS cutoff;
+		// the generic "add time to your IVPN account" email would mislead.
+		// Skip them here (the DeleteRetiredAccounts cron owns their hard delete).
+		if sub.DeletionScheduledAt != nil {
 			continue
 		}
 
@@ -144,6 +152,82 @@ func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository,
 			log.Error().Err(err).Msg("Cron: failed to mark subscriptions as pending-delete notified")
 		}
 	}
+}
+
+// DeleteRetiredAccounts hard-deletes accounts retired by the signup-reset flow
+// once their grace window has elapsed. It finds subscriptions whose
+// deletion_scheduled_at is older than model.RetiredAccountRetention and purges
+// each account via the (idempotent) purge path. See
+// docs/specs/signup-reset-behaviour.md Phase 3.
+func DeleteRetiredAccounts(subRepo repository.SubscriptionRepository, purger AccountPurger) {
+	ctx := context.Background()
+
+	cutoff := time.Now().Add(-model.RetiredAccountRetention)
+	subs, err := subRepo.FindScheduledForDeletion(ctx, cutoff)
+	if err != nil {
+		log.Error().Err(err).Msg("Cron: failed to find subscriptions scheduled for deletion")
+		return
+	}
+	if len(subs) == 0 {
+		return
+	}
+
+	log.Info().Int("candidates", len(subs)).Msg("Cron: hard-deleting retired accounts")
+
+	deleted := 0
+	for _, sub := range subs {
+		accountID := sub.AccountID.Hex()
+		if err := purger.PurgeAccountData(ctx, accountID); err != nil {
+			log.Error().Err(err).Str("account_id", accountID).Msg("Cron: failed to purge retired account")
+			continue
+		}
+		deleted++
+	}
+
+	log.Info().Int("candidates", len(subs)).Int("deleted", deleted).Msg("Cron: retired-account deletion complete")
+}
+
+// ReportDuplicateTokenHashAccounts is a READ-ONLY diagnostic: it scans for
+// token_hash values held by more than one non-retired subscription (the
+// signup-reset invariant violated) and logs a report. It writes nothing — it
+// only surfaces pre-existing duplicates and any created by a failed/raced
+// retirement (R-E4/R-E7) so an operator can remediate. The headline field
+// `duplicate_groups` is the value to alert on (expected: 0). See
+// docs/specs/signup-reset-behaviour.md.
+func ReportDuplicateTokenHashAccounts(subRepo repository.SubscriptionRepository) {
+	ctx := context.Background()
+
+	groups, err := subRepo.FindDuplicateTokenHashGroups(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Cron: failed to scan for duplicate token_hash accounts")
+		return
+	}
+
+	if len(groups) == 0 {
+		log.Info().Int("duplicate_groups", 0).Msg("Cron: signup-reset duplicate report — invariant holds (no duplicates)")
+		return
+	}
+
+	excess := 0
+	for _, g := range groups {
+		ids := make([]string, 0, len(g.AccountIDs))
+		for _, id := range g.AccountIDs {
+			ids = append(ids, id.Hex())
+		}
+		excess += g.Count - 1
+		log.Warn().
+			Str("event", "signup_reset_duplicate_token_hash").
+			Str("token_hash", g.TokenHash).
+			Int("account_count", g.Count).
+			Strs("account_ids", ids).
+			Msg("Cron: duplicate token_hash — multiple non-retired accounts for one IVPN customer")
+	}
+
+	log.Warn().
+		Str("event", "signup_reset_duplicate_report").
+		Int("duplicate_groups", len(groups)).
+		Int("excess_accounts", excess).
+		Msg("Cron: signup-reset duplicate report — manual remediation may be required")
 }
 
 // rearmLANotified loads every sub with notified=true and clears the flag
