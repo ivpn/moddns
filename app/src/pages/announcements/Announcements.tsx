@@ -20,6 +20,7 @@ import modDNSLogoDarkTheme from "@/assets/logos/modDNS-dark-theme.svg";
 import modDNSLogoLightTheme from "@/assets/logos/modDNS-light-theme.svg";
 import AuthFooter from "@/components/auth/AuthFooter";
 import api from "@/api/api";
+import { useAppStore } from "@/store/general";
 import {
     type AnnouncementsAnnouncement,
     AnnouncementsCategory,
@@ -111,10 +112,17 @@ export default function Announcements(): JSX.Element {
     const { theme } = useTheme();
     const isDarkMode = theme === "dark";
     const canGoBack = typeof window !== "undefined" && window.history.length > 1;
+    const markAnnouncementsSeen = useAppStore((s) => s.markAnnouncementsSeen);
 
     const [items, setItems] = useState<AnnouncementsAnnouncement[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+
+    // Opening this page marks all current announcements as seen, clearing the
+    // nav unread dot.
+    useEffect(() => {
+        markAnnouncementsSeen();
+    }, [markAnnouncementsSeen]);
 
     useEffect(() => {
         let active = true;

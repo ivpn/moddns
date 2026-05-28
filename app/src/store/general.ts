@@ -35,6 +35,10 @@ interface AppState {
   // "add time to recover".
   subscriptionDeletionScheduled: boolean;
   setSubscriptionDeletionScheduled: (scheduled: boolean) => void;
+  // ISO timestamp of when the user last opened the Announcements page; used to
+  // compute the unread indicator in the nav. null = never opened.
+  announcementsLastSeenAt: string | null;
+  markAnnouncementsSeen: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -81,6 +85,8 @@ export const useAppStore = create<AppState>()(
       setSubscriptionType: (type) => set({ subscriptionType: type }),
       subscriptionDeletionScheduled: false,
       setSubscriptionDeletionScheduled: (scheduled) => set({ subscriptionDeletionScheduled: scheduled }),
+      announcementsLastSeenAt: null,
+      markAnnouncementsSeen: () => set({ announcementsLastSeenAt: new Date().toISOString() }),
     }),
     {
       name: "moddns-storage",
@@ -91,6 +97,7 @@ export const useAppStore = create<AppState>()(
         blocklistsAlertDismissed: state.blocklistsAlertDismissed,
         customRulesAlertDismissed: state.customRulesAlertDismissed,
         connectionStatusVisible: state.connectionStatusVisible,
+        announcementsLastSeenAt: state.announcementsLastSeenAt,
       }),
     }
   )
