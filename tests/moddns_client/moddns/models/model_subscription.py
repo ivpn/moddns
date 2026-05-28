@@ -28,11 +28,13 @@ class ModelSubscription(BaseModel):
     ModelSubscription
     """ # noqa: E501
     active_until: Optional[StrictStr] = None
+    deletion_scheduled_at: Optional[StrictStr] = Field(default=None, description="DeletionScheduledAt is set when the signup-reset flow schedules an account for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp can detect the retired state directly — a non-null value means \"retired\". It also forces GetStatus() to pending_delete (row L0) and drives the DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.")
     outage: Optional[StrictBool] = None
     status: Optional[ModelSubscriptionStatus] = Field(default=None, description="Computed fields (not persisted)")
     tier: Optional[StrictStr] = None
+    type: Optional[StrictStr] = Field(default=None, description="Type is a legacy pre-0.1.8 enum (\"Free\"/\"Managed\") retained so old documents surface to clients (the beta-ending banner gates on Type == \"Managed\"). Cleared to \"\" by the resync flow once the user re-syncs with IVPN.")
     updated_at: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["active_until", "outage", "status", "tier", "updated_at"]
+    __properties: ClassVar[List[str]] = ["active_until", "deletion_scheduled_at", "outage", "status", "tier", "type", "updated_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -86,9 +88,11 @@ class ModelSubscription(BaseModel):
 
         _obj = cls.model_validate({
             "active_until": obj.get("active_until"),
+            "deletion_scheduled_at": obj.get("deletion_scheduled_at"),
             "outage": obj.get("outage"),
             "status": obj.get("status"),
             "tier": obj.get("tier"),
+            "type": obj.get("type"),
             "updated_at": obj.get("updated_at")
         })
         return _obj

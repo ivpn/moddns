@@ -414,6 +414,14 @@ definitions:
     properties:
       active_until:
         type: string
+      deletion_scheduled_at:
+        description: |-
+          DeletionScheduledAt is set when the signup-reset flow schedules an account
+          for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp
+          can detect the retired state directly — a non-null value means "retired".
+          It also forces GetStatus() to pending_delete (row L0) and drives the
+          DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
+        type: string
       outage:
         type: boolean
       status:
