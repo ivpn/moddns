@@ -1,5 +1,5 @@
 CWD=$$(pwd)
-.PHONY: help
+.PHONY: help announcements
 
 help: ## Displays the help for each command.
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -121,6 +121,14 @@ restart_dev: ## Restarts development services (down + up with proper wait).
 		-f compose.unbound.yml \
 		-f compose.sdns.yml \
 		up -d
+
+announcements: ## Serves the Announcements dev fixture on the dns network as http://announcements-dev/ (set ANNOUNCEMENTS_URL in api/.env + recreate dnsapi; see README-dev.md).
+	@NET=$$(docker inspect -f '{{range $$k,$$v := .NetworkSettings.Networks}}{{$$k}}{{end}}' dnsapi 2>/dev/null); \
+		if [ -z "$$NET" ]; then echo "dnsapi container not found — start the stack first (make up / make up_dev)."; exit 1; fi; \
+		docker rm -f announcements-dev >/dev/null 2>&1 || true; \
+		echo "Serving bootstrap/announcements/ on network $$NET as http://announcements-dev/announcements.md  (Ctrl-C to stop)"; \
+		echo "api/.env must have ANNOUNCEMENTS_URL=http://announcements-dev/announcements.md and ANNOUNCEMENTS_RELOAD=10s; recreate dnsapi once after setting them (env is read at container start)."; \
+		docker run --rm --name announcements-dev --network "$$NET" -v "$$(pwd)/bootstrap/announcements:/usr/share/nginx/html:ro" nginx:alpine
 
 IMAGE?=dnsapi
 build_api_image: ## Builds the DNS REST API image.
