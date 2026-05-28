@@ -1,0 +1,4 @@
+[{
+  "dropIndexes": "subscriptions",
+  "index": "token_hash"
+}]

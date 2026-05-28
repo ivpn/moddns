@@ -125,6 +125,62 @@ func TestGetStatus_DecisionTable(t *testing.T) {
 	}
 }
 
+// TestGetStatus_DeletionScheduled_L0 covers row L0 of the decision table:
+// a subscription with DeletionScheduledAt set (an account retired by the
+// signup-reset flow) is unconditionally pending_delete, beating Active and
+// GracePeriod regardless of dates/tier/outage.
+//
+// specRef: signup-reset-behaviour.md L0
+func TestGetStatus_DeletionScheduled_L0(t *testing.T) {
+	now := time.Now()
+	scheduled := now
+
+	cases := []struct {
+		name        string
+		tier        string
+		activeUntil time.Time
+		updatedAt   time.Time
+	}{
+		{
+			name:        "would be Active (fresh paid dates) but retired",
+			tier:        "IVPN Tier 2",
+			activeUntil: now.Add(30 * 24 * time.Hour),
+			updatedAt:   now,
+		},
+		{
+			name:        "would be GracePeriod (outage within 3-day windows) but retired",
+			tier:        "IVPN Tier 2",
+			activeUntil: now.Add(-1 * 24 * time.Hour),
+			updatedAt:   now.Add(-50 * time.Hour),
+		},
+		{
+			name:        "would be LimitedAccess but retired",
+			tier:        "IVPN Tier 2",
+			activeUntil: now.Add(-1 * 24 * time.Hour),
+			updatedAt:   now,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := Subscription{
+				Tier:                tc.tier,
+				ActiveUntil:         tc.activeUntil,
+				UpdatedAt:           tc.updatedAt,
+				DeletionScheduledAt: &scheduled,
+			}
+			assert.Equal(t, StatusPendingDelete, s.GetStatus(), "specRef=L0")
+			assert.False(t, s.Active(), "retired account must not be Active; specRef=L0")
+			assert.True(t, s.PendingDelete(), "retired account must be PendingDelete; specRef=L0")
+			// All other predicates must also treat a retired account as terminal,
+			// so direct callers (not just GetStatus) can't leak access.
+			assert.False(t, s.GracePeriod(), "retired account must not be in GracePeriod; specRef=L0")
+			assert.False(t, s.LimitedAccess(), "retired account must not be in LimitedAccess; specRef=L0")
+			assert.False(t, s.ActiveStatus(), "retired account must not have ActiveStatus; specRef=L0")
+		})
+	}
+}
+
 // TestPendingDelete_StandardPlan verifies the Standard-plan short-circuit
 // in isolation. IVPN may emit the tier as "IVPN Tier 1", "IVPN Tier 1 Lite",
 // or "IVPN Standard"; any of these substrings must trigger PendingDelete.
