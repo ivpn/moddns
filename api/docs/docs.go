@@ -3023,12 +3023,14 @@ const docTemplate = `{
                 "active",
                 "grace_period",
                 "limited_access",
+                "inactive",
                 "pending_delete"
             ],
             "x-enum-varnames": [
                 "StatusActive",
                 "StatusGracePeriod",
                 "StatusLimitedAccess",
+                "StatusInactive",
                 "StatusPendingDelete"
             ]
         },

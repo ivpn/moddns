@@ -442,12 +442,14 @@ definitions:
     - active
     - grace_period
     - limited_access
+    - inactive
     - pending_delete
     type: string
     x-enum-varnames:
     - StatusActive
     - StatusGracePeriod
     - StatusLimitedAccess
+    - StatusInactive
     - StatusPendingDelete
   model.TOTPBackup:
     properties:

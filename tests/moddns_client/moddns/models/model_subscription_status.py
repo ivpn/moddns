@@ -29,6 +29,7 @@ class ModelSubscriptionStatus(str, Enum):
     ACTIVE = 'active'
     GRACE_PERIOD = 'grace_period'
     LIMITED_ACCESS = 'limited_access'
+    INACTIVE = 'inactive'
     PENDING_DELETE = 'pending_delete'
 
     @classmethod

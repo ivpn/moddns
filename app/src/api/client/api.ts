@@ -875,6 +875,7 @@ export const ModelSubscriptionStatus = {
     StatusActive: 'active',
     StatusGracePeriod: 'grace_period',
     StatusLimitedAccess: 'limited_access',
+    StatusInactive: 'inactive',
     StatusPendingDelete: 'pending_delete'
 } as const;
 
