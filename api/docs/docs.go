@@ -470,6 +470,29 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/announcements": {
+            "get": {
+                "description": "Get the list of currently published announcements. Public endpoint (no authentication).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Announcements"
+                ],
+                "summary": "Get announcements",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/announcements.Announcement"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/blocklists": {
             "get": {
                 "security": [
@@ -2397,6 +2420,70 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "announcements.Announcement": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "category": {
+                    "$ref": "#/definitions/announcements.Category"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "link": {
+                    "type": "string"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "published_at": {
+                    "type": "string"
+                },
+                "severity": {
+                    "$ref": "#/definitions/announcements.Severity"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "announcements.Category": {
+            "type": "string",
+            "enum": [
+                "news",
+                "feature",
+                "maintenance",
+                "incident",
+                "security",
+                "policy"
+            ],
+            "x-enum-varnames": [
+                "CategoryNews",
+                "CategoryFeature",
+                "CategoryMaintenance",
+                "CategoryIncident",
+                "CategorySecurity",
+                "CategoryPolicy"
+            ]
+        },
+        "announcements.Severity": {
+            "type": "string",
+            "enum": [
+                "info",
+                "warning",
+                "critical"
+            ],
+            "x-enum-varnames": [
+                "SeverityInfo",
+                "SeverityWarning",
+                "SeverityCritical"
+            ]
+        },
         "api.BlocklistsUpdates": {
             "type": "object",
             "required": [

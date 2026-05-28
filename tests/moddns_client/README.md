@@ -92,6 +92,7 @@ Class | Method | HTTP request | Description
 *AccountApi* | [**api_v1_accounts_patch**](docs/AccountApi.md#api_v1_accounts_patch) | **PATCH** /api/v1/accounts | Update account
 *AccountApi* | [**api_v1_accounts_post**](docs/AccountApi.md#api_v1_accounts_post) | **POST** /api/v1/accounts | Register account
 *AccountApi* | [**api_v1_accounts_reset_password_post**](docs/AccountApi.md#api_v1_accounts_reset_password_post) | **POST** /api/v1/accounts/reset-password | Send reset password email
+*AnnouncementsApi* | [**api_v1_announcements_get**](docs/AnnouncementsApi.md#api_v1_announcements_get) | **GET** /api/v1/announcements | Get announcements
 *AppleMobileconfigApi* | [**api_v1_mobileconfig_post**](docs/AppleMobileconfigApi.md#api_v1_mobileconfig_post) | **POST** /api/v1/mobileconfig | Generate configuration profile for Apple devices
 *AppleMobileconfigApi* | [**api_v1_mobileconfig_short_post**](docs/AppleMobileconfigApi.md#api_v1_mobileconfig_short_post) | **POST** /api/v1/mobileconfig/short | Generate short link for configuration profile (Apple devices)
 *AppleMobileconfigApi* | [**api_v1_short_code_get**](docs/AppleMobileconfigApi.md#api_v1_short_code_get) | **GET** /api/v1/short/{code} | Download configuration profile for Apple devices from short link
@@ -137,6 +138,9 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AnnouncementsAnnouncement](docs/AnnouncementsAnnouncement.md)
+ - [AnnouncementsCategory](docs/AnnouncementsCategory.md)
+ - [AnnouncementsSeverity](docs/AnnouncementsSeverity.md)
  - [ApiBlocklistsUpdates](docs/ApiBlocklistsUpdates.md)
  - [ApiCreateProfileBody](docs/ApiCreateProfileBody.md)
  - [ApiErrResponse](docs/ApiErrResponse.md)

@@ -14,6 +14,9 @@
 
 
 # import models into model package
+from moddns.models.announcements_announcement import AnnouncementsAnnouncement
+from moddns.models.announcements_category import AnnouncementsCategory
+from moddns.models.announcements_severity import AnnouncementsSeverity
 from moddns.models.api_blocklists_updates import ApiBlocklistsUpdates
 from moddns.models.api_create_profile_body import ApiCreateProfileBody
 from moddns.models.api_err_response import ApiErrResponse

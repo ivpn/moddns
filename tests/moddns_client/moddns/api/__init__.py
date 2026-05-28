@@ -2,6 +2,7 @@
 
 # import apis into api package
 from moddns.api.account_api import AccountApi
+from moddns.api.announcements_api import AnnouncementsApi
 from moddns.api.apple_mobileconfig_api import AppleMobileconfigApi
 from moddns.api.authentication_api import AuthenticationApi
 from moddns.api.blocklists_api import BlocklistsApi
