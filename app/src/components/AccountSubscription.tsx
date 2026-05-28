@@ -20,6 +20,7 @@ export default function AccountSubscription() {
     const [searchParams] = useSearchParams();
     const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
     const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
+    const setSubscriptionDeletionScheduled = useAppStore(s => s.setSubscriptionDeletionScheduled);
 
     const sessionid = searchParams.get("sessionid") || "";
     const subid = searchParams.get("subid") || "";
@@ -30,6 +31,7 @@ export default function AccountSubscription() {
             setSub(res.data);
             setSubscriptionStatus(res.data.status ?? null);
             setSubscriptionType(res.data.type ?? null);
+            setSubscriptionDeletionScheduled(!!res.data.deletion_scheduled_at);
         } catch {
             setError("Failed to load subscription.");
         }
@@ -48,8 +50,15 @@ export default function AccountSubscription() {
             await api.Client.subscriptionApi.apiV1SubUpdatePut(body);
             await fetchSubscription();
             toast.success("Your account has been successfully synced.");
-        } catch {
-            setError("Failed to sync subscription. Please try again.");
+        } catch (e) {
+            // 409 = the account was retired by a signup reset; it can't be
+            // resynced (a new modDNS account has replaced it).
+            const status = (e as { response?: { status?: number } })?.response?.status;
+            if (status === 409) {
+                setError("This modDNS account has been replaced by a new signup and can no longer be synced.");
+            } else {
+                setError("Failed to sync subscription. Please try again.");
+            }
         } finally {
             setSyncing(false);
         }
