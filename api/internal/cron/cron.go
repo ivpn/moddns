@@ -42,10 +42,10 @@ func Start(subRepo repository.SubscriptionRepository, accountRepo repository.Acc
 
 	_, err = s.NewJob(
 		gocron.CronJob("30 * * * *", false), // every hour at minute 30
-		gocron.NewTask(NotifyPendingDeleteSubscriptions, subRepo, accountRepo, profileRepo, profileCache, mailer),
+		gocron.NewTask(NotifyInactiveSubscriptions, subRepo, accountRepo, profileRepo, profileCache, mailer),
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to schedule pending-delete notification job")
+		log.Error().Err(err).Msg("Failed to schedule inactive-subscription notification job")
 		return
 	}
 

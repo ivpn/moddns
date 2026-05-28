@@ -48,51 +48,51 @@ func TestGetStatus_DecisionTable(t *testing.T) {
 			specRef:     "L2",
 		},
 		{
-			name:        "L3 PD via stale active_until",
+			name:        "L3 inactive via stale active_until",
 			tier:        "IVPN Tier 2",
 			activeUntil: now.Add(-15 * 24 * time.Hour),
 			updatedAt:   now,
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
-			name:        "L3 PD via stale updated_at",
+			name:        "L3 inactive via stale updated_at",
 			tier:        "IVPN Tier 2",
 			activeUntil: now.Add(30 * 24 * time.Hour),
 			updatedAt:   now.Add(-15 * 24 * time.Hour),
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
-			name:        "L3 PD via Tier 1 with fresh dates (IVPN Standard, legacy name)",
+			name:        "L3 inactive via Tier 1 with fresh dates (IVPN Standard, legacy name)",
 			tier:        "IVPN Tier 1",
 			activeUntil: now.Add(30 * 24 * time.Hour),
 			updatedAt:   now,
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
-			name:        "L3 PD via Tier 1 with stale dates",
+			name:        "L3 inactive via Tier 1 with stale dates",
 			tier:        "IVPN Tier 1",
 			activeUntil: now.Add(-20 * 24 * time.Hour),
 			updatedAt:   now.Add(-20 * 24 * time.Hour),
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
-			name:        "L3 PD via IVPN Standard product name with fresh dates",
+			name:        "L3 inactive via IVPN Standard product name with fresh dates",
 			tier:        "IVPN Standard",
 			activeUntil: now.Add(30 * 24 * time.Hour),
 			updatedAt:   now,
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
-			name:        "L3 PD via standalone Standard string with fresh dates",
+			name:        "L3 inactive via standalone Standard string with fresh dates",
 			tier:        "Standard",
 			activeUntil: now.Add(30 * 24 * time.Hour),
 			updatedAt:   now,
-			want:        StatusPendingDelete,
+			want:        StatusInactive,
 			specRef:     "L3",
 		},
 		{
@@ -171,7 +171,8 @@ func TestGetStatus_DeletionScheduled_L0(t *testing.T) {
 			}
 			assert.Equal(t, StatusPendingDelete, s.GetStatus(), "specRef=L0")
 			assert.False(t, s.Active(), "retired account must not be Active; specRef=L0")
-			assert.True(t, s.PendingDelete(), "retired account must be PendingDelete; specRef=L0")
+			assert.True(t, s.Retired(), "retired account must report Retired(); specRef=L0")
+			assert.False(t, s.Inactive(), "retired account must not be Inactive (it is pending_delete); specRef=L0")
 			// All other predicates must also treat a retired account as terminal,
 			// so direct callers (not just GetStatus) can't leak access.
 			assert.False(t, s.GracePeriod(), "retired account must not be in GracePeriod; specRef=L0")
@@ -181,12 +182,13 @@ func TestGetStatus_DeletionScheduled_L0(t *testing.T) {
 	}
 }
 
-// TestPendingDelete_StandardPlan verifies the Standard-plan short-circuit
-// in isolation. IVPN may emit the tier as "IVPN Tier 1", "IVPN Tier 1 Lite",
-// or "IVPN Standard"; any of these substrings must trigger PendingDelete.
+// TestInactive_StandardPlan verifies the Standard-plan short-circuit in
+// isolation. IVPN may emit the tier as "IVPN Tier 1", "IVPN Tier 1 Lite", or
+// "IVPN Standard"; any of these substrings must trigger Inactive (terminal,
+// not deleted).
 //
 // specRef: subscription-lifecycle-enforcement.md L3 (Standard-plan trigger)
-func TestPendingDelete_StandardPlan(t *testing.T) {
+func TestInactive_StandardPlan(t *testing.T) {
 	now := time.Now()
 	freshDates := func(s *Subscription) {
 		s.ActiveUntil = now.Add(30 * 24 * time.Hour)
@@ -203,16 +205,16 @@ func TestPendingDelete_StandardPlan(t *testing.T) {
 		{"plain Tier 1", "Tier 1", true},
 		{"IVPN Standard product name", "IVPN Standard", true},
 		{"standalone Standard", "Standard", true},
-		{"IVPN Tier 2 (not PD on fresh dates)", "IVPN Tier 2", false},
-		{"IVPN Tier 3 (not PD on fresh dates)", "IVPN Tier 3", false},
-		{"empty tier (not PD on fresh dates)", "", false},
+		{"IVPN Tier 2 (not inactive on fresh dates)", "IVPN Tier 2", false},
+		{"IVPN Tier 3 (not inactive on fresh dates)", "IVPN Tier 3", false},
+		{"empty tier (not inactive on fresh dates)", "", false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			s := Subscription{Tier: tc.tier}
 			freshDates(&s)
-			assert.Equal(t, tc.want, s.PendingDelete())
+			assert.Equal(t, tc.want, s.Inactive())
 		})
 	}
 }

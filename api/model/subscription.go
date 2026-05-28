@@ -15,6 +15,13 @@ const (
 	StatusActive        SubscriptionStatus = "active"
 	StatusGracePeriod   SubscriptionStatus = "grace_period"
 	StatusLimitedAccess SubscriptionStatus = "limited_access"
+	// StatusInactive is the terminal cut-off state for expiry / Standard tier /
+	// long outage. The account is cut off (DNS stopped, restricted API) but is
+	// NOT deleted — it recovers when the user adds IVPN time and resyncs.
+	StatusInactive SubscriptionStatus = "inactive"
+	// StatusPendingDelete is reserved for signup-reset RETIRED accounts
+	// (DeletionScheduledAt set) — these ARE hard-deleted after 48h by the
+	// DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
 	StatusPendingDelete SubscriptionStatus = "pending_delete"
 )
 
@@ -36,10 +43,9 @@ const RetiredAccountRetention = 48 * time.Hour
 // hasStandardTier reports whether the tier string identifies the IVPN
 // Standard plan, which is not entitled to modDNS. IVPN may send the plan
 // name as either "IVPN Tier 1" / "IVPN Tier 1 Lite" or as "IVPN Standard";
-// either substring identifies the same (terminal PD) product. Centralised
-// here so all callers (Active, PendingDelete) stay in sync; the Mongo
-// pre-filter in FindPendingDeleteUnnotified mirrors this rule with
-// regex `"Tier 1|Standard"`.
+// either substring identifies the same (terminal, inactive) product. Centralised
+// here so all callers (Active, Inactive) stay in sync; the Mongo pre-filter in
+// FindInactiveUnnotified mirrors this rule with regex `"Tier 1|Standard"`.
 func hasStandardTier(tier string) bool {
 	return strings.Contains(tier, Tier1) || strings.Contains(tier, TierStandard)
 }
@@ -54,13 +60,13 @@ type Subscription struct {
 	// Type is a legacy pre-0.1.8 enum ("Free"/"Managed") retained so old documents
 	// surface to clients (the beta-ending banner gates on Type == "Managed").
 	// Cleared to "" by the resync flow once the user re-syncs with IVPN.
-	Type                  string             `json:"type,omitempty" bson:"type,omitempty"`
-	Tier                  string             `json:"tier,omitempty" bson:"tier,omitempty"`
-	TokenHash             string             `json:"-" bson:"token_hash,omitempty"`
-	UpdatedAt             time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
-	Notified              bool               `json:"-" bson:"notified"`
-	NotifiedPendingDelete bool               `json:"-" bson:"notified_pending_delete"`
-	Limits                SubscriptionLimits `json:"-" bson:"limits"`
+	Type             string             `json:"type,omitempty" bson:"type,omitempty"`
+	Tier             string             `json:"tier,omitempty" bson:"tier,omitempty"`
+	TokenHash        string             `json:"-" bson:"token_hash,omitempty"`
+	UpdatedAt        time.Time          `json:"updated_at,omitempty" bson:"updated_at,omitempty"`
+	Notified         bool               `json:"-" bson:"notified"`
+	NotifiedInactive bool               `json:"-" bson:"notified_inactive"`
+	Limits           SubscriptionLimits `json:"-" bson:"limits"`
 	// DeletionScheduledAt is set when the signup-reset flow schedules an account
 	// for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp
 	// can detect the retired state directly — a non-null value means "retired".
@@ -74,26 +80,37 @@ type Subscription struct {
 }
 
 func (s *Subscription) Active() bool {
-	return s.ActiveUntil.After(time.Now()) && !hasStandardTier(s.Tier) && !s.IsOutage() && s.DeletionScheduledAt == nil
+	return s.ActiveUntil.After(time.Now()) && !hasStandardTier(s.Tier) && !s.IsOutage() && !s.Retired()
 }
 
 func (s *Subscription) GracePeriod() bool {
-	if s.DeletionScheduledAt != nil {
+	if s.Retired() {
 		return false
 	}
 	return s.IsOutage() && s.GracePeriodDays(3) && s.OutageGracePeriodDays(3)
 }
 
 func (s *Subscription) LimitedAccess() bool {
-	if s.DeletionScheduledAt != nil {
+	if s.Retired() {
 		return false
 	}
 	return s.GracePeriodDays(14) || (s.OutageGracePeriodDays(14) && s.IsOutage())
 }
 
-func (s *Subscription) PendingDelete() bool {
-	if s.DeletionScheduledAt != nil {
-		return true
+// Retired reports whether the account was retired by the signup-reset flow and
+// is scheduled for hard deletion (status pending_delete, deleted after 48h by
+// the DeleteRetiredAccounts cron). See docs/specs/signup-reset-behaviour.md.
+func (s *Subscription) Retired() bool {
+	return s.DeletionScheduledAt != nil
+}
+
+// Inactive reports the terminal non-retired cut-off state: the Standard plan, or
+// either 14-day grace window exhausted. These accounts are cut off (DNS stopped,
+// restricted API) but are NOT deleted — they recover via resync. Retired
+// accounts are excluded here; they resolve to pending_delete instead.
+func (s *Subscription) Inactive() bool {
+	if s.Retired() {
+		return false
 	}
 
 	if hasStandardTier(s.Tier) {
@@ -133,8 +150,9 @@ func (s *Subscription) OutageGracePeriodDays(days int) bool {
 
 func (s *Subscription) GetStatus() SubscriptionStatus {
 	// L0: an account retired by the signup-reset flow is unconditionally
-	// pending_delete, independent of dates/tier/outage. Highest precedence.
-	if s.DeletionScheduledAt != nil {
+	// pending_delete (hard-deleted in 48h), independent of dates/tier/outage.
+	// Highest precedence.
+	if s.Retired() {
 		return StatusPendingDelete
 	}
 	if s.Active() {
@@ -143,13 +161,14 @@ func (s *Subscription) GetStatus() SubscriptionStatus {
 	if s.GracePeriod() {
 		return StatusGracePeriod
 	}
-	if s.PendingDelete() {
-		return StatusPendingDelete
+	// Terminal non-retired cut-off (expiry / Standard / long outage). NOT deleted.
+	if s.Inactive() {
+		return StatusInactive
 	}
 	if s.LimitedAccess() {
 		return StatusLimitedAccess
 	}
-	return StatusPendingDelete
+	return StatusInactive
 }
 
 type SubscriptionLimits struct {

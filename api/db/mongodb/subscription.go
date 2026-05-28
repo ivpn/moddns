@@ -222,17 +222,17 @@ func (r *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]m
 	return subs, nil
 }
 
-// FindPendingDeleteUnnotified is a coarse pre-filter: returns any sub with
-// notified_pending_delete=false whose active_until or updated_at is older
+// FindInactiveUnnotified is a coarse pre-filter: returns any sub with
+// notified_inactive=false whose active_until or updated_at is older
 // than 14 days, OR whose tier identifies the IVPN Standard plan (substring
-// "Tier 1" or "Standard" — terminal PD state). Callers MUST post-filter
-// via sub.GetStatus() == StatusPendingDelete. The tier regex mirrors
+// "Tier 1" or "Standard" — terminal inactive state). Callers MUST post-filter
+// via sub.GetStatus() == StatusInactive. The tier regex mirrors
 // model.hasStandardTier; if the model rule is extended, this filter may
 // need to widen, but never to narrow.
-func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
+func (r *SubscriptionRepository) FindInactiveUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
 	filter := bson.M{
-		"notified_pending_delete": false,
+		"notified_inactive": false,
 		"$or": []bson.M{
 			{"active_until": bson.M{"$lt": fourteenDaysAgo}},
 			{"updated_at": bson.M{"$lt": fourteenDaysAgo}},
@@ -270,12 +270,12 @@ func (r *SubscriptionRepository) FindWithLANotified(ctx context.Context) ([]mode
 	return subs, nil
 }
 
-// FindWithPendingDeleteNotified returns all subscriptions whose
-// `notified_pending_delete` flag is true. Used by the PD cron's re-arm step:
+// FindWithInactiveNotified returns all subscriptions whose
+// `notified_inactive` flag is true. Used by the inactive cron's re-arm step:
 // it iterates the result, calls sub.GetStatus(), and clears the flag for any
-// sub no longer in PendingDelete.
-func (r *SubscriptionRepository) FindWithPendingDeleteNotified(ctx context.Context) ([]model.Subscription, error) {
-	filter := bson.M{"notified_pending_delete": true}
+// sub no longer Inactive.
+func (r *SubscriptionRepository) FindWithInactiveNotified(ctx context.Context) ([]model.Subscription, error) {
+	filter := bson.M{"notified_inactive": true}
 	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -303,17 +303,17 @@ func (r *SubscriptionRepository) SetNotified(ctx context.Context, subscriptionID
 	return err
 }
 
-// SetPendingDeleteNotified sets the `notified_pending_delete` field to `value`
+// SetInactiveNotified sets the `notified_inactive` field to `value`
 // for the given subscription IDs.
-func (r *SubscriptionRepository) SetPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
+func (r *SubscriptionRepository) SetInactiveNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
 	if len(subscriptionIDs) == 0 {
 		return nil
 	}
 	filter := bson.M{"_id": bson.M{"$in": subscriptionIDs}}
-	update := bson.M{"$set": bson.M{"notified_pending_delete": value}}
+	update := bson.M{"$set": bson.M{"notified_inactive": value}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
-		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified_pending_delete flag")
+		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified_inactive flag")
 	}
 	return err
 }

@@ -80,9 +80,9 @@ func (m *Mailer) SendSubscriptionExpiryEmail(ctx context.Context, sendTo string)
 	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
 }
 
-// SendPendingDeleteEmail notifies the user their account is pending deletion.
-func (m *Mailer) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
-	c := content.PendingDeleteContent()
+// SendInactiveEmail notifies the user their account has become inactive.
+func (m *Mailer) SendInactiveEmail(ctx context.Context, sendTo string) error {
+	c := content.InactiveContent()
 	return m.sendBasic(ctx, sendTo, c.Subject, c.Plain, c.Html)
 }
 

@@ -73,24 +73,27 @@ func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, acco
 	}
 }
 
-// NotifyPendingDeleteSubscriptions re-arms the `notified_pending_delete` flag
-// for subs no longer in PendingDelete, then finds PD candidates via the coarse
-// Mongo pre-filter, cuts off DNS (Redis profile cache delete) and sends the
-// pending-deletion email to those whose computed status is exactly
-// StatusPendingDelete. The model (sub.GetStatus()) is the single source of
-// truth for the PD predicate.
-func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer) {
+// NotifyInactiveSubscriptions re-arms the `notified_inactive` flag for subs no
+// longer Inactive, then finds Inactive candidates via the coarse Mongo
+// pre-filter, cuts off DNS (Redis profile cache delete) and sends the inactive
+// notification email to those whose computed status is exactly StatusInactive.
+// The model (sub.GetStatus()) is the single source of truth.
+//
+// Signup-reset RETIRED accounts are pending_delete (not inactive), so the
+// status post-filter naturally excludes them — they are owned by the
+// DeleteRetiredAccounts cron, which performed their DNS cutoff at retirement.
+func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer) {
 	ctx := context.Background()
 
-	// 1. Re-arm: clear notified_pending_delete=false for any sub no longer in PD.
-	if err := rearmPendingDeleteNotified(ctx, subRepo); err != nil {
-		log.Error().Err(err).Msg("Cron: failed to re-arm notified_pending_delete flag")
+	// 1. Re-arm: clear notified_inactive=false for any sub no longer Inactive.
+	if err := rearmInactiveNotified(ctx, subRepo); err != nil {
+		log.Error().Err(err).Msg("Cron: failed to re-arm notified_inactive flag")
 	}
 
 	// 2. Find candidates (loose pre-filter; cron post-filters via GetStatus()).
-	candidates, err := subRepo.FindPendingDeleteUnnotified(ctx)
+	candidates, err := subRepo.FindInactiveUnnotified(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("Cron: failed to find pending-delete unnotified subscriptions")
+		log.Error().Err(err).Msg("Cron: failed to find inactive unnotified subscriptions")
 		return
 	}
 
@@ -98,28 +101,21 @@ func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository,
 		return
 	}
 
-	log.Info().Int("candidates", len(candidates)).Msg("Cron: evaluating pending-delete candidates")
+	log.Info().Int("candidates", len(candidates)).Msg("Cron: evaluating inactive-subscription candidates")
 
 	// 3. Strict post-filter via the model; cut off DNS; send email; record IDs to mark notified.
 	notifiedIDs := make([]uuid.UUID, 0, len(candidates))
-	skippedNotPD := 0
+	skippedNotInactive := 0
 	for _, sub := range candidates {
-		if sub.GetStatus() != model.StatusPendingDelete {
-			skippedNotPD++
-			continue
-		}
-
-		// Retired-by-signup-reset accounts are pending_delete via row L0, but the
-		// signup-reset flow already performed their DNS cutoff;
-		// the generic "add time to your IVPN account" email would mislead.
-		// Skip them here (the DeleteRetiredAccounts cron owns their hard delete).
-		if sub.DeletionScheduledAt != nil {
+		if sub.GetStatus() != model.StatusInactive {
+			// Excludes retired (pending_delete) and any sub that recovered.
+			skippedNotInactive++
 			continue
 		}
 
 		account, err := accountRepo.GetAccountById(ctx, sub.AccountID.Hex())
 		if err != nil {
-			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for pending-delete")
+			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for inactive notification")
 			continue
 		}
 
@@ -135,8 +131,8 @@ func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository,
 			}
 		}
 
-		if err := mailer.SendPendingDeleteEmail(ctx, account.Email); err != nil {
-			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send pending-delete email")
+		if err := mailer.SendInactiveEmail(ctx, account.Email); err != nil {
+			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send inactive-account email")
 			// Leave sub unnotified so the retry happens next tick.
 			continue
 		}
@@ -144,12 +140,12 @@ func NotifyPendingDeleteSubscriptions(subRepo repository.SubscriptionRepository,
 		notifiedIDs = append(notifiedIDs, sub.ID)
 	}
 
-	log.Info().Int("candidates", len(candidates)).Int("skipped_not_pd", skippedNotPD).Int("sent", len(notifiedIDs)).Msg("Cron: pending-delete notifications complete")
+	log.Info().Int("candidates", len(candidates)).Int("skipped_not_inactive", skippedNotInactive).Int("sent", len(notifiedIDs)).Msg("Cron: inactive-subscription notifications complete")
 
 	// 4. Mark only the actually-cut-off-and-emailed subs as notified.
 	if len(notifiedIDs) > 0 {
-		if err := subRepo.SetPendingDeleteNotified(ctx, notifiedIDs, true); err != nil {
-			log.Error().Err(err).Msg("Cron: failed to mark subscriptions as pending-delete notified")
+		if err := subRepo.SetInactiveNotified(ctx, notifiedIDs, true); err != nil {
+			log.Error().Err(err).Msg("Cron: failed to mark subscriptions as inactive-notified")
 		}
 	}
 }
@@ -253,13 +249,13 @@ func rearmLANotified(ctx context.Context, subRepo repository.SubscriptionReposit
 	return subRepo.SetNotified(ctx, toReset, false)
 }
 
-// rearmPendingDeleteNotified loads every sub with notified_pending_delete=true
-// and clears the flag for any sub that has returned to a genuinely Active
-// state. Same one-shot contract as rearmLANotified: a Tier 1 sub or a sub in
-// LA-after-PD partial recovery keeps the flag set, so the cron does not
+// rearmInactiveNotified loads every sub with notified_inactive=true and clears
+// the flag for any sub that has returned to a genuinely Active state. Same
+// one-shot contract as rearmLANotified: a Tier 1 sub or a sub in
+// LA-after-Inactive partial recovery keeps the flag set, so the cron does not
 // re-fire the cutoff/email until the user fully recovers.
-func rearmPendingDeleteNotified(ctx context.Context, subRepo repository.SubscriptionRepository) error {
-	notified, err := subRepo.FindWithPendingDeleteNotified(ctx)
+func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionRepository) error {
+	notified, err := subRepo.FindWithInactiveNotified(ctx)
 	if err != nil {
 		return err
 	}
@@ -272,5 +268,5 @@ func rearmPendingDeleteNotified(ctx context.Context, subRepo repository.Subscrip
 	if len(toReset) == 0 {
 		return nil
 	}
-	return subRepo.SetPendingDeleteNotified(ctx, toReset, false)
+	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }

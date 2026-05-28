@@ -21,9 +21,9 @@ import (
 
 // SubscriptionRepositorySuite covers the four lifecycle-related repository
 // queries: the two coarse pre-filters (FindExpiredUnnotified,
-// FindPendingDeleteUnnotified) and the two flag-only queries
-// (FindWithLANotified, FindWithPendingDeleteNotified), plus the bulk
-// SetNotified / SetPendingDeleteNotified writers.
+// FindInactiveUnnotified) and the two flag-only queries
+// (FindWithLANotified, FindWithInactiveNotified), plus the bulk
+// SetNotified / SetInactiveNotified writers.
 //
 // The repository queries are intentionally *coarse* — the cron post-filters
 // via model.Subscription.GetStatus() — so these tests verify each query's
@@ -114,14 +114,14 @@ func (s *SubscriptionRepositorySuite) SetupTest() {
 // supplies `tier`, the date fields, and the notified flags.
 func (s *SubscriptionRepositorySuite) seedSub(tier string, activeUntil, updatedAt time.Time, notified, notifiedPD bool) uuid.UUID {
 	sub := model.Subscription{
-		ID:                    uuid.New(),
-		AccountID:             primitive.NewObjectID(),
-		Tier:                  tier,
-		ActiveUntil:           activeUntil,
-		UpdatedAt:             updatedAt,
-		IsActive:              true,
-		Notified:              notified,
-		NotifiedPendingDelete: notifiedPD,
+		ID:               uuid.New(),
+		AccountID:        primitive.NewObjectID(),
+		Tier:             tier,
+		ActiveUntil:      activeUntil,
+		UpdatedAt:        updatedAt,
+		IsActive:         true,
+		Notified:         notified,
+		NotifiedInactive: notifiedPD,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -139,73 +139,73 @@ func containsID(subs []model.Subscription, id uuid.UUID) bool {
 	return false
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesFreshTier1() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_IncludesFreshTier1() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 1", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(subs, id), "fresh Tier 1 must appear in pre-filter")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesFreshTier1Lite() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_IncludesFreshTier1Lite() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 1 Lite", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(subs, id), "Tier 1 Lite variant must also match the regex pre-filter")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesFreshIVPNStandard() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_IncludesFreshIVPNStandard() {
 	now := time.Now()
 	id := s.seedSub("IVPN Standard", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(subs, id), "IVPN Standard product name must match the regex pre-filter")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_ExcludesPaidFresh() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_ExcludesPaidFresh() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 2", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.False(containsID(subs, id), "paid sub with fresh dates must not appear")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_IncludesStaleDates() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_IncludesStaleDates() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 2", now.Add(-20*24*time.Hour), now.Add(-20*24*time.Hour), false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(subs, id), "paid sub with stale dates must match via date predicates")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindPendingDeleteUnnotified_ExcludesAlreadyNotified() {
+func (s *SubscriptionRepositorySuite) TestFindInactiveUnnotified_ExcludesAlreadyNotified() {
 	now := time.Now()
 	id := s.seedSub("IVPN Tier 1", now.Add(30*24*time.Hour), now, false, true)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindPendingDeleteUnnotified(ctx)
+	subs, err := s.repo.FindInactiveUnnotified(ctx)
 	s.Require().NoError(err)
 	s.False(containsID(subs, id), "notified Tier 1 sub must be excluded (idempotency)")
 }
 
-func (s *SubscriptionRepositorySuite) TestFindWithPendingDeleteNotified_ReturnsOnlyFlagged() {
+func (s *SubscriptionRepositorySuite) TestFindWithInactiveNotified_ReturnsOnlyFlagged() {
 	now := time.Now()
 	flagged := s.seedSub("IVPN Tier 1", now.Add(30*24*time.Hour), now, false, true)
 	unflagged := s.seedSub("IVPN Tier 2", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	subs, err := s.repo.FindWithPendingDeleteNotified(ctx)
+	subs, err := s.repo.FindWithInactiveNotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(subs, flagged), "flagged sub must be returned")
 	s.False(containsID(subs, unflagged), "unflagged sub must not be returned")
@@ -223,22 +223,22 @@ func (s *SubscriptionRepositorySuite) TestFindWithLANotified_ReturnsOnlyFlagged(
 	s.False(containsID(subs, unflagged), "unflagged sub must not be returned")
 }
 
-func (s *SubscriptionRepositorySuite) TestSetPendingDeleteNotified_BulkRoundTrip() {
+func (s *SubscriptionRepositorySuite) TestSetInactiveNotified_BulkRoundTrip() {
 	now := time.Now()
 	idA := s.seedSub("IVPN Tier 1", now.Add(30*24*time.Hour), now, false, false)
 	idB := s.seedSub("IVPN Tier 1", now.Add(30*24*time.Hour), now, false, false)
 
 	ctx := context.Background()
-	s.Require().NoError(s.repo.SetPendingDeleteNotified(ctx, []uuid.UUID{idA, idB}, true))
+	s.Require().NoError(s.repo.SetInactiveNotified(ctx, []uuid.UUID{idA, idB}, true))
 
-	flagged, err := s.repo.FindWithPendingDeleteNotified(ctx)
+	flagged, err := s.repo.FindWithInactiveNotified(ctx)
 	s.Require().NoError(err)
 	s.True(containsID(flagged, idA))
 	s.True(containsID(flagged, idB))
 
 	// Flip both back.
-	s.Require().NoError(s.repo.SetPendingDeleteNotified(ctx, []uuid.UUID{idA, idB}, false))
-	flagged, err = s.repo.FindWithPendingDeleteNotified(ctx)
+	s.Require().NoError(s.repo.SetInactiveNotified(ctx, []uuid.UUID{idA, idB}, false))
+	flagged, err = s.repo.FindWithInactiveNotified(ctx)
 	s.Require().NoError(err)
 	s.False(containsID(flagged, idA))
 	s.False(containsID(flagged, idB))

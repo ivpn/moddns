@@ -102,9 +102,9 @@ func (m *Mailpit) SendSubscriptionExpiryEmail(ctx context.Context, sendTo string
 	return m.sendEmail(ctx, sendTo, reqBody)
 }
 
-// SendPendingDeleteEmail notifies the user their account is pending deletion.
-func (m *Mailpit) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
-	c := content.PendingDeleteContent()
+// SendInactiveEmail notifies the user their account has become inactive.
+func (m *Mailpit) SendInactiveEmail(ctx context.Context, sendTo string) error {
+	c := content.InactiveContent()
 	reqBody := mailpitSendRequest{
 		From:    Email{Email: "info@moddns.net", Name: "modDNS"},
 		To:      []Email{{Email: sendTo, Name: "User"}},
