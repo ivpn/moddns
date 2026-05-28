@@ -27,6 +27,12 @@ const (
 	TierStandard = "Standard"
 )
 
+// RetiredAccountRetention is the grace window between an account being
+// scheduled for deletion by the signup-reset flow (DeletionScheduledAt set)
+// and its hard deletion by the DeleteRetiredAccounts cron. It gives the user
+// time to export data.
+const RetiredAccountRetention = 48 * time.Hour
+
 // hasStandardTier reports whether the tier string identifies the IVPN
 // Standard plan, which is not entitled to modDNS. IVPN may send the plan
 // name as either "IVPN Tier 1" / "IVPN Tier 1 Lite" or as "IVPN Standard";
@@ -55,6 +61,12 @@ type Subscription struct {
 	Notified              bool               `json:"-" bson:"notified"`
 	NotifiedPendingDelete bool               `json:"-" bson:"notified_pending_delete"`
 	Limits                SubscriptionLimits `json:"-" bson:"limits"`
+	// DeletionScheduledAt is set when the signup-reset flow schedules an account
+	// for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp
+	// can detect the retired state directly — a non-null value means "retired".
+	// It also forces GetStatus() to pending_delete (row L0) and drives the
+	// DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
+	DeletionScheduledAt *time.Time `json:"deletion_scheduled_at,omitempty" bson:"deletion_scheduled_at,omitempty"`
 
 	// Computed fields (not persisted)
 	Status SubscriptionStatus `json:"status" bson:"-"`
@@ -62,18 +74,28 @@ type Subscription struct {
 }
 
 func (s *Subscription) Active() bool {
-	return s.ActiveUntil.After(time.Now()) && !hasStandardTier(s.Tier) && !s.IsOutage()
+	return s.ActiveUntil.After(time.Now()) && !hasStandardTier(s.Tier) && !s.IsOutage() && s.DeletionScheduledAt == nil
 }
 
 func (s *Subscription) GracePeriod() bool {
+	if s.DeletionScheduledAt != nil {
+		return false
+	}
 	return s.IsOutage() && s.GracePeriodDays(3) && s.OutageGracePeriodDays(3)
 }
 
 func (s *Subscription) LimitedAccess() bool {
+	if s.DeletionScheduledAt != nil {
+		return false
+	}
 	return s.GracePeriodDays(14) || (s.OutageGracePeriodDays(14) && s.IsOutage())
 }
 
 func (s *Subscription) PendingDelete() bool {
+	if s.DeletionScheduledAt != nil {
+		return true
+	}
+
 	if hasStandardTier(s.Tier) {
 		return true
 	}
@@ -110,6 +132,11 @@ func (s *Subscription) OutageGracePeriodDays(days int) bool {
 }
 
 func (s *Subscription) GetStatus() SubscriptionStatus {
+	// L0: an account retired by the signup-reset flow is unconditionally
+	// pending_delete, independent of dates/tier/outage. Highest precedence.
+	if s.DeletionScheduledAt != nil {
+		return StatusPendingDelete
+	}
 	if s.Active() {
 		return StatusActive
 	}
@@ -127,6 +154,17 @@ func (s *Subscription) GetStatus() SubscriptionStatus {
 
 type SubscriptionLimits struct {
 	MaxQueriesPerMonth int `json:"max_queries_per_month" bson:"max_queries_per_month"`
+}
+
+// DuplicateTokenHashGroup is an aggregation result: a single token_hash held by
+// more than one NON-retired subscription. That violates the signup-reset
+// invariant (≤1 active account per IVPN customer) and indicates either a
+// pre-existing duplicate or a retirement that failed/raced. Surfaced read-only
+// by the reconciliation report job; see docs/specs/signup-reset-behaviour.md.
+type DuplicateTokenHashGroup struct {
+	TokenHash  string               `bson:"_id"`
+	Count      int                  `bson:"count"`
+	AccountIDs []primitive.ObjectID `bson:"account_ids"`
 }
 
 // SubscriptionUpdate represents subscription update

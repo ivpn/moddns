@@ -1,0 +1,17 @@
+[{
+  "createIndexes": "subscriptions",
+  "indexes": [
+    {
+      "key": {
+        "token_hash": 1
+      },
+      "name": "token_hash",
+      "background": true,
+      "partialFilterExpression": {
+        "token_hash": {
+          "$exists": true
+        }
+      }
+    }
+  ]
+}]
