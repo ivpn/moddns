@@ -96,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p === '/tos' ||
     p === '/privacy' ||
     p === '/faq' ||
+    p === '/announcements' ||
     p === '/reset-password' ||
     p.startsWith('/reset-password/') ||
     p.startsWith('/verify/email/') ||
