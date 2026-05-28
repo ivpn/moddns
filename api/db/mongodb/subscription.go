@@ -80,6 +80,94 @@ func (r *SubscriptionRepository) ClearLegacyType(ctx context.Context, accountId 
 	return err
 }
 
+// FindActiveByTokenHash returns subscriptions whose token_hash equals tokenHash
+// and whose account_id differs from excludeAccountID. Retired subscriptions
+// have token_hash $unset and therefore never match. Backed by the partial
+// index on token_hash (migration 018). See signup-reset-behaviour.md RT3.
+func (r *SubscriptionRepository) FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error) {
+	filter := bson.M{
+		"token_hash": tokenHash,
+		"account_id": bson.M{"$ne": excludeAccountID},
+	}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// MarkSubscriptionRetired unsets token_hash and sets deletion_scheduled_at on
+// the subscription. $unset (not set-to-empty) keeps the doc out of the partial
+// token_hash index and out of FindActiveByTokenHash matches. See
+// signup-reset-behaviour.md rows RT5/RT6.
+func (r *SubscriptionRepository) MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
+	filter := bson.M{"_id": subscriptionID}
+	update := bson.M{
+		"$set":   bson.M{"deletion_scheduled_at": when},
+		"$unset": bson.M{"token_hash": ""},
+	}
+	if _, err := r.subscriptionsCollection.UpdateOne(ctx, filter, update); err != nil {
+		log.Error().Err(err).Str("subscription_id", subscriptionID.String()).Msg("Failed to mark subscription retired")
+		return err
+	}
+	return nil
+}
+
+// FindScheduledForDeletion returns subscriptions whose deletion_scheduled_at is
+// at or before `before`. Used by the DeleteRetiredAccounts cron.
+func (r *SubscriptionRepository) FindScheduledForDeletion(ctx context.Context, before time.Time) ([]model.Subscription, error) {
+	filter := bson.M{"deletion_scheduled_at": bson.M{"$lte": before}}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// FindDuplicateTokenHashGroups returns every token_hash shared by more than one
+// non-retired subscription. READ-ONLY (aggregation, no writes). Non-retired =
+// deletion_scheduled_at absent; token_hash must exist and be non-empty (legacy
+// pre-ZLA subs have no token_hash and are excluded). See
+// signup-reset-behaviour.md (reconciliation report).
+func (r *SubscriptionRepository) FindDuplicateTokenHashGroups(ctx context.Context) ([]model.DuplicateTokenHashGroup, error) {
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.M{
+			"token_hash":            bson.M{"$exists": true, "$ne": ""},
+			"deletion_scheduled_at": bson.M{"$exists": false},
+		}}},
+		bson.D{{Key: "$group", Value: bson.M{
+			"_id":         "$token_hash",
+			"count":       bson.M{"$sum": 1},
+			"account_ids": bson.M{"$push": "$account_id"},
+		}}},
+		bson.D{{Key: "$match", Value: bson.M{"count": bson.M{"$gt": 1}}}},
+	}
+
+	cursor, err := r.subscriptionsCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []model.DuplicateTokenHashGroup
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
 // Create inserts a new subscription; fails if already exists
 func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscription) error {
 	_, err := r.subscriptionsCollection.InsertOne(ctx, sub)

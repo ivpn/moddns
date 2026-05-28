@@ -173,6 +173,23 @@ func (s *UpdateSubscriptionFromPASessionSuite) TestWebhookFailurePropagates() {
 	s.Contains(err.Error(), "signup webhook")
 }
 
+// signup-reset: a retired account (DeletionScheduledAt set) must be refused at
+// resync, before any preauth/persist work — it must not be resurrected (no
+// token_hash re-stamp, no subscription extension). The strict mocks verify
+// GetPASession / Upsert / webhook are never reached.
+//
+// specRef: signup-reset-behaviour.md (resync guard)
+func (s *UpdateSubscriptionFromPASessionSuite) TestRetiredSubscriptionRefusesResync() {
+	svc := s.buildService("http://preauth.invalid", "")
+	sub := newSub()
+	scheduled := time.Now()
+	sub.DeletionScheduledAt = &scheduled
+
+	err := svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-retired", "")
+
+	s.Require().ErrorIs(err, subscription.ErrSubscriptionScheduledForDeletion)
+}
+
 func TestUpdateSubscriptionFromPASession(t *testing.T) {
 	require.NotPanics(t, func() {})
 	suite.Run(t, new(UpdateSubscriptionFromPASessionSuite))

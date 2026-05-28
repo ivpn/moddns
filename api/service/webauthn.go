@@ -76,8 +76,13 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
 
+	tokenHash := ""
+	if sub, subErr := s.GetSubscription(ctx, account.ID.Hex()); subErr == nil && sub != nil {
+		tokenHash = sub.TokenHash
+	}
+
 	// Use the external subID preserved in the session from BeginRegistration
-	if err = s.CompleteRegistration(ctx, account, session.SubID, paSessionID); err != nil {
+	if err = s.CompleteRegistration(ctx, account, session.SubID, paSessionID, tokenHash); err != nil {
 		return fmt.Errorf("failed to complete registration: %w", err)
 	}
 
