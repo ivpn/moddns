@@ -289,8 +289,9 @@ export default function FAQ(): JSX.Element {
 
     const canIChooseServer = (
         <div className="space-y-2">
-            <p>By default, modDNS uses anycast routing to automatically direct your queries to the nearest server. This gives you the lowest latency and automatic failover without any configuration.</p>
-            <p>Each server location also has a location-specific hostname that can be used directly if you want to pin your queries to a specific node.</p>
+            <p>By default, modDNS uses anycast routing to automatically direct your queries to the nearest server. In most cases, this gives you the lowest latency and automatic failover without any configuration.</p>
+            <p>Each server location also has a location-specific hostname that can be used directly if you want to pin your queries to a specific node, if necessary.</p>
+            <p>Note: if you opt to use a specific endpoint directly, in case of maintenance of the server resolutions will stop. Unless you have a very good reason to pick this option, we recommend going with the default anycast setup.</p>
             {serverLocations.length > 0 && (
                 <div>
                     <p>Currently available locations:</p>
@@ -305,7 +306,7 @@ export default function FAQ(): JSX.Element {
                     <p>To use a location-specific endpoint, prepend your Profile ID to the server hostname. For example, if your Profile ID is <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123</code> and you want to use the {serverLocations[0]?.city} server, configure your DNS-over-TLS/QUIC hostname as <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123.{serverLocations[0]?.hostname}</code>.</p>
                 </div>
             )}
-            <p>Your filtering settings, blocklists, and custom rules are synchronized across all servers, so your experience is identical regardless of which server handles your query. For the vast majority of users, the default anycast setup is the best option.</p>
+            <p>Your filtering settings, blocklists, and custom rules are synchronized across all servers, so your experience is identical regardless of which server handles your query.</p>
         </div>
     );
 
