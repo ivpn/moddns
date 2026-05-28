@@ -62,7 +62,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
     // Local account state to allow refresh post-verification
     const [currentAccount, setCurrentAccount] = useState<ModelAccount | null>(account);
     const setAccount = useAppStore(s => s.setAccount);
-    const { isPendingDelete } = useSubscriptionGuard();
+    const { isPendingDelete, isRetired } = useSubscriptionGuard();
 
     // State for error reports consent
     const [errorReportsConsent, setErrorReportsConsent] = useState(
@@ -234,15 +234,26 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                 {isPendingDelete && (
                     <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-red-400)] bg-[var(--danger-zone-bg)] px-4 py-3">
                         <AlertTriangle className="w-5 h-5 text-[var(--tailwind-colors-red-400)] flex-shrink-0" />
-                        <div className="min-w-0">
-                            <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
-                                Your account is pending deletion.
-                            </p>
-                            <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
-                                To reinstate access add time to your{" "}
-                                <a href={RESYNC_URL} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">IVPN account</a>.
-                            </p>
-                        </div>
+                        {isRetired ? (
+                            <div className="min-w-0">
+                                <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
+                                    This account has been replaced and is scheduled for deletion.
+                                </p>
+                                <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
+                                    A new modDNS signup was completed for your IVPN account, so this account will be deleted in 48 hours. Export any data you need before then.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="min-w-0">
+                                <p className="font-['Figtree',Helvetica] font-semibold text-[var(--tailwind-colors-slate-50)] text-sm leading-5">
+                                    Your account is pending deletion.
+                                </p>
+                                <p className="font-['Figtree',Helvetica] text-[var(--tailwind-colors-slate-300)] text-sm leading-5 mt-0.5">
+                                    To reinstate access add time to your{" "}
+                                    <a href={RESYNC_URL} target="_blank" rel="noreferrer" className="!underline !text-[var(--tailwind-colors-slate-300)]">IVPN account</a>.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
