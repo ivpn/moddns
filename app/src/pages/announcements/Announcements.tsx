@@ -1,4 +1,4 @@
-import { type JSX, useEffect, useState } from "react";
+import { type JSX, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { format } from "date-fns";
@@ -36,21 +36,23 @@ const CATEGORY_META: Record<string, { label: string; Icon: LucideIcon }> = {
     [AnnouncementsCategory.CategoryPolicy]: { label: "Policy", Icon: ScrollText },
 };
 
-// Severity drives visual prominence: border accent + badge colour.
-const SEVERITY_CLASSES: Record<string, { border: string; badge: string }> = {
+// Severity drives visual prominence via the category badge colour.
+const SEVERITY_CLASSES: Record<string, { badge: string }> = {
     [AnnouncementsSeverity.SeverityInfo]: {
-        border: "border-l-sky-500",
         badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
     },
     [AnnouncementsSeverity.SeverityWarning]: {
-        border: "border-l-amber-500",
         badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
     },
     [AnnouncementsSeverity.SeverityCritical]: {
-        border: "border-l-red-500",
         badge: "bg-red-500/10 text-red-600 dark:text-red-400",
     },
 };
+
+// Cards are revealed in chunks of this size and the next chunk auto-loads when
+// the last rendered card scrolls into view (client-side incremental rendering;
+// the full list already arrives in one fetch).
+const PAGE_SIZE = 15;
 
 function formatDate(value?: string): string {
     if (!value) return "";
@@ -58,7 +60,13 @@ function formatDate(value?: string): string {
     return isNaN(date.getTime()) ? "" : format(date, "PP");
 }
 
-function AnnouncementCard({ item }: { item: AnnouncementsAnnouncement }): JSX.Element {
+function AnnouncementCard({
+    item,
+    cardRef,
+}: {
+    item: AnnouncementsAnnouncement;
+    cardRef?: (node: HTMLElement | null) => void;
+}): JSX.Element {
     const severity = item.severity ?? AnnouncementsSeverity.SeverityInfo;
     const category = item.category ?? AnnouncementsCategory.CategoryNews;
     const sev = SEVERITY_CLASSES[severity] ?? SEVERITY_CLASSES[AnnouncementsSeverity.SeverityInfo];
@@ -68,7 +76,8 @@ function AnnouncementCard({ item }: { item: AnnouncementsAnnouncement }): JSX.El
 
     return (
         <article
-            className={`border border-[var(--shadcn-ui-app-border)] border-l-4 ${sev.border} rounded-lg p-5 bg-[var(--shadcn-ui-app-popover)]`}
+            ref={cardRef}
+            className="border border-[var(--shadcn-ui-app-border)] rounded-lg p-5 bg-[var(--shadcn-ui-app-popover)]"
         >
             <div className="flex flex-wrap items-center gap-3 mb-2">
                 <span
@@ -117,6 +126,27 @@ export default function Announcements(): JSX.Element {
     const [items, setItems] = useState<AnnouncementsAnnouncement[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+    const visibleItems = items.slice(0, visibleCount);
+    const hasMore = visibleCount < items.length;
+
+    // Sentinel on the last rendered card: when it scrolls into view, reveal the
+    // next chunk. Mirrors the logs page (app/src/pages/logs/Logs.tsx).
+    const observer = useRef<IntersectionObserver | null>(null);
+    const lastCardRef = useCallback(
+        (node: HTMLElement | null) => {
+            if (loading) return;
+            if (observer.current) observer.current.disconnect();
+            observer.current = new window.IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && hasMore) {
+                    setVisibleCount((prev) => prev + PAGE_SIZE);
+                }
+            });
+            if (node) observer.current.observe(node);
+        },
+        [loading, hasMore],
+    );
 
     // Opening this page marks all current announcements as seen, clearing the
     // nav unread dot.
@@ -131,6 +161,7 @@ export default function Announcements(): JSX.Element {
             .then((resp) => {
                 if (!active) return;
                 setItems(resp.data ?? []);
+                setVisibleCount(PAGE_SIZE);
                 setError("");
             })
             .catch(() => {
@@ -166,11 +197,11 @@ export default function Announcements(): JSX.Element {
                         <CardContent className="p-8">
                             <div className="flex flex-col items-center mb-8">
                                 <img
-                                    className="mb-4 w-[200px] h-10 mx-auto"
+                                    className="mb-3 w-[150px] h-[30px] mx-auto"
                                     alt="modDNS logo"
                                     src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
                                 />
-                                <h1 className="text-2xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center font-mono">
+                                <h1 className="text-4xl! font-bold text-[var(--shadcn-ui-app-foreground)] text-center font-mono">
                                     Announcements
                                 </h1>
                             </div>
@@ -193,8 +224,16 @@ export default function Announcements(): JSX.Element {
 
                             {!loading && !error && items.length > 0 && (
                                 <div className="flex flex-col gap-4">
-                                    {items.map((item) => (
-                                        <AnnouncementCard key={item.id ?? item.title} item={item} />
+                                    {visibleItems.map((item, index) => (
+                                        <AnnouncementCard
+                                            key={item.id ?? item.title}
+                                            item={item}
+                                            cardRef={
+                                                index === visibleItems.length - 1
+                                                    ? lastCardRef
+                                                    : undefined
+                                            }
+                                        />
                                     ))}
                                 </div>
                             )}
