@@ -18,7 +18,7 @@ func main() {
 	}
 	path := os.Args[1]
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // G703: path is a trusted CLI/CI argument (the announcements file to validate), not untrusted input
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot read %s: %v\n", path, err)
 		os.Exit(1)
