@@ -13,7 +13,10 @@ import (
 
 const (
 	fetchTimeout = 10 * time.Second
-	maxBodyBytes = 1 << 20 // 1 MB
+	// MaxBodyBytes is the cap on the announcements feed the API will read from
+	// ANNOUNCEMENTS_URL. Bytes past this point are silently truncated, so the
+	// announcements-validate CLI warns as the file approaches it.
+	MaxBodyBytes = 1 << 20 // 1 MB
 )
 
 // Loader fetches and caches announcements from an HTTP source. The cached value
@@ -110,7 +113,7 @@ func (l *Loader) fetch(ctx context.Context) ([]Announcement, error) {
 		return nil, fmt.Errorf("unexpected status fetching announcements: %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxBodyBytes))
 	if err != nil {
 		return nil, err
 	}

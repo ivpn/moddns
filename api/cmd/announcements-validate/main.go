@@ -11,6 +11,10 @@ import (
 	"github.com/ivpn/dns/api/internal/announcements"
 )
 
+// warnBytes is the soft threshold (80% of the runtime feed cap) above which the
+// file is large enough to warrant pruning before it risks truncation.
+const warnBytes = announcements.MaxBodyBytes * 8 / 10
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "usage: announcements-validate <path-to-announcements.md>")
@@ -31,4 +35,13 @@ func main() {
 	}
 
 	fmt.Printf("OK: %s parsed cleanly (%d announcement(s))\n", path, len(anns))
+
+	// Soft size check: the API truncates the feed at MaxBodyBytes, so bytes past
+	// that point silently disappear. Warn (but don't fail) as the file
+	// approaches the cap, giving authors a heads-up to prune expired entries.
+	if size := int64(len(data)); size >= warnBytes {
+		fmt.Fprintf(os.Stderr,
+			"warning: %s is %d KB, %.0f%% of the %d KB feed limit — bytes past the limit are silently dropped at runtime; prune expired announcements soon\n",
+			path, size/1024, float64(size)/float64(announcements.MaxBodyBytes)*100, announcements.MaxBodyBytes/1024)
+	}
 }
