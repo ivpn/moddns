@@ -1,0 +1,5 @@
+# Code owners for the modDNS announcements content branch.
+# Enforced by the branch ruleset ("require Code Owner review"): every PR that
+# changes a file here needs an approval from one of the owners listed below.
+
+*  @MaciejTe @ante-ivpn @johnnyburnaway
