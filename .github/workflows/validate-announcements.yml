@@ -9,7 +9,7 @@ name: Validate announcements
 
 on:
   pull_request:
-    branches: [announcements]
+    branches: [announcements-staging]
   workflow_dispatch:
 
 permissions:
