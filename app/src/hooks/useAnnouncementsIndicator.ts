@@ -15,8 +15,11 @@ export function computeAnnouncementsIndicator(
     items: AnnouncementsAnnouncement[],
     lastSeenAt: string | null
 ): AnnouncementsIndicator {
+    // Defensive: never assume the API/mocks returned an array — a bad shape here
+    // must not crash the nav (which renders on every authenticated page).
+    const list = Array.isArray(items) ? items : [];
     const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : 0;
-    const unread = items.filter(
+    const unread = list.filter(
         (a) => a.published_at != null && new Date(a.published_at).getTime() > lastSeenMs
     );
     return {
@@ -37,7 +40,7 @@ function fetchAnnouncements(): Promise<AnnouncementsAnnouncement[]> {
     }
     const promise = api.Client.announcementsApi
         .apiV1AnnouncementsGet()
-        .then((resp) => resp.data ?? [])
+        .then((resp) => (Array.isArray(resp.data) ? resp.data : []))
         .catch(() => [] as AnnouncementsAnnouncement[]);
     cache = { ts: Date.now(), promise };
     return promise;

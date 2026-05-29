@@ -53,4 +53,16 @@ describe('computeAnnouncementsIndicator', () => {
             hasCriticalUnread: false,
         });
     });
+
+    it('does not throw on a non-array response (must never crash the nav)', () => {
+        // The API/mocks can return an unexpected shape (e.g. {}); the indicator
+        // must coerce to empty rather than throw during render.
+        for (const input of [{}, null, undefined]) {
+            expect(() => computeAnnouncementsIndicator(input as never, null)).not.toThrow();
+            expect(computeAnnouncementsIndicator(input as never, null)).toEqual({
+                hasUnread: false,
+                hasCriticalUnread: false,
+            });
+        }
+    });
 });
