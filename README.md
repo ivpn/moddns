@@ -15,12 +15,15 @@ never merged into `develop`/`main`.
 
 ## Publishing
 
-Open a pull request **targeting this `announcements` branch**. On merge, the API
-picks up the change within its reload interval (~5 minutes) — no app redeploy,
-no release cycle.
+Open a pull request **targeting this `announcements` branch**. Every PR is
+automatically validated by CI (it runs the same parser the API uses, so the
+check matches exactly what will be accepted at runtime) — a malformed file or an
+invalid record fails the check and blocks merge. On merge, the API picks up the
+change within its reload interval (~5 minutes) — no app redeploy, no release
+cycle.
 
 > Merging here publishes to **every** modDNS user. This branch is protected;
-> changes require review.
+> changes require review and a passing validation check.
 
 ## File format
 
@@ -75,3 +78,7 @@ version) if any record:
 
 Bad edit can never take the announcements feed down — it just won't go
 live until the file is valid.
+
+These exact checks also run in CI on every pull request (see
+`.github/workflows/validate-announcements.yml`), so an invalid file is caught
+before merge rather than silently failing to publish.

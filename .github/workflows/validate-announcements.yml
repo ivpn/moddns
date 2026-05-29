@@ -1,0 +1,39 @@
+# Validates announcements.md on every PR into this content branch.
+#
+# It reuses the SAME parser the modDNS API uses at runtime (no rule drift):
+# it checks out the code branch (develop), builds the validator CLI from
+# api/cmd/announcements-validate, and runs it against the PR's announcements.md.
+# A red check here means the API would reject the file (the feed would keep
+# serving the last known-good version), so the change must be fixed before merge.
+name: Validate announcements
+
+on:
+  pull_request:
+    branches: [announcements]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out announcements content (PR)
+        uses: actions/checkout@v4
+
+      - name: Check out validator from code branch (develop)
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: _code
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: _code/api/go.mod
+
+      - name: Validate announcements.md
+        run: |
+          cd _code/api
+          go run ./cmd/announcements-validate "$GITHUB_WORKSPACE/announcements.md"
