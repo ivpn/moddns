@@ -40,12 +40,15 @@ func SubscriptionExpiryContent() EmailContent {
 
 // InactiveContent returns the notification email sent when an account becomes
 // inactive (cut off after expiry / Standard tier / long outage). The account is
-// not deleted — it is recoverable by adding IVPN time and resyncing.
+// not deleted — it is recoverable by adding IVPN time and resyncing. The copy is
+// path-agnostic: an account may reach inactive after a limited-access period
+// (expiry/outage) or immediately on downgrade to the Standard plan, so it states
+// only the current outcome rather than recounting a limited-access history.
 func InactiveContent() EmailContent {
 	return EmailContent{
 		Subject: "Your modDNS account is inactive",
-		Plain:   "Hello,\n\nYour modDNS account has been in limited access mode for 14 days and is now inactive. DNS resolution has been disabled for your profiles.\n\nTo regain full access, add time to your IVPN account: https://www.ivpn.net\n\nRegards,\nmodDNS Staff",
-		Html:    "<p>Hello,</p><p>Your modDNS account has been in limited access mode for 14 days and is now inactive. DNS resolution has been disabled for your profiles.</p><p>To regain full access, add time to your IVPN account: <a href=\"https://www.ivpn.net\">https://www.ivpn.net</a></p><p>Regards,<br>modDNS Staff</p>",
+		Plain:   "Hello,\n\nYour modDNS account is now inactive and DNS resolution has been disabled for your profiles.\n\nTo regain full access, add time to your IVPN account: https://www.ivpn.net\n\nRegards,\nmodDNS Staff",
+		Html:    "<p>Hello,</p><p>Your modDNS account is now inactive and DNS resolution has been disabled for your profiles.</p><p>To regain full access, add time to your IVPN account: <a href=\"https://www.ivpn.net\">https://www.ivpn.net</a></p><p>Regards,<br>modDNS Staff</p>",
 	}
 }
 
