@@ -187,13 +187,21 @@ function revalidateAccountAndProfiles() {
     const { setAccount, setProfiles, restoreActiveProfile } = useAppStore.getState();
     if (accountResult.status === 'fulfilled') {
       setAccount(accountResult.value.data as ModelAccount);
-    } else if (isAuthExpiryError(accountResult.reason)) {
-      dispatch({ type: 'auth/sessionExpired' });
     }
     if (profilesResult.status === 'fulfilled') {
       const profiles = profilesResult.value.data as ModelProfile[];
       setProfiles(profiles);
       restoreActiveProfile(profiles);
+    }
+    // A 401/404 from EITHER call means the session died — surface it once so a
+    // warm-cache navigation still logs the user out even if only the profiles
+    // call failed. (A 403 from /profiles in pending_delete state is intentionally
+    // not treated as expiry by isAuthExpiryError, so it won't trip this.)
+    const sessionExpired =
+      (accountResult.status === 'rejected' && isAuthExpiryError(accountResult.reason)) ||
+      (profilesResult.status === 'rejected' && isAuthExpiryError(profilesResult.reason));
+    if (sessionExpired) {
+      dispatch({ type: 'auth/sessionExpired' });
     }
   });
 }
