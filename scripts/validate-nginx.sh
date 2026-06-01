@@ -26,7 +26,8 @@
 #   0 — configuration is valid and clean
 #   1 — nginx -t syntax test failed
 #   2 — missing prerequisite (docker / envsubst / config file)
-#   3 — gixy reported security issues
+#   3 — gixy ran and reported security findings (CI treats as advisory)
+#   4 — gixy could not run (image pull / pip / docker failure; CI must NOT ignore)
 
 set -euo pipefail
 
@@ -35,7 +36,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 CONF="${1:-${REPO_ROOT}/app/nginx.conf}"
 DOCKERFILE="${REPO_ROOT}/app/Dockerfile"
-GIXY_IMAGE="python:3.12-alpine"
+GIXY_IMAGE="${GIXY_IMAGE:-python:3.12-alpine}"
 
 # gixy-ng (getpagespeed fork) bundles performance opinions alongside security
 # checks. Skip the non-security ones so the gate reflects security posture:
@@ -78,10 +79,23 @@ if [ "${SKIP_GIXY:-0}" = "1" ]; then
   echo "validate-nginx: [2/2] gixy scan skipped (SKIP_GIXY=1)"
 else
   echo "validate-nginx: [2/2] security scan (gixy-ng)"
-  docker run --rm -v "${WORK}:/work:ro" "${GIXY_IMAGE}" sh -c "
-    pip install --quiet --disable-pip-version-check --root-user-action=ignore gixy-ng &&
-    gixy --disable-includes --skips='${GIXY_SKIPS}' /work/nginx.conf
-  " || { err "gixy reported issues (or failed to run)"; exit 3; }
+  # Distinguish "gixy ran and found issues" from "gixy never ran". The inner
+  # script exits 40 if setup (pip) fails; docker itself returns 125-127 if the
+  # image can't be pulled or the container can't start. Everything else non-zero
+  # is gixy's own exit — i.e. real findings. Conflating the two would let a
+  # broken scanner pass silently when CI downgrades findings to a warning.
+  set +e
+  docker run --rm -e GIXY_SKIPS="${GIXY_SKIPS}" -v "${WORK}:/work:ro" "${GIXY_IMAGE}" sh -c '
+    pip install --quiet --disable-pip-version-check --root-user-action=ignore gixy-ng || exit 40
+    gixy --disable-includes --skips="${GIXY_SKIPS}" /work/nginx.conf
+  '
+  rc=$?
+  set -e
+  case "${rc}" in
+    0) ;;
+    40|125|126|127) err "gixy could not run (setup/docker failure, rc=${rc})"; exit 4 ;;
+    *) err "gixy reported security findings (rc=${rc})"; exit 3 ;;
+  esac
 fi
 
 echo "validate-nginx: OK"

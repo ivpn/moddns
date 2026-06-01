@@ -40,8 +40,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # The script returns: 0 ok | 1 syntax fail | 2 missing prereq | 3 gixy findings.
-      # We block on syntax/prereq and downgrade gixy findings to an advisory warning.
+      # validate-nginx.sh exit codes:
+      #   0 ok | 1 syntax fail | 2 missing prereq | 3 gixy findings | 4 gixy could not run
+      # We block on syntax/prereq (1/2) and on gixy failing to run (4 — a scan that
+      # never executed must not pass silently). Only real gixy findings (3) are
+      # downgraded to an advisory warning, mirroring docker.yml's Trivy pattern.
       - name: Validate nginx config (syntax blocking, gixy advisory)
         run: |
           set +e
@@ -51,5 +54,6 @@ jobs:
           case "${code}" in
             0) echo "nginx config valid and clean" ;;
             3) echo "::warning title=gixy::nginx security findings (advisory) — see log above" ;;
+            4) echo "::error title=gixy::gixy could not run — scan did not execute"; exit 1 ;;
             *) exit "${code}" ;;
           esac
