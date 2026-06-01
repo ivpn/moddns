@@ -106,7 +106,6 @@ type SessionServicer interface {
 
 type AccountServicer interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
-	GetAccountMetrics(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error)
 	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error
 	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)

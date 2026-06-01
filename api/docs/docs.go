@@ -2553,9 +2553,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "queries": {
-                    "type": "integer"
                 }
             }
         },

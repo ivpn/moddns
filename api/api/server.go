@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
@@ -69,6 +70,7 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 func (s *APIServer) setupMiddlewares() {
 	s.App.Use(middleware.SentryFiber())
 	s.App.Use(middleware.Recover())
+	s.App.Use(compress.New(compress.Config{Level: compress.LevelBestSpeed}))
 	s.App.Use(requestid.New())
 	s.App.Use(logger.New(logger.Config{
 		Next: func(c *fiber.Ctx) bool {

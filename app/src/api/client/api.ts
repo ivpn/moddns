@@ -212,12 +212,6 @@ export interface ModelAccount {
      * @memberof ModelAccount
      */
     'profiles'?: Array<string>;
-    /**
-     * 
-     * @type {number}
-     * @memberof ModelAccount
-     */
-    'queries'?: number;
 }
 /**
  * 

@@ -29,6 +29,19 @@ const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/Mo
 const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
 const Landing = lazyWithRetry(() => import('./pages/landing/Landing'));
 
+// Maps a nav route to its lazy chunk's preloader. Nav components call this on
+// hover/focus/touch so the route's JS is warm by the time the user clicks —
+// turning first-visit-per-session tab switches from "download then render" into
+// "render immediately". Keys must stay in sync with NavigationMenu/BottomNav.
+const routePreload: Partial<Record<string, () => void>> = {
+  '/setup': () => { void Setup.preload(); },
+  '/blocklists': () => { void Blocklists.preload(); },
+  '/custom-rules': () => { void CustomRules.preload(); },
+  '/query-logs': () => { void Logs.preload(); },
+  '/settings': () => { void Settings.preload(); },
+  '/account-preferences': () => { void AccountPreferences.preload(); },
+};
+
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
 import api from "@/api/api";
@@ -155,6 +168,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// Treats 401/404 from an API call as a session-expiry signal.
+function isAuthExpiryError(error: unknown): boolean {
+  const err = error as Record<string, unknown>;
+  const status = (err?.response as Record<string, unknown>)?.status ?? err?.status;
+  return status === 401 || status === 404;
+}
+
+// Background refresh of account+profiles for warm-cache navigations. Updates the
+// Zustand store in place and surfaces session expiry through the same event the
+// blocking loader path uses, so a stale-cache navigation still logs the user out
+// if their session died.
+function revalidateAccountAndProfiles() {
+  void Promise.allSettled([
+    api.Client.accountsApi.apiV1AccountsCurrentGet(),
+    api.Client.profilesApi.apiV1ProfilesGet(),
+  ]).then(([accountResult, profilesResult]) => {
+    const { setAccount, setProfiles, restoreActiveProfile } = useAppStore.getState();
+    if (accountResult.status === 'fulfilled') {
+      setAccount(accountResult.value.data as ModelAccount);
+    }
+    if (profilesResult.status === 'fulfilled') {
+      const profiles = profilesResult.value.data as ModelProfile[];
+      setProfiles(profiles);
+      restoreActiveProfile(profiles);
+    }
+    // A 401/404 from EITHER call means the session died — surface it once so a
+    // warm-cache navigation still logs the user out even if only the profiles
+    // call failed. (A 403 from /profiles in pending_delete state is intentionally
+    // not treated as expiry by isAuthExpiryError, so it won't trip this.)
+    const sessionExpired =
+      (accountResult.status === 'rejected' && isAuthExpiryError(accountResult.reason)) ||
+      (profilesResult.status === 'rejected' && isAuthExpiryError(profilesResult.reason));
+    if (sessionExpired) {
+      dispatch({ type: 'auth/sessionExpired' });
+    }
+  });
+}
+
 // Loader for protected routes that need both account and profiles data
 async function rootLoader() {
   try {
@@ -163,6 +214,19 @@ async function rootLoader() {
     if (!authToken || authToken !== "true") {
       // If no auth token, redirect to login instead of making API calls
       throw redirect("/login");
+    }
+
+    // Render-from-cache: on a warm client navigation (store already hydrated by
+    // a prior load), return the cached data synchronously and revalidate in the
+    // background. This removes the blocking account+profiles round-trip from
+    // every tab switch — the fetch below only runs on cold start / hard reload,
+    // where account/profiles are not persisted and the store is empty.
+    if (typeof window !== "undefined") {
+      const cached = useAppStore.getState();
+      if (cached.account && cached.profiles.length > 0) {
+        revalidateAccountAndProfiles();
+        return { account: cached.account, profiles: cached.profiles };
+      }
     }
 
     // Use allSettled so a partial failure (e.g. /profiles returning 403 in
@@ -235,6 +299,23 @@ async function profilesOnlyLoader() {
     if (!authToken || authToken !== "true") {
       // If no auth token, redirect to login instead of making API calls
       throw redirect("/login");
+    }
+
+    // Render-from-cache: serve the hydrated store synchronously on warm
+    // navigations and revalidate profiles in the background (see rootLoader).
+    if (typeof window !== "undefined") {
+      const cached = useAppStore.getState();
+      if (cached.profiles.length > 0) {
+        void api.Client.profilesApi.apiV1ProfilesGet()
+          .then((res) => {
+            const { setProfiles, restoreActiveProfile } = useAppStore.getState();
+            const fresh = res.data as ModelProfile[];
+            setProfiles(fresh);
+            restoreActiveProfile(fresh);
+          })
+          .catch((e) => { if (isAuthExpiryError(e)) dispatch({ type: 'auth/sessionExpired' }); });
+        return { account: null, profiles: cached.profiles };
+      }
     }
 
     const profilesRes = await api.Client.profilesApi.apiV1ProfilesGet();
@@ -671,4 +752,4 @@ function App() {
 
 export default App;
 // eslint-disable-next-line react-refresh/only-export-components
-export { useAuth, AuthContext, RootIndexRedirect };
+export { useAuth, AuthContext, RootIndexRedirect, routePreload };
