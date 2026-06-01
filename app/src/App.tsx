@@ -33,7 +33,7 @@ const Landing = lazyWithRetry(() => import('./pages/landing/Landing'));
 // hover/focus/touch so the route's JS is warm by the time the user clicks —
 // turning first-visit-per-session tab switches from "download then render" into
 // "render immediately". Keys must stay in sync with NavigationMenu/BottomNav.
-const routePreload: Record<string, () => void> = {
+const routePreload: Partial<Record<string, () => void>> = {
   '/setup': () => { void Setup.preload(); },
   '/blocklists': () => { void Blocklists.preload(); },
   '/custom-rules': () => { void CustomRules.preload(); },

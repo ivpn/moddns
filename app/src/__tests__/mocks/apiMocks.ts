@@ -40,7 +40,6 @@ export function createMockAccount(overrides: Partial<ModelAccount> = {}): ModelA
     error_reports_consent: false,
     mfa: { totp: { enabled: false } },
     profiles: ['p1'],
-    queries: 0,
     ...overrides
   };
   return base;

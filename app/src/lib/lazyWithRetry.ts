@@ -1,11 +1,11 @@
-import { lazy, ComponentType } from 'react';
+import { lazy, ComponentType, LazyExoticComponent } from 'react';
 
 /**
  * A lazy component that can also be preloaded imperatively (e.g. on nav hover)
  * to warm its chunk before the user clicks.
  */
 export type PreloadableComponent<T extends ComponentType<unknown>> =
-  React.LazyExoticComponent<T> & { preload: () => Promise<{ default: T }> };
+  LazyExoticComponent<T> & { preload: () => Promise<{ default: T }> };
 
 /**
  * Wrapper around React.lazy that retries failed dynamic imports.
