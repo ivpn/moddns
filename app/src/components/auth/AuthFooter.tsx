@@ -39,12 +39,12 @@ function InternalLink({ href, title, openInNewTab, children }: InternalLinkProps
 
 export default function AuthFooter({ variant = "absolute", openInNewTab = true }: AuthFooterProps) {
     const containerClass = variant === "absolute"
-        ? "absolute bottom-4 left-1/2 transform -translate-x-1/2"
-        : "mt-8 flex justify-center";
+        ? "absolute bottom-4 inset-x-0 px-4 flex justify-center"
+        : "mt-8 flex justify-center px-4";
 
     return (
         <div className={containerClass}>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                 <InternalLink href="/tos" title="Go to Terms of Service page" openInNewTab={openInNewTab}>
                     Terms of Service
                 </InternalLink>
