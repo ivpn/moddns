@@ -8,15 +8,15 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 id: dev-incident
 category: incident
 severity: critical
-title: Resolver outage in eu-west
-published_at: 2026-05-28
+title: Testing news feed
+published_at: 2026-06-02
 pinned: true
 link: https://status.moddns.net
 ---
-We are investigating elevated error rates on **eu-west** resolvers.
+Testing news feed update for modDNS staging environment
 
-- Failover to eu-central is automatic
-- Follow the status page for live updates
+- Test
+- Test
 
 ---
 id: dev-security
@@ -31,12 +31,12 @@ As a precaution we recommend rotating any long-lived API credentials.
 id: dev-maintenance
 category: maintenance
 severity: warning
-title: Scheduled maintenance — EU resolvers
+title: Scheduled maintenance ??? EU resolvers
 published_at: 2026-05-26
 expires_at: 2026-06-10
 link: https://status.moddns.net
 ---
-Maintenance on **28 May, 22:00–23:00 UTC**. Brief failovers expected, no action required.
+Maintenance on **28 May, 22:00???23:00 UTC**. Brief failovers expected, no action required.
 
 ---
 id: dev-feature
