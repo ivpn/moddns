@@ -229,10 +229,10 @@ async function rootLoader() {
       }
     }
 
-    // Use allSettled so a partial failure (e.g. /profiles returning 403 in
-    // pending_delete subscription state, where /accounts/current is still
-    // allowlisted by the server's subscription guard) does not collapse the
-    // whole loader. Without this, the AccountInfoCard on /account-preferences
+    // Use allSettled so a partial failure (e.g. /profiles returning 403 in a
+    // cut-off state — inactive or pending_delete — where /accounts/current is
+    // still allowlisted by the server's subscription guard) does not collapse
+    // the whole loader. Without this, the AccountInfoCard on /account-preferences
     // would lose `account.email` (the modDNS ID) and render an empty value.
     const [accountResult, profilesResult] = await Promise.allSettled([
       api.Client.accountsApi.apiV1AccountsCurrentGet(),
@@ -377,13 +377,15 @@ function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'publ
 const AppLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='app'>{children}</BaseLayout>;
 const PublicLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='public'>{children}</BaseLayout>;
 
-// Route guard: redirect all protected routes to /account-preferences when pending_delete.
-// Fetches subscription status on mount if not yet in the store (e.g. after fresh login).
-function PendingDeleteGuard() {
-  const { isPendingDelete } = useSubscriptionGuard();
+// Route guard: redirect all protected routes to /account-preferences when the
+// account is cut off (inactive or pending_delete). Fetches subscription status
+// on mount if not yet in the store (e.g. after fresh login).
+function AccountCutoffGuard() {
+  const { isCutOff } = useSubscriptionGuard();
   const subscriptionStatus = useAppStore(s => s.subscriptionStatus);
   const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
   const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
+  const setSubscriptionDeletionScheduled = useAppStore(s => s.setSubscriptionDeletionScheduled);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -393,15 +395,16 @@ function PendingDeleteGuard() {
       .then(res => {
         setSubscriptionStatus(res.data.status ?? null);
         setSubscriptionType(res.data.type ?? null);
+        setSubscriptionDeletionScheduled(!!res.data.deletion_scheduled_at);
       })
-      .catch(() => {}); // no subscription = no restriction
-  }, [subscriptionStatus, setSubscriptionStatus, setSubscriptionType]);
+      .catch(() => { }); // no subscription = no restriction
+  }, [subscriptionStatus, setSubscriptionStatus, setSubscriptionType, setSubscriptionDeletionScheduled]);
 
   useEffect(() => {
-    if (isPendingDelete && location.pathname !== '/account-preferences') {
+    if (isCutOff && location.pathname !== '/account-preferences') {
       navigate('/account-preferences', { replace: true });
     }
-  }, [isPendingDelete, location.pathname, navigate]);
+  }, [isCutOff, location.pathname, navigate]);
 
   return null;
 }
@@ -416,11 +419,11 @@ function ProtectedLayout() {
   const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
   const profiles = useAppStore((state) => state.profiles);
   const location = useLocation();
-  // PendingDelete subscriptions are no longer entitled to DNS service —
-  // the connection-status surface (live header bar + "DNS Status" toggle
-  // button) is hidden/disabled so the (now stopped) connection test does
+  // Cut-off subscriptions (inactive or pending_delete) are no longer entitled to
+  // DNS service — the connection-status surface (live header bar + "DNS Status"
+  // toggle button) is hidden/disabled so the (now stopped) connection test does
   // not run and the UI does not advertise functionality the user has lost.
-  const { isPendingDelete } = useSubscriptionGuard();
+  const { isCutOff } = useSubscriptionGuard();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
@@ -492,11 +495,11 @@ function ProtectedLayout() {
   const sidebarWidth = navDesktop ? (collapsed ? 64 : 220) : 0;
   const rightPanelWidth = 600;
   const headerRightOffset = rightPanelOpen ? rightPanelWidth : 0;
-  const shouldRenderConnectionHeader = isDesktop && connectionStatusVisible && !isPendingDelete;
+  const shouldRenderConnectionHeader = isDesktop && connectionStatusVisible && !isCutOff;
   const headerTopOffset = shouldRenderConnectionHeader ? 48 : 0;
-  // In PD the button is rendered but visually disabled (see Header.tsx); on
-  // non-PD it appears only while the header is hidden, as before.
-  const shouldShowConnectionStatusRestore = isDesktop && (isPendingDelete || !connectionStatusVisible);
+  // When cut off the button is rendered but visually disabled (see Header.tsx);
+  // otherwise it appears only while the header is hidden, as before.
+  const shouldShowConnectionStatusRestore = isDesktop && (isCutOff || !connectionStatusVisible);
 
   const shellOffset = isDesktop && viewportWidth >= 1400
     ? Math.max((viewportWidth - (sidebarWidth + ULTRAWIDE_CONTENT_MAX_WIDTH)) / 2, 0)
@@ -508,7 +511,7 @@ function ProtectedLayout() {
   return (
     <>
       <AppLayout>
-        <PendingDeleteGuard />
+        <AccountCutoffGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
         {shouldRenderConnectionHeader && (
@@ -544,7 +547,7 @@ function ProtectedLayout() {
               showDialogTrigger={showDialogTrigger}
               currentPageName={currentPageName}
               showConnectionStatusRestoreButton={shouldShowConnectionStatusRestore}
-              connectionStatusRestoreDisabled={isPendingDelete}
+              connectionStatusRestoreDisabled={isCutOff}
               onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
             />
           </div>

@@ -1376,6 +1376,142 @@ func (_c *Db_EnableServices_Call) RunAndReturn(run func(ctx context.Context, pro
 	return _c
 }
 
+// FindActiveByTokenHash provides a mock function for the type Db
+func (_mock *Db) FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx, tokenHash, excludeAccountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindActiveByTokenHash")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, primitive.ObjectID) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx, tokenHash, excludeAccountID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, primitive.ObjectID) []model.Subscription); ok {
+		r0 = returnFunc(ctx, tokenHash, excludeAccountID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, primitive.ObjectID) error); ok {
+		r1 = returnFunc(ctx, tokenHash, excludeAccountID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindActiveByTokenHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindActiveByTokenHash'
+type Db_FindActiveByTokenHash_Call struct {
+	*mock.Call
+}
+
+// FindActiveByTokenHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tokenHash string
+//   - excludeAccountID primitive.ObjectID
+func (_e *Db_Expecter) FindActiveByTokenHash(ctx interface{}, tokenHash interface{}, excludeAccountID interface{}) *Db_FindActiveByTokenHash_Call {
+	return &Db_FindActiveByTokenHash_Call{Call: _e.mock.On("FindActiveByTokenHash", ctx, tokenHash, excludeAccountID)}
+}
+
+func (_c *Db_FindActiveByTokenHash_Call) Run(run func(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID)) *Db_FindActiveByTokenHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 primitive.ObjectID
+		if args[2] != nil {
+			arg2 = args[2].(primitive.ObjectID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindActiveByTokenHash_Call) Return(subscriptions []model.Subscription, err error) *Db_FindActiveByTokenHash_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindActiveByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error)) *Db_FindActiveByTokenHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindDuplicateTokenHashGroups provides a mock function for the type Db
+func (_mock *Db) FindDuplicateTokenHashGroups(ctx context.Context) ([]model.DuplicateTokenHashGroup, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindDuplicateTokenHashGroups")
+	}
+
+	var r0 []model.DuplicateTokenHashGroup
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.DuplicateTokenHashGroup, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.DuplicateTokenHashGroup); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.DuplicateTokenHashGroup)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindDuplicateTokenHashGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindDuplicateTokenHashGroups'
+type Db_FindDuplicateTokenHashGroups_Call struct {
+	*mock.Call
+}
+
+// FindDuplicateTokenHashGroups is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) FindDuplicateTokenHashGroups(ctx interface{}) *Db_FindDuplicateTokenHashGroups_Call {
+	return &Db_FindDuplicateTokenHashGroups_Call{Call: _e.mock.On("FindDuplicateTokenHashGroups", ctx)}
+}
+
+func (_c *Db_FindDuplicateTokenHashGroups_Call) Run(run func(ctx context.Context)) *Db_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindDuplicateTokenHashGroups_Call) Return(duplicateTokenHashGroups []model.DuplicateTokenHashGroup, err error) *Db_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Return(duplicateTokenHashGroups, err)
+	return _c
+}
+
+func (_c *Db_FindDuplicateTokenHashGroups_Call) RunAndReturn(run func(ctx context.Context) ([]model.DuplicateTokenHashGroup, error)) *Db_FindDuplicateTokenHashGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindExpiredUnnotified provides a mock function for the type Db
 func (_mock *Db) FindExpiredUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	ret := _mock.Called(ctx)
@@ -1438,12 +1574,12 @@ func (_c *Db_FindExpiredUnnotified_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
-// FindPendingDeleteUnnotified provides a mock function for the type Db
-func (_mock *Db) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
+// FindInactiveUnnotified provides a mock function for the type Db
+func (_mock *Db) FindInactiveUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for FindPendingDeleteUnnotified")
+		panic("no return value specified for FindInactiveUnnotified")
 	}
 
 	var r0 []model.Subscription
@@ -1466,18 +1602,18 @@ func (_mock *Db) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subsc
 	return r0, r1
 }
 
-// Db_FindPendingDeleteUnnotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindPendingDeleteUnnotified'
-type Db_FindPendingDeleteUnnotified_Call struct {
+// Db_FindInactiveUnnotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindInactiveUnnotified'
+type Db_FindInactiveUnnotified_Call struct {
 	*mock.Call
 }
 
-// FindPendingDeleteUnnotified is a helper method to define mock.On call
+// FindInactiveUnnotified is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Db_Expecter) FindPendingDeleteUnnotified(ctx interface{}) *Db_FindPendingDeleteUnnotified_Call {
-	return &Db_FindPendingDeleteUnnotified_Call{Call: _e.mock.On("FindPendingDeleteUnnotified", ctx)}
+func (_e *Db_Expecter) FindInactiveUnnotified(ctx interface{}) *Db_FindInactiveUnnotified_Call {
+	return &Db_FindInactiveUnnotified_Call{Call: _e.mock.On("FindInactiveUnnotified", ctx)}
 }
 
-func (_c *Db_FindPendingDeleteUnnotified_Call) Run(run func(ctx context.Context)) *Db_FindPendingDeleteUnnotified_Call {
+func (_c *Db_FindInactiveUnnotified_Call) Run(run func(ctx context.Context)) *Db_FindInactiveUnnotified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1490,12 +1626,142 @@ func (_c *Db_FindPendingDeleteUnnotified_Call) Run(run func(ctx context.Context)
 	return _c
 }
 
-func (_c *Db_FindPendingDeleteUnnotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindPendingDeleteUnnotified_Call {
+func (_c *Db_FindInactiveUnnotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindInactiveUnnotified_Call {
 	_c.Call.Return(subscriptions, err)
 	return _c
 }
 
-func (_c *Db_FindPendingDeleteUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindPendingDeleteUnnotified_Call {
+func (_c *Db_FindInactiveUnnotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindInactiveUnnotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindScheduledForDeletion provides a mock function for the type Db
+func (_mock *Db) FindScheduledForDeletion(ctx context.Context, before time.Time) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx, before)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindScheduledForDeletion")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx, before)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []model.Subscription); ok {
+		r0 = returnFunc(ctx, before)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, before)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindScheduledForDeletion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindScheduledForDeletion'
+type Db_FindScheduledForDeletion_Call struct {
+	*mock.Call
+}
+
+// FindScheduledForDeletion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - before time.Time
+func (_e *Db_Expecter) FindScheduledForDeletion(ctx interface{}, before interface{}) *Db_FindScheduledForDeletion_Call {
+	return &Db_FindScheduledForDeletion_Call{Call: _e.mock.On("FindScheduledForDeletion", ctx, before)}
+}
+
+func (_c *Db_FindScheduledForDeletion_Call) Run(run func(ctx context.Context, before time.Time)) *Db_FindScheduledForDeletion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindScheduledForDeletion_Call) Return(subscriptions []model.Subscription, err error) *Db_FindScheduledForDeletion_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindScheduledForDeletion_Call) RunAndReturn(run func(ctx context.Context, before time.Time) ([]model.Subscription, error)) *Db_FindScheduledForDeletion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindWithInactiveNotified provides a mock function for the type Db
+func (_mock *Db) FindWithInactiveNotified(ctx context.Context) ([]model.Subscription, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindWithInactiveNotified")
+	}
+
+	var r0 []model.Subscription
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Subscription)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_FindWithInactiveNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindWithInactiveNotified'
+type Db_FindWithInactiveNotified_Call struct {
+	*mock.Call
+}
+
+// FindWithInactiveNotified is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) FindWithInactiveNotified(ctx interface{}) *Db_FindWithInactiveNotified_Call {
+	return &Db_FindWithInactiveNotified_Call{Call: _e.mock.On("FindWithInactiveNotified", ctx)}
+}
+
+func (_c *Db_FindWithInactiveNotified_Call) Run(run func(ctx context.Context)) *Db_FindWithInactiveNotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_FindWithInactiveNotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindWithInactiveNotified_Call {
+	_c.Call.Return(subscriptions, err)
+	return _c
+}
+
+func (_c *Db_FindWithInactiveNotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindWithInactiveNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1558,68 +1824,6 @@ func (_c *Db_FindWithLANotified_Call) Return(subscriptions []model.Subscription,
 }
 
 func (_c *Db_FindWithLANotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindWithLANotified_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// FindWithPendingDeleteNotified provides a mock function for the type Db
-func (_mock *Db) FindWithPendingDeleteNotified(ctx context.Context) ([]model.Subscription, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindWithPendingDeleteNotified")
-	}
-
-	var r0 []model.Subscription
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.Subscription, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.Subscription); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.Subscription)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Db_FindWithPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindWithPendingDeleteNotified'
-type Db_FindWithPendingDeleteNotified_Call struct {
-	*mock.Call
-}
-
-// FindWithPendingDeleteNotified is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *Db_Expecter) FindWithPendingDeleteNotified(ctx interface{}) *Db_FindWithPendingDeleteNotified_Call {
-	return &Db_FindWithPendingDeleteNotified_Call{Call: _e.mock.On("FindWithPendingDeleteNotified", ctx)}
-}
-
-func (_c *Db_FindWithPendingDeleteNotified_Call) Run(run func(ctx context.Context)) *Db_FindWithPendingDeleteNotified_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Db_FindWithPendingDeleteNotified_Call) Return(subscriptions []model.Subscription, err error) *Db_FindWithPendingDeleteNotified_Call {
-	_c.Call.Return(subscriptions, err)
-	return _c
-}
-
-func (_c *Db_FindWithPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context) ([]model.Subscription, error)) *Db_FindWithPendingDeleteNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2690,6 +2894,69 @@ func (_c *Db_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// MarkSubscriptionRetired provides a mock function for the type Db
+func (_mock *Db) MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
+	ret := _mock.Called(ctx, subscriptionID, when)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkSubscriptionRetired")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) error); ok {
+		r0 = returnFunc(ctx, subscriptionID, when)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_MarkSubscriptionRetired_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkSubscriptionRetired'
+type Db_MarkSubscriptionRetired_Call struct {
+	*mock.Call
+}
+
+// MarkSubscriptionRetired is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subscriptionID uuid.UUID
+//   - when time.Time
+func (_e *Db_Expecter) MarkSubscriptionRetired(ctx interface{}, subscriptionID interface{}, when interface{}) *Db_MarkSubscriptionRetired_Call {
+	return &Db_MarkSubscriptionRetired_Call{Call: _e.mock.On("MarkSubscriptionRetired", ctx, subscriptionID, when)}
+}
+
+func (_c *Db_MarkSubscriptionRetired_Call) Run(run func(ctx context.Context, subscriptionID uuid.UUID, when time.Time)) *Db_MarkSubscriptionRetired_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_MarkSubscriptionRetired_Call) Return(err error) *Db_MarkSubscriptionRetired_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_MarkSubscriptionRetired_Call) RunAndReturn(run func(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error) *Db_MarkSubscriptionRetired_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Migrate provides a mock function for the type Db
 func (_mock *Db) Migrate() error {
 	ret := _mock.Called()
@@ -3004,6 +3271,69 @@ func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessio
 	return _c
 }
 
+// SetInactiveNotified provides a mock function for the type Db
+func (_mock *Db) SetInactiveNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
+	ret := _mock.Called(ctx, subscriptionIDs, value)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetInactiveNotified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, subscriptionIDs, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_SetInactiveNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetInactiveNotified'
+type Db_SetInactiveNotified_Call struct {
+	*mock.Call
+}
+
+// SetInactiveNotified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subscriptionIDs []uuid.UUID
+//   - value bool
+func (_e *Db_Expecter) SetInactiveNotified(ctx interface{}, subscriptionIDs interface{}, value interface{}) *Db_SetInactiveNotified_Call {
+	return &Db_SetInactiveNotified_Call{Call: _e.mock.On("SetInactiveNotified", ctx, subscriptionIDs, value)}
+}
+
+func (_c *Db_SetInactiveNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool)) *Db_SetInactiveNotified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_SetInactiveNotified_Call) Return(err error) *Db_SetInactiveNotified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_SetInactiveNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *Db_SetInactiveNotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetNotified provides a mock function for the type Db
 func (_mock *Db) SetNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
 	ret := _mock.Called(ctx, subscriptionIDs, value)
@@ -3063,69 +3393,6 @@ func (_c *Db_SetNotified_Call) Return(err error) *Db_SetNotified_Call {
 }
 
 func (_c *Db_SetNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *Db_SetNotified_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetPendingDeleteNotified provides a mock function for the type Db
-func (_mock *Db) SetPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
-	ret := _mock.Called(ctx, subscriptionIDs, value)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetPendingDeleteNotified")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, subscriptionIDs, value)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Db_SetPendingDeleteNotified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPendingDeleteNotified'
-type Db_SetPendingDeleteNotified_Call struct {
-	*mock.Call
-}
-
-// SetPendingDeleteNotified is a helper method to define mock.On call
-//   - ctx context.Context
-//   - subscriptionIDs []uuid.UUID
-//   - value bool
-func (_e *Db_Expecter) SetPendingDeleteNotified(ctx interface{}, subscriptionIDs interface{}, value interface{}) *Db_SetPendingDeleteNotified_Call {
-	return &Db_SetPendingDeleteNotified_Call{Call: _e.mock.On("SetPendingDeleteNotified", ctx, subscriptionIDs, value)}
-}
-
-func (_c *Db_SetPendingDeleteNotified_Call) Run(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool)) *Db_SetPendingDeleteNotified_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].([]uuid.UUID)
-		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *Db_SetPendingDeleteNotified_Call) Return(err error) *Db_SetPendingDeleteNotified_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Db_SetPendingDeleteNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *Db_SetPendingDeleteNotified_Call {
 	_c.Call.Return(run)
 	return _c
 }

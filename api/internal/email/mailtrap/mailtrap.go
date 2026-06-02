@@ -114,9 +114,9 @@ func (m *Mailtrap) SendSubscriptionExpiryEmail(ctx context.Context, sendTo strin
 	return m.sendEmail(ctx, sendTo, req)
 }
 
-// SendPendingDeleteEmail notifies the user their account is pending deletion.
-func (m *Mailtrap) SendPendingDeleteEmail(ctx context.Context, sendTo string) error {
-	c := content.PendingDeleteContent()
+// SendInactiveEmail notifies the user their account has become inactive.
+func (m *Mailtrap) SendInactiveEmail(ctx context.Context, sendTo string) error {
+	c := content.InactiveContent()
 	req := SendEmailRequest{
 		From:    From{Email: "moddns@demomailtrap.com", Name: "modDNS Team"},
 		To:      []To{{Email: sendTo}},

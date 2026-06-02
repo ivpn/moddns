@@ -1,0 +1,13 @@
+[
+  {
+    "update": "subscriptions",
+    "updates": [
+      {
+        "q": { "notified_inactive": { "$exists": true } },
+        "u": { "$rename": { "notified_inactive": "notified_pending_delete" } },
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

@@ -827,6 +827,12 @@ export interface ModelSubscription {
      */
     'active_until'?: string;
     /**
+     * DeletionScheduledAt is set when the signup-reset flow schedules an account for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp can detect the retired state directly — a non-null value means \"retired\". It also forces GetStatus() to pending_delete (row L0) and drives the DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'deletion_scheduled_at'?: string;
+    /**
      * 
      * @type {boolean}
      * @memberof ModelSubscription
@@ -869,6 +875,7 @@ export const ModelSubscriptionStatus = {
     StatusActive: 'active',
     StatusGracePeriod: 'grace_period',
     StatusLimitedAccess: 'limited_access',
+    StatusInactive: 'inactive',
     StatusPendingDelete: 'pending_delete'
 } as const;
 

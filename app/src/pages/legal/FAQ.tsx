@@ -99,7 +99,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'February 11, 2026';
+const FAQ_LAST_UPDATED = 'June 1, 2026';
 
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
@@ -404,6 +404,45 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="How do I delete my account?"
                     answer={howToDeleteAccount}
+                />
+            </FAQSection>
+
+            <FAQSection title="Account access & subscription states" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
+                <FAQItem
+                    question="What happens to modDNS when my IVPN subscription expires?"
+                    answer={
+                        <div>
+                            modDNS access follows your IVPN subscription. When it lapses, your account moves through reduced-access states rather than being switched off immediately:
+                            <br /><br />
+                            • <strong>Limited Access</strong> — DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings, logs and analytics are unavailable).
+                            <br />
+                            • <strong>Inactive</strong> — DNS resolution stops for your profiles and only account export and deletion remain available.
+                            <br /><br />
+                            In every case you regain full access by adding time to your IVPN account and re-syncing.
+                        </div>
+                    }
+                />
+                <FAQItem
+                    question="What is Limited Access mode?"
+                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules or profile settings, and logs and analytics are unavailable. To regain full access, add time to your IVPN account."
+                />
+                <FAQItem
+                    question="Why is my account Inactive?"
+                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. Your account is not deleted — it stays recoverable."
+                />
+                <FAQItem
+                    question="How do I restore access to an inactive account?"
+                    answer={
+                        <div>
+                            Add time to your IVPN account so it once again includes modDNS, then re-sync your subscription:
+                            <ol className="list-decimal ml-5 mt-2 space-y-1">
+                                <li>Go to <span onClick={() => navigate('/account-preferences')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Account Preferences</span>.</li>
+                                <li>Use the "Sync with IVPN" action to refresh your subscription status.</li>
+                            </ol>
+                            <br />
+                            Once synced, your full settings and DNS resolution are restored.
+                        </div>
+                    }
                 />
             </FAQSection>
 

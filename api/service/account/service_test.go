@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -264,6 +265,8 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
 				suite.mockMailer.On("Verify", tt.cfg.existingAccount.Email).Return(nil)
 				suite.mockMailer.On("SendWelcomeEmail", context.Background(), tt.cfg.existingAccount.Email, mock.AnythingOfType("string")).Return(nil)
+				// Signup-reset retirement: no other account shares the token_hash.
+				suite.mockSubscriptionRepo.On("FindActiveByTokenHash", mock.Anything, tokenHashStr, mock.Anything).Return([]model.Subscription{}, nil).Maybe()
 			}
 
 			// New account creation path expectations
@@ -281,6 +284,8 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
 				suite.mockMailer.On("Verify", email).Return(nil)
 				suite.mockMailer.On("SendWelcomeEmail", context.Background(), email, mock.AnythingOfType("string")).Return(nil)
+				// Signup-reset retirement: no other account shares the token_hash.
+				suite.mockSubscriptionRepo.On("FindActiveByTokenHash", mock.Anything, tokenHashStr, mock.Anything).Return([]model.Subscription{}, nil).Maybe()
 			}
 
 			// Execute
@@ -937,7 +942,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 		deleteSubscriptionErr  error
 		deleteAccountError     error
 		expectedError          string
-		setupProfiles          bool
 		setupDeleteAccount     bool
 		verifyTotpAccount      *model.Account
 	}{
@@ -961,7 +965,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 					ExpiresAt: validExpires,
 				}},
 			},
-			setupProfiles:      true,
 			setupDeleteAccount: true,
 		},
 		{
@@ -1060,12 +1063,12 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				OTP: backupCode,
 			},
 			account:            totpSuccessAccount,
-			setupProfiles:      true,
 			setupDeleteAccount: true,
 			verifyTotpAccount:  totpVerifyAccount,
 		},
 		{
-			// Profile deletion fails after cred + sub already succeeded (new ordering).
+			// Profile deletion fails after credentials succeeded; the account doc
+			// and subscription (deleted later) must NOT be touched.
 			name:      "Profile deletion fails",
 			accountID: "507f1f77bcf86cd799439011",
 			request: requests.AccountDeletionRequest{
@@ -1087,7 +1090,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			},
 			deleteProfileError: errors.New("profile deletion failed"),
 			expectedError:      "profile deletion failed",
-			setupProfiles:      true,
 			setupDeleteAccount: true,
 		},
 		{
@@ -1112,7 +1114,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			},
 			deleteAccountError: errors.New("account deletion failed"),
 			expectedError:      "account deletion failed",
-			setupProfiles:      true,
 			setupDeleteAccount: true,
 		},
 		{
@@ -1143,8 +1144,8 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			setupDeleteAccount:     true,
 		},
 		{
-			// Subscription cleanup failure: profile loop and account doc must NOT
-			// be touched.
+			// Subscription is deleted LAST: credentials, the profile loop, and the
+			// account doc all succeed first, then the subscription delete fails.
 			name:      "Subscription cleanup fails",
 			accountID: "507f1f77bcf86cd799439011",
 			request: requests.AccountDeletionRequest{
@@ -1201,61 +1202,59 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.verifyTotpAccount, nil)
 				}
 
-				// Phase 1 — cleanup phase reached: credentials runs, then (if it
-				// succeeds) subscription. Both happen BEFORE the profile loop in
-				// the new ordering, so cred/sub mocks must be set up even when the
-				// profile loop is the failure point.
+				// Cleanup order (PurgeAccountData): credentials → profile loop →
+				// account doc → subscription (LAST — the cron's retry anchor). Each
+				// phase's mocks are registered only when all prior phases succeed,
+				// so the strict mocks verify nothing past the failure point is touched.
 				if shouldProcess && tt.setupDeleteAccount {
 					accountObjID, parseErr := primitive.ObjectIDFromHex(tt.accountID)
 					suite.Require().NoError(parseErr)
 
+					// Phase 1: credentials (always first).
 					suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(tt.deleteCredentialsError)
 
 					if tt.deleteCredentialsError == nil {
-						suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), tt.accountID).Return(tt.deleteSubscriptionErr)
-					}
-				}
+						// Phase 2: profile loop (live query then per-profile deletion).
+						// PurgeAccountData always queries profiles once credentials
+						// succeed, so the profile query is set up for every case that
+						// reaches this point.
+						var profiles []model.Profile
+						for _, profileID := range tt.account.Profiles {
+							profiles = append(profiles, model.Profile{
+								ProfileId: profileID,
+								AccountId: tt.accountID,
+							})
+						}
+						suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), tt.accountID).Return(profiles, nil)
 
-				// Phase 2 — profile loop reached: only if cred + sub succeeded.
-				// Loop is driven by GetProfilesByAccountId (live query), and each
-				// successful per-profile deletion is followed by RemoveProfileFromAccount.
-				reachProfileLoop := shouldProcess && tt.setupProfiles && tt.deleteCredentialsError == nil && tt.deleteSubscriptionErr == nil
-				if reachProfileLoop {
-					var profiles []model.Profile
-					for _, profileID := range tt.account.Profiles {
-						profiles = append(profiles, model.Profile{
-							ProfileId: profileID,
-							AccountId: tt.accountID,
-						})
-					}
-					suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), tt.accountID).Return(profiles, nil)
+						for _, profileID := range tt.account.Profiles {
+							if tt.deleteProfileError != nil {
+								suite.mockProfileRepo.On("GetProfileById", context.Background(), profileID).Return(&model.Profile{
+									ProfileId: profileID,
+									AccountId: tt.accountID,
+								}, tt.deleteProfileError)
+								break
+							}
 
-					for _, profileID := range tt.account.Profiles {
-						if tt.deleteProfileError != nil {
 							suite.mockProfileRepo.On("GetProfileById", context.Background(), profileID).Return(&model.Profile{
 								ProfileId: profileID,
 								AccountId: tt.accountID,
-							}, tt.deleteProfileError)
-							break
+							}, nil)
+							suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
+							suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
+							suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
+							suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
 						}
 
-						suite.mockProfileRepo.On("GetProfileById", context.Background(), profileID).Return(&model.Profile{
-							ProfileId: profileID,
-							AccountId: tt.accountID,
-						}, nil)
-						suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
-						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
-						suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
-						suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
-					}
-				}
+						if tt.deleteProfileError == nil {
+							// Phase 3: account doc.
+							suite.mockAccountRepo.On("DeleteAccountById", context.Background(), tt.accountID).Return(tt.deleteAccountError)
 
-				// Phase 3 — account doc delete: only if everything before succeeded.
-				if shouldProcess && tt.setupDeleteAccount && tt.deleteCredentialsError == nil && tt.deleteSubscriptionErr == nil && tt.deleteProfileError == nil {
-					if tt.deleteAccountError != nil {
-						suite.mockAccountRepo.On("DeleteAccountById", context.Background(), tt.accountID).Return(tt.deleteAccountError)
-					} else {
-						suite.mockAccountRepo.On("DeleteAccountById", context.Background(), tt.accountID).Return(nil)
+							if tt.deleteAccountError == nil {
+								// Phase 4: subscription LAST (only reached if all else succeeded).
+								suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), tt.accountID).Return(tt.deleteSubscriptionErr)
+							}
+						}
 					}
 				}
 			}
@@ -2792,7 +2791,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 		acc := mkAcc(true)
 		suite.mockMailer.On("Verify", email).Return(errors.New("invalid email format"))
 
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 
 		suite.Error(err)
 		suite.Contains(err.Error(), "invalid email format")
@@ -2807,7 +2806,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 		acc := mkAcc(true)
 		suite.mockMailer.On("Verify", email).Return(errors.New("MX record not found"))
 
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 
 		suite.Error(err)
 		suite.Contains(err.Error(), "MX record not found")
@@ -2827,7 +2826,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 			Run(func(args mock.Arguments) { close(callObserved) }).
 			Return(errors.New("smtp 4xx"))
 
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 		suite.NoError(err, "signup must succeed even when SendWelcomeEmail fails")
 
 		suite.service.WaitBackground()
@@ -2847,7 +2846,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 
 		// SignupWebhook is called via the unconfigured HTTP client which fails
 		// against a non-existent URL. CompleteRegistration must still return nil.
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 		suite.NoError(err)
 
 		// Welcome email still dispatched (independent of webhook outcome).
@@ -2861,7 +2860,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(errors.New("redis nil"))
 		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
 
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 		suite.NoError(err)
 		suite.service.WaitBackground()
 	})
@@ -2873,7 +2872,7 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 		suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
 		suite.mockMailer.On("SendWelcomeEmail", mock.Anything, email, mock.AnythingOfType("string")).Return(nil)
 
-		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
 		suite.NoError(err)
 		suite.service.WaitBackground()
 	})
@@ -2900,13 +2899,76 @@ func (suite *AccountTestSuite) TestCompleteRegistration_BlockingVsBestEffort() {
 			}).
 			Return(nil)
 
-		err := suite.service.CompleteRegistration(reqCtx, acc, subID, sessionID)
+		err := suite.service.CompleteRegistration(reqCtx, acc, subID, sessionID, "")
 		suite.NoError(err)
 
 		suite.service.WaitBackground()
 		<-ctxRecorded
 		suite.NoError(observedCtxErr, "SendWelcomeEmail must run on an uncancelled context.Background()")
 	})
+}
+
+// TestSignupReset_RetiresSupersededAccount drives CompleteRegistration with a
+// non-empty token_hash and asserts the previous account sharing it is retired:
+// its subscription is marked retired (token_hash unset + scheduled), DNS is cut
+// off, and the old address is emailed.
+//
+// specRef: signup-reset-behaviour.md RT3, RT5-RT8
+func (suite *AccountTestSuite) TestSignupReset_RetiresSupersededAccount() {
+	suite.SetupSuite()
+	const (
+		subID     = "subscription-id"
+		sessionID = "session-id"
+		tokenHash = "stable-token-hash"
+	)
+	newAcc := &model.Account{ID: primitive.NewObjectID(), Email: "new@example.com", EmailVerified: true}
+	oldAccountID := primitive.NewObjectID()
+	oldSub := model.Subscription{ID: uuid.New(), AccountID: oldAccountID, TokenHash: tokenHash}
+	oldProfile := model.Profile{ProfileId: "old-prof"}
+
+	// CompleteRegistration best-effort steps (webhook is a no-op with empty config).
+	suite.mockMailer.On("Verify", newAcc.Email).Return(nil)
+	suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+	suite.mockMailer.On("SendWelcomeEmail", mock.Anything, newAcc.Email, mock.AnythingOfType("string")).Return(nil)
+
+	// Retirement of the superseded account (token_hash unset, scheduled, DNS cut off).
+	// No email is sent — the webapp surfaces the retired state.
+	suite.mockSubscriptionRepo.On("FindActiveByTokenHash", mock.Anything, tokenHash, newAcc.ID).Return([]model.Subscription{oldSub}, nil).Once()
+	suite.mockSubscriptionRepo.On("MarkSubscriptionRetired", mock.Anything, oldSub.ID, mock.AnythingOfType("time.Time")).Return(nil).Once()
+	suite.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, oldAccountID.Hex()).Return([]model.Profile{oldProfile}, nil).Once()
+	suite.mockCache.On("DeleteProfileSettings", mock.Anything, "old-prof").Return(nil).Once()
+
+	err := suite.service.CompleteRegistration(context.Background(), newAcc, subID, sessionID, tokenHash)
+	suite.NoError(err)
+	suite.service.WaitBackground()
+
+	suite.mockSubscriptionRepo.AssertCalled(suite.T(), "MarkSubscriptionRetired", mock.Anything, oldSub.ID, mock.AnythingOfType("time.Time"))
+	suite.mockCache.AssertCalled(suite.T(), "DeleteProfileSettings", mock.Anything, "old-prof")
+	suite.mockMailer.AssertNotCalled(suite.T(), "SendWelcomeEmail", mock.Anything, "old@example.com", mock.Anything)
+}
+
+// TestSignupReset_EmptyTokenHashSkips: CompleteRegistration with an empty
+// token_hash (legacy flow) must not perform any retirement lookup.
+//
+// specRef: signup-reset-behaviour.md RT2, R-E3
+func (suite *AccountTestSuite) TestSignupReset_EmptyTokenHashSkips() {
+	suite.SetupSuite()
+	const (
+		subID     = "subscription-id"
+		sessionID = "session-id"
+	)
+	acc := &model.Account{ID: primitive.NewObjectID(), Email: "legacy@example.com", EmailVerified: true}
+
+	suite.mockMailer.On("Verify", acc.Email).Return(nil)
+	suite.mockCache.On("RemovePASession", context.Background(), sessionID).Return(nil)
+	suite.mockMailer.On("SendWelcomeEmail", mock.Anything, acc.Email, mock.AnythingOfType("string")).Return(nil)
+	// No FindActiveByTokenHash expectation: the strict mock fails if retirement runs.
+
+	err := suite.service.CompleteRegistration(context.Background(), acc, subID, sessionID, "")
+	suite.NoError(err)
+	suite.service.WaitBackground()
+
+	suite.mockSubscriptionRepo.AssertNotCalled(suite.T(), "FindActiveByTokenHash", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestAccountTestSuite(t *testing.T) {

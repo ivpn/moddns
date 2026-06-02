@@ -23,9 +23,9 @@ interface HeaderProps {
     currentPageName?: string;
     showConnectionStatusRestoreButton?: boolean;
     // When true, the "DNS Status" button is rendered but visually disabled
-    // (grayed out, cursor-not-allowed on hover). Used in PendingDelete state
-    // where the proxy has stopped resolving and the connection test would
-    // be meaningless.
+    // (grayed out, cursor-not-allowed on hover). Used for cut-off accounts
+    // (inactive / pending_delete) where the proxy has stopped resolving and the
+    // connection test would be meaningless.
     connectionStatusRestoreDisabled?: boolean;
     onRestoreConnectionStatus?: () => void;
 }
@@ -102,7 +102,7 @@ export default function Header({
                 <div className="ml-auto flex items-center gap-3 w-auto">
                     {showConnectionStatusRestoreButton && (
                         <span
-                            title={connectionStatusRestoreDisabled ? "Feature unavailable in Pending deletion mode" : undefined}
+                            title={connectionStatusRestoreDisabled ? "Feature unavailable while your account is inactive" : undefined}
                             className={connectionStatusRestoreDisabled ? 'inline-block cursor-not-allowed' : undefined}
                         >
                             <Button

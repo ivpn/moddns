@@ -5,14 +5,14 @@ import { Badge } from '@/components/ui/badge';
 
 // Compact mobile-only connection status bar (shown on /setup)
 export const MobileConnectionStatusBar: React.FC = () => {
-    // PendingDeleteGuard redirects PD users off /setup, but if a transient
-    // render slips through we must not fire the connection test — DNS is
-    // stopped for PD subs and the result would only ever be 'disconnected'.
-    const { isPendingDelete } = useSubscriptionGuard();
-    const { status } = useDnsConnectionStatus(7000, { enabled: !isPendingDelete }); // slower poll mobile
+    // AccountCutoffGuard redirects cut-off users off /setup, but if a transient
+    // render slips through we must not fire the connection test — DNS is stopped
+    // for cut-off subs and the result would only ever be 'disconnected'.
+    const { isCutOff } = useSubscriptionGuard();
+    const { status } = useDnsConnectionStatus(7000, { enabled: !isCutOff }); // slower poll mobile
     const { badge, message, messageColor } = status;
 
-    if (isPendingDelete) return null;
+    if (isCutOff) return null;
 
     return (
         <div data-testid="conn-mobile-root" className="w-full max-w-[630px] rounded-md border border-[var(--shadcn-ui-app-border)] px-3 py-3">

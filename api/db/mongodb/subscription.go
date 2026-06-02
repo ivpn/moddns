@@ -80,6 +80,94 @@ func (r *SubscriptionRepository) ClearLegacyType(ctx context.Context, accountId 
 	return err
 }
 
+// FindActiveByTokenHash returns subscriptions whose token_hash equals tokenHash
+// and whose account_id differs from excludeAccountID. Retired subscriptions
+// have token_hash $unset and therefore never match. Backed by the partial
+// index on token_hash (migration 018). See signup-reset-behaviour.md RT3.
+func (r *SubscriptionRepository) FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error) {
+	filter := bson.M{
+		"token_hash": tokenHash,
+		"account_id": bson.M{"$ne": excludeAccountID},
+	}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// MarkSubscriptionRetired unsets token_hash and sets deletion_scheduled_at on
+// the subscription. $unset (not set-to-empty) keeps the doc out of the partial
+// token_hash index and out of FindActiveByTokenHash matches. See
+// signup-reset-behaviour.md rows RT5/RT6.
+func (r *SubscriptionRepository) MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
+	filter := bson.M{"_id": subscriptionID}
+	update := bson.M{
+		"$set":   bson.M{"deletion_scheduled_at": when},
+		"$unset": bson.M{"token_hash": ""},
+	}
+	if _, err := r.subscriptionsCollection.UpdateOne(ctx, filter, update); err != nil {
+		log.Error().Err(err).Str("subscription_id", subscriptionID.String()).Msg("Failed to mark subscription retired")
+		return err
+	}
+	return nil
+}
+
+// FindScheduledForDeletion returns subscriptions whose deletion_scheduled_at is
+// at or before `before`. Used by the DeleteRetiredAccounts cron.
+func (r *SubscriptionRepository) FindScheduledForDeletion(ctx context.Context, before time.Time) ([]model.Subscription, error) {
+	filter := bson.M{"deletion_scheduled_at": bson.M{"$lte": before}}
+	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var subs []model.Subscription
+	if err := cursor.All(ctx, &subs); err != nil {
+		return nil, err
+	}
+	return subs, nil
+}
+
+// FindDuplicateTokenHashGroups returns every token_hash shared by more than one
+// non-retired subscription. READ-ONLY (aggregation, no writes). Non-retired =
+// deletion_scheduled_at absent; token_hash must exist and be non-empty (legacy
+// pre-ZLA subs have no token_hash and are excluded). See
+// signup-reset-behaviour.md (reconciliation report).
+func (r *SubscriptionRepository) FindDuplicateTokenHashGroups(ctx context.Context) ([]model.DuplicateTokenHashGroup, error) {
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.M{
+			"token_hash":            bson.M{"$exists": true, "$ne": ""},
+			"deletion_scheduled_at": bson.M{"$exists": false},
+		}}},
+		bson.D{{Key: "$group", Value: bson.M{
+			"_id":         "$token_hash",
+			"count":       bson.M{"$sum": 1},
+			"account_ids": bson.M{"$push": "$account_id"},
+		}}},
+		bson.D{{Key: "$match", Value: bson.M{"count": bson.M{"$gt": 1}}}},
+	}
+
+	cursor, err := r.subscriptionsCollection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []model.DuplicateTokenHashGroup
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
 // Create inserts a new subscription; fails if already exists
 func (r *SubscriptionRepository) Create(ctx context.Context, sub model.Subscription) error {
 	_, err := r.subscriptionsCollection.InsertOne(ctx, sub)
@@ -134,17 +222,17 @@ func (r *SubscriptionRepository) FindExpiredUnnotified(ctx context.Context) ([]m
 	return subs, nil
 }
 
-// FindPendingDeleteUnnotified is a coarse pre-filter: returns any sub with
-// notified_pending_delete=false whose active_until or updated_at is older
+// FindInactiveUnnotified is a coarse pre-filter: returns any sub with
+// notified_inactive=false whose active_until or updated_at is older
 // than 14 days, OR whose tier identifies the IVPN Standard plan (substring
-// "Tier 1" or "Standard" — terminal PD state). Callers MUST post-filter
-// via sub.GetStatus() == StatusPendingDelete. The tier regex mirrors
+// "Tier 1" or "Standard" — terminal inactive state). Callers MUST post-filter
+// via sub.GetStatus() == StatusInactive. The tier regex mirrors
 // model.hasStandardTier; if the model rule is extended, this filter may
 // need to widen, but never to narrow.
-func (r *SubscriptionRepository) FindPendingDeleteUnnotified(ctx context.Context) ([]model.Subscription, error) {
+func (r *SubscriptionRepository) FindInactiveUnnotified(ctx context.Context) ([]model.Subscription, error) {
 	fourteenDaysAgo := time.Now().AddDate(0, 0, -14)
 	filter := bson.M{
-		"notified_pending_delete": false,
+		"notified_inactive": false,
 		"$or": []bson.M{
 			{"active_until": bson.M{"$lt": fourteenDaysAgo}},
 			{"updated_at": bson.M{"$lt": fourteenDaysAgo}},
@@ -182,12 +270,12 @@ func (r *SubscriptionRepository) FindWithLANotified(ctx context.Context) ([]mode
 	return subs, nil
 }
 
-// FindWithPendingDeleteNotified returns all subscriptions whose
-// `notified_pending_delete` flag is true. Used by the PD cron's re-arm step:
+// FindWithInactiveNotified returns all subscriptions whose
+// `notified_inactive` flag is true. Used by the inactive cron's re-arm step:
 // it iterates the result, calls sub.GetStatus(), and clears the flag for any
-// sub no longer in PendingDelete.
-func (r *SubscriptionRepository) FindWithPendingDeleteNotified(ctx context.Context) ([]model.Subscription, error) {
-	filter := bson.M{"notified_pending_delete": true}
+// sub no longer Inactive.
+func (r *SubscriptionRepository) FindWithInactiveNotified(ctx context.Context) ([]model.Subscription, error) {
+	filter := bson.M{"notified_inactive": true}
 	cursor, err := r.subscriptionsCollection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -215,17 +303,17 @@ func (r *SubscriptionRepository) SetNotified(ctx context.Context, subscriptionID
 	return err
 }
 
-// SetPendingDeleteNotified sets the `notified_pending_delete` field to `value`
+// SetInactiveNotified sets the `notified_inactive` field to `value`
 // for the given subscription IDs.
-func (r *SubscriptionRepository) SetPendingDeleteNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
+func (r *SubscriptionRepository) SetInactiveNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
 	if len(subscriptionIDs) == 0 {
 		return nil
 	}
 	filter := bson.M{"_id": bson.M{"$in": subscriptionIDs}}
-	update := bson.M{"$set": bson.M{"notified_pending_delete": value}}
+	update := bson.M{"$set": bson.M{"notified_inactive": value}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
-		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified_pending_delete flag")
+		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified_inactive flag")
 	}
 	return err
 }

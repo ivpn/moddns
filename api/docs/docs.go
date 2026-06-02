@@ -2990,6 +2990,10 @@ const docTemplate = `{
                 "active_until": {
                     "type": "string"
                 },
+                "deletion_scheduled_at": {
+                    "description": "DeletionScheduledAt is set when the signup-reset flow schedules an account\nfor deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp\ncan detect the retired state directly — a non-null value means \"retired\".\nIt also forces GetStatus() to pending_delete (row L0) and drives the\nDeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.",
+                    "type": "string"
+                },
                 "outage": {
                     "type": "boolean"
                 },
@@ -3019,12 +3023,14 @@ const docTemplate = `{
                 "active",
                 "grace_period",
                 "limited_access",
+                "inactive",
                 "pending_delete"
             ],
             "x-enum-varnames": [
                 "StatusActive",
                 "StatusGracePeriod",
                 "StatusLimitedAccess",
+                "StatusInactive",
                 "StatusPendingDelete"
             ]
         },
