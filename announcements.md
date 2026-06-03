@@ -5,6 +5,59 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-maintenance-001
+category: maintenance
+severity: warning
+title: Scheduled DNS infrastructure maintenance
+published_at: 2026-05-20
+pinned: true
+link: https://status.moddns.net
+---
+We will be performing scheduled maintenance on core DNS infrastructure.
+
+During this window:
+- Brief latency spikes may occur
+- DNS resolution remains available throughout
+- No customer action is required
+
+---
+id: dev-feature-001
+category: feature
+severity: info
+title: New analytics dashboard now available
+published_at: 2026-05-18
+---
+We are introducing a redesigned analytics dashboard for modDNS.
+
+Improvements include:
+- Faster load times
+- Improved query visibility
+- Cleaner zone overview layout
+
+---
+id: dev-news-001
+category: news
+severity: info
+title: Platform stability improvements deployed
+published_at: 2026-05-15
+---
+We have deployed several backend optimizations to improve overall stability and response times.
+
+These updates are fully transparent and require no user action.
+
+---
+id: dev-future-001
+category: feature
+severity: info
+title: Upcoming API enhancements (preview)
+published_at: 2099-01-01
+---
+This announcement is scheduled for the future and should remain hidden until its publish date.
+
+It describes upcoming improvements to the modDNS API, including expanded filtering options and improved rate-limit 
+handling.
+
+---
 id: dev-unicode-001
 category: feature
 severity: info
