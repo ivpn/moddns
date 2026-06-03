@@ -67,15 +67,6 @@ published_at: 2026-05-20
 First record.
 
 ---
-id: dev-duplicate
-category: news
-severity: warning
-title: Second instance
-published_at: 2026-05-21
----
-Second record with same ID (invalid).
-
----
 id: dev-maintenance-001
 category: maintenance
 severity: warning
