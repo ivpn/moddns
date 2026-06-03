@@ -5,6 +5,30 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-unicode-001
+category: feature
+severity: info
+title: Unicode & Markdown test    
+published_at: 2026-05-20
+
+---
+This announcement tests edge cases:
+
+- Emojis:   
+- Accents: nave, faade, So Paulo
+- Non-Latin: , , 
+- Markdown: **bold**, *italic*, `code`
+
+HTML should be ignored:
+<div>This should NOT render</div>
+
+---
+
+# Heading inside body
+
+Some paragraph text with [a link](https://example.com).
+
+---
 id dev-malformed
 category: news
 severity: info
