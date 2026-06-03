@@ -5,6 +5,16 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id dev-malformed
+category: news
+severity: info
+title: Missing colon in YAML
+published_at: 2026-05-20
+
+---
+This frontmatter is invalid and should break parsing.
+
+---
 id: dev-duplicate
 category: news
 severity: info
