@@ -58,38 +58,6 @@ It describes upcoming improvements to the modDNS API, including expanded filteri
 handling.
 
 ---
-id: dev-unicode-001
-category: feature
-severity: info
-title: Unicode & Markdown test    
-published_at: 2026-05-20
----
-This announcement tests edge cases:
-
-- Emojis:   
-- Accents: nave, faade, So Paulo
-- Non-Latin: , , 
-- Markdown: **bold**, *italic*, `code`
-
-HTML should be ignored:
-<div>This should NOT render</div>
-
----
-
-# Heading inside body
-
-Some paragraph text with [a link](https://example.com).
-
----
-id dev-malformed
-category: news
-severity: info
-title: Missing colon in YAML
-published_at: 2026-05-20
----
-This frontmatter is invalid and should break parsing.
-
----
 id: dev-duplicate
 category: news
 severity: info
@@ -106,51 +74,6 @@ title: Second instance
 published_at: 2026-05-21
 ---
 Second record with same ID (invalid).
-
----
-id: dev-missing-title
-category: incident
-severity: critical
-published_at: 2026-05-20
----
-Missing title field  should be rejected by parser.
-
----
-id: dev-invalid-severity
-category: news
-severity: high
-title: Invalid severity test
-published_at: 2026-05-20
----
-Severity is invalid (must be info | warning | critical).
-
----
-id: dev-invalid-category
-category: breaking-news
-severity: info
-title: Invalid category test
-published_at: 2026-05-20
----
-This should fail because category is not in the allowed set.
-
----
-id: dev-future-001
-category: news
-severity: info
-title: Future announcement (should be hidden)
-published_at: 2099-01-01
----
-This should NOT appear yet.
-
----
-id: dev-expired-001
-category: maintenance
-severity: warning
-title: Expired announcement (should disappear)
-published_at: 2025-01-01
-expires_at: 2025-02-01
----
-This should be hidden because it's expired.
 
 ---
 id: dev-maintenance-001
@@ -171,7 +94,7 @@ id: dev-feature-001
 category: feature
 severity: info
 title: New dashboard rollout
-published_at: 2026-05-18
+published_at: 2026-06-03
 ---
 We are rolling out a new analytics dashboard for modDNS users.
 
