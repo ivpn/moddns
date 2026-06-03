@@ -40,7 +40,14 @@ type MetricsConfig struct {
 type UpdaterConfig struct {
 	Type       string
 	SourcesDir string
+	// ShrinkThreshold is the maximum fraction by which a blocklist may shrink
+	// between updates before the swap is rejected. e.g. 0.5 rejects an update
+	// whose validated domain count drops more than 50% vs the previous run.
+	ShrinkThreshold float64
 }
+
+// defaultShrinkThreshold is the default value for UpdaterConfig.ShrinkThreshold.
+const defaultShrinkThreshold = 0.5
 
 // SentryConfig represents the Sentry configuration
 type SentryConfig struct {
@@ -91,8 +98,9 @@ func New() (*Config, error) {
 			TLSInsecureSkipVerify: os.Getenv("CACHE_TLS_INSECURE_SKIP_VERIFY") == "true",
 		},
 		Updater: &UpdaterConfig{
-			Type:       updaterType,
-			SourcesDir: os.Getenv("UPDATER_SOURCES_DIR"),
+			Type:            updaterType,
+			SourcesDir:      os.Getenv("UPDATER_SOURCES_DIR"),
+			ShrinkThreshold: loadShrinkThreshold(),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
@@ -101,6 +109,16 @@ func New() (*Config, error) {
 		},
 		Metrics: loadMetricsConfig(),
 	}, nil
+}
+
+// loadShrinkThreshold reads BLOCKLIST_SHRINK_THRESHOLD (a fraction in [0,1]).
+// Invalid or out-of-range values fall back to defaultShrinkThreshold.
+func loadShrinkThreshold() float64 {
+	v, err := strconv.ParseFloat(os.Getenv("BLOCKLIST_SHRINK_THRESHOLD"), 64)
+	if err != nil || v < 0 || v > 1 {
+		return defaultShrinkThreshold
+	}
+	return v
 }
 
 // loadMetricsConfig reads the metrics/health server configuration from the

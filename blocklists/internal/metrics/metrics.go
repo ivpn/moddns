@@ -48,12 +48,12 @@ type Updates interface {
 // NoopUpdates is a no-op Updates implementation used when metrics are disabled.
 type NoopUpdates struct{}
 
-func (NoopUpdates) RecordUpdate(string, string)              {}
-func (NoopUpdates) RecordDuration(string, time.Duration)     {}
-func (NoopUpdates) SetDomainsExtracted(string, int)          {}
-func (NoopUpdates) SetLastSuccess(string, time.Time)         {}
-func (NoopUpdates) RecordDownloadBytes(string, int64)        {}
-func (NoopUpdates) RecordValidationRejected(string, string)  {}
+func (NoopUpdates) RecordUpdate(string, string)             {}
+func (NoopUpdates) RecordDuration(string, time.Duration)    {}
+func (NoopUpdates) SetDomainsExtracted(string, int)         {}
+func (NoopUpdates) SetLastSuccess(string, time.Time)        {}
+func (NoopUpdates) RecordDownloadBytes(string, int64)       {}
+func (NoopUpdates) RecordValidationRejected(string, string) {}
 
 // PromUpdates implements Updates using Prometheus collectors.
 type PromUpdates struct {

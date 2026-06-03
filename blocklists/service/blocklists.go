@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,11 +22,19 @@ import (
 )
 
 const (
-	jsonExt                 = ".json"
-	processingTimeout       = 1 * time.Minute
-	downloadTimeout         = 30 * time.Second
-	maxBlocklistSize  int64 = 100 * 1024 * 1024 // 100MB limit
+	jsonExt           = ".json"
+	processingTimeout = 1 * time.Minute
+	downloadTimeout   = 30 * time.Second
 )
+
+// maxBlocklistSize is the maximum accepted download size (100MB). It is a var
+// rather than a const so tests can lower it to exercise truncation handling.
+var maxBlocklistSize int64 = 100 * 1024 * 1024
+
+// errDownloadTooLarge is returned by download when the response body exceeds
+// maxBlocklistSize, signalling a truncated/abusive source rather than a
+// successfully fetched list.
+var errDownloadTooLarge = errors.New("download exceeded max size")
 
 func (s *Service) ReadSources() ([]model.BlocklistMetadata, error) {
 	err := filepath.Walk(s.Cfg.Updater.SourcesDir, s.visit)
@@ -111,37 +120,33 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	// Download and process data first to know the total size
 	blocklistBytes, err := s.download(ctx, metadata.SourceUrl)
 	if err != nil {
+		if errors.Is(err, errDownloadTooLarge) {
+			s.Metrics.RecordValidationRejected(metadata.BlocklistID, metrics.ReasonTruncated)
+		}
 		log.Err(err).Str("source_url", metadata.SourceUrl).Msg("Failed to download blocklist")
 		return nil, err
 	}
 	s.Metrics.RecordDownloadBytes(metadata.BlocklistID, int64(len(blocklistBytes)))
 
-	extractor, err := extractor.NewExtractor(metadata.BlocklistID)
+	extr, err := extractor.NewExtractor(metadata.BlocklistID)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to create extractor")
 		return nil, err
 	}
 
-	lastModified, version, numEntries, err := extractor.ExtractMetadata(blocklistBytes)
+	lastModified, version, numEntries, err := extr.ExtractMetadata(blocklistBytes)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to extract metadata")
 		return nil, err
 	}
 
-	domainsBytes, err := extractor.Convert(blocklistBytes)
+	domainsBytes, err := extr.Convert(blocklistBytes)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to convert blocklist")
 		return nil, err
 	}
 
-	// Process domains line by line and create chunks
 	const maxDomainsPerDoc = 100000
-	var currentChunk []string
-	var totalDomains int
-	chunkIndex := 1
-
-	reader := bytes.NewReader(domainsBytes)
-	scanner := bufio.NewScanner(reader)
 
 	fltr := map[string]any{"blocklist_id": metadata.BlocklistID}
 	existingBlocklists, err := s.Store.GetContent(ctx, fltr)
@@ -165,67 +170,54 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	case 1:
 		metadata.ID = existingMetadata[0].ID
 	default:
-		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("number of blocklists found is not proper")
+		log.Error().Str("blocklist_id", metadata.BlocklistID).Msg("number of blocklists found is not proper")
 		return nil, fmt.Errorf("number of blocklists found is not proper")
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		// Skip empty lines
-		if len(strings.TrimSpace(line)) == 0 {
-			continue
-		}
-
-		domain, err := extractor.ProcessLine(line)
-		if err != nil {
-			log.Warn().Err(err).Str("line", line).Msg("Failed to process line")
-			continue
-		}
-
-		if domain != "" {
-			currentChunk = append(currentChunk, domain)
-			totalDomains++
-		}
-
-		// When chunk reaches max size, save it to MongoDB
-		if len(currentChunk) >= maxDomainsPerDoc {
-			_, err := s.saveChunk(ctx, metadata.BlocklistID, chunkIndex, currentChunk)
-			if err != nil {
-				log.Err(err).
-					Str("blocklist_id", metadata.BlocklistID).
-					Int("chunk", chunkIndex).
-					Msg("Failed to save chunk")
-				return nil, err
-			}
-
-			chunkIndex++
-			currentChunk = make([]string, 0, maxDomainsPerDoc)
-		}
+	// Scan all lines into a single validated slice BEFORE persisting anything.
+	// A corrupt/truncated download fails the validation gate below, leaving the
+	// previously published Redis/Mongo data untouched.
+	validated, err := scanValidatedDomains(extr, bytes.NewReader(domainsBytes))
+	if err != nil {
+		s.Metrics.RecordValidationRejected(metadata.BlocklistID, metrics.ReasonScanError)
+		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Scan error while processing blocklist; aborting swap")
+		return nil, fmt.Errorf("scan blocklist %s: %w", metadata.BlocklistID, err)
 	}
 
-	// Save the last chunk if it contains any domains
-	if len(currentChunk) > 0 {
-		_, err := s.saveChunk(ctx, metadata.BlocklistID, chunkIndex, currentChunk)
-		if err != nil {
-			log.Err(err).
-				Str("blocklist_id", metadata.BlocklistID).
-				Int("chunk", chunkIndex).
-				Msg("Failed to save last chunk")
-			return nil, err
-		}
+	totalDomains := len(validated)
+
+	// Validation gate: refuse to publish an empty or sharply-shrunken list.
+	if err := s.checkValidationGate(metadata.BlocklistID, existingMetadata, totalDomains, numEntries); err != nil {
+		return nil, err
 	}
 
 	s.Metrics.SetDomainsExtracted(metadata.BlocklistID, totalDomains)
 
-	// Update cache with complete domain list
-	// update all domains at once
-	if err := s.Cache.CreateOrUpdateBlocklist(ctx, metadata.BlocklistID, domainsBytes); err != nil {
+	// Persist Mongo content chunks from the validated domains.
+	for i := 0; i < len(validated); i += maxDomainsPerDoc {
+		end := i + maxDomainsPerDoc
+		if end > len(validated) {
+			end = len(validated)
+		}
+		chunkIndex := i/maxDomainsPerDoc + 1
+		if _, err := s.saveChunk(ctx, metadata.BlocklistID, chunkIndex, validated[i:end]); err != nil {
+			log.Err(err).
+				Str("blocklist_id", metadata.BlocklistID).
+				Int("chunk", chunkIndex).
+				Msg("Failed to save chunk")
+			return nil, err
+		}
+	}
+
+	// Publish the SAME validated domains to the Redis set the proxy reads.
+	data := []byte(strings.Join(validated, "\n"))
+	if err := s.Cache.CreateOrUpdateBlocklist(ctx, metadata.BlocklistID, data); err != nil {
 		return nil, err
 	}
 
 	metadata.LastModified = lastModified
 	metadata.Version = version
-	metadata.Entries = numEntries
+	metadata.Entries = totalDomains
 	metadata.Type = model.BlocklistTypePublic
 
 	// Update metadata first
@@ -246,6 +238,70 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	}
 
 	return &metadata, nil
+}
+
+// scanValidatedDomains reads domains from r, running each non-empty line through
+// the extractor's ProcessLine. It relies on bufio.Scanner's default 64KB line
+// cap (no legitimate domain or rule line approaches it) and returns the
+// scanner error so the caller can ABORT rather than publish a truncated list: a
+// single oversized line yields bufio.ErrTooLong instead of silently dropping
+// the rest of the source. Per-line ProcessLine errors are logged and skipped.
+func scanValidatedDomains(extr extractor.Extractor, r io.Reader) ([]string, error) {
+	scanner := bufio.NewScanner(r)
+	validated := make([]string, 0)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if len(strings.TrimSpace(line)) == 0 {
+			continue
+		}
+		domain, err := extr.ProcessLine(line)
+		if err != nil {
+			log.Warn().Err(err).Str("line", line).Msg("Failed to process line")
+			continue
+		}
+		if domain != "" {
+			validated = append(validated, domain)
+		}
+	}
+	return validated, scanner.Err()
+}
+
+// checkValidationGate decides whether a freshly-extracted blocklist may replace
+// the currently-published one. It rejects the swap (returning an error and
+// recording a metric) when the new list is empty, or — relative to the previous
+// run — shrinks by more than UpdaterConfig.ShrinkThreshold. The upstream header
+// count is used only as a warn-only sanity signal, since those counts are often
+// approximate or stale.
+func (s *Service) checkValidationGate(blocklistID string, existingMetadata []model.BlocklistMetadata, newCount, headerCount int) error {
+	if newCount == 0 {
+		s.Metrics.RecordValidationRejected(blocklistID, metrics.ReasonEmpty)
+		return fmt.Errorf("validation gate: blocklist %s produced 0 domains, aborting swap", blocklistID)
+	}
+
+	prev := 0
+	if len(existingMetadata) == 1 {
+		prev = existingMetadata[0].Entries
+	}
+	if prev > 0 {
+		minAllowed := int(float64(prev) * (1 - s.Cfg.Updater.ShrinkThreshold))
+		if newCount < minAllowed {
+			s.Metrics.RecordValidationRejected(blocklistID, metrics.ReasonShrink)
+			return fmt.Errorf("validation gate: blocklist %s shrank to %d domains (min allowed %d, previous %d), aborting swap",
+				blocklistID, newCount, minAllowed, prev)
+		}
+	}
+
+	// Warn-only: large divergence from the upstream header count may indicate a
+	// partial download even when the shrink gate passes.
+	if headerCount > 0 && newCount < headerCount/2 {
+		log.Warn().
+			Str("blocklist_id", blocklistID).
+			Int("extracted", newCount).
+			Int("header_count", headerCount).
+			Msg("Extracted domain count is far below the upstream header count")
+	}
+
+	return nil
 }
 
 // saveChunk saves a chunk of domains to MongoDB
@@ -345,10 +401,16 @@ func (s *Service) download(ctx context.Context, link string) ([]byte, error) {
 		return nil, fmt.Errorf("bad status: %s", resp.Status)
 	}
 
+	// Read up to maxBlocklistSize+1 so we can detect (rather than silently
+	// truncate) a body that exceeds the limit. A truncated list would otherwise
+	// be published as the new truth.
 	var buffer bytes.Buffer
-	_, err = io.CopyBuffer(&buffer, io.LimitReader(resp.Body, maxBlocklistSize), make([]byte, 32*1024))
+	n, err := io.CopyBuffer(&buffer, io.LimitReader(resp.Body, maxBlocklistSize+1), make([]byte, 32*1024))
 	if err != nil {
 		return nil, err
+	}
+	if n > maxBlocklistSize {
+		return nil, fmt.Errorf("%w: %d bytes", errDownloadTooLarge, maxBlocklistSize)
 	}
 	return buffer.Bytes(), nil
 }
