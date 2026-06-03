@@ -13,6 +13,8 @@ const CacheTypeRedis = "redis"
 type Cache interface {
 	CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error
 	DeleteBlocklist(ctx context.Context, blocklistId string) error
+	// Ping reports whether the cache backend is reachable (used for readiness).
+	Ping(ctx context.Context) error
 }
 
 // NewCache creates a new BlocklistCache instance

@@ -101,6 +101,11 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 	return nil
 }
 
+// Ping reports whether the Redis backend is reachable.
+func (c *RedisCache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
+}
+
 // DeleteBlocklist removes a blocklist set from the cache
 func (c *RedisCache) DeleteBlocklist(ctx context.Context, blocklistId string) error {
 	key := fmt.Sprintf("blocklist:%s", blocklistId)

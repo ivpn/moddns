@@ -2,12 +2,18 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/store"
 )
+
+// defaultMetricsPort is the default port for the metrics/health HTTP server.
+// It matches the proxy convention (9153); blocklists runs on the DCN host, so
+// it does not collide with the proxy/recursor metrics ports on the edge nodes.
+const defaultMetricsPort = 9153
 
 // Config represents the application configuration
 type Config struct {
@@ -16,11 +22,18 @@ type Config struct {
 	Cache   *cache.Config
 	Updater *UpdaterConfig
 	Sentry  *SentryConfig
+	Metrics *MetricsConfig
 }
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
 	Name string
+}
+
+// MetricsConfig represents the metrics/health HTTP server configuration.
+type MetricsConfig struct {
+	// Port is the listen port for /metrics and /health/*. 0 disables the server.
+	Port int
 }
 
 // UpdaterConfig represents the updater configuration
@@ -86,5 +99,17 @@ func New() (*Config, error) {
 			Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 			Release:     os.Getenv("SENTRY_RELEASE"),
 		},
+		Metrics: loadMetricsConfig(),
 	}, nil
+}
+
+// loadMetricsConfig reads the metrics/health server configuration from the
+// environment. METRICS_PORT defaults to defaultMetricsPort; set it to 0 to
+// disable the server entirely.
+func loadMetricsConfig() *MetricsConfig {
+	cfg := &MetricsConfig{Port: defaultMetricsPort}
+	if v, err := strconv.Atoi(os.Getenv("METRICS_PORT")); err == nil && v >= 0 {
+		cfg.Port = v
+	}
+	return cfg
 }

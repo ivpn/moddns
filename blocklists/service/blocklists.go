@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ivpn/dns/blocklists/internal/extractor"
+	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -81,7 +82,25 @@ func (s *Service) Trigger(sources []model.BlocklistMetadata) {
 	}
 }
 
+// ProcessBlocklist downloads, validates and publishes a single blocklist,
+// recording update metrics (duration, success/failure, last-success timestamp).
 func (s *Service) ProcessBlocklist(metadata model.BlocklistMetadata) (*model.BlocklistMetadata, error) {
+	source := metadata.BlocklistID
+	start := time.Now()
+
+	result, err := s.processBlocklist(metadata)
+
+	s.Metrics.RecordDuration(source, time.Since(start))
+	if err != nil {
+		s.Metrics.RecordUpdate(source, metrics.StatusFailure)
+		return nil, err
+	}
+	s.Metrics.RecordUpdate(source, metrics.StatusSuccess)
+	s.Metrics.SetLastSuccess(source, time.Now())
+	return result, nil
+}
+
+func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.BlocklistMetadata, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), processingTimeout)
 	defer cancel()
 
@@ -95,6 +114,7 @@ func (s *Service) ProcessBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		log.Err(err).Str("source_url", metadata.SourceUrl).Msg("Failed to download blocklist")
 		return nil, err
 	}
+	s.Metrics.RecordDownloadBytes(metadata.BlocklistID, int64(len(blocklistBytes)))
 
 	extractor, err := extractor.NewExtractor(metadata.BlocklistID)
 	if err != nil {
@@ -117,6 +137,7 @@ func (s *Service) ProcessBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	// Process domains line by line and create chunks
 	const maxDomainsPerDoc = 100000
 	var currentChunk []string
+	var totalDomains int
 	chunkIndex := 1
 
 	reader := bytes.NewReader(domainsBytes)
@@ -163,7 +184,7 @@ func (s *Service) ProcessBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 
 		if domain != "" {
 			currentChunk = append(currentChunk, domain)
-			// allDomains = append(allDomains, domain)
+			totalDomains++
 		}
 
 		// When chunk reaches max size, save it to MongoDB
@@ -193,6 +214,8 @@ func (s *Service) ProcessBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 			return nil, err
 		}
 	}
+
+	s.Metrics.SetDomainsExtracted(metadata.BlocklistID, totalDomains)
 
 	// Update cache with complete domain list
 	// update all domains at once
