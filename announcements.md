@@ -5,6 +5,171 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-maint-005
+category: maintenance
+severity: warning
+title: Core DNS maintenance window
+published_at: 2026-05-02
+pinned: true
+---
+Short maintenance window scheduled to improve system reliability.
+- Emojis: 🚀 ⚠️ ✅
+- Accents: naïve, façade, São Paulo
+- Non-Latin: こんにちは, 안녕하세요, Привет
+- Markdown: **bold**, *italic*, `code`
+
+---
+id: dev-feature-005
+category: feature
+severity: info
+title: Introduced smarter caching strategy
+published_at: 2026-05-01
+---
+Caching improvements reduce average response time across regions.
+
+---
+id: dev-incident-005
+category: incident
+severity: critical
+title: Brief outage in APAC region (resolved)
+published_at: 2026-05-03
+---
+A short outage affected APAC traffic. Service has been fully restored.
+
+---
+id: dev-security-005
+category: security
+severity: critical
+title: Emergency security patch deployed
+published_at: 2026-05-04
+---
+Security update deployed with no service interruption.
+
+---
+id: dev-news-005
+category: news
+severity: info
+title: System health improvements completed
+published_at: 2026-05-05
+---
+General system health improvements rolled out successfully.
+
+---
+id: dev-policy-005
+category: policy
+severity: warning
+title: Updated acceptable usage policy
+published_at: 2026-05-06
+---
+Clarifications added to API usage limits and abuse prevention rules.
+
+---
+id: dev-news-004
+category: news
+severity: info
+title: Monthly platform update released
+published_at: 2026-05-01
+pinned: true
+---
+This update includes minor performance improvements and UI refinements.
+
+---
+id: dev-policy-004
+category: policy
+severity: warning
+title: Updated API usage guidelines
+published_at: 2026-05-03
+---
+We have updated API usage guidelines to improve fairness and stability.
+
+Please review updated documentation before scaling usage.
+
+---
+id: dev-security-004
+category: security
+severity: critical
+title: Security patch applied to resolver layer
+published_at: 2026-05-04
+---
+A security patch has been applied to the DNS resolver layer.
+
+No user action is required.
+
+---
+id: dev-feature-003
+category: feature
+severity: info
+title: Introduced query caching layer
+published_at: 2026-05-09
+pinned: true
+---
+We have introduced a new caching layer to improve DNS lookup performance.
+
+Expected benefits:
+- Reduced response time
+- Lower backend load
+
+---
+id: dev-feature-004
+category: feature
+severity: info
+title: New API rate limit headers
+published_at: 2026-05-07
+---
+API responses now include clearer rate-limit headers for better observability.
+
+No breaking changes introduced.
+
+---
+id: dev-incident-001
+category: incident
+severity: critical
+title: Temporary DNS resolution degradation (resolved)
+published_at: 2026-05-12
+pinned: true
+---
+We experienced a brief degradation in DNS resolution affecting some regions.
+
+Status: RESOLVED
+
+Root cause: upstream routing instability
+
+---
+id: dev-incident-002
+category: incident
+severity: warning
+title: Partial latency spike in EU region
+published_at: 2026-05-11
+---
+We observed elevated latency in the EU region for a short period.
+
+The issue self-resolved without intervention.
+
+---
+id: dev-maint-001
+category: maintenance
+severity: warning
+title: Scheduled DNS node upgrades
+published_at: 2026-05-10
+pinned: true
+---
+We will upgrade several DNS nodes to improve global latency.
+
+- No downtime expected
+- Short-lived latency fluctuations possible
+
+---
+id: dev-maint-002
+category: maintenance
+severity: info
+title: Database optimization rollout
+published_at: 2026-05-08
+---
+Background database optimizations have been deployed successfully.
+
+Users may notice slightly faster query resolution times.
+
+---
 id: dev-maintenance-002
 category: maintenance
 severity: warning
