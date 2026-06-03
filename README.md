@@ -47,6 +47,8 @@ Body in **Markdown** — lists, bold, and links are supported.
 - Use *** for a horizontal rule (a bare --- starts a new record)
 ```
 
+The body is optional — a record with only a title (and no body) is valid.
+
 ### Categories
 
 `news` · `feature` · `maintenance` · `incident` · `security` · `policy`
@@ -65,6 +67,30 @@ red dot).
 - A record with a future `published_at` stays hidden until then; one past its
   `expires_at` is hidden.
 
+#### Nav unread indicator
+
+The Announcements nav item shows a dot to flag unread items:
+
+- **A dot appears** whenever at least one announcement is *unread* — i.e.
+  published after the user last opened the Announcements page (if they have
+  never opened it, every published item is unread). Opening the page clears the
+  dot.
+- **Red dot** — at least one unread item has `critical` severity.
+- **Brand-colour dot** — there are unread items but none are critical
+  (`info` or `warning`).
+
+Severity only changes the dot's **colour** (critical → red, otherwise brand
+colour); the dot's **presence** is driven by unread state, not severity. A
+`warning` item shows the same brand-colour dot as an `info` item — only
+`critical` escalates to red.
+
+### Size limit
+
+The API reads at most **1 MB** of the feed; any content beyond that is silently
+dropped at runtime, so trailing announcements would simply disappear. Keep the
+file well under the cap by pruning expired entries — the validation CLI warns
+(without failing) once the file passes **80%** of the limit.
+
 ## Validation
 
 The API rejects the **entire** file (and keeps serving the last known-good
@@ -73,11 +99,15 @@ version) if any record:
 - is missing a required field (`id`, `category`, `severity`, `title`,
   `published_at`),
 - uses an unknown `category` or `severity`,
-- reuses an `id` already used by another record, or
+- reuses an `id` already used by another record,
+- has a `link` that is not an absolute `http(s)` URL, or
 - has malformed / unterminated frontmatter.
 
 Bad edit can never take the announcements feed down — it just won't go
-live until the file is valid.
+live until the file is valid. The same safety net covers upstream hiccups: if a
+refresh fails (network error, non-200, timeout) the API keeps serving the last
+good copy, and a load failure at startup never blocks the API — it just retries
+on the next reload.
 
 These exact checks also run in CI on every pull request (see
 `.github/workflows/validate-announcements.yml`), so an invalid file is caught
