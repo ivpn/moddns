@@ -5,6 +5,16 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-invalid-category
+category: breaking-news
+severity: info
+title: Invalid category test
+published_at: 2026-05-20
+
+---
+This should fail because category is not in the allowed set.
+
+---
 id: dev-future-001
 category: news
 severity: info
