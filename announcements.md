@@ -5,6 +5,26 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-duplicate
+category: news
+severity: info
+title: First instance
+published_at: 2026-05-20
+
+---
+First record.
+
+---
+id: dev-duplicate
+category: news
+severity: warning
+title: Second instance
+published_at: 2026-05-21
+
+---
+Second record with same ID (invalid).
+
+---
 id: dev-missing-title
 category: incident
 severity: critical
