@@ -2,6 +2,7 @@ package announcements
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -74,6 +75,18 @@ func (a *Announcement) Validate() error {
 	}
 	if a.PublishedAt.IsZero() {
 		return fmt.Errorf("%s: published_at is required", a.ID)
+	}
+	// Link is optional, but when present must be an absolute http(s) URL: the
+	// webapp drops it straight into an <a href>, so this also blocks dangerous
+	// schemes (e.g. javascript:) from ever reaching a user.
+	if a.Link != "" {
+		u, err := url.Parse(a.Link)
+		if err != nil {
+			return fmt.Errorf("%s: invalid link %q: %w", a.ID, a.Link, err)
+		}
+		if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return fmt.Errorf("%s: link must be an absolute http(s) URL, got %q", a.ID, a.Link)
+		}
 	}
 	return nil
 }

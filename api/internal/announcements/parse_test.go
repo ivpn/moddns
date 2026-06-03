@@ -138,6 +138,24 @@ title: Two
 published_at: 2026-01-02
 ---
 b`,
+		"non-http link scheme": `---
+id: x
+category: news
+severity: info
+title: T
+published_at: 2026-01-01
+link: javascript:alert(1)
+---
+body`,
+		"link without host": `---
+id: x
+category: news
+severity: info
+title: T
+published_at: 2026-01-01
+link: not-a-url
+---
+body`,
 	}
 
 	for name, in := range cases {
@@ -146,6 +164,18 @@ b`,
 				t.Fatalf("expected error for %q, got nil", name)
 			}
 		})
+	}
+}
+
+func TestParse_AcceptsValidLinks(t *testing.T) {
+	for _, link := range []string{
+		"http://example.com",
+		"https://example.com/status?q=1#frag",
+	} {
+		in := "---\nid: x\ncategory: news\nseverity: info\ntitle: T\npublished_at: 2026-01-01\nlink: " + link + "\n---\nbody"
+		if _, err := Parse([]byte(in)); err != nil {
+			t.Errorf("link %q should be valid, got error: %v", link, err)
+		}
 	}
 }
 
