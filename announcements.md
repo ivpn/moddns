@@ -5,6 +5,16 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-invalid-severity
+category: news
+severity: high
+title: Invalid severity test
+published_at: 2026-05-20
+
+---
+Severity is invalid (must be info | warning | critical).
+
+---
 id: dev-invalid-category
 category: breaking-news
 severity: info
