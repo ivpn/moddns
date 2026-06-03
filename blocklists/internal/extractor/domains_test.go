@@ -20,6 +20,18 @@ func TestDomainsExtractor_Convert(t *testing.T) {
 			want:  "example.com\nexample.org",
 		},
 		{
+			// specRef: #D20 — hosts-format lines (e.g. blocklistproject/fakenews)
+			// have their leading IP stripped.
+			name:  "hosts format with leading IP",
+			input: "0.0.0.0 evil.com\n127.0.0.1 ads.example.org\nplain.example.net",
+			want:  "evil.com\nads.example.org\nplain.example.net",
+		},
+		{
+			name:  "comments and blanks skipped",
+			input: "# header\n\n! comment\nexample.com",
+			want:  "example.com",
+		},
+		{
 			name:    "empty input",
 			input:   "",
 			want:    "",

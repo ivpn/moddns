@@ -3,6 +3,7 @@ package extractor
 import (
 	"bufio"
 	"bytes"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,12 +25,42 @@ func NewDomainsExtractor() *DomainsExtractor {
 	return &DomainsExtractor{}
 }
 
-// Convert returns the blocklist bytes unchanged as they are already in domain format
+// Convert normalizes a plain domain list to one candidate domain per line. It
+// is hosts-tolerant: some "domain" lists (e.g. blocklistproject/fakenews) are
+// actually in hosts format (`0.0.0.0 domain`), so a leading IP field is
+// stripped. Comments and blank lines are dropped; the shared NormalizeDomain +
+// ValidDomain gate downstream does the final cleaning/validation.
 func (e *DomainsExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 	if len(blocklistBytes) == 0 {
 		return []byte{}, nil
 	}
-	return blocklistBytes, nil
+
+	out := make([]string, 0)
+	scanner := bufio.NewScanner(bytes.NewReader(blocklistBytes))
+	for scanner.Scan() {
+		if domain := stripHostsIP(scanner.Text()); domain != "" {
+			out = append(out, domain)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return []byte(strings.Join(out, "\n")), nil
+}
+
+// stripHostsIP returns the domain candidate from a plain-list or hosts-format
+// line, or "" for comments and blank lines. For a `<ip> <domain>` line (first
+// field parses as an IP) it returns the domain field; otherwise the trimmed
+// line.
+func stripHostsIP(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "!") {
+		return ""
+	}
+	if fields := strings.Fields(trimmed); len(fields) >= 2 && net.ParseIP(fields[0]) != nil {
+		return fields[1]
+	}
+	return trimmed
 }
 
 // ExtractMetadata extracts metadata from the blocklist. Unlike strict extractors,
@@ -87,13 +118,10 @@ func (e *DomainsExtractor) ExtractMetadata(blocklistBytes []byte) (time.Time, st
 	return lastModified, "", numEntries, nil
 }
 
-// ProcessLine skips comment lines and empty lines, returning the trimmed domain
+// ProcessLine skips comment/blank lines and returns the domain candidate,
+// stripping a leading IP for hosts-format lines (see stripHostsIP).
 func (e *DomainsExtractor) ProcessLine(line string) (string, error) {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "!") {
-		return "", nil
-	}
-	return trimmed, nil
+	return stripHostsIP(line), nil
 }
 
 // parseFlexibleDate tries multiple date formats commonly found in blocklist headers
