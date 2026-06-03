@@ -38,6 +38,10 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 
 	pipe := c.client.Pipeline()
 
+	// Step 0: Clear any stale temp set left by a previously crashed run, so the
+	// new set is not silently merged with old data.
+	pipe.Del(ctx, tempBlocklistName)
+
 	// Step 1: Create the temp set with new data
 	lines := strings.Split(string(data), "\n")
 	for i := 0; i < len(lines); i += chunkSize {

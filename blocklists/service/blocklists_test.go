@@ -81,33 +81,63 @@ func TestCheckValidationGate(t *testing.T) {
 // specRef: #I10 — an oversized line surfaces as a scanner error so the caller
 // can abort, rather than silently truncating the rest of the source.
 func TestScanValidatedDomains_OversizedLineErrors(t *testing.T) {
-	extr, err := extractor.NewExtractor("blp_test")
-	if err != nil {
-		t.Fatalf("NewExtractor: %v", err)
-	}
-
 	// One line larger than bufio.Scanner's default 64KB cap.
 	oversized := strings.Repeat("a", bufio.MaxScanTokenSize+1)
-	_, err = scanValidatedDomains(extr, strings.NewReader(oversized+"\nexample.com\n"))
+	_, err := scanValidatedDomains(strings.NewReader(oversized + "\nexample.com\n"))
 	if !errors.Is(err, bufio.ErrTooLong) {
 		t.Fatalf("scanValidatedDomains err = %v, want bufio.ErrTooLong", err)
 	}
 }
 
-// specRef: #I10 — normal input scans cleanly into validated domains.
-func TestScanValidatedDomains_ParsesDomains(t *testing.T) {
-	extr, err := extractor.NewExtractor("blp_test")
-	if err != nil {
-		t.Fatalf("NewExtractor: %v", err)
-	}
+// specRef: #D15 #D16 #D17 — normalization (CRLF/case/trailing-dot) and
+// validation (comments and garbage dropped, punycode kept) applied to the
+// Convert output that feeds both Redis and Mongo.
+func TestScanValidatedDomains_NormalizesAndValidates(t *testing.T) {
+	input := strings.Join([]string{
+		"Example.COM",           // case -> lowercased
+		"ads.example.net\r",     // CRLF -> CR stripped
+		"trailing.example.org.", // trailing dot -> stripped
+		"# a comment",           // comment -> rejected
+		"",                      // blank -> skipped
+		"two words.com",         // injected space -> rejected
+		"*.wildcard.example",    // wildcard syntax -> rejected
+		"tencent.xn--io0a7i",    // punycode TLD -> kept
+	}, "\n")
 
-	got, err := scanValidatedDomains(extr, strings.NewReader("example.com\n# comment\n\nads.example.net\n"))
+	got, err := scanValidatedDomains(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := []string{"example.com", "ads.example.net"}
-	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+	want := []string{"example.com", "ads.example.net", "trailing.example.org", "tencent.xn--io0a7i"}
+	if len(got) != len(want) {
 		t.Fatalf("scanValidatedDomains = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("scanValidatedDomains[%d] = %q, want %q (full: %v)", i, got[i], want[i], got)
+		}
+	}
+}
+
+// specRef: #D6 — steven_black hosts entries flow end-to-end (Convert -> shared
+// validate) and are normalized; guards the Phase B unify-to-cache change which
+// previously dropped them because ProcessLine re-parsed bare domains as hosts.
+func TestStevenBlackEndToEnd(t *testing.T) {
+	extr, err := extractor.NewExtractor("steven_black_test")
+	if err != nil {
+		t.Fatalf("NewExtractor: %v", err)
+	}
+	hosts := "# Title: test\n0.0.0.0 Ads.Example.COM\n0.0.0.0 0.0.0.0\n127.0.0.1 skip.example.org\n"
+	converted, err := extr.Convert([]byte(hosts))
+	if err != nil {
+		t.Fatalf("Convert: %v", err)
+	}
+	got, err := scanValidatedDomains(strings.NewReader(string(converted)))
+	if err != nil {
+		t.Fatalf("scanValidatedDomains: %v", err)
+	}
+	if len(got) != 1 || got[0] != "ads.example.com" {
+		t.Fatalf("steven_black end-to-end = %v, want [ads.example.com]", got)
 	}
 }
 

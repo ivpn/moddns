@@ -128,6 +128,10 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	}
 	s.Metrics.RecordDownloadBytes(metadata.BlocklistID, int64(len(blocklistBytes)))
 
+	// Strip a leading UTF-8 BOM so it does not corrupt the first header line
+	// (metadata extraction) or the first domain.
+	blocklistBytes = bytes.TrimPrefix(blocklistBytes, []byte("\uFEFF"))
+
 	extr, err := extractor.NewExtractor(metadata.BlocklistID)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to create extractor")
@@ -177,7 +181,7 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	// Scan all lines into a single validated slice BEFORE persisting anything.
 	// A corrupt/truncated download fails the validation gate below, leaving the
 	// previously published Redis/Mongo data untouched.
-	validated, err := scanValidatedDomains(extr, bytes.NewReader(domainsBytes))
+	validated, err := scanValidatedDomains(bytes.NewReader(domainsBytes))
 	if err != nil {
 		s.Metrics.RecordValidationRejected(metadata.BlocklistID, metrics.ReasonScanError)
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Scan error while processing blocklist; aborting swap")
@@ -240,28 +244,27 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	return &metadata, nil
 }
 
-// scanValidatedDomains reads domains from r, running each non-empty line through
-// the extractor's ProcessLine. It relies on bufio.Scanner's default 64KB line
-// cap (no legitimate domain or rule line approaches it) and returns the
-// scanner error so the caller can ABORT rather than publish a truncated list: a
-// single oversized line yields bufio.ErrTooLong instead of silently dropping
-// the rest of the source. Per-line ProcessLine errors are logged and skipped.
-func scanValidatedDomains(extr extractor.Extractor, r io.Reader) ([]string, error) {
+// scanValidatedDomains reads the extractor's Convert output (one candidate
+// domain per line) and returns the normalized, validated domains. Convert is
+// the canonical, format-specific extractor for every source; this shared gate
+// then applies consistent normalization (BOM/CR/whitespace/trailing-dot strip,
+// lowercase) and validation, so the proxy-visible Redis set and the Mongo
+// content never contain comments, mixed case, CRLF artefacts or injected
+// non-domain junk. Invalid lines (incl. comment lines) are silently skipped.
+//
+// It relies on bufio.Scanner's default 64KB line cap (no legitimate domain
+// approaches it) and returns the scanner error so the caller can ABORT rather
+// than publish a truncated list: a single oversized line yields
+// bufio.ErrTooLong instead of silently dropping the rest of the source.
+func scanValidatedDomains(r io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 	validated := make([]string, 0)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if len(strings.TrimSpace(line)) == 0 {
+		domain := extractor.NormalizeDomain(scanner.Text())
+		if domain == "" || !extractor.ValidDomain(domain) {
 			continue
 		}
-		domain, err := extr.ProcessLine(line)
-		if err != nil {
-			log.Warn().Err(err).Str("line", line).Msg("Failed to process line")
-			continue
-		}
-		if domain != "" {
-			validated = append(validated, domain)
-		}
+		validated = append(validated, domain)
 	}
 	return validated, scanner.Err()
 }
