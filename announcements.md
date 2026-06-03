@@ -5,7 +5,7 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
-id: dev-maintenance-001
+id: dev-maintenance-002
 category: maintenance
 severity: warning
 title: Scheduled DNS infrastructure maintenance
@@ -21,7 +21,7 @@ During this window:
 - No customer action is required
 
 ---
-id: dev-feature-001
+id: dev-feature-002
 category: feature
 severity: info
 title: New analytics dashboard now available
@@ -56,15 +56,6 @@ This announcement is scheduled for the future and should remain hidden until its
 
 It describes upcoming improvements to the modDNS API, including expanded filtering options and improved rate-limit 
 handling.
-
----
-id: dev-duplicate
-category: news
-severity: info
-title: First instance
-published_at: 2026-05-20
----
-First record.
 
 ---
 id: dev-maintenance-001
