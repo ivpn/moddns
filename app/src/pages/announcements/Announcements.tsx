@@ -11,6 +11,7 @@ import {
     ShieldAlert,
     ScrollText,
     ExternalLink,
+    Pin,
     type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,11 @@ function AnnouncementCard({
     return (
         <article
             ref={cardRef}
-            className="border border-[var(--shadcn-ui-app-border)] rounded-lg p-5 bg-[var(--shadcn-ui-app-popover)]"
+            className={`rounded-lg p-5 bg-[var(--shadcn-ui-app-popover)] ${
+                item.pinned
+                    ? "border border-[var(--tailwind-colors-rdns-600)]/30"
+                    : "border border-[var(--shadcn-ui-app-border)]"
+            }`}
         >
             <div className="flex flex-wrap items-center gap-3 mb-2">
                 <span
@@ -86,6 +91,15 @@ function AnnouncementCard({
                     <CatIcon className="h-3.5 w-3.5" />
                     {cat.label}
                 </span>
+                {item.pinned && (
+                    <span
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium bg-[var(--tailwind-colors-rdns-600)]/10 text-[var(--tailwind-colors-rdns-600)]"
+                        title="Pinned announcements are shown first, regardless of date"
+                    >
+                        <Pin className="h-3.5 w-3.5 fill-current" />
+                        Pinned
+                    </span>
+                )}
                 {date && (
                     <time className="text-sm text-[var(--shadcn-ui-app-muted-foreground)]">{date}</time>
                 )}
