@@ -9,8 +9,9 @@ id: dev-maint-005
 category: maintenance
 severity: warning
 title: Core DNS maintenance window
-published_at: 2026-05-02
+published_at: 2026-06-03
 pinned: true
+expires_at: 2026-06-04
 ---
 Short maintenance window scheduled to improve system reliability.
 - Emojis: 🚀 ⚠️ ✅
