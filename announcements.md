@@ -5,6 +5,26 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-future-001
+category: news
+severity: info
+title: Future announcement (should be hidden)
+published_at: 2099-01-01
+
+---
+This should NOT appear yet.
+
+---
+id: dev-expired-001
+category: maintenance
+severity: warning
+title: Expired announcement (should disappear)
+published_at: 2025-01-01
+expires_at: 2025-02-01
+---
+This should be hidden because it's expired.
+
+---
 id: dev-maintenance-001
 category: maintenance
 severity: warning
