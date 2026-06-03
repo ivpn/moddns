@@ -5,6 +5,15 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-missing-title
+category: incident
+severity: critical
+published_at: 2026-05-20
+
+---
+Missing title field  should be rejected by parser.
+
+---
 id: dev-invalid-severity
 category: news
 severity: high
