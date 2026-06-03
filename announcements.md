@@ -5,6 +5,34 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-maintenance-001
+category: maintenance
+severity: warning
+title: Scheduled infrastructure maintenance
+published_at: 2026-05-20
+pinned: true
+link: https://ivpn.net
+
+---
+We will perform routine maintenance on core DNS services.
+
+- Expected minor latency during the window
+- No downtime expected
+
+---
+id: dev-feature-001
+category: feature
+severity: info
+title: New dashboard rollout
+published_at: 2026-05-18
+
+---
+We are rolling out a new analytics dashboard for modDNS users.
+
+- Improved latency charts
+- Better zone visibility
+
+---
 id: dev-incident
 category: incident
 severity: critical
@@ -12,6 +40,7 @@ title: Testing news feed
 published_at: 2026-06-02
 pinned: true
 link: https://status.moddns.net
+
 ---
 Testing news feed update for modDNS staging environment
 
