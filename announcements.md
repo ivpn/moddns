@@ -9,7 +9,7 @@ id: dev-maintenance-001
 category: maintenance
 severity: warning
 title: Scheduled DNS infrastructure maintenance
-published_at: 2026-05-20
+published_at: 2026-06-03
 pinned: true
 link: https://status.moddns.net
 ---
@@ -25,7 +25,7 @@ id: dev-feature-001
 category: feature
 severity: info
 title: New analytics dashboard now available
-published_at: 2026-05-18
+published_at: 2026-06-03
 ---
 We are introducing a redesigned analytics dashboard for modDNS.
 
@@ -63,7 +63,6 @@ category: feature
 severity: info
 title: Unicode & Markdown test    
 published_at: 2026-05-20
-
 ---
 This announcement tests edge cases:
 
@@ -87,7 +86,6 @@ category: news
 severity: info
 title: Missing colon in YAML
 published_at: 2026-05-20
-
 ---
 This frontmatter is invalid and should break parsing.
 
@@ -97,7 +95,6 @@ category: news
 severity: info
 title: First instance
 published_at: 2026-05-20
-
 ---
 First record.
 
@@ -107,7 +104,6 @@ category: news
 severity: warning
 title: Second instance
 published_at: 2026-05-21
-
 ---
 Second record with same ID (invalid).
 
@@ -116,7 +112,6 @@ id: dev-missing-title
 category: incident
 severity: critical
 published_at: 2026-05-20
-
 ---
 Missing title field  should be rejected by parser.
 
@@ -126,7 +121,6 @@ category: news
 severity: high
 title: Invalid severity test
 published_at: 2026-05-20
-
 ---
 Severity is invalid (must be info | warning | critical).
 
@@ -136,7 +130,6 @@ category: breaking-news
 severity: info
 title: Invalid category test
 published_at: 2026-05-20
-
 ---
 This should fail because category is not in the allowed set.
 
@@ -146,7 +139,6 @@ category: news
 severity: info
 title: Future announcement (should be hidden)
 published_at: 2099-01-01
-
 ---
 This should NOT appear yet.
 
@@ -168,7 +160,6 @@ title: Scheduled infrastructure maintenance
 published_at: 2026-05-20
 pinned: true
 link: https://ivpn.net
-
 ---
 We will perform routine maintenance on core DNS services.
 
@@ -181,7 +172,6 @@ category: feature
 severity: info
 title: New dashboard rollout
 published_at: 2026-05-18
-
 ---
 We are rolling out a new analytics dashboard for modDNS users.
 
@@ -196,7 +186,6 @@ title: Testing news feed
 published_at: 2026-06-02
 pinned: true
 link: https://status.moddns.net
-
 ---
 Testing news feed update for modDNS staging environment
 
