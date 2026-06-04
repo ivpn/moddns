@@ -5,6 +5,16 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-maint-006
+category: feature
+severity: info
+title: DNS announcements
+published_at: 2026-06-04
+---
+
+- First announcement 
+
+---
 id: dev-maint-005
 category: maintenance
 severity: warning
