@@ -17,6 +17,7 @@ import (
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/db"
 	_ "github.com/ivpn/dns/api/docs"
+	"github.com/ivpn/dns/api/internal/announcements"
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/middleware"
@@ -38,10 +39,11 @@ type APIServer struct {
 	Mailer          email.Mailer
 	Shortener       *urlshort.URLShortener
 	ServicesCatalog *servicescatalogcache.Loader
+	Announcements   *announcements.Loader
 }
 
 // NewServer inititiates database connection and sets up API endpoints
-func NewServer(config *config.Config, service service.Service, db db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, email email.Mailer, shortener *urlshort.URLShortener, servicesCatalog *servicescatalogcache.Loader) (*APIServer, error) {
+func NewServer(config *config.Config, service service.Service, db db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, email email.Mailer, shortener *urlshort.URLShortener, servicesCatalog *servicescatalogcache.Loader, announcementsLoader *announcements.Loader) (*APIServer, error) {
 	app := fiber.New(fiber.Config{
 		ServerHeader: "modDNS API",
 		AppName:      "modDNS API",
@@ -59,6 +61,7 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 		Mailer:          email,
 		Shortener:       shortener,
 		ServicesCatalog: servicesCatalog,
+		Announcements:   announcementsLoader,
 	}
 
 	middleware.InitLimitConfig(config.API)
@@ -141,6 +144,9 @@ func (s *APIServer) RegisterRoutes() {
 
 	// Unrestricted short URL endpoint
 	v1.Get("/short/:code", middleware.NewLimit(10, 1*time.Minute), s.downloadMobileConfigFromLink())
+
+	// Public announcements endpoint (no auth, rate limited only)
+	v1.Get("/announcements", middleware.NewLimit(60, 1*time.Minute), s.getAnnouncements())
 
 	// Verification endpoints
 	verify.Post("/reset-password", middleware.NewLimit(10, 1*time.Minute), s.verifyPasswordReset())

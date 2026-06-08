@@ -9,6 +9,7 @@ import {
     LogOut,
     Mail,
     HelpCircle,
+    Megaphone,
     EyeOff,
     X,
     Sun,
@@ -25,6 +26,7 @@ import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
 import { AuthContext, routePreload } from "@/App";
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
 import api from "@/api/api";
+import { useAnnouncementsIndicator } from "@/hooks/useAnnouncementsIndicator";
 
 interface NavigationSectionProps {
     isMobile?: boolean;
@@ -36,6 +38,7 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
     const { collapsed } = useNavigationCollapse();
     const navigate = useNavigate();
     const auth = useContext(AuthContext);
+    const { hasUnread: hasUnreadAnnouncements, hasCriticalUnread: hasCriticalAnnouncement } = useAnnouncementsIndicator();
     const [loading, setLoading] = useState(false);
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const { theme, setTheme } = useTheme();
@@ -200,6 +203,34 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
 
                 {/* Support Section */}
                 <div className={`flex flex-col gap-2 ${isMobile ? 'px-2 border-t border-[var(--sidebar-border)] pt-4' : 'mb-4'}`}>
+                    {/* Announcements */}
+                    <Button
+                        variant="ghost"
+                        className={`flex ${isMobile ? 'min-h-12' : 'min-h-10'} w-full gap-2 rounded-md px-2 py-2 transition-colors focus:outline-none focus:ring-0 ${isActive('/announcements') ? "bg-[var(--sidebar-accent-bg)] text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-muted)]"} ${!isMobile && collapsed ? "justify-center px-0" : "justify-start px-4"}`}
+                        title="Announcements"
+                        onClick={() => handleNavigation('/announcements')}
+                    >
+                        <span className={`relative flex items-center ${isActive('/announcements') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
+                            <Megaphone className="w-5 h-5" />
+                            {hasUnreadAnnouncements && (
+                                <span
+                                    aria-hidden="true"
+                                    className={`absolute -top-1 -right-1 h-2 w-2 rounded-full ring-2 ring-[var(--sidebar-background)] ${hasCriticalAnnouncement ? "bg-red-500" : "bg-[var(--tailwind-colors-rdns-600)]"}`}
+                                />
+                            )}
+                        </span>
+                        {showLabels && (
+                            <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive('/announcements') ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
+                                Announcements
+                            </span>
+                        )}
+                        {hasUnreadAnnouncements && (
+                            <span className="sr-only">
+                                {hasCriticalAnnouncement ? "Critical announcement unread" : "New announcements"}
+                            </span>
+                        )}
+                    </Button>
+
                     {/* FAQ */}
                     <Button
                         variant="ghost"

@@ -48,6 +48,8 @@ type ServiceConfig struct {
 	MaxCredentials             int
 	ServicesCatalogPath        string
 	ServicesCatalogReloadEvery time.Duration
+	AnnouncementsURL           string
+	AnnouncementsReloadEvery   time.Duration
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
@@ -171,6 +173,11 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	announcementsReloadEvery, err := time.ParseDuration(envOrDefault("ANNOUNCEMENTS_RELOAD", "5m"))
+	if err != nil {
+		return nil, err
+	}
+
 	// Warn about missing security-critical configuration.
 	if os.Getenv("API_PSK") == "" {
 		log.Warn().Msg("API_PSK is not set; the subscription provisioning endpoint will reject all requests")
@@ -256,6 +263,8 @@ func New() (*Config, error) {
 			MaxCredentials:                 maxCredentials,
 			ServicesCatalogPath:            servicesCatalogPath,
 			ServicesCatalogReloadEvery:     servicesCatalogReloadEvery,
+			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
+			AnnouncementsReloadEvery:       announcementsReloadEvery,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
 		},
 		Sentry: &SentryConfig{

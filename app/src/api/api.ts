@@ -78,6 +78,7 @@ const Client = {
   sessionsApi: new client.SessionsApi(config),
   subscriptionApi: new client.SubscriptionApi(config),
   paSessionApi: new client.PASessionApi(config),
+  announcementsApi: new client.AnnouncementsApi(config),
 };
 
 function clearSession() {

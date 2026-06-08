@@ -54,7 +54,7 @@ func (s *QueryLogsAPIShortSuite) server() *APIServer {
 	gen := mocks.NewGeneratoridgen(s.T())
 	mail := mocks.NewMaileremail(s.T())
 	short := urlshort.NewURLShortener()
-	srv, err := NewServer(s.cfg, testService, s.db, cache, gen, s.v, mail, short, nil)
+	srv, err := NewServer(s.cfg, testService, s.db, cache, gen, s.v, mail, short, nil, nil)
 	s.Require().NoError(err)
 	srv.RegisterRoutes()
 	return srv

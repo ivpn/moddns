@@ -8,6 +8,7 @@ git_push.sh
 moddns/__init__.py
 moddns/api/__init__.py
 moddns/api/account_api.py
+moddns/api/announcements_api.py
 moddns/api/apple_mobileconfig_api.py
 moddns/api/authentication_api.py
 moddns/api/blocklists_api.py
@@ -24,6 +25,9 @@ moddns/api_response.py
 moddns/configuration.py
 moddns/exceptions.py
 moddns/models/__init__.py
+moddns/models/announcements_announcement.py
+moddns/models/announcements_category.py
+moddns/models/announcements_severity.py
 moddns/models/api_blocklists_updates.py
 moddns/models/api_create_profile_body.py
 moddns/models/api_err_response.py

@@ -82,6 +82,63 @@ Helpful `/etc/hosts` entries (in addition to dnsmasq):
 
 3. If you need DoT/DoQ validation, ensure your DNS client trusts the same certificate.
 
+## Testing the Announcements feature locally
+
+The API serves announcements by fetching a single Markdown file over HTTP from
+`ANNOUNCEMENTS_URL` (in production this is the raw URL of the `announcements`
+content branch). To exercise the feature locally without that branch, serve the
+bundled dev fixture with any static file server.
+
+A ready-made fixture lives at `bootstrap/announcements/announcements.md`. It
+covers every category (`news`, `feature`, `maintenance`, `incident`, `security`,
+`policy`) and severity (`info`, `warning`, `critical`), plus one expired and one
+future entry to confirm the API hides them.
+
+1. Put the dev URL in `api/.env` (with a short reload for fast iteration):
+
+    ```
+    ANNOUNCEMENTS_URL=http://announcements-dev/announcements.md
+    ANNOUNCEMENTS_RELOAD=10s
+    ```
+
+    > [!IMPORTANT]
+    > The API reads `ANNOUNCEMENTS_URL` from `env_file` **only at container
+    > creation** (there is no in-process `.env` loader). After editing `api/.env`
+    > you must **recreate** the `dnsapi` container — `make down && make up`
+    > (or `make restart_dev`) — not just restart the process. `docker exec dnsapi
+    > printenv ANNOUNCEMENTS_URL` shows the value the running API actually sees.
+
+2. With the stack up, serve the fixture (in its own terminal):
+
+    ```bash
+    make announcements
+    ```
+
+    This runs a throwaway nginx named `announcements-dev` on the shared
+    `dns_dnsnetwork`, so the API reaches it by container DNS name at
+    `http://announcements-dev/announcements.md`. Because it lives on the network
+    (not inside the API's namespace) it survives `dnsapi` restarts. Editing the
+    `.md` afterwards is picked up within the reload interval — no restart needed.
+    If you run `make down`, the network is torn down too, so re-run
+    `make announcements` after the next `make up`.
+
+3. Open the web UI and visit `/announcements` (reachable logged in *or* logged
+    out). Verify each category renders with its badge and severity-coloured
+    accent, and that the two `(should be hidden)` entries do **not** appear.
+
+4. The nav "Announcements" entry shows an unread dot: **red** when an unread
+    announcement is `critical` (the fixture's `dev-incident`), brand-coloured
+    otherwise. Opening the page marks everything seen and clears the dot; the
+    last-seen timestamp is persisted under the `moddns-storage` key in
+    `localStorage`. Clear that key (DevTools → Application → Local Storage) or
+    use a private window to re-test the dot.
+
+> [!NOTE]
+> If you run the API **on the host** instead of in the `dnsapi` container, skip
+> `make announcements` and serve the fixture directly with
+> `cd bootstrap/announcements && python3 -m http.server 8099`, using
+> `ANNOUNCEMENTS_URL=http://localhost:8099/announcements.md`.
+
 ## Troubleshooting
 
 - **TLS errors**: confirm the CA is trusted and the certificate's SAN includes the host you're testing (`*.ivpndns.com`).

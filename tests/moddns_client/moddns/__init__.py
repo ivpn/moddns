@@ -18,6 +18,7 @@ __version__ = "1.0.0"
 
 # import apis into sdk package
 from moddns.api.account_api import AccountApi
+from moddns.api.announcements_api import AnnouncementsApi
 from moddns.api.apple_mobileconfig_api import AppleMobileconfigApi
 from moddns.api.authentication_api import AuthenticationApi
 from moddns.api.blocklists_api import BlocklistsApi
@@ -42,6 +43,9 @@ from moddns.exceptions import ApiAttributeError
 from moddns.exceptions import ApiException
 
 # import models into sdk package
+from moddns.models.announcements_announcement import AnnouncementsAnnouncement
+from moddns.models.announcements_category import AnnouncementsCategory
+from moddns.models.announcements_severity import AnnouncementsSeverity
 from moddns.models.api_blocklists_updates import ApiBlocklistsUpdates
 from moddns.models.api_create_profile_body import ApiCreateProfileBody
 from moddns.models.api_err_response import ApiErrResponse

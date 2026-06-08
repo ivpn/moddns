@@ -9,6 +9,7 @@ import (
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/db/mongodb"
+	"github.com/ivpn/dns/api/internal/announcements"
 	"github.com/ivpn/dns/api/internal/cron"
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
@@ -160,9 +161,15 @@ func main() {
 	}
 	go servicesCatalog.Start(context.Background())
 
+	announcementsLoader, err := announcements.New(appConfig.Service.AnnouncementsURL, appConfig.Service.AnnouncementsReloadEvery)
+	if err != nil {
+		log.Panic().Err(err).Msg("Failed to initialize announcements loader")
+	}
+	go announcementsLoader.Start(context.Background())
+
 	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn)
 
-	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener, servicesCatalog)
+	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener, servicesCatalog, announcementsLoader)
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to create API server")
 	}

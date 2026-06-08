@@ -22,6 +22,7 @@ const Signup = lazyWithRetry(() => import('./pages/auth/Signup'));
 const TermsOfService = lazyWithRetry(() => import('./pages/legal/TermsOfService'));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/legal/PrivacyPolicy"));
 const FAQ = lazyWithRetry(() => import("./pages/legal/FAQ"));
+const Announcements = lazyWithRetry(() => import("./pages/announcements/Announcements"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AccountPreferences = lazyWithRetry(() => import('@/pages/account_preferences/Account'));
 const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigPage'));
@@ -95,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p === '/tos' ||
     p === '/privacy' ||
     p === '/faq' ||
+    p === '/announcements' ||
     p === '/reset-password' ||
     p.startsWith('/reset-password/') ||
     p.startsWith('/verify/email/') ||
@@ -708,6 +710,7 @@ const router = createBrowserRouter([
           { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
           { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
           { path: "faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },
+          { path: "announcements", element: <Suspense fallback={<div />}><Announcements /></Suspense> },
           { path: "reset-password", element: <Suspense fallback={<div />}><PasswordReset /></Suspense> },
           { path: "reset-password/:token", element: <Suspense fallback={<div />}><PasswordResetConfirm /></Suspense> },
           { path: "short/:code", element: <Suspense fallback={<div />}><MobileconfigDownload /></Suspense> },
