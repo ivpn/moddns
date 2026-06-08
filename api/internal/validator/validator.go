@@ -14,11 +14,13 @@ import (
 )
 
 // Pre-compiled regexes for password validation (avoid re-compilation on every call).
+// Per OWASP ASVS guidance, the special-character requirement does not restrict
+// which symbols are allowed: any non-alphanumeric character counts as special.
 var (
 	reUppercase   = regexp.MustCompile(`[A-Z]`)
 	reLowercase   = regexp.MustCompile(`[a-z]`)
 	reNumber      = regexp.MustCompile(`[0-9]`)
-	reSpecialChar = regexp.MustCompile(`[!@#$%^&*(),;.?":{}\[\]|<>_-]`)
+	reSpecialChar = regexp.MustCompile(`[^A-Za-z0-9]`)
 )
 
 const (

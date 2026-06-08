@@ -1,8 +1,54 @@
 package validator
 
 import (
+	"strings"
 	"testing"
 )
+
+// specRef: #R2 — password policy (length + character-class composition).
+func TestValidatePassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		want     bool
+	}{
+		// Valid: 12-64 chars with upper, lower, digit and a special char.
+		{"minimal valid", "Abcdefghij1!", true},
+		{"max length valid", "Aa1!" + strings.Repeat("a", 60), true}, // 64 chars
+		{"space counts as special (OWASP: spaces allowed)", "Abcdefghij1 ", true},
+		{"underscore special", "Abcdefghij1_", true},
+		{"unicode symbol special", "Abcdefghij1€", true},
+
+		// OWASP ASVS: any non-alphanumeric counts. These were previously rejected
+		// because they were absent from the hand-listed special-char set.
+		{"apostrophe special", "Abcdefghij1'", true},
+		{"plus special", "Abcdefghij1+", true},
+		{"slash special", "Abcdefghij1/", true},
+		{"equals special", "Abcdefghij1=", true},
+		{"backslash special", "Abcdefghij1\\", true},
+		{"backtick special", "Abcdefghij1`", true},
+		{"tilde special", "Abcdefghij1~", true},
+
+		// Invalid: too short / too long.
+		{"too short", "Abc1!", false},
+		{"too long", "Aa1!" + strings.Repeat("a", 61), false}, // 65 chars
+		{"empty", "", false},
+
+		// Invalid: missing a required character class.
+		{"no special (all alphanumeric)", "Abcdefghij12", false},
+		{"no uppercase", "abcdefghij1!", false},
+		{"no lowercase", "ABCDEFGHIJ1!", false},
+		{"no digit", "Abcdefghijk!", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidatePassword(tt.password); got != tt.want {
+				t.Errorf("ValidatePassword(%q) = %v, want %v", tt.password, got, tt.want)
+			}
+		})
+	}
+}
 
 func Test_wildcardFQDNValidation(t *testing.T) {
 	// Create a validator instance
