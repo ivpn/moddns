@@ -39,11 +39,20 @@ left untouched.
 
 ## Sources
 
-Source definitions live under `sources/` as JSON arrays, grouped by purpose:
+The directory of source definitions is given by `UPDATER_SOURCES_DIR` (mounted at
+`/sources` in the container). Each file is a JSON array of source objects,
+grouped by purpose:
 
-- `sources/3rd_party/` — AdGuard, Hagezi, OISD, Steven Black
-- `sources/categories/` — gambling, adult, social_media, etc.
-- `sources/security/` — threat-intelligence feeds
+- `<sources>/3rd_party/` — AdGuard, Hagezi, OISD, Steven Black
+- `<sources>/categories/` — gambling, adult, social_media, etc.
+- `<sources>/security/` — threat-intelligence feeds
+
+> **Local development vs production.** The `blocklists/sources/` directory in
+> this repo is for **local development only**. The blocklists deployed to
+> production are maintained in the separate `dns-deployment` repository and
+> mounted into the container as `/sources`. Keep the two in sync when adding or
+> changing a source; `TestConfiguredSourcesAreRoutable` guards that every source
+> in `blocklists/sources/` routes to a known extractor.
 
 The **extractor is selected by the `blocklist_id` prefix**
 (`internal/extractor/extractor.go`):

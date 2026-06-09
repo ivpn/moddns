@@ -2,11 +2,13 @@ package service
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ivpn/dns/blocklists/config"
 	"github.com/ivpn/dns/blocklists/internal/extractor"
 )
 
@@ -35,6 +37,55 @@ var realFixtures = []realFixture{
 	{file: "blp_fakenews.txt", blocklistID: "blp_fakenews", extractor: "Domains/blp(hosts)", url: "https://raw.githubusercontent.com/marktron/fakenews/master/fakenews", strictMeta: false, minDomains: 500},
 	{file: "ut1.txt", blocklistID: "ut1_gaming", extractor: "Domains/ut1", url: "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains", strictMeta: false, minDomains: 500},
 	{file: "shadowwhisperer.txt", blocklistID: "shadowwhisperer_dating", extractor: "Domains/shadowwhisperer", url: "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Dating", strictMeta: false, minDomains: 500},
+
+	// Additional category/security lists. These reuse the same extractors as
+	// above (no new syntax) but add real-content breadth and catch per-list
+	// upstream drift in the lists users actually select.
+	{file: "hagezi_tif.txt", blocklistID: "hagezi_threat_intelligence_feeds_full", extractor: "Hagezi/security", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt", strictMeta: true, minDomains: 1000},
+	{file: "hagezi_nsfw.txt", blocklistID: "hagezi_nsfw", extractor: "Hagezi/wildcard(category)", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt", strictMeta: true, minDomains: 1000},
+	{file: "blp_drugs.txt", blocklistID: "blp_drugs", extractor: "Domains/blp(category)", url: "https://blocklistproject.github.io/Lists/alt-version/drugs-nl.txt", strictMeta: false, minDomains: 100},
+	{file: "ut1_dating.txt", blocklistID: "ut1_dating", extractor: "Domains/ut1(category)", url: "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains", strictMeta: false, minDomains: 100},
+	{file: "shadowwhisperer_tunnels.txt", blocklistID: "shadowwhisperer_tunnels", extractor: "Domains/shadowwhisperer(category)", url: "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Tunnels", strictMeta: false, minDomains: 100},
+}
+
+// TestConfiguredSourcesAreRoutable guarantees coverage breadth: every source
+// defined under sources/ must route to a known extractor, and every extractor
+// type used by a configured source must be exercised by at least one content
+// fixture above. A new source with an unknown prefix, or a new extractor type
+// added without a fixture, fails here — so the fixture set stays complete even
+// though it only samples one representative list per family.
+//
+// specRef: #A6 — unknown-prefix routing.
+func TestConfiguredSourcesAreRoutable(t *testing.T) {
+	s := &Service{Cfg: config.Config{Updater: &config.UpdaterConfig{SourcesDir: "../sources"}}}
+	sources, err := s.ReadSources()
+	if err != nil {
+		t.Fatalf("ReadSources(../sources): %v", err)
+	}
+	if len(sources) == 0 {
+		t.Fatal("no sources found under ../sources")
+	}
+
+	// Extractor types exercised by the content fixtures above.
+	fixtureTypes := map[string]bool{}
+	for _, fx := range realFixtures {
+		extr, err := extractor.NewExtractor(fx.blocklistID)
+		if err != nil {
+			t.Fatalf("fixture %s: %v", fx.blocklistID, err)
+		}
+		fixtureTypes[fmt.Sprintf("%T", extr)] = true
+	}
+
+	for _, src := range sources {
+		extr, err := extractor.NewExtractor(src.BlocklistID)
+		if err != nil {
+			t.Errorf("source %q (%s) does not route to a known extractor: %v", src.BlocklistID, src.Name, err)
+			continue
+		}
+		if typ := fmt.Sprintf("%T", extr); !fixtureTypes[typ] {
+			t.Errorf("source %q uses extractor %s which has no content fixture in realFixtures", src.BlocklistID, typ)
+		}
+	}
 }
 
 // TestRealBlocklists runs each committed real-world snapshot through the exact
