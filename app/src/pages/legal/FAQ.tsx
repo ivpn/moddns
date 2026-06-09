@@ -99,7 +99,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'February 11, 2026';
+const FAQ_LAST_UPDATED = 'June 1, 2026';
 
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
@@ -289,8 +289,9 @@ export default function FAQ(): JSX.Element {
 
     const canIChooseServer = (
         <div className="space-y-2">
-            <p>By default, modDNS uses anycast routing to automatically direct your queries to the nearest server. This gives you the lowest latency and automatic failover without any configuration.</p>
-            <p>Each server location also has a location-specific hostname that can be used directly if you want to pin your queries to a specific node.</p>
+            <p>By default, modDNS uses anycast routing to automatically direct your queries to the nearest server. In most cases, this gives you the lowest latency and automatic failover without any configuration.</p>
+            <p>Each server location also has a location-specific hostname that can be used directly if you want to pin your queries to a specific node, if necessary.</p>
+            <p>Note: if you opt to use a specific endpoint directly, in case of maintenance of the server resolutions will stop. Unless you have a very good reason to pick this option, we recommend going with the default anycast setup.</p>
             {serverLocations.length > 0 && (
                 <div>
                     <p>Currently available locations:</p>
@@ -305,7 +306,7 @@ export default function FAQ(): JSX.Element {
                     <p>To use a location-specific endpoint, prepend your Profile ID to the server hostname. For example, if your Profile ID is <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123</code> and you want to use the {serverLocations[0]?.city} server, configure your DNS-over-TLS/QUIC hostname as <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123.{serverLocations[0]?.hostname}</code>.</p>
                 </div>
             )}
-            <p>Your filtering settings, blocklists, and custom rules are synchronized across all servers, so your experience is identical regardless of which server handles your query. For the vast majority of users, the default anycast setup is the best option.</p>
+            <p>Your filtering settings, blocklists, and custom rules are synchronized across all servers, so your experience is identical regardless of which server handles your query.</p>
         </div>
     );
 
@@ -403,6 +404,45 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="How do I delete my account?"
                     answer={howToDeleteAccount}
+                />
+            </FAQSection>
+
+            <FAQSection title="Account access & subscription states" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
+                <FAQItem
+                    question="What happens to modDNS when my IVPN subscription expires?"
+                    answer={
+                        <div>
+                            modDNS access follows your IVPN subscription. When it lapses, your account moves through reduced-access states rather than being switched off immediately:
+                            <br /><br />
+                            • <strong>Limited Access</strong> — DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings, logs and analytics are unavailable).
+                            <br />
+                            • <strong>Inactive</strong> — DNS resolution stops for your profiles and only account export and deletion remain available.
+                            <br /><br />
+                            In every case you regain full access by adding time to your IVPN account and re-syncing.
+                        </div>
+                    }
+                />
+                <FAQItem
+                    question="What is Limited Access mode?"
+                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules or profile settings, and logs and analytics are unavailable. To regain full access, add time to your IVPN account."
+                />
+                <FAQItem
+                    question="Why is my account Inactive?"
+                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. Your account is not deleted — it stays recoverable."
+                />
+                <FAQItem
+                    question="How do I restore access to an inactive account?"
+                    answer={
+                        <div>
+                            Add time to your IVPN account so it once again includes modDNS, then re-sync your subscription:
+                            <ol className="list-decimal ml-5 mt-2 space-y-1">
+                                <li>Go to <span onClick={() => navigate('/account-preferences')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Account Preferences</span>.</li>
+                                <li>Use the "Sync with IVPN" action to refresh your subscription status.</li>
+                            </ol>
+                            <br />
+                            Once synced, your full settings and DNS resolution are restored.
+                        </div>
+                    }
                 />
             </FAQSection>
 

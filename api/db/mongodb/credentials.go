@@ -142,3 +142,13 @@ func (r *CredentialRepository) DeleteCredentialByID(ctx context.Context, credent
 
 	return nil
 }
+
+// DeleteCredentialsByAccountID deletes all credentials belonging to an account.
+func (r *CredentialRepository) DeleteCredentialsByAccountID(ctx context.Context, accountID primitive.ObjectID) error {
+	_, err := r.credentialsColl.DeleteMany(ctx, bson.M{"account_id": accountID})
+	if err != nil {
+		return fmt.Errorf("failed to delete credentials for account: %w", err)
+	}
+
+	return nil
+}

@@ -1,0 +1,6 @@
+[
+    {
+      "dropIndexes": "profiles",
+      "index": "account_id"
+    }
+]

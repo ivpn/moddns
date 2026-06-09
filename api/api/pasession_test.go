@@ -67,6 +67,7 @@ func (suite *PASessionAPITestSuite) createTestServer() *APIServer {
 		mockMailer,
 		mockShortener,
 		nil,
+		nil,
 	)
 	suite.Require().NoError(err, "Failed to create test server")
 	server.RegisterRoutes()

@@ -4,16 +4,22 @@ import { Separator } from "@/components/ui/separator";
 import { type JSX, useState } from "react";
 import { useAppStore } from "@/store/general";
 import { useDnsConnectionStatus } from "@/hooks/useDnsConnectionStatus";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 
 export default function ConnectionStatusHeader(): JSX.Element | null {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isHiding, setIsHiding] = useState(false);
     const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
+    // Belt-and-suspenders: App-level gating already skips rendering this
+    // component when the account is cut off (inactive / pending_delete), but if
+    // it ever does render the poll must not fire (DNS is stopped for cut-off
+    // accounts; the test would only ever fail).
+    const { isCutOff } = useSubscriptionGuard();
 
-    const { status } = useDnsConnectionStatus(5000, { enabled: true });
+    const { status } = useDnsConnectionStatus(5000, { enabled: !isCutOff });
     const { badge, message, messageColor } = status;
 
-    if (isCollapsed) return null;
+    if (isCollapsed || isCutOff) return null;
 
     const handleHide = () => {
         setIsHiding(true);

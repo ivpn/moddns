@@ -23,6 +23,11 @@ var (
 	ErrPASessionNotFound = errors.New("pre-auth session not found or expired")
 	ErrPANotFound        = errors.New("pre-auth entry not found")
 	ErrTokenHashMismatch = errors.New("token validation failed")
+	// ErrSubscriptionScheduledForDeletion is returned when a resync is attempted
+	// on an account retired by the signup-reset flow. A retired account is
+	// terminal — resync must not resurrect it (re-stamp token_hash / extend the
+	// subscription). See docs/specs/signup-reset-behaviour.md.
+	ErrSubscriptionScheduledForDeletion = errors.New("subscription is scheduled for deletion and cannot be resynced")
 )
 
 type SubscriptionService struct {
@@ -72,6 +77,25 @@ func (s *SubscriptionService) UpdateSubscription(ctx context.Context, accountId 
 
 	err = s.SubscriptionRepository.Upsert(ctx, *subscription)
 	return subscription, err
+}
+
+// DeleteSubscriptionByAccountId removes the subscription document for an account.
+// Returns nil if no subscription exists.
+func (s *SubscriptionService) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	return s.SubscriptionRepository.DeleteSubscriptionByAccountId(ctx, accountId)
+}
+
+// FindActiveByTokenHash returns non-retired subscriptions sharing tokenHash but
+// owned by a different account than excludeAccountID. See
+// docs/specs/signup-reset-behaviour.md row RT3.
+func (s *SubscriptionService) FindActiveByTokenHash(ctx context.Context, tokenHash string, excludeAccountID primitive.ObjectID) ([]model.Subscription, error) {
+	return s.SubscriptionRepository.FindActiveByTokenHash(ctx, tokenHash, excludeAccountID)
+}
+
+// RetireSubscription unsets the subscription's token_hash and schedules it for
+// deletion. See docs/specs/signup-reset-behaviour.md rows RT5/RT6.
+func (s *SubscriptionService) RetireSubscription(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
+	return s.SubscriptionRepository.MarkSubscriptionRetired(ctx, subscriptionID, when)
 }
 
 // CreateSubscriptionFromPreauth creates a new subscription using preauth entry data.
@@ -162,6 +186,14 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 // When subID is non-empty, the signup webhook is fired with that id (mirroring the signup flow).
 // When subID is empty, the webhook is skipped — the caller did not supply a subscription id to relay.
 func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Context, sub *model.Subscription, sessionID string, subID string) error {
+	// A retired account (signup-reset) is terminal: refuse the resync before
+	// touching the preauth service so it cannot be resurrected (re-stamping
+	// token_hash would re-introduce the duplicate-token_hash collision while
+	// deletion_scheduled_at remains set). The user's active account is the new one.
+	if sub.DeletionScheduledAt != nil {
+		return ErrSubscriptionScheduledForDeletion
+	}
+
 	preauth, err := s.ValidateAndGetPreauth(ctx, sessionID)
 	if err != nil {
 		return err

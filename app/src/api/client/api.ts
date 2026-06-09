@@ -26,6 +26,102 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
 /**
  * 
  * @export
+ * @interface AnnouncementsAnnouncement
+ */
+export interface AnnouncementsAnnouncement {
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'body'?: string;
+    /**
+     * 
+     * @type {AnnouncementsCategory}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'category'?: AnnouncementsCategory;
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'expires_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'link'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'pinned'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'published_at'?: string;
+    /**
+     * 
+     * @type {AnnouncementsSeverity}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'severity'?: AnnouncementsSeverity;
+    /**
+     * 
+     * @type {string}
+     * @memberof AnnouncementsAnnouncement
+     */
+    'title'?: string;
+}
+
+
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
+export const AnnouncementsCategory = {
+    CategoryNews: 'news',
+    CategoryFeature: 'feature',
+    CategoryMaintenance: 'maintenance',
+    CategoryIncident: 'incident',
+    CategorySecurity: 'security',
+    CategoryPolicy: 'policy'
+} as const;
+
+export type AnnouncementsCategory = typeof AnnouncementsCategory[keyof typeof AnnouncementsCategory];
+
+
+/**
+ * 
+ * @export
+ * @enum {string}
+ */
+
+export const AnnouncementsSeverity = {
+    SeverityInfo: 'info',
+    SeverityWarning: 'warning',
+    SeverityCritical: 'critical'
+} as const;
+
+export type AnnouncementsSeverity = typeof AnnouncementsSeverity[keyof typeof AnnouncementsSeverity];
+
+
+/**
+ * 
+ * @export
  * @interface ApiBlocklistsUpdates
  */
 export interface ApiBlocklistsUpdates {
@@ -212,12 +308,6 @@ export interface ModelAccount {
      * @memberof ModelAccount
      */
     'profiles'?: Array<string>;
-    /**
-     * 
-     * @type {number}
-     * @memberof ModelAccount
-     */
-    'queries'?: number;
 }
 /**
  * 
@@ -833,6 +923,12 @@ export interface ModelSubscription {
      */
     'active_until'?: string;
     /**
+     * DeletionScheduledAt is set when the signup-reset flow schedules an account for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp can detect the retired state directly — a non-null value means \"retired\". It also forces GetStatus() to pending_delete (row L0) and drives the DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
+     * @type {string}
+     * @memberof ModelSubscription
+     */
+    'deletion_scheduled_at'?: string;
+    /**
      * 
      * @type {boolean}
      * @memberof ModelSubscription
@@ -875,6 +971,7 @@ export const ModelSubscriptionStatus = {
     StatusActive: 'active',
     StatusGracePeriod: 'grace_period',
     StatusLimitedAccess: 'limited_access',
+    StatusInactive: 'inactive',
     StatusPendingDelete: 'pending_delete'
 } as const;
 
@@ -2538,6 +2635,107 @@ export class AccountApi extends BaseAPI {
      */
     public apiV1AccountsResetPasswordPost(body: RequestsResetPasswordBody, options?: RawAxiosRequestConfig) {
         return AccountApiFp(this.configuration).apiV1AccountsResetPasswordPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * AnnouncementsApi - axios parameter creator
+ * @export
+ */
+export const AnnouncementsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * Get the list of currently published announcements. Public endpoint (no authentication).
+         * @summary Get announcements
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AnnouncementsGet: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/announcements`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * AnnouncementsApi - functional programming interface
+ * @export
+ */
+export const AnnouncementsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = AnnouncementsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * Get the list of currently published announcements. Public endpoint (no authentication).
+         * @summary Get announcements
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1AnnouncementsGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<AnnouncementsAnnouncement>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AnnouncementsGet(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AnnouncementsApi.apiV1AnnouncementsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * AnnouncementsApi - factory interface
+ * @export
+ */
+export const AnnouncementsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = AnnouncementsApiFp(configuration)
+    return {
+        /**
+         * Get the list of currently published announcements. Public endpoint (no authentication).
+         * @summary Get announcements
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AnnouncementsGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<AnnouncementsAnnouncement>> {
+            return localVarFp.apiV1AnnouncementsGet(options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * AnnouncementsApi - object-oriented interface
+ * @export
+ * @class AnnouncementsApi
+ * @extends {BaseAPI}
+ */
+export class AnnouncementsApi extends BaseAPI {
+    /**
+     * Get the list of currently published announcements. Public endpoint (no authentication).
+     * @summary Get announcements
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof AnnouncementsApi
+     */
+    public apiV1AnnouncementsGet(options?: RawAxiosRequestConfig) {
+        return AnnouncementsApiFp(this.configuration).apiV1AnnouncementsGet(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

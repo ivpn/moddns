@@ -140,7 +140,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 
 		log.Debug().Msg("Reusing unfinished account for registration - completing signup")
 		if password != "" {
-			if err := a.CompleteRegistration(ctx, existingAcc, subscriptionID, sessionID); err != nil {
+			if err := a.CompleteRegistration(ctx, existingAcc, subscriptionID, sessionID, preauth.TokenHash); err != nil {
 				log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 				return nil, err
 			}
@@ -156,7 +156,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 
 	log.Debug().Msg("Created new account for registration - before webhook")
 	if password != "" {
-		if err := a.CompleteRegistration(ctx, acc, subscriptionID, sessionID); err != nil {
+		if err := a.CompleteRegistration(ctx, acc, subscriptionID, sessionID, preauth.TokenHash); err != nil {
 			log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 			return nil, err
 		}
@@ -166,10 +166,10 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 
 // CompleteRegistration finalizes registration steps for an account. The blocking
 // part is just address-level validation; everything else (signup webhook,
-// PASession cache cleanup, welcome email) is best-effort and never aborts the
-// HTTP signup response — the account row is the durable source of truth and is
-// already persisted by the time this is called.
-func (a *AccountService) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
+// PASession cache cleanup, welcome email, signup-reset retirement) is
+// best-effort and never aborts the HTTP signup response — the account row is the
+// durable source of truth and is already persisted by the time this is called.
+func (a *AccountService) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string, tokenHash string) error {
 	// Blocking: invalid email syntax / unreachable MX is a legitimate signup
 	// failure; better to surface it than to async-send into the void.
 	if err := a.validateEmailAddress(account.Email); err != nil {
@@ -189,6 +189,11 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 	}
 
 	a.dispatchWelcomeEmail(account, account.Email)
+
+	// Signup-reset: if this signup reuses an existing customer token_hash,
+	// retire the customer's previous account(s). Best-effort, backgrounded.
+	// See docs/specs/signup-reset-behaviour.md.
+	a.dispatchAccountRetirement(account.ID, tokenHash)
 
 	return nil
 }
@@ -226,6 +231,73 @@ func (a *AccountService) dispatchWelcomeEmail(acc *model.Account, email string) 
 			Str("category", EmailCategoryWelcome).
 			Msg("Welcome email sent")
 	}()
+}
+
+// dispatchAccountRetirement runs the signup-reset retirement in the background.
+// Like the welcome email it uses context.Background() so the request context
+// returning (HTTP 201) does not abort it, and errors are logged but never
+// propagated — retirement must not affect the just-completed signup.
+func (a *AccountService) dispatchAccountRetirement(newAccountID primitive.ObjectID, tokenHash string) {
+	a.bgTasks.Add(1)
+	go func() {
+		defer a.bgTasks.Done()
+		ctx := context.Background()
+		if err := a.retireSupersededAccounts(ctx, newAccountID, tokenHash); err != nil {
+			log.Warn().Err(err).Str("account_id", newAccountID.Hex()).Msg("Signup-reset retirement failed; signup is unaffected")
+		}
+	}()
+}
+
+// retireSupersededAccounts implements the signup-reset detection + retirement
+// (docs/specs/signup-reset-behaviour.md rows RT2-RT9). The external preauth
+// service returns the same token_hash for every signup by the same IVPN
+// customer, so any other non-retired account sharing the new signup's
+// token_hash belongs to the same customer and is retired: its token_hash is
+// unset, it is scheduled for deletion, and its DNS is cut off. The webapp shows
+// the retired state to the user (no email is sent). Best-effort per superseded
+// account — a per-account failure is logged and does not stop the others.
+func (a *AccountService) retireSupersededAccounts(ctx context.Context, newAccountID primitive.ObjectID, tokenHash string) error {
+	// RT2: guard empty hash. Legacy/pre-ZLA accounts (and tests that don't
+	// supply a hash) have no token_hash and must never be grouped together.
+	if tokenHash == "" {
+		return nil
+	}
+
+	// RT3: find the customer's other (non-retired) accounts.
+	superseded, err := a.SubscriptionService.FindActiveByTokenHash(ctx, tokenHash, newAccountID)
+	if err != nil {
+		return err
+	}
+	if len(superseded) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	for _, old := range superseded {
+		oldAccountID := old.AccountID.Hex()
+
+		// RT5/RT6: unset token_hash + schedule deletion (single update).
+		if err := a.SubscriptionService.RetireSubscription(ctx, old.ID, now); err != nil {
+			log.Error().Err(err).Str("account_id", oldAccountID).Str("subscription_id", old.ID.String()).Msg("Signup-reset: failed to retire superseded subscription")
+			continue
+		}
+
+		// RT7: DNS cutoff — clear Redis profile settings for every profile.
+		profiles, profErr := a.ProfileService.GetProfiles(ctx, oldAccountID)
+		if profErr != nil {
+			log.Error().Err(profErr).Str("account_id", oldAccountID).Msg("Signup-reset: failed to load profiles for DNS cutoff")
+		} else {
+			for _, p := range profiles {
+				if err := a.Cache.DeleteProfileSettings(ctx, p.ProfileId); err != nil {
+					log.Error().Err(err).Str("profile_id", p.ProfileId).Msg("Signup-reset: failed to delete profile settings from cache (DNS cutoff)")
+				}
+			}
+		}
+
+		log.Info().Str("retired_account_id", oldAccountID).Str("new_account_id", newAccountID.Hex()).Msg("Signup-reset: superseded account retired and scheduled for deletion")
+	}
+
+	return nil
 }
 
 // RegisterAccountWithPreauth creates a new account with subscription from preauth data.
@@ -317,11 +389,6 @@ func (p *AccountService) GetAccount(ctx context.Context, accountId string) (*mod
 		return nil, err
 	}
 
-	stats, err := p.GetAccountMetrics(ctx, account, model.LAST_MONTH)
-	if err != nil {
-		return nil, err
-	}
-	account.Queries = stats.Total
 	if err := p.populateAuthMethods(ctx, account); err != nil {
 		return nil, err
 	}
@@ -346,21 +413,6 @@ func (a *AccountService) populateAuthMethods(ctx context.Context, acc *model.Acc
 	}
 	acc.AuthMethods = methods
 	return nil
-}
-
-// GetAccountStatistics returns profile DNS statistics data
-func (a *AccountService) GetAccountMetrics(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error) {
-	accMetricsAggregated := &model.StatisticsAggregated{}
-	for _, profileId := range account.Profiles {
-		profileStats, err := a.ProfileService.GetStatistics(ctx, account.ID.Hex(), profileId, timespan)
-		if err != nil {
-			return nil, err
-		}
-
-		accMetricsAggregated.Total += profileStats[0].Total
-	}
-
-	return accMetricsAggregated, nil
 }
 
 // UpdateAccount updates account data
@@ -627,16 +679,62 @@ func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, re
 		account.Tokens = remaining
 	}
 
-	// Delete all profiles associated with the account
-	for _, profileId := range account.Profiles {
-		if err = a.ProfileService.DeleteProfile(ctx, accountId, profileId, true); err != nil {
+	return a.PurgeAccountData(ctx, accountId)
+}
+
+// PurgeAccountData removes an account and all of its connected data WITHOUT any
+// authorization checks. It is the cleanup core shared by the interactive
+// DeleteAccount (which gates it behind the deletion code + password/MFA or
+// reauth token) and the signup-reset hard-delete cron (which has no user
+// present to satisfy that gate). It is idempotent: every step tolerates
+// already-removed state, so a transient failure can be retried safely.
+//
+// Sessions are not removed here (the interactive Service.DeleteAccount wraps
+// this and clears them); for a purged account they are harmless — they resolve
+// to a missing account and TTL-expire.
+//
+// Deletion order matters for the signup-reset hard-delete cron, which finds
+// victims via subscriptions.deletion_scheduled_at: the subscription is the
+// cron's retry anchor, so it is deleted LAST. If any earlier step fails
+// mid-purge, the subscription survives and the next cron tick re-finds and
+// retries the (idempotent) purge. Deleting the subscription first would orphan
+// the account from the cron on partial failure.
+func (a *AccountService) PurgeAccountData(ctx context.Context, accountId string) error {
+	accountObjID, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+
+	// Credentials first (DeleteMany — idempotent).
+	if err := a.CredentialRepository.DeleteCredentialsByAccountID(ctx, accountObjID); err != nil {
+		return err
+	}
+
+	// Drive the profile loop from a live query rather than the (possibly stale)
+	// account.Profiles slice — on retry after a partial failure, only profiles
+	// that still exist are revisited. Each successful per-profile deletion is
+	// followed by RemoveProfileFromAccount so the account doc shrinks in step.
+	profiles, err := a.ProfileService.GetProfiles(ctx, accountId)
+	if err != nil {
+		return err
+	}
+	for _, p := range profiles {
+		if err := a.ProfileService.DeleteProfile(ctx, accountId, p.ProfileId, true); err != nil {
+			return err
+		}
+		if err := a.AccountRepository.RemoveProfileFromAccount(ctx, accountId, p.ProfileId); err != nil {
 			return err
 		}
 	}
 
-	// Delete the account
-	err = a.AccountRepository.DeleteAccountById(ctx, accountId)
-	if err != nil {
+	// Delete the account doc. Any orphan profile id still in the array dies with it.
+	if err := a.AccountRepository.DeleteAccountById(ctx, accountId); err != nil {
+		return err
+	}
+
+	// Subscription LAST — it is the cron's retry anchor (DeleteOne tolerates
+	// missing, so retries after a partial failure are safe).
+	if err := a.SubscriptionService.DeleteSubscriptionByAccountId(ctx, accountId); err != nil {
 		return err
 	}
 

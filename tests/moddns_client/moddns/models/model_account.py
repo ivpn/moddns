@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_mfa_settings import ModelMFASettings
 from typing import Optional, Set
@@ -34,8 +34,7 @@ class ModelAccount(BaseModel):
     id: Optional[StrictStr] = None
     mfa: Optional[ModelMFASettings] = None
     profiles: Optional[List[StrictStr]] = None
-    queries: Optional[StrictInt] = None
-    __properties: ClassVar[List[str]] = ["auth_methods", "email", "email_verified", "error_reports_consent", "id", "mfa", "profiles", "queries"]
+    __properties: ClassVar[List[str]] = ["auth_methods", "email", "email_verified", "error_reports_consent", "id", "mfa", "profiles"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -97,8 +96,7 @@ class ModelAccount(BaseModel):
             "error_reports_consent": obj.get("error_reports_consent"),
             "id": obj.get("id"),
             "mfa": ModelMFASettings.from_dict(obj["mfa"]) if obj.get("mfa") is not None else None,
-            "profiles": obj.get("profiles"),
-            "queries": obj.get("queries")
+            "profiles": obj.get("profiles")
         })
         return _obj
 

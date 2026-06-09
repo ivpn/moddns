@@ -201,7 +201,17 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 let errorMessage = "Failed to load logs";
                 const httpErr = err as AxiosError & { code?: string };
                 const status = httpErr.response?.status;
-                if (status === 429) {
+                if (status === 403) {
+                    // Account is cut off (inactive / pending_delete): logs are not
+                    // entitled in these states. AccountCutoffGuard redirects to
+                    // /account-preferences, so surface no toast here — matching how
+                    // the other restricted pages behave during cut-off.
+                    setHasMore(false);
+                    if (page === 1) {
+                        setFadeClass('opacity-100 transition-opacity duration-300 ease-in-out');
+                    }
+                    return;
+                } else if (status === 429) {
                     errorMessage = "Too many requests. Please wait a moment before trying again.";
                 } else if (status === 500) {
                     errorMessage = "Server error occurred while loading logs.";

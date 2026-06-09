@@ -166,6 +166,63 @@ func (_c *WebAuthnCredentialRepository_DeleteCredentialByID_Call) RunAndReturn(r
 	return _c
 }
 
+// DeleteCredentialsByAccountID provides a mock function for the type WebAuthnCredentialRepository
+func (_mock *WebAuthnCredentialRepository) DeleteCredentialsByAccountID(ctx context.Context, accountID primitive.ObjectID) error {
+	ret := _mock.Called(ctx, accountID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteCredentialsByAccountID")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, primitive.ObjectID) error); ok {
+		r0 = returnFunc(ctx, accountID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCredentialsByAccountID'
+type WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call struct {
+	*mock.Call
+}
+
+// DeleteCredentialsByAccountID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID primitive.ObjectID
+func (_e *WebAuthnCredentialRepository_Expecter) DeleteCredentialsByAccountID(ctx interface{}, accountID interface{}) *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call {
+	return &WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call{Call: _e.mock.On("DeleteCredentialsByAccountID", ctx, accountID)}
+}
+
+func (_c *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call) Run(run func(ctx context.Context, accountID primitive.ObjectID)) *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 primitive.ObjectID
+		if args[1] != nil {
+			arg1 = args[1].(primitive.ObjectID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call) Return(err error) *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call) RunAndReturn(run func(ctx context.Context, accountID primitive.ObjectID) error) *WebAuthnCredentialRepository_DeleteCredentialsByAccountID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCredentialByID provides a mock function for the type WebAuthnCredentialRepository
 func (_mock *WebAuthnCredentialRepository) GetCredentialByID(ctx context.Context, credentialID primitive.ObjectID) (*model.Credential, error) {
 	ret := _mock.Called(ctx, credentialID)

@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { GlobeIcon, ShieldIcon, ListIcon, FilterX, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { routePreload } from "@/App";
 
 interface BottomNavProps {
   onMoreClick: () => void;
@@ -29,6 +30,9 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
         <button
           key={path}
           onClick={() => navigate(path)}
+          onMouseEnter={() => routePreload[path]?.()}
+          onFocus={() => routePreload[path]?.()}
+          onTouchStart={() => routePreload[path]?.()}
           className={cn(
             "flex flex-col items-center justify-center flex-1 min-h-[56px] gap-0.5 text-xs transition-colors",
             isActive(path)

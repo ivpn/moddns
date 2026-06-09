@@ -106,12 +106,12 @@ type SessionServicer interface {
 
 type AccountServicer interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
-	GetAccountMetrics(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error)
 	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error
 	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
+	PurgeAccountData(ctx context.Context, accountId string) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)
 	MfaCheck(ctx context.Context, acc *model.Account, mfa *model.MfaData) error
-	CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error
+	CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string, tokenHash string) error
 	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error)
 	SendResetPasswordEmail(ctx context.Context, email string) error
 	VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error
@@ -173,6 +173,7 @@ type SubscriptionServicer interface {
 	GetSubscription(ctx context.Context, accountId string) (*model.Subscription, error)
 	UpdateSubscription(ctx context.Context, accountId string, updates []model.SubscriptionUpdate) (*model.Subscription, error)
 	CreateSubscriptionFromPreauth(ctx context.Context, accountId string, preauth *model.Preauth) error
+	DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error
 	AddPASession(ctx context.Context, session *model.PASession) error
 	RotatePASessionID(ctx context.Context, oldID string) (string, error)
 	ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error)

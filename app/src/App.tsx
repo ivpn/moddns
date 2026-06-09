@@ -22,12 +22,26 @@ const Signup = lazyWithRetry(() => import('./pages/auth/Signup'));
 const TermsOfService = lazyWithRetry(() => import('./pages/legal/TermsOfService'));
 const PrivacyPolicy = lazyWithRetry(() => import("./pages/legal/PrivacyPolicy"));
 const FAQ = lazyWithRetry(() => import("./pages/legal/FAQ"));
+const Announcements = lazyWithRetry(() => import("./pages/announcements/Announcements"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const AccountPreferences = lazyWithRetry(() => import('@/pages/account_preferences/Account'));
 const MobileconfigPage = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigPage'));
 const MobileconfigDownload = lazyWithRetry(() => import('@/pages/mobileconfig/MobileconfigDownload'));
 const HomeScreen = lazyWithRetry(() => import('./pages/home/HomeScreen'));
 const Landing = lazyWithRetry(() => import('./pages/landing/Landing'));
+
+// Maps a nav route to its lazy chunk's preloader. Nav components call this on
+// hover/focus/touch so the route's JS is warm by the time the user clicks —
+// turning first-visit-per-session tab switches from "download then render" into
+// "render immediately". Keys must stay in sync with NavigationMenu/BottomNav.
+const routePreload: Partial<Record<string, () => void>> = {
+  '/setup': () => { void Setup.preload(); },
+  '/blocklists': () => { void Blocklists.preload(); },
+  '/custom-rules': () => { void CustomRules.preload(); },
+  '/query-logs': () => { void Logs.preload(); },
+  '/settings': () => { void Settings.preload(); },
+  '/account-preferences': () => { void AccountPreferences.preload(); },
+};
 
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLoaderData, useLocation, useNavigate, redirect, ScrollRestoration } from 'react-router-dom';
 import { ThemeProvider } from "@/components/theme-provider"
@@ -82,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     p === '/tos' ||
     p === '/privacy' ||
     p === '/faq' ||
+    p === '/announcements' ||
     p === '/reset-password' ||
     p.startsWith('/reset-password/') ||
     p.startsWith('/verify/email/') ||
@@ -155,6 +170,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
+// Treats 401/404 from an API call as a session-expiry signal.
+function isAuthExpiryError(error: unknown): boolean {
+  const err = error as Record<string, unknown>;
+  const status = (err?.response as Record<string, unknown>)?.status ?? err?.status;
+  return status === 401 || status === 404;
+}
+
+// Background refresh of account+profiles for warm-cache navigations. Updates the
+// Zustand store in place and surfaces session expiry through the same event the
+// blocking loader path uses, so a stale-cache navigation still logs the user out
+// if their session died.
+function revalidateAccountAndProfiles() {
+  void Promise.allSettled([
+    api.Client.accountsApi.apiV1AccountsCurrentGet(),
+    api.Client.profilesApi.apiV1ProfilesGet(),
+  ]).then(([accountResult, profilesResult]) => {
+    const { setAccount, setProfiles, restoreActiveProfile } = useAppStore.getState();
+    if (accountResult.status === 'fulfilled') {
+      setAccount(accountResult.value.data as ModelAccount);
+    }
+    if (profilesResult.status === 'fulfilled') {
+      const profiles = profilesResult.value.data as ModelProfile[];
+      setProfiles(profiles);
+      restoreActiveProfile(profiles);
+    }
+    // A 401/404 from EITHER call means the session died — surface it once so a
+    // warm-cache navigation still logs the user out even if only the profiles
+    // call failed. (A 403 from /profiles in pending_delete state is intentionally
+    // not treated as expiry by isAuthExpiryError, so it won't trip this.)
+    const sessionExpired =
+      (accountResult.status === 'rejected' && isAuthExpiryError(accountResult.reason)) ||
+      (profilesResult.status === 'rejected' && isAuthExpiryError(profilesResult.reason));
+    if (sessionExpired) {
+      dispatch({ type: 'auth/sessionExpired' });
+    }
+  });
+}
+
 // Loader for protected routes that need both account and profiles data
 async function rootLoader() {
   try {
@@ -165,10 +218,23 @@ async function rootLoader() {
       throw redirect("/login");
     }
 
-    // Use allSettled so a partial failure (e.g. /profiles returning 403 in
-    // pending_delete subscription state, where /accounts/current is still
-    // allowlisted by the server's subscription guard) does not collapse the
-    // whole loader. Without this, the AccountInfoCard on /account-preferences
+    // Render-from-cache: on a warm client navigation (store already hydrated by
+    // a prior load), return the cached data synchronously and revalidate in the
+    // background. This removes the blocking account+profiles round-trip from
+    // every tab switch — the fetch below only runs on cold start / hard reload,
+    // where account/profiles are not persisted and the store is empty.
+    if (typeof window !== "undefined") {
+      const cached = useAppStore.getState();
+      if (cached.account && cached.profiles.length > 0) {
+        revalidateAccountAndProfiles();
+        return { account: cached.account, profiles: cached.profiles };
+      }
+    }
+
+    // Use allSettled so a partial failure (e.g. /profiles returning 403 in a
+    // cut-off state — inactive or pending_delete — where /accounts/current is
+    // still allowlisted by the server's subscription guard) does not collapse
+    // the whole loader. Without this, the AccountInfoCard on /account-preferences
     // would lose `account.email` (the modDNS ID) and render an empty value.
     const [accountResult, profilesResult] = await Promise.allSettled([
       api.Client.accountsApi.apiV1AccountsCurrentGet(),
@@ -237,6 +303,23 @@ async function profilesOnlyLoader() {
       throw redirect("/login");
     }
 
+    // Render-from-cache: serve the hydrated store synchronously on warm
+    // navigations and revalidate profiles in the background (see rootLoader).
+    if (typeof window !== "undefined") {
+      const cached = useAppStore.getState();
+      if (cached.profiles.length > 0) {
+        void api.Client.profilesApi.apiV1ProfilesGet()
+          .then((res) => {
+            const { setProfiles, restoreActiveProfile } = useAppStore.getState();
+            const fresh = res.data as ModelProfile[];
+            setProfiles(fresh);
+            restoreActiveProfile(fresh);
+          })
+          .catch((e) => { if (isAuthExpiryError(e)) dispatch({ type: 'auth/sessionExpired' }); });
+        return { account: null, profiles: cached.profiles };
+      }
+    }
+
     const profilesRes = await api.Client.profilesApi.apiV1ProfilesGet();
 
     // Save to Zustand store
@@ -296,13 +379,15 @@ function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'publ
 const AppLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='app'>{children}</BaseLayout>;
 const PublicLayout = ({ children }: { children: React.ReactNode }) => <BaseLayout mode='public'>{children}</BaseLayout>;
 
-// Route guard: redirect all protected routes to /account-preferences when pending_delete.
-// Fetches subscription status on mount if not yet in the store (e.g. after fresh login).
-function PendingDeleteGuard() {
-  const { isPendingDelete } = useSubscriptionGuard();
+// Route guard: redirect all protected routes to /account-preferences when the
+// account is cut off (inactive or pending_delete). Fetches subscription status
+// on mount if not yet in the store (e.g. after fresh login).
+function AccountCutoffGuard() {
+  const { isCutOff } = useSubscriptionGuard();
   const subscriptionStatus = useAppStore(s => s.subscriptionStatus);
   const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
   const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
+  const setSubscriptionDeletionScheduled = useAppStore(s => s.setSubscriptionDeletionScheduled);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -312,15 +397,16 @@ function PendingDeleteGuard() {
       .then(res => {
         setSubscriptionStatus(res.data.status ?? null);
         setSubscriptionType(res.data.type ?? null);
+        setSubscriptionDeletionScheduled(!!res.data.deletion_scheduled_at);
       })
-      .catch(() => {}); // no subscription = no restriction
-  }, [subscriptionStatus, setSubscriptionStatus, setSubscriptionType]);
+      .catch(() => { }); // no subscription = no restriction
+  }, [subscriptionStatus, setSubscriptionStatus, setSubscriptionType, setSubscriptionDeletionScheduled]);
 
   useEffect(() => {
-    if (isPendingDelete && location.pathname !== '/account-preferences') {
+    if (isCutOff && location.pathname !== '/account-preferences') {
       navigate('/account-preferences', { replace: true });
     }
-  }, [isPendingDelete, location.pathname, navigate]);
+  }, [isCutOff, location.pathname, navigate]);
 
   return null;
 }
@@ -335,6 +421,11 @@ function ProtectedLayout() {
   const setConnectionStatusVisible = useAppStore((state) => state.setConnectionStatusVisible);
   const profiles = useAppStore((state) => state.profiles);
   const location = useLocation();
+  // Cut-off subscriptions (inactive or pending_delete) are no longer entitled to
+  // DNS service — the connection-status surface (live header bar + "DNS Status"
+  // toggle button) is hidden/disabled so the (now stopped) connection test does
+  // not run and the UI does not advertise functionality the user has lost.
+  const { isCutOff } = useSubscriptionGuard();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
@@ -406,8 +497,11 @@ function ProtectedLayout() {
   const sidebarWidth = navDesktop ? (collapsed ? 64 : 220) : 0;
   const rightPanelWidth = 600;
   const headerRightOffset = rightPanelOpen ? rightPanelWidth : 0;
-  const headerTopOffset = (isDesktop && connectionStatusVisible) ? 48 : 0;
-  const shouldShowConnectionStatusRestore = isDesktop && !connectionStatusVisible;
+  const shouldRenderConnectionHeader = isDesktop && connectionStatusVisible && !isCutOff;
+  const headerTopOffset = shouldRenderConnectionHeader ? 48 : 0;
+  // When cut off the button is rendered but visually disabled (see Header.tsx);
+  // otherwise it appears only while the header is hidden, as before.
+  const shouldShowConnectionStatusRestore = isDesktop && (isCutOff || !connectionStatusVisible);
 
   const shellOffset = isDesktop && viewportWidth >= 1400
     ? Math.max((viewportWidth - (sidebarWidth + ULTRAWIDE_CONTENT_MAX_WIDTH)) / 2, 0)
@@ -419,10 +513,10 @@ function ProtectedLayout() {
   return (
     <>
       <AppLayout>
-        <PendingDeleteGuard />
+        <AccountCutoffGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
 
-        {isDesktop && connectionStatusVisible && (
+        {shouldRenderConnectionHeader && (
           <div
             ref={connectionHeaderRef}
             className="fixed top-0 right-0 z-50 transition-all duration-500"
@@ -455,6 +549,7 @@ function ProtectedLayout() {
               showDialogTrigger={showDialogTrigger}
               currentPageName={currentPageName}
               showConnectionStatusRestoreButton={shouldShowConnectionStatusRestore}
+              connectionStatusRestoreDisabled={isCutOff}
               onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
             />
           </div>
@@ -615,6 +710,7 @@ const router = createBrowserRouter([
           { path: "tos", element: <Suspense fallback={<div />}><TermsOfService /></Suspense> },
           { path: "privacy", element: <Suspense fallback={<div />}><PrivacyPolicy /></Suspense> },
           { path: "faq", element: <Suspense fallback={<div />}><FAQ /></Suspense> },
+          { path: "announcements", element: <Suspense fallback={<div />}><Announcements /></Suspense> },
           { path: "reset-password", element: <Suspense fallback={<div />}><PasswordReset /></Suspense> },
           { path: "reset-password/:token", element: <Suspense fallback={<div />}><PasswordResetConfirm /></Suspense> },
           { path: "short/:code", element: <Suspense fallback={<div />}><MobileconfigDownload /></Suspense> },
@@ -662,4 +758,4 @@ function App() {
 
 export default App;
 // eslint-disable-next-line react-refresh/only-export-components
-export { useAuth, AuthContext, RootIndexRedirect };
+export { useAuth, AuthContext, RootIndexRedirect, routePreload };

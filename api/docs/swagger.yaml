@@ -1,4 +1,51 @@
 definitions:
+  announcements.Announcement:
+    properties:
+      body:
+        type: string
+      category:
+        $ref: '#/definitions/announcements.Category'
+      expires_at:
+        type: string
+      id:
+        type: string
+      link:
+        type: string
+      pinned:
+        type: boolean
+      published_at:
+        type: string
+      severity:
+        $ref: '#/definitions/announcements.Severity'
+      title:
+        type: string
+    type: object
+  announcements.Category:
+    enum:
+    - news
+    - feature
+    - maintenance
+    - incident
+    - security
+    - policy
+    type: string
+    x-enum-varnames:
+    - CategoryNews
+    - CategoryFeature
+    - CategoryMaintenance
+    - CategoryIncident
+    - CategorySecurity
+    - CategoryPolicy
+  announcements.Severity:
+    enum:
+    - info
+    - warning
+    - critical
+    type: string
+    x-enum-varnames:
+    - SeverityInfo
+    - SeverityWarning
+    - SeverityCritical
   api.BlocklistsUpdates:
     properties:
       blocklist_ids:
@@ -104,8 +151,6 @@ definitions:
         items:
           type: string
         type: array
-      queries:
-        type: integer
     type: object
   model.AccountUpdate:
     properties:
@@ -414,6 +459,14 @@ definitions:
     properties:
       active_until:
         type: string
+      deletion_scheduled_at:
+        description: |-
+          DeletionScheduledAt is set when the signup-reset flow schedules an account
+          for deletion. Exposed in the GET /sub JSON (omitted when nil) so the webapp
+          can detect the retired state directly — a non-null value means "retired".
+          It also forces GetStatus() to pending_delete (row L0) and drives the
+          DeleteRetiredAccounts cron. See docs/specs/signup-reset-behaviour.md.
+        type: string
       outage:
         type: boolean
       status:
@@ -436,12 +489,14 @@ definitions:
     - active
     - grace_period
     - limited_access
+    - inactive
     - pending_delete
     type: string
     x-enum-varnames:
     - StatusActive
     - StatusGracePeriod
     - StatusLimitedAccess
+    - StatusInactive
     - StatusPendingDelete
   model.TOTPBackup:
     properties:
@@ -1314,6 +1369,22 @@ paths:
       summary: Send reset password email
       tags:
       - Account
+  /api/v1/announcements:
+    get:
+      description: Get the list of currently published announcements. Public endpoint
+        (no authentication).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/announcements.Announcement'
+            type: array
+      summary: Get announcements
+      tags:
+      - Announcements
   /api/v1/blocklists:
     get:
       description: Get available blocklists data

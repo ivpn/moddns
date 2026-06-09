@@ -19,7 +19,7 @@ type SubscriptionProvider interface {
 //
 //   - alwaysAllowed: accessible in any subscription state (auth, logout, delete account, resync, export)
 //   - limitedAllowed: accessible during Active, GracePeriod, AND LimitedAccess (read-only views, account mgmt)
-//   - everything else: blocked during both LimitedAccess and PendingDelete (mutations to profiles, rules, blocklists)
+//   - everything else: blocked during LimitedAccess, Inactive, and PendingDelete (mutations to profiles, rules, blocklists)
 //
 // Uses an allowlist pattern: new endpoints are blocked by default until explicitly classified.
 // If provider is nil, the middleware is a no-op (allows all requests).
@@ -57,8 +57,11 @@ func NewSubscriptionGuard(provider SubscriptionProvider) fiber.Handler {
 		}
 
 		msg := "Your account is in limited access mode."
+		if status == model.StatusInactive {
+			msg = "Your account is inactive."
+		}
 		if status == model.StatusPendingDelete {
-			msg = "Your account is pending deletion."
+			msg = "Your account is scheduled for deletion."
 		}
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": msg, "status": string(status)})
 	}

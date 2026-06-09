@@ -20,6 +20,7 @@ export default function AccountSubscription() {
     const [searchParams] = useSearchParams();
     const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
     const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
+    const setSubscriptionDeletionScheduled = useAppStore(s => s.setSubscriptionDeletionScheduled);
 
     const sessionid = searchParams.get("sessionid") || "";
     const subid = searchParams.get("subid") || "";
@@ -30,6 +31,7 @@ export default function AccountSubscription() {
             setSub(res.data);
             setSubscriptionStatus(res.data.status ?? null);
             setSubscriptionType(res.data.type ?? null);
+            setSubscriptionDeletionScheduled(!!res.data.deletion_scheduled_at);
         } catch {
             setError("Failed to load subscription.");
         }
@@ -48,8 +50,15 @@ export default function AccountSubscription() {
             await api.Client.subscriptionApi.apiV1SubUpdatePut(body);
             await fetchSubscription();
             toast.success("Your account has been successfully synced.");
-        } catch {
-            setError("Failed to sync subscription. Please try again.");
+        } catch (e) {
+            // 409 = the account was retired by a signup reset; it can't be
+            // resynced (a new modDNS account has replaced it).
+            const status = (e as { response?: { status?: number } })?.response?.status;
+            if (status === 409) {
+                setError("This modDNS account has been replaced by a new signup and can no longer be synced.");
+            } else {
+                setError("Failed to sync subscription. Please try again.");
+            }
         } finally {
             setSyncing(false);
         }
@@ -65,8 +74,10 @@ export default function AccountSubscription() {
 
     const isActive = sub.status === "active" || sub.status === "grace_period";
     const isLimited = sub.status === "limited_access";
-    const isPendingDelete = sub.status === "pending_delete";
-    const hasAlerts = isLimited || isPendingDelete || sub.outage || !!error;
+    const isInactive = sub.status === "inactive";
+    const isPendingDelete = sub.status === "pending_delete"; // signup-reset retired
+    const isCutOff = isInactive || isPendingDelete;
+    const hasAlerts = isLimited || isCutOff || sub.outage || !!error;
 
     const statusBadge = syncing
         ? <StatusBadge intent="info" text="Syncing..." />
@@ -75,7 +86,7 @@ export default function AccountSubscription() {
             : isLimited
                 ? <StatusBadge intent="warning" text="Limited" />
                 : isPendingDelete
-                    ? <StatusBadge intent="error" text="Pending deletion" />
+                    ? <StatusBadge intent="error" text="Scheduled for deletion" />
                     : <StatusBadge intent="neutral" text="Inactive" />;
 
     const formatDate = (dateStr?: string) => {
@@ -90,8 +101,8 @@ export default function AccountSubscription() {
     ];
 
     // "Active until" is only meaningful while the subscription is still active or in grace —
-    // hide it once the user lands in Limited Access or Pending Delete.
-    if (!isLimited && !isPendingDelete) {
+    // hide it once the user lands in Limited Access, Inactive, or Pending Delete.
+    if (!isLimited && !isCutOff) {
         rows.push({ label: "Active until", value: formatDate(sub.active_until) });
     }
 

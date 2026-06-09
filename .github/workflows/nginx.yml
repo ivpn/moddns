@@ -1,0 +1,59 @@
+name: Nginx Config
+
+# Validates app/nginx.conf via scripts/validate-nginx.sh (single source of truth,
+# also run locally). `nginx -t` syntax errors block; gixy security findings are
+# advisory (surfaced as a warning), mirroring the Trivy pattern in docker.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Optional reason for manual run'
+        required: false
+        default: 'manual trigger'
+  push:
+    branches: ["main", "develop", "release/*"]
+    paths:
+      - 'app/nginx.conf'
+      - 'app/Dockerfile'          # script auto-detects the pinned nginx image from here
+      - 'scripts/validate-nginx.sh'
+      - '.github/workflows/nginx.yml'
+  pull_request:
+    branches: ["main", "develop", "release/*"]
+    paths:
+      - 'app/nginx.conf'
+      - 'app/Dockerfile'
+      - 'scripts/validate-nginx.sh'
+      - '.github/workflows/nginx.yml'
+
+permissions: read-all
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      # validate-nginx.sh exit codes:
+      #   0 ok | 1 syntax fail | 2 missing prereq | 3 gixy findings | 4 gixy could not run
+      # We block on syntax/prereq (1/2) and on gixy failing to run (4 — a scan that
+      # never executed must not pass silently). Only real gixy findings (3) are
+      # downgraded to an advisory warning, mirroring docker.yml's Trivy pattern.
+      - name: Validate nginx config (syntax blocking, gixy advisory)
+        run: |
+          set +e
+          ./scripts/validate-nginx.sh
+          code=$?
+          set -e
+          case "${code}" in
+            0) echo "nginx config valid and clean" ;;
+            3) echo "::warning title=gixy::nginx security findings (advisory) — see log above" ;;
+            4) echo "::error title=gixy::gixy could not run — scan did not execute"; exit 1 ;;
+            *) exit "${code}" ;;
+          esac

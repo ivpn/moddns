@@ -337,16 +337,16 @@ func (_c *Servicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // CompleteRegistration provides a mock function for the type Servicer
-func (_mock *Servicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error {
-	ret := _mock.Called(ctx, account, subscriptionID, sessionID)
+func (_mock *Servicer) CompleteRegistration(ctx context.Context, account *model.Account, subscriptionID string, sessionID string, tokenHash string) error {
+	ret := _mock.Called(ctx, account, subscriptionID, sessionID, tokenHash)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CompleteRegistration")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string, string) error); ok {
-		r0 = returnFunc(ctx, account, subscriptionID, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string, string, string) error); ok {
+		r0 = returnFunc(ctx, account, subscriptionID, sessionID, tokenHash)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -363,11 +363,12 @@ type Servicer_CompleteRegistration_Call struct {
 //   - account *model.Account
 //   - subscriptionID string
 //   - sessionID string
-func (_e *Servicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}, sessionID interface{}) *Servicer_CompleteRegistration_Call {
-	return &Servicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID, sessionID)}
+//   - tokenHash string
+func (_e *Servicer_Expecter) CompleteRegistration(ctx interface{}, account interface{}, subscriptionID interface{}, sessionID interface{}, tokenHash interface{}) *Servicer_CompleteRegistration_Call {
+	return &Servicer_CompleteRegistration_Call{Call: _e.mock.On("CompleteRegistration", ctx, account, subscriptionID, sessionID, tokenHash)}
 }
 
-func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string)) *Servicer_CompleteRegistration_Call {
+func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string, tokenHash string)) *Servicer_CompleteRegistration_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -385,11 +386,16 @@ func (_c *Servicer_CompleteRegistration_Call) Run(run func(ctx context.Context, 
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -400,7 +406,7 @@ func (_c *Servicer_CompleteRegistration_Call) Return(err error) *Servicer_Comple
 	return _c
 }
 
-func (_c *Servicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string) error) *Servicer_CompleteRegistration_Call {
+func (_c *Servicer_CompleteRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subscriptionID string, sessionID string, tokenHash string) error) *Servicer_CompleteRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1342,6 +1348,63 @@ func (_c *Servicer_DeleteSessionsByAccountIDExceptCurrent_Call) RunAndReturn(run
 	return _c
 }
 
+// DeleteSubscriptionByAccountId provides a mock function for the type Servicer
+func (_mock *Servicer) DeleteSubscriptionByAccountId(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteSubscriptionByAccountId")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_DeleteSubscriptionByAccountId_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteSubscriptionByAccountId'
+type Servicer_DeleteSubscriptionByAccountId_Call struct {
+	*mock.Call
+}
+
+// DeleteSubscriptionByAccountId is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *Servicer_Expecter) DeleteSubscriptionByAccountId(ctx interface{}, accountId interface{}) *Servicer_DeleteSubscriptionByAccountId_Call {
+	return &Servicer_DeleteSubscriptionByAccountId_Call{Call: _e.mock.On("DeleteSubscriptionByAccountId", ctx, accountId)}
+}
+
+func (_c *Servicer_DeleteSubscriptionByAccountId_Call) Run(run func(ctx context.Context, accountId string)) *Servicer_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_DeleteSubscriptionByAccountId_Call) Return(err error) *Servicer_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_DeleteSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *Servicer_DeleteSubscriptionByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DisableBlocklists provides a mock function for the type Servicer
 func (_mock *Servicer) DisableBlocklists(ctx context.Context, accountId string, profileId string, blocklistIds []string) error {
 	ret := _mock.Called(ctx, accountId, profileId, blocklistIds)
@@ -2157,80 +2220,6 @@ func (_c *Servicer_GetAccount_Call) Return(account *model.Account, err error) *S
 }
 
 func (_c *Servicer_GetAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string) (*model.Account, error)) *Servicer_GetAccount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAccountMetrics provides a mock function for the type Servicer
-func (_mock *Servicer) GetAccountMetrics(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error) {
-	ret := _mock.Called(ctx, account, timespan)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAccountMetrics")
-	}
-
-	var r0 *model.StatisticsAggregated
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) (*model.StatisticsAggregated, error)); ok {
-		return returnFunc(ctx, account, timespan)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) *model.StatisticsAggregated); ok {
-		r0 = returnFunc(ctx, account, timespan)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.StatisticsAggregated)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account, string) error); ok {
-		r1 = returnFunc(ctx, account, timespan)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Servicer_GetAccountMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAccountMetrics'
-type Servicer_GetAccountMetrics_Call struct {
-	*mock.Call
-}
-
-// GetAccountMetrics is a helper method to define mock.On call
-//   - ctx context.Context
-//   - account *model.Account
-//   - timespan string
-func (_e *Servicer_Expecter) GetAccountMetrics(ctx interface{}, account interface{}, timespan interface{}) *Servicer_GetAccountMetrics_Call {
-	return &Servicer_GetAccountMetrics_Call{Call: _e.mock.On("GetAccountMetrics", ctx, account, timespan)}
-}
-
-func (_c *Servicer_GetAccountMetrics_Call) Run(run func(ctx context.Context, account *model.Account, timespan string)) *Servicer_GetAccountMetrics_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 *model.Account
-		if args[1] != nil {
-			arg1 = args[1].(*model.Account)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *Servicer_GetAccountMetrics_Call) Return(statisticsAggregated *model.StatisticsAggregated, err error) *Servicer_GetAccountMetrics_Call {
-	_c.Call.Return(statisticsAggregated, err)
-	return _c
-}
-
-func (_c *Servicer_GetAccountMetrics_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, timespan string) (*model.StatisticsAggregated, error)) *Servicer_GetAccountMetrics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3068,6 +3057,63 @@ func (_c *Servicer_MfaCheck_Call) Return(err error) *Servicer_MfaCheck_Call {
 }
 
 func (_c *Servicer_MfaCheck_Call) RunAndReturn(run func(ctx context.Context, acc *model.Account, mfa *model.MfaData) error) *Servicer_MfaCheck_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PurgeAccountData provides a mock function for the type Servicer
+func (_mock *Servicer) PurgeAccountData(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PurgeAccountData")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_PurgeAccountData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PurgeAccountData'
+type Servicer_PurgeAccountData_Call struct {
+	*mock.Call
+}
+
+// PurgeAccountData is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *Servicer_Expecter) PurgeAccountData(ctx interface{}, accountId interface{}) *Servicer_PurgeAccountData_Call {
+	return &Servicer_PurgeAccountData_Call{Call: _e.mock.On("PurgeAccountData", ctx, accountId)}
+}
+
+func (_c *Servicer_PurgeAccountData_Call) Run(run func(ctx context.Context, accountId string)) *Servicer_PurgeAccountData_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_PurgeAccountData_Call) Return(err error) *Servicer_PurgeAccountData_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_PurgeAccountData_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *Servicer_PurgeAccountData_Call {
 	_c.Call.Return(run)
 	return _c
 }
