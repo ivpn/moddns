@@ -18,6 +18,7 @@ func TestPromUpdates_RecordsAllSeries(t *testing.T) {
 	m.RecordUpdate(source, StatusFailure)
 	m.RecordUpdate(source, StatusFailure)
 	m.SetDomainsExtracted(source, 1234)
+	m.SetDeclaredEntries(source, 1300)
 	m.SetLastSuccess(source, time.Unix(1700000000, 0))
 	m.RecordDownloadBytes(source, 4096)
 	m.RecordValidationRejected(source, ReasonShrink)
@@ -30,6 +31,9 @@ func TestPromUpdates_RecordsAllSeries(t *testing.T) {
 	}
 	if got := testutil.ToFloat64(m.domainsExtracted.WithLabelValues(source)); got != 1234 {
 		t.Errorf("domains_extracted = %v, want 1234", got)
+	}
+	if got := testutil.ToFloat64(m.declaredEntries.WithLabelValues(source)); got != 1300 {
+		t.Errorf("declared_entries = %v, want 1300", got)
 	}
 	if got := testutil.ToFloat64(m.lastSuccess.WithLabelValues(source)); got != 1700000000 {
 		t.Errorf("last_success = %v, want 1700000000", got)
@@ -59,6 +63,7 @@ func TestNoopUpdates_DoesNotPanic(t *testing.T) {
 	m.RecordUpdate("s", StatusSuccess)
 	m.RecordDuration("s", time.Second)
 	m.SetDomainsExtracted("s", 1)
+	m.SetDeclaredEntries("s", 1)
 	m.SetLastSuccess("s", time.Now())
 	m.RecordDownloadBytes("s", 1)
 	m.RecordValidationRejected("s", ReasonEmpty)

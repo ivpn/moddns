@@ -37,6 +37,11 @@ type Updates interface {
 	RecordDuration(source string, d time.Duration)
 	// SetDomainsExtracted records the number of validated domains published for a source.
 	SetDomainsExtracted(source string, n int)
+	// SetDeclaredEntries records the entry count the source reports — the header
+	// value when present, otherwise the service's own non-comment line count.
+	// Compared against SetDomainsExtracted it is a divergence signal (a large
+	// drop hints at a partial download or many malformed/duplicate lines).
+	SetDeclaredEntries(source string, n int)
 	// SetLastSuccess records the wall-clock time of the last successful swap for a source.
 	SetLastSuccess(source string, ts time.Time)
 	// RecordDownloadBytes records the number of bytes downloaded for a source.
@@ -51,6 +56,7 @@ type NoopUpdates struct{}
 func (NoopUpdates) RecordUpdate(string, string)             {}
 func (NoopUpdates) RecordDuration(string, time.Duration)    {}
 func (NoopUpdates) SetDomainsExtracted(string, int)         {}
+func (NoopUpdates) SetDeclaredEntries(string, int)          {}
 func (NoopUpdates) SetLastSuccess(string, time.Time)        {}
 func (NoopUpdates) RecordDownloadBytes(string, int64)       {}
 func (NoopUpdates) RecordValidationRejected(string, string) {}
@@ -60,6 +66,7 @@ type PromUpdates struct {
 	updates           *prometheus.CounterVec
 	updateDuration    *prometheus.HistogramVec
 	domainsExtracted  *prometheus.GaugeVec
+	declaredEntries   *prometheus.GaugeVec
 	lastSuccess       *prometheus.GaugeVec
 	downloadBytes     *prometheus.GaugeVec
 	validationRejects *prometheus.CounterVec
@@ -81,6 +88,10 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 			Name: "blocklists_domains_extracted",
 			Help: "Number of validated domains published in the last update by source.",
 		}, []string{"source"}),
+		declaredEntries: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "blocklists_source_declared_entries",
+			Help: "Entry count reported by the source (header value, or non-comment line count when no header is present) in the last update by source.",
+		}, []string{"source"}),
 		lastSuccess: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "blocklists_last_success_timestamp_seconds",
 			Help: "Unix timestamp of the last successful blocklist update by source.",
@@ -98,6 +109,7 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 		m.updates,
 		m.updateDuration,
 		m.domainsExtracted,
+		m.declaredEntries,
 		m.lastSuccess,
 		m.downloadBytes,
 		m.validationRejects,
@@ -115,6 +127,10 @@ func (m *PromUpdates) RecordDuration(source string, d time.Duration) {
 
 func (m *PromUpdates) SetDomainsExtracted(source string, n int) {
 	m.domainsExtracted.WithLabelValues(source).Set(float64(n))
+}
+
+func (m *PromUpdates) SetDeclaredEntries(source string, n int) {
+	m.declaredEntries.WithLabelValues(source).Set(float64(n))
 }
 
 func (m *PromUpdates) SetLastSuccess(source string, ts time.Time) {

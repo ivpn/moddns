@@ -196,6 +196,11 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	}
 
 	s.Metrics.SetDomainsExtracted(metadata.BlocklistID, totalDomains)
+	if numEntries > 0 {
+		// Source's own count (header or self-counted) — a divergence signal
+		// against the published count above.
+		s.Metrics.SetDeclaredEntries(metadata.BlocklistID, numEntries)
+	}
 
 	// Persist Mongo content chunks from the validated domains.
 	for i := 0; i < len(validated); i += maxDomainsPerDoc {
