@@ -4,7 +4,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/ivpn/dns/blocklists/internal/downloader"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/store"
@@ -17,12 +19,13 @@ const defaultMetricsPort = 9153
 
 // Config represents the application configuration
 type Config struct {
-	Server  *ServerConfig
-	DB      *store.Config
-	Cache   *cache.Config
-	Updater *UpdaterConfig
-	Sentry  *SentryConfig
-	Metrics *MetricsConfig
+	Server   *ServerConfig
+	DB       *store.Config
+	Cache    *cache.Config
+	Updater  *UpdaterConfig
+	Sentry   *SentryConfig
+	Metrics  *MetricsConfig
+	Download downloader.Config
 }
 
 // ServerConfig represents the server configuration
@@ -107,8 +110,59 @@ func New() (*Config, error) {
 			Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 			Release:     os.Getenv("SENTRY_RELEASE"),
 		},
-		Metrics: loadMetricsConfig(),
+		Metrics:  loadMetricsConfig(),
+		Download: loadDownloadConfig(),
 	}, nil
+}
+
+// loadDownloadConfig reads the gentle-downloader tuning knobs from the
+// environment. Every field is optional: an unset or invalid value is left zero
+// so downloader.New applies its prod-safe default. This keeps downloads gentle
+// on source servers out of the box while allowing per-environment tuning.
+//
+//	DOWNLOAD_TIMEOUT                  per-attempt timeout (e.g. "30s")
+//	DOWNLOAD_MAX_CONCURRENCY         max simultaneous downloads across all hosts
+//	DOWNLOAD_PER_HOST_MIN_INTERVAL   min spacing between requests to one host (e.g. "2s")
+//	DOWNLOAD_RETRY_MAX_ATTEMPTS      total attempts incl. the first (1 = no retry)
+//	DOWNLOAD_RETRY_BASE_DELAY        first backoff delay; doubles each attempt
+//	DOWNLOAD_RETRY_MAX_DELAY         cap on a single backoff / honoured Retry-After
+//	DOWNLOAD_MAX_BODY_SIZE           max accepted response body in bytes
+//	DOWNLOAD_USER_AGENT              User-Agent header sent on every request
+func loadDownloadConfig() downloader.Config {
+	return downloader.Config{
+		Timeout:            envDuration("DOWNLOAD_TIMEOUT"),
+		MaxConcurrency:     envInt("DOWNLOAD_MAX_CONCURRENCY"),
+		PerHostMinInterval: envDuration("DOWNLOAD_PER_HOST_MIN_INTERVAL"),
+		MaxAttempts:        envInt("DOWNLOAD_RETRY_MAX_ATTEMPTS"),
+		BaseRetryDelay:     envDuration("DOWNLOAD_RETRY_BASE_DELAY"),
+		MaxRetryDelay:      envDuration("DOWNLOAD_RETRY_MAX_DELAY"),
+		MaxBodySize:        envInt64("DOWNLOAD_MAX_BODY_SIZE"),
+		UserAgent:          os.Getenv("DOWNLOAD_USER_AGENT"),
+	}
+}
+
+// envDuration parses a positive Go duration from key, or returns 0 when unset/invalid.
+func envDuration(key string) time.Duration {
+	if v, err := time.ParseDuration(os.Getenv(key)); err == nil && v > 0 {
+		return v
+	}
+	return 0
+}
+
+// envInt parses a positive int from key, or returns 0 when unset/invalid.
+func envInt(key string) int {
+	if v, err := strconv.Atoi(os.Getenv(key)); err == nil && v > 0 {
+		return v
+	}
+	return 0
+}
+
+// envInt64 parses a positive int64 from key, or returns 0 when unset/invalid.
+func envInt64(key string) int64 {
+	if v, err := strconv.ParseInt(os.Getenv(key), 10, 64); err == nil && v > 0 {
+		return v
+	}
+	return 0
 }
 
 // loadShrinkThreshold reads BLOCKLIST_SHRINK_THRESHOLD (a fraction in [0,1]).

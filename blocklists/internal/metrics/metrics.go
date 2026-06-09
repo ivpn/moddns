@@ -48,6 +48,10 @@ type Updates interface {
 	RecordDownloadBytes(source string, n int64)
 	// RecordValidationRejected counts a rejected swap by source and reason.
 	RecordValidationRejected(source, reason string)
+	// RecordRetry counts a download retry (transient network error, 429 or 5xx)
+	// for a source. A rising rate signals a source server under strain or
+	// throttling our requests.
+	RecordRetry(source string)
 }
 
 // NoopUpdates is a no-op Updates implementation used when metrics are disabled.
@@ -60,6 +64,7 @@ func (NoopUpdates) SetDeclaredEntries(string, int)          {}
 func (NoopUpdates) SetLastSuccess(string, time.Time)        {}
 func (NoopUpdates) RecordDownloadBytes(string, int64)       {}
 func (NoopUpdates) RecordValidationRejected(string, string) {}
+func (NoopUpdates) RecordRetry(string)                      {}
 
 // PromUpdates implements Updates using Prometheus collectors.
 type PromUpdates struct {
@@ -70,6 +75,7 @@ type PromUpdates struct {
 	lastSuccess       *prometheus.GaugeVec
 	downloadBytes     *prometheus.GaugeVec
 	validationRejects *prometheus.CounterVec
+	downloadRetries   *prometheus.CounterVec
 }
 
 // NewPromUpdates creates and registers all blocklist update collectors.
@@ -104,6 +110,10 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 			Name: "blocklists_validation_rejected_total",
 			Help: "Total number of blocklist swaps rejected by validation, by source and reason.",
 		}, []string{"source", "reason"}),
+		downloadRetries: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "blocklists_download_retries_total",
+			Help: "Total number of blocklist download retries (transient network error, 429 or 5xx) by source.",
+		}, []string{"source"}),
 	}
 	reg.MustRegister(
 		m.updates,
@@ -113,6 +123,7 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 		m.lastSuccess,
 		m.downloadBytes,
 		m.validationRejects,
+		m.downloadRetries,
 	)
 	return m
 }
@@ -143,4 +154,8 @@ func (m *PromUpdates) RecordDownloadBytes(source string, n int64) {
 
 func (m *PromUpdates) RecordValidationRejected(source, reason string) {
 	m.validationRejects.WithLabelValues(source, reason).Inc()
+}
+
+func (m *PromUpdates) RecordRetry(source string) {
+	m.downloadRetries.WithLabelValues(source).Inc()
 }

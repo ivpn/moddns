@@ -2,13 +2,9 @@ package service
 
 import (
 	"bufio"
-	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ivpn/dns/blocklists/config"
 	"github.com/ivpn/dns/blocklists/internal/extractor"
@@ -138,48 +134,5 @@ func TestStevenBlackEndToEnd(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "ads.example.com" {
 		t.Fatalf("steven_black end-to-end = %v, want [ads.example.com]", got)
-	}
-}
-
-// specRef: #B4 — a download exceeding the size limit is rejected (not truncated).
-func TestDownload_TooLargeRejected(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(strings.Repeat("x", 64)))
-	}))
-	defer srv.Close()
-
-	// Lower the limit so 64 bytes exceeds it, then restore.
-	orig := maxBlocklistSize
-	maxBlocklistSize = 16
-	defer func() { maxBlocklistSize = orig }()
-
-	s := &Service{}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := s.download(ctx, srv.URL)
-	if !errors.Is(err, errDownloadTooLarge) {
-		t.Fatalf("download err = %v, want errDownloadTooLarge", err)
-	}
-}
-
-// specRef: #B4 — a download within the limit succeeds.
-func TestDownload_WithinLimitOK(t *testing.T) {
-	body := "example.com\nads.example.net\n"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(body))
-	}))
-	defer srv.Close()
-
-	s := &Service{}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	got, err := s.download(ctx, srv.URL)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if string(got) != body {
-		t.Fatalf("download body = %q, want %q", got, body)
 	}
 }

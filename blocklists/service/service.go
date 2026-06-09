@@ -4,6 +4,7 @@ import (
 	"github.com/ivpn/dns/blocklists/cache"
 	"github.com/ivpn/dns/blocklists/config"
 	"github.com/ivpn/dns/blocklists/db"
+	"github.com/ivpn/dns/blocklists/internal/downloader"
 	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
 	"github.com/ivpn/dns/blocklists/updater"
@@ -15,6 +16,7 @@ type Service struct {
 	Cache      cache.Cache
 	Updater    updater.Updater
 	Metrics    metrics.Updates
+	Downloader *downloader.Downloader
 	Blocklists []model.BlocklistMetadata
 }
 
@@ -25,10 +27,11 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, updater updater.Upda
 		m = metrics.NoopUpdates{}
 	}
 	return &Service{
-		Cfg:     cfg,
-		Store:   store,
-		Cache:   cache,
-		Updater: updater,
-		Metrics: m,
+		Cfg:        cfg,
+		Store:      store,
+		Cache:      cache,
+		Updater:    updater,
+		Metrics:    m,
+		Downloader: downloader.New(cfg.Download, m),
 	}
 }

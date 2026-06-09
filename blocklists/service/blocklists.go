@@ -4,16 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ivpn/dns/blocklists/internal/downloader"
 	"github.com/ivpn/dns/blocklists/internal/extractor"
 	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
@@ -24,17 +23,14 @@ import (
 const (
 	jsonExt           = ".json"
 	processingTimeout = 1 * time.Minute
-	downloadTimeout   = 30 * time.Second
 )
 
-// maxBlocklistSize is the maximum accepted download size (100MB). It is a var
-// rather than a const so tests can lower it to exercise truncation handling.
-var maxBlocklistSize int64 = 100 * 1024 * 1024
-
-// errDownloadTooLarge is returned by download when the response body exceeds
-// maxBlocklistSize, signalling a truncated/abusive source rather than a
-// successfully fetched list.
-var errDownloadTooLarge = errors.New("download exceeded max size")
+// errDownloadTooLarge signals that a source's response body exceeded the
+// configured size limit — a truncated/abusive source rather than a successfully
+// fetched list. It aliases downloader.ErrTooLarge so processBlocklist can map an
+// over-size download to the "truncated" validation-rejected metric. The size
+// limit itself is configured via downloader.Config.MaxBodySize.
+var errDownloadTooLarge = downloader.ErrTooLarge
 
 func (s *Service) ReadSources() ([]model.BlocklistMetadata, error) {
 	err := filepath.Walk(s.Cfg.Updater.SourcesDir, s.visit)
@@ -80,15 +76,29 @@ func (s *Service) Setup(sources []model.BlocklistMetadata) error {
 	return nil
 }
 
-// Trigger is called to launch the processing of all blocklists
+// Trigger is called to launch the processing of all blocklists. It emits a
+// single summary log at the end (succeeded/failed/total) so a startup refresh
+// can be assessed at a glance, naming any sources that failed.
 func (s *Service) Trigger(sources []model.BlocklistMetadata) {
+	var failedSources []string
 	for _, src := range sources {
 		_, err := s.ProcessBlocklist(src)
 		if err != nil {
+			failedSources = append(failedSources, src.Name)
 			log.Err(err).Str("source", src.Name).Msg("Failed to process blocklist")
 			continue
 		}
 	}
+
+	event := log.Info()
+	if len(failedSources) > 0 {
+		event = log.Warn().Strs("failed_sources", failedSources)
+	}
+	event.
+		Int("succeeded", len(sources)-len(failedSources)).
+		Int("failed", len(failedSources)).
+		Int("total", len(sources)).
+		Msg("Blocklist startup refresh complete")
 }
 
 // ProcessBlocklist downloads, validates and publishes a single blocklist,
@@ -117,8 +127,10 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		metadata.Name = "My First Blocklist"
 	}
 
-	// Download and process data first to know the total size
-	blocklistBytes, err := s.download(ctx, metadata.SourceUrl)
+	// Download and process data first to know the total size. The shared
+	// downloader (per-host throttling, global concurrency cap, retry/backoff) is
+	// always set by service.New; the blocklist ID is the retry-metric label.
+	blocklistBytes, err := s.Downloader.Fetch(ctx, metadata.BlocklistID, metadata.SourceUrl)
 	if err != nil {
 		if errors.Is(err, errDownloadTooLarge) {
 			s.Metrics.RecordValidationRejected(metadata.BlocklistID, metrics.ReasonTruncated)
@@ -385,40 +397,4 @@ func (s *Service) PurgeStale(sources []model.BlocklistMetadata) {
 	}
 
 	log.Info().Int("count", len(staleIDs)).Msg("Purged stale blocklists")
-}
-
-// download fetches blocklist data from the given link
-func (s *Service) download(ctx context.Context, link string) ([]byte, error) {
-	client := &http.Client{
-		Timeout: downloadTimeout,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
-		},
-	}
-	req, err := http.NewRequestWithContext(ctx, "GET", link, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %s", resp.Status)
-	}
-
-	// Read up to maxBlocklistSize+1 so we can detect (rather than silently
-	// truncate) a body that exceeds the limit. A truncated list would otherwise
-	// be published as the new truth.
-	var buffer bytes.Buffer
-	n, err := io.CopyBuffer(&buffer, io.LimitReader(resp.Body, maxBlocklistSize+1), make([]byte, 32*1024))
-	if err != nil {
-		return nil, err
-	}
-	if n > maxBlocklistSize {
-		return nil, fmt.Errorf("%w: %d bytes", errDownloadTooLarge, maxBlocklistSize)
-	}
-	return buffer.Bytes(), nil
 }
