@@ -91,3 +91,36 @@ for (const vp of VIEWPORTS) {
     });
   });
 }
+
+// Document-level scroll is masked by `overflow-x-hidden` on the app content wrapper,
+// so a horizontally-overflowing inner container shows up as clipped content rather than
+// a page scrollbar. This guards against that by asserting that no element extends past
+// the viewport's right edge, across every blocklists tab.
+test.describe('@layout blocklists no inner horizontal overflow', () => {
+  test.beforeEach(async ({ page }) => {
+    await registerMocks(page, { authenticated: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+  });
+
+  async function maxRightOverflow(page: import('@playwright/test').Page): Promise<number> {
+    return page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      let worst = 0;
+      document.querySelectorAll('main *').forEach((el) => {
+        const right = el.getBoundingClientRect().right;
+        if (right - vw > worst) worst = right - vw;
+      });
+      return Math.round(worst);
+    });
+  }
+
+  for (const tab of ['Lists', 'Categories', 'Services']) {
+    test(`${tab} tab content stays within the viewport`, async ({ page }) => {
+      await page.goto('/blocklists');
+      await page.getByRole('tab', { name: tab }).click();
+      await page.waitForTimeout(400);
+      const overflow = await maxRightOverflow(page);
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
+  }
+});

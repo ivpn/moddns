@@ -349,7 +349,7 @@ export default function MainContentSection(): JSX.Element {
                                         <>
                                             <div>
                                                 Enabling several large blocklists may degrade your browsing experience. Start with one of our predefined lists that fits your protection needs:
-                                                <span className="inline-flex gap-2 ml-1 align-baseline">
+                                                <span className="inline-flex flex-wrap gap-2 ml-1 align-baseline">
                                                     <span
                                                         className="underline cursor-pointer"
                                                         onClick={() => setFilterValue("basic")}
