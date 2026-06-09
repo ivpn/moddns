@@ -10,6 +10,7 @@ import (
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/store"
+	"github.com/rs/zerolog"
 )
 
 // defaultMetricsPort is the default port for the metrics/health HTTP server.
@@ -26,6 +27,10 @@ type Config struct {
 	Sentry   *SentryConfig
 	Metrics  *MetricsConfig
 	Download downloader.Config
+	// LogLevel is the minimum zerolog level emitted (LOG_LEVEL env). Defaults to
+	// info so a normal run shows only the startup refresh summary and errors;
+	// set to debug to see per-source/per-chunk progress.
+	LogLevel zerolog.Level
 }
 
 // ServerConfig represents the server configuration
@@ -112,7 +117,30 @@ func New() (*Config, error) {
 		},
 		Metrics:  loadMetricsConfig(),
 		Download: loadDownloadConfig(),
+		LogLevel: parseLogLevel(os.Getenv("LOG_LEVEL")),
 	}, nil
+}
+
+// parseLogLevel maps the LOG_LEVEL env value to a zerolog level. Unknown or empty
+// values default to info, keeping a normal run's output to the startup summary
+// and errors. Mirrors proxy/utils/log.go's ParseZerologLevel.
+func parseLogLevel(s string) zerolog.Level {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "trace":
+		return zerolog.TraceLevel
+	case "debug":
+		return zerolog.DebugLevel
+	case "info":
+		return zerolog.InfoLevel
+	case "warn", "warning":
+		return zerolog.WarnLevel
+	case "error":
+		return zerolog.ErrorLevel
+	case "disabled":
+		return zerolog.Disabled
+	default:
+		return zerolog.InfoLevel
+	}
 }
 
 // loadDownloadConfig reads the gentle-downloader tuning knobs from the

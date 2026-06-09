@@ -225,7 +225,7 @@ func (d *Downloader) fetchWithRetry(ctx context.Context, source, rawURL string) 
 
 		delay := d.backoff(attempt, retryAfter)
 		d.metric.RecordRetry(source)
-		log.Warn().
+		log.Debug().
 			Err(err).
 			Str("source_url", rawURL).
 			Int("attempt", attempt).

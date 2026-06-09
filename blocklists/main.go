@@ -30,13 +30,13 @@ func main() {
 	}()
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	appConfig, err := config.New()
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to read app configuration")
 	}
+	zerolog.SetGlobalLevel(appConfig.LogLevel)
 
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              appConfig.Sentry.DSN,

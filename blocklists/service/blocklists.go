@@ -335,7 +335,7 @@ func (s *Service) saveChunk(ctx context.Context, blocklistID string, chunkIndex 
 		return primitive.NilObjectID, fmt.Errorf("failed to upsert blocklist content: %w", err)
 	}
 
-	log.Info().
+	log.Debug().
 		Str("blocklist_id", blocklistID).
 		Int("chunk", chunkIndex).
 		Int("domains", len(domains)).

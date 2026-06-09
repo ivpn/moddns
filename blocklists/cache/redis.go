@@ -87,7 +87,7 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		}
 		// If all errors were ignorable, treat as success
 		if ignore {
-			log.Info().
+			log.Debug().
 				Str("component", "cache").
 				Str("blocklist_key", blocklistName).
 				Msg("Created/updated blocklist with atomic swap (ignored 'no such key' error)")
@@ -98,7 +98,7 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		return err
 	}
 
-	log.Info().
+	log.Debug().
 		Str("component", "cache").
 		Str("blocklist_key", blocklistName).
 		Msgf("Created/updated blocklist with atomic swap using temp and old sets")
@@ -116,6 +116,6 @@ func (c *RedisCache) DeleteBlocklist(ctx context.Context, blocklistId string) er
 	if err := c.client.Del(ctx, key).Err(); err != nil {
 		return err
 	}
-	log.Info().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")
+	log.Debug().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")
 	return nil
 }

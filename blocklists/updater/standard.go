@@ -22,13 +22,13 @@ func NewStandardUpdater() *StandardUpdater {
 // Setup adds a new, single blocklist to the cron scheduler
 func (u *StandardUpdater) Setup(source model.BlocklistMetadata, blocklistFunc func() (*model.BlocklistMetadata, error)) error {
 	entryID, err := u.cron.AddFunc(source.Schedule, func() {
-		log.Info().Str("source", source.Name).Msg("Processing blocklist")
+		log.Debug().Str("source", source.Name).Msg("Processing blocklist")
 		_, err := blocklistFunc()
 		if err != nil {
 			log.Err(err).Str("blocklist_id", source.BlocklistID).Str("source", source.Name).Msg("Failed to process blocklist")
 			return
 		}
-		log.Info().Str("source", source.Name).Msg("Processed blocklist")
+		log.Debug().Str("source", source.Name).Msg("Processed blocklist")
 	})
 	if err != nil {
 		log.Err(err).Str("source", source.Name).Msg("Failed to add source to cron")
