@@ -62,6 +62,24 @@ func TestNewExtractor(t *testing.T) {
 			wantErr:     false,
 		},
 		{
+			name:        "someonewhocares extractor",
+			blocklistID: "someonewhocares_hosts",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
+			name:        "peter_lowe extractor",
+			blocklistID: "peter_lowe_adservers",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
+			name:        "1hosts extractor",
+			blocklistID: "1hosts_lite",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
 			name:        "unknown extractor",
 			blocklistID: "unknown_type",
 			wantType:    "",

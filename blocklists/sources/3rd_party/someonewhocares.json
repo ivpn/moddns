@@ -1,0 +1,15 @@
+[
+  {
+    "blocklist_id": "someonewhocares_hosts",
+    "name": "Dan Pollock's hosts",
+    "description": "A comprehensive, frequently-updated hosts list by Dan Pollock blocking ads, trackers, malware and other unwanted content.",
+    "source_url": "https://someonewhocares.org/hosts/zero/hosts",
+    "homepage": "https://someonewhocares.org/hosts/",
+    "syntax": "hosts",
+    "kind": "general",
+    "intensity": [],
+    "tags": ["someonewhocares"],
+    "schedule": "0 6 * * *",
+    "default": false
+  }
+]

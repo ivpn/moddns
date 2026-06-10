@@ -63,11 +63,12 @@ The **extractor is selected by the `blocklist_id` prefix**
 | `hagezi*` | Hagezi | plain domains, `#` headers (strict metadata) |
 | `oisd*` | OISD | plain domains (`domainswild2`), `#` headers |
 | `steven_black*` | Steven Black | hosts file (`0.0.0.0 domain`) |
-| `blp_*`, `ut1_*`, `shadowwhisperer_*` | Domains | plain domains, graceful metadata, hosts-tolerant |
+| `blp_*`, `ut1_*`, `shadowwhisperer_*`, `someonewhocares_*`, `peter_lowe*`, `1hosts_*` | Domains | plain or hosts-format domains, graceful metadata (optional `Last modified`/`Last updated`/`Count` headers), hosts-tolerant |
 
 Key source fields: `blocklist_id` (required, routes the extractor), `name`,
-`description`, `source_url`, `kind` (`general`/`category`/`security`),
-`category`, `intensity`, `default`, `schedule` (cron). See any file under
+`description`, `source_url`, `kind` (`general`/`category`),
+`category` (e.g. `gambling`, `security`), `intensity`, `default`,
+`schedule` (cron). See any file under
 `sources/` for a complete example.
 
 The authoritative behaviour spec is

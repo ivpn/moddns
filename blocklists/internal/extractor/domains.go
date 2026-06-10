@@ -11,9 +11,13 @@ import (
 )
 
 var (
-	// Common header patterns across plain domain list formats
-	domainsReLastModified = regexp.MustCompile(`(?i)^[#!]\s*Last modified:\s*(.+)`)
+	// Common header patterns across plain domain list formats. These tolerate the
+	// variations seen across providers: "Last modified" (Block List Project) and
+	// "Last updated" (Dan Pollock / Peter Lowe); "Entries"/"Number of Entries"
+	// (yoyo) and "Count: N rules" with a decorative prefix (1Hosts).
+	domainsReLastModified = regexp.MustCompile(`(?i)^[#!]\s*Last (?:modified|updated):\s*(.+)`)
 	domainsReEntries      = regexp.MustCompile(`(?i)^[#!]\s*(?:Number of )?Entries:\s*([\d,]+)`)
+	domainsReCount        = regexp.MustCompile(`(?i)^[#!].*\bCount:\s*([\d,]+)`)
 )
 
 // DomainsExtractor implements the Extractor interface for plain domain-per-line
@@ -88,11 +92,17 @@ func (e *DomainsExtractor) ExtractMetadata(blocklistBytes []byte) (time.Time, st
 			}
 		}
 
-		if matches := domainsReEntries.FindStringSubmatch(line); matches != nil && !foundEntries {
-			cleaned := strings.ReplaceAll(matches[1], ",", "")
-			if n, err := strconv.Atoi(cleaned); err == nil {
-				numEntries = n
-				foundEntries = true
+		if !foundEntries {
+			matches := domainsReEntries.FindStringSubmatch(line)
+			if matches == nil {
+				matches = domainsReCount.FindStringSubmatch(line)
+			}
+			if matches != nil {
+				cleaned := strings.ReplaceAll(matches[1], ",", "")
+				if n, err := strconv.Atoi(cleaned); err == nil {
+					numEntries = n
+					foundEntries = true
+				}
 			}
 		}
 
@@ -124,7 +134,9 @@ func (e *DomainsExtractor) ProcessLine(line string) (string, error) {
 	return stripHostsIP(line), nil
 }
 
-// parseFlexibleDate tries multiple date formats commonly found in blocklist headers
+// parseFlexibleDate tries multiple date formats commonly found in blocklist
+// headers. Parsed values are normalized to UTC so callers can compare instants
+// without location-pointer differences (e.g. a "GMT" zone vs time.UTC).
 func parseFlexibleDate(s string) (time.Time, bool) {
 	formats := []string{
 		"2006-01-02 15:04:05 MST",
@@ -135,10 +147,13 @@ func parseFlexibleDate(s string) (time.Time, bool) {
 		"02 Jan 2006",
 		"Jan 02, 2006",
 		time.RFC3339,
+		time.RFC3339Nano,                   // 1Hosts: 2026-06-09T10:59:53.132Z
+		time.RFC1123,                       // Peter Lowe/yoyo: Tue, 09 Jun 2026 14:53:58 GMT
+		"Mon, 02 Jan 2006 at 15:04:05 MST", // someonewhocares: Wed, 10 Jun 2026 at 00:35:57 GMT
 	}
 	for _, fmt := range formats {
 		if t, err := time.Parse(fmt, s); err == nil {
-			return t, true
+			return t.UTC(), true
 		}
 	}
 	return time.Time{}, false
