@@ -2,7 +2,7 @@ import { type JSX, type LucideIcon, useMemo, useState, useRef, useEffect, useCal
 import BlocklistCard from "./BlocklistCard";
 import CategoryCard from "./CategoryCard";
 import NrdRangeCard from "./NrdRangeCard";
-import { isNrdItem, orderedNrdItems } from "./nrdGroup";
+import { categoryToggleTargets, isNrdItem, orderedNrdItems } from "./nrdGroup";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ModelBlocklist } from "@/api/client/api";
@@ -205,20 +205,11 @@ export default function CategoriesContentSection({
     }, [grouped, enabledBlocklists]);
 
     const handleCategoryToggle = (categoryKey: string) => {
-        // NRD lists are driven by their own range card, not the category master
-        // toggle — exclude them so a single click never enables every NRD window.
-        const items = (grouped.get(categoryKey) ?? []).filter((bl) => !isNrdItem(bl));
-        const allIds = items.map((bl) => bl.blocklist_id);
-        const enabledCount = items.filter((bl) =>
-            enabledBlocklists.includes(bl.blocklist_id)
-        ).length;
-
-        if (allIds.length === 0) return;
-        if (enabledCount > 0) {
-            onCategoryToggle(allIds, false);
-        } else {
-            onCategoryToggle(allIds, true);
-        }
+        const action = categoryToggleTargets(
+            grouped.get(categoryKey) ?? [],
+            enabledBlocklists,
+        );
+        if (action) onCategoryToggle(action.ids, action.enable);
     };
 
     // Find the expanded category's data for the panel

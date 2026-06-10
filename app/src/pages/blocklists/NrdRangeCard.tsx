@@ -136,7 +136,7 @@ export default function NrdRangeCard({
                         <ToggleGroupItem
                             value="0"
                             aria-label="Off — block no newly registered domains"
-                            className="text-xs data-[state=on]:!bg-[var(--tailwind-colors-slate-700)] data-[state=on]:!text-[var(--tailwind-colors-slate-50)]"
+                            className="text-xs cursor-pointer disabled:cursor-not-allowed data-[state=on]:!bg-[var(--tailwind-colors-slate-700)] data-[state=on]:!text-[var(--tailwind-colors-slate-50)]"
                         >
                             Off
                         </ToggleGroupItem>
@@ -145,7 +145,7 @@ export default function NrdRangeCard({
                                 key={bl.blocklist_id}
                                 value={String(i + 1)}
                                 aria-label={`Block domains registered in the ${labelById.get(bl.blocklist_id) ?? `${i + 1}`} window`}
-                                className="text-xs data-[state=on]:!bg-[var(--tailwind-colors-rdns-600)] data-[state=on]:!text-[var(--tailwind-colors-slate-50)]"
+                                className="text-xs cursor-pointer disabled:cursor-not-allowed data-[state=on]:!bg-[var(--tailwind-colors-rdns-600)] data-[state=on]:!text-[var(--tailwind-colors-slate-50)]"
                             >
                                 {labelById.get(bl.blocklist_id) ?? `T${i + 1}`}
                             </ToggleGroupItem>
