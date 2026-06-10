@@ -31,7 +31,17 @@ func TestValidatePassword(t *testing.T) {
 
 		// Invalid: too short / too long.
 		{"too short", "Abc1!", false},
-		{"too long", "Aa1!" + strings.Repeat("a", 61), false}, // 65 chars
+		{"exactly 11 chars (one below min)", "Abcdefghj1!", false}, // 11 chars
+		{"exactly 12 chars (min boundary)", "Abcdefghi1!x", true},  // 12 chars
+		{"too long", "Aa1!" + strings.Repeat("a", 61), false},      // 65 chars
+
+		// Length is counted in characters (runes), not bytes. Multi-byte
+		// characters must not let a short password pass, nor wrongly reject a
+		// password whose byte length exceeds 64 but whose rune length does not.
+		{"multibyte short rejected (7 chars, 19 bytes)", "Aa1!😀😀😀", false},
+		{"multibyte 12 chars accepted (>12 bytes)", "Aa1!" + strings.Repeat("😀", 8), true}, // 12 chars, 36 bytes
+		{"multibyte 64 chars accepted (>64 bytes)", "Aa1!" + strings.Repeat("é", 60), true}, // 64 chars, 124 bytes
+		{"multibyte 65 chars rejected", "Aa1!" + strings.Repeat("é", 61), false},            // 65 chars
 		{"empty", "", false},
 
 		// Invalid: missing a required character class.
@@ -39,6 +49,21 @@ func TestValidatePassword(t *testing.T) {
 		{"no uppercase", "abcdefghij1!", false},
 		{"no lowercase", "ABCDEFGHIJ1!", false},
 		{"no digit", "Abcdefghijk!", false},
+
+		// Invalid: Unicode letters/digits are alphanumeric, not special. A
+		// password made only of letters and digits must not satisfy the
+		// special-character requirement just because some are non-ASCII.
+		{"unicode letter is not special", "Abcdefghij1é", false},
+		{"unicode digit is not special", "Abcdefghij1١", false},
+
+		// Documented behavior: the required upper/lower/digit classes are
+		// ASCII-only by design, so Unicode-cased letters do not satisfy them.
+		{"unicode uppercase does not satisfy upper class", "Éàçdefghij1!", false},
+
+		// Documented behavior: control characters are non-alphanumeric and
+		// therefore currently count as the special character.
+		{"tab counts as special", "Abcdefghij1\t", true},
+		{"newline counts as special", "Abcdefghij1\n", true},
 	}
 
 	for _, tt := range tests {
