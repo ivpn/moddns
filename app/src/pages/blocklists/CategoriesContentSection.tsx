@@ -1,6 +1,8 @@
 import { type JSX, type LucideIcon, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import BlocklistCard from "./BlocklistCard";
 import CategoryCard from "./CategoryCard";
+import NrdRangeCard from "./NrdRangeCard";
+import { isNrdItem, orderedNrdItems } from "./nrdGroup";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ModelBlocklist } from "@/api/client/api";
@@ -8,6 +10,7 @@ import { formatUpdatedRelative } from "./MainContentSection";
 import {
     Dices,
     ShieldAlert,
+    ShieldCheck,
     Heart,
     Pill,
     Users,
@@ -23,6 +26,7 @@ import {
 // Categories are derived from the API data — only categories present in the data are shown.
 // New categories added to the backend appear automatically; add an entry here for a custom icon/label.
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; description: string }> = {
+    security: { label: "Security", icon: ShieldCheck, description: "Block malware, phishing, scam and threat-intelligence domains" },
     gambling: { label: "Gambling", icon: Dices, description: "Block online casinos, betting platforms, and lottery services" },
     adult: { label: "Adult Content", icon: ShieldAlert, description: "Block adult and explicit content websites" },
     dating: { label: "Dating", icon: Heart, description: "Block dating apps and matchmaking services" },
@@ -137,6 +141,8 @@ interface CategoriesContentSectionProps {
     enabledBlocklists: string[];
     onToggle: (id: string, checked: boolean) => void;
     onCategoryToggle: (blocklistIds: string[], enable: boolean) => void;
+    /** Apply an exact target set (enable some ids, disable others) in one action. */
+    onApplySet: (enableIds: string[], disableIds: string[]) => void;
     updating: string | null;
     loading: boolean;
     restricted?: boolean;
@@ -158,6 +164,7 @@ export default function CategoriesContentSection({
     enabledBlocklists,
     onToggle,
     onCategoryToggle,
+    onApplySet,
     updating,
     loading,
     restricted = false,
@@ -198,12 +205,15 @@ export default function CategoriesContentSection({
     }, [grouped, enabledBlocklists]);
 
     const handleCategoryToggle = (categoryKey: string) => {
-        const items = grouped.get(categoryKey) ?? [];
+        // NRD lists are driven by their own range card, not the category master
+        // toggle — exclude them so a single click never enables every NRD window.
+        const items = (grouped.get(categoryKey) ?? []).filter((bl) => !isNrdItem(bl));
         const allIds = items.map((bl) => bl.blocklist_id);
         const enabledCount = items.filter((bl) =>
             enabledBlocklists.includes(bl.blocklist_id)
         ).length;
 
+        if (allIds.length === 0) return;
         if (enabledCount > 0) {
             onCategoryToggle(allIds, false);
         } else {
@@ -272,6 +282,7 @@ export default function CategoriesContentSection({
                                 setExpandedCategory(expandedCategory === key ? null : key)
                             }
                             onBlocklistToggle={onToggle}
+                            onApplySet={onApplySet}
                             restricted={restricted}
                         />
                     )}
@@ -323,6 +334,7 @@ interface CategoriesGridProps {
     onCategoryToggle: (key: string) => void;
     onExpandToggle: (key: string) => void;
     onBlocklistToggle: (id: string, checked: boolean) => void;
+    onApplySet: (enableIds: string[], disableIds: string[]) => void;
     restricted?: boolean;
 }
 
@@ -335,6 +347,7 @@ function CategoriesGrid({
     onCategoryToggle,
     onExpandToggle,
     onBlocklistToggle,
+    onApplySet,
     restricted = false,
 }: CategoriesGridProps) {
     return (
@@ -357,32 +370,49 @@ function CategoriesGrid({
                             onExpandToggle={() => onExpandToggle(cat.key)}
                         />
 
-                        {isExpanded && expandedData && (
-                            <div className="col-[1/-1]">
-                                <ExpandPanel
-                                    expanded
-                                    categoryLabel={expandedData.label}
-                                    categoryIcon={expandedData.icon}
-                                >
-                                    {expandedData.items.map((bl) => {
-                                        const isEnabled = enabledBlocklists.includes(bl.blocklist_id);
-                                        return (
-                                            <BlocklistCard
-                                                key={bl.blocklist_id}
-                                                title={bl.name}
-                                                description={bl.description}
-                                                entries={bl.entries}
-                                                updated={formatUpdatedRelative(bl.last_modified)}
-                                                onSwitchChange={(checked) => onBlocklistToggle(bl.blocklist_id, checked)}
-                                                switchChecked={isEnabled}
-                                                switchDisabled={updating === bl.blocklist_id || restricted}
-                                                homepage={bl.homepage}
-                                            />
-                                        );
-                                    })}
-                                </ExpandPanel>
-                            </div>
-                        )}
+                        {isExpanded && expandedData && (() => {
+                            // NRD lists collapse into a single range card; everything
+                            // else renders as an individual toggle card.
+                            const nrdItems = orderedNrdItems(expandedData.items);
+                            const regularItems = expandedData.items.filter((bl) => !isNrdItem(bl));
+                            return (
+                                <div className="col-[1/-1]">
+                                    <ExpandPanel
+                                        expanded
+                                        categoryLabel={expandedData.label}
+                                        categoryIcon={expandedData.icon}
+                                    >
+                                        {nrdItems.length > 0 && (
+                                            <div className="col-span-1 sm:col-span-2 md:col-span-3 xl:col-span-4">
+                                                <NrdRangeCard
+                                                    items={nrdItems}
+                                                    enabledBlocklists={enabledBlocklists}
+                                                    onApplySet={onApplySet}
+                                                    updating={updating}
+                                                    restricted={restricted}
+                                                />
+                                            </div>
+                                        )}
+                                        {regularItems.map((bl) => {
+                                            const isEnabled = enabledBlocklists.includes(bl.blocklist_id);
+                                            return (
+                                                <BlocklistCard
+                                                    key={bl.blocklist_id}
+                                                    title={bl.name}
+                                                    description={bl.description}
+                                                    entries={bl.entries}
+                                                    updated={formatUpdatedRelative(bl.last_modified)}
+                                                    onSwitchChange={(checked) => onBlocklistToggle(bl.blocklist_id, checked)}
+                                                    switchChecked={isEnabled}
+                                                    switchDisabled={updating === bl.blocklist_id || restricted}
+                                                    homepage={bl.homepage}
+                                                />
+                                            );
+                                        })}
+                                    </ExpandPanel>
+                                </div>
+                            );
+                        })()}
                     </div>
                 );
             })}

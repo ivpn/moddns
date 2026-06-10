@@ -41,6 +41,9 @@ const INDIVIDUAL_LISTS = [
     { label: "Adguard", tag: "adguard" },
     { label: "OISD", tag: "oisd" },
     { label: "Steven Black", tag: "steven_black" },
+    { label: "1Hosts", tag: "1hosts" },
+    { label: "Peter Lowe", tag: "peter_lowe" },
+    { label: "Dan Pollock", tag: "someonewhocares" },
 ];
 
 const PREDEFINED_LISTS = [
@@ -162,6 +165,41 @@ export default function MainContentSection(): JSX.Element {
         } catch {
             toast.error("Error", {
                 description: "Failed to update category. Please try again.",
+            });
+        } finally {
+            setUpdating(null);
+        }
+    };
+
+    // Handler to apply an exact target set in one action: enable some blocklists
+    // and disable others (used by the NRD range card to move between depths).
+    const handleApplyBlocklistSet = async (enableIds: string[], disableIds: string[]) => {
+        if (!activeProfile?.profile_id) return;
+        const toEnable = enableIds.filter((id) => !enabledBlocklists.includes(id));
+        const toDisable = disableIds.filter((id) => enabledBlocklists.includes(id));
+        if (toEnable.length === 0 && toDisable.length === 0) return;
+        setUpdating("nrd");
+        try {
+            if (toEnable.length > 0) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
+                    activeProfile.profile_id,
+                    { blocklist_ids: toEnable } as ApiBlocklistsUpdates
+                );
+            }
+            if (toDisable.length > 0) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsDelete(
+                    activeProfile.profile_id,
+                    { blocklist_ids: toDisable } as ApiBlocklistsUpdates
+                );
+            }
+            const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updatedProfile.data);
+            toast.success("Blocklists updated", {
+                description: "Your selection has been updated successfully.",
+            });
+        } catch {
+            toast.error("Error", {
+                description: "Failed to update blocklists. Please try again.",
             });
         } finally {
             setUpdating(null);
@@ -549,6 +587,7 @@ export default function MainContentSection(): JSX.Element {
                             enabledBlocklists={enabledBlocklists}
                             onToggle={handleBlocklistSwitch}
                             onCategoryToggle={handleCategoryToggle}
+                            onApplySet={handleApplyBlocklistSet}
                             updating={updating}
                             loading={loading}
                             restricted={isRestricted}
