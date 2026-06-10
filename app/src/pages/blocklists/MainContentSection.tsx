@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesContentSection from "@/pages/blocklists/ServicesContentSection";
+import SecurityContentSection from "@/pages/blocklists/SecurityContentSection";
 import CategoriesContentSection from "@/pages/blocklists/CategoriesContentSection";
 
 const INDIVIDUAL_LISTS = [
@@ -244,8 +245,12 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
-    // Split into regular and category blocklists using the `kind` field
-    const regularBlocklists = blocklists.filter((bl) => bl.kind !== "category");
+    // Split blocklists by `kind`: general lists (Lists tab), security lists
+    // (Security tab) and content categories (Categories tab).
+    const regularBlocklists = blocklists.filter(
+        (bl) => bl.kind !== "category" && bl.kind !== "security"
+    );
+    const securityBlocklists = blocklists.filter((bl) => bl.kind === "security");
     const categoryBlocklists = blocklists.filter((bl) => bl.kind === "category");
 
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
@@ -353,6 +358,9 @@ export default function MainContentSection(): JSX.Element {
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
                             Lists
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className={tabTriggerClassName}>
+                            Security
                         </TabsTrigger>
                         <TabsTrigger value="categories" className={tabTriggerClassName}>
                             Categories
@@ -576,6 +584,20 @@ export default function MainContentSection(): JSX.Element {
                     </div>
                 </TabsContent>
 
+                <TabsContent value="security" className="mt-4">
+                    {activeTab === "security" ? (
+                        <SecurityContentSection
+                            blocklists={securityBlocklists}
+                            enabledBlocklists={enabledBlocklists}
+                            onToggle={handleBlocklistSwitch}
+                            onApplySet={handleApplyBlocklistSet}
+                            updating={updating}
+                            loading={loading}
+                            restricted={isRestricted}
+                        />
+                    ) : null}
+                </TabsContent>
+
                 <TabsContent value="services" className="mt-4">
                     {activeTab === "services" ? <ServicesContentSection restricted={isRestricted} /> : null}
                 </TabsContent>
@@ -587,7 +609,6 @@ export default function MainContentSection(): JSX.Element {
                             enabledBlocklists={enabledBlocklists}
                             onToggle={handleBlocklistSwitch}
                             onCategoryToggle={handleCategoryToggle}
-                            onApplySet={handleApplyBlocklistSet}
                             updating={updating}
                             loading={loading}
                             restricted={isRestricted}

@@ -5,21 +5,14 @@ import {
     nrdDepthTargets,
     orderedNrdItems,
     isNrdItem,
-    categoryToggleTargets,
 } from "@/pages/blocklists/nrdGroup";
 import type { ModelBlocklist } from "@/api/client/api";
 
 const ids = NRD_GROUP.map((t) => t.id);
-const TIF = "hagezi_threat_intelligence_feeds_full";
 
 function bl(id: string, tags: string[] = []): ModelBlocklist {
     return { blocklist_id: id, tags } as unknown as ModelBlocklist;
 }
-
-// Security category as the UI groups it: TIF followed by the ordered NRD windows.
-const securityItems = [bl(TIF), ...ids.map((id) => bl(id))];
-// A plain content category with no NRD lists.
-const gamblingItems = [bl("hagezi_gambling"), bl("blp_gambling")];
 
 describe("nrdGroup depth math", () => {
     it("reports depth 0 when nothing is enabled", () => {
@@ -64,53 +57,5 @@ describe("nrdGroup item selection", () => {
             ids[0],
             ids[2],
         ]);
-    });
-});
-
-describe("categoryToggleTargets (master switch)", () => {
-    it("returns null for an empty category", () => {
-        expect(categoryToggleTargets([], [])).toBeNull();
-    });
-
-    it("enables TIF + the 7d NRD window when the Security category is all-off", () => {
-        expect(categoryToggleTargets(securityItems, [])).toEqual({
-            ids: [TIF, ids[0]],
-            enable: true,
-        });
-    });
-
-    it("disables EVERYTHING (incl. all NRD) when only an NRD window is enabled", () => {
-        // Switch reads "on" because a deeper NRD window is enabled → click disables all.
-        expect(categoryToggleTargets(securityItems, [ids[2]])).toEqual({
-            ids: [TIF, ...ids],
-            enable: false,
-        });
-    });
-
-    it("disables EVERYTHING when only TIF is enabled", () => {
-        expect(categoryToggleTargets(securityItems, [TIF])).toEqual({
-            ids: [TIF, ...ids],
-            enable: false,
-        });
-    });
-
-    it("disables EVERYTHING when TIF and multiple NRD windows are enabled", () => {
-        expect(
-            categoryToggleTargets(securityItems, [TIF, ids[0], ids[1]]),
-        ).toEqual({ ids: [TIF, ...ids], enable: false });
-    });
-
-    it("enables all lists for a non-NRD category that is all-off", () => {
-        expect(categoryToggleTargets(gamblingItems, [])).toEqual({
-            ids: ["hagezi_gambling", "blp_gambling"],
-            enable: true,
-        });
-    });
-
-    it("disables all lists for a partially-enabled non-NRD category", () => {
-        expect(categoryToggleTargets(gamblingItems, ["blp_gambling"])).toEqual({
-            ids: ["hagezi_gambling", "blp_gambling"],
-            enable: false,
-        });
     });
 });

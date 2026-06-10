@@ -80,35 +80,3 @@ export function nrdDepthTargets(
         disable: orderedIds.slice(clamped),
     };
 }
-
-/**
- * The bulk action a category master-toggle click should issue, or `null` for a
- * no-op. The master switch reads as "on" when ANY list in the category is
- * enabled (including NRD windows), so the decision mirrors that:
- *   - any enabled  → disable EVERYTHING, including all NRD windows;
- *   - none enabled → enable the non-NRD lists (e.g. TIF) plus the shortest NRD
- *     window (7d / depth 1). Deeper NRD ranges stay user-controlled via the
- *     range card, so one click never switches on every NRD window at once.
- * Categories without NRD lists collapse to plain enable-all / disable-all.
- */
-export function categoryToggleTargets(
-    items: ModelBlocklist[],
-    enabledIds: Iterable<string>,
-): { ids: string[]; enable: boolean } | null {
-    if (items.length === 0) return null;
-    const enabledSet = enabledIds instanceof Set ? enabledIds : new Set(enabledIds);
-    const anyEnabled = items.some((bl) => enabledSet.has(bl.blocklist_id));
-
-    if (anyEnabled) {
-        return { ids: items.map((bl) => bl.blocklist_id), enable: false };
-    }
-
-    const nonNrdIds = items
-        .filter((bl) => !isNrdItem(bl))
-        .map((bl) => bl.blocklist_id);
-    const nrdOrdered = orderedNrdItems(items);
-    const firstNrdId = nrdOrdered.length > 0 ? [nrdOrdered[0].blocklist_id] : [];
-    const enableIds = [...nonNrdIds, ...firstNrdId];
-    if (enableIds.length === 0) return null;
-    return { ids: enableIds, enable: true };
-}
