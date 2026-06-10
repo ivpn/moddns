@@ -24,9 +24,6 @@ var (
 	stevenBlackDateRegex    = regexp.MustCompile(`# Date: (.+)`)
 	stevenBlackDomainsRegex = regexp.MustCompile(`# Number of unique domains: ([\d,]+)`)
 
-	// Domain validation regex
-	domainValidationRegex = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$`)
-
 	// Hosts file entry regex - matches any IP address followed by domain/hostname
 	hostsEntryRegex = regexp.MustCompile(`^(\S+)\s+(.+)$`)
 )
@@ -68,9 +65,9 @@ func (e *StevenBlackExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 					continue
 				}
 
-				// Validate domain format and add to blocklist
-				if domainValidationRegex.MatchString(domain) {
-					domains = append(domains, domain)
+				// Normalize and validate using the shared domain validator.
+				if nd := NormalizeDomain(domain); ValidDomain(nd) {
+					domains = append(domains, nd)
 				}
 			}
 			// All other IP addresses (127.0.0.1, IPv6, broadcast, etc.) are skipped
@@ -163,9 +160,9 @@ func (e *StevenBlackExtractor) ProcessLine(line string) (string, error) {
 				return "", nil
 			}
 
-			// Validate domain format and return if valid
-			if domainValidationRegex.MatchString(domain) {
-				return domain, nil
+			// Normalize and validate using the shared domain validator.
+			if nd := NormalizeDomain(domain); ValidDomain(nd) {
+				return nd, nil
 			}
 		}
 		// All other IP addresses (127.0.0.1, IPv6, broadcast, etc.) are skipped

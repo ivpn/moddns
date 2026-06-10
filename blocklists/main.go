@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,9 +12,11 @@ import (
 	"github.com/ivpn/dns/blocklists/cache"
 	"github.com/ivpn/dns/blocklists/config"
 	"github.com/ivpn/dns/blocklists/db/mongodb"
+	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/service"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/store"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -27,13 +30,13 @@ func main() {
 	}()
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	appConfig, err := config.New()
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to read app configuration")
 	}
+	zerolog.SetGlobalLevel(appConfig.LogLevel)
 
 	if err := sentry.Init(sentry.ClientOptions{
 		Dsn:              appConfig.Sentry.DSN,
@@ -85,7 +88,26 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create cache")
 	}
 
-	service := service.New(*appConfig, db, cache, updater)
+	// Build metrics: Prometheus collectors when the metrics server is enabled,
+	// otherwise a no-op implementation so instrumentation is always safe.
+	var mtr metrics.Updates = metrics.NoopUpdates{}
+	var metricsServer *metrics.Server
+	if appConfig.Metrics.Port > 0 {
+		mtr = metrics.NewPromUpdates(prometheus.DefaultRegisterer)
+		metricsServer = metrics.New(appConfig.Metrics.Port, func(ctx context.Context) error {
+			if err := db.GetClient().Ping(ctx, nil); err != nil {
+				return err
+			}
+			return cache.Ping(ctx)
+		})
+		go safelyRun(func() {
+			if err := metricsServer.Start(); err != nil {
+				log.Error().Err(err).Msg("Metrics server error")
+			}
+		})
+	}
+
+	service := service.New(*appConfig, db, cache, updater, mtr)
 	sources, err := service.ReadSources()
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to read sources")
@@ -140,6 +162,13 @@ func main() {
 	)
 
 	code := <-exitChan
+	if metricsServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := metricsServer.Shutdown(ctx); err != nil {
+			log.Warn().Err(err).Msg("metrics server shutdown error")
+		}
+		cancel()
+	}
 	os.Exit(code)
 }
 

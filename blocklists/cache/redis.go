@@ -38,6 +38,10 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 
 	pipe := c.client.Pipeline()
 
+	// Step 0: Clear any stale temp set left by a previously crashed run, so the
+	// new set is not silently merged with old data.
+	pipe.Del(ctx, tempBlocklistName)
+
 	// Step 1: Create the temp set with new data
 	lines := strings.Split(string(data), "\n")
 	for i := 0; i < len(lines); i += chunkSize {
@@ -83,7 +87,7 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		}
 		// If all errors were ignorable, treat as success
 		if ignore {
-			log.Info().
+			log.Debug().
 				Str("component", "cache").
 				Str("blocklist_key", blocklistName).
 				Msg("Created/updated blocklist with atomic swap (ignored 'no such key' error)")
@@ -94,11 +98,16 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		return err
 	}
 
-	log.Info().
+	log.Debug().
 		Str("component", "cache").
 		Str("blocklist_key", blocklistName).
 		Msgf("Created/updated blocklist with atomic swap using temp and old sets")
 	return nil
+}
+
+// Ping reports whether the Redis backend is reachable.
+func (c *RedisCache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
 }
 
 // DeleteBlocklist removes a blocklist set from the cache
@@ -107,6 +116,6 @@ func (c *RedisCache) DeleteBlocklist(ctx context.Context, blocklistId string) er
 	if err := c.client.Del(ctx, key).Err(); err != nil {
 		return err
 	}
-	log.Info().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")
+	log.Debug().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")
 	return nil
 }

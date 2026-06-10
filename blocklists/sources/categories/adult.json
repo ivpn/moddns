@@ -35,6 +35,6 @@
     "category": "adult",
     "intensity": ["comprehensive"],
     "tags": ["category", "adult", "oisd"],
-    "schedule": "@hourly"
+    "schedule": "0 5 * * *"
   }
 ]

@@ -4,6 +4,8 @@ import (
 	"github.com/ivpn/dns/blocklists/cache"
 	"github.com/ivpn/dns/blocklists/config"
 	"github.com/ivpn/dns/blocklists/db"
+	"github.com/ivpn/dns/blocklists/internal/downloader"
+	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
 	"github.com/ivpn/dns/blocklists/updater"
 )
@@ -13,15 +15,23 @@ type Service struct {
 	Store      db.Db
 	Cache      cache.Cache
 	Updater    updater.Updater
+	Metrics    metrics.Updates
+	Downloader *downloader.Downloader
 	Blocklists []model.BlocklistMetadata
 }
 
-// NewService creates a new Service instance
-func New(cfg config.Config, store db.Db, cache cache.Cache, updater updater.Updater) *Service {
+// NewService creates a new Service instance. If m is nil, a no-op metrics
+// implementation is used so instrumentation calls are always safe.
+func New(cfg config.Config, store db.Db, cache cache.Cache, updater updater.Updater, m metrics.Updates) *Service {
+	if m == nil {
+		m = metrics.NoopUpdates{}
+	}
 	return &Service{
-		Cfg:     cfg,
-		Store:   store,
-		Cache:   cache,
-		Updater: updater,
+		Cfg:        cfg,
+		Store:      store,
+		Cache:      cache,
+		Updater:    updater,
+		Metrics:    m,
+		Downloader: downloader.New(cfg.Download, m),
 	}
 }
