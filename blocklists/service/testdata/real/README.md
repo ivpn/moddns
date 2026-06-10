@@ -28,7 +28,7 @@ its own license (see the source repos).
 | blp_fakenews.txt | blp_fakenews | Domains | https://github.com/marktron/fakenews (hosts format) |
 | ut1.txt | ut1_gaming | Domains | https://github.com/olbat/ut1-blacklists (games/domains) |
 | shadowwhisperer.txt | shadowwhisperer_dating | Domains | https://github.com/ShadowWhisperer/BlockLists (RAW/Dating) |
-| hagezi_tif.txt | hagezi_threat_intelligence_feeds_full | Hagezi | https://github.com/hagezi/dns-blocklists (domains/tif.txt, security category) |
+| hagezi_tif.txt | hagezi_threat_intelligence_feeds_full | Hagezi | https://github.com/hagezi/dns-blocklists (domains/tif.txt, security) |
 | hagezi_nsfw.txt | hagezi_nsfw | Hagezi | https://github.com/hagezi/dns-blocklists (wildcard/nsfw-onlydomains.txt) |
 | blp_drugs.txt | blp_drugs | Domains | https://github.com/blocklistproject/Lists (alt-version/drugs-nl.txt) |
 | ut1_dating.txt | ut1_dating | Domains | https://github.com/olbat/ut1-blacklists (dating/domains) |

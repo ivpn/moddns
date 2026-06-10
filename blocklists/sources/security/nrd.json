@@ -6,14 +6,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd7.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "kind": "category",
-    "category": "security",
-    "tags": [
-      "category",
-      "security",
-      "hagezi",
-      "nrd"
-    ],
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
     "schedule": "@hourly",
     "default": false
   },
@@ -24,14 +18,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd14-8.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "kind": "category",
-    "category": "security",
-    "tags": [
-      "category",
-      "security",
-      "hagezi",
-      "nrd"
-    ],
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
     "schedule": "@hourly",
     "default": false
   },
@@ -42,14 +30,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd21-15.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "kind": "category",
-    "category": "security",
-    "tags": [
-      "category",
-      "security",
-      "hagezi",
-      "nrd"
-    ],
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
     "schedule": "@hourly",
     "default": false
   },
@@ -60,14 +42,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd28-22.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "kind": "category",
-    "category": "security",
-    "tags": [
-      "category",
-      "security",
-      "hagezi",
-      "nrd"
-    ],
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
     "schedule": "@hourly",
     "default": false
   },
@@ -78,14 +54,8 @@
     "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd35-29.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
-    "kind": "category",
-    "category": "security",
-    "tags": [
-      "category",
-      "security",
-      "hagezi",
-      "nrd"
-    ],
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
     "schedule": "@hourly",
     "default": false
   }

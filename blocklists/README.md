@@ -66,8 +66,8 @@ The **extractor is selected by the `blocklist_id` prefix**
 | `blp_*`, `ut1_*`, `shadowwhisperer_*`, `someonewhocares_*`, `peter_lowe*`, `1hosts_*` | Domains | plain or hosts-format domains, graceful metadata (optional `Last modified`/`Last updated`/`Count` headers), hosts-tolerant |
 
 Key source fields: `blocklist_id` (required, routes the extractor), `name`,
-`description`, `source_url`, `kind` (`general`/`category`),
-`category` (e.g. `gambling`, `security`), `intensity`, `default`,
+`description`, `source_url`, `kind` (`general`/`category`/`security`),
+`category` (e.g. `gambling`, only when `kind=category`), `intensity`, `default`,
 `schedule` (cron). See any file under
 `sources/` for a complete example.
 
