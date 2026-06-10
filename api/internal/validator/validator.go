@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -14,11 +15,18 @@ import (
 )
 
 // Pre-compiled regexes for password validation (avoid re-compilation on every call).
+// Per OWASP ASVS guidance, the special-character requirement does not restrict
+// which symbols are allowed: any non-alphanumeric character counts as special.
+//
+// reSpecialChar uses the Unicode-aware classes \p{L} (letters) and \p{N} (numbers)
+// rather than [^A-Za-z0-9]. This ensures non-ASCII letters/digits (e.g. "é", "١")
+// count as alphanumeric — not as a special character — so a password cannot
+// satisfy the special-character requirement using only letters and digits.
 var (
 	reUppercase   = regexp.MustCompile(`[A-Z]`)
 	reLowercase   = regexp.MustCompile(`[a-z]`)
 	reNumber      = regexp.MustCompile(`[0-9]`)
-	reSpecialChar = regexp.MustCompile(`[!@#$%^&*(),;.?":{}\[\]|<>_-]`)
+	reSpecialChar = regexp.MustCompile(`[^\p{L}\p{N}]`)
 )
 
 const (
@@ -179,7 +187,9 @@ func passwordValidation(fl validator.FieldLevel) bool {
 }
 
 func ValidatePassword(password string) bool {
-	if len(password) < 12 || len(password) > 64 {
+	// Length is measured in characters (runes), not bytes, so the 12-64 limit
+	// is consistent regardless of whether a password uses multi-byte characters.
+	if n := utf8.RuneCountInString(password); n < 12 || n > 64 {
 		return false
 	}
 
