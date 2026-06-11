@@ -8,7 +8,7 @@
     "syntax": "domains",
     "kind": "security",
     "tags": ["security", "hagezi", "nrd"],
-    "schedule": "@hourly",
+    "schedule": "0 * * * *",
     "default": false
   },
   {
@@ -20,7 +20,7 @@
     "syntax": "domains",
     "kind": "security",
     "tags": ["security", "hagezi", "nrd"],
-    "schedule": "@hourly",
+    "schedule": "4 * * * *",
     "default": false
   },
   {
@@ -32,7 +32,7 @@
     "syntax": "domains",
     "kind": "security",
     "tags": ["security", "hagezi", "nrd"],
-    "schedule": "@hourly",
+    "schedule": "8 * * * *",
     "default": false
   },
   {
@@ -44,7 +44,7 @@
     "syntax": "domains",
     "kind": "security",
     "tags": ["security", "hagezi", "nrd"],
-    "schedule": "@hourly",
+    "schedule": "12 * * * *",
     "default": false
   },
   {
@@ -56,7 +56,7 @@
     "syntax": "domains",
     "kind": "security",
     "tags": ["security", "hagezi", "nrd"],
-    "schedule": "@hourly",
+    "schedule": "16 * * * *",
     "default": false
   }
 ]

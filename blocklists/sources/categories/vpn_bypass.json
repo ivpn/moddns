@@ -9,7 +9,7 @@
     "kind": "category",
     "category": "vpn_bypass",
     "tags": ["category", "vpn_bypass", "hagezi"],
-    "schedule": "@hourly"
+    "schedule": "26 * * * *"
   },
   {
     "blocklist_id": "shadowwhisperer_tunnels",
@@ -21,6 +21,6 @@
     "kind": "category",
     "category": "vpn_bypass",
     "tags": ["category", "vpn_bypass", "shadowwhisperer"],
-    "schedule": "@hourly"
+    "schedule": "44 * * * *"
   }
 ]
