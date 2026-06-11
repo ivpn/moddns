@@ -1,0 +1,14 @@
+[
+  {
+    "blocklist_id": "certpl_warning_list",
+    "name": "CERT.pl Warning List",
+    "description": "Warning list of malicious domains (phishing, scam and malware) maintained by CERT Polska (CSIRT NASK), the Polish national CERT. Domains used in attacks targeting users are sinkholed; entries auto-expire after six months.",
+    "source_url": "https://hole.cert.pl/domains/v2/domains.txt",
+    "homepage": "https://cert.pl/en/warning-list/",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "certpl", "phishing"],
+    "schedule": "50 * * * *",
+    "default": false
+  }
+]

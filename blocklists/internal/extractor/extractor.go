@@ -45,6 +45,8 @@ func NewExtractor(blocklistID string) (Extractor, error) {
 		return NewDomainsExtractor(), nil
 	case strings.HasPrefix(blocklistID, "1hosts_"):
 		return NewDomainsExtractor(), nil
+	case strings.HasPrefix(blocklistID, "certpl_"):
+		return NewDomainsExtractor(), nil
 	default:
 		log.Error().Msg("Unknown blocklist ID")
 		return nil, fmt.Errorf("unknown blocklist ID: %s", blocklistID)

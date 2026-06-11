@@ -80,6 +80,12 @@ func TestNewExtractor(t *testing.T) {
 			wantErr:     false,
 		},
 		{
+			name:        "certpl extractor",
+			blocklistID: "certpl_warning_list",
+			wantType:    "*extractor.DomainsExtractor",
+			wantErr:     false,
+		},
+		{
 			name:        "unknown extractor",
 			blocklistID: "unknown_type",
 			wantType:    "",
