@@ -21,6 +21,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     ApiV1BlocklistsGetSortByEnum,
+    ModelProfileUpdateOperationEnum,
+    ModelProfileUpdatePathEnum,
     type ApiBlocklistsUpdates,
     type ModelBlocklist,
 } from "@/api/client/api";
@@ -93,6 +95,7 @@ export default function MainContentSection(): JSX.Element {
     const [blocklists, setBlocklists] = useState<ModelBlocklist[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
+    const [rebindingUpdating, setRebindingUpdating] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [filterValue, setFilterValue] = useState("all");
     const [sortValue, setSortValue] = useState<ApiV1BlocklistsGetSortByEnum>(ApiV1BlocklistsGetSortByEnum.Updated);
@@ -242,6 +245,43 @@ export default function MainContentSection(): JSX.Element {
             });
         } finally {
             setUpdating(null);
+        }
+    };
+
+    // DNS rebinding protection — per-profile Security toggle stored in
+    // settings.security.rebinding_protection.enabled (default off).
+    const rebindingEnabled =
+        activeProfile?.settings?.security?.rebinding_protection?.enabled ?? false;
+
+    const handleRebindingToggle = async (enabled: boolean) => {
+        if (!activeProfile?.profile_id) return;
+        setRebindingUpdating(true);
+        try {
+            const resp = await api.Client.profilesApi.apiV1ProfilesIdPatch(
+                activeProfile.profile_id,
+                {
+                    updates: [
+                        {
+                            operation: ModelProfileUpdateOperationEnum.Replace,
+                            path: ModelProfileUpdatePathEnum.SettingsSecurityRebindingProtectionEnabled,
+                            value: enabled as unknown as object,
+                        },
+                    ],
+                }
+            );
+            if (resp && resp.status === 200) {
+                const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+                setActiveProfile(updatedProfile.data);
+                toast.success(
+                    enabled ? "DNS rebinding protection enabled" : "DNS rebinding protection disabled"
+                );
+            }
+        } catch {
+            toast.error("Error", {
+                description: "Failed to update DNS rebinding protection. Please try again.",
+            });
+        } finally {
+            setRebindingUpdating(false);
         }
     };
 
@@ -596,6 +636,9 @@ export default function MainContentSection(): JSX.Element {
                             updating={updating}
                             loading={loading}
                             restricted={isRestricted}
+                            rebindingEnabled={rebindingEnabled}
+                            onRebindingToggle={handleRebindingToggle}
+                            rebindingUpdating={rebindingUpdating}
                         />
                     ) : null}
                 </TabsContent>
