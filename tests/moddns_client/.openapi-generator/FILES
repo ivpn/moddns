@@ -66,6 +66,7 @@ moddns/models/model_profile.py
 moddns/models/model_profile_settings.py
 moddns/models/model_profile_update.py
 moddns/models/model_query_log.py
+moddns/models/model_rebinding_protection.py
 moddns/models/model_retention.py
 moddns/models/model_security.py
 moddns/models/model_statistics_aggregated.py

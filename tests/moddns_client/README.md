@@ -185,6 +185,7 @@ Class | Method | HTTP request | Description
  - [ModelProfileSettings](docs/ModelProfileSettings.md)
  - [ModelProfileUpdate](docs/ModelProfileUpdate.md)
  - [ModelQueryLog](docs/ModelQueryLog.md)
+ - [ModelRebindingProtection](docs/ModelRebindingProtection.md)
  - [ModelRetention](docs/ModelRetention.md)
  - [ModelSecurity](docs/ModelSecurity.md)
  - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)

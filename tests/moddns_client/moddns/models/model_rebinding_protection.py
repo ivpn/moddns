@@ -17,20 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_dnssec_settings import ModelDNSSECSettings
-from moddns.models.model_rebinding_protection import ModelRebindingProtection
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelSecurity(BaseModel):
+class ModelRebindingProtection(BaseModel):
     """
-    ModelSecurity
+    ModelRebindingProtection
     """ # noqa: E501
-    dnssec: ModelDNSSECSettings
-    rebinding_protection: Optional[ModelRebindingProtection] = None
-    __properties: ClassVar[List[str]] = ["dnssec", "rebinding_protection"]
+    enabled: Optional[StrictBool] = None
+    __properties: ClassVar[List[str]] = ["enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +47,7 @@ class ModelSecurity(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelSecurity from a JSON string"""
+        """Create an instance of ModelRebindingProtection from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,17 +68,11 @@ class ModelSecurity(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of dnssec
-        if self.dnssec:
-            _dict['dnssec'] = self.dnssec.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of rebinding_protection
-        if self.rebinding_protection:
-            _dict['rebinding_protection'] = self.rebinding_protection.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelSecurity from a dict"""
+        """Create an instance of ModelRebindingProtection from a dict"""
         if obj is None:
             return None
 
@@ -89,8 +80,7 @@ class ModelSecurity(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "dnssec": ModelDNSSECSettings.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None,
-            "rebinding_protection": ModelRebindingProtection.from_dict(obj["rebinding_protection"]) if obj.get("rebinding_protection") is not None else None
+            "enabled": obj.get("enabled")
         })
         return _obj
 

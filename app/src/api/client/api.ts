@@ -1193,6 +1193,7 @@ export const ModelProfileUpdatePathEnum = {
     SettingsPrivacyCustomRulesSubdomainsRule: '/settings/privacy/custom_rules_subdomains_rule',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
+    SettingsSecurityRebindingProtectionEnabled: '/settings/security/rebinding_protection/enabled',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'
 } as const;
 
@@ -1262,6 +1263,19 @@ export interface ModelQueryLog {
 /**
  * 
  * @export
+ * @interface ModelRebindingProtection
+ */
+export interface ModelRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @enum {string}
  */
 
@@ -1288,6 +1302,12 @@ export interface ModelSecurity {
      * @memberof ModelSecurity
      */
     'dnssec': ModelDNSSECSettings;
+    /**
+     * 
+     * @type {ModelRebindingProtection}
+     * @memberof ModelSecurity
+     */
+    'rebinding_protection'?: ModelRebindingProtection;
 }
 /**
  * 
