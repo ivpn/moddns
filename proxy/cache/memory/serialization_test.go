@@ -31,6 +31,7 @@ func TestRequestContextSerialization(t *testing.T) {
 		map[string]string{"privacy": "setting"},
 		map[string]string{"logs": "setting"},
 		map[string]string{"dnssec": "enabled"},
+		map[string]string{"enabled": "false"},
 		map[string]string{"advanced": "setting"},
 		logger,
 	)
@@ -94,6 +95,7 @@ func TestRequestContextSerializationWithEnabledLogger(t *testing.T) {
 		map[string]string{"privacy": "setting"},
 		map[string]string{"logs": "setting"},
 		map[string]string{"dnssec": "enabled"},
+		map[string]string{"enabled": "false"},
 		map[string]string{"advanced": "setting"},
 		logger,
 	)

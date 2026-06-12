@@ -139,8 +139,8 @@ func (c *RedisCache) GetCustomRulesHash(ctx context.Context, hashId string) (map
 	return cmd.Val(), nil
 }
 
-// GetProfileSettingsBatch fetches privacy, logs, DNSSEC, and advanced settings
-// for a profile in a single Redis pipeline round-trip (1 RTT instead of 4).
+// GetProfileSettingsBatch fetches privacy, logs, DNSSEC, rebinding protection, and
+// advanced settings for a profile in a single Redis pipeline round-trip.
 func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId string) (*model.ProfileSettings, error) {
 	if profileId == "" {
 		return nil, fmt.Errorf("profile ID cannot be empty")
@@ -149,12 +149,14 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	privacyKey := "settings:" + profileId + ":privacy"
 	logsKey := "settings:" + profileId + ":logs"
 	dnssecKey := "settings:" + profileId + ":security:dnssec"
+	rebindingKey := "settings:" + profileId + ":security:rebinding_protection"
 	advancedKey := "settings:" + profileId + ":advanced"
 
 	pipe := c.client().Pipeline()
 	privacyCmd := pipe.HGetAll(ctx, privacyKey)
 	logsCmd := pipe.HGetAll(ctx, logsKey)
 	dnssecCmd := pipe.HGetAll(ctx, dnssecKey)
+	rebindingCmd := pipe.HGetAll(ctx, rebindingKey)
 	advancedCmd := pipe.HGetAll(ctx, advancedKey)
 
 	_, err := pipe.Exec(ctx)
@@ -166,7 +168,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 		// failure (e.g. TCP reset, auth error) — return it so the caller can
 		// log the real cause instead of a misleading "profile not found".
 		if privacyCmd.Err() == err && logsCmd.Err() == err &&
-			dnssecCmd.Err() == err && advancedCmd.Err() == err {
+			dnssecCmd.Err() == err && rebindingCmd.Err() == err && advancedCmd.Err() == err {
 			return nil, fmt.Errorf("redis pipeline failed: %w", err)
 		}
 		// Otherwise it's a partial failure — handle per-command below.
@@ -203,6 +205,16 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 		result.DNSSECErr = fmt.Errorf("No [security dnssec] settings found for profile %s", profileId)
 	default:
 		result.DNSSEC = dnssecCmd.Val()
+	}
+
+	// Rebinding protection (security). Missing hash = empty map = opt-in OFF.
+	switch {
+	case rebindingCmd.Err() != nil:
+		result.RebindingProtectionErr = rebindingCmd.Err()
+	case len(rebindingCmd.Val()) == 0:
+		result.RebindingProtectionErr = fmt.Errorf("No [security rebinding_protection] settings found for profile %s", profileId)
+	default:
+		result.RebindingProtection = rebindingCmd.Val()
 	}
 
 	// Advanced
