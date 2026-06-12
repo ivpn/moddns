@@ -426,7 +426,7 @@ func TestIPFilter_RebindingCrossPhase(t *testing.T) {
 			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, defaultRebindingConfig())
 
 			reqCtx := newTestReqCtx(t, profileID)
-			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "true"}
+			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
 			reqCtx.PartialFilteringResults = append(reqCtx.PartialFilteringResults, tt.domainResults...)
 
 			err := ipFilter.Execute(reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
