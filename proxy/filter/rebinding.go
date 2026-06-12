@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -39,8 +40,10 @@ func (f *IPFilter) filterRebinding(reqCtx *requestcontext.RequestContext, dctx *
 		return result, nil
 	}
 
-	// Per-profile opt-in (default OFF). Absent/empty hash → not enabled.
-	if reqCtx.RebindingProtectionSettings[rebindingEnabledKey] != "true" {
+	// Per-profile opt-in (default OFF). The API stores the bool via go-redis,
+	// which serializes true as "1" (not "true"), so parse rather than compare —
+	// mirrors how server.go reads DNSSEC settings. Absent/empty/false → not enabled.
+	if enabled, _ := strconv.ParseBool(reqCtx.RebindingProtectionSettings[rebindingEnabledKey]); !enabled {
 		return result, nil
 	}
 

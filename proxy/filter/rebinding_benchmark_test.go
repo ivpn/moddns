@@ -54,7 +54,7 @@ func BenchmarkFilterRebinding(b *testing.B) {
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId:                   "bench",
 				Logger:                      loggerFactory.ForProfile("bench", false),
-				RebindingProtectionSettings: map[string]string{"enabled": "true"},
+				RebindingProtectionSettings: map[string]string{"enabled": "1"},
 			}
 			dctx := benchRebindingCtx(tc.answers, tc.private)
 

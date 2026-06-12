@@ -50,7 +50,10 @@ func defaultRebindingConfig() *config.RebindingConfig {
 // T150). Rows trace to docs/specs/proxy-filtering-behaviour.md "DNS rebinding
 // protection" decision table.
 func TestFilterRebinding(t *testing.T) {
-	enabled := map[string]string{"enabled": "true"}
+	// The API persists the toggle via go-redis, which serializes bool true as "1"
+	// (not "true"). Use "1" as the canonical enabled value so these tests reflect
+	// what the proxy actually reads from Redis; R1b covers the "true" spelling too.
+	enabled := map[string]string{"enabled": "1"}
 
 	tests := []struct {
 		name     string
@@ -67,6 +70,8 @@ func TestFilterRebinding(t *testing.T) {
 		{"R1 loopback 127/8 blocked", "R1", defaultRebindingConfig(), enabled, dnsCtxWithAAnswer(t, "127.0.0.1"), model.DecisionBlock},
 		{"R1 link-local 169.254/16 blocked", "R1", defaultRebindingConfig(), enabled, dnsCtxWithAAnswer(t, "169.254.1.1"), model.DecisionBlock},
 		{"R1 unspecified 0/8 blocked", "R1", defaultRebindingConfig(), enabled, dnsCtxWithAAnswer(t, "0.0.0.0"), model.DecisionBlock},
+		// Enabled value robustness: both go-redis "1" and a literal "true" enable it.
+		{"R1b enabled=true also blocks", "R1", defaultRebindingConfig(), map[string]string{"enabled": "true"}, dnsCtxWithAAnswer(t, "192.168.1.1"), model.DecisionBlock},
 
 		// Always-private IPv6 ranges.
 		{"R2 IPv6 loopback ::1 blocked", "R2", defaultRebindingConfig(), enabled, dnsCtxWithAAnswer(t, "::1"), model.DecisionBlock},
@@ -130,7 +135,7 @@ func TestFilterRebinding(t *testing.T) {
 // TestFilterRebinding_HTTPSHint verifies private IPs in HTTPS/SVCB ipv4hint are caught.
 func TestFilterRebinding_HTTPSHint(t *testing.T) {
 	reqCtx := newTestReqCtx(t, "rebinding-https")
-	reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "true"}
+	reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
 	f := &IPFilter{RebindingConfig: defaultRebindingConfig()}
 
 	dctx := dnsCtxWithHTTPSAnswer(t, "evil.com.", []net.IP{net.ParseIP("192.168.1.1")}, nil)
