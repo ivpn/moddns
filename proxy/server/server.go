@@ -127,7 +127,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
 
 	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
-	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup)
+	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding)
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength
@@ -275,6 +275,10 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			}
 		}
 
+		// Rebinding protection (security): missing hash = empty map = opt-in OFF.
+		// Raw map is threaded through; the IP-phase filter reads the "enabled" key.
+		rebindingProtectionSettings := settings.RebindingProtection
+
 		// Advanced settings: default upstream if unavailable.
 		advancedSettings := settings.Advanced
 		upstreamName := s.Config.Upstream.Default
@@ -298,7 +302,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
-		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, advancedSettings, reqLogger)
+		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
 		reqCtx.StartTime = time.Now()
 		reqCtx.UpstreamName = upstreamName
 		// TODO: set TTL for this request context - it's unnecessary to keep it in cache for long time since it's read right away in RequestHandler

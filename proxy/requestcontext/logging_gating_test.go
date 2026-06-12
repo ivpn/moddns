@@ -38,6 +38,7 @@ func TestAddDomain_DomainLoggingEnabled(t *testing.T) {
 		map[string]string{"log_domains": "true", "enabled": "true"},
 		map[string]string{},
 		map[string]string{},
+		map[string]string{},
 		logger,
 	)
 	ev := rc.Logger.Info()
@@ -83,6 +84,7 @@ func TestAddDomain_DomainLoggingDisabled(t *testing.T) {
 		map[string]string{"log_domains": "false", "enabled": "true"},
 		map[string]string{},
 		map[string]string{},
+		map[string]string{},
 		logger,
 	)
 	ev := rc.Logger.Info()
@@ -98,6 +100,7 @@ func TestMaybeDomain_DomainLoggingEnabled(t *testing.T) {
 	rc := NewRequestContext(context.Background(), &proxy.Proxy{}, "pid", "did",
 		map[string]string{},
 		map[string]string{"log_domains": "true", "enabled": "true"},
+		map[string]string{},
 		map[string]string{},
 		map[string]string{},
 		logger,

@@ -252,7 +252,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil)
+			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
 
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId: tt.profileID,
@@ -311,7 +311,7 @@ func TestIPFilterCustomRules_CacheErrors(t *testing.T) {
 			mockCache := new(mocks.Cache)
 			tt.setupMock(mockCache)
 
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil)
+			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
 
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId: "test-profile",
