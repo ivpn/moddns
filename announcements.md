@@ -5,6 +5,16 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: dev-pipeline-test-2026-06-12
+category: news
+severity: info
+title: Staging pipeline test — safe to remove
+published_at: 2026-06-12
+expires_at: 2026-06-13
+---
+End-to-end test of the announcements publish flow. Safe to remove.
+
+---
 id: dev-maint-006
 category: feature
 severity: info
