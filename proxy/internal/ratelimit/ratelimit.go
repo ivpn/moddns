@@ -59,7 +59,9 @@ func (rl *RateLimiter) CheckIP(addr netip.Addr, proto string) bool {
 	if !rl.cfg.PerIPEnabled {
 		return true
 	}
-	return rl.check(rl.ipBuckets, addr.String(), rl.cfg.PerIPRate, rl.cfg.PerIPBurst, layerIP, proto)
+	// Normalize IPv4-mapped IPv6 addresses (::ffff:a.b.c.d) to native IPv4 so a v4 client gets a
+	// single bucket regardless of whether it arrives on a dual-stack (::) or an IPv4 listener.
+	return rl.check(rl.ipBuckets, addr.Unmap().String(), rl.cfg.PerIPRate, rl.cfg.PerIPBurst, layerIP, proto)
 }
 
 // CheckProfile returns true if the query for profileID should be allowed (Layer 2).

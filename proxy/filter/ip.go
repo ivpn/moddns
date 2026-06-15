@@ -63,7 +63,7 @@ func (f *IPFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DN
 
 	finalFltrRes := getFinalFilteringResult(reqCtx.PartialFilteringResults)
 	e := reqCtx.Logger.Debug().Str("Query status", string(finalFltrRes.Status)).Strs("Reasons", finalFltrRes.Reasons).Str("qtype", dns.Type(dctx.Req.Question[0].Qtype).String()).Str("filter_type", FilterTypeIP)
-	reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
+	reqCtx.AddClientIP(e, dctx.Addr.Addr().Unmap().String())
 	reqCtx.AddDomain(e, dctx.Req.Question[0].Name).Msg("Final filtering result")
 	// save the final filtering result to the request context once, only in IP filtering phase?
 	reqCtx.FilterResult = finalFltrRes

@@ -66,7 +66,7 @@ func (f *DomainFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *prox
 	}
 	finalFltrRes := getFinalFilteringResult(reqCtx.PartialFilteringResults)
 	e := reqCtx.Logger.Debug().Str("Query status", string(finalFltrRes.Status)).Strs("reasons", finalFltrRes.Reasons).Str("qtype", dns.Type(dctx.Req.Question[0].Qtype).String()).Str("filter_type", FilterTypeDomain)
-	reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
+	reqCtx.AddClientIP(e, dctx.Addr.Addr().Unmap().String())
 	reqCtx.AddDomain(e, dctx.Req.Question[0].Name).Msg("Final filtering result")
 	reqCtx.FilterResult = finalFltrRes
 

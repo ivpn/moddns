@@ -113,7 +113,7 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		RequestHandler:       s.RequestHandler(),
 		ResponseHandler:      s.ResponseHandler(),
 		TLSConfig:            tlsConfig,
-		TrustedProxies:       netutil.SliceSubnetSet(trustedPrefixes),
+		TrustedProxies:       trustedProxySet(trustedPrefixes),
 		Ratelimit:            0,
 	}
 
@@ -125,6 +125,11 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		conf.CacheOptimistic = serverConfig.DNSCache.Optimistic
 	}
 
+	// All listeners bind the unspecified address (nil IP), which Go resolves to "::" dual-stack on
+	// IPv6-capable hosts (serving IPv4 as v4-mapped) — so the proxy already accepts both families.
+	// Enabling end-to-end IPv6 is therefore a deployment concern (bridge v6 + host routing + AAAA),
+	// not a listener change. NOTE: v4 clients on these sockets appear as ::ffff:a.b.c.d — see the
+	// .Unmap() at the client-IP use sites (rate limiter, query logs) and trustedProxySet below.
 	if serverConfig.PlainDNS.UDPListenAddr != 0 {
 		conf.UDPListenAddr = []*net.UDPAddr{{Port: serverConfig.PlainDNS.UDPListenAddr}}
 	}
@@ -141,4 +146,16 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		conf.TLSListenAddr = []*net.TCPAddr{{Port: serverConfig.DoT.ListenAddr}}
 	}
 	return conf, nil
+}
+
+// trustedProxySet builds the TrustedProxies matcher used to decide whether to honor X-Forwarded-For
+// (DoH). It unmaps the candidate address before matching so that an IPv4 proxy/peer arriving in
+// IPv4-mapped form (::ffff:a.b.c.d) — as it does on the dual-stack listeners — still matches a plain
+// IPv4 trusted-proxy CIDR. Without the Unmap, netip.Prefix.Contains returns false on the v4/v6 family
+// mismatch and XFF would be silently rejected (every DoH client attributed to the proxy/gateway IP).
+func trustedProxySet(prefixes []netip.Prefix) netutil.SubnetSet {
+	inner := netutil.SliceSubnetSet(prefixes)
+	return netutil.SubnetSetFunc(func(ip netip.Addr) bool {
+		return inner.Contains(ip.Unmap())
+	})
 }

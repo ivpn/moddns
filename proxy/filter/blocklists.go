@@ -40,7 +40,7 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 				Str("reasons", "blocklists").
 				Str("protocol", string(dctx.Proto)).
 				Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
-			reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
+			reqCtx.AddClientIP(e, dctx.Addr.Addr().Unmap().String())
 			reqCtx.AddDomain(e, question).Msg("Domain blocked")
 			result.Decision = model.DecisionBlock
 			result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)
@@ -65,7 +65,7 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 						Str("reasons", fmt.Sprintf("%s,%s", REASON_BLOCKLISTS, SUBDOMAINS_RULE)).
 						Str("protocol", string(dctx.Proto)).
 						Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
-					reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
+					reqCtx.AddClientIP(e, dctx.Addr.Addr().Unmap().String())
 					reqCtx.AddDomain(e, question).Msg("Subdomain blocked")
 					result.Decision = model.DecisionBlock
 					result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)

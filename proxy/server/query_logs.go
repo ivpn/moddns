@@ -36,7 +36,9 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 	var clientIP, domain string
 	if loggingEnabled {
 		if clientIPsLoggingEnabled {
-			clientIP = dctx.Addr.Addr().String()
+			// Unmap IPv4-mapped IPv6 (::ffff:a.b.c.d) so v4 clients on the dual-stack DoT/DoQ
+			// listeners are logged as native IPv4, consistent with IPv4-listener records.
+			clientIP = dctx.Addr.Addr().Unmap().String()
 		}
 		if domainLoggingEnabled {
 			domain = dctx.Req.Question[0].Name

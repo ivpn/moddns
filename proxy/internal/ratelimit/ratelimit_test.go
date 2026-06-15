@@ -31,6 +31,22 @@ func newTestLimiter(cfg Config) (*RateLimiter, *recordingMetrics) {
 	return rl, m
 }
 
+// TestCheckIP_V4MappedSharesBucket verifies that a native IPv4 address and its IPv4-mapped IPv6 form
+// (::ffff:a.b.c.d) — which is how a v4 client appears on a dual-stack listener — share one bucket,
+// so the per-IP limit is not silently doubled.
+func TestCheckIP_V4MappedSharesBucket(t *testing.T) {
+	rl, m := newTestLimiter(Config{PerIPEnabled: true, PerIPRate: 1, PerIPBurst: 2})
+	native := netip.MustParseAddr("192.0.2.1")
+	mapped := netip.MustParseAddr("::ffff:192.0.2.1")
+
+	// Burst of 2 across the two representations must come from the SAME bucket.
+	assert.True(t, rl.CheckIP(native, "tcp"))
+	assert.True(t, rl.CheckIP(mapped, "tcp"))
+	// Third request (either form) is over the shared burst and must be rejected.
+	assert.False(t, rl.CheckIP(mapped, "tcp"))
+	assert.Equal(t, 1, m.count(layerIP, "tcp"))
+}
+
 func TestDisabled(t *testing.T) {
 	rl, _ := newTestLimiter(Config{PerIPEnabled: false, PerIPRate: 1, PerIPBurst: 1, PerProfileEnabled: false, PerProfileRate: 1, PerProfileBurst: 1})
 	addr := netip.MustParseAddr("192.0.2.1")
