@@ -6,11 +6,12 @@ See README.md on this branch for the full format and publishing guide.
 -->
 
 ---
-id: 2026-05-welcome
-category: news
+id: 2026-06-news-feed-and-faster-web-app
+category: feature
 severity: info
-title: Announcements are now live
-published_at: 2026-05-29
+title: News feed and a faster web app
+published_at: 2026-06-12
 ---
-Welcome to modDNS announcements. We'll post product news, new features,
-scheduled maintenance windows, and service status updates here.
+We will use this newly added [announcements feed](https://github.com/ivpn/moddns/pull/153) for service updates, infrastructure additions such as new endpoints, and maintenance notifications.
+
+We also improved the web app's [responsiveness](https://github.com/ivpn/moddns/issues/111). Navigation should be smoother across tabs, toggles, and dialogs.
