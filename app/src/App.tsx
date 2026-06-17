@@ -519,8 +519,10 @@ function ProtectedLayout() {
         {shouldRenderConnectionHeader && (
           <div
             ref={connectionHeaderRef}
-            className="fixed top-0 right-0 z-50 transition-all duration-500"
-            style={{ left: `${sidebarWidth + shellOffset}px`, right: `${headerRightOffset + shellOffset}px` }}
+            className="fixed top-0 z-50 transition-all duration-500"
+            // Size by width off 100vw (matching app-content) rather than anchoring with
+            // `right`, so a classic scrollbar appearing doesn't shift the header (GH #118).
+            style={{ left: `${sidebarWidth + shellOffset}px`, width: `calc(100vw - ${sidebarWidth + shellOffset}px - ${headerRightOffset + shellOffset}px)` }}
           >
             <div className="mx-auto w-full px-4 sm:px-6 lg:px-8" style={{ maxWidth: contentMaxWidth }}>
               <ConnectionStatusHeader />
@@ -530,11 +532,13 @@ function ProtectedLayout() {
 
         <div
           ref={mainHeaderRef}
-          className={`fixed right-0 z-50 transition-all duration-500 ${isDesktop ? '' : 'left-0'}`}
+          className={`fixed z-50 transition-all duration-500 ${isDesktop ? '' : 'left-0 right-0'}`}
+          // Desktop: size by width off 100vw (matching app-content) rather than anchoring
+          // with `right`, so a classic scrollbar appearing doesn't shift the header (#118).
           style={isDesktop ? {
             top: `${headerTopOffset}px`,
             left: `${sidebarWidth + shellOffset}px`,
-            right: `${headerRightOffset + shellOffset}px`
+            width: `calc(100vw - ${sidebarWidth + shellOffset}px - ${headerRightOffset + shellOffset}px)`
           } : {
             top: '0px',
             left: '0px',
