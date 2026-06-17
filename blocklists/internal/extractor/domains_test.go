@@ -149,6 +149,44 @@ domain3.com`,
 			wantNumEntries:   3,
 			wantErr:          false,
 		},
+		{
+			// specRef: #C11 — someonewhocares "Last updated: <day>, <date> at <time> GMT".
+			name: "someonewhocares 'Last updated ... at ... GMT'",
+			input: `# This hosts file is brought to you by Dan Pollock
+# Last updated: Wed, 10 Jun 2026 at 00:35:57 GMT
+0.0.0.0 ads234.com
+0.0.0.0 media.fastclick.net`,
+			wantLastModified: time.Date(2026, 6, 10, 0, 35, 57, 0, time.UTC),
+			wantVersion:      "",
+			wantNumEntries:   2,
+			wantErr:          false,
+		},
+		{
+			// specRef: #C11 — Peter Lowe/yoyo lowercase "last updated" (RFC1123) + "entries".
+			name: "peter lowe 'last updated' RFC1123 with entries count",
+			input: `# Blocklist for use with hosts files
+# last updated:   Tue, 09 Jun 2026 14:53:58 GMT
+# entries:        3509
+127.0.0.1 101com.com
+127.0.0.1 180hits.de`,
+			wantLastModified: time.Date(2026, 6, 9, 14, 53, 58, 0, time.UTC),
+			wantVersion:      "",
+			wantNumEntries:   3509,
+			wantErr:          false,
+		},
+		{
+			// specRef: #C11 — 1Hosts fractional-second ISO date + "|Count: N rules!".
+			name: "1hosts RFC3339Nano date and '|Count: N rules' line",
+			input: `# Title: 1Hosts (Lite)
+# Last modified: 2026-06-09T10:59:53.132Z
+#  |Count: 197,654 rules!
+00000.uno
+000nethost.com`,
+			wantLastModified: time.Date(2026, 6, 9, 10, 59, 53, 132000000, time.UTC),
+			wantVersion:      "",
+			wantNumEntries:   197654,
+			wantErr:          false,
+		},
 	}
 
 	extractor := NewDomainsExtractor()
@@ -264,6 +302,27 @@ func TestParseFlexibleDate(t *testing.T) {
 			name:  "Hagezi-like format",
 			input: "15 Jan 2024 10:30 UTC",
 			want:  time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
+			ok:    true,
+		},
+		{
+			// specRef: #C11 — RFC1123 GMT normalized to UTC (Peter Lowe/yoyo).
+			name:  "RFC1123 GMT",
+			input: "Tue, 09 Jun 2026 14:53:58 GMT",
+			want:  time.Date(2026, 6, 9, 14, 53, 58, 0, time.UTC),
+			ok:    true,
+		},
+		{
+			// specRef: #C11 — someonewhocares "... at ... GMT" format.
+			name:  "day month year 'at' time GMT",
+			input: "Wed, 10 Jun 2026 at 00:35:57 GMT",
+			want:  time.Date(2026, 6, 10, 0, 35, 57, 0, time.UTC),
+			ok:    true,
+		},
+		{
+			// specRef: #C11 — 1Hosts fractional-second ISO 8601.
+			name:  "RFC3339 with fractional seconds",
+			input: "2026-06-09T10:59:53.132Z",
+			want:  time.Date(2026, 6, 9, 10, 59, 53, 132000000, time.UTC),
 			ok:    true,
 		},
 		{

@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesContentSection from "@/pages/blocklists/ServicesContentSection";
+import SecurityContentSection from "@/pages/blocklists/SecurityContentSection";
 import CategoriesContentSection from "@/pages/blocklists/CategoriesContentSection";
 
 const INDIVIDUAL_LISTS = [
@@ -41,6 +42,9 @@ const INDIVIDUAL_LISTS = [
     { label: "Adguard", tag: "adguard" },
     { label: "OISD", tag: "oisd" },
     { label: "Steven Black", tag: "steven_black" },
+    { label: "1Hosts", tag: "1hosts" },
+    { label: "Peter Lowe", tag: "peter_lowe" },
+    { label: "Dan Pollock", tag: "someonewhocares" },
 ];
 
 const PREDEFINED_LISTS = [
@@ -168,6 +172,41 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
+    // Handler to apply an exact target set in one action: enable some blocklists
+    // and disable others (used by the NRD range card to move between depths).
+    const handleApplyBlocklistSet = async (enableIds: string[], disableIds: string[]) => {
+        if (!activeProfile?.profile_id) return;
+        const toEnable = enableIds.filter((id) => !enabledBlocklists.includes(id));
+        const toDisable = disableIds.filter((id) => enabledBlocklists.includes(id));
+        if (toEnable.length === 0 && toDisable.length === 0) return;
+        setUpdating("nrd");
+        try {
+            if (toEnable.length > 0) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
+                    activeProfile.profile_id,
+                    { blocklist_ids: toEnable } as ApiBlocklistsUpdates
+                );
+            }
+            if (toDisable.length > 0) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsDelete(
+                    activeProfile.profile_id,
+                    { blocklist_ids: toDisable } as ApiBlocklistsUpdates
+                );
+            }
+            const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updatedProfile.data);
+            toast.success("Blocklists updated", {
+                description: "Your selection has been updated successfully.",
+            });
+        } catch {
+            toast.error("Error", {
+                description: "Failed to update blocklists. Please try again.",
+            });
+        } finally {
+            setUpdating(null);
+        }
+    };
+
     // Handler to enable/disable a blocklist for the user
     const handleBlocklistSwitch = async (blocklistId: string, checked: boolean) => {
         if (!activeProfile?.profile_id) return;
@@ -206,8 +245,12 @@ export default function MainContentSection(): JSX.Element {
         }
     };
 
-    // Split into regular and category blocklists using the `kind` field
-    const regularBlocklists = blocklists.filter((bl) => bl.kind !== "category");
+    // Split blocklists by `kind`: general lists (Lists tab), security lists
+    // (Security tab) and content categories (Categories tab).
+    const regularBlocklists = blocklists.filter(
+        (bl) => bl.kind !== "category" && bl.kind !== "security"
+    );
+    const securityBlocklists = blocklists.filter((bl) => bl.kind === "security");
     const categoryBlocklists = blocklists.filter((bl) => bl.kind === "category");
 
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
@@ -315,6 +358,9 @@ export default function MainContentSection(): JSX.Element {
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
                         <TabsTrigger value="blocklists" className={tabTriggerClassName}>
                             Lists
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className={tabTriggerClassName}>
+                            Security
                         </TabsTrigger>
                         <TabsTrigger value="categories" className={tabTriggerClassName}>
                             Categories
@@ -536,6 +582,20 @@ export default function MainContentSection(): JSX.Element {
                             </ScrollArea>
                         </section>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="security" className="mt-4">
+                    {activeTab === "security" ? (
+                        <SecurityContentSection
+                            blocklists={securityBlocklists}
+                            enabledBlocklists={enabledBlocklists}
+                            onToggle={handleBlocklistSwitch}
+                            onApplySet={handleApplyBlocklistSet}
+                            updating={updating}
+                            loading={loading}
+                            restricted={isRestricted}
+                        />
+                    ) : null}
                 </TabsContent>
 
                 <TabsContent value="services" className="mt-4">

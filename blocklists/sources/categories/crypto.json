@@ -9,7 +9,7 @@
     "kind": "category",
     "category": "crypto",
     "tags": ["category", "crypto", "blp"],
-    "schedule": "@hourly"
+    "schedule": "57 * * * *"
   },
   {
     "blocklist_id": "shadowwhisperer_crypto",
@@ -21,7 +21,7 @@
     "kind": "category",
     "category": "crypto",
     "tags": ["category", "crypto", "shadowwhisperer"],
-    "schedule": "@hourly"
+    "schedule": "46 * * * *"
   },
   {
     "blocklist_id": "ut1_cryptojacking",
@@ -33,6 +33,6 @@
     "kind": "category",
     "category": "crypto",
     "tags": ["category", "crypto", "ut1"],
-    "schedule": "@hourly"
+    "schedule": "40 * * * *"
   }
 ]

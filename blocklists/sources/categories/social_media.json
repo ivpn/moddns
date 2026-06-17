@@ -9,6 +9,6 @@
     "kind": "category",
     "category": "social_media",
     "tags": ["category", "social_media", "hagezi"],
-    "schedule": "@hourly"
+    "schedule": "30 * * * *"
   }
 ]

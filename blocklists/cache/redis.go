@@ -10,7 +10,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const chunkSize = 5000
+const (
+	// chunkSize is the number of members added per SADD command.
+	chunkSize = 5000
+	// flushEvery is the number of buffered commands sent per pipeline
+	// round-trip. The full blocklist is never flushed as a single batch: large
+	// NRD lists hold millions of entries, and writing the whole pipeline under
+	// one socket write deadline overwhelms the master's drain rate and triggers
+	// "i/o timeout". Flushing in bounded batches keeps each round-trip small and
+	// gives each its own write deadline (~250k members per flush at chunkSize).
+	flushEvery = 50
+)
 
 // RedisCache is a cache implementation using Redis
 type RedisCache struct {
@@ -36,13 +46,14 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 	tempBlocklistName := fmt.Sprintf("%s_temp", blocklistName)
 	oldBlocklistName := fmt.Sprintf("%s_old", blocklistName)
 
+	// Step 1: Populate the temp set with new data, flushing in bounded batches.
 	pipe := c.client.Pipeline()
 
 	// Step 0: Clear any stale temp set left by a previously crashed run, so the
 	// new set is not silently merged with old data.
 	pipe.Del(ctx, tempBlocklistName)
+	buffered := 1 // the Del command above
 
-	// Step 1: Create the temp set with new data
 	lines := strings.Split(string(data), "\n")
 	for i := 0; i < len(lines); i += chunkSize {
 		end := i + chunkSize
@@ -55,18 +66,37 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 			continue
 		}
 		pipe.SAdd(ctx, tempBlocklistName, chunk)
+
+		if buffered++; buffered >= flushEvery {
+			if _, err := pipe.Exec(ctx); err != nil {
+				log.Err(err).Str("component", "cache").Msg("Cache: pipeline execution failed")
+				return err
+			}
+			pipe = c.client.Pipeline()
+			buffered = 0
+		}
+	}
+	// Flush any commands still buffered (the initial Del plus trailing SADDs).
+	if buffered > 0 {
+		if _, err := pipe.Exec(ctx); err != nil {
+			log.Err(err).Str("component", "cache").Msg("Cache: pipeline execution failed")
+			return err
+		}
 	}
 
-	// Step 2: Atomically swap sets using RENAME
+	// Step 2: Atomically swap the populated temp set into place. A pipeline is
+	// not a transaction, so this is kept separate from population; the only
+	// atomic unit that matters is each individual RENAME.
+	swap := c.client.Pipeline()
 	// If the original blocklist exists, rename it to _old
-	renameNXCmd := pipe.RenameNX(ctx, blocklistName, oldBlocklistName)
+	renameNXCmd := swap.RenameNX(ctx, blocklistName, oldBlocklistName)
 	// Rename temp set to the main blocklist name
-	pipe.Rename(ctx, tempBlocklistName, blocklistName)
+	swap.Rename(ctx, tempBlocklistName, blocklistName)
 	// Step 3: Delete the old set
-	pipe.Del(ctx, oldBlocklistName)
+	swap.Del(ctx, oldBlocklistName)
 
-	// Commit all commands in the pipeline
-	cmds, err := pipe.Exec(ctx)
+	// Commit the swap commands in the pipeline
+	cmds, err := swap.Exec(ctx)
 	if err != nil {
 		// Check if the only error is "ERR no such key" from RENAME or RENAME_NX
 		ignore := false

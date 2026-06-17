@@ -9,7 +9,7 @@
     "kind": "category",
     "category": "fraud",
     "tags": ["category", "fraud", "blp"],
-    "schedule": "@hourly"
+    "schedule": "1 * * * *"
   },
   {
     "blocklist_id": "blp_scam",
@@ -21,6 +21,6 @@
     "kind": "category",
     "category": "fraud",
     "tags": ["category", "fraud", "blp"],
-    "schedule": "@hourly"
+    "schedule": "9 * * * *"
   }
 ]

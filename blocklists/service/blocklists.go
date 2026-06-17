@@ -22,7 +22,7 @@ import (
 
 const (
 	jsonExt           = ".json"
-	processingTimeout = 1 * time.Minute
+	processingTimeout = 2 * time.Minute
 )
 
 // errDownloadTooLarge signals that a source's response body exceeded the

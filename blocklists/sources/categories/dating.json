@@ -9,7 +9,7 @@
     "kind": "category",
     "category": "dating",
     "tags": ["category", "dating", "ut1"],
-    "schedule": "@hourly"
+    "schedule": "36 * * * *"
   },
   {
     "blocklist_id": "shadowwhisperer_dating",
@@ -21,6 +21,6 @@
     "kind": "category",
     "category": "dating",
     "tags": ["category", "dating", "shadowwhisperer"],
-    "schedule": "@hourly"
+    "schedule": "42 * * * *"
   }
 ]

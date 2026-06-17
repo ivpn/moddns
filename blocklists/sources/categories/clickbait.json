@@ -9,6 +9,6 @@
     "kind": "category",
     "category": "clickbait",
     "tags": ["category", "clickbait", "blp"],
-    "schedule": "@hourly"
+    "schedule": "48 * * * *"
   }
 ]

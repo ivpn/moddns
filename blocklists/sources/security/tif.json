@@ -9,7 +9,7 @@
     "kind": "security",
     "intensity": ["comprehensive", "restrictive"],
     "tags": ["comprehensive"],
-    "schedule": "@hourly",
+    "schedule": "20 * * * *",
     "default": true
   }
 ]

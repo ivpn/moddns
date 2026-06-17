@@ -9,6 +9,6 @@
     "kind": "category",
     "category": "gaming",
     "tags": ["category", "gaming", "ut1"],
-    "schedule": "@hourly"
+    "schedule": "34 * * * *"
   }
 ]

@@ -1,0 +1,28 @@
+[
+  {
+    "blocklist_id": "1hosts_lite",
+    "name": "1Hosts (Lite)",
+    "description": "1Hosts Lite — a balanced, low-false-positive blocklist for ads, trackers and malware. Recommended for general use.",
+    "source_url": "https://raw.githubusercontent.com/badmojr/1Hosts/master/Lite/domains.wildcards",
+    "homepage": "https://github.com/badmojr/1Hosts",
+    "syntax": "domains",
+    "kind": "general",
+    "intensity": ["basic"],
+    "tags": ["1hosts", "basic"],
+    "schedule": "0 8 * * *",
+    "default": false
+  },
+  {
+    "blocklist_id": "1hosts_xtra",
+    "name": "1Hosts (Xtra)",
+    "description": "1Hosts Xtra — an aggressive blocklist for maximum threat mitigation. Expect a higher false-positive rate; whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/badmojr/1Hosts/master/Xtra/domains.wildcards",
+    "homepage": "https://github.com/badmojr/1Hosts",
+    "syntax": "domains",
+    "kind": "general",
+    "intensity": ["restrictive"],
+    "tags": ["1hosts", "restrictive"],
+    "schedule": "15 8 * * *",
+    "default": false
+  }
+]

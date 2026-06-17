@@ -9,6 +9,6 @@
     "kind": "general",
     "intensity": ["basic", "comprehensive", "restrictive"],
     "tags": ["steven_black", "basic", "ads", "malware"],
-    "schedule": "@hourly"
+    "schedule": "32 * * * *"
   }
 ]

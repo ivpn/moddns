@@ -1,0 +1,62 @@
+[
+  {
+    "blocklist_id": "hagezi_nrd_07",
+    "name": "Hagezi NRD — last 7 days",
+    "description": "Blocks newly registered domains (registered in the last 7 days). Newly registered domains are frequently abused for phishing, malware and scam campaigns. Aggressive — legitimate sites also register new domains, so expect false positives and whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd7.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
+    "schedule": "0 * * * *",
+    "default": false
+  },
+  {
+    "blocklist_id": "hagezi_nrd_14_08",
+    "name": "Hagezi NRD — 8 to 14 days",
+    "description": "Blocks domains registered 8 to 14 days ago. Combine with the shorter window for broader newly-registered-domain coverage. Aggressive — expect false positives and whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd14-8.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
+    "schedule": "4 * * * *",
+    "default": false
+  },
+  {
+    "blocklist_id": "hagezi_nrd_21_15",
+    "name": "Hagezi NRD — 15 to 21 days",
+    "description": "Blocks domains registered 15 to 21 days ago. Combine with the shorter windows for broader newly-registered-domain coverage. Aggressive — expect false positives and whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd21-15.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
+    "schedule": "8 * * * *",
+    "default": false
+  },
+  {
+    "blocklist_id": "hagezi_nrd_28_22",
+    "name": "Hagezi NRD — 22 to 28 days",
+    "description": "Blocks domains registered 22 to 28 days ago. Combine with the shorter windows for broader newly-registered-domain coverage. Aggressive — expect false positives and whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd28-22.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
+    "schedule": "12 * * * *",
+    "default": false
+  },
+  {
+    "blocklist_id": "hagezi_nrd_35_29",
+    "name": "Hagezi NRD — 29 to 35 days",
+    "description": "Blocks domains registered 29 to 35 days ago. Combine with the shorter windows for the widest newly-registered-domain coverage. Aggressive — expect false positives and whitelist critical services as needed.",
+    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/nrd35-29.txt",
+    "homepage": "https://github.com/hagezi/dns-blocklists",
+    "syntax": "domains",
+    "kind": "security",
+    "tags": ["security", "hagezi", "nrd"],
+    "schedule": "16 * * * *",
+    "default": false
+  }
+]
