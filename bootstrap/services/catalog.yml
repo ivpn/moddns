@@ -15,6 +15,12 @@
 # - AS32934: https://bgp.he.net/AS32934 (Facebook, Inc. / Meta)
 # - AS714, AS6185: https://bgp.he.net/AS714 and https://bgp.he.net/AS6185 (Apple Inc.)
 # - AS8068-AS8075: https://bgp.he.net/AS8075 (Microsoft Corporation)
+# - AS13414, AS35995, AS63179: https://bgp.he.net/AS13414 (Twitter/X Corp; AS54888 dormant, AS63194 Crashlytics subsidiary)
+# - AS396986, AS138699: https://bgp.he.net/AS396986 (ByteDance/TikTok; AS150436 BytePlus B2B excluded to avoid over-block)
+# - AS2906, AS40027, AS55095, AS394406: https://bgp.he.net/AS2906 (Netflix Inc. / Open Connect)
+# - AS395291: https://bgp.he.net/AS395291 (Snap Inc.; AS23655 "Snap Internet" is an unrelated NZ ISP - do NOT add)
+# - AS13443, AS14413: https://bgp.he.net/AS13443 (LinkedIn Corp; AS20049/AS40793 dormant. Microsoft AS8075 excluded to avoid over-blocking Azure)
+# - Reddit and Discord own no usable ASN (CDN/cloud-hosted); domain blocking only. Snapchat ASN covers a small sliver only.
 services:
   - id: google
     name: Google
@@ -41,3 +47,41 @@ services:
     logo_key: microsoft
     asns: [8068, 8069, 8070, 8071, 8072, 8073, 8074, 8075]
     domains: [microsoft.com, windows.com, office.com, office365.com, live.com, outlook.com, hotmail.com, bing.com, msn.com, xbox.com, skype.com, microsoftonline.com, windowsupdate.com]
+  - id: reddit
+    name: Reddit
+    logo_key: reddit
+    # Reddit owns no usable ASN (Fastly/Cloudflare/AWS-hosted); domain blocking only.
+    asns: []
+    domains: [reddit.com, redd.it, redditstatic.com, redditmedia.com, redditspace.com, redditinc.com]
+  - id: twitter
+    name: Twitter / X
+    logo_key: twitter
+    asns: [13414, 35995, 63179, 54888, 63194]
+    domains: [twitter.com, x.com, twimg.com, t.co, twttr.com, ads-twitter.com, tweetdeck.com, pro.twitter.com, twitterstat.us, twtrdns.net, periscope.tv, pscp.tv]
+  - id: tiktok
+    name: TikTok
+    logo_key: tiktok
+    asns: [396986, 138699]
+    domains: [tiktok.com, tiktokv.com, tiktokcdn.com, tiktokcdn-us.com, tiktokcdn-eu.com, tiktokv.us, tiktokw.us, ttwstatic.com, byteoversea.com, byteoversea.net, ibyteimg.com, muscdn.com, musical.ly, isnssdk.com, pstatp.com]
+  - id: netflix
+    name: Netflix
+    logo_key: netflix
+    asns: [2906, 40027, 55095, 394406]
+    domains: [netflix.com, nflxvideo.net, nflximg.net, nflxext.com, nflxso.net]
+  - id: discord
+    name: Discord
+    logo_key: discord
+    # Discord owns no usable ASN (Cloudflare/Google Cloud-hosted); domain blocking only.
+    asns: []
+    domains: [discord.com, discord.gg, discordapp.com, discordapp.net, discord.media, discordstatus.com]
+  - id: snapchat
+    name: Snapchat
+    logo_key: snapchat
+    # AS395291 (Snap Inc.) announces only ~3 prefixes; most traffic on GCP/AWS - domains carry the load.
+    asns: [395291]
+    domains: [snapchat.com, snap.com, sc-cdn.net, snapads.com, snapkit.com, sc-static.net, sc-gw.com, sc-prod.net, sc-jpl.com, sc-corp.net, snapmap.com, feelinsonice.com, bitmoji.com, addlive.io]
+  - id: linkedin
+    name: LinkedIn
+    logo_key: linkedin
+    asns: [13443, 14413, 20049, 40793]
+    domains: [linkedin.com, licdn.com, lnkd.in]
