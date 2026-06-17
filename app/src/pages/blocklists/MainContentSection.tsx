@@ -352,7 +352,7 @@ export default function MainContentSection(): JSX.Element {
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
             <BetaEndingBanner />
             <LimitedAccessBanner />
-            <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={isRestricted ? 'cursor-not-allowed' : ''}>
+            <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full min-w-0${isRestricted ? ' cursor-not-allowed' : ''}`}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
                 <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">
                     <TabsList className="flex h-auto w-full sm:w-fit bg-transparent rounded-none gap-0 justify-start p-0 border-b-0 sm:min-w-max">
