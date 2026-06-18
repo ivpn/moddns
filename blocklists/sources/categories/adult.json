@@ -10,7 +10,7 @@
     "category": "adult",
     "intensity": ["comprehensive"],
     "tags": ["category", "adult", "hagezi"],
-    "schedule": "@hourly"
+    "schedule": "22 * * * *"
   },
   {
     "blocklist_id": "blp_porn",
@@ -22,7 +22,7 @@
     "kind": "category",
     "category": "adult",
     "tags": ["category", "adult", "blp"],
-    "schedule": "@hourly"
+    "schedule": "25 * * * *"
   },
   {
     "blocklist_id": "oisd_nsfw",
@@ -35,6 +35,6 @@
     "category": "adult",
     "intensity": ["comprehensive"],
     "tags": ["category", "adult", "oisd"],
-    "schedule": "@hourly"
+    "schedule": "0 5 * * *"
   }
 ]

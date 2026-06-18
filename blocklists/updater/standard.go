@@ -2,6 +2,7 @@ package updater
 
 import (
 	"context"
+	"time"
 
 	"github.com/ivpn/dns/blocklists/model"
 	"github.com/robfig/cron/v3"
@@ -22,13 +23,19 @@ func NewStandardUpdater() *StandardUpdater {
 // Setup adds a new, single blocklist to the cron scheduler
 func (u *StandardUpdater) Setup(source model.BlocklistMetadata, blocklistFunc func() (*model.BlocklistMetadata, error)) error {
 	entryID, err := u.cron.AddFunc(source.Schedule, func() {
-		log.Info().Str("source", source.Name).Msg("Processing blocklist")
-		_, err := blocklistFunc()
+		start := time.Now()
+		log.Debug().Str("source", source.Name).Msg("Processing blocklist")
+		meta, err := blocklistFunc()
 		if err != nil {
 			log.Err(err).Str("blocklist_id", source.BlocklistID).Str("source", source.Name).Msg("Failed to process blocklist")
 			return
 		}
-		log.Info().Str("source", source.Name).Msg("Processed blocklist")
+
+		event := log.Info().Str("source", source.Name).Dur("duration", time.Duration(time.Since(start).Milliseconds()))
+		if meta != nil {
+			event = event.Int("entries", meta.Entries)
+		}
+		event.Msg("Blocklist refresh complete")
 	})
 	if err != nil {
 		log.Err(err).Str("source", source.Name).Msg("Failed to add source to cron")

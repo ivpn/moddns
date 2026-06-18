@@ -25,9 +25,6 @@ const (
 var (
 	// Pre-compiled regex for better performance
 	lastModifiedRegex = regexp.MustCompile(`! Last modified: (.+)`)
-
-	// Basic domain validation regex
-	domainRegex = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$`)
 )
 
 // AdguardExtractor implements the Extractor interface for AdGuard format blocklists
@@ -115,9 +112,10 @@ func processRule(rule string) string {
 	rule = strings.ReplaceAll(rule, "|", "")
 	rule = strings.TrimSpace(rule)
 
-	// Validate domain format
-	if domainRegex.MatchString(rule) {
-		return rule
+	// Normalize and validate using the shared domain validator (accepts
+	// punycode TLDs and lowercases).
+	if d := NormalizeDomain(rule); ValidDomain(d) {
+		return d
 	}
 
 	return ""

@@ -9,7 +9,7 @@
     "kind": "general",
     "intensity": ["basic"],
     "tags": ["hagezi", "basic"],
-    "schedule": "@hourly"
+    "schedule": "2 * * * *"
   },
   {
     "blocklist_id": "hagezi_multi_normal",
@@ -21,7 +21,7 @@
     "kind": "general",
     "intensity": [],
     "tags": ["hagezi"],
-    "schedule": "@hourly"
+    "schedule": "6 * * * *"
   },
   {
     "blocklist_id": "hagezi_multi_pro",
@@ -33,7 +33,7 @@
     "kind": "general",
     "intensity": ["comprehensive"],
     "tags": ["hagezi", "comprehensive"],
-    "schedule": "@hourly"
+    "schedule": "10 * * * *"
   },
   {
     "blocklist_id": "hagezi_multi_pro_plus",
@@ -45,7 +45,7 @@
     "kind": "general",
     "intensity": [],
     "tags": ["hagezi"],
-    "schedule": "@hourly"
+    "schedule": "14 * * * *"
   },
   {
     "blocklist_id": "hagezi_multi_ultimate",
@@ -57,6 +57,6 @@
     "kind": "general",
     "intensity": ["restrictive"],
     "tags": ["hagezi", "restrictive"],
-    "schedule": "@hourly"
+    "schedule": "18 * * * *"
   }
 ]

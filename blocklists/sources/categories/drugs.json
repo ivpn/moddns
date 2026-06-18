@@ -9,7 +9,7 @@
     "kind": "category",
     "category": "drugs",
     "tags": ["category", "drugs", "ut1"],
-    "schedule": "@hourly"
+    "schedule": "38 * * * *"
   },
   {
     "blocklist_id": "blp_drugs",
@@ -21,6 +21,6 @@
     "kind": "category",
     "category": "drugs",
     "tags": ["category", "drugs", "blp"],
-    "schedule": "@hourly"
+    "schedule": "33 * * * *"
   }
 ]

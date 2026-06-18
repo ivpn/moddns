@@ -200,15 +200,11 @@ export default function CategoriesContentSection({
     const handleCategoryToggle = (categoryKey: string) => {
         const items = grouped.get(categoryKey) ?? [];
         const allIds = items.map((bl) => bl.blocklist_id);
+        if (allIds.length === 0) return;
         const enabledCount = items.filter((bl) =>
             enabledBlocklists.includes(bl.blocklist_id)
         ).length;
-
-        if (enabledCount > 0) {
-            onCategoryToggle(allIds, false);
-        } else {
-            onCategoryToggle(allIds, true);
-        }
+        onCategoryToggle(allIds, enabledCount === 0);
     };
 
     // Find the expanded category's data for the panel

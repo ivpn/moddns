@@ -9,7 +9,7 @@
     "kind": "general",
     "intensity": ["comprehensive", "restrictive"],
     "tags": ["oisd", "comprehensive", "ads", "malware", "phishing", "tracking"],
-    "schedule": "@hourly"
+    "schedule": "0 3 * * *"
   },
   {
     "blocklist_id": "oisd_small",
@@ -21,6 +21,6 @@
     "kind": "general",
     "intensity": ["basic"],
     "tags": ["oisd", "basic", "ads"],
-    "schedule": "@hourly"
+    "schedule": "0 4 * * *"
   }
 ]

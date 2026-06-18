@@ -1,0 +1,15 @@
+[
+  {
+    "blocklist_id": "peter_lowe_adservers",
+    "name": "Peter Lowe's Ad and tracking servers",
+    "description": "A curated, conservative list of ad and tracking server domains maintained by Peter Lowe (pgl.yoyo.org). Low false-positive rate.",
+    "source_url": "https://pgl.yoyo.org/adservers/serverlist.php?showintro=0;hostformat=hosts",
+    "homepage": "https://pgl.yoyo.org/adservers/",
+    "syntax": "hosts",
+    "kind": "general",
+    "intensity": ["basic"],
+    "tags": ["peter_lowe", "basic"],
+    "schedule": "0 7 * * *",
+    "default": false
+  }
+]

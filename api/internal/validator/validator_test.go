@@ -1,8 +1,79 @@
 package validator
 
 import (
+	"strings"
 	"testing"
 )
+
+// specRef: #R2 — password policy (length + character-class composition).
+func TestValidatePassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		want     bool
+	}{
+		// Valid: 12-64 chars with upper, lower, digit and a special char.
+		{"minimal valid", "Abcdefghij1!", true},
+		{"max length valid", "Aa1!" + strings.Repeat("a", 60), true}, // 64 chars
+		{"space counts as special (OWASP: spaces allowed)", "Abcdefghij1 ", true},
+		{"underscore special", "Abcdefghij1_", true},
+		{"unicode symbol special", "Abcdefghij1€", true},
+
+		// OWASP ASVS: any non-alphanumeric counts. These were previously rejected
+		// because they were absent from the hand-listed special-char set.
+		{"apostrophe special", "Abcdefghij1'", true},
+		{"plus special", "Abcdefghij1+", true},
+		{"slash special", "Abcdefghij1/", true},
+		{"equals special", "Abcdefghij1=", true},
+		{"backslash special", "Abcdefghij1\\", true},
+		{"backtick special", "Abcdefghij1`", true},
+		{"tilde special", "Abcdefghij1~", true},
+
+		// Invalid: too short / too long.
+		{"too short", "Abc1!", false},
+		{"exactly 11 chars (one below min)", "Abcdefghj1!", false}, // 11 chars
+		{"exactly 12 chars (min boundary)", "Abcdefghi1!x", true},  // 12 chars
+		{"too long", "Aa1!" + strings.Repeat("a", 61), false},      // 65 chars
+
+		// Length is counted in characters (runes), not bytes. Multi-byte
+		// characters must not let a short password pass, nor wrongly reject a
+		// password whose byte length exceeds 64 but whose rune length does not.
+		{"multibyte short rejected (7 chars, 19 bytes)", "Aa1!😀😀😀", false},
+		{"multibyte 12 chars accepted (>12 bytes)", "Aa1!" + strings.Repeat("😀", 8), true}, // 12 chars, 36 bytes
+		{"multibyte 64 chars accepted (>64 bytes)", "Aa1!" + strings.Repeat("é", 60), true}, // 64 chars, 124 bytes
+		{"multibyte 65 chars rejected", "Aa1!" + strings.Repeat("é", 61), false},            // 65 chars
+		{"empty", "", false},
+
+		// Invalid: missing a required character class.
+		{"no special (all alphanumeric)", "Abcdefghij12", false},
+		{"no uppercase", "abcdefghij1!", false},
+		{"no lowercase", "ABCDEFGHIJ1!", false},
+		{"no digit", "Abcdefghijk!", false},
+
+		// Invalid: Unicode letters/digits are alphanumeric, not special. A
+		// password made only of letters and digits must not satisfy the
+		// special-character requirement just because some are non-ASCII.
+		{"unicode letter is not special", "Abcdefghij1é", false},
+		{"unicode digit is not special", "Abcdefghij1١", false},
+
+		// Documented behavior: the required upper/lower/digit classes are
+		// ASCII-only by design, so Unicode-cased letters do not satisfy them.
+		{"unicode uppercase does not satisfy upper class", "Éàçdefghij1!", false},
+
+		// Documented behavior: control characters are non-alphanumeric and
+		// therefore currently count as the special character.
+		{"tab counts as special", "Abcdefghij1\t", true},
+		{"newline counts as special", "Abcdefghij1\n", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidatePassword(tt.password); got != tt.want {
+				t.Errorf("ValidatePassword(%q) = %v, want %v", tt.password, got, tt.want)
+			}
+		})
+	}
+}
 
 func Test_wildcardFQDNValidation(t *testing.T) {
 	// Create a validator instance
