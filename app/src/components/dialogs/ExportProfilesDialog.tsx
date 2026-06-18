@@ -36,7 +36,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
     const [otp, setOtp] = useState('');
     const [reauthToken, setReauthToken] = useState<string | null>(null);
     const [reauthStatus, setReauthStatus] = useState<ReauthStatus>('idle');
-    const [reauthError, setReauthError] = useState<string | null>(null);
 
     const { exportProfiles, isExporting } = useProfileExport();
 
@@ -45,7 +44,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
         setOtp('');
         setReauthToken(null);
         setReauthStatus('idle');
-        setReauthError(null);
     }, []);
 
     const {
@@ -65,7 +63,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
             setOtp('');
             setReauthToken(null);
             setReauthStatus('idle');
-            setReauthError(null);
             resetMethod();
         }
     }, [open, resetMethod]);
@@ -78,7 +75,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
             setOtp('');
             setReauthToken(null);
             setReauthStatus('idle');
-            setReauthError(null);
             resetMethod();
         }
         onOpenChange(next);
@@ -86,7 +82,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
 
     const beginPasskeyReauth = async () => {
         setReauthStatus('in-progress');
-        setReauthError(null);
         try {
             const token = await beginProfileExportReauth();
             setReauthToken(token);
@@ -113,8 +108,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
     const handleSubmit = async () => {
         if (isSubmitDisabled) return;
 
-        setReauthError(null);
-
         const input = {
             scope,
             profileIds: scope === 'selected' ? selectedIds : undefined,
@@ -129,12 +122,9 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
             const count = scope === 'selected' ? selectedIds.length : profiles.length;
             toast.success(`Exported ${count} profile${count === 1 ? '' : 's'}`);
             handleOpenChange(false);
-        } catch (err) {
-            const axiosError = err as { response?: { status?: number } };
-            if (axiosError.response?.status === 401) {
-                setReauthError('Reauthentication failed. Try again.');
-            }
-            // All other errors: hook already toasted; keep dialog open
+        } catch {
+            // The hook surfaces the failure (including a wrong-password 400) as a
+            // toast; keep the dialog open so the user can correct and retry.
         }
     };
 
@@ -331,12 +321,6 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
                                     Required for password verification when 2FA is enabled.
                                 </p>
                             </div>
-                        )}
-
-                        {reauthError !== null && (
-                            <p data-testid="reauth-error" className="text-sm text-[var(--tailwind-colors-red-400)]" role="alert">
-                                {reauthError}
-                            </p>
                         )}
                     </div>
                 </DialogBody>

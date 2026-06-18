@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import API from '@/api/api';
 import type { ModelExportEnvelope } from '@/api/client/api';
 import { RequestsImportRequestModeEnum } from '@/api/client/api';
+import { importErrorMessage } from '@/lib/importExportErrors';
 
 export interface ImportProfilesInput {
   payload: ModelExportEnvelope;
@@ -59,9 +60,11 @@ export function useProfileImport(): {
       setResult(importResult);
       return importResult;
     } catch (error) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      const message = axiosError.response?.data?.error ?? 'Import failed. Please try again.';
-      toast.error(message);
+      const axiosError = error as { response?: { status?: number; data?: { error?: string } } };
+      const status = axiosError.response?.status;
+      const serverError = axiosError.response?.data?.error;
+
+      toast.error(importErrorMessage(status, serverError));
       throw error;
     } finally {
       setIsImporting(false);

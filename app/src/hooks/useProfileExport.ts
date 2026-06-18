@@ -56,9 +56,25 @@ export function useProfileExport(): {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      const message = axiosError.response?.data?.error ?? 'Export failed. Please try again.';
-      toast.error(message);
+      const axiosError = error as { response?: { data?: unknown } };
+
+      // The request uses responseType:'blob', so even error bodies arrive as Blobs.
+      // Parse the Blob back to JSON to extract the server error message.
+      let serverMessage: string | undefined;
+      try {
+        const rawData = axiosError.response?.data;
+        if (rawData instanceof Blob) {
+          const text = await rawData.text();
+          const parsed = JSON.parse(text) as { error?: string };
+          serverMessage = parsed.error;
+        } else if (rawData && typeof rawData === 'object') {
+          serverMessage = (rawData as { error?: string }).error;
+        }
+      } catch {
+        // Non-JSON blob — fall through to the generic message
+      }
+
+      toast.error(serverMessage ?? 'Export failed. Please try again.');
       throw error;
     } finally {
       setIsExporting(false);

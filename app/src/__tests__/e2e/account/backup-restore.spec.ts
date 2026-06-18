@@ -140,8 +140,8 @@ test.describe('Backup & Restore — Export', () => {
         expect(download.suggestedFilename()).toMatch(/moddns-export.*\.json$/);
     });
 
-    // specRef: E3 — 401 reauth failure keeps dialog open with inline error
-    test('401 on export shows inline reauth error and keeps dialog open', async ({ page }) => {
+    // specRef: E3 — 401 reauth failure keeps dialog open and surfaces an error toast
+    test('401 on export shows error toast and keeps dialog open', async ({ page }) => {
         await setupBaseMocks(page);
 
         await page.route('**/api/v1/profiles/export', route =>
@@ -163,10 +163,8 @@ test.describe('Backup & Restore — Export', () => {
         // Dialog stays open
         await expect(page.getByTestId('export-dialog')).toBeVisible();
 
-        // Inline error visible — specRef E3
-        const reauthError = page.getByTestId('reauth-error');
-        await expect(reauthError).toBeVisible();
-        await expect(reauthError).toContainText(/reauth/i);
+        // Error toast with the server message — specRef E3
+        await expect(page.locator('[data-sonner-toast]')).toContainText(/authentication required/i);
     });
 });
 
@@ -331,8 +329,108 @@ test.describe('Backup & Restore — Import', () => {
         await expect(exportBtn).toBeEnabled();
     });
 
-    // specRef: I2 — 401 on import shows inline error, dialog stays open
-    test('401 on import shows inline reauth error and keeps dialog open', async ({ page }) => {
+    // F1 — 400 "invalid current password" on export surfaces an error toast (session not killed)
+    // NOTE: requires live stack to run (mocking responseType:'blob' errors in Playwright is
+    // straightforward but the download event requires the full service worker path).
+    test('400 wrong-password on export shows error toast and keeps session alive', async ({ page }) => {
+        await setupBaseMocks(page);
+
+        // The backend returns 400 (not 401) for wrong password so the session is not killed.
+        await page.route('**/api/v1/profiles/export', route =>
+            route.fulfill({
+                status: 400,
+                contentType: 'application/json',
+                body: JSON.stringify({ error: 'invalid current password' }),
+            })
+        );
+
+        await gotoAccount(page);
+
+        await page.getByTestId('btn-export-profiles').click();
+        await expect(page.getByTestId('export-dialog')).toBeVisible();
+
+        await page.getByLabel('Current password').fill('wrong-password');
+        await page.getByTestId('export-submit-btn').click();
+
+        // Dialog must stay open — session not killed
+        await expect(page.getByTestId('export-dialog')).toBeVisible();
+
+        // Error toast shows the server message ("invalid current password")
+        await expect(page.locator('[data-sonner-toast]')).toContainText(/password/i);
+    });
+
+    // F1 — 400 "invalid current password" on import surfaces an error toast (session not killed)
+    test('400 wrong-password on import shows error toast and session stays alive', async ({ page }) => {
+        await setupBaseMocks(page);
+
+        await page.route('**/api/v1/profiles/import', route =>
+            route.fulfill({
+                status: 400,
+                contentType: 'application/json',
+                body: JSON.stringify({ error: 'invalid current password' }),
+            })
+        );
+
+        await gotoAccount(page);
+
+        await page.getByTestId('btn-import-profiles').click();
+        await uploadJsonToDropzone(page, makeExportPayload(['Home']));
+
+        await expect(page.getByTestId('import-submit-btn')).toBeVisible({ timeout: 5_000 });
+        await page.getByLabel('Current password').fill('wrong-password');
+        await page.getByTestId('import-submit-btn').click();
+
+        // Dialog stays open at step 2
+        await expect(page.getByTestId('import-dialog')).toBeVisible();
+        await expect(page.getByTestId('import-results-step')).not.toBeVisible();
+
+        // Error toast shows the server message ("invalid current password")
+        await expect(page.locator('[data-sonner-toast]')).toContainText(/password/i);
+    });
+
+    // F3 — many warnings are capped at MAX_VISIBLE_WARNINGS with a "+N more" summary
+    test('more than 10 import warnings are capped with overflow summary', async ({ page }) => {
+        await setupBaseMocks(page);
+
+        const manyWarnings = Array.from({ length: 15 }, (_, i) =>
+            `blocklist "list-${i}" not found in catalog`
+        );
+
+        await page.route('**/api/v1/profiles/import', route =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    createdProfileIds: ['new-p1'],
+                    createdProfileNames: ['Home'],
+                    warnings: manyWarnings,
+                }),
+            })
+        );
+
+        await gotoAccount(page);
+
+        await page.getByTestId('btn-import-profiles').click();
+        await uploadJsonToDropzone(page, makeExportPayload(['Home']));
+
+        await expect(page.getByTestId('import-submit-btn')).toBeVisible({ timeout: 5_000 });
+        await page.getByLabel('Current password').fill('correct-password');
+        await page.getByTestId('import-submit-btn').click();
+
+        await expect(page.getByTestId('import-results-step')).toBeVisible({ timeout: 5_000 });
+
+        // At most 10 warning rows are rendered
+        const warningRows = page.locator('[data-testid="generic-warning-row"]');
+        await expect(warningRows).toHaveCount(10);
+
+        // Summary line indicates the 5 hidden warnings
+        const overflowSummary = page.getByTestId('warnings-overflow-summary');
+        await expect(overflowSummary).toBeVisible();
+        await expect(overflowSummary).toContainText('+5 more warning');
+    });
+
+    // specRef: I2 — 401 on import surfaces an error toast, dialog stays open
+    test('401 on import shows error toast and keeps dialog open', async ({ page }) => {
         await setupBaseMocks(page);
 
         await page.route('**/api/v1/profiles/import', route =>
@@ -356,9 +454,7 @@ test.describe('Backup & Restore — Import', () => {
         await expect(page.getByTestId('import-dialog')).toBeVisible();
         await expect(page.getByTestId('import-results-step')).not.toBeVisible();
 
-        // Inline error — specRef I2
-        const reauthError = page.getByTestId('reauth-error');
-        await expect(reauthError).toBeVisible();
-        await expect(reauthError).toContainText(/reauth/i);
+        // Error toast with the server message — specRef I2
+        await expect(page.locator('[data-sonner-toast]')).toContainText(/authentication required/i);
     });
 });

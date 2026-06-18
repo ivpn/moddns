@@ -19,6 +19,7 @@ import { useAccountVerificationMethod } from '@/hooks/useAccountVerificationMeth
 import { useProfileImport } from '@/hooks/useProfileImport';
 import { beginProfileImportReauth } from '@/lib/webauthn';
 import { cn } from '@/lib/utils';
+import { importErrorMessage, isReauthError } from '@/lib/importExportErrors';
 import API from '@/api/api';
 import type { ModelExportEnvelope } from '@/api/client/api';
 
@@ -31,6 +32,7 @@ type Step = 'pick' | 'confirm' | 'results';
 type ReauthStatus = 'idle' | 'in-progress' | 'verified' | 'error';
 
 const MAX_PROFILES = 100;
+const MAX_VISIBLE_WARNINGS = 10;
 
 export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfilesDialogProps) {
     const account = useAppStore(s => s.account);
@@ -198,14 +200,12 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
         } catch (err) {
             const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
             const status = axiosError.response?.status;
-            if (status === 401) {
-                setImportError('Reauthentication failed. Try again.');
-            } else if (status === 400 || status === 413 || status === 415) {
-                const serverMsg = axiosError.response?.data?.error ?? 'Import file format is invalid.';
-                setImportError(serverMsg);
-            } else {
-                // Hook already toasted for other errors; keep dialog open with a generic message
-                setImportError('Import failed. Check the error above and try again.');
+            const serverError = axiosError.response?.data?.error;
+
+            // Reauth failures (wrong password etc.) surface as a toast from the
+            // hook; only non-reauth errors also get an inline message in the dialog.
+            if (!(status === 401 || (status === 400 && isReauthError(serverError)))) {
+                setImportError(importErrorMessage(status, serverError));
             }
         }
     };
@@ -610,8 +610,8 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                     <p className="font-mono font-bold text-[var(--tailwind-colors-rdns-600)] uppercase tracking-wider text-sm">
                                         Warnings
                                     </p>
-                                    <ul className="flex flex-col gap-2">
-                                        {result.warnings.map((warning, idx) => {
+                                    <ul className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+                                        {result.warnings.slice(0, MAX_VISIBLE_WARNINGS).map((warning, idx) => {
                                             const idn = isIdnWarning(warning);
                                             return (
                                                 <li
@@ -646,6 +646,11 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                             );
                                         })}
                                     </ul>
+                                    {result.warnings.length > MAX_VISIBLE_WARNINGS && (
+                                        <p data-testid="warnings-overflow-summary" className="text-xs text-[var(--tailwind-colors-slate-400)]">
+                                            +{result.warnings.length - MAX_VISIBLE_WARNINGS} more warning{result.warnings.length - MAX_VISIBLE_WARNINGS === 1 ? '' : 's'}
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </DialogBody>
