@@ -121,6 +121,7 @@ func (s *ProfileExportImportSuite) createServer() *APIServer {
 		mockMailer,
 		mockShortener,
 		nil,
+		nil,
 	)
 	s.Require().NoError(err, "failed to create test server")
 	srv.RegisterRoutes()
