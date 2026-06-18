@@ -5,6 +5,20 @@ Use *** for in-body horizontal rules; a bare --- delimits records.
 -->
 
 ---
+id: 2026-06-blocklists-services-dnssec
+category: feature
+severity: info
+title: Blocklists, services, and DNSSEC updates
+published_at: 2026-06-18
+---
+New additions:
+
+- [Security tab](https://github.com/ivpn/moddns/pull/162) in Blocklists: two malware and phishing lists and a Newly Registered Domain setting.
+- Four general blocklists, including 1Hosts, someonewhocares, and Peter Lowe.
+- Seven Services options, including Twitter/X, TikTok, and Reddit.
+- Fixed earlier DNSSEC validation issues.
+
+---
 id: dev-pipeline-test-2026-06-12
 category: news
 severity: info
