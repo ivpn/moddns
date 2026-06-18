@@ -287,10 +287,8 @@ func (p *ProfileService) importOneProfile(
 		if err := p.ProfileRepository.CreateCustomRules(ctx, freshProfileId, validRules); err != nil {
 			return "", nil, err
 		}
-		for _, rule := range validRules {
-			if err := p.Cache.AddCustomRule(ctx, freshProfileId, rule); err != nil {
-				return "", nil, err
-			}
+		if err := p.Cache.AddCustomRules(ctx, freshProfileId, validRules); err != nil {
+			return "", nil, err
 		}
 	}
 

@@ -165,6 +165,69 @@ func (_c *Cachecache_AddCustomRule_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// AddCustomRules provides a mock function for the type Cachecache
+func (_mock *Cachecache) AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error {
+	ret := _mock.Called(ctx, profileId, rules)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddCustomRules")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []*model.CustomRule) error); ok {
+		r0 = returnFunc(ctx, profileId, rules)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Cachecache_AddCustomRules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddCustomRules'
+type Cachecache_AddCustomRules_Call struct {
+	*mock.Call
+}
+
+// AddCustomRules is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - rules []*model.CustomRule
+func (_e *Cachecache_Expecter) AddCustomRules(ctx interface{}, profileId interface{}, rules interface{}) *Cachecache_AddCustomRules_Call {
+	return &Cachecache_AddCustomRules_Call{Call: _e.mock.On("AddCustomRules", ctx, profileId, rules)}
+}
+
+func (_c *Cachecache_AddCustomRules_Call) Run(run func(ctx context.Context, profileId string, rules []*model.CustomRule)) *Cachecache_AddCustomRules_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []*model.CustomRule
+		if args[2] != nil {
+			arg2 = args[2].([]*model.CustomRule)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Cachecache_AddCustomRules_Call) Return(err error) *Cachecache_AddCustomRules_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Cachecache_AddCustomRules_Call) RunAndReturn(run func(ctx context.Context, profileId string, rules []*model.CustomRule) error) *Cachecache_AddCustomRules_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddPASession provides a mock function for the type Cachecache
 func (_mock *Cachecache) AddPASession(ctx context.Context, session *model.PASession, expiresIn time.Duration) error {
 	ret := _mock.Called(ctx, session, expiresIn)

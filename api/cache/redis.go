@@ -296,6 +296,33 @@ func (c *RedisCache) AddCustomRule(ctx context.Context, profileId string, custom
 	return nil
 }
 
+// AddCustomRules bulk-inserts all rules for a profile in a single Redis
+// pipeline. It issues one HSet per rule plus a single variadic SAdd for the
+// set membership — the same key/field layout as AddCustomRule — so existing
+// readers (proxy, DeleteProfileSettings) continue to work unchanged.
+func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error {
+	if len(rules) == 0 {
+		return nil
+	}
+	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
+
+	pipe := c.client.Pipeline()
+	hashKeys := make([]any, 0, len(rules))
+	for _, rule := range rules {
+		customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, rule.ID.Hex())
+		pipe.HSet(ctx, customRuleHash, rule)
+		hashKeys = append(hashKeys, customRuleHash)
+	}
+	pipe.SAdd(ctx, customRulesSetName, hashKeys...)
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		log.Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
+		return err
+	}
+	log.Info().Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: bulk-inserted custom rules")
+	return nil
+}
+
 func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRuleId string) error {
 	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRuleId)
 	hashCmd := c.client.Del(ctx, customRuleHash)
