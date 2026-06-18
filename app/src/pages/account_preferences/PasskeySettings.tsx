@@ -139,8 +139,8 @@ export default function PasskeySettings() {
         <Card className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
             <CardContent>
                 <div className="flex flex-col gap-6 w-full">
-                    <div className="flex items-center gap-2 w-full">
-                        <div className="flex flex-col items-start gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4">
+                        <div className="flex flex-col items-start gap-2 min-w-0 max-w-full">
                             <div className="[font-family:'Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base tracking-[0] leading-4">
                                 PASSKEYS
                             </div>
@@ -148,19 +148,19 @@ export default function PasskeySettings() {
                                 Manage your passkeys for secure passwordless authentication.
                             </div>
                         </div>
+
+                        {/* Add new passkey button - right-aligned to match other sections */}
+                        <Button
+                            onClick={handleAddPasskey}
+                            disabled={registering}
+                            className="h-auto min-h-11 lg:min-h-0 bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/90 w-full sm:w-auto"
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            {registering ? "Adding..." : "Add Passkey"}
+                        </Button>
                     </div>
                     <div className="flex flex-col gap-5">
                         <div className="space-y-4">
-                            {/* Add new passkey section */}
-                            <Button
-                                onClick={handleAddPasskey}
-                                disabled={registering}
-                                className="bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/90 w-full sm:w-auto"
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                {registering ? "Adding..." : "Add Passkey"}
-                            </Button>
-
                             {/* Existing passkeys list */}
                             {loading ? (
                                 <div className="space-y-3">
