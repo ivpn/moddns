@@ -175,6 +175,14 @@ func (p *ProfileService) Import(
 	createdNames := make([]string, 0, len(payload.Profiles))
 
 	for _, ep := range payload.Profiles {
+		// specRef: I24 -- normalise name: truncate to MaxProfileNameLen before
+		// collision resolution so the persisted Profile.Name always fits within
+		// the storage cap. Over-length names produce a non-fatal warning.
+		if len([]rune(ep.Name)) > model.MaxProfileNameLen {
+			ep.Name = fitNameWithSuffix(ep.Name, "", model.MaxProfileNameLen)
+			warnings = append(warnings, "profile name truncated to 50 characters")
+		}
+
 		// specRef: I24 -- resolve name collisions before persisting.
 		resolvedName, renameWarning := resolveImportName(ep.Name, takenNames)
 		if renameWarning != "" {

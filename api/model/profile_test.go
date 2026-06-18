@@ -29,35 +29,36 @@ func extractMaxFromValidateTag(t *testing.T, label string, tag reflect.StructTag
 }
 
 // TestProfileName_MaxLenMatchesCanonicalConst is the drift guard for the
-// profile-name length. Every place that caps a profile name at 50 must read
-// from MaxProfileNameLen; the literal `max=50` in the struct tags is asserted
-// here to match the const so CI fails fast if anyone bumps one without the
-// other.
+// profile-name length. The stored Profile.Name must equal MaxProfileNameLen
+// (50). ExportedProfile.Name is intentionally higher (200) so the import
+// service can accept over-long names and truncate them to MaxProfileNameLen
+// rather than rejecting them with a 400 — that higher value is tested in the
+// separate TestExportedProfileName_WireMaxIsPermissive test below.
 //
-// Sites guarded:
-//   - model.Profile.Name             — storage shape
-//   - model.ExportedProfile.Name     — export-envelope shape
+// Sites guarded here:
+//   - model.Profile.Name             — storage shape (must equal MaxProfileNameLen)
 //
 // The parallel guard for createProfileBody.Name (the request DTO in
 // package api) lives in api/api/profiles_max_name_test.go because the type
 // is unexported there.
 func TestProfileName_MaxLenMatchesCanonicalConst(t *testing.T) {
-	cases := []struct {
-		label string
-		typ   reflect.Type
-	}{
-		{"model.Profile.Name", reflect.TypeOf(Profile{})},
-		{"model.ExportedProfile.Name", reflect.TypeOf(ExportedProfile{})},
-	}
+	f, ok := reflect.TypeOf(Profile{}).FieldByName("Name")
+	require.True(t, ok, "Profile.Name field not found")
+	got := extractMaxFromValidateTag(t, "model.Profile.Name", f.Tag)
+	assert.Equal(t, MaxProfileNameLen, got,
+		"model.Profile.Name validate tag has max=%d but MaxProfileNameLen=%d — update both together",
+		got, MaxProfileNameLen)
+}
 
-	for _, tc := range cases {
-		t.Run(tc.label, func(t *testing.T) {
-			f, ok := tc.typ.FieldByName("Name")
-			require.True(t, ok, "%s: Name field not found on %s", tc.label, tc.typ)
-			got := extractMaxFromValidateTag(t, tc.label, f.Tag)
-			assert.Equal(t, MaxProfileNameLen, got,
-				"%s validate tag has max=%d but MaxProfileNameLen=%d — update both together",
-				tc.label, got, MaxProfileNameLen)
-		})
-	}
+// TestExportedProfileName_WireMaxIsPermissive asserts that the import-wire
+// DTO allows names longer than MaxProfileNameLen so that the import service
+// can normalise (truncate) them instead of returning a 400. The import
+// service must always truncate to MaxProfileNameLen before persisting.
+func TestExportedProfileName_WireMaxIsPermissive(t *testing.T) {
+	f, ok := reflect.TypeOf(ExportedProfile{}).FieldByName("Name")
+	require.True(t, ok, "ExportedProfile.Name field not found")
+	got := extractMaxFromValidateTag(t, "model.ExportedProfile.Name", f.Tag)
+	assert.Greater(t, got, MaxProfileNameLen,
+		"ExportedProfile.Name max=%d must exceed MaxProfileNameLen=%d so the import service can truncate rather than reject",
+		got, MaxProfileNameLen)
 }

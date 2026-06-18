@@ -47,7 +47,10 @@ type ExportedFromInfo struct {
 // ExportedProfile represents a single profile in the envelope.
 // specRef: V7–V15, F1–F9
 type ExportedProfile struct {
-	Name     string            `json:"name"              validate:"required,max=50,safe_name"`
+	// Name of the profile. Names longer than 50 characters are truncated on
+	// import (with a warning) rather than rejected, so the wire limit is 200
+	// while the persisted profile name is capped at 50.
+	Name     string            `json:"name"              validate:"required,max=200,safe_name"`
 	Comment  string            `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
 	Settings *ExportedSettings `json:"settings"          validate:"required"`
 }
