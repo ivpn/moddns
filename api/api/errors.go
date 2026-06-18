@@ -70,6 +70,19 @@ type ErrResponse struct {
 	Details []string `json:"details,omitempty"`
 }
 
+// badRequestErrorText picks the response error text for a 400. For
+// ErrInvalidRequestBody the caller passes the human-readable validation detail
+// as errMsg (e.g. "[Name]: Needs to implement 'max'"), which is preferred over
+// the generic sentinel so the frontend can display something useful. Other
+// sentinel errors carry a server-side log message in errMsg, so they fall back
+// to err.Error().
+func badRequestErrorText(err error, errMsg string) string {
+	if err == ErrInvalidRequestBody && errMsg != "" && errMsg != ErrInvalidRequestBody.Error() {
+		return errMsg
+	}
+	return err.Error()
+}
+
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {
 	log.Error().Err(err).Msg(errMsg)
 	resp := new(ErrResponse)
@@ -168,7 +181,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Error = ErrResourceNotFound.Error()
 		return c.Status(404).JSON(resp)
 	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
-		resp.Error = err.Error()
+		resp.Error = badRequestErrorText(err, errMsg)
 		return c.Status(400).JSON(resp)
 	case subscription.ErrSubscriptionScheduledForDeletion:
 		resp.Error = err.Error()
