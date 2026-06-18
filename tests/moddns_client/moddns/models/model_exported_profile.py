@@ -29,7 +29,7 @@ class ModelExportedProfile(BaseModel):
     ModelExportedProfile
     """ # noqa: E501
     comment: Optional[Annotated[str, Field(strict=True, max_length=200)]] = None
-    name: Annotated[str, Field(strict=True, max_length=50)]
+    name: Annotated[str, Field(strict=True, max_length=200)] = Field(description="Name of the profile. Names longer than 50 characters are truncated on import (with a warning) rather than rejected, so the wire limit is 200 while the persisted profile name is capped at 50.")
     settings: ModelExportedSettings
     __properties: ClassVar[List[str]] = ["comment", "name", "settings"]
 

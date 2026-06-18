@@ -3115,8 +3115,9 @@ const docTemplate = `{
                     "maxLength": 200
                 },
                 "name": {
+                    "description": "Name of the profile. Names longer than 50 characters are truncated on\nimport (with a warning) rather than rejected, so the wire limit is 200\nwhile the persisted profile name is capped at 50.",
                     "type": "string",
-                    "maxLength": 50
+                    "maxLength": 200
                 },
                 "settings": {
                     "$ref": "#/definitions/model.ExportedSettings"
