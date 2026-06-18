@@ -541,8 +541,8 @@ func TestImport_PunycodeRule_AddsIDNWarning(t *testing.T) {
 	// xn--mller-kva.de is valid FQDN syntax; the rule passes re-validation.
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
-	env.cache.On("AddCustomRule", mock.Anything, "fresh-id-1",
-		mock.AnythingOfType("*model.CustomRule")).Return(nil).Once()
+	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
+		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
 	envelope.Profiles[0].Settings = &model.ExportedSettings{
@@ -578,8 +578,8 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
-	env.cache.On("AddCustomRule", mock.Anything, "fresh-id-1",
-		mock.AnythingOfType("*model.CustomRule")).Return(nil).Once()
+	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
+		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
 	envelope.Profiles[0].Settings = &model.ExportedSettings{
@@ -621,9 +621,11 @@ func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
 			return len(rules) == 10_000
 		})).Return(nil).Once()
-	// AddCustomRule is called once per rule (10,000 times).
-	env.cache.On("AddCustomRule", mock.Anything, "fresh-id-1",
-		mock.AnythingOfType("*model.CustomRule")).Return(nil).Times(10_000)
+	// AddCustomRules is called once with all 10,000 capped rules via pipeline.
+	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
+		mock.MatchedBy(func(rules []*model.CustomRule) bool {
+			return len(rules) == 10_000
+		})).Return(nil).Once()
 
 	// Build 10,001 valid rules -- one over the cap.
 	rules := make([]model.ExportedCustomRule, 10_001)
@@ -996,4 +998,48 @@ func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
 
 	env.cache.AssertExpectations(t)
 	env.profileRepo.AssertExpectations(t)
+}
+
+// ---------------------------------------------------------------------------
+// B3: Over-long name truncation (specRef: I24)
+// ---------------------------------------------------------------------------
+
+// TestImport_LongName_TruncatedNotRejected asserts that a profile name
+// exceeding MaxProfileNameLen (50) is truncated to 50 chars rather than
+// rejected with an error. The persisted profile name must be exactly 50 runes,
+// and a non-fatal truncation warning must appear in the result.
+func TestImport_LongName_TruncatedNotRejected(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	// Construct a 60-rune name (10 chars over the limit).
+	longName := strings.Repeat("a", 60)
+
+	expectOneSuccessfulCreate(env, "acct1", []model.Profile{}, "fresh-id-1")
+
+	envelope := minimalEnvelope(1)
+	envelope.Profiles[0].Name = longName
+
+	result, err := env.svc.Import(
+		context.Background(), "acct1",
+		profile.ImportModeCreateNew,
+		envelope,
+		ptr("secret"), nil, nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	// The persisted name must be exactly MaxProfileNameLen runes.
+	assert.Equal(t, 1, len(result.CreatedProfileNames))
+	assert.LessOrEqual(t, len([]rune(result.CreatedProfileNames[0])), model.MaxProfileNameLen,
+		"persisted name must not exceed MaxProfileNameLen")
+
+	// A truncation warning must appear.
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "truncated") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected truncation warning; got: %v", result.Warnings)
 }
