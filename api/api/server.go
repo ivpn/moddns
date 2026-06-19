@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -25,7 +26,24 @@ import (
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/urlshort"
+	"github.com/valyala/fasthttp"
 )
+
+const (
+	// defaultBodyLimit is the global request body cap (Fiber BodyLimit). Most
+	// endpoints carry only small JSON.
+	defaultBodyLimit = 1024 * 1024 // 1 MB
+	// importBodyLimit is the per-request cap for the profile-import endpoint,
+	// which can carry many profiles/custom rules. Applied via the fasthttp
+	// HeaderReceived hook below; the endpoint is reauth-gated and rate-limited.
+	importBodyLimit = 4 * 1024 * 1024 // 4 MB
+	// importReadTimeout overrides the global ReadTimeout for the import endpoint
+	// so a large (up to importBodyLimit) body on a slow uplink isn't cut mid-read.
+	importReadTimeout = 60 * time.Second
+)
+
+// importBodyLimitPath is the exact request path that gets importBodyLimit.
+var importBodyLimitPath = []byte("/api/v1/profiles/import")
 
 // APIServer represents an API server
 type APIServer struct {
@@ -47,11 +65,32 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 	app := fiber.New(fiber.Config{
 		ServerHeader: "modDNS API",
 		AppName:      "modDNS API",
-		BodyLimit:    1024 * 1024, // 1 MB
+		BodyLimit:    defaultBodyLimit,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	})
+
+	// Grant the profile-import endpoint a larger body limit and read timeout than
+	// the global defaults. Fiber's BodyLimit/ReadTimeout are global, but fasthttp
+	// honours a per-request override returned by HeaderReceived (evaluated before
+	// the body is read); a zero RequestConfig falls back to the global values for
+	// every other route.
+	app.Server().HeaderReceived = func(h *fasthttp.RequestHeader) fasthttp.RequestConfig {
+		if h.IsPost() {
+			uri := h.RequestURI()
+			if i := bytes.IndexByte(uri, '?'); i >= 0 {
+				uri = uri[:i]
+			}
+			if bytes.Equal(uri, importBodyLimitPath) {
+				return fasthttp.RequestConfig{
+					MaxRequestBodySize: importBodyLimit,
+					ReadTimeout:        importReadTimeout,
+				}
+			}
+		}
+		return fasthttp.RequestConfig{}
+	}
 
 	server := &APIServer{
 		App:             app,
