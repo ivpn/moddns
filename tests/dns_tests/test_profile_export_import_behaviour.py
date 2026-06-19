@@ -16,12 +16,15 @@ from libs.profile_helpers import (
     TEST_BLOCKLIST_ID,
 )
 from libs.export_import_helpers import (
+    EXPORTED_CUSTOM_RULES_LIMIT,
+    add_custom_rules_batch,
     build_envelope,
     build_profile,
     create_account_with_password,
     do_export,
     do_import,
     export_request_body,
+    make_rules,
     raw_export,
 )
 from conftest import TEST_DOMAIN
@@ -416,3 +419,105 @@ class TestProfileCountCap:
             ),
         )
         assert resp.status_code == 400, resp.text
+
+
+class TestCustomRulesExportLimits(ProfileHelpers):
+    def setup_class(self):
+        self.config = get_settings()
+        self.api_config = api_config.Configuration(host=self.config.DNS_API_ADDR)
+
+    def test_export_truncates_custom_rules_and_round_trips(self):
+        """A profile with > EXPORTED_CUSTOM_RULES_LIMIT custom rules exports only
+        the first that-many (oldest-first) and reports the trim via the
+        X-modDNS-Export-Truncated header; the truncated export re-imports cleanly.
+        specRef: E20, E21, V10.
+        """
+        _, cookie, password, _ = create_account_with_password()
+
+        # Seed a profile at the cap via import (DTO max=1000), then push it over
+        # the cap with one batch add. This avoids ~50 rate-limited batch calls
+        # that creating 1000+ rules from scratch would need (20/min limit).
+        seed = build_envelope(
+            profiles=[
+                build_profile(
+                    name="trunc_src",
+                    custom_rules=make_rules(EXPORTED_CUSTOM_RULES_LIMIT),
+                )
+            ]
+        )
+        seed_resp = do_import(cookie, password, seed)
+        assert seed_resp.status_code == 200, seed_resp.text
+        src_id = seed_resp.json()["createdProfileIds"][0]
+
+        # Add a few more so the profile is over the cap even if a seed rule was
+        # skipped for any reason.
+        over = add_custom_rules_batch(
+            cookie,
+            src_id,
+            [f"over-cap-{i}.example.org" for i in range(5)],
+        )
+        assert over.status_code == 200, over.text
+
+        # Export just that profile; it must be truncated + flagged.
+        export_resp = raw_export(
+            cookie,
+            export_request_body(
+                scope="selected", profile_ids=[src_id], current_password=password
+            ),
+        )
+        assert export_resp.status_code == 200, export_resp.text
+        assert export_resp.headers.get("X-modDNS-Export-Truncated") == "1", (
+            f"expected truncation header '1', got headers: {dict(export_resp.headers)}"
+        )
+        envelope = export_resp.json()
+        assert len(envelope["profiles"]) == 1
+        exported_rules = envelope["profiles"][0]["settings"]["customRules"]
+        assert len(exported_rules) == EXPORTED_CUSTOM_RULES_LIMIT, (
+            f"export must cap at {EXPORTED_CUSTOM_RULES_LIMIT}, got {len(exported_rules)}"
+        )
+
+        # Round-trip: the truncated export is a valid import (<= cap).
+        reimport = do_import(cookie, password, envelope)
+        assert reimport.status_code == 200, reimport.text
+        new_id = reimport.json()["createdProfileIds"][0]
+        new_profile = _get_profile(self.api_config, cookie, new_id)
+        assert len(new_profile.settings.custom_rules or []) == EXPORTED_CUSTOM_RULES_LIMIT
+
+    def test_import_rejects_over_cap_custom_rules(self):
+        """Import payload with > EXPORTED_CUSTOM_RULES_LIMIT rules in a profile is
+        rejected by the DTO. specRef: V10."""
+        _, cookie, password, _ = create_account_with_password()
+        env = build_envelope(
+            profiles=[
+                build_profile(
+                    name="over_cap",
+                    custom_rules=make_rules(EXPORTED_CUSTOM_RULES_LIMIT + 1),
+                )
+            ]
+        )
+        resp = do_import(cookie, password, env)
+        assert resp.status_code == 400, resp.text
+
+    def test_import_body_over_limit_returns_413(self):
+        """An import body exceeding the import route's 5 MB limit is rejected with
+        413 at the body-read layer, before DTO validation. This is only verifiable
+        end-to-end (the Go handler test for it is skipped under app.Test). specRef: I5.
+        """
+        _, cookie, password, _ = create_account_with_password()
+        # ~6 MB of rules. Content validity is irrelevant — 413 fires before the
+        # handler/DTO runs, so over-cap / over-length values are fine here.
+        big_value = "a" * 250
+        big = build_envelope(
+            profiles=[
+                build_profile(
+                    name="too_big",
+                    custom_rules=[
+                        {"action": "block", "value": big_value} for _ in range(25_000)
+                    ],
+                )
+            ]
+        )
+        resp = do_import(cookie, password, big)
+        assert resp.status_code == 413, (
+            f"expected 413 for >5 MB body, got {resp.status_code}"
+        )

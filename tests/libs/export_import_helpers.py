@@ -184,11 +184,36 @@ def build_envelope(
     return env
 
 
+# Mirrors backend model.ExportedCustomRulesLimit: a profile export includes only
+# the first this-many custom rules per profile; import accepts at most this many.
+EXPORTED_CUSTOM_RULES_LIMIT = 1000
+
+
+def make_rules(
+    count: int, *, action: str = "block", prefix: str = "r"
+) -> list[dict]:
+    """Return `count` unique, valid ExportedCustomRule dicts (camelCase shape).
+
+    Values are plain FQDNs (`r0.example.com`, …) — valid per the rule-syntax
+    validator and unique so none are deduped/skipped on import.
+    """
+    return [{"action": action, "value": f"{prefix}{i}.example.com"} for i in range(count)]
+
+
 # ---------------------------------------------------------------------------
 # Raw HTTP wrappers (bypass pydantic for negative tests)
 # ---------------------------------------------------------------------------
 EXPORT_PATH = "/api/v1/profiles/export"
 IMPORT_PATH = "/api/v1/profiles/import"
+
+
+def add_custom_rules_batch(
+    cookie: str, profile_id: str, values: list[str], *, action: str = "block"
+) -> http_requests.Response:
+    """POST /profiles/{id}/custom_rules/batch (max 20 values/request)."""
+    url = _api_base() + f"/api/v1/profiles/{profile_id}/custom_rules/batch"
+    hdrs = {"Cookie": cookie, "Content-Type": "application/json"}
+    return http_requests.post(url, headers=hdrs, json={"action": action, "values": values})
 
 
 def _api_base() -> str:
