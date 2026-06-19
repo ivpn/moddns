@@ -40,10 +40,16 @@ const (
 	// importReadTimeout overrides the global ReadTimeout for the import endpoint
 	// so a large (up to importBodyLimit) body on a slow uplink isn't cut mid-read.
 	importReadTimeout = 60 * time.Second
+	// exportWriteTimeout overrides the global WriteTimeout for the export endpoint
+	// so a large export streamed to a slow-downloading client isn't cut mid-write.
+	exportWriteTimeout = 60 * time.Second
 )
 
-// importBodyLimitPath is the exact request path that gets importBodyLimit.
-var importBodyLimitPath = []byte("/api/v1/profiles/import")
+// Exact request paths that get per-endpoint overrides via the HeaderReceived hook.
+var (
+	importPath = []byte("/api/v1/profiles/import")
+	exportPath = []byte("/api/v1/profiles/export")
+)
 
 // APIServer represents an API server
 type APIServer struct {
@@ -71,22 +77,27 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 		IdleTimeout:  120 * time.Second,
 	})
 
-	// Grant the profile-import endpoint a larger body limit and read timeout than
-	// the global defaults. Fiber's BodyLimit/ReadTimeout are global, but fasthttp
+	// Grant the profile import/export endpoints larger limits than the global
+	// defaults. Fiber's BodyLimit/Read/WriteTimeout are global, but fasthttp
 	// honours a per-request override returned by HeaderReceived (evaluated before
 	// the body is read); a zero RequestConfig falls back to the global values for
 	// every other route.
+	//   - import: bigger body + read timeout (large upload on a slow uplink)
+	//   - export: bigger write timeout (large download to a slow client)
 	app.Server().HeaderReceived = func(h *fasthttp.RequestHeader) fasthttp.RequestConfig {
 		if h.IsPost() {
 			uri := h.RequestURI()
 			if i := bytes.IndexByte(uri, '?'); i >= 0 {
 				uri = uri[:i]
 			}
-			if bytes.Equal(uri, importBodyLimitPath) {
+			switch {
+			case bytes.Equal(uri, importPath):
 				return fasthttp.RequestConfig{
 					MaxRequestBodySize: importBodyLimit,
 					ReadTimeout:        importReadTimeout,
 				}
+			case bytes.Equal(uri, exportPath):
+				return fasthttp.RequestConfig{WriteTimeout: exportWriteTimeout}
 			}
 		}
 		return fasthttp.RequestConfig{}
