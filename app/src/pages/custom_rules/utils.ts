@@ -1,5 +1,10 @@
 export const MAX_RULES_PER_BATCH = 20;
 
+// CUSTOM_RULES_EXPORT_LIMIT mirrors the backend's per-profile export cap
+// (model.ExportedCustomRulesLimit): a profile export includes only the first
+// this-many custom rules (oldest-first). Rules beyond it still apply locally.
+export const CUSTOM_RULES_EXPORT_LIMIT = 1000;
+
 /**
  * Splits a raw user input string into potential rule values using whitespace and common separators.
  */
