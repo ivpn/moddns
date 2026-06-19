@@ -1701,6 +1701,13 @@ paths:
       responses:
         "201":
           description: Created
+          headers:
+            Content-Disposition:
+              description: attachment; the downloaded .mobileconfig filename
+              type: string
+            Content-Type:
+              description: application/x-apple-aspen-config
+              type: string
           schema:
             type: string
         "400":
@@ -2407,6 +2414,24 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            Cache-Control:
+              description: no-store; the export contains sensitive data
+              type: string
+            Content-Disposition:
+              description: attachment with a filename of the form moddns-export-<UTC>.moddns.json
+                (contains no PII)
+              type: string
+            Content-Type:
+              description: application/vnd.moddns.export+json; charset=utf-8
+              type: string
+            Pragma:
+              description: no-cache
+              type: string
+            X-modDNS-Export-Truncated:
+              description: count of profiles whose custom rules were truncated to
+                the 1000 per-profile export limit; omitted when nothing was truncated
+              type: integer
           schema:
             $ref: '#/definitions/model.ExportEnvelope'
         "400":
@@ -2534,6 +2559,13 @@ paths:
       responses:
         "200":
           description: OK
+          headers:
+            Content-Disposition:
+              description: attachment; the downloaded .mobileconfig filename
+              type: string
+            Content-Type:
+              description: application/x-apple-aspen-config
+              type: string
           schema:
             type: string
         "400":

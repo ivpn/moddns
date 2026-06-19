@@ -658,6 +658,16 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {
@@ -943,6 +953,28 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/model.ExportEnvelope"
+                        },
+                        "headers": {
+                            "Cache-Control": {
+                                "type": "string",
+                                "description": "no-store; the export contains sensitive data"
+                            },
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment with a filename of the form moddns-export-\u003cUTC\u003e.moddns.json (contains no PII)"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/vnd.moddns.export+json; charset=utf-8"
+                            },
+                            "Pragma": {
+                                "type": "string",
+                                "description": "no-cache"
+                            },
+                            "X-modDNS-Export-Truncated": {
+                                "type": "integer",
+                                "description": "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
+                            }
                         }
                     },
                     "400": {
@@ -1945,6 +1977,16 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {

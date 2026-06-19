@@ -22,6 +22,11 @@ import (
 // @Security ApiKeyAuth
 // @Param body body requests.ExportRequest true "Export request"
 // @Success 200 {object} model.ExportEnvelope
+// @Header 200 {string} Content-Type "application/vnd.moddns.export+json; charset=utf-8"
+// @Header 200 {string} Content-Disposition "attachment with a filename of the form moddns-export-<UTC>.moddns.json (contains no PII)"
+// @Header 200 {string} Cache-Control "no-store; the export contains sensitive data"
+// @Header 200 {string} Pragma "no-cache"
+// @Header 200 {integer} X-modDNS-Export-Truncated "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
 // @Failure 404 {object} ErrResponse

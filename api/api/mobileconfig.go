@@ -22,6 +22,8 @@ import (
 // @Security ApiKeyAuth
 // @Param body body requests.MobileConfigReq true "Generate .mobileconfig request"
 // @Success 201 {object} string
+// @Header 201 {string} Content-Type "application/x-apple-aspen-config"
+// @Header 201 {string} Content-Disposition "attachment; the downloaded .mobileconfig filename"
 // @Failure 400 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/mobileconfig [post]
@@ -108,6 +110,8 @@ func (s *APIServer) generateMobileConfigShortLink() fiber.Handler {
 // @Produce json
 // @Param code path string true "short code"
 // @Success 200 {object} string
+// @Header 200 {string} Content-Type "application/x-apple-aspen-config"
+// @Header 200 {string} Content-Disposition "attachment; the downloaded .mobileconfig filename"
 // @Failure 400 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/short/{code} [get]
