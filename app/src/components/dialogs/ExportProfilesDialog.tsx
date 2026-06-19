@@ -153,8 +153,8 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
                         from the export envelope so that DisallowUnknownFields() on import
                         never rejects a fresh export. */}
                     <div className="flex items-start gap-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 p-3" data-testid="export-warning">
-                        <AlertTriangle className="h-4 w-4 text-yellow-400 mt-0.5 shrink-0" />
-                        <p className="text-sm text-yellow-200">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 shrink-0" />
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
                             This file contains your DNS filtering rules and configuration. Treat it as confidential — anyone who reads it can see your block/allow lists and may be able to infer your browsing patterns.
                         </p>
                     </div>
