@@ -832,7 +832,7 @@ export interface ModelExportedSettings {
      */
     'advanced'?: ModelExportedAdvanced;
     /**
-     * 
+     * CustomRules holds the profile\'s custom filtering rules, capped at 500 per profile.
      * @type {Array<ModelExportedCustomRule>}
      * @memberof ModelExportedSettings
      */

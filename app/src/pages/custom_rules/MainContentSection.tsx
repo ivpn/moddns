@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import type { ModelAccount, ModelCustomRule, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
 import { RuleComposer, type RuleOption } from "@/pages/custom_rules/RuleComposer";
 import CustomRulesCard from "@/pages/custom_rules/CustomRulesCard";
+import { formatApiError } from "@/lib/apiError";
 
 type RuleTab = "denylist" | "allowlist";
 
@@ -22,30 +23,6 @@ const TAB_TO_ACTION: Record<RuleTab, "block" | "allow"> = {
     allowlist: "allow",
 };
 
-interface ApiErrorLike {
-    response?: {
-        data?: {
-            error?: string;
-            message?: string;
-            detail?: string;
-        };
-    };
-    message?: string;
-}
-
-const formatApiError = (error: unknown, fallback: string): string => {
-    if (typeof error === "string") {
-        return error;
-    }
-
-    if (error && typeof error === "object") {
-        const err = error as ApiErrorLike;
-        const data = err.response?.data;
-        return data?.error ?? data?.message ?? data?.detail ?? err.message ?? fallback;
-    }
-
-    return fallback;
-};
 
 
 interface MainContentSectionProps {

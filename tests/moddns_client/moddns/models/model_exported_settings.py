@@ -34,7 +34,7 @@ class ModelExportedSettings(BaseModel):
     ModelExportedSettings
     """ # noqa: E501
     advanced: Optional[ModelExportedAdvanced] = None
-    custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=10000)]] = Field(default=None, alias="customRules")
+    custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=500)]] = Field(default=None, description="CustomRules holds the profile's custom filtering rules, capped at 500 per profile.", alias="customRules")
     logs: Optional[ModelExportedLogs] = None
     privacy: Optional[ModelExportedPrivacy] = None
     security: Optional[ModelExportedSecurity] = None
