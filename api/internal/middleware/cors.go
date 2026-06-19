@@ -11,7 +11,9 @@ func NewAPICORS(cfg config.APIConfig) fiber.Handler {
 	return cors.New(cors.Config{
 		AllowOrigins:     cfg.ApiAllowOrigin,
 		AllowCredentials: true,
-		ExposeHeaders:    "Content-Disposition", // needed to expose this header to frontend (mobileconfig short link download)
+		// Content-Disposition: mobileconfig short-link + export downloads.
+		// X-modDNS-Export-Truncated: lets the export UI warn when rules were trimmed.
+		ExposeHeaders: "Content-Disposition,X-modDNS-Export-Truncated",
 	})
 }
 

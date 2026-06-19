@@ -36,7 +36,7 @@ const (
 	// importBodyLimit is the per-request cap for the profile-import endpoint,
 	// which can carry many profiles/custom rules. Applied via the fasthttp
 	// HeaderReceived hook below; the endpoint is reauth-gated and rate-limited.
-	importBodyLimit = 4 * 1024 * 1024 // 4 MB
+	importBodyLimit = 5 * 1024 * 1024 // 5 MB
 	// importReadTimeout overrides the global ReadTimeout for the import endpoint
 	// so a large (up to importBodyLimit) body on a slow uplink isn't cut mid-read.
 	importReadTimeout = 60 * time.Second

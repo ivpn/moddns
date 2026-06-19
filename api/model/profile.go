@@ -13,14 +13,20 @@ import (
 // the tags and this const stay aligned — do not change one without the other.
 const MaxProfileNameLen = 50
 
-// MaxCustomRulesPerProfile is the canonical maximum number of custom rules a
-// single profile may hold. Mirrors the `max=500` literal in the
-// ExportedSettings.CustomRules tag in export.go and is enforced by the normal
-// create path (service/profile/custom_rules.go) and the import path
-// (service/profile/import.go). The reflection-based regression test in
-// export_test.go asserts the tag and this const stay aligned — do not change
-// one without the other.
-const MaxCustomRulesPerProfile = 500
+// MaxCustomRulesPerProfile is the hard upper ceiling on how many custom rules a
+// single profile may hold. It is a high abuse/resource guard (protecting Redis
+// memory and the proxy's in-memory rule cache), not a product-facing limit —
+// real users never reach it. Enforced by the create path
+// (service/profile/custom_rules.go).
+const MaxCustomRulesPerProfile = 10000
+
+// ExportedCustomRulesLimit is the maximum number of custom rules emitted per
+// profile in an export, and therefore the per-profile cap accepted on import.
+// Exports beyond this are truncated (oldest-first) so an export always re-imports
+// cleanly regardless of how many rules a profile accumulated. Mirrors the
+// `max` literal in the ExportedSettings.CustomRules tag in export.go; the
+// regression test in profile_test.go keeps them aligned — change both together.
+const ExportedCustomRulesLimit = 1000
 
 // Profile represents a DNS profile
 type Profile struct {

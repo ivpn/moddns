@@ -194,6 +194,46 @@ func (s *ProfileExportImportSuite) TestExport_HappyPath_ReturnsEnvelope() {
 	s.Equal("My Profile", got.Profiles[0].Name)
 }
 
+// specRef:"E20"
+// TestExport_TruncatesCustomRulesAndSetsHeader verifies that a profile with more
+// than ExportedCustomRulesLimit custom rules is truncated (oldest-first) in the
+// downloaded file and that the X-modDNS-Export-Truncated header (E21) reports the
+// number of profiles trimmed, so the UI can warn the user.
+func (s *ProfileExportImportSuite) TestExport_TruncatesCustomRulesAndSetsHeader() {
+	rules := make([]model.ExportedCustomRule, model.ExportedCustomRulesLimit+5)
+	for i := range rules {
+		rules[i] = model.ExportedCustomRule{Action: "block", Value: "ads.example.com"}
+	}
+	envelope := &model.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    time.Now().UTC(),
+		Profiles: []model.ExportedProfile{
+			{Name: "Big", Settings: &model.ExportedSettings{CustomRules: rules}},
+		},
+	}
+
+	s.mockProfileSvc.On(
+		"Export",
+		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
+		(*string)(nil), (*string)(nil), mock.AnythingOfType("*model.MfaData"),
+	).Return(envelope, nil)
+
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
+	s.auth(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusOK, resp.StatusCode)
+	s.Equal("1", resp.Header.Get("X-modDNS-Export-Truncated"))
+
+	var got model.ExportEnvelope
+	decodeJSON(s.T(), resp, &got)
+	s.Require().Len(got.Profiles, 1)
+	s.Require().NotNil(got.Profiles[0].Settings)
+	s.Len(got.Profiles[0].Settings.CustomRules, model.ExportedCustomRulesLimit)
+}
+
 // specRef:"E2"
 func (s *ProfileExportImportSuite) TestExport_MissingScope_Returns400() {
 	body, _ := json.Marshal(map[string]any{})
@@ -634,18 +674,21 @@ func (s *ProfileExportImportSuite) TestImport_UnknownFieldInPayload_Returns400()
 }
 
 // specRef:"I5"
-// TestImport_BodyOver1MB_Returns413 verifies that a body exceeding the 1 MB
-// BodyLimit configured in NewServer is rejected with 413.
+// TestImport_BodyOverLimit_Returns413 verifies that a body exceeding the import
+// route's body limit (5 MB — raised from the 1 MB global via the per-request
+// fasthttp HeaderReceived override in NewServer) is rejected with 413.
 //
 // The Fiber test harness (app.Test) reads the full request body into memory
-// before handing it to the handler chain.  When the body exceeds BodyLimit,
+// before handing it to the handler chain.  When the body exceeds the limit,
 // fasthttp returns a "body size exceeds the given limit" error to app.Test
 // itself rather than producing a 413 HTTP response — so resp is nil and err is
 // non-nil.  This makes it impossible to assert on the HTTP status code using
-// the test harness.  The actual 413 behaviour is verified in integration tests
-// where a real TCP connection is used; skip this test here.
-func (s *ProfileExportImportSuite) TestImport_BodyOver1MB_Returns413() {
-	s.T().Skip("Fiber app.Test() returns an error rather than a 413 response when the body exceeds BodyLimit; verified at integration-test level instead")
+// the test harness.  The per-route HeaderReceived override is itself a
+// server-level hook that app.Test does not exercise.  The actual 413 behaviour
+// is verified in integration tests where a real TCP connection is used; skip
+// this test here.
+func (s *ProfileExportImportSuite) TestImport_BodyOverLimit_Returns413() {
+	s.T().Skip("Fiber app.Test() returns an error rather than a 413 response when the body exceeds BodyLimit, and does not exercise the per-route HeaderReceived override; verified at integration-test level instead")
 }
 
 // ---- Shared routing tests -------------------------------------------------

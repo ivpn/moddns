@@ -603,7 +603,7 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // specRef: S6
-// The DTO layer rejects payloads with > model.MaxCustomRulesPerProfile rules
+// The DTO layer rejects payloads with > model.ExportedCustomRulesLimit rules
 // before the service is reached. If the service is called directly with an
 // oversized rule list it truncates to the cap and adds a warning. This test
 // exercises that defensive code path.
@@ -619,16 +619,16 @@ func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
 	// Exactly the cap must reach the repository (the service truncates the overflow rule).
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == model.MaxCustomRulesPerProfile
+			return len(rules) == model.ExportedCustomRulesLimit
 		})).Return(nil).Once()
 	// AddCustomRules is called once with all capped rules via pipeline.
 	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == model.MaxCustomRulesPerProfile
+			return len(rules) == model.ExportedCustomRulesLimit
 		})).Return(nil).Once()
 
 	// Build one rule over the cap.
-	rules := make([]model.ExportedCustomRule, model.MaxCustomRulesPerProfile+1)
+	rules := make([]model.ExportedCustomRule, model.ExportedCustomRulesLimit+1)
 	for i := range rules {
 		rules[i] = model.ExportedCustomRule{Action: "block", Value: "example.com"}
 	}

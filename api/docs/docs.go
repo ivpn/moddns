@@ -3139,9 +3139,9 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.ExportedAdvanced"
                 },
                 "customRules": {
-                    "description": "CustomRules holds the profile's custom filtering rules, capped at 500 per profile.",
+                    "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
                     "type": "array",
-                    "maxItems": 500,
+                    "maxItems": 1000,
                     "items": {
                         "$ref": "#/definitions/model.ExportedCustomRule"
                     }
