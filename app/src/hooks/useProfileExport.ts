@@ -55,6 +55,17 @@ export function useProfileExport(): {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+
+      // The backend caps each profile's custom rules in the export (oldest-first)
+      // and reports how many profiles were trimmed. Warn the user so they know the
+      // file isn't a complete copy. (The limit is 1000 rules per profile.)
+      const truncatedHeader = (response.headers as Record<string, string>)['x-moddns-export-truncated'];
+      const truncatedCount = truncatedHeader ? parseInt(truncatedHeader, 10) : 0;
+      if (truncatedCount > 0) {
+        toast.warning(
+          `${truncatedCount} profile${truncatedCount === 1 ? '' : 's'} had more than 1000 custom rules — only the first 1000 per profile were exported.`,
+        );
+      }
     } catch (error) {
       const axiosError = error as { response?: { data?: unknown } };
 
