@@ -273,33 +273,11 @@ func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Contex
 	return nil
 }
 
-func (c *RedisCache) AddCustomRule(ctx context.Context, profileId string, customRule *model.CustomRule) error {
-	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
-
-	// create custom rule hash
-	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRule.ID.Hex())
-	hashCmd := c.client.HSet(ctx, customRuleHash, customRule)
-	if err := hashCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create profile custom rule hash")
-		c.client.Del(ctx, customRuleHash) // simple rollback
-		return err
-	}
-	log.Info().Str("custom_rule_hash", customRuleHash).Msg("Created profile custom rule hash")
-
-	// add rule to set (create set if necessary)
-	intCmd := c.client.SAdd(ctx, customRulesSetName, customRuleHash)
-	if err := intCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create/update profile custom rules set")
-		return err
-	}
-	log.Info().Str("custom_rules_set", customRulesSetName).Msg("Created/updated profile custom rules set")
-	return nil
-}
-
 // AddCustomRules bulk-inserts all rules for a profile in a single Redis
-// pipeline. It issues one HSet per rule plus a single variadic SAdd for the
-// set membership — the same key/field layout as AddCustomRule — so existing
-// readers (proxy, DeleteProfileSettings) continue to work unchanged.
+// pipeline. It issues one HSet per rule plus a single variadic SAdd for the set
+// membership, using the canonical key/field layout (settings:<id>:custom_rule:<ruleId>
+// hashes plus the settings:<id>:custom_rules set) so existing readers (proxy,
+// DeleteProfileSettings) continue to work unchanged.
 func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error {
 	if len(rules) == 0 {
 		return nil

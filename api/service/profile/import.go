@@ -489,7 +489,7 @@ func (p *ProfileService) validateAndMapRules(
 //
 // Mirror the cleanup of the regular DeleteProfile path (service.go:171-173):
 // importOneProfile populates Redis via Cache.CreateOrUpdateProfileSettings and
-// Cache.AddCustomRule, so the rollback must also evict the cached settings
+// Cache.AddCustomRules, so the rollback must also evict the cached settings
 // for every profileId in the batch. Without this, the proxy would treat the
 // rolled-back profile as live until the 30-second TTL expires, and a fresh
 // import that happens to reuse a profileId could be shadowed by the stale

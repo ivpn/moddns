@@ -174,10 +174,8 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 			return nil, err
 		}
 
-		for _, rule := range toCreate {
-			if err := p.Cache.AddCustomRule(ctx, profileId, rule); err != nil {
-				return nil, err
-			}
+		if err := p.Cache.AddCustomRules(ctx, profileId, toCreate); err != nil {
+			return nil, err
 		}
 
 		result.Created = append(result.Created, toCreate...)

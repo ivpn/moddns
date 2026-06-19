@@ -2250,7 +2250,7 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 			if !tt.wantSkipped {
 				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
-				mockCache.On("AddCustomRule", mock.Anything, profileID, mock.Anything).
+				mockCache.On("AddCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
 			}
 
