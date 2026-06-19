@@ -603,10 +603,10 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // specRef: S6
-// The DTO layer rejects payloads with > 10,000 rules before the service is
-// reached. If the service is called directly with an oversized rule list it
-// truncates to maxCustomRulesPerProfile and adds a warning. This test exercises
-// that defensive code path.
+// The DTO layer rejects payloads with > model.MaxCustomRulesPerProfile rules
+// before the service is reached. If the service is called directly with an
+// oversized rule list it truncates to the cap and adds a warning. This test
+// exercises that defensive code path.
 func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
 	env := newImportTestEnv(t, "secret", 100)
 
@@ -616,19 +616,19 @@ func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
 		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
-	// Exactly 10,000 rules must reach the repository (the service truncates the 10,001st).
+	// Exactly the cap must reach the repository (the service truncates the overflow rule).
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == 10_000
+			return len(rules) == model.MaxCustomRulesPerProfile
 		})).Return(nil).Once()
-	// AddCustomRules is called once with all 10,000 capped rules via pipeline.
+	// AddCustomRules is called once with all capped rules via pipeline.
 	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == 10_000
+			return len(rules) == model.MaxCustomRulesPerProfile
 		})).Return(nil).Once()
 
-	// Build 10,001 valid rules -- one over the cap.
-	rules := make([]model.ExportedCustomRule, 10_001)
+	// Build one rule over the cap.
+	rules := make([]model.ExportedCustomRule, model.MaxCustomRulesPerProfile+1)
 	for i := range rules {
 		rules[i] = model.ExportedCustomRule{Action: "block", Value: "example.com"}
 	}

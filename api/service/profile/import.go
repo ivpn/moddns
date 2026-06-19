@@ -37,10 +37,10 @@ type ImportResult struct {
 var ErrImportNotImplemented = errors.New("import not implemented")
 
 // maxCustomRulesPerProfile is the per-profile cap on imported custom rules.
-// The DTO layer enforces the same limit (requests.ImportSettings.CustomRules max=10000),
+// The DTO layer enforces the same limit (ExportedSettings.CustomRules max=500),
 // but the service applies a defensive check to remain safe when called without HTTP.
 // specRef: S6, V10
-const maxCustomRulesPerProfile = 10_000
+const maxCustomRulesPerProfile = model.MaxCustomRulesPerProfile
 
 // staleExportThreshold is the age beyond which an export file triggers an advisory warning.
 // specRef: V16, V17

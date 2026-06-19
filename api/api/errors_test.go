@@ -167,6 +167,13 @@ func TestHandleError(t *testing.T) {
 			expectedError:  profile.ErrMaxProfilesExceeded.Error() + ": would exceed limit of 100; have 98, payload has 5",
 		},
 		{
+			name:           "Profile: Max Custom Rules Reached",
+			err:            profile.ErrMaxCustomRulesReached,
+			errMsg:         "create custom rules failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrMaxCustomRulesReached.Error(),
+		},
+		{
 			name:           "Profile: Too Many Profile IDs",
 			err:            profile.ErrTooManyProfileIds,
 			errMsg:         "export failed",

@@ -62,3 +62,16 @@ func TestExportedProfileName_WireMaxIsPermissive(t *testing.T) {
 		"ExportedProfile.Name max=%d must exceed MaxProfileNameLen=%d so the import service can truncate rather than reject",
 		got, MaxProfileNameLen)
 }
+
+// TestExportedCustomRules_MaxMatchesCanonicalConst is the drift guard for the
+// per-profile custom-rules cap: the import-wire DTO tag must equal
+// MaxCustomRulesPerProfile — the same limit the create and import services
+// enforce — so update both together.
+func TestExportedCustomRules_MaxMatchesCanonicalConst(t *testing.T) {
+	f, ok := reflect.TypeOf(ExportedSettings{}).FieldByName("CustomRules")
+	require.True(t, ok, "ExportedSettings.CustomRules field not found")
+	got := extractMaxFromValidateTag(t, "model.ExportedSettings.CustomRules", f.Tag)
+	assert.Equal(t, MaxCustomRulesPerProfile, got,
+		"ExportedSettings.CustomRules validate tag has max=%d but MaxCustomRulesPerProfile=%d — update both together",
+		got, MaxCustomRulesPerProfile)
+}

@@ -106,4 +106,13 @@ var (
 	// over the ServiceConfig.MaxProfiles cap.
 	// specRef: I16, I17, I18
 	ErrMaxProfilesExceeded = NewProfileError("import would exceed maximum profile limit")
+
+	// ErrMaxCustomRulesReached is returned when creating custom rules would push a
+	// profile over the model.MaxCustomRulesPerProfile cap. Its message is shown
+	// directly to the user (the frontend surfaces response.data.error), so it is
+	// phrased as user-facing copy.
+	ErrMaxCustomRulesReached = NewProfileError(fmt.Sprintf(
+		"Adding these would exceed the limit of %d custom rules per profile. Remove some rules first.",
+		model.MaxCustomRulesPerProfile,
+	))
 )

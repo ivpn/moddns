@@ -13,6 +13,15 @@ import (
 // the tags and this const stay aligned — do not change one without the other.
 const MaxProfileNameLen = 50
 
+// MaxCustomRulesPerProfile is the canonical maximum number of custom rules a
+// single profile may hold. Mirrors the `max=500` literal in the
+// ExportedSettings.CustomRules tag in export.go and is enforced by the normal
+// create path (service/profile/custom_rules.go) and the import path
+// (service/profile/import.go). The reflection-based regression test in
+// export_test.go asserts the tag and this const stay aligned — do not change
+// one without the other.
+const MaxCustomRulesPerProfile = 500
+
 // Profile represents a DNS profile
 type Profile struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id" binding:"required"`

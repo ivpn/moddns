@@ -56,9 +56,10 @@ type ExportedProfile struct {
 }
 
 type ExportedSettings struct {
-	Privacy     *ExportedPrivacy     `json:"privacy,omitempty"`
-	Security    *ExportedSecurity    `json:"security,omitempty"`
-	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=10000,dive"`
+	Privacy  *ExportedPrivacy  `json:"privacy,omitempty"`
+	Security *ExportedSecurity `json:"security,omitempty"`
+	// CustomRules holds the profile's custom filtering rules, capped at 500 per profile.
+	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=500,dive"`
 	Logs        *ExportedLogs        `json:"logs,omitempty"`
 	Statistics  *ExportedStatistics  `json:"statistics,omitempty"`
 	Advanced    *ExportedAdvanced    `json:"advanced,omitempty"`

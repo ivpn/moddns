@@ -2278,6 +2278,62 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 	}
 }
 
+// TestCreateCustomRulesBulkEnforcesPerProfileCap verifies the per-profile
+// custom-rule cap (model.MaxCustomRulesPerProfile) is enforced on create:
+// adding rules that would push a profile over the cap is rejected with
+// ErrMaxCustomRulesReached and nothing is persisted.
+func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerProfileCap() {
+	const accountID = "acct-cap"
+	const profileID = "prof-cap"
+
+	apiVldtr, err := intvldtr.NewAPIValidator()
+	suite.Require().NoError(err)
+
+	mockProfileRepo := mocks.NewProfileRepository(suite.T())
+	mockCache := mocks.NewCachecache(suite.T())
+
+	svc := profile.NewProfileService(
+		suite.serverConfig,
+		suite.serviceConfig,
+		mockProfileRepo,
+		suite.mockAccountRepo,
+		suite.blocklistService,
+		suite.queryLogsService,
+		suite.statisticsService,
+		nil,
+		mockCache,
+		suite.mockIDGen,
+		apiVldtr.Validator,
+	)
+
+	// Profile already holding exactly the cap, so any net-new rule exceeds it.
+	existing := make([]*model.CustomRule, model.MaxCustomRulesPerProfile)
+	for i := range existing {
+		existing[i] = &model.CustomRule{Value: "filler.example.com"}
+	}
+	existingProfile := &model.Profile{
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			Privacy: &model.Privacy{
+				CustomRulesSubdomainsRule: "include",
+				DefaultRule:               "allow",
+			},
+			CustomRules: existing,
+		},
+	}
+	mockProfileRepo.On("GetProfileById", mock.Anything, profileID).Return(existingProfile, nil)
+
+	result, err := svc.CreateCustomRulesBulk(
+		context.Background(), accountID, profileID, "block", []string{"new-unique.example.com"},
+	)
+
+	suite.Require().Error(err)
+	suite.ErrorIs(err, profile.ErrMaxCustomRulesReached)
+	suite.Nil(result)
+	mockProfileRepo.AssertNotCalled(suite.T(), "CreateCustomRules", mock.Anything, mock.Anything, mock.Anything)
+	mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestProfileTestSuite(t *testing.T) {
 	suite.Run(t, new(ProfileTestSuite))
 }
