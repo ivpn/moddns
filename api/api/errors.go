@@ -72,15 +72,20 @@ type ErrResponse struct {
 	Details []string `json:"details,omitempty"`
 }
 
+// validationErrorPrefix is prepended to every user-facing validation/bad-body
+// message so the customer immediately understands the 400 is about their input
+// (e.g. "Validation error: customRules must be at most 1000").
+const validationErrorPrefix = "Validation error: "
+
 // badRequestErrorText picks the response error text for a 400. For
 // ErrInvalidRequestBody the caller passes the human-readable validation detail
 // as errMsg (e.g. "customRules must be at most 1000"), which is preferred over
-// the generic sentinel so the frontend can display something useful. Other
-// sentinel errors carry a server-side log message in errMsg, so they fall back
-// to err.Error().
+// the generic sentinel so the frontend can display something useful — prefixed
+// with "Validation error: ". Other sentinel errors carry a server-side log
+// message in errMsg, so they fall back to err.Error().
 func badRequestErrorText(err error, errMsg string) string {
 	if err == ErrInvalidRequestBody && errMsg != "" && errMsg != ErrInvalidRequestBody.Error() {
-		return errMsg
+		return validationErrorPrefix + errMsg
 	}
 	return err.Error()
 }

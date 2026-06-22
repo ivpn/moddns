@@ -865,7 +865,7 @@ func (s *ProfileExportImportSuite) TestImport_InvalidDefaultRule_FriendlyMessage
 
 	var errResp ErrResponse
 	decodeJSON(s.T(), resp, &errResp)
-	s.Equal("defaultRule must be one of: block, allow", errResp.Error)
+	s.Equal("Validation error: defaultRule must be one of: block, allow", errResp.Error)
 	s.NotContains(errResp.Error, "Needs to implement")
 }
 
@@ -894,7 +894,7 @@ func (s *ProfileExportImportSuite) TestImport_UnknownField_FriendlyMessage() {
 
 	var errResp ErrResponse
 	decodeJSON(s.T(), resp, &errResp)
-	s.Equal("Unknown field '_id' is not allowed.", errResp.Error)
+	s.Equal("Validation error: Unknown field '_id' is not allowed.", errResp.Error)
 }
 
 // ---- Suite runner ---------------------------------------------------------

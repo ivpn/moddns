@@ -32,7 +32,8 @@ const importFixturesDir = "fixtures/import"
 
 // serverFixtureMessages maps each server-reachable fixture (one that passes the
 // dialog's client-side schemaVersion/kind/profiles pre-check and is therefore
-// validated by the API) to the exact `error` string the handler returns.
+// validated by the API) to the message body it produces. The handler prepends
+// validationErrorPrefix ("Validation error: ") to this, which the assertions add.
 var serverFixtureMessages = map[string]string{
 	"01-too-many-profiles.moddns.json":                  "profiles must be at most 100",
 	"02-too-many-custom-rules.moddns.json":              "customRules must be at most 1000",
@@ -66,7 +67,7 @@ func (s *ProfileExportImportSuite) TestManualImportFixtures_ProduceFriendlyMessa
 
 			var errResp ErrResponse
 			decodeJSON(s.T(), resp, &errResp)
-			s.Equal(want, errResp.Error)
+			s.Equal(validationErrorPrefix+want, errResp.Error)
 			s.NotContains(errResp.Error, "Needs to implement")
 			s.NotContains(errResp.Error, "json:")
 		})
@@ -90,6 +91,7 @@ func (s *ProfileExportImportSuite) TestManualImportFixtures_MultipleErrors() {
 	var errResp ErrResponse
 	decodeJSON(s.T(), resp, &errResp)
 	s.T().Logf("16-multiple-errors message: %q", errResp.Error)
+	s.True(strings.HasPrefix(errResp.Error, validationErrorPrefix), "message should carry the validation prefix")
 	s.Contains(errResp.Error, "defaultRule must be one of: block, allow")
 	s.Contains(errResp.Error, "action must be one of: block, allow, comment")
 	s.NotContains(errResp.Error, "Needs to implement")

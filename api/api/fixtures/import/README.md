@@ -44,7 +44,10 @@ expected message to `serverFixtureMessages` in `manual_fixtures_test.go` (a
 
 ## Server-validated files (the corrected messages)
 These pass the dialog's client-side pre-check (valid JSON, `schemaVersion: 1`,
-`kind: "moddns-export"`, ≥1 profile) and reach the API, which returns:
+`kind: "moddns-export"`, ≥1 profile) and reach the API. The API returns each
+message below **prefixed with `Validation error: `** (e.g.
+`Validation error: profiles must be at most 100`); the table lists the message
+body for brevity:
 
 | File | Message shown |
 |------|---------------|
