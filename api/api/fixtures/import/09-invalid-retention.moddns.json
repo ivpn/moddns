@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "exportedAt": "2026-01-01T00:00:00Z",
+  "profiles": [
+    {
+      "name": "Bad retention",
+      "settings": {
+        "logs": {
+          "enabled": true,
+          "logClientsIPs": false,
+          "logDomains": false,
+          "retention": "2h"
+        }
+      }
+    }
+  ]
+}

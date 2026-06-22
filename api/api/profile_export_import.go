@@ -40,7 +40,7 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 		dec := json.NewDecoder(bytes.NewReader(c.Body()))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(req); err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+			return HandleError(c, ErrInvalidRequestBody, HumanizeDecodeError(err))
 		}
 
 		errMsgs := s.Validator.ValidateRequest(c, req, "Failed to export profiles")
@@ -136,7 +136,7 @@ func (s *APIServer) importProfiles() fiber.Handler {
 		dec := json.NewDecoder(bytes.NewReader(c.Body()))
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(req); err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+			return HandleError(c, ErrInvalidRequestBody, HumanizeDecodeError(err))
 		}
 
 		errMsgs := s.Validator.ValidateRequest(c, req, "Failed to import profiles")

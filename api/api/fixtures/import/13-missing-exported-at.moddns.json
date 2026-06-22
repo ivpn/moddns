@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "profiles": [
+    {
+      "name": "No exportedAt",
+      "settings": {}
+    }
+  ]
+}

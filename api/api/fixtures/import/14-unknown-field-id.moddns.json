@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "exportedAt": "2026-01-01T00:00:00Z",
+  "profiles": [
+    {
+      "name": "Has _id",
+      "settings": {}
+    }
+  ],
+  "_id": "650000000000000000000000"
+}

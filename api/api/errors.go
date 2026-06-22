@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -72,7 +74,7 @@ type ErrResponse struct {
 
 // badRequestErrorText picks the response error text for a 400. For
 // ErrInvalidRequestBody the caller passes the human-readable validation detail
-// as errMsg (e.g. "[Name]: Needs to implement 'max'"), which is preferred over
+// as errMsg (e.g. "customRules must be at most 1000"), which is preferred over
 // the generic sentinel so the frontend can display something useful. Other
 // sentinel errors carry a server-side log message in errMsg, so they fall back
 // to err.Error().
@@ -81,6 +83,45 @@ func badRequestErrorText(err error, errMsg string) string {
 		return errMsg
 	}
 	return err.Error()
+}
+
+// HumanizeDecodeError turns a JSON-decode failure (from a strict
+// DisallowUnknownFields decoder) into a user-facing message instead of leaking
+// the raw encoding/json error text (e.g. `json: unknown field "_id"`).
+func HumanizeDecodeError(err error) string {
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) {
+		field := typeErr.Field
+		if i := strings.LastIndex(field, "."); i >= 0 {
+			field = field[i+1:]
+		}
+		if field == "" {
+			return fmt.Sprintf("A field has the wrong type (expected %s).", friendlyJSONType(typeErr.Type.String()))
+		}
+		return fmt.Sprintf("Field '%s' has the wrong type (expected %s).", field, friendlyJSONType(typeErr.Type.String()))
+	}
+	const unknownPrefix = "json: unknown field "
+	if msg := err.Error(); strings.HasPrefix(msg, unknownPrefix) {
+		field := strings.Trim(strings.TrimPrefix(msg, unknownPrefix), `"`)
+		return fmt.Sprintf("Unknown field '%s' is not allowed.", field)
+	}
+	return "The file is not valid JSON."
+}
+
+// friendlyJSONType maps a Go type name to a user-facing description.
+func friendlyJSONType(goType string) string {
+	switch goType {
+	case "bool":
+		return "true or false"
+	case "string":
+		return "text"
+	case "int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64":
+		return "a number"
+	default:
+		return "a different type"
+	}
 }
 
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {

@@ -437,7 +437,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                             <FileDropzone
                                 data-testid="import-dropzone"
                                 accept=".moddns.json,.json,application/json"
-                                maxBytes={1024 * 1024}
+                                maxBytes={5 * 1024 * 1024}
                                 onFileAccepted={handleFileAccepted}
                                 onFileRejected={handleFileRejected}
                                 label="Drop a .moddns.json file here, or click to browse"
@@ -486,8 +486,8 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                     className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3"
                                     role="alert"
                                 >
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" />
-                                    <p className="text-sm text-yellow-200">
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" />
+                                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
                                         Selecting {selectedCount} profile{selectedCount === 1 ? '' : 's'} would exceed the{' '}
                                         {MAX_PROFILES}-profile limit. You have room for {remaining > 0 ? remaining : 0} more.
                                         Deselect some profiles to continue.
@@ -561,7 +561,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                         No profiles were created.
                                     </p>
                                 ) : (
-                                    <ul className="flex flex-col gap-1.5">
+                                    <ul className="flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1">
                                         {result.createdProfileIds.map((id, idx) => {
                                             // createdProfileNames is parallel to createdProfileIds
                                             // (spec I19b). The name reflects any I24 collision
@@ -628,7 +628,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                                         className={cn(
                                                             'mt-0.5 h-4 w-4 shrink-0',
                                                             idn
-                                                                ? 'text-yellow-400'
+                                                                ? 'text-yellow-600 dark:text-yellow-400'
                                                                 : 'text-[var(--tailwind-colors-slate-400)]'
                                                         )}
                                                     />
@@ -636,7 +636,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                                         className={cn(
                                                             'text-sm break-words min-w-0',
                                                             idn
-                                                                ? 'text-yellow-200'
+                                                                ? 'text-yellow-800 dark:text-yellow-200'
                                                                 : 'text-[var(--tailwind-colors-slate-300)]'
                                                         )}
                                                     >

@@ -829,6 +829,74 @@ func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns
 	s.Equal(http.StatusUnauthorized, resp.StatusCode)
 }
 
+// ---- Friendly validation messages (QA issue #604) -------------------------
+
+func mustJSON(t require.TestingT, v any) []byte {
+	b, err := json.Marshal(v)
+	require.NoError(t, err)
+	return b
+}
+
+// specRef:"V8"
+// A struct-tag validation failure surfaces as a user-facing sentence, not the
+// raw "[Field]: Needs to implement 'tag'" format, and references the field by
+// its JSON name.
+func (s *ProfileExportImportSuite) TestImport_InvalidDefaultRule_FriendlyMessage() {
+	body := mustJSON(s.T(), map[string]any{
+		"mode":             "create_new",
+		"current_password": "secret",
+		"payload": map[string]any{
+			"schemaVersion": 1,
+			"kind":          "moddns-export",
+			"exportedAt":    "2026-01-01T00:00:00Z",
+			"profiles": []any{map[string]any{
+				"name":     "P",
+				"settings": map[string]any{"privacy": map[string]any{"defaultRule": "nope"}},
+			}},
+		},
+	})
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", body)
+	req.Header.Set("X-modDNS-Import", "confirm")
+	s.authAndSubscription(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	var errResp ErrResponse
+	decodeJSON(s.T(), resp, &errResp)
+	s.Equal("defaultRule must be one of: block, allow", errResp.Error)
+	s.NotContains(errResp.Error, "Needs to implement")
+}
+
+// specRef:"V6"
+// An unknown field (e.g. a leaked "_id") produces a friendly message rather than
+// the raw encoding/json error text.
+func (s *ProfileExportImportSuite) TestImport_UnknownField_FriendlyMessage() {
+	body := mustJSON(s.T(), map[string]any{
+		"mode":             "create_new",
+		"current_password": "secret",
+		"_id":              "leak",
+		"payload": map[string]any{
+			"schemaVersion": 1,
+			"kind":          "moddns-export",
+			"exportedAt":    "2026-01-01T00:00:00Z",
+			"profiles":      []any{map[string]any{"name": "P", "settings": map[string]any{}}},
+		},
+	})
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", body)
+	req.Header.Set("X-modDNS-Import", "confirm")
+	s.authAndSubscription(req)
+
+	resp, err := s.createServer().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
+
+	var errResp ErrResponse
+	decodeJSON(s.T(), resp, &errResp)
+	s.Equal("Unknown field '_id' is not allowed.", errResp.Error)
+}
+
 // ---- Suite runner ---------------------------------------------------------
 
 func TestProfileExportImportSuite(t *testing.T) {
