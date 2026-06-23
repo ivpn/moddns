@@ -4,7 +4,7 @@ CWD=$$(pwd)
 help: ## Displays the help for each command.
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-RECURSOR?=sdns # sdns is default recursor
+RECURSOR?=knot # knot is default recursor
 up: ## Starts all of the services.
 	docker compose \
 		-f compose.yml \

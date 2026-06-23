@@ -2,7 +2,7 @@ package model
 
 const RECURSOR_SDNS = "sdns"
 const RECURSOR_KNOT = "knot"
-const RECURSOR_DEFAULT = RECURSOR_SDNS
+const RECURSOR_DEFAULT = RECURSOR_KNOT
 
 var RECURSORS = []string{RECURSOR_SDNS, RECURSOR_KNOT}
 

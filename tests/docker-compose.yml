@@ -36,7 +36,7 @@ services:
       - redis-replica-dns
       - mongodb
       - sdns
-    # - unbound
+      - knot
     ports:
       - "53000:53/udp" # PLAIN DNS
       - "53000:53/tcp" # PLAIN DNS
@@ -99,16 +99,14 @@ services:
       - ./config/sdns.conf:/sdns.conf
       - ./config/testhosts.txt:/testhosts.txt:ro
 
-  # unbound:
-  #   image: mvance/unbound:1.21.1
-  #   # restart: always
-  #   command: /opt/unbound/sbin/unbound -vv -d -d -c /opt/unbound/etc/unbound/unbound.conf
-  #   networks:
-  #     dnsnetwork:
-  #       ipv4_address: 10.5.0.6
-  #   container_name: unbound
-  #   volumes:
-  #     - ../bootstrap/recursor:/opt/unbound/etc/unbound/
+  knot:
+    image: cznic/knot-resolver:v6.4.0
+    networks:
+      dnsnetwork:
+        ipv4_address: 10.5.0.6
+    container_name: knot
+    volumes:
+      - ./config/knot.config.yaml:/etc/knot-resolver/config.yaml:ro
 
   mongodb:
     image: mongo:8.2.3
