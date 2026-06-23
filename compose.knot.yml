@@ -8,3 +8,7 @@ services:
     container_name: knot
     volumes:
       - ./bootstrap/recursor/knot.config.yaml:/etc/knot-resolver/config.yaml:ro
+    # RAM-backed cache (like sdns's in-RAM cache; Knot recommends tmpfs).
+    # Size must exceed cache.size-max (256M) — Knot preallocates the file.
+    tmpfs:
+      - /var/cache/knot-resolver:size=320m

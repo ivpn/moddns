@@ -5,6 +5,11 @@
 ## RSASHA1 (alg-7) dual-algorithm zones (e.g. mailbox.org) that sdns 1.6.4+
 ## false-SERVFAILs.
 
+## Number of single-threaded kresd workers the manager supervises (all share one
+## LMDB cache). 2 gives CPU headroom for DNSSEC validation + crash-restart
+## resilience. Do NOT use "auto" here — these are shared multi-container hosts.
+workers: 2
+
 ## Management API — bound on TCP so Prometheus can scrape /metrics/prometheus
 ## (default is a unix socket). Exposes resolver_* metrics + /config + /metrics/json.
 management:
