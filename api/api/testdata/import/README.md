@@ -7,7 +7,7 @@ and the corrected, user-facing error messages (QA issue
 They serve **two** purposes from this one location:
 - **Manual** — drop them into the web app's import dialog to see the messages a
   real user gets.
-- **Automated** — `api/api/manual_fixtures_test.go` feeds each one through the real
+- **Automated** — `api/api/profile_import_validation_test.go` feeds each one through the real
   import handler and asserts the exact `error` string, so the messages documented
   here can't silently drift from the validator.
 
@@ -23,8 +23,8 @@ deliberate problem (except `16`, which has two).
    selection (the dialog rejects them before any upload).
 
 ## Automated usage (Go test)
-`api/api/manual_fixtures_test.go` reads this directory via the package-relative path
-`fixtures/import` and:
+`api/api/profile_import_validation_test.go` reads this directory via the package-relative path
+`testdata/import` and:
 - wraps each bare envelope into the request body the frontend sends
   (`{mode, payload: <envelope>, current_password}`), POSTs it through the real
   import handler (`app.Test`), and asserts the response `error` equals the message
@@ -39,7 +39,7 @@ cd api && go test ./api/ -run 'TestProfileExportImportSuite/TestManualImportFixt
 ```
 
 **Adding a fixture:** drop the `.moddns.json` file here, then add its filename →
-expected message to `serverFixtureMessages` in `manual_fixtures_test.go` (a
+expected message to `serverFixtureMessages` in `profile_import_validation_test.go` (a
 `client-*` file is browser-validated and is excluded from the test instead).
 
 ## Server-validated files (the corrected messages)

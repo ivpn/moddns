@@ -23,33 +23,33 @@ func wrapFixtureAsImportBody(t require.TestingT, file string) []byte {
 	})
 }
 
-// importFixturesDir holds the hand-authored import files (api/api/fixtures/import)
+// importFixturesDir holds the hand-authored import files (api/api/testdata/import)
 // used both for manual UI testing and by this test, which feeds each one through
 // the real import handler and asserts the exact user-facing error it produces so
 // the fixtures' documented messages stay honest (QA issue #604). The path is
 // relative to the package directory (the test working dir).
-const importFixturesDir = "fixtures/import"
+const importFixturesDir = "testdata/import"
 
 // serverFixtureMessages maps each server-reachable fixture (one that passes the
 // dialog's client-side schemaVersion/kind/profiles pre-check and is therefore
 // validated by the API) to the message body it produces. The handler prepends
 // validationErrorPrefix ("Validation error: ") to this, which the assertions add.
 var serverFixtureMessages = map[string]string{
-	"01-too-many-profiles.moddns.json":                  "profiles must be at most 100",
-	"02-too-many-custom-rules.moddns.json":              "customRules must be at most 1000",
-	"03-too-many-blocklists.moddns.json":                "blocklists must be at most 100",
-	"04-invalid-default-rule.moddns.json":               "defaultRule must be one of: block, allow",
-	"05-invalid-blocklists-subdomains-rule.moddns.json": "blocklistsSubdomainsRule must be one of: block, allow",
+	"01-too-many-profiles.moddns.json":                    "profiles must be at most 100",
+	"02-too-many-custom-rules.moddns.json":                "customRules must be at most 1000",
+	"03-too-many-blocklists.moddns.json":                  "blocklists must be at most 100",
+	"04-invalid-default-rule.moddns.json":                 "defaultRule must be one of: block, allow",
+	"05-invalid-blocklists-subdomains-rule.moddns.json":   "blocklistsSubdomainsRule must be one of: block, allow",
 	"06-invalid-custom-rules-subdomains-rule.moddns.json": "customRulesSubdomainsRule must be one of: include, exact",
-	"07-invalid-custom-rule-action.moddns.json":         "action must be one of: block, allow, comment",
-	"08-custom-rule-value-too-long.moddns.json":         "value must be at most 255",
-	"09-invalid-retention.moddns.json":                  "retention must be one of: 1h, 6h, 1d, 1w, 1m",
-	"10-invalid-recursor.moddns.json":                   "recursor must be one of: sdns, unbound",
-	"11-profile-name-too-long.moddns.json":              "name must be at most 200",
-	"12-profile-name-invalid-chars.moddns.json":         "name contains invalid characters",
-	"13-missing-exported-at.moddns.json":                "exportedAt is required",
-	"14-unknown-field-id.moddns.json":                   "Unknown field '_id' is not allowed.",
-	"15-wrong-type-bool.moddns.json":                    "Field 'enabled' has the wrong type (expected true or false).",
+	"07-invalid-custom-rule-action.moddns.json":           "action must be one of: block, allow, comment",
+	"08-custom-rule-value-too-long.moddns.json":           "value must be at most 255",
+	"09-invalid-retention.moddns.json":                    "retention must be one of: 1h, 6h, 1d, 1w, 1m",
+	"10-invalid-recursor.moddns.json":                     "recursor must be one of: sdns, unbound",
+	"11-profile-name-too-long.moddns.json":                "name must be at most 200",
+	"12-profile-name-invalid-chars.moddns.json":           "name contains invalid characters",
+	"13-missing-exported-at.moddns.json":                  "exportedAt is required",
+	"14-unknown-field-id.moddns.json":                     "Unknown field '_id' is not allowed.",
+	"15-wrong-type-bool.moddns.json":                      "Field 'enabled' has the wrong type (expected true or false).",
 }
 
 func (s *ProfileExportImportSuite) TestManualImportFixtures_ProduceFriendlyMessages() {
