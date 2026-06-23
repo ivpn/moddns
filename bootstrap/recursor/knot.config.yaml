@@ -5,6 +5,11 @@
 ## RSASHA1 (alg-7) dual-algorithm zones (e.g. mailbox.org) that sdns 1.6.4+
 ## false-SERVFAILs.
 
+## Management API — bound on TCP so Prometheus can scrape /metrics/prometheus
+## (default is a unix socket). Exposes resolver_* metrics + /config + /metrics/json.
+management:
+  interface: 0.0.0.0@5000
+
 network:
   listen:
     - interface: 0.0.0.0
