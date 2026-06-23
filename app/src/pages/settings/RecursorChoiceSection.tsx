@@ -18,7 +18,7 @@ const RecursorChoiceSection: React.FC<RecursorChoiceSectionProps> = ({
     onRecursorChange,
     loading = false,
 }) => {
-    const recursors = ['sdns', 'unbound'];
+    const recursors = ['sdns', 'knot'];
 
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 flex-wrap max-w-full">
