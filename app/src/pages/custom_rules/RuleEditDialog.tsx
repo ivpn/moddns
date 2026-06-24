@@ -21,7 +21,6 @@ import {
 import type { ModelCustomRule, RequestsUpdateProfileCustomRuleBody } from "@/api/client/api";
 
 const NOTE_MAX = 280;
-const GROUP_MAX = 64;
 // Sentinel used by the group <Select>; an empty value cannot be a SelectItem.
 const NO_GROUP = "__none__";
 
@@ -110,13 +109,13 @@ export default function RuleEditDialog({
 
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="rule-edit-group">Group</Label>
-                        {existingGroups.length > 0 && (
+                        {existingGroups.length > 0 ? (
                             <Select
                                 value={group === "" ? NO_GROUP : group}
                                 onValueChange={(v) => setGroup(v === NO_GROUP ? "" : v)}
                             >
-                                <SelectTrigger id="rule-edit-group-pick">
-                                    <SelectValue placeholder="Pick an existing group" />
+                                <SelectTrigger id="rule-edit-group">
+                                    <SelectValue placeholder="No group" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={NO_GROUP}>No group</SelectItem>
@@ -125,15 +124,11 @@ export default function RuleEditDialog({
                                     ))}
                                 </SelectContent>
                             </Select>
+                        ) : (
+                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">
+                                No groups yet — create one with “New group” on the list, then drag rules in.
+                            </p>
                         )}
-                        <Input
-                            id="rule-edit-group"
-                            value={group}
-                            onChange={(e) => setGroup(e.target.value.slice(0, GROUP_MAX))}
-                            placeholder="Group name (optional)"
-                            autoComplete="off"
-                            maxLength={GROUP_MAX}
-                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
