@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"errors"
+	"sort"
 	"time"
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
@@ -161,20 +162,37 @@ func exportSettings(s *model.ProfileSettings) *model.ExportedSettings {
 		}
 	}
 
-	// Custom rules — specRef: F7; internal ID field stripped per F9
+	// Custom rules — specRef: F7; internal ID and positional order stripped per F9.
+	// Rules are emitted in display order so the import side can re-derive `order`
+	// from the array index.
 	if len(s.CustomRules) > 0 {
-		rules := make([]model.ExportedCustomRule, 0, len(s.CustomRules))
+		ordered := make([]*model.CustomRule, 0, len(s.CustomRules))
 		for _, r := range s.CustomRules {
-			if r == nil {
-				continue
+			if r != nil {
+				ordered = append(ordered, r)
 			}
+		}
+		sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Order < ordered[j].Order })
+
+		rules := make([]model.ExportedCustomRule, 0, len(ordered))
+		for _, r := range ordered {
 			rules = append(rules, model.ExportedCustomRule{
 				Action: string(r.Action),
 				Value:  r.Value,
-				// Comment and AddedAt are not present in the model today — omit.
+				Note:   r.Note,
+				Group:  r.Group,
 			})
 		}
 		es.CustomRules = rules
+	}
+
+	// Group notes round-trip alongside the rules' group labels.
+	if len(s.CustomRuleGroups) > 0 {
+		groups := make(map[string]string, len(s.CustomRuleGroups))
+		for name, note := range s.CustomRuleGroups {
+			groups[name] = note
+		}
+		es.CustomRuleGroups = groups
 	}
 
 	// Logs section — specRef: F3 (logs sub-fields)

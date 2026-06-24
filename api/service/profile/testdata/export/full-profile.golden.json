@@ -27,13 +27,18 @@
         "customRules": [
           {
             "action": "block",
-            "value": "ads.example.com"
+            "value": "ads.example.com",
+            "note": "blocks ad network",
+            "group": "Ads"
           },
           {
             "action": "allow",
             "value": "safe.example.com"
           }
         ],
+        "customRuleGroups": {
+          "Ads": "advertising domains"
+        },
         "logs": {
           "enabled": true,
           "logClientsIPs": true,

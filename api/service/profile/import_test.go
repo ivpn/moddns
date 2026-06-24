@@ -194,6 +194,67 @@ func TestImport_ModeCreateNew_Accepted(t *testing.T) {
 	assert.Equal(t, []string{}, result.Warnings)
 }
 
+// specRef: V11, V12, F4 — per-rule note/group and the group-note map survive an
+// import, and display order is re-derived from payload position.
+func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	var capturedRules []*model.CustomRule
+	var capturedSettings *model.ProfileSettings
+
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		capturedSettings = p.Settings
+		return true
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
+		mock.MatchedBy(func(rules []*model.CustomRule) bool {
+			capturedRules = rules
+			return true
+		})).Return(nil).Once()
+	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
+		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
+
+	envelope := &model.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    time.Now(),
+		Profiles: []model.ExportedProfile{{
+			Name: "Imported",
+			Settings: &model.ExportedSettings{
+				CustomRules: []model.ExportedCustomRule{
+					{Action: "block", Value: "ads.example.com", Note: "ad net", Group: "Ads"},
+					{Action: "allow", Value: "safe.example.com"},
+				},
+				CustomRuleGroups: map[string]string{"Ads": "advertising"},
+			},
+		}},
+	}
+
+	result, err := env.svc.Import(
+		context.Background(), "acct1",
+		profile.ImportModeCreateNew,
+		envelope,
+		ptr("secret"), nil, nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, result.CreatedProfileIds, 1)
+
+	require.Len(t, capturedRules, 2)
+	assert.Equal(t, "ad net", capturedRules[0].Note)
+	assert.Equal(t, "Ads", capturedRules[0].Group)
+	assert.Equal(t, 0, capturedRules[0].Order)
+	assert.Equal(t, 1, capturedRules[1].Order)
+	assert.Empty(t, capturedRules[1].Note)
+
+	require.NotNil(t, capturedSettings)
+	assert.Equal(t, "advertising", capturedSettings.CustomRuleGroups["Ads"])
+}
+
 // specRef: I11
 func TestImport_ModeUnknown_Rejected(t *testing.T) {
 	env := newImportTestEnv(t, "secret", 100)

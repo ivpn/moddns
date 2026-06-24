@@ -342,6 +342,16 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 		s.Statistics.Enabled = src.Statistics.Enabled
 	}
 
+	// Custom rule group notes round-trip as-is. Notes for groups that end up with
+	// no member rule (e.g. their rules were skipped) are harmless and pruned on
+	// the next rule delete/regroup.
+	if len(src.CustomRuleGroups) > 0 {
+		s.CustomRuleGroups = make(map[string]string, len(src.CustomRuleGroups))
+		for name, note := range src.CustomRuleGroups {
+			s.CustomRuleGroups[name] = note
+		}
+	}
+
 	// Advanced section — specRef: F7
 	// Silently ignored on import. The recursor is a staging-only control;
 	// imported profiles always inherit RECURSOR_DEFAULT from model.NewSettings(),
@@ -474,6 +484,12 @@ func (p *ProfileService) validateAndMapRules(
 			Action: action,
 			Value:  r.Value,
 			Syntax: syntax,
+			Note:   r.Note,
+			Group:  r.Group,
+			// Order is re-derived from payload position; export omits it. Using the
+			// source index (not len(valid)) keeps spacing stable even when an
+			// earlier rule is skipped, and the values are still strictly increasing.
+			Order: i,
 		})
 	}
 
