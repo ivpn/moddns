@@ -40,8 +40,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
     Check,
-    ChevronDown,
-    ChevronRight,
+    Folder,
+    FolderOpen,
     FolderPlus,
     GripVertical,
     MinusIcon,
@@ -249,7 +249,7 @@ function GroupHeader({
                 onClick={onToggle}
                 className="flex items-center gap-2 min-w-0 text-[var(--tailwind-colors-slate-100)] shrink-0"
             >
-                {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                {collapsed ? <Folder className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
                 <span className="font-medium text-sm truncate">{name}</span>
                 <span className="text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
                 {note && !editingNote && (
@@ -365,7 +365,7 @@ function NewGroupZone({
             type="button"
             onClick={onStartCreate}
             className={[
-                "flex items-center justify-center gap-2 w-full h-10 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors",
+                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors",
                 isOver
                     ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)]"
                     : "border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)] hover:border-[var(--tailwind-colors-slate-500)]",
