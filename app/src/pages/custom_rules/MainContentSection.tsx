@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import type { ModelAccount, ModelCustomRule, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
 import { RuleComposer, type RuleOption } from "@/pages/custom_rules/RuleComposer";
 import CustomRulesCard from "@/pages/custom_rules/CustomRulesCard";
+import RuleEditDialog from "@/pages/custom_rules/RuleEditDialog";
+import type { RequestsUpdateProfileCustomRuleBody } from "@/api/client/api";
 import CustomRulesExportLimitBanner from "@/pages/custom_rules/CustomRulesExportLimitBanner";
 import { formatApiError } from "@/lib/apiError";
 
@@ -40,6 +42,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
     const [loading, setLoading] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [editingRule, setEditingRule] = useState<ModelCustomRule | null>(null);
     const [composerTokens, setComposerTokens] = useState<Record<RuleTab, RuleOption[]>>({
         denylist: [],
         allowlist: [],
@@ -63,7 +66,10 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile, profiles, setActiveProfile]);
 
-    const customRules: ModelCustomRule[] = activeProfile?.settings?.custom_rules ?? [];
+    const customRules: ModelCustomRule[] = useMemo(
+        () => activeProfile?.settings?.custom_rules ?? [],
+        [activeProfile?.settings?.custom_rules],
+    );
     const denylist = customRules.filter(rule => rule.action === "block");
     const allowlist = customRules.filter(rule => rule.action === "allow");
     const denylistHasRules = denylist.length > 0;
@@ -81,13 +87,15 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeTabHasRules]);
 
-    const handleComposerSubmit = useCallback(async (tab: RuleTab) => {
+    const handleComposerSubmit = useCallback(async (tab: RuleTab, tokensOverride?: RuleOption[]) => {
         if (!activeProfile?.profile_id) {
             toast.error("Select a profile before adding custom rules.");
             return;
         }
 
-        const originalTokens = composerTokens[tab];
+        // tokensOverride is supplied by the Add button so a value typed-but-not-yet-
+        // chipped is included without waiting for a parent re-render.
+        const originalTokens = tokensOverride ?? composerTokens[tab];
         const staticTokens = originalTokens.filter(token => token.meta?.error);
         const submissionTokens = originalTokens.filter(token => !token.meta?.error);
 
@@ -220,6 +228,82 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile?.profile_id, selectedIds, setActiveProfile]);
 
+    // Edit a single rule in place via the PATCH endpoint, then refetch to sync.
+    const handleSaveEdit = useCallback(async (ruleId: string, patch: RequestsUpdateProfileCustomRuleBody) => {
+        if (!activeProfile?.profile_id) return;
+        if (Object.keys(patch).length === 0) {
+            setEditingRule(null);
+            return;
+        }
+        setLoading(true);
+        try {
+            await api.Client.profilesApi.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(
+                activeProfile.profile_id,
+                ruleId,
+                patch,
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+            toast.success("Rule updated.");
+            setEditingRule(null);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to update rule"));
+        } finally {
+            setLoading(false);
+        }
+    }, [activeProfile?.profile_id, setActiveProfile]);
+
+    // Persist a drag-reorder. The card sends the active tab's full ordered IDs; we
+    // build the complete per-profile order (other tab keeps its order) so the
+    // backend renumbers everything without cross-tab collisions.
+    const handleReorder = useCallback(async (tab: RuleTab, orderedIdsForTab: string[]) => {
+        if (!activeProfile?.profile_id) return;
+        const byOrder = (a: ModelCustomRule, b: ModelCustomRule) => (a.order ?? 0) - (b.order ?? 0);
+        const denyIds = tab === "denylist" ? orderedIdsForTab : denylist.slice().sort(byOrder).map(r => r.id);
+        const allowIds = tab === "allowlist" ? orderedIdsForTab : allowlist.slice().sort(byOrder).map(r => r.id);
+        const fullOrder = [...denyIds, ...allowIds];
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRulesOrderPatch(
+                activeProfile.profile_id,
+                { order: fullOrder },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to reorder rules"));
+            // Revert optimistic ordering by refetching the persisted state.
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        }
+    }, [activeProfile?.profile_id, denylist, allowlist, setActiveProfile]);
+
+    // Upsert (note != null) or clear (note == null) a group's note.
+    const handleGroupNote = useCallback(async (group: string, note: string | null) => {
+        if (!activeProfile?.profile_id) return;
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRuleGroupsPatch(
+                activeProfile.profile_id,
+                { groups: { [group]: note } as Record<string, string> },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to save group note"));
+        }
+    }, [activeProfile?.profile_id, setActiveProfile]);
+
+    const groupNotes: Record<string, string> = activeProfile?.settings?.custom_rule_groups ?? {};
+    const existingGroups = useMemo(
+        () => Array.from(
+            new Set(
+                customRules
+                    .map(r => r.group)
+                    .filter((g): g is string => !!g && g.trim() !== ""),
+            ),
+        ).sort(),
+        [customRules],
+    );
+
     // Show header only if at least one is selected
     const allSelected = selectedIds.length > 0;
     const selectedCount = selectedIds.length;
@@ -316,7 +400,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                         action={activeTab}
                                         tokens={composerTokens[activeTab]}
                                         onTokensChange={(next) => updateComposerTokens(activeTab, next)}
-                                        onSubmit={() => handleComposerSubmit(activeTab)}
+                                        onSubmit={(override) => handleComposerSubmit(activeTab, override)}
                                         loading={loading || !activeProfile?.profile_id || isRestricted}
                                         className="flex-1 min-w-0"
                                     />
@@ -367,9 +451,13 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="denylist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredDenylist}
+                                groupNotes={groupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
+                                onEdit={setEditingRule}
+                                onReorder={(ids) => handleReorder("denylist", ids)}
+                                onSaveGroupNote={handleGroupNote}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -381,9 +469,13 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="allowlist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredAllowlist}
+                                groupNotes={groupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
+                                onEdit={setEditingRule}
+                                onReorder={(ids) => handleReorder("allowlist", ids)}
+                                onSaveGroupNote={handleGroupNote}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -397,6 +489,15 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                     </Tabs>
                 </div>
             </div>
+
+            <RuleEditDialog
+                rule={editingRule}
+                open={editingRule !== null}
+                onOpenChange={(open) => { if (!open) setEditingRule(null); }}
+                existingGroups={existingGroups}
+                loading={loading}
+                onSave={handleSaveEdit}
+            />
         </div>
     );
 }
