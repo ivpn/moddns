@@ -3271,6 +3271,69 @@ func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessio
 	return _c
 }
 
+// SetCustomRuleGroups provides a mock function for the type Db
+func (_mock *Db) SetCustomRuleGroups(ctx context.Context, profileId string, groups map[string]string) error {
+	ret := _mock.Called(ctx, profileId, groups)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetCustomRuleGroups")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, map[string]string) error); ok {
+		r0 = returnFunc(ctx, profileId, groups)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_SetCustomRuleGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCustomRuleGroups'
+type Db_SetCustomRuleGroups_Call struct {
+	*mock.Call
+}
+
+// SetCustomRuleGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - groups map[string]string
+func (_e *Db_Expecter) SetCustomRuleGroups(ctx interface{}, profileId interface{}, groups interface{}) *Db_SetCustomRuleGroups_Call {
+	return &Db_SetCustomRuleGroups_Call{Call: _e.mock.On("SetCustomRuleGroups", ctx, profileId, groups)}
+}
+
+func (_c *Db_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, profileId string, groups map[string]string)) *Db_SetCustomRuleGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 map[string]string
+		if args[2] != nil {
+			arg2 = args[2].(map[string]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_SetCustomRuleGroups_Call) Return(err error) *Db_SetCustomRuleGroups_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, profileId string, groups map[string]string) error) *Db_SetCustomRuleGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetInactiveNotified provides a mock function for the type Db
 func (_mock *Db) SetInactiveNotified(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error {
 	ret := _mock.Called(ctx, subscriptionIDs, value)
@@ -3587,6 +3650,132 @@ func (_c *Db_UpdateCredential_Call) Return(err error) *Db_UpdateCredential_Call 
 }
 
 func (_c *Db_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error) *Db_UpdateCredential_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCustomRule provides a mock function for the type Db
+func (_mock *Db) UpdateCustomRule(ctx context.Context, profileId string, rule *model.CustomRule) error {
+	ret := _mock.Called(ctx, profileId, rule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCustomRule")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.CustomRule) error); ok {
+		r0 = returnFunc(ctx, profileId, rule)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_UpdateCustomRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCustomRule'
+type Db_UpdateCustomRule_Call struct {
+	*mock.Call
+}
+
+// UpdateCustomRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - rule *model.CustomRule
+func (_e *Db_Expecter) UpdateCustomRule(ctx interface{}, profileId interface{}, rule interface{}) *Db_UpdateCustomRule_Call {
+	return &Db_UpdateCustomRule_Call{Call: _e.mock.On("UpdateCustomRule", ctx, profileId, rule)}
+}
+
+func (_c *Db_UpdateCustomRule_Call) Run(run func(ctx context.Context, profileId string, rule *model.CustomRule)) *Db_UpdateCustomRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *model.CustomRule
+		if args[2] != nil {
+			arg2 = args[2].(*model.CustomRule)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_UpdateCustomRule_Call) Return(err error) *Db_UpdateCustomRule_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_UpdateCustomRule_Call) RunAndReturn(run func(ctx context.Context, profileId string, rule *model.CustomRule) error) *Db_UpdateCustomRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCustomRulesOrder provides a mock function for the type Db
+func (_mock *Db) UpdateCustomRulesOrder(ctx context.Context, profileId string, idToOrder map[string]int) error {
+	ret := _mock.Called(ctx, profileId, idToOrder)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCustomRulesOrder")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, map[string]int) error); ok {
+		r0 = returnFunc(ctx, profileId, idToOrder)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_UpdateCustomRulesOrder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCustomRulesOrder'
+type Db_UpdateCustomRulesOrder_Call struct {
+	*mock.Call
+}
+
+// UpdateCustomRulesOrder is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - idToOrder map[string]int
+func (_e *Db_Expecter) UpdateCustomRulesOrder(ctx interface{}, profileId interface{}, idToOrder interface{}) *Db_UpdateCustomRulesOrder_Call {
+	return &Db_UpdateCustomRulesOrder_Call{Call: _e.mock.On("UpdateCustomRulesOrder", ctx, profileId, idToOrder)}
+}
+
+func (_c *Db_UpdateCustomRulesOrder_Call) Run(run func(ctx context.Context, profileId string, idToOrder map[string]int)) *Db_UpdateCustomRulesOrder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 map[string]int
+		if args[2] != nil {
+			arg2 = args[2].(map[string]int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_UpdateCustomRulesOrder_Call) Return(err error) *Db_UpdateCustomRulesOrder_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_UpdateCustomRulesOrder_Call) RunAndReturn(run func(ctx context.Context, profileId string, idToOrder map[string]int) error) *Db_UpdateCustomRulesOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }
