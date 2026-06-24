@@ -103,9 +103,12 @@ moddns/models/requests_login_body.py
 moddns/models/requests_mobile_config_req.py
 moddns/models/requests_pa_session_req.py
 moddns/models/requests_profile_updates.py
+moddns/models/requests_reorder_profile_custom_rules_body.py
 moddns/models/requests_reset_password_body.py
 moddns/models/requests_rotate_pa_session_req.py
+moddns/models/requests_set_custom_rule_groups_body.py
 moddns/models/requests_totp_req.py
+moddns/models/requests_update_profile_custom_rule_body.py
 moddns/models/requests_web_authn_reauth_begin_request.py
 moddns/models/responses_create_profile_custom_rules_batch_response.py
 moddns/models/responses_custom_rule_batch_created.py

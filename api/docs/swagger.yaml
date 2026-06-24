@@ -240,8 +240,14 @@ definitions:
     properties:
       action:
         type: string
+      group:
+        type: string
       id:
         type: string
+      note:
+        type: string
+      order:
+        type: integer
       value:
         type: string
     required:
@@ -308,8 +314,16 @@ definitions:
         - allow
         - comment
         type: string
-      comment:
-        maxLength: 200
+      group:
+        description: Group is the optional organizational label this rule belongs
+          to.
+        maxLength: 64
+        type: string
+      note:
+        description: |-
+          Note is a free-text annotation. Free text (not safe_name) so users can write
+          arbitrary reminders; length-capped to match the model/PATCH validators.
+        maxLength: 280
         type: string
       value:
         maxLength: 255
@@ -407,6 +421,13 @@ definitions:
     properties:
       advanced:
         $ref: '#/definitions/model.ExportedAdvanced'
+      customRuleGroups:
+        additionalProperties:
+          type: string
+        description: |-
+          CustomRuleGroups maps a custom-rule group name to its optional note. Purely
+          organizational metadata that round-trips with the rules' `group` field.
+        type: object
       customRules:
         description: CustomRules holds the profile's custom filtering rules, capped
           at 1000 per profile.
@@ -502,6 +523,13 @@ definitions:
     properties:
       advanced:
         $ref: '#/definitions/model.Advanced'
+      custom_rule_groups:
+        additionalProperties:
+          type: string
+        description: |-
+          CustomRuleGroups maps a custom-rule group name to its optional note.
+          Organizational metadata only; never synced to the proxy (redis:"-").
+        type: object
       custom_rules:
         items:
           $ref: '#/definitions/model.CustomRule'
@@ -1138,6 +1166,17 @@ definitions:
     required:
     - updates
     type: object
+  requests.ReorderProfileCustomRulesBody:
+    properties:
+      order:
+        items:
+          type: string
+        maxItems: 10000
+        minItems: 1
+        type: array
+    required:
+    - order
+    type: object
   requests.ResetPasswordBody:
     properties:
       email:
@@ -1152,6 +1191,15 @@ definitions:
     required:
     - sessionid
     type: object
+  requests.SetCustomRuleGroupsBody:
+    properties:
+      groups:
+        additionalProperties:
+          type: string
+        type: object
+    required:
+    - groups
+    type: object
   requests.TotpReq:
     properties:
       otp:
@@ -1160,6 +1208,26 @@ definitions:
         type: string
     required:
     - otp
+    type: object
+  requests.UpdateProfileCustomRuleBody:
+    properties:
+      action:
+        enum:
+        - block
+        - allow
+        - comment
+        type: string
+      group:
+        maxLength: 64
+        type: string
+      note:
+        maxLength: 280
+        type: string
+      order:
+        minimum: 0
+        type: integer
+      value:
+        type: string
     type: object
   requests.WebAuthnReauthBeginRequest:
     properties:
@@ -2052,6 +2120,42 @@ paths:
       summary: Enable blocklists
       tags:
       - Profile
+  /api/v1/profiles/{id}/custom_rule_groups:
+    patch:
+      consumes:
+      - application/json
+      description: Upsert per-group notes for a profile's custom rules. A null note
+        value deletes that group's note.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Group notes
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SetCustomRuleGroupsBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Set profile custom rule group notes
+      tags:
+      - Profile
   /api/v1/profiles/{id}/custom_rules:
     post:
       consumes:
@@ -2158,6 +2262,46 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Create profile custom rules (batch)
+      tags:
+      - Profile
+  /api/v1/profiles/{id}/custom_rules/order:
+    patch:
+      consumes:
+      - application/json
+      description: Set the display order of a profile's custom rules. Order is organizational
+        only and does not affect filtering precedence.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Ordered rule IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ReorderProfileCustomRulesBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Reorder profile custom rules
       tags:
       - Profile
   /api/v1/profiles/{id}/logs:
@@ -2397,6 +2541,53 @@ paths:
       summary: Get statistics data for a profile
       tags:
       - Statistics
+  /api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id}:
+    patch:
+      consumes:
+      - application/json
+      description: Partially update a single custom rule in place (value, action,
+        note, group, order)
+      parameters:
+      - description: Profile ID
+        in: path
+        name: profile_id
+        required: true
+        type: string
+      - description: Custom rule ID
+        in: path
+        name: custom_rule_id
+        required: true
+        type: string
+      - description: Update custom rule request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.UpdateProfileCustomRuleBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.CustomRule'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update profile custom rule
+      tags:
+      - Profile
   /api/v1/profiles/export:
     post:
       consumes:

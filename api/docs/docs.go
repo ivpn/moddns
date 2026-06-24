@@ -1349,6 +1349,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/profiles/{id}/custom_rule_groups": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Set profile custom rule group notes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Group notes",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.SetCustomRuleGroupsBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/custom_rules": {
             "post": {
                 "security": [
@@ -1449,6 +1504,67 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/custom_rules/order": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Set the display order of a profile's custom rules. Order is organizational only and does not affect filtering precedence.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Reorder profile custom rules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ordered rule IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReorderProfileCustomRulesBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -1869,6 +1985,77 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id}": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Partially update a single custom rule in place (value, action, note, group, order)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update profile custom rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "profile_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom rule ID",
+                        "name": "custom_rule_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update custom rule request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProfileCustomRuleBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.CustomRule"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -2947,8 +3134,17 @@ const docTemplate = `{
                 "action": {
                     "type": "string"
                 },
+                "group": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
+                },
+                "note": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
                 },
                 "value": {
                     "type": "string"
@@ -3045,9 +3241,15 @@ const docTemplate = `{
                         "comment"
                     ]
                 },
-                "comment": {
+                "group": {
+                    "description": "Group is the optional organizational label this rule belongs to.",
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 64
+                },
+                "note": {
+                    "description": "Note is a free-text annotation. Free text (not safe_name) so users can write\narbitrary reminders; length-capped to match the model/PATCH validators.",
+                    "type": "string",
+                    "maxLength": 280
                 },
                 "value": {
                     "type": "string",
@@ -3179,6 +3381,13 @@ const docTemplate = `{
             "properties": {
                 "advanced": {
                     "$ref": "#/definitions/model.ExportedAdvanced"
+                },
+                "customRuleGroups": {
+                    "description": "CustomRuleGroups maps a custom-rule group name to its optional note. Purely\norganizational metadata that round-trips with the rules' ` + "`" + `group` + "`" + ` field.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "customRules": {
                     "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
@@ -3324,6 +3533,13 @@ const docTemplate = `{
             "properties": {
                 "advanced": {
                     "$ref": "#/definitions/model.Advanced"
+                },
+                "custom_rule_groups": {
+                    "description": "CustomRuleGroups maps a custom-rule group name to its optional note.\nOrganizational metadata only; never synced to the proxy (redis:\"-\").",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "custom_rules": {
                     "type": "array",
@@ -4163,6 +4379,22 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ReorderProfileCustomRulesBody": {
+            "type": "object",
+            "required": [
+                "order"
+            ],
+            "properties": {
+                "order": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "requests.ResetPasswordBody": {
             "type": "object",
             "required": [
@@ -4185,6 +4417,20 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.SetCustomRuleGroupsBody": {
+            "type": "object",
+            "required": [
+                "groups"
+            ],
+            "properties": {
+                "groups": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "requests.TotpReq": {
             "type": "object",
             "required": [
@@ -4195,6 +4441,34 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 8,
                     "minLength": 6
+                }
+            }
+        },
+        "requests.UpdateProfileCustomRuleBody": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "group": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 280
+                },
+                "order": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "value": {
+                    "type": "string"
                 }
             }
         },
