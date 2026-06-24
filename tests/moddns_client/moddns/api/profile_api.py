@@ -28,11 +28,11 @@ from moddns.models.model_profile import ModelProfile
 from moddns.models.profile_import_result import ProfileImportResult
 from moddns.models.requests_create_profile_custom_rule_body import RequestsCreateProfileCustomRuleBody
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
+from moddns.models.requests_custom_rule_group_updates import RequestsCustomRuleGroupUpdates
 from moddns.models.requests_export_request import RequestsExportRequest
 from moddns.models.requests_import_request import RequestsImportRequest
 from moddns.models.requests_profile_updates import RequestsProfileUpdates
 from moddns.models.requests_reorder_profile_custom_rules_body import RequestsReorderProfileCustomRulesBody
-from moddns.models.requests_set_custom_rule_groups_body import RequestsSetCustomRuleGroupsBody
 from moddns.models.requests_update_profile_custom_rule_body import RequestsUpdateProfileCustomRuleBody
 from moddns.models.responses_create_profile_custom_rules_batch_response import ResponsesCreateProfileCustomRulesBatchResponse
 
@@ -1191,7 +1191,7 @@ class ProfileApi:
     def api_v1_profiles_id_custom_rule_groups_patch(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        body: Annotated[RequestsSetCustomRuleGroupsBody, Field(description="Group notes")],
+        body: Annotated[RequestsCustomRuleGroupUpdates, Field(description="Group operations")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1205,14 +1205,14 @@ class ProfileApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> None:
-        """Set profile custom rule group notes
+        """Update profile custom rule groups
 
-        Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.
+        Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
 
         :param id: Profile ID (required)
         :type id: str
-        :param body: Group notes (required)
-        :type body: RequestsSetCustomRuleGroupsBody
+        :param body: Group operations (required)
+        :type body: RequestsCustomRuleGroupUpdates
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1264,7 +1264,7 @@ class ProfileApi:
     def api_v1_profiles_id_custom_rule_groups_patch_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        body: Annotated[RequestsSetCustomRuleGroupsBody, Field(description="Group notes")],
+        body: Annotated[RequestsCustomRuleGroupUpdates, Field(description="Group operations")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1278,14 +1278,14 @@ class ProfileApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[None]:
-        """Set profile custom rule group notes
+        """Update profile custom rule groups
 
-        Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.
+        Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
 
         :param id: Profile ID (required)
         :type id: str
-        :param body: Group notes (required)
-        :type body: RequestsSetCustomRuleGroupsBody
+        :param body: Group operations (required)
+        :type body: RequestsCustomRuleGroupUpdates
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1337,7 +1337,7 @@ class ProfileApi:
     def api_v1_profiles_id_custom_rule_groups_patch_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        body: Annotated[RequestsSetCustomRuleGroupsBody, Field(description="Group notes")],
+        body: Annotated[RequestsCustomRuleGroupUpdates, Field(description="Group operations")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1351,14 +1351,14 @@ class ProfileApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Set profile custom rule group notes
+        """Update profile custom rule groups
 
-        Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.
+        Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
 
         :param id: Profile ID (required)
         :type id: str
-        :param body: Group notes (required)
-        :type body: RequestsSetCustomRuleGroupsBody
+        :param body: Group operations (required)
+        :type body: RequestsCustomRuleGroupUpdates
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of

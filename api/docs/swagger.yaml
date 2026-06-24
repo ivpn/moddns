@@ -1079,6 +1079,39 @@ definitions:
     - action
     - values
     type: object
+  requests.CustomRuleGroupUpdate:
+    properties:
+      from:
+        maxLength: 130
+        type: string
+      operation:
+        enum:
+        - add
+        - replace
+        - remove
+        - move
+        type: string
+      path:
+        maxLength: 130
+        type: string
+      value:
+        maxLength: 280
+        type: string
+    required:
+    - operation
+    - path
+    type: object
+  requests.CustomRuleGroupUpdates:
+    properties:
+      updates:
+        items:
+          $ref: '#/definitions/requests.CustomRuleGroupUpdate'
+        maxItems: 50
+        minItems: 1
+        type: array
+    required:
+    - updates
+    type: object
   requests.ExportRequest:
     properties:
       current_password:
@@ -1190,15 +1223,6 @@ definitions:
         type: string
     required:
     - sessionid
-    type: object
-  requests.SetCustomRuleGroupsBody:
-    properties:
-      groups:
-        additionalProperties:
-          type: string
-        type: object
-    required:
-    - groups
     type: object
   requests.TotpReq:
     properties:
@@ -2124,20 +2148,22 @@ paths:
     patch:
       consumes:
       - application/json
-      description: Upsert per-group notes for a profile's custom rules. A null note
-        value deletes that group's note.
+      description: Apply JSON-Patch-style operations to the custom-rule group registry.
+        Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace
+        sets a group's note (creating it); remove deletes a group (its rules move
+        to Ungrouped, not deleted); move renames from->path.
       parameters:
       - description: Profile ID
         in: path
         name: id
         required: true
         type: string
-      - description: Group notes
+      - description: Group operations
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/requests.SetCustomRuleGroupsBody'
+          $ref: '#/definitions/requests.CustomRuleGroupUpdates'
       produces:
       - application/json
       responses:
@@ -2153,7 +2179,7 @@ paths:
             $ref: '#/definitions/api.ErrResponse'
       security:
       - ApiKeyAuth: []
-      summary: Set profile custom rule group notes
+      summary: Update profile custom rule groups
       tags:
       - Profile
   /api/v1/profiles/{id}/custom_rules:

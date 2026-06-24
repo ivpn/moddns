@@ -1356,7 +1356,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.",
+                "description": "Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from-\u003epath.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1366,7 +1366,7 @@ const docTemplate = `{
                 "tags": [
                     "Profile"
                 ],
-                "summary": "Set profile custom rule group notes",
+                "summary": "Update profile custom rule groups",
                 "parameters": [
                     {
                         "type": "string",
@@ -1376,12 +1376,12 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Group notes",
+                        "description": "Group operations",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.SetCustomRuleGroupsBody"
+                            "$ref": "#/definitions/requests.CustomRuleGroupUpdates"
                         }
                     }
                 ],
@@ -4258,6 +4258,52 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.CustomRuleGroupUpdate": {
+            "type": "object",
+            "required": [
+                "operation",
+                "path"
+            ],
+            "properties": {
+                "from": {
+                    "type": "string",
+                    "maxLength": 130
+                },
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "add",
+                        "replace",
+                        "remove",
+                        "move"
+                    ]
+                },
+                "path": {
+                    "type": "string",
+                    "maxLength": 130
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 280
+                }
+            }
+        },
+        "requests.CustomRuleGroupUpdates": {
+            "type": "object",
+            "required": [
+                "updates"
+            ],
+            "properties": {
+                "updates": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/requests.CustomRuleGroupUpdate"
+                    }
+                }
+            }
+        },
         "requests.ExportRequest": {
             "type": "object",
             "required": [
@@ -4414,20 +4460,6 @@ const docTemplate = `{
             "properties": {
                 "sessionid": {
                     "type": "string"
-                }
-            }
-        },
-        "requests.SetCustomRuleGroupsBody": {
-            "type": "object",
-            "required": [
-                "groups"
-            ],
-            "properties": {
-                "groups": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
                 }
             }
         },

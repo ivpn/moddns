@@ -115,7 +115,7 @@ Class | Method | HTTP request | Description
 *ProfileApi* | [**api_v1_profiles_get**](docs/ProfileApi.md#api_v1_profiles_get) | **GET** /api/v1/profiles | Get profiles data
 *ProfileApi* | [**api_v1_profiles_id_blocklists_delete**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_delete) | **DELETE** /api/v1/profiles/{id}/blocklists | Disable blocklists
 *ProfileApi* | [**api_v1_profiles_id_blocklists_post**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_post) | **POST** /api/v1/profiles/{id}/blocklists | Enable blocklists
-*ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups | Set profile custom rule group notes
+*ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups | Update profile custom rule groups
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_batch_post**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_batch_post) | **POST** /api/v1/profiles/{id}/custom_rules/batch | Create profile custom rules (batch)
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_custom_rule_id_delete**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_custom_rule_id_delete) | **DELETE** /api/v1/profiles/{id}/custom_rules/{custom_rule_id} | Delete profile custom rule
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_order_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_order_patch) | **PATCH** /api/v1/profiles/{id}/custom_rules/order | Reorder profile custom rules
@@ -215,6 +215,8 @@ Class | Method | HTTP request | Description
  - [RequestsConfirmResetPasswordBody](docs/RequestsConfirmResetPasswordBody.md)
  - [RequestsCreateProfileCustomRuleBody](docs/RequestsCreateProfileCustomRuleBody.md)
  - [RequestsCreateProfileCustomRulesBatchBody](docs/RequestsCreateProfileCustomRulesBatchBody.md)
+ - [RequestsCustomRuleGroupUpdate](docs/RequestsCustomRuleGroupUpdate.md)
+ - [RequestsCustomRuleGroupUpdates](docs/RequestsCustomRuleGroupUpdates.md)
  - [RequestsExportRequest](docs/RequestsExportRequest.md)
  - [RequestsImportRequest](docs/RequestsImportRequest.md)
  - [RequestsLoginBody](docs/RequestsLoginBody.md)
@@ -224,7 +226,6 @@ Class | Method | HTTP request | Description
  - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
- - [RequestsSetCustomRuleGroupsBody](docs/RequestsSetCustomRuleGroupsBody.md)
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
  - [RequestsUpdateProfileCustomRuleBody](docs/RequestsUpdateProfileCustomRuleBody.md)
  - [RequestsWebAuthnReauthBeginRequest](docs/RequestsWebAuthnReauthBeginRequest.md)

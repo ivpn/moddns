@@ -17,17 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List
+from typing_extensions import Annotated
+from moddns.models.requests_custom_rule_group_update import RequestsCustomRuleGroupUpdate
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsSetCustomRuleGroupsBody(BaseModel):
+class RequestsCustomRuleGroupUpdates(BaseModel):
     """
-    RequestsSetCustomRuleGroupsBody
+    RequestsCustomRuleGroupUpdates
     """ # noqa: E501
-    groups: Dict[str, StrictStr]
-    __properties: ClassVar[List[str]] = ["groups"]
+    updates: Annotated[List[RequestsCustomRuleGroupUpdate], Field(min_length=1, max_length=50)]
+    __properties: ClassVar[List[str]] = ["updates"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -47,7 +49,7 @@ class RequestsSetCustomRuleGroupsBody(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsSetCustomRuleGroupsBody from a JSON string"""
+        """Create an instance of RequestsCustomRuleGroupUpdates from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,11 +70,18 @@ class RequestsSetCustomRuleGroupsBody(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in updates (list)
+        _items = []
+        if self.updates:
+            for _item_updates in self.updates:
+                if _item_updates:
+                    _items.append(_item_updates.to_dict())
+            _dict['updates'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsSetCustomRuleGroupsBody from a dict"""
+        """Create an instance of RequestsCustomRuleGroupUpdates from a dict"""
         if obj is None:
             return None
 
@@ -80,7 +89,7 @@ class RequestsSetCustomRuleGroupsBody(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "groups": obj.get("groups")
+            "updates": [RequestsCustomRuleGroupUpdate.from_dict(_item) for _item in obj["updates"]] if obj.get("updates") is not None else None
         })
         return _obj
 

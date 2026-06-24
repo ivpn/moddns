@@ -2005,6 +2005,60 @@ export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof Request
 /**
  * 
  * @export
+ * @interface RequestsCustomRuleGroupUpdate
+ */
+export interface RequestsCustomRuleGroupUpdate {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'from'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'operation': RequestsCustomRuleGroupUpdateOperationEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'path': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'value'?: string;
+}
+
+export const RequestsCustomRuleGroupUpdateOperationEnum = {
+    Add: 'add',
+    Replace: 'replace',
+    Remove: 'remove',
+    Move: 'move'
+} as const;
+
+export type RequestsCustomRuleGroupUpdateOperationEnum = typeof RequestsCustomRuleGroupUpdateOperationEnum[keyof typeof RequestsCustomRuleGroupUpdateOperationEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsCustomRuleGroupUpdates
+ */
+export interface RequestsCustomRuleGroupUpdates {
+    /**
+     * 
+     * @type {Array<RequestsCustomRuleGroupUpdate>}
+     * @memberof RequestsCustomRuleGroupUpdates
+     */
+    'updates': Array<RequestsCustomRuleGroupUpdate>;
+}
+/**
+ * 
+ * @export
  * @interface RequestsExportRequest
  */
 export interface RequestsExportRequest {
@@ -2199,19 +2253,6 @@ export interface RequestsRotatePASessionReq {
      * @memberof RequestsRotatePASessionReq
      */
     'sessionid': string;
-}
-/**
- * 
- * @export
- * @interface RequestsSetCustomRuleGroupsBody
- */
-export interface RequestsSetCustomRuleGroupsBody {
-    /**
-     * 
-     * @type {{ [key: string]: string; }}
-     * @memberof RequestsSetCustomRuleGroupsBody
-     */
-    'groups': { [key: string]: string; };
 }
 /**
  * 
@@ -4833,14 +4874,14 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Upsert per-group notes for a profile\'s custom rules. A null note value deletes that group\'s note.
-         * @summary Set profile custom rule group notes
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
          * @param {string} id Profile ID
-         * @param {RequestsSetCustomRuleGroupsBody} body Group notes
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdCustomRuleGroupsPatch: async (id: string, body: RequestsSetCustomRuleGroupsBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1ProfilesIdCustomRuleGroupsPatch: async (id: string, body: RequestsCustomRuleGroupUpdates, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('apiV1ProfilesIdCustomRuleGroupsPatch', 'id', id)
             // verify required parameter 'body' is not null or undefined
@@ -5404,14 +5445,14 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Upsert per-group notes for a profile\'s custom rules. A null note value deletes that group\'s note.
-         * @summary Set profile custom rule group notes
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
          * @param {string} id Profile ID
-         * @param {RequestsSetCustomRuleGroupsBody} body Group notes
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsSetCustomRuleGroupsBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+        async apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesIdCustomRuleGroupsPatch']?.[localVarOperationServerIndex]?.url;
@@ -5635,14 +5676,14 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdBlocklistsPost(id, blocklistIds, options).then((request) => request(axios, basePath));
         },
         /**
-         * Upsert per-group notes for a profile\'s custom rules. A null note value deletes that group\'s note.
-         * @summary Set profile custom rule group notes
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
          * @param {string} id Profile ID
-         * @param {RequestsSetCustomRuleGroupsBody} body Group notes
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsSetCustomRuleGroupsBody, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+        apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options).then((request) => request(axios, basePath));
         },
         /**
@@ -5835,15 +5876,15 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
-     * Upsert per-group notes for a profile\'s custom rules. A null note value deletes that group\'s note.
-     * @summary Set profile custom rule group notes
+     * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+     * @summary Update profile custom rule groups
      * @param {string} id Profile ID
-     * @param {RequestsSetCustomRuleGroupsBody} body Group notes
+     * @param {RequestsCustomRuleGroupUpdates} body Group operations
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ProfileApi
      */
-    public apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsSetCustomRuleGroupsBody, options?: RawAxiosRequestConfig) {
+    public apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig) {
         return ProfileApiFp(this.configuration).apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options).then((request) => request(this.axios, this.basePath));
     }
 
