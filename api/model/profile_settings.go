@@ -35,13 +35,16 @@ var (
 
 // ProfileSettings represents profile settings, it's internal model used in `profiles` collection
 type ProfileSettings struct {
-	ProfileId   string              `json:"profile_id" bson:"profile_id" redis:"profile_id" binding:"required"`
-	Security    *Security           `json:"security" bson:"security" redis:"security" binding:"required"`
-	Privacy     *Privacy            `json:"privacy" bson:"privacy" redis:"privacy" binding:"required"`
-	CustomRules []*CustomRule       `json:"custom_rules" bson:"custom_rules" redis:"-"`
-	Logs        *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
-	Statistics  *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
-	Advanced    *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
+	ProfileId   string        `json:"profile_id" bson:"profile_id" redis:"profile_id" binding:"required"`
+	Security    *Security     `json:"security" bson:"security" redis:"security" binding:"required"`
+	Privacy     *Privacy      `json:"privacy" bson:"privacy" redis:"privacy" binding:"required"`
+	CustomRules []*CustomRule `json:"custom_rules" bson:"custom_rules" redis:"-"`
+	// CustomRuleGroups maps a custom-rule group name to its optional note.
+	// Organizational metadata only; never synced to the proxy (redis:"-").
+	CustomRuleGroups map[string]string   `json:"custom_rule_groups" bson:"custom_rule_groups" redis:"-"`
+	Logs             *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
+	Statistics       *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
+	Advanced         *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
 }
 
 // NewSettings creates a new, empty settings object
@@ -69,7 +72,8 @@ func NewSettings() *ProfileSettings {
 		Statistics: &StatisticsSettings{
 			Enabled: false,
 		},
-		CustomRules: make([]*CustomRule, 0),
+		CustomRules:      make([]*CustomRule, 0),
+		CustomRuleGroups: make(map[string]string),
 		Advanced: &Advanced{
 			Recursor: RECURSOR_DEFAULT,
 		},
@@ -81,12 +85,21 @@ type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
 }
 
-// CustomRule represents a custom rule
+// CustomRule represents a custom rule.
+//
+// Note, Group and Order are organizational metadata used only by the API and
+// frontend. They carry `redis:"-"` so they never reach the proxy hash, which
+// reads exactly {action, value, syntax}. Order is a dense per-profile display
+// index (0..N-1); it does NOT affect filtering precedence (precedence stays
+// action-based in the proxy).
 type CustomRule struct {
 	ID     primitive.ObjectID `json:"id" bson:"_id" redis:"-" binding:"required"`
 	Action CustomRuleAction   `json:"action" bson:"action" redis:"action" binding:"required"`
 	Value  string             `json:"value" bson:"value" redis:"value" binding:"required"`
 	Syntax CustomRuleSyntax   `json:"-" bson:"syntax" redis:"syntax" binding:"required"`
+	Note   string             `json:"note" bson:"note" redis:"-"`
+	Group  string             `json:"group" bson:"group" redis:"-"`
+	Order  int                `json:"order" bson:"order" redis:"-"`
 }
 
 // CustomRuleAction represents a custom rule action type
