@@ -225,6 +225,24 @@ func (r *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId s
 	return err
 }
 
+// ReassignCustomRuleGroup sets group=to on every rule whose group==from, in a
+// single atomic update using an arrayFilter. Passing to="" moves the rules to
+// Ungrouped (used by group deletion). Group labels are metadata only.
+func (r *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId, from, to string) error {
+	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "settings.custom_rules.$[elem].group", Value: to},
+		}},
+	}
+	opts := options.Update().SetArrayFilters(options.ArrayFilters{
+		Filters: []any{bson.M{"elem.group": from}},
+	})
+
+	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson, opts)
+	return err
+}
+
 // EnableBlocklists adds the given blocklist IDs to the profile's enabled blocklists array atomically.
 func (r *ProfileRepository) EnableBlocklists(ctx context.Context, profileId string, blocklistIds []string) error {
 	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}

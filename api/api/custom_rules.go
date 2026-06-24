@@ -189,23 +189,34 @@ func (s *APIServer) reorderProfileCustomRules() fiber.Handler {
 	return handler
 }
 
-// @Summary Set profile custom rule group notes
-// @Description Upsert per-group notes for a profile's custom rules. A null note value deletes that group's note.
+// decodeJSONPointerSegment turns a single-segment RFC6901 JSON Pointer ("/<name>")
+// into the plain group name, unescaping ~1 -> "/" and ~0 -> "~". Returns "" for an
+// empty pointer or "/".
+func decodeJSONPointerSegment(pointer string) string {
+	seg := strings.TrimPrefix(pointer, "/")
+	// Unescape in the RFC6901-mandated order: ~1 before ~0.
+	seg = strings.ReplaceAll(seg, "~1", "/")
+	seg = strings.ReplaceAll(seg, "~0", "~")
+	return seg
+}
+
+// @Summary Update profile custom rule groups
+// @Description Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
 // @Tags Profile
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Profile ID"
-// @Param body body requests.SetCustomRuleGroupsBody true "Group notes"
+// @Param body body requests.CustomRuleGroupUpdates true "Group operations"
 // @Success 200
 // @Failure 400 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/profiles/{id}/custom_rule_groups [patch]
-func (s *APIServer) setProfileCustomRuleGroups() fiber.Handler {
+func (s *APIServer) updateProfileCustomRuleGroups() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 
-		p := new(requests.SetCustomRuleGroupsBody)
+		p := new(requests.CustomRuleGroupUpdates)
 		if err := c.BodyParser(p); err != nil {
 			return HandleError(c, err, ErrInvalidRequestBody.Error())
 		}
@@ -215,8 +226,18 @@ func (s *APIServer) setProfileCustomRuleGroups() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
+		ops := make([]profile.CustomRuleGroupOp, 0, len(p.Updates))
+		for _, u := range p.Updates {
+			ops = append(ops, profile.CustomRuleGroupOp{
+				Operation: u.Operation,
+				Group:     decodeJSONPointerSegment(u.Path),
+				From:      decodeJSONPointerSegment(u.From),
+				Note:      u.Value,
+			})
+		}
+
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.SetCustomRuleGroups(c.Context(), accountId, profileId, p.Groups); err != nil {
+		if err := s.Service.ApplyCustomRuleGroupOps(c.Context(), accountId, profileId, ops); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateCustomRule.Error())
 		}
 

@@ -39,6 +39,75 @@ func (_m *ProfileServicer) EXPECT() *ProfileServicer_Expecter {
 	return &ProfileServicer_Expecter{mock: &_m.Mock}
 }
 
+// ApplyCustomRuleGroupOps provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) ApplyCustomRuleGroupOps(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp) error {
+	ret := _mock.Called(ctx, accountId, profileId, ops)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplyCustomRuleGroupOps")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []profile.CustomRuleGroupOp) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId, ops)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileServicer_ApplyCustomRuleGroupOps_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplyCustomRuleGroupOps'
+type ProfileServicer_ApplyCustomRuleGroupOps_Call struct {
+	*mock.Call
+}
+
+// ApplyCustomRuleGroupOps is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - ops []profile.CustomRuleGroupOp
+func (_e *ProfileServicer_Expecter) ApplyCustomRuleGroupOps(ctx interface{}, accountId interface{}, profileId interface{}, ops interface{}) *ProfileServicer_ApplyCustomRuleGroupOps_Call {
+	return &ProfileServicer_ApplyCustomRuleGroupOps_Call{Call: _e.mock.On("ApplyCustomRuleGroupOps", ctx, accountId, profileId, ops)}
+}
+
+func (_c *ProfileServicer_ApplyCustomRuleGroupOps_Call) Run(run func(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp)) *ProfileServicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []profile.CustomRuleGroupOp
+		if args[3] != nil {
+			arg3 = args[3].([]profile.CustomRuleGroupOp)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_ApplyCustomRuleGroupOps_Call) Return(err error) *ProfileServicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileServicer_ApplyCustomRuleGroupOps_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp) error) *ProfileServicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateCustomRule provides a mock function for the type ProfileServicer
 func (_mock *ProfileServicer) CreateCustomRule(ctx context.Context, accountId string, profileId string, action string, value string) error {
 	ret := _mock.Called(ctx, accountId, profileId, action, value)
@@ -1436,75 +1505,6 @@ func (_c *ProfileServicer_ReorderCustomRules_Call) Return(err error) *ProfileSer
 }
 
 func (_c *ProfileServicer_ReorderCustomRules_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, orderedIds []string) error) *ProfileServicer_ReorderCustomRules_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetCustomRuleGroups provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) SetCustomRuleGroups(ctx context.Context, accountId string, profileId string, groups map[string]*string) error {
-	ret := _mock.Called(ctx, accountId, profileId, groups)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetCustomRuleGroups")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, map[string]*string) error); ok {
-		r0 = returnFunc(ctx, accountId, profileId, groups)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// ProfileServicer_SetCustomRuleGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCustomRuleGroups'
-type ProfileServicer_SetCustomRuleGroups_Call struct {
-	*mock.Call
-}
-
-// SetCustomRuleGroups is a helper method to define mock.On call
-//   - ctx context.Context
-//   - accountId string
-//   - profileId string
-//   - groups map[string]*string
-func (_e *ProfileServicer_Expecter) SetCustomRuleGroups(ctx interface{}, accountId interface{}, profileId interface{}, groups interface{}) *ProfileServicer_SetCustomRuleGroups_Call {
-	return &ProfileServicer_SetCustomRuleGroups_Call{Call: _e.mock.On("SetCustomRuleGroups", ctx, accountId, profileId, groups)}
-}
-
-func (_c *ProfileServicer_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, accountId string, profileId string, groups map[string]*string)) *ProfileServicer_SetCustomRuleGroups_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 map[string]*string
-		if args[3] != nil {
-			arg3 = args[3].(map[string]*string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *ProfileServicer_SetCustomRuleGroups_Call) Return(err error) *ProfileServicer_SetCustomRuleGroups_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *ProfileServicer_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, groups map[string]*string) error) *ProfileServicer_SetCustomRuleGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -31,10 +31,24 @@ type ReorderProfileCustomRulesBody struct {
 	Order []string `json:"order" validate:"required,min=1,max=10000,dive,required"`
 }
 
-// SetCustomRuleGroupsBody upserts group notes. A null value for a key deletes
-// that group's note.
-type SetCustomRuleGroupsBody struct {
-	Groups map[string]*string `json:"groups" validate:"required"`
+// CustomRuleGroupUpdate is a single JSON-Patch-style operation on the custom-rule
+// group registry, mirroring the shape of model.ProfileUpdate. Group names travel
+// in the JSON-Pointer `path`/`from` fields (RFC6901, `~1`=/, `~0`=~) so they never
+// appear in the URL. Unlike ProfileUpdate, `path` is open (dynamic group names) and
+// validated by format; the decoded name length is checked in the service.
+//   - add | replace : set/clear a group's note (value); creates the group.
+//   - remove        : delete the group (member rules → Ungrouped, note dropped).
+//   - move          : rename `from` → `path` (reassign member rules, move the note).
+type CustomRuleGroupUpdate struct {
+	Operation string  `json:"operation" validate:"required,oneof=add replace remove move"`
+	Path      string  `json:"path" validate:"required,startswith=/,max=130"`
+	From      string  `json:"from" validate:"omitempty,startswith=/,max=130"`
+	Value     *string `json:"value" validate:"omitempty,max=280"`
+}
+
+// CustomRuleGroupUpdates is the body of PATCH /custom_rule_groups.
+type CustomRuleGroupUpdates struct {
+	Updates []CustomRuleGroupUpdate `json:"updates" validate:"required,min=1,max=50,dive"`
 }
 
 type ProfileUpdates struct {

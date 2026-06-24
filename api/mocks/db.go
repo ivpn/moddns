@@ -3001,6 +3001,75 @@ func (_c *Db_Migrate_Call) RunAndReturn(run func() error) *Db_Migrate_Call {
 	return _c
 }
 
+// ReassignCustomRuleGroup provides a mock function for the type Db
+func (_mock *Db) ReassignCustomRuleGroup(ctx context.Context, profileId string, from string, to string) error {
+	ret := _mock.Called(ctx, profileId, from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReassignCustomRuleGroup")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
+		r0 = returnFunc(ctx, profileId, from, to)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_ReassignCustomRuleGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReassignCustomRuleGroup'
+type Db_ReassignCustomRuleGroup_Call struct {
+	*mock.Call
+}
+
+// ReassignCustomRuleGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - from string
+//   - to string
+func (_e *Db_Expecter) ReassignCustomRuleGroup(ctx interface{}, profileId interface{}, from interface{}, to interface{}) *Db_ReassignCustomRuleGroup_Call {
+	return &Db_ReassignCustomRuleGroup_Call{Call: _e.mock.On("ReassignCustomRuleGroup", ctx, profileId, from, to)}
+}
+
+func (_c *Db_ReassignCustomRuleGroup_Call) Run(run func(ctx context.Context, profileId string, from string, to string)) *Db_ReassignCustomRuleGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ReassignCustomRuleGroup_Call) Return(err error) *Db_ReassignCustomRuleGroup_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_ReassignCustomRuleGroup_Call) RunAndReturn(run func(ctx context.Context, profileId string, from string, to string) error) *Db_ReassignCustomRuleGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemoveCustomRules provides a mock function for the type Db
 func (_mock *Db) RemoveCustomRules(ctx context.Context, profileId string, ruleIds []string) error {
 	ret := _mock.Called(ctx, profileId, ruleIds)

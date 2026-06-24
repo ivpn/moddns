@@ -261,10 +261,10 @@ func (s *APIServer) RegisterRoutes() {
 
 	// Custom rules endpoints
 	profiles.Delete("/:profile_id/custom_rules/:custom_rule_id", middleware.NewLimit(20, 1*time.Minute), s.deleteProfileCustomRule())
-	// Register the literal "order" and group-notes paths before the parameterized
+	// Register the literal "order" and group paths before the parameterized
 	// "/custom_rules/:custom_rule_id" PATCH so they are not shadowed by it.
 	profiles.Patch("/:id/custom_rules/order", middleware.NewLimit(20, 1*time.Minute), s.reorderProfileCustomRules())
-	profiles.Patch("/:id/custom_rule_groups", middleware.NewLimit(20, 1*time.Minute), s.setProfileCustomRuleGroups())
+	profiles.Patch("/:id/custom_rule_groups", middleware.NewLimit(20, 1*time.Minute), s.updateProfileCustomRuleGroups())
 	profiles.Patch("/:profile_id/custom_rules/:custom_rule_id", middleware.NewLimit(20, 1*time.Minute), s.updateProfileCustomRule())
 	profiles.Post("/:id/custom_rules/batch", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRulesBatch())
 	profiles.Post("/:id/custom_rules", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRule())

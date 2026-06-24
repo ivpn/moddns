@@ -8,7 +8,6 @@ import (
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
-	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -258,16 +257,6 @@ func (p *ProfileService) DeleteCustomRule(ctx context.Context, accountId, profil
 		return err
 	}
 
-	// Prune group notes that no longer have any member rule. Best-effort: a
-	// failure here must not fail the delete that already succeeded.
-	remaining := make([]*model.CustomRule, 0, len(profile.Settings.CustomRules))
-	for _, r := range profile.Settings.CustomRules {
-		if r.ID.Hex() != customRuleId {
-			remaining = append(remaining, r)
-		}
-	}
-	p.pruneOrphanGroupNotes(ctx, profileId, profile.Settings, remaining)
-
 	return nil
 }
 
@@ -363,19 +352,6 @@ func (p *ProfileService) UpdateCustomRule(ctx context.Context, accountId, profil
 		}
 	}
 
-	// If the rule left a group, that group may now be empty — prune its note.
-	if patch.Group != nil && existing.Group != updated.Group {
-		postUpdate := make([]*model.CustomRule, 0, len(profile.Settings.CustomRules))
-		for _, r := range profile.Settings.CustomRules {
-			if r.ID.Hex() == customRuleId {
-				postUpdate = append(postUpdate, &updated)
-			} else {
-				postUpdate = append(postUpdate, r)
-			}
-		}
-		p.pruneOrphanGroupNotes(ctx, profileId, profile.Settings, postUpdate)
-	}
-
 	return &updated, nil
 }
 
@@ -414,57 +390,89 @@ func (p *ProfileService) ReorderCustomRules(ctx context.Context, accountId, prof
 // SetCustomRuleGroups upserts group-note entries. A nil note value deletes that
 // group's note. The map is merged onto the profile's current group-note map and
 // persisted wholesale. Group notes are metadata only and never reach the proxy.
-func (p *ProfileService) SetCustomRuleGroups(ctx context.Context, accountId, profileId string, groups map[string]*string) error {
+// maxGroupNameLen bounds a decoded group name. Mirrors the frontend/edit limit.
+const maxGroupNameLen = 64
+
+// CustomRuleGroupOp is one JSON-Patch-style operation on the group registry. The
+// handler decodes the request's JSON-Pointer path/from into the plain Group/From
+// names before calling the service, so the service deals in plain strings.
+//   - "add"/"replace": set Group's note to Note (creates the group).
+//   - "remove":        delete Group (member rules → Ungrouped, note dropped).
+//   - "move":          rename From → Group (reassign member rules, move the note).
+type CustomRuleGroupOp struct {
+	Operation string
+	Group     string
+	From      string
+	Note      *string
+}
+
+// ApplyCustomRuleGroupOps applies a batch of group-registry operations in order.
+// Member-rule reassignments (remove/move) run as atomic bulk updates; the note map
+// is folded in memory and persisted once at the end. Group labels are metadata
+// only — no Redis writes. Mirrors the JSON-Patch contract of UpdateProfile.
+func (p *ProfileService) ApplyCustomRuleGroupOps(ctx context.Context, accountId, profileId string, ops []CustomRuleGroupOp) error {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return err
 	}
 
-	merged := make(map[string]string, len(profile.Settings.CustomRuleGroups)+len(groups))
-	for k, v := range profile.Settings.CustomRuleGroups {
-		merged[k] = v
-	}
-	for k, v := range groups {
-		if v == nil {
-			delete(merged, k)
-		} else {
-			merged[k] = *v
+	groups := cloneGroupNotes(profile.Settings.CustomRuleGroups)
+
+	for _, op := range ops {
+		switch op.Operation {
+		case "add", "replace":
+			if op.Group == "" || len(op.Group) > maxGroupNameLen {
+				return model.ErrInvalidCustomRuleSyntax
+			}
+			note := ""
+			if op.Note != nil {
+				note = *op.Note
+			}
+			groups[op.Group] = note
+
+		case "remove":
+			if op.Group == "" {
+				return model.ErrInvalidCustomRuleSyntax
+			}
+			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.Group, ""); err != nil {
+				return err
+			}
+			delete(groups, op.Group)
+
+		case "move":
+			if op.From == "" || op.Group == "" || len(op.Group) > maxGroupNameLen {
+				return model.ErrInvalidCustomRuleSyntax
+			}
+			if op.From == op.Group {
+				continue
+			}
+			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.From, op.Group); err != nil {
+				return err
+			}
+			// Move the note: keep the destination's note if it already exists (merge),
+			// otherwise carry over the source's note.
+			fromNote, hadFrom := groups[op.From]
+			delete(groups, op.From)
+			if _, hasTo := groups[op.Group]; !hasTo {
+				if hadFrom {
+					groups[op.Group] = fromNote
+				} else {
+					groups[op.Group] = ""
+				}
+			}
+
+		default:
+			return model.ErrInvalidCustomRuleSyntax
 		}
 	}
 
-	return p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, merged)
+	return p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, groups)
 }
 
-// pruneOrphanGroupNotes removes group-note entries whose group name no longer
-// appears on any rule in postRules. Best-effort: errors are logged, not returned,
-// so the caller's primary operation is never failed by note cleanup.
-func (p *ProfileService) pruneOrphanGroupNotes(ctx context.Context, profileId string, settings *model.ProfileSettings, postRules []*model.CustomRule) {
-	if len(settings.CustomRuleGroups) == 0 {
-		return
+func cloneGroupNotes(src map[string]string) map[string]string {
+	out := make(map[string]string, len(src))
+	for k, v := range src {
+		out[k] = v
 	}
-
-	inUse := make(map[string]struct{})
-	for _, r := range postRules {
-		if r.Group != "" {
-			inUse[r.Group] = struct{}{}
-		}
-	}
-
-	pruned := make(map[string]string, len(settings.CustomRuleGroups))
-	changed := false
-	for name, note := range settings.CustomRuleGroups {
-		if _, ok := inUse[name]; ok {
-			pruned[name] = note
-		} else {
-			changed = true
-		}
-	}
-
-	if !changed {
-		return
-	}
-
-	if err := p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, pruned); err != nil {
-		log.Warn().Err(err).Str("profile_id", profileId).Msg("failed to prune orphaned custom rule group notes")
-	}
+	return out
 }
