@@ -286,7 +286,7 @@ function GroupHeader({
                             <MoreVertical className="w-5 h-5 md:w-3.5 md:h-3.5 text-[var(--tailwind-colors-slate-400)]" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="start">
                         <DropdownMenuItem onClick={() => setRenaming(true)}>
                             <Pencil className="w-4 h-4 mr-2" /> Rename group
                         </DropdownMenuItem>
@@ -294,7 +294,7 @@ function GroupHeader({
                             <StickyNote className="w-4 h-4 mr-2" /> {note ? "Edit comment" : "Add comment"}
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            className="text-[var(--tailwind-colors-rdns-600)] focus:text-[var(--tailwind-colors-rdns-600)]"
+                            className="text-[var(--tailwind-colors-red-600)] focus:text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] dark:focus:text-[var(--tailwind-colors-red-400)]"
                             onClick={onDelete}
                         >
                             <Trash2 className="w-4 h-4 mr-2" /> Delete group
