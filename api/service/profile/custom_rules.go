@@ -393,51 +393,57 @@ func (p *ProfileService) ReorderCustomRules(ctx context.Context, accountId, prof
 // maxGroupNameLen bounds a decoded group name. Mirrors the frontend/edit limit.
 const maxGroupNameLen = 64
 
-// CustomRuleGroupOp is one JSON-Patch-style operation on the group registry. The
-// handler decodes the request's JSON-Pointer path/from into the plain Group/From
-// names before calling the service, so the service deals in plain strings.
+// CustomRuleGroupOp is one JSON-Patch-style operation on the per-list group
+// registry. The handler decodes the request's JSON-Pointer path/from into the
+// plain Group/From names before calling the service. Action ("block"/"allow")
+// scopes the op to one list, so the denylist and allowlist have independent groups.
 //   - "add"/"replace": set Group's note to Note (creates the group).
 //   - "remove":        delete Group (member rules → Ungrouped, note dropped).
 //   - "move":          rename From → Group (reassign member rules, move the note).
 type CustomRuleGroupOp struct {
 	Operation string
+	Action    string
 	Group     string
 	From      string
 	Note      *string
 }
 
-// ApplyCustomRuleGroupOps applies a batch of group-registry operations in order.
-// Member-rule reassignments (remove/move) run as atomic bulk updates; the note map
-// is folded in memory and persisted once at the end. Group labels are metadata
-// only — no Redis writes. Mirrors the JSON-Patch contract of UpdateProfile.
+// ApplyCustomRuleGroupOps applies a batch of per-list group-registry operations in
+// order. Member-rule reassignments (remove/move) run as atomic, action-scoped bulk
+// updates; the nested note map is folded in memory and persisted once at the end.
+// Group labels are metadata only — no Redis writes.
 func (p *ProfileService) ApplyCustomRuleGroupOps(ctx context.Context, accountId, profileId string, ops []CustomRuleGroupOp) error {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return err
 	}
 
-	groups := cloneGroupNotes(profile.Settings.CustomRuleGroups)
+	groups := profile.Settings.CustomRuleGroups.Clone()
 
 	for _, op := range ops {
+		if op.Action != model.ACTION_BLOCK && op.Action != model.ACTION_ALLOW {
+			return model.ErrInvalidCustomRuleAction
+		}
+
 		switch op.Operation {
 		case "add", "replace":
 			if op.Group == "" || len(op.Group) > maxGroupNameLen {
 				return model.ErrInvalidCustomRuleSyntax
 			}
-			note := ""
+			comment := ""
 			if op.Note != nil {
-				note = *op.Note
+				comment = *op.Note
 			}
-			groups[op.Group] = note
+			groups.Upsert(op.Action, op.Group, comment)
 
 		case "remove":
 			if op.Group == "" {
 				return model.ErrInvalidCustomRuleSyntax
 			}
-			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.Group, ""); err != nil {
+			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.Action, op.Group, ""); err != nil {
 				return err
 			}
-			delete(groups, op.Group)
+			groups.Remove(op.Action, op.Group)
 
 		case "move":
 			if op.From == "" || op.Group == "" || len(op.Group) > maxGroupNameLen {
@@ -446,20 +452,10 @@ func (p *ProfileService) ApplyCustomRuleGroupOps(ctx context.Context, accountId,
 			if op.From == op.Group {
 				continue
 			}
-			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.From, op.Group); err != nil {
+			if err := p.ProfileRepository.ReassignCustomRuleGroup(ctx, profileId, op.Action, op.From, op.Group); err != nil {
 				return err
 			}
-			// Move the note: keep the destination's note if it already exists (merge),
-			// otherwise carry over the source's note.
-			fromNote, hadFrom := groups[op.From]
-			delete(groups, op.From)
-			if _, hasTo := groups[op.Group]; !hasTo {
-				if hadFrom {
-					groups[op.Group] = fromNote
-				} else {
-					groups[op.Group] = ""
-				}
-			}
+			groups.Rename(op.Action, op.From, op.Group)
 
 		default:
 			return model.ErrInvalidCustomRuleSyntax
@@ -467,12 +463,4 @@ func (p *ProfileService) ApplyCustomRuleGroupOps(ctx context.Context, accountId,
 	}
 
 	return p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, groups)
-}
-
-func cloneGroupNotes(src map[string]string) map[string]string {
-	out := make(map[string]string, len(src))
-	for k, v := range src {
-		out[k] = v
-	}
-	return out
 }

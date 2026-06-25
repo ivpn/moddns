@@ -39,9 +39,9 @@ type ProfileSettings struct {
 	Security    *Security     `json:"security" bson:"security" redis:"security" binding:"required"`
 	Privacy     *Privacy      `json:"privacy" bson:"privacy" redis:"privacy" binding:"required"`
 	CustomRules []*CustomRule `json:"custom_rules" bson:"custom_rules" redis:"-"`
-	// CustomRuleGroups maps a custom-rule group name to its optional note.
+	// CustomRuleGroups is the per-list group registry (denylist/allowlist).
 	// Organizational metadata only; never synced to the proxy (redis:"-").
-	CustomRuleGroups map[string]string   `json:"custom_rule_groups" bson:"custom_rule_groups" redis:"-"`
+	CustomRuleGroups CustomRuleGroups    `json:"custom_rule_groups" bson:"custom_rule_groups" redis:"-"`
 	Logs             *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
 	Statistics       *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
 	Advanced         *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
@@ -73,7 +73,7 @@ func NewSettings() *ProfileSettings {
 			Enabled: false,
 		},
 		CustomRules:      make([]*CustomRule, 0),
-		CustomRuleGroups: make(map[string]string),
+		CustomRuleGroups: CustomRuleGroups{},
 		Advanced: &Advanced{
 			Recursor: RECURSOR_DEFAULT,
 		},
@@ -83,6 +83,115 @@ func NewSettings() *ProfileSettings {
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
+}
+
+// CustomRuleGroup is one organizational group within a list. Modeled as a struct
+// (rather than a name→note map entry) so future per-group attributes — colour,
+// icon, display order, etc. — can be added without a shape change.
+type CustomRuleGroup struct {
+	Name    string `json:"name" bson:"name" validate:"required,max=64"`
+	Comment string `json:"comment,omitempty" bson:"comment,omitempty" validate:"omitempty,max=80"`
+}
+
+// CustomRuleGroups is the per-list group registry: groups are scoped to the
+// denylist (Block) or allowlist (Allow), so the same name in each list is
+// independent. Organizational metadata only; never synced to the proxy.
+type CustomRuleGroups struct {
+	Block []CustomRuleGroup `json:"block,omitempty" bson:"block,omitempty" validate:"omitempty,max=1000,dive"`
+	Allow []CustomRuleGroup `json:"allow,omitempty" bson:"allow,omitempty" validate:"omitempty,max=1000,dive"`
+}
+
+// list returns the group slice for an action ("" if the action is unknown).
+func (g *CustomRuleGroups) list(action string) []CustomRuleGroup {
+	switch action {
+	case ACTION_BLOCK:
+		return g.Block
+	case ACTION_ALLOW:
+		return g.Allow
+	}
+	return nil
+}
+
+// assign writes the group slice back for an action, normalizing empty to nil so
+// the stored/serialized shape stays clean (omitempty drops it).
+func (g *CustomRuleGroups) assign(action string, list []CustomRuleGroup) {
+	if len(list) == 0 {
+		list = nil
+	}
+	switch action {
+	case ACTION_BLOCK:
+		g.Block = list
+	case ACTION_ALLOW:
+		g.Allow = list
+	}
+}
+
+// Upsert sets a group's comment in the given list, creating the group if absent.
+func (g *CustomRuleGroups) Upsert(action, name, comment string) {
+	list := g.list(action)
+	for i := range list {
+		if list[i].Name == name {
+			list[i].Comment = comment
+			g.assign(action, list)
+			return
+		}
+	}
+	g.assign(action, append(list, CustomRuleGroup{Name: name, Comment: comment}))
+}
+
+// Remove drops a group from the given list (its rules are reassigned separately).
+func (g *CustomRuleGroups) Remove(action, name string) {
+	list := g.list(action)
+	out := make([]CustomRuleGroup, 0, len(list))
+	for _, grp := range list {
+		if grp.Name != name {
+			out = append(out, grp)
+		}
+	}
+	g.assign(action, out)
+}
+
+// Rename renames `from`→`to` in the given list. If `to` already exists the move
+// merges into it (its comment is kept); otherwise `from`'s comment is carried over.
+func (g *CustomRuleGroups) Rename(action, from, to string) {
+	if from == to {
+		return
+	}
+	list := g.list(action)
+	var fromComment string
+	hadFrom, hasTo := false, false
+	out := make([]CustomRuleGroup, 0, len(list))
+	for _, grp := range list {
+		switch grp.Name {
+		case from:
+			fromComment, hadFrom = grp.Comment, true
+		case to:
+			hasTo = true
+			out = append(out, grp)
+		default:
+			out = append(out, grp)
+		}
+	}
+	if !hasTo {
+		comment := ""
+		if hadFrom {
+			comment = fromComment
+		}
+		out = append(out, CustomRuleGroup{Name: to, Comment: comment})
+	}
+	g.assign(action, out)
+}
+
+// Clone returns a deep copy so service ops can mutate without touching the loaded profile.
+func (g CustomRuleGroups) Clone() CustomRuleGroups {
+	cp := CustomRuleGroups{}
+	if g.Block != nil {
+		cp.Block = append([]CustomRuleGroup(nil), g.Block...)
+	}
+	if g.Allow != nil {
+		cp.Allow = append([]CustomRuleGroup(nil), g.Allow...)
+	}
+	return cp
 }
 
 // CustomRule represents a custom rule.

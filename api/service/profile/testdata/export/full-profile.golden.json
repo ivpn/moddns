@@ -37,7 +37,12 @@
           }
         ],
         "customRuleGroups": {
-          "Ads": "advertising domains"
+          "block": [
+            {
+              "name": "Ads",
+              "comment": "advertising domains"
+            }
+          ]
         },
         "logs": {
           "enabled": true,

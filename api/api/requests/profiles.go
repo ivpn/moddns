@@ -40,10 +40,13 @@ type ReorderProfileCustomRulesBody struct {
 //   - remove        : delete the group (member rules → Ungrouped, note dropped).
 //   - move          : rename `from` → `path` (reassign member rules, move the note).
 type CustomRuleGroupUpdate struct {
-	Operation string  `json:"operation" validate:"required,oneof=add replace remove move"`
-	Path      string  `json:"path" validate:"required,startswith=/,max=130"`
-	From      string  `json:"from" validate:"omitempty,startswith=/,max=130"`
-	Value     *string `json:"value" validate:"omitempty,max=80"`
+	Operation string `json:"operation" validate:"required,oneof=add replace remove move"`
+	// Action scopes the op to one list ("block" = denylist, "allow" = allowlist);
+	// groups are per-list.
+	Action string  `json:"action" validate:"required,oneof=block allow"`
+	Path   string  `json:"path" validate:"required,startswith=/,max=130"`
+	From   string  `json:"from" validate:"omitempty,startswith=/,max=130"`
+	Value  *string `json:"value" validate:"omitempty,max=80"`
 }
 
 // CustomRuleGroupUpdates is the body of PATCH /custom_rule_groups.

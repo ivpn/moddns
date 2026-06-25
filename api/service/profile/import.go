@@ -342,14 +342,10 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 		s.Statistics.Enabled = src.Statistics.Enabled
 	}
 
-	// Custom rule group notes round-trip as-is. Notes for groups that end up with
-	// no member rule (e.g. their rules were skipped) are harmless and pruned on
-	// the next rule delete/regroup.
-	if len(src.CustomRuleGroups) > 0 {
-		s.CustomRuleGroups = make(map[string]string, len(src.CustomRuleGroups))
-		for name, note := range src.CustomRuleGroups {
-			s.CustomRuleGroups[name] = note
-		}
+	// Per-list custom rule groups round-trip as-is. Groups that end up with no
+	// member rule (e.g. their rules were skipped) are harmless.
+	if src.CustomRuleGroups != nil {
+		s.CustomRuleGroups = src.CustomRuleGroups.Clone()
 	}
 
 	// Advanced section — specRef: F7

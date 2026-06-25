@@ -230,6 +230,7 @@ func (s *APIServer) updateProfileCustomRuleGroups() fiber.Handler {
 		for _, u := range p.Updates {
 			ops = append(ops, profile.CustomRuleGroupOp{
 				Operation: u.Operation,
+				Action:    u.Action,
 				Group:     decodeJSONPointerSegment(u.Path),
 				From:      decodeJSONPointerSegment(u.From),
 				Note:      u.Value,

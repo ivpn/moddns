@@ -3151,6 +3151,41 @@ const docTemplate = `{
                 }
             }
         },
+        "model.CustomRuleGroup": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 64
+                }
+            }
+        },
+        "model.CustomRuleGroups": {
+            "type": "object",
+            "properties": {
+                "allow": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                        "$ref": "#/definitions/model.CustomRuleGroup"
+                    }
+                },
+                "block": {
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                        "$ref": "#/definitions/model.CustomRuleGroup"
+                    }
+                }
+            }
+        },
         "model.DNSRequest": {
             "type": "object",
             "properties": {
@@ -3383,11 +3418,12 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.ExportedAdvanced"
                 },
                 "customRuleGroups": {
-                    "description": "CustomRuleGroups maps a custom-rule group name to its optional note. Purely\norganizational metadata that round-trips with the rules' ` + "`" + `group` + "`" + ` field.",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "description": "CustomRuleGroups is the per-list group registry; reuses the storage type\n(its json tags define the wire shape). Pointer so an empty registry is\nomitted. Round-trips with the rules' ` + "`" + `group` + "`" + ` field.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.CustomRuleGroups"
+                        }
+                    ]
                 },
                 "customRules": {
                     "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
@@ -3535,11 +3571,12 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.Advanced"
                 },
                 "custom_rule_groups": {
-                    "description": "CustomRuleGroups maps a custom-rule group name to its optional note.\nOrganizational metadata only; never synced to the proxy (redis:\"-\").",
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    }
+                    "description": "CustomRuleGroups is the per-list group registry (denylist/allowlist).\nOrganizational metadata only; never synced to the proxy (redis:\"-\").",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.CustomRuleGroups"
+                        }
+                    ]
                 },
                 "custom_rules": {
                     "type": "array",
@@ -4261,10 +4298,19 @@ const docTemplate = `{
         "requests.CustomRuleGroupUpdate": {
             "type": "object",
             "required": [
+                "action",
                 "operation",
                 "path"
             ],
             "properties": {
+                "action": {
+                    "description": "Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist);\ngroups are per-list.",
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
                 "from": {
                     "type": "string",
                     "maxLength": 130

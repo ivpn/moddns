@@ -230,7 +230,7 @@ func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
 					{Action: "block", Value: "ads.example.com", Note: "ad net", Group: "Ads"},
 					{Action: "allow", Value: "safe.example.com"},
 				},
-				CustomRuleGroups: map[string]string{"Ads": "advertising"},
+				CustomRuleGroups: &model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "advertising"}}},
 			},
 		}},
 	}
@@ -252,7 +252,9 @@ func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
 	assert.Empty(t, capturedRules[1].Note)
 
 	require.NotNil(t, capturedSettings)
-	assert.Equal(t, "advertising", capturedSettings.CustomRuleGroups["Ads"])
+	require.Len(t, capturedSettings.CustomRuleGroups.Block, 1)
+	assert.Equal(t, "Ads", capturedSettings.CustomRuleGroups.Block[0].Name)
+	assert.Equal(t, "advertising", capturedSettings.CustomRuleGroups.Block[0].Comment)
 }
 
 // specRef: I11

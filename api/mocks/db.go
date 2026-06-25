@@ -3002,16 +3002,16 @@ func (_c *Db_Migrate_Call) RunAndReturn(run func() error) *Db_Migrate_Call {
 }
 
 // ReassignCustomRuleGroup provides a mock function for the type Db
-func (_mock *Db) ReassignCustomRuleGroup(ctx context.Context, profileId string, from string, to string) error {
-	ret := _mock.Called(ctx, profileId, from, to)
+func (_mock *Db) ReassignCustomRuleGroup(ctx context.Context, profileId string, action string, from string, to string) error {
+	ret := _mock.Called(ctx, profileId, action, from, to)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReassignCustomRuleGroup")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) error); ok {
-		r0 = returnFunc(ctx, profileId, from, to)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = returnFunc(ctx, profileId, action, from, to)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3026,13 +3026,14 @@ type Db_ReassignCustomRuleGroup_Call struct {
 // ReassignCustomRuleGroup is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
+//   - action string
 //   - from string
 //   - to string
-func (_e *Db_Expecter) ReassignCustomRuleGroup(ctx interface{}, profileId interface{}, from interface{}, to interface{}) *Db_ReassignCustomRuleGroup_Call {
-	return &Db_ReassignCustomRuleGroup_Call{Call: _e.mock.On("ReassignCustomRuleGroup", ctx, profileId, from, to)}
+func (_e *Db_Expecter) ReassignCustomRuleGroup(ctx interface{}, profileId interface{}, action interface{}, from interface{}, to interface{}) *Db_ReassignCustomRuleGroup_Call {
+	return &Db_ReassignCustomRuleGroup_Call{Call: _e.mock.On("ReassignCustomRuleGroup", ctx, profileId, action, from, to)}
 }
 
-func (_c *Db_ReassignCustomRuleGroup_Call) Run(run func(ctx context.Context, profileId string, from string, to string)) *Db_ReassignCustomRuleGroup_Call {
+func (_c *Db_ReassignCustomRuleGroup_Call) Run(run func(ctx context.Context, profileId string, action string, from string, to string)) *Db_ReassignCustomRuleGroup_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3050,11 +3051,16 @@ func (_c *Db_ReassignCustomRuleGroup_Call) Run(run func(ctx context.Context, pro
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -3065,7 +3071,7 @@ func (_c *Db_ReassignCustomRuleGroup_Call) Return(err error) *Db_ReassignCustomR
 	return _c
 }
 
-func (_c *Db_ReassignCustomRuleGroup_Call) RunAndReturn(run func(ctx context.Context, profileId string, from string, to string) error) *Db_ReassignCustomRuleGroup_Call {
+func (_c *Db_ReassignCustomRuleGroup_Call) RunAndReturn(run func(ctx context.Context, profileId string, action string, from string, to string) error) *Db_ReassignCustomRuleGroup_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3341,7 +3347,7 @@ func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessio
 }
 
 // SetCustomRuleGroups provides a mock function for the type Db
-func (_mock *Db) SetCustomRuleGroups(ctx context.Context, profileId string, groups map[string]string) error {
+func (_mock *Db) SetCustomRuleGroups(ctx context.Context, profileId string, groups model.CustomRuleGroups) error {
 	ret := _mock.Called(ctx, profileId, groups)
 
 	if len(ret) == 0 {
@@ -3349,7 +3355,7 @@ func (_mock *Db) SetCustomRuleGroups(ctx context.Context, profileId string, grou
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, map[string]string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.CustomRuleGroups) error); ok {
 		r0 = returnFunc(ctx, profileId, groups)
 	} else {
 		r0 = ret.Error(0)
@@ -3365,12 +3371,12 @@ type Db_SetCustomRuleGroups_Call struct {
 // SetCustomRuleGroups is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - groups map[string]string
+//   - groups model.CustomRuleGroups
 func (_e *Db_Expecter) SetCustomRuleGroups(ctx interface{}, profileId interface{}, groups interface{}) *Db_SetCustomRuleGroups_Call {
 	return &Db_SetCustomRuleGroups_Call{Call: _e.mock.On("SetCustomRuleGroups", ctx, profileId, groups)}
 }
 
-func (_c *Db_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, profileId string, groups map[string]string)) *Db_SetCustomRuleGroups_Call {
+func (_c *Db_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, profileId string, groups model.CustomRuleGroups)) *Db_SetCustomRuleGroups_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3380,9 +3386,9 @@ func (_c *Db_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, profile
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 map[string]string
+		var arg2 model.CustomRuleGroups
 		if args[2] != nil {
-			arg2 = args[2].(map[string]string)
+			arg2 = args[2].(model.CustomRuleGroups)
 		}
 		run(
 			arg0,
@@ -3398,7 +3404,7 @@ func (_c *Db_SetCustomRuleGroups_Call) Return(err error) *Db_SetCustomRuleGroups
 	return _c
 }
 
-func (_c *Db_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, profileId string, groups map[string]string) error) *Db_SetCustomRuleGroups_Call {
+func (_c *Db_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, profileId string, groups model.CustomRuleGroups) error) *Db_SetCustomRuleGroups_Call {
 	_c.Call.Return(run)
 	return _c
 }

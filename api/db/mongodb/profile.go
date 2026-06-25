@@ -210,10 +210,9 @@ func (r *ProfileRepository) UpdateCustomRulesOrder(ctx context.Context, profileI
 	return err
 }
 
-// SetCustomRuleGroups replaces the profile's custom-rule group-note map wholesale.
-// Passing an empty map clears all group notes. The map is metadata only and is
-// never synced to the proxy.
-func (r *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId string, groups map[string]string) error {
+// SetCustomRuleGroups replaces the profile's per-list group registry wholesale.
+// The registry is metadata only and is never synced to the proxy.
+func (r *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId string, groups model.CustomRuleGroups) error {
 	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
 	updateBson := bson.D{
 		{Key: "$set", Value: bson.D{
@@ -225,10 +224,11 @@ func (r *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId s
 	return err
 }
 
-// ReassignCustomRuleGroup sets group=to on every rule whose group==from, in a
-// single atomic update using an arrayFilter. Passing to="" moves the rules to
-// Ungrouped (used by group deletion). Group labels are metadata only.
-func (r *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId, from, to string) error {
+// ReassignCustomRuleGroup sets group=to on every rule with the given action whose
+// group==from, in a single atomic update using an arrayFilter. Scoping by action
+// keeps denylist and allowlist groups independent. Passing to="" moves the rules
+// to Ungrouped (used by group deletion). Group labels are metadata only.
+func (r *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId, action, from, to string) error {
 	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
 	updateBson := bson.D{
 		{Key: "$set", Value: bson.D{
@@ -236,7 +236,7 @@ func (r *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profile
 		}},
 	}
 	opts := options.Update().SetArrayFilters(options.ArrayFilters{
-		Filters: []any{bson.M{"elem.group": from}},
+		Filters: []any{bson.M{"elem.group": from, "elem.action": action}},
 	})
 
 	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson, opts)

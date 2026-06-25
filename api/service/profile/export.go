@@ -186,13 +186,10 @@ func exportSettings(s *model.ProfileSettings) *model.ExportedSettings {
 		es.CustomRules = rules
 	}
 
-	// Group notes round-trip alongside the rules' group labels.
-	if len(s.CustomRuleGroups) > 0 {
-		groups := make(map[string]string, len(s.CustomRuleGroups))
-		for name, note := range s.CustomRuleGroups {
-			groups[name] = note
-		}
-		es.CustomRuleGroups = groups
+	// Per-list groups round-trip alongside the rules' group labels.
+	if len(s.CustomRuleGroups.Block) > 0 || len(s.CustomRuleGroups.Allow) > 0 {
+		groups := s.CustomRuleGroups.Clone()
+		es.CustomRuleGroups = &groups
 	}
 
 	// Logs section — specRef: F3 (logs sub-fields)
