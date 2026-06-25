@@ -161,6 +161,8 @@ Class | Method | HTTP request | Description
  - [ModelBlocklist](docs/ModelBlocklist.md)
  - [ModelCredential](docs/ModelCredential.md)
  - [ModelCustomRule](docs/ModelCustomRule.md)
+ - [ModelCustomRuleGroup](docs/ModelCustomRuleGroup.md)
+ - [ModelCustomRuleGroups](docs/ModelCustomRuleGroups.md)
  - [ModelDNSRequest](docs/ModelDNSRequest.md)
  - [ModelDNSSECSettings](docs/ModelDNSSECSettings.md)
  - [ModelExportEnvelope](docs/ModelExportEnvelope.md)

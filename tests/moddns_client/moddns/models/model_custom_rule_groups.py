@@ -17,36 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from moddns.models.model_custom_rule_group import ModelCustomRuleGroup
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsCustomRuleGroupUpdate(BaseModel):
+class ModelCustomRuleGroups(BaseModel):
     """
-    RequestsCustomRuleGroupUpdate
+    ModelCustomRuleGroups
     """ # noqa: E501
-    action: StrictStr = Field(description="Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist); groups are per-list.")
-    var_from: Optional[Annotated[str, Field(strict=True, max_length=130)]] = Field(default=None, alias="from")
-    operation: StrictStr
-    path: Annotated[str, Field(strict=True, max_length=130)]
-    value: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
-    __properties: ClassVar[List[str]] = ["action", "from", "operation", "path", "value"]
-
-    @field_validator('action')
-    def action_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow']):
-            raise ValueError("must be one of enum values ('block', 'allow')")
-        return value
-
-    @field_validator('operation')
-    def operation_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['add', 'replace', 'remove', 'move']):
-            raise ValueError("must be one of enum values ('add', 'replace', 'remove', 'move')")
-        return value
+    allow: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=1000)]] = None
+    block: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=1000)]] = None
+    __properties: ClassVar[List[str]] = ["allow", "block"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -66,7 +50,7 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsCustomRuleGroupUpdate from a JSON string"""
+        """Create an instance of ModelCustomRuleGroups from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -87,11 +71,25 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in allow (list)
+        _items = []
+        if self.allow:
+            for _item_allow in self.allow:
+                if _item_allow:
+                    _items.append(_item_allow.to_dict())
+            _dict['allow'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in block (list)
+        _items = []
+        if self.block:
+            for _item_block in self.block:
+                if _item_block:
+                    _items.append(_item_block.to_dict())
+            _dict['block'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsCustomRuleGroupUpdate from a dict"""
+        """Create an instance of ModelCustomRuleGroups from a dict"""
         if obj is None:
             return None
 
@@ -99,11 +97,8 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "action": obj.get("action"),
-            "from": obj.get("from"),
-            "operation": obj.get("operation"),
-            "path": obj.get("path"),
-            "value": obj.get("value")
+            "allow": [ModelCustomRuleGroup.from_dict(_item) for _item in obj["allow"]] if obj.get("allow") is not None else None,
+            "block": [ModelCustomRuleGroup.from_dict(_item) for _item in obj["block"]] if obj.get("block") is not None else None
         })
         return _obj
 

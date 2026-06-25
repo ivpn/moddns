@@ -11,7 +11,7 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import api from "@/api/api";
 import { toast } from "sonner";
-import type { ModelAccount, ModelCustomRule, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
+import type { ModelAccount, ModelCustomRule, ModelCustomRuleGroup, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
 import { RuleComposer, type RuleOption } from "@/pages/custom_rules/RuleComposer";
 import CustomRulesCard from "@/pages/custom_rules/CustomRulesCard";
 import RuleEditDialog from "@/pages/custom_rules/RuleEditDialog";
@@ -303,10 +303,11 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile?.profile_id, setActiveProfile]);
 
-    // Save (or clear) a group note. A cleared note keeps the group (replace "").
-    const handleGroupNote = useCallback((group: string, note: string | null) => {
+    // Save (or clear) a group note in a specific list. A cleared note keeps the
+    // group (replace "").
+    const handleGroupNote = useCallback((action: "block" | "allow", group: string, note: string | null) => {
         void applyGroupOps(
-            [{ operation: GroupOp.Replace, path: toPointer(group), value: note ?? "" }],
+            [{ operation: GroupOp.Replace, action, path: toPointer(group), value: note ?? "" }],
             "Failed to save group note",
         );
     }, [applyGroupOps]);
@@ -335,40 +336,53 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile?.profile_id, denylist, allowlist, setActiveProfile]);
 
-    // Create an empty group (registers it in the custom_rule_groups map).
-    const handleCreateGroup = useCallback((name: string) => {
+    // Create an empty group in a specific list (registers it in custom_rule_groups).
+    const handleCreateGroup = useCallback((action: "block" | "allow", name: string) => {
         void applyGroupOps(
-            [{ operation: GroupOp.Add, path: toPointer(name), value: "" }],
+            [{ operation: GroupOp.Add, action, path: toPointer(name), value: "" }],
             "Failed to create group",
         );
     }, [applyGroupOps]);
 
-    const handleRenameGroup = useCallback((from: string, to: string) => {
+    const handleRenameGroup = useCallback((action: "block" | "allow", from: string, to: string) => {
         void applyGroupOps(
-            [{ operation: GroupOp.Move, from: toPointer(from), path: toPointer(to) }],
+            [{ operation: GroupOp.Move, action, from: toPointer(from), path: toPointer(to) }],
             "Failed to rename group",
             `Group renamed to "${to}".`,
         );
     }, [applyGroupOps]);
 
-    const handleDeleteGroup = useCallback((name: string) => {
+    const handleDeleteGroup = useCallback((action: "block" | "allow", name: string) => {
         void applyGroupOps(
-            [{ operation: GroupOp.Remove, path: toPointer(name) }],
+            [{ operation: GroupOp.Remove, action, path: toPointer(name) }],
             "Failed to delete group",
             `Group "${name}" deleted. Its rules moved to Ungrouped.`,
         );
     }, [applyGroupOps]);
 
-    const groupNotes: Record<string, string> = activeProfile?.settings?.custom_rule_groups ?? {};
-    const existingGroups = useMemo(
-        () => Array.from(
+    // Per-list group registry. The cards consume a name→comment map, so flatten
+    // each list's [{name, comment}] into that shape.
+    const groupRegistry = activeProfile?.settings?.custom_rule_groups;
+    const toNoteMap = (list?: ModelCustomRuleGroup[]): Record<string, string> =>
+        Object.fromEntries((list ?? []).map(g => [g.name, g.comment ?? ""]));
+    const denyGroupNotes = useMemo(() => toNoteMap(groupRegistry?.block), [groupRegistry?.block]);
+    const allowGroupNotes = useMemo(() => toNoteMap(groupRegistry?.allow), [groupRegistry?.allow]);
+
+    // Groups offered in the edit dialog are scoped to the rule's current list.
+    const existingGroups = useMemo(() => {
+        const action = editingRule?.action;
+        if (action !== "block" && action !== "allow") return [];
+        const registry = action === "block" ? groupRegistry?.block : groupRegistry?.allow;
+        return Array.from(
             new Set([
-                ...customRules.map(r => r.group).filter((g): g is string => !!g && g.trim() !== ""),
-                ...Object.keys(activeProfile?.settings?.custom_rule_groups ?? {}).filter(g => g.trim() !== ""),
+                ...customRules
+                    .filter(r => r.action === action)
+                    .map(r => r.group)
+                    .filter((g): g is string => !!g && g.trim() !== ""),
+                ...(registry ?? []).map(g => g.name).filter(n => n.trim() !== ""),
             ]),
-        ).sort(),
-        [customRules, activeProfile?.settings?.custom_rule_groups],
-    );
+        ).sort();
+    }, [customRules, groupRegistry?.block, groupRegistry?.allow, editingRule?.action]);
 
     // Show header only if at least one is selected
     const allSelected = selectedIds.length > 0;
@@ -517,17 +531,17 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="denylist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredDenylist}
-                                groupNotes={groupNotes}
+                                groupNotes={denyGroupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
                                 onEdit={setEditingRule}
                                 onReorder={(ids) => handleReorder("denylist", ids)}
                                 onMoveRule={(ids, ruleId, g) => handleMoveRule("denylist", ids, ruleId, g)}
-                                onSaveGroupNote={handleGroupNote}
-                                onCreateGroup={handleCreateGroup}
-                                onRenameGroup={handleRenameGroup}
-                                onDeleteGroup={handleDeleteGroup}
+                                onSaveGroupNote={(group, note) => handleGroupNote("block", group, note)}
+                                onCreateGroup={(name) => handleCreateGroup("block", name)}
+                                onRenameGroup={(from, to) => handleRenameGroup("block", from, to)}
+                                onDeleteGroup={(name) => handleDeleteGroup("block", name)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -539,17 +553,17 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="allowlist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredAllowlist}
-                                groupNotes={groupNotes}
+                                groupNotes={allowGroupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
                                 onEdit={setEditingRule}
                                 onReorder={(ids) => handleReorder("allowlist", ids)}
                                 onMoveRule={(ids, ruleId, g) => handleMoveRule("allowlist", ids, ruleId, g)}
-                                onSaveGroupNote={handleGroupNote}
-                                onCreateGroup={handleCreateGroup}
-                                onRenameGroup={handleRenameGroup}
-                                onDeleteGroup={handleDeleteGroup}
+                                onSaveGroupNote={(group, note) => handleGroupNote("allow", group, note)}
+                                onCreateGroup={(name) => handleCreateGroup("allow", name)}
+                                onRenameGroup={(from, to) => handleRenameGroup("allow", from, to)}
+                                onDeleteGroup={(name) => handleDeleteGroup("allow", name)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}

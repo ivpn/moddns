@@ -523,6 +523,44 @@ export interface ModelCustomRule {
 /**
  * 
  * @export
+ * @interface ModelCustomRuleGroup
+ */
+export interface ModelCustomRuleGroup {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRuleGroup
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRuleGroup
+     */
+    'name': string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelCustomRuleGroups
+ */
+export interface ModelCustomRuleGroups {
+    /**
+     * 
+     * @type {Array<ModelCustomRuleGroup>}
+     * @memberof ModelCustomRuleGroups
+     */
+    'allow'?: Array<ModelCustomRuleGroup>;
+    /**
+     * 
+     * @type {Array<ModelCustomRuleGroup>}
+     * @memberof ModelCustomRuleGroups
+     */
+    'block'?: Array<ModelCustomRuleGroup>;
+}
+/**
+ * 
+ * @export
  * @interface ModelDNSRequest
  */
 export interface ModelDNSRequest {
@@ -856,11 +894,11 @@ export interface ModelExportedSettings {
      */
     'advanced'?: ModelExportedAdvanced;
     /**
-     * CustomRuleGroups maps a custom-rule group name to its optional note. Purely organizational metadata that round-trips with the rules\' `group` field.
-     * @type {{ [key: string]: string; }}
+     * CustomRuleGroups is the per-list group registry; reuses the storage type (its json tags define the wire shape). Pointer so an empty registry is omitted. Round-trips with the rules\' `group` field.
+     * @type {ModelCustomRuleGroups}
      * @memberof ModelExportedSettings
      */
-    'customRuleGroups'?: { [key: string]: string; };
+    'customRuleGroups'?: ModelCustomRuleGroups;
     /**
      * CustomRules holds the profile\'s custom filtering rules, capped at 1000 per profile.
      * @type {Array<ModelExportedCustomRule>}
@@ -1058,11 +1096,11 @@ export interface ModelProfileSettings {
      */
     'advanced': ModelAdvanced;
     /**
-     * CustomRuleGroups maps a custom-rule group name to its optional note. Organizational metadata only; never synced to the proxy (redis:\"-\").
-     * @type {{ [key: string]: string; }}
+     * CustomRuleGroups is the per-list group registry (denylist/allowlist). Organizational metadata only; never synced to the proxy (redis:\"-\").
+     * @type {ModelCustomRuleGroups}
      * @memberof ModelProfileSettings
      */
-    'custom_rule_groups'?: { [key: string]: string; };
+    'custom_rule_groups'?: ModelCustomRuleGroups;
     /**
      * 
      * @type {Array<ModelCustomRule>}
@@ -2009,6 +2047,12 @@ export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof Request
  */
 export interface RequestsCustomRuleGroupUpdate {
     /**
+     * Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist); groups are per-list.
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'action': RequestsCustomRuleGroupUpdateActionEnum;
+    /**
      * 
      * @type {string}
      * @memberof RequestsCustomRuleGroupUpdate
@@ -2034,6 +2078,12 @@ export interface RequestsCustomRuleGroupUpdate {
     'value'?: string;
 }
 
+export const RequestsCustomRuleGroupUpdateActionEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type RequestsCustomRuleGroupUpdateActionEnum = typeof RequestsCustomRuleGroupUpdateActionEnum[keyof typeof RequestsCustomRuleGroupUpdateActionEnum];
 export const RequestsCustomRuleGroupUpdateOperationEnum = {
     Add: 'add',
     Replace: 'replace',

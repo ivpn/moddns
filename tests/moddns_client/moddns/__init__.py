@@ -61,6 +61,8 @@ from moddns.models.model_advanced import ModelAdvanced
 from moddns.models.model_blocklist import ModelBlocklist
 from moddns.models.model_credential import ModelCredential
 from moddns.models.model_custom_rule import ModelCustomRule
+from moddns.models.model_custom_rule_group import ModelCustomRuleGroup
+from moddns.models.model_custom_rule_groups import ModelCustomRuleGroups
 from moddns.models.model_dns_request import ModelDNSRequest
 from moddns.models.model_dnssec_settings import ModelDNSSECSettings
 from moddns.models.model_export_envelope import ModelExportEnvelope

@@ -17,36 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class RequestsCustomRuleGroupUpdate(BaseModel):
+class ModelCustomRuleGroup(BaseModel):
     """
-    RequestsCustomRuleGroupUpdate
+    ModelCustomRuleGroup
     """ # noqa: E501
-    action: StrictStr = Field(description="Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist); groups are per-list.")
-    var_from: Optional[Annotated[str, Field(strict=True, max_length=130)]] = Field(default=None, alias="from")
-    operation: StrictStr
-    path: Annotated[str, Field(strict=True, max_length=130)]
-    value: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
-    __properties: ClassVar[List[str]] = ["action", "from", "operation", "path", "value"]
-
-    @field_validator('action')
-    def action_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow']):
-            raise ValueError("must be one of enum values ('block', 'allow')")
-        return value
-
-    @field_validator('operation')
-    def operation_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['add', 'replace', 'remove', 'move']):
-            raise ValueError("must be one of enum values ('add', 'replace', 'remove', 'move')")
-        return value
+    comment: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
+    name: Annotated[str, Field(strict=True, max_length=64)]
+    __properties: ClassVar[List[str]] = ["comment", "name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -66,7 +49,7 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of RequestsCustomRuleGroupUpdate from a JSON string"""
+        """Create an instance of ModelCustomRuleGroup from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -91,7 +74,7 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of RequestsCustomRuleGroupUpdate from a dict"""
+        """Create an instance of ModelCustomRuleGroup from a dict"""
         if obj is None:
             return None
 
@@ -99,11 +82,8 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "action": obj.get("action"),
-            "from": obj.get("from"),
-            "operation": obj.get("operation"),
-            "path": obj.get("path"),
-            "value": obj.get("value")
+            "comment": obj.get("comment"),
+            "name": obj.get("name")
         })
         return _obj
 

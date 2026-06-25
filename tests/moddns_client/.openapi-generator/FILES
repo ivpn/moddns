@@ -43,6 +43,8 @@ moddns/models/model_advanced.py
 moddns/models/model_blocklist.py
 moddns/models/model_credential.py
 moddns/models/model_custom_rule.py
+moddns/models/model_custom_rule_group.py
+moddns/models/model_custom_rule_groups.py
 moddns/models/model_dns_request.py
 moddns/models/model_dnssec_settings.py
 moddns/models/model_export_envelope.py
