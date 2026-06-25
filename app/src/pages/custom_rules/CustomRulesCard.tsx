@@ -229,14 +229,14 @@ function GroupHeader({
                         if (e.key === "Enter") { e.preventDefault(); commitName(); }
                         else if (e.key === "Escape") { e.preventDefault(); cancelName(); }
                     }}
-                    className="h-7 w-56 max-w-full"
+                    className="h-10 md:h-7 w-56 max-w-full"
                     autoFocus
                 />
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" disabled={loading} aria-label="Save group name" onClick={commitName}>
-                    <Check className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
+                <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" disabled={loading} aria-label="Save group name" onClick={commitName}>
+                    <Check className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-rdns-600)]" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Cancel rename" onClick={cancelName}>
-                    <X className="w-4 h-4 text-[var(--tailwind-colors-slate-400)]" />
+                <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Cancel rename" onClick={cancelName}>
+                    <X className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-slate-400)]" />
                 </Button>
             </div>
         );
@@ -247,15 +247,15 @@ function GroupHeader({
             <button
                 type="button"
                 onClick={onToggle}
-                className="flex items-center gap-2 min-w-0 text-[var(--tailwind-colors-slate-100)] shrink-0"
+                className="flex items-center gap-3 md:gap-2 min-w-0 py-1.5 md:py-0 text-[var(--tailwind-colors-slate-100)] shrink-0 cursor-pointer"
             >
-                {collapsed ? <Folder className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
-                <span className="font-medium text-sm truncate">{name}</span>
-                <span className="text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
+                {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4" />}
+                <span className="font-medium text-base md:text-sm truncate">{name}</span>
+                <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
                 {note && !editingNote && (
                     <Tooltip content={note}>
                         <span className="inline-flex items-center text-[var(--tailwind-colors-slate-400)]" aria-label="Group note">
-                            <StickyNote className="w-4 h-4" />
+                            <StickyNote className="w-5 h-5 md:w-4 md:h-4" />
                         </span>
                     </Tooltip>
                 )}
@@ -271,14 +271,14 @@ function GroupHeader({
                             else if (e.key === "Escape") { e.preventDefault(); cancelNote(); }
                         }}
                         placeholder="Group note"
-                        className="h-7 w-48 max-w-full"
+                        className="h-10 md:h-7 w-48 max-w-full"
                         autoFocus
                     />
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" disabled={loading} aria-label="Save group note" onClick={commitNote}>
-                        <Check className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
+                    <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" disabled={loading} aria-label="Save group note" onClick={commitNote}>
+                        <Check className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-rdns-600)]" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Cancel" onClick={cancelNote}>
-                        <X className="w-4 h-4 text-[var(--tailwind-colors-slate-400)]" />
+                    <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Cancel" onClick={cancelNote}>
+                        <X className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-slate-400)]" />
                     </Button>
                 </div>
             ) : (
@@ -289,8 +289,8 @@ function GroupHeader({
                    whole app frozen. Non-modal has no body lock, so the freeze cannot occur. */
                 <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Group actions">
-                            <MoreVertical className="w-3.5 h-3.5 text-[var(--tailwind-colors-slate-400)]" />
+                        <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Group actions">
+                            <MoreVertical className="w-5 h-5 md:w-3.5 md:h-3.5 text-[var(--tailwind-colors-slate-400)]" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -344,14 +344,14 @@ function NewGroupZone({
                         else if (e.key === "Escape") { e.preventDefault(); onCancelCreate(); }
                     }}
                     placeholder={namingForDrop ? "Name the new group for this rule…" : "New group name…"}
-                    className="h-7 w-56 max-w-full"
+                    className="h-10 md:h-7 w-56 max-w-full"
                     autoFocus
                 />
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Create group" disabled={!draft.trim()} onClick={() => draft.trim() && onConfirmCreate(draft.trim())}>
-                    <Check className="w-4 h-4 text-[var(--tailwind-colors-rdns-600)]" />
+                <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Create group" disabled={!draft.trim()} onClick={() => draft.trim() && onConfirmCreate(draft.trim())}>
+                    <Check className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-rdns-600)]" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Cancel" onClick={onCancelCreate}>
-                    <X className="w-4 h-4 text-[var(--tailwind-colors-slate-400)]" />
+                <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Cancel" onClick={onCancelCreate}>
+                    <X className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-slate-400)]" />
                 </Button>
             </div>
         );
@@ -649,25 +649,32 @@ export default function CustomRulesCard({
                                         </div>
                                     )
                                 )}
-                                {!isCollapsed && (
-                                    <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
-                                        <DroppableSection group={section.name} isEmpty={isEmpty}>
-                                            {section.items.map((rule) => (
-                                                <SortableEntry
-                                                    key={rule.id}
-                                                    rule={rule}
-                                                    checked={selectedIds.includes(rule.id)}
-                                                    onCheck={onCheck}
-                                                    onDelete={handleEntryDelete}
-                                                    onEdit={onEdit}
-                                                    isRemoving={removingIds.includes(rule.id)}
-                                                    hideDeleteButton={allSelected}
-                                                    draggable={draggable}
-                                                />
-                                            ))}
-                                        </DroppableSection>
-                                    </SortableContext>
-                                )}
+                                {/* grid-template-rows 0fr<->1fr animates the section height
+                                    fluidly without measuring; the inner wrapper clips during
+                                    the transition. Kept mounted so it stays a drop target. */}
+                                <div
+                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}
+                                >
+                                    <div className={`min-h-0 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
+                                        <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+                                            <DroppableSection group={section.name} isEmpty={isEmpty}>
+                                                {section.items.map((rule) => (
+                                                    <SortableEntry
+                                                        key={rule.id}
+                                                        rule={rule}
+                                                        checked={selectedIds.includes(rule.id)}
+                                                        onCheck={onCheck}
+                                                        onDelete={handleEntryDelete}
+                                                        onEdit={onEdit}
+                                                        isRemoving={removingIds.includes(rule.id)}
+                                                        hideDeleteButton={allSelected}
+                                                        draggable={draggable}
+                                                    />
+                                                ))}
+                                            </DroppableSection>
+                                        </SortableContext>
+                                    </div>
+                                </div>
                             </div>
                         );
                     })}
