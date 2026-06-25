@@ -6,6 +6,7 @@ package profile_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -255,6 +256,58 @@ func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
 	require.Len(t, capturedSettings.CustomRuleGroups.Block, 1)
 	assert.Equal(t, "Ads", capturedSettings.CustomRuleGroups.Block[0].Name)
 	assert.Equal(t, "advertising", capturedSettings.CustomRuleGroups.Block[0].Comment)
+}
+
+// TestImport_GroupsCappedPerList verifies the defensive per-list group cap:
+// importing more than the limit truncates with a warning (the DTO validator is
+// bypassed when Import is called directly).
+func TestImport_GroupsCappedPerList(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	var capturedSettings *model.ProfileSettings
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		capturedSettings = p.Settings
+		return true
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	over := model.ExportedCustomRuleGroupsLimit + 50
+	blockGroups := make([]model.CustomRuleGroup, over)
+	for i := range blockGroups {
+		blockGroups[i] = model.CustomRuleGroup{Name: fmt.Sprintf("g%d", i)}
+	}
+
+	envelope := &model.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    time.Now(),
+		Profiles: []model.ExportedProfile{{
+			Name:     "Imported",
+			Settings: &model.ExportedSettings{CustomRuleGroups: &model.CustomRuleGroups{Block: blockGroups}},
+		}},
+	}
+
+	result, err := env.svc.Import(
+		context.Background(), "acct1",
+		profile.ImportModeCreateNew,
+		envelope,
+		ptr("secret"), nil, nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, capturedSettings)
+	assert.Len(t, capturedSettings.CustomRuleGroups.Block, model.ExportedCustomRuleGroupsLimit)
+
+	var capped bool
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "denylist groups capped at") {
+			capped = true
+		}
+	}
+	assert.True(t, capped, "expected a denylist-groups-capped warning, got %v", result.Warnings)
 }
 
 // specRef: I11

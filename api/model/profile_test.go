@@ -75,3 +75,17 @@ func TestExportedCustomRules_MaxMatchesCanonicalConst(t *testing.T) {
 		"ExportedSettings.CustomRules validate tag has max=%d but ExportedCustomRulesLimit=%d — update both together",
 		got, ExportedCustomRulesLimit)
 }
+
+// TestExportedCustomRuleGroups_MaxMatchesCanonicalConst is the drift guard for the
+// per-list custom-rule-group limit: both Block and Allow tags must equal
+// ExportedCustomRuleGroupsLimit (the value export truncates to and import accepts).
+func TestExportedCustomRuleGroups_MaxMatchesCanonicalConst(t *testing.T) {
+	for _, field := range []string{"Block", "Allow"} {
+		f, ok := reflect.TypeOf(CustomRuleGroups{}).FieldByName(field)
+		require.True(t, ok, "CustomRuleGroups.%s field not found", field)
+		got := extractMaxFromValidateTag(t, "model.CustomRuleGroups."+field, f.Tag)
+		assert.Equal(t, ExportedCustomRuleGroupsLimit, got,
+			"CustomRuleGroups.%s validate tag has max=%d but ExportedCustomRuleGroupsLimit=%d — update both together",
+			field, got, ExportedCustomRuleGroupsLimit)
+	}
+}

@@ -28,8 +28,8 @@ class ModelCustomRuleGroups(BaseModel):
     """
     ModelCustomRuleGroups
     """ # noqa: E501
-    allow: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=1000)]] = None
-    block: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=1000)]] = None
+    allow: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=100)]] = None
+    block: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=100)]] = None
     __properties: ClassVar[List[str]] = ["allow", "block"]
 
     model_config = ConfigDict(

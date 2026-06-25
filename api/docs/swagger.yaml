@@ -271,12 +271,12 @@ definitions:
       allow:
         items:
           $ref: '#/definitions/model.CustomRuleGroup'
-        maxItems: 1000
+        maxItems: 100
         type: array
       block:
         items:
           $ref: '#/definitions/model.CustomRuleGroup'
-        maxItems: 1000
+        maxItems: 100
         type: array
     type: object
   model.DNSRequest:

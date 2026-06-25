@@ -42,6 +42,13 @@ var ErrImportNotImplemented = errors.New("import not implemented")
 // specRef: S6, V10
 const maxCustomRulesPerProfile = model.ExportedCustomRulesLimit
 
+// maxCustomRuleGroupsPerList is the per-list defensive cap on imported groups.
+// The DTO layer enforces the same limit (CustomRuleGroups.Block/Allow max), but
+// the service caps too so it stays safe when called without HTTP. Groups aren't
+// bounded by rule count (empty groups exist independently), so they need their own
+// guard.
+const maxCustomRuleGroupsPerList = model.ExportedCustomRuleGroupsLimit
+
 // staleExportThreshold is the age beyond which an export file triggers an advisory warning.
 // specRef: V16, V17
 const staleExportThreshold = 90 * 24 * time.Hour
@@ -263,6 +270,11 @@ func (p *ProfileService) importOneProfile(
 		}
 		validRules, warnings = p.validateAndMapRules(rulesInput, resolvedName, accountId, warnings)
 	}
+
+	// Defensive per-list cap on groups; the DTO layer enforces the same limit, but
+	// guard here too since groups aren't bounded by rule count.
+	settings.CustomRuleGroups.Block, warnings = capGroups(settings.CustomRuleGroups.Block, "denylist", resolvedName, warnings)
+	settings.CustomRuleGroups.Allow, warnings = capGroups(settings.CustomRuleGroups.Allow, "allowlist", resolvedName, warnings)
 
 	// Persist the profile document (without custom rules — those go via CreateCustomRules).
 	newProfile := &model.Profile{
@@ -490,6 +502,21 @@ func (p *ProfileService) validateAndMapRules(
 	}
 
 	return valid, warnings
+}
+
+// capGroups truncates a per-list group slice to maxCustomRuleGroupsPerList,
+// appending a warning when entries are discarded. Defensive mirror of the rules
+// cap; the DTO validator rejects over-limit payloads on the HTTP path.
+func capGroups(list []model.CustomRuleGroup, listName, profileName string, warnings []string) ([]model.CustomRuleGroup, []string) {
+	if len(list) > maxCustomRuleGroupsPerList {
+		discarded := len(list) - maxCustomRuleGroupsPerList
+		list = list[:maxCustomRuleGroupsPerList]
+		warnings = append(warnings, fmt.Sprintf(
+			"profile '%s': %s groups capped at %d; %d were discarded",
+			profileName, listName, maxCustomRuleGroupsPerList, discarded,
+		))
+	}
+	return list, warnings
 }
 
 // rollbackImportedProfiles deletes every profile in profileIds. This is the

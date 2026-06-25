@@ -3172,14 +3172,14 @@ const docTemplate = `{
             "properties": {
                 "allow": {
                     "type": "array",
-                    "maxItems": 1000,
+                    "maxItems": 100,
                     "items": {
                         "$ref": "#/definitions/model.CustomRuleGroup"
                     }
                 },
                 "block": {
                     "type": "array",
-                    "maxItems": 1000,
+                    "maxItems": 100,
                     "items": {
                         "$ref": "#/definitions/model.CustomRuleGroup"
                     }

@@ -97,8 +97,8 @@ type CustomRuleGroup struct {
 // denylist (Block) or allowlist (Allow), so the same name in each list is
 // independent. Organizational metadata only; never synced to the proxy.
 type CustomRuleGroups struct {
-	Block []CustomRuleGroup `json:"block,omitempty" bson:"block,omitempty" validate:"omitempty,max=1000,dive"`
-	Allow []CustomRuleGroup `json:"allow,omitempty" bson:"allow,omitempty" validate:"omitempty,max=1000,dive"`
+	Block []CustomRuleGroup `json:"block,omitempty" bson:"block,omitempty" validate:"omitempty,max=100,dive"`
+	Allow []CustomRuleGroup `json:"allow,omitempty" bson:"allow,omitempty" validate:"omitempty,max=100,dive"`
 }
 
 // list returns the group slice for an action ("" if the action is unknown).
