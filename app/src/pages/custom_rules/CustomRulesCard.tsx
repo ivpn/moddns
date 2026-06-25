@@ -171,7 +171,7 @@ function DroppableSection({
                 isOver
                     ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/5"
                     : isEmpty
-                        ? "border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-500)]"
+                        ? "border-[var(--tailwind-colors-slate-light-400)] text-[var(--tailwind-colors-slate-light-600)] dark:border-[var(--tailwind-colors-slate-700)] dark:text-[var(--tailwind-colors-slate-500)]"
                         : "",
             ].join(" ")}
         >
@@ -282,34 +282,32 @@ function GroupHeader({
                     </Button>
                 </div>
             ) : (
-                <>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Edit group note" onClick={() => setEditingNote(true)}>
-                        <Pencil className="w-3.5 h-3.5 text-[var(--tailwind-colors-slate-400)]" />
-                    </Button>
-                    {/* modal={false} so Radix never sets pointer-events:none on <body>.
-                        The Delete item opens a confirm Dialog whose confirmation refetches
-                        the profile and unmounts this header (and this menu). A modal menu
-                        unmounted mid-close never runs its body-unlock cleanup, leaving the
-                        whole app frozen. Non-modal has no body lock, so the freeze cannot occur. */}
-                    <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Group actions">
-                                <MoreVertical className="w-3.5 h-3.5 text-[var(--tailwind-colors-slate-400)]" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setRenaming(true)}>
-                                <Pencil className="w-4 h-4 mr-2" /> Rename group
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                className="text-[var(--tailwind-colors-rdns-600)] focus:text-[var(--tailwind-colors-rdns-600)]"
-                                onClick={onDelete}
-                            >
-                                <Trash2 className="w-4 h-4 mr-2" /> Delete group
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </>
+                /* modal={false} so Radix never sets pointer-events:none on <body>.
+                   The Delete item opens a confirm Dialog whose confirmation refetches
+                   the profile and unmounts this header (and this menu). A modal menu
+                   unmounted mid-close never runs its body-unlock cleanup, leaving the
+                   whole app frozen. Non-modal has no body lock, so the freeze cannot occur. */
+                <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0" aria-label="Group actions">
+                            <MoreVertical className="w-3.5 h-3.5 text-[var(--tailwind-colors-slate-400)]" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setRenaming(true)}>
+                            <Pencil className="w-4 h-4 mr-2" /> Rename group
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setEditingNote(true)}>
+                            <StickyNote className="w-4 h-4 mr-2" /> {note ? "Edit comment" : "Add comment"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            className="text-[var(--tailwind-colors-rdns-600)] focus:text-[var(--tailwind-colors-rdns-600)]"
+                            onClick={onDelete}
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" /> Delete group
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             )}
         </div>
     );
@@ -365,10 +363,10 @@ function NewGroupZone({
             type="button"
             onClick={onStartCreate}
             className={[
-                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors",
+                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors cursor-pointer",
                 isOver
                     ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)]"
-                    : "border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)] hover:border-[var(--tailwind-colors-slate-500)]",
+                    : "border-[var(--tailwind-colors-slate-light-400)] text-[var(--tailwind-colors-slate-light-600)] hover:border-[var(--tailwind-colors-slate-light-500)] hover:text-[var(--tailwind-colors-slate-light-800)] dark:border-[var(--tailwind-colors-slate-700)] dark:text-[var(--tailwind-colors-slate-400)] dark:hover:text-[var(--tailwind-colors-slate-200)] dark:hover:border-[var(--tailwind-colors-slate-500)]",
             ].join(" ")}
         >
             <FolderPlus className="w-4 h-4" />
