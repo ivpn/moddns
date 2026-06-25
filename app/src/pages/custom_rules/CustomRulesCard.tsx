@@ -286,7 +286,7 @@ function GroupHeader({
                             <MoreVertical className="w-5 h-5 md:w-3.5 md:h-3.5 text-[var(--tailwind-colors-slate-400)]" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
+                    <DropdownMenuContent side="top" align="start">
                         <DropdownMenuItem onClick={() => setRenaming(true)}>
                             <Pencil className="w-4 h-4 mr-2" /> Rename group
                         </DropdownMenuItem>
