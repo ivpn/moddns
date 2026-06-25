@@ -297,7 +297,7 @@ function GroupHeader({
                             className="text-[var(--tailwind-colors-red-600)] focus:text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] dark:focus:text-[var(--tailwind-colors-red-400)]"
                             onClick={onDelete}
                         >
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete group
+                            <Trash2 className="w-4 h-4 mr-2 text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)]" /> Delete group
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
