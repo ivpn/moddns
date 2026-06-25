@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import type { ModelCustomRule, RequestsUpdateProfileCustomRuleBody } from "@/api/client/api";
 
-const NOTE_MAX = 280;
+const NOTE_MAX = 80;
 // Sentinel used by the group <Select>; an empty value cannot be a SelectItem.
 const NO_GROUP = "__none__";
 

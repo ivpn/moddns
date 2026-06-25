@@ -101,7 +101,7 @@ type ExportedCustomRule struct {
 	Value  string `json:"value"           validate:"required,max=255"`
 	// Note is a free-text annotation. Free text (not safe_name) so users can write
 	// arbitrary reminders; length-capped to match the model/PATCH validators.
-	Note string `json:"note,omitempty"  validate:"omitempty,max=280"`
+	Note string `json:"note,omitempty"  validate:"omitempty,max=80"`
 	// Group is the optional organizational label this rule belongs to.
 	Group string `json:"group,omitempty" validate:"omitempty,max=64"`
 }

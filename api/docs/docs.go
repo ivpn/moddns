@@ -3249,7 +3249,7 @@ const docTemplate = `{
                 "note": {
                     "description": "Note is a free-text annotation. Free text (not safe_name) so users can write\narbitrary reminders; length-capped to match the model/PATCH validators.",
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 },
                 "value": {
                     "type": "string",
@@ -4284,7 +4284,7 @@ const docTemplate = `{
                 },
                 "value": {
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 }
             }
         },
@@ -4493,7 +4493,7 @@ const docTemplate = `{
                 },
                 "note": {
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 },
                 "order": {
                     "type": "integer",

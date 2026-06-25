@@ -23,7 +23,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
     Dialog,
     DialogContent,
@@ -243,7 +242,8 @@ function GroupHeader({
     }
 
     return (
-        <div className="flex items-center gap-1 w-full px-1 py-1.5 mt-2">
+        <div className="flex flex-col w-full px-1 py-1.5 mt-2 gap-0.5">
+          <div className="flex items-center gap-1 w-full">
             <button
                 type="button"
                 onClick={onToggle}
@@ -252,20 +252,13 @@ function GroupHeader({
                 {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4" />}
                 <span className="font-medium text-base md:text-sm truncate">{name}</span>
                 <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
-                {note && !editingNote && (
-                    <Tooltip content={note}>
-                        <span className="inline-flex items-center text-[var(--tailwind-colors-slate-400)]" aria-label="Group note">
-                            <StickyNote className="w-5 h-5 md:w-4 md:h-4" />
-                        </span>
-                    </Tooltip>
-                )}
             </button>
 
             {editingNote ? (
                 <div className="flex items-center gap-1 min-w-0">
                     <Input
                         value={noteDraft}
-                        onChange={(e) => setNoteDraft(e.target.value.slice(0, 280))}
+                        onChange={(e) => setNoteDraft(e.target.value.slice(0, 80))}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") { e.preventDefault(); commitNote(); }
                             else if (e.key === "Escape") { e.preventDefault(); cancelNote(); }
@@ -309,6 +302,15 @@ function GroupHeader({
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
+          </div>
+
+          {/* Group comment as an always-visible muted line under the name (indented
+              to align past the folder icon). Real text — no hover/tooltip. */}
+          {note && !editingNote && (
+              <div className="pl-8 md:pl-6 text-xs leading-4 line-clamp-2 text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-400)]">
+                  {note}
+              </div>
+          )}
         </div>
     );
 }

@@ -20,7 +20,7 @@ type CreateProfileCustomRulesBatchBody struct {
 type UpdateProfileCustomRuleBody struct {
 	Action *string `json:"action" validate:"omitempty,oneof=block allow comment"`
 	Value  *string `json:"value" validate:"omitempty,ipv4|ipv6|fqdn|fqdn_wildcard|asn"`
-	Note   *string `json:"note" validate:"omitempty,max=280"`
+	Note   *string `json:"note" validate:"omitempty,max=80"`
 	Group  *string `json:"group" validate:"omitempty,max=64"`
 	Order  *int    `json:"order" validate:"omitempty,min=0"`
 }
@@ -43,7 +43,7 @@ type CustomRuleGroupUpdate struct {
 	Operation string  `json:"operation" validate:"required,oneof=add replace remove move"`
 	Path      string  `json:"path" validate:"required,startswith=/,max=130"`
 	From      string  `json:"from" validate:"omitempty,startswith=/,max=130"`
-	Value     *string `json:"value" validate:"omitempty,max=280"`
+	Value     *string `json:"value" validate:"omitempty,max=80"`
 }
 
 // CustomRuleGroupUpdates is the body of PATCH /custom_rule_groups.

@@ -2,8 +2,7 @@ import React, { useState, useEffect, type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { Pencil, StickyNote, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import type { ModelCustomRule } from "@/api/client/api";
 
 interface CustomRuleEntryProps {
@@ -52,19 +51,17 @@ const CustomRuleEntry: React.FC<CustomRuleEntryProps> = ({
                         onCheckedChange={val => onCheck(rule.id, Boolean(val))}
                         className="w-4 h-4 border-solid border-[var(--tailwind-colors-rdns-600)]"
                     />
-                    <div className="inline-flex items-center gap-2 relative min-w-0">
-                        <div className="relative w-fit font-text-sm-leading-5-normal font-normal text-foreground text-sm tracking-normal leading-5 whitespace-nowrap overflow-hidden text-ellipsis">
+                    {/* Domain + always-visible note. The note is real text in reading order
+                        (no hover/tooltip), so it works on touch, keyboard, and screen readers;
+                        it clamps to 2 lines (notes are capped at 80 chars, so this rarely clips). */}
+                    <div className="flex flex-col min-w-0 gap-0.5">
+                        <div className="font-text-sm-leading-5-normal font-normal text-foreground text-sm tracking-normal leading-5 truncate">
                             {domain}
                         </div>
                         {note && (
-                            <Tooltip content={note}>
-                                <span
-                                    className="inline-flex items-center text-[var(--tailwind-colors-slate-400)] shrink-0"
-                                    aria-label="Rule note"
-                                >
-                                    <StickyNote className="w-4 h-4" />
-                                </span>
-                            </Tooltip>
+                            <div className="text-xs leading-4 truncate text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-400)]">
+                                {note}
+                            </div>
                         )}
                     </div>
                 </div>

@@ -30,7 +30,7 @@ class RequestsCustomRuleGroupUpdate(BaseModel):
     var_from: Optional[Annotated[str, Field(strict=True, max_length=130)]] = Field(default=None, alias="from")
     operation: StrictStr
     path: Annotated[str, Field(strict=True, max_length=130)]
-    value: Optional[Annotated[str, Field(strict=True, max_length=280)]] = None
+    value: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
     __properties: ClassVar[List[str]] = ["from", "operation", "path", "value"]
 
     @field_validator('operation')

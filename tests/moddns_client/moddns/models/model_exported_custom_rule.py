@@ -29,7 +29,7 @@ class ModelExportedCustomRule(BaseModel):
     """ # noqa: E501
     action: StrictStr
     group: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="Group is the optional organizational label this rule belongs to.")
-    note: Optional[Annotated[str, Field(strict=True, max_length=280)]] = Field(default=None, description="Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.")
+    note: Optional[Annotated[str, Field(strict=True, max_length=80)]] = Field(default=None, description="Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.")
     value: Annotated[str, Field(strict=True, max_length=255)]
     __properties: ClassVar[List[str]] = ["action", "group", "note", "value"]
 

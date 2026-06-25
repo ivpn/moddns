@@ -29,7 +29,7 @@ class RequestsUpdateProfileCustomRuleBody(BaseModel):
     """ # noqa: E501
     action: Optional[StrictStr] = None
     group: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
-    note: Optional[Annotated[str, Field(strict=True, max_length=280)]] = None
+    note: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
     order: Optional[Annotated[int, Field(strict=True, ge=0)]] = None
     value: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["action", "group", "note", "order", "value"]

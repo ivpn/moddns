@@ -3241,7 +3241,7 @@
                 "note": {
                     "description": "Note is a free-text annotation. Free text (not safe_name) so users can write\narbitrary reminders; length-capped to match the model/PATCH validators.",
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 },
                 "value": {
                     "type": "string",
@@ -4276,7 +4276,7 @@
                 },
                 "value": {
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 }
             }
         },
@@ -4485,7 +4485,7 @@
                 },
                 "note": {
                     "type": "string",
-                    "maxLength": 280
+                    "maxLength": 80
                 },
                 "order": {
                     "type": "integer",
