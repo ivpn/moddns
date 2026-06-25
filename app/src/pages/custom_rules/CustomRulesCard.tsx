@@ -717,11 +717,19 @@ export default function CustomRulesCard({
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setGroupToDelete(null)} disabled={loading}>
+                        <Button
+                            variant="cancel"
+                            size="lg"
+                            className="flex-1 min-w-32 font-medium"
+                            onClick={() => setGroupToDelete(null)}
+                            disabled={loading}
+                        >
                             Cancel
                         </Button>
                         <Button
-                            className="bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)]"
+                            variant="default"
+                            size="lg"
+                            className="flex-1 min-w-32 bg-[var(--tailwind-colors-red-600)] text-white hover:bg-[var(--tailwind-colors-red-400)]"
                             onClick={confirmDeleteGroup}
                             disabled={loading}
                         >
