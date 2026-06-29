@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -25,6 +26,29 @@ import (
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/urlshort"
+	"github.com/valyala/fasthttp"
+)
+
+const (
+	// defaultBodyLimit is the global request body cap (Fiber BodyLimit). Most
+	// endpoints carry only small JSON.
+	defaultBodyLimit = 1024 * 1024 // 1 MB
+	// importBodyLimit is the per-request cap for the profile-import endpoint,
+	// which can carry many profiles/custom rules. Applied via the fasthttp
+	// HeaderReceived hook below; the endpoint is reauth-gated and rate-limited.
+	importBodyLimit = 5 * 1024 * 1024 // 5 MB
+	// importReadTimeout overrides the global ReadTimeout for the import endpoint
+	// so a large (up to importBodyLimit) body on a slow uplink isn't cut mid-read.
+	importReadTimeout = 60 * time.Second
+	// exportWriteTimeout overrides the global WriteTimeout for the export endpoint
+	// so a large export streamed to a slow-downloading client isn't cut mid-write.
+	exportWriteTimeout = 60 * time.Second
+)
+
+// Exact request paths that get per-endpoint overrides via the HeaderReceived hook.
+var (
+	importPath = []byte("/api/v1/profiles/import")
+	exportPath = []byte("/api/v1/profiles/export")
 )
 
 // APIServer represents an API server
@@ -47,8 +71,37 @@ func NewServer(config *config.Config, service service.Service, db db.Db, cache c
 	app := fiber.New(fiber.Config{
 		ServerHeader: "modDNS API",
 		AppName:      "modDNS API",
-		BodyLimit:    1024 * 1024, // 1 MB
+		BodyLimit:    defaultBodyLimit,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	})
+
+	// Grant the profile import/export endpoints larger limits than the global
+	// defaults. Fiber's BodyLimit/Read/WriteTimeout are global, but fasthttp
+	// honours a per-request override returned by HeaderReceived (evaluated before
+	// the body is read); a zero RequestConfig falls back to the global values for
+	// every other route.
+	//   - import: bigger body + read timeout (large upload on a slow uplink)
+	//   - export: bigger write timeout (large download to a slow client)
+	app.Server().HeaderReceived = func(h *fasthttp.RequestHeader) fasthttp.RequestConfig {
+		if h.IsPost() {
+			uri := h.RequestURI()
+			if i := bytes.IndexByte(uri, '?'); i >= 0 {
+				uri = uri[:i]
+			}
+			switch {
+			case bytes.Equal(uri, importPath):
+				return fasthttp.RequestConfig{
+					MaxRequestBodySize: importBodyLimit,
+					ReadTimeout:        importReadTimeout,
+				}
+			case bytes.Equal(uri, exportPath):
+				return fasthttp.RequestConfig{WriteTimeout: exportWriteTimeout}
+			}
+		}
+		return fasthttp.RequestConfig{}
+	}
 
 	server := &APIServer{
 		App:             app,
@@ -210,6 +263,10 @@ func (s *APIServer) RegisterRoutes() {
 	profiles.Delete("/:profile_id/custom_rules/:custom_rule_id", middleware.NewLimit(20, 1*time.Minute), s.deleteProfileCustomRule())
 	profiles.Post("/:id/custom_rules/batch", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRulesBatch())
 	profiles.Post("/:id/custom_rules", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRule())
+
+	// Export / import endpoints
+	profiles.Post("/export", middleware.NewLimit(5, 1*time.Hour), s.exportProfiles())
+	profiles.Post("/import", middleware.NewLimit(3, 10*time.Minute), s.importProfiles())
 
 	// Blocklists endpoints
 	profiles.Post("/:id/blocklists", middleware.NewLimit(20, 1*time.Minute), s.enableBlocklists())

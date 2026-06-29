@@ -1,12 +1,15 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/account"
@@ -69,6 +72,63 @@ type ErrResponse struct {
 	Details []string `json:"details,omitempty"`
 }
 
+// validationErrorPrefix is prepended to every user-facing validation/bad-body
+// message so the customer immediately understands the 400 is about their input
+// (e.g. "Validation error: customRules must be at most 1000").
+const validationErrorPrefix = "Validation error: "
+
+// badRequestErrorText picks the response error text for a 400. For
+// ErrInvalidRequestBody the caller passes the human-readable validation detail
+// as errMsg (e.g. "customRules must be at most 1000"), which is preferred over
+// the generic sentinel so the frontend can display something useful — prefixed
+// with "Validation error: ". Other sentinel errors carry a server-side log
+// message in errMsg, so they fall back to err.Error().
+func badRequestErrorText(err error, errMsg string) string {
+	if err == ErrInvalidRequestBody && errMsg != "" && errMsg != ErrInvalidRequestBody.Error() {
+		return validationErrorPrefix + errMsg
+	}
+	return err.Error()
+}
+
+// HumanizeDecodeError turns a JSON-decode failure (from a strict
+// DisallowUnknownFields decoder) into a user-facing message instead of leaking
+// the raw encoding/json error text (e.g. `json: unknown field "_id"`).
+func HumanizeDecodeError(err error) string {
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) {
+		field := typeErr.Field
+		if i := strings.LastIndex(field, "."); i >= 0 {
+			field = field[i+1:]
+		}
+		if field == "" {
+			return fmt.Sprintf("A field has the wrong type (expected %s).", friendlyJSONType(typeErr.Type.String()))
+		}
+		return fmt.Sprintf("Field '%s' has the wrong type (expected %s).", field, friendlyJSONType(typeErr.Type.String()))
+	}
+	const unknownPrefix = "json: unknown field "
+	if msg := err.Error(); strings.HasPrefix(msg, unknownPrefix) {
+		field := strings.Trim(strings.TrimPrefix(msg, unknownPrefix), `"`)
+		return fmt.Sprintf("Unknown field '%s' is not allowed.", field)
+	}
+	return "The file is not valid JSON."
+}
+
+// friendlyJSONType maps a Go type name to a user-facing description.
+func friendlyJSONType(goType string) string {
+	switch goType {
+	case "bool":
+		return "true or false"
+	case "string":
+		return "text"
+	case "int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64":
+		return "a number"
+	default:
+		return "a different type"
+	}
+}
+
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {
 	log.Error().Err(err).Msg(errMsg)
 	resp := new(ErrResponse)
@@ -79,6 +139,36 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	if errors.Is(err, strconv.ErrSyntax) {
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
+	}
+
+	// Unified reauth-credential failures map to 400. Checked BEFORE the
+	// *ServiceAccountError type switch because the reauth sentinels (plus the
+	// aliased ErrInvalidCurrentPassword) are plain errors.New(...) values and
+	// would otherwise fall through to the default 500. Order also matters
+	// against the lower switch: ErrInvalidCurrentPassword is aliased to
+	// reauth.ErrInvalidPassword, so this single check covers both names.
+	//
+	// Rationale for 400 (not 401): the caller's session is valid — what failed
+	// is a piece of the request body (wrong password, wrong reauth_token, or a
+	// missing/wrong x-mfa-code). Returning 401 would trigger the global axios
+	// interceptor's session-expired logout flow, which is the wrong UX for a
+	// typo'd password. 400 lets the dialog surface the error inline.
+	if errors.Is(err, reauth.ErrMissingAuthMethod) ||
+		errors.Is(err, reauth.ErrMultipleAuthMethods) ||
+		errors.Is(err, reauth.ErrInvalidPassword) ||
+		errors.Is(err, reauth.ErrInvalidReauthToken) ||
+		errors.Is(err, reauth.ErrReauthTokenExpired) {
+		resp.Error = err.Error()
+		return c.Status(400).JSON(resp)
+	}
+
+	{
+		var profileErr *profile.ProfileError
+		if errors.As(err, &profileErr) {
+			log.Debug().Str("code", profileErr.Code).Msg(err.Error())
+			resp.Error = err.Error()
+			return c.Status(400).JSON(resp)
+		}
 	}
 
 	if e, ok := err.(mongo.WriteException); ok {
@@ -137,7 +227,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Error = ErrResourceNotFound.Error()
 		return c.Status(404).JSON(resp)
 	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
-		resp.Error = err.Error()
+		resp.Error = badRequestErrorText(err, errMsg)
 		return c.Status(400).JSON(resp)
 	case subscription.ErrSubscriptionScheduledForDeletion:
 		resp.Error = err.Error()

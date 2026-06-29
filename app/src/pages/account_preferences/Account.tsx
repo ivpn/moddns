@@ -29,6 +29,7 @@ import AccountSubscription from "@/components/AccountSubscription";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
+import BackupRestoreSection from "@/components/BackupRestoreSection";
 
 interface PreferencesSectionProps {
     account: ModelAccount | null;
@@ -389,6 +390,11 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                 <PasskeySettings />
                 </div>
                 </div>
+
+                {/* Backup & Restore Section. Outside the cut-off wrapper so its own
+                    isRestricted logic governs it: Export stays clickable in
+                    inactive/retired states (Article 20 portability), Import is greyed. */}
+                <BackupRestoreSection />
 
                 {/* Delete Account Section */}
                 <Card className="w-full bg-transparent dark:bg-[var(--danger-zone-bg)] border border-[var(--tailwind-colors-red-400)] dark:border-transparent rounded-[var(--primitives-radius-radius)]">

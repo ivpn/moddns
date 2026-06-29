@@ -333,7 +333,9 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidCurrentPassword() {
 	server := suite.createTestServer()
 	resp, err := server.App.Test(req, -1)
 
-	// Assertions
+	// Assertions — unified reauth maps bad password to 400 (preserves the
+	// pre-unification mapping for this endpoint and keeps the global axios
+	// 401-interceptor from misfiring as session-expiry).
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
 

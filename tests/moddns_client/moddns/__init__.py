@@ -63,6 +63,17 @@ from moddns.models.model_credential import ModelCredential
 from moddns.models.model_custom_rule import ModelCustomRule
 from moddns.models.model_dns_request import ModelDNSRequest
 from moddns.models.model_dnssec_settings import ModelDNSSECSettings
+from moddns.models.model_export_envelope import ModelExportEnvelope
+from moddns.models.model_exported_advanced import ModelExportedAdvanced
+from moddns.models.model_exported_custom_rule import ModelExportedCustomRule
+from moddns.models.model_exported_dnssec import ModelExportedDNSSEC
+from moddns.models.model_exported_from_info import ModelExportedFromInfo
+from moddns.models.model_exported_logs import ModelExportedLogs
+from moddns.models.model_exported_privacy import ModelExportedPrivacy
+from moddns.models.model_exported_profile import ModelExportedProfile
+from moddns.models.model_exported_security import ModelExportedSecurity
+from moddns.models.model_exported_settings import ModelExportedSettings
+from moddns.models.model_exported_statistics import ModelExportedStatistics
 from moddns.models.model_logs_settings import ModelLogsSettings
 from moddns.models.model_mfa_settings import ModelMFASettings
 from moddns.models.model_privacy import ModelPrivacy
@@ -79,6 +90,7 @@ from moddns.models.model_subscription_status import ModelSubscriptionStatus
 from moddns.models.model_totp_backup import ModelTOTPBackup
 from moddns.models.model_totp_new import ModelTOTPNew
 from moddns.models.model_totp_settings import ModelTotpSettings
+from moddns.models.profile_import_result import ProfileImportResult
 from moddns.models.protocol_attestation_format import ProtocolAttestationFormat
 from moddns.models.protocol_authenticator_attachment import ProtocolAuthenticatorAttachment
 from moddns.models.protocol_authenticator_selection import ProtocolAuthenticatorSelection
@@ -103,6 +115,8 @@ from moddns.models.requests_advanced_options_req import RequestsAdvancedOptionsR
 from moddns.models.requests_confirm_reset_password_body import RequestsConfirmResetPasswordBody
 from moddns.models.requests_create_profile_custom_rule_body import RequestsCreateProfileCustomRuleBody
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
+from moddns.models.requests_export_request import RequestsExportRequest
+from moddns.models.requests_import_request import RequestsImportRequest
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_mobile_config_req import RequestsMobileConfigReq
 from moddns.models.requests_pa_session_req import RequestsPASessionReq

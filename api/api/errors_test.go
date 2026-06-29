@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/service/account"
+	"github.com/ivpn/dns/api/service/profile"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -105,6 +107,10 @@ func TestHandleError(t *testing.T) {
 			expectedError:  account.ErrSameEmailAddress.Error(),
 		},
 		{
+			// Unified reauth: bad password is mapped to 400. The session is
+			// still valid; the failure is a piece of the request body. (We
+			// deliberately avoid 401 here because the global axios interceptor
+			// treats any 401 as session expiry and triggers a global logout.)
 			name:           "Invalid Current Password",
 			err:            account.ErrInvalidCurrentPassword,
 			errMsg:         "failed to update email",
@@ -124,6 +130,69 @@ func TestHandleError(t *testing.T) {
 			errMsg:         "failed to update email",
 			expectedStatus: 400,
 			expectedError:  account.ErrMissingEmailUpdateFields.Error(),
+		},
+		{
+			name:           "Profile: Unsupported Schema Version",
+			err:            profile.ErrUnsupportedSchemaVersion,
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrUnsupportedSchemaVersion.Error(),
+		},
+		{
+			name:           "Profile: Invalid Export Kind",
+			err:            profile.ErrInvalidExportKind,
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrInvalidExportKind.Error(),
+		},
+		{
+			name:           "Profile: Empty Import Payload",
+			err:            profile.ErrEmptyImportPayload,
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrEmptyImportPayload.Error(),
+		},
+		{
+			name:           "Profile: Max Profiles Exceeded (direct sentinel)",
+			err:            profile.ErrMaxProfilesExceeded,
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrMaxProfilesExceeded.Error(),
+		},
+		{
+			name:           "Profile: Max Profiles Exceeded (wrapped with %w augmentation)",
+			err:            fmt.Errorf("%w: would exceed limit of 100; have 98, payload has 5", profile.ErrMaxProfilesExceeded),
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrMaxProfilesExceeded.Error() + ": would exceed limit of 100; have 98, payload has 5",
+		},
+		{
+			name:           "Profile: Max Custom Rules Reached",
+			err:            profile.ErrMaxCustomRulesReached,
+			errMsg:         "create custom rules failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrMaxCustomRulesReached.Error(),
+		},
+		{
+			name:           "Profile: Too Many Profile IDs",
+			err:            profile.ErrTooManyProfileIds,
+			errMsg:         "export failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrTooManyProfileIds.Error(),
+		},
+		{
+			name:           "Profile: Unsupported Import Mode",
+			err:            profile.ErrUnsupportedImportMode,
+			errMsg:         "import failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrUnsupportedImportMode.Error(),
+		},
+		{
+			name:           "Profile: Invalid Export Scope",
+			err:            profile.ErrInvalidExportScope,
+			errMsg:         "export failed",
+			expectedStatus: 400,
+			expectedError:  profile.ErrInvalidExportScope.Error(),
 		},
 	}
 

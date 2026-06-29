@@ -273,26 +273,31 @@ func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Contex
 	return nil
 }
 
-func (c *RedisCache) AddCustomRule(ctx context.Context, profileId string, customRule *model.CustomRule) error {
+// AddCustomRules bulk-inserts all rules for a profile in a single Redis
+// pipeline. It issues one HSet per rule plus a single variadic SAdd for the set
+// membership, using the canonical key/field layout (settings:<id>:custom_rule:<ruleId>
+// hashes plus the settings:<id>:custom_rules set) so existing readers (proxy,
+// DeleteProfileSettings) continue to work unchanged.
+func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error {
+	if len(rules) == 0 {
+		return nil
+	}
 	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
 
-	// create custom rule hash
-	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRule.ID.Hex())
-	hashCmd := c.client.HSet(ctx, customRuleHash, customRule)
-	if err := hashCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create profile custom rule hash")
-		c.client.Del(ctx, customRuleHash) // simple rollback
-		return err
+	pipe := c.client.Pipeline()
+	hashKeys := make([]any, 0, len(rules))
+	for _, rule := range rules {
+		customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, rule.ID.Hex())
+		pipe.HSet(ctx, customRuleHash, rule)
+		hashKeys = append(hashKeys, customRuleHash)
 	}
-	log.Info().Str("custom_rule_hash", customRuleHash).Msg("Created profile custom rule hash")
+	pipe.SAdd(ctx, customRulesSetName, hashKeys...)
 
-	// add rule to set (create set if necessary)
-	intCmd := c.client.SAdd(ctx, customRulesSetName, customRuleHash)
-	if err := intCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create/update profile custom rules set")
+	if _, err := pipe.Exec(ctx); err != nil {
+		log.Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
 		return err
 	}
-	log.Info().Str("custom_rules_set", customRulesSetName).Msg("Created/updated profile custom rules set")
+	log.Info().Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: bulk-inserted custom rules")
 	return nil
 }
 

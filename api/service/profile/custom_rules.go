@@ -169,15 +169,17 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 		existingValues[normalized] = struct{}{}
 	}
 
+	if len(profile.Settings.CustomRules)+len(toCreate) > model.MaxCustomRulesPerProfile {
+		return nil, ErrMaxCustomRulesReached
+	}
+
 	if len(toCreate) > 0 {
 		if err := p.ProfileRepository.CreateCustomRules(ctx, profileId, toCreate); err != nil {
 			return nil, err
 		}
 
-		for _, rule := range toCreate {
-			if err := p.Cache.AddCustomRule(ctx, profileId, rule); err != nil {
-				return nil, err
-			}
+		if err := p.Cache.AddCustomRules(ctx, profileId, toCreate); err != nil {
+			return nil, err
 		}
 
 		result.Created = append(result.Created, toCreate...)

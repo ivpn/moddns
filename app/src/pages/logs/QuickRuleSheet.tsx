@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAppStore } from "@/store/general";
 import api from "@/api/api";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
+import { formatApiError } from "@/lib/apiError";
 
 export type QuickRuleAction = "denylist" | "allowlist";
 
@@ -109,7 +110,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
             toast.info("No changes were applied.");
         } catch (error) {
             console.error(error);
-            toast.error("Failed to add custom rule.");
+            toast.error(formatApiError(error, "Failed to add custom rule."));
         } finally {
             setIsSubmitting(false);
         }

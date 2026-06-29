@@ -658,6 +658,16 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {
@@ -902,6 +912,161 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/export": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Export user's profiles as a downloadable JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Export profiles",
+                "parameters": [
+                    {
+                        "description": "Export request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExportEnvelope"
+                        },
+                        "headers": {
+                            "Cache-Control": {
+                                "type": "string",
+                                "description": "no-store; the export contains sensitive data"
+                            },
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment with a filename of the form moddns-export-\u003cUTC\u003e.moddns.json (contains no PII)"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/vnd.moddns.export+json; charset=utf-8"
+                            },
+                            "Pragma": {
+                                "type": "string",
+                                "description": "no-cache"
+                            },
+                            "X-modDNS-Export-Truncated": {
+                                "type": "integer",
+                                "description": "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/import": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Import profiles from a previously exported JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Import profiles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF guard header — must equal \\",
+                        "name": "X-modDNS-Import",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Import request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.ImportResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -1812,6 +1977,16 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {
@@ -2745,7 +2920,7 @@ const docTemplate = `{
                     }
                 },
                 "type": {
-                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
+                    "description": "ownership: currently always \"public\" (platform-provided)",
                     "type": "string"
                 }
             }
@@ -2808,6 +2983,229 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "send_do_bit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.ExportEnvelope": {
+            "type": "object",
+            "required": [
+                "exportedAt",
+                "kind",
+                "profiles",
+                "schemaVersion"
+            ],
+            "properties": {
+                "exportedAt": {
+                    "type": "string"
+                },
+                "exportedFrom": {
+                    "$ref": "#/definitions/model.ExportedFromInfo"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "profiles": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedProfile"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ExportedAdvanced": {
+            "type": "object",
+            "properties": {
+                "recursor": {
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "unbound"
+                    ]
+                }
+            }
+        },
+        "model.ExportedCustomRule": {
+            "type": "object",
+            "required": [
+                "action",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "model.ExportedDNSSEC": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "sendDoBit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.ExportedFromInfo": {
+            "type": "object",
+            "properties": {
+                "appVersion": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExportedLogs": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "logClientsIPs": {
+                    "type": "boolean"
+                },
+                "logDomains": {
+                    "type": "boolean"
+                },
+                "retention": {
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "6h",
+                        "1d",
+                        "1w",
+                        "1m"
+                    ]
+                }
+            }
+        },
+        "model.ExportedPrivacy": {
+            "type": "object",
+            "required": [
+                "blocklists",
+                "services"
+            ],
+            "properties": {
+                "blocklists": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blocklistsSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "customRulesSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "include",
+                        "exact"
+                    ]
+                },
+                "defaultRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "services": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.ExportedProfile": {
+            "type": "object",
+            "required": [
+                "name",
+                "settings"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "name": {
+                    "description": "Name of the profile. Names longer than 50 characters are truncated on\nimport (with a warning) rather than rejected, so the wire limit is 200\nwhile the persisted profile name is capped at 50.",
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "settings": {
+                    "$ref": "#/definitions/model.ExportedSettings"
+                }
+            }
+        },
+        "model.ExportedSecurity": {
+            "type": "object",
+            "properties": {
+                "dnssec": {
+                    "$ref": "#/definitions/model.ExportedDNSSEC"
+                }
+            }
+        },
+        "model.ExportedSettings": {
+            "type": "object",
+            "properties": {
+                "advanced": {
+                    "$ref": "#/definitions/model.ExportedAdvanced"
+                },
+                "customRules": {
+                    "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedCustomRule"
+                    }
+                },
+                "logs": {
+                    "$ref": "#/definitions/model.ExportedLogs"
+                },
+                "privacy": {
+                    "$ref": "#/definitions/model.ExportedPrivacy"
+                },
+                "security": {
+                    "$ref": "#/definitions/model.ExportedSecurity"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/model.ExportedStatistics"
+                }
+            }
+        },
+        "model.ExportedStatistics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
                     "type": "boolean"
                 }
             }
@@ -3152,6 +3550,29 @@ const docTemplate = `{
                 "enabled": {
                     "description": "Indicates if TOTP is enabled.",
                     "type": "boolean"
+                }
+            }
+        },
+        "profile.ImportResult": {
+            "type": "object",
+            "properties": {
+                "createdProfileIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdProfileNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3621,6 +4042,61 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ExportRequest": {
+            "type": "object",
+            "required": [
+                "scope"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "profile_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "selected"
+                    ]
+                }
+            }
+        },
+        "requests.ImportRequest": {
+            "type": "object",
+            "required": [
+                "mode",
+                "payload"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "create_new"
+                    ]
+                },
+                "payload": {
+                    "$ref": "#/definitions/model.ExportEnvelope"
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.LoginBody": {
             "type": "object",
             "required": [
@@ -3732,7 +4208,9 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "email_change",
-                        "account_deletion"
+                        "account_deletion",
+                        "profile_export",
+                        "profile_import"
                     ]
                 }
             }

@@ -1,6 +1,10 @@
 package account
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/ivpn/dns/api/internal/reauth"
+)
 
 // ServiceAccountError is a custom error type for account service errors
 type ServiceAccountError struct {
@@ -43,16 +47,29 @@ var (
 	ErrInvalidUpdateOperation    = NewServiceAccountError("invalid update operation")
 	ErrInvalidEmailUpdatePayload = NewServiceAccountError("invalid email update payload")
 	ErrMissingEmailUpdateFields  = NewServiceAccountError("missing current_password or new_email")
-	ErrInvalidCurrentPassword    = NewServiceAccountError("invalid current password")
-	ErrInvalidNewEmail           = NewServiceAccountError("invalid new email")
-	ErrSameEmailAddress          = NewServiceAccountError("new email address is the same as the current one")
-	ErrMultipleAuthMethods       = NewServiceAccountError("provide only one of current_password or reauth_token")
-	ErrMissingAuthMethod         = NewServiceAccountError("missing current_password or reauth_token")
-	ErrInvalidReauthToken        = NewServiceAccountError("invalid reauth token")
-	ErrReauthTokenExpired        = NewServiceAccountError("reauth token expired")
-	ErrReauthRateLimited         = NewServiceAccountError("reauth rate limited")
-	ErrSignupWebhook             = NewServiceAccountError("Unable to call signup webhook.")
-	ErrPasswordTestRequired      = NewServiceAccountError("password test operation required before replace")
+	// ErrInvalidCurrentPassword aliases reauth.ErrInvalidPassword so the
+	// unified reauth helper, the legacy account password-test path, and any
+	// caller doing errors.Is(...) all see the same sentinel. As with the
+	// reauth-token errors, it is a plain errors.New(...) — not a
+	// *ServiceAccountError — and is mapped to HTTP 400 in api/api/errors.go.
+	ErrInvalidCurrentPassword = reauth.ErrInvalidPassword
+	ErrInvalidNewEmail        = NewServiceAccountError("invalid new email")
+	ErrSameEmailAddress       = NewServiceAccountError("new email address is the same as the current one")
+
+	// Reauth sentinels are re-exported from internal/reauth so the unified
+	// helper and every legacy call site refer to the same error values. These
+	// are plain errors.New(...) — NOT *ServiceAccountError — which means
+	// HandleError's *ServiceAccountError 400 branch does not match them; they
+	// are mapped explicitly to HTTP 400 in api/api/errors.go (matching the
+	// pre-unification mapping for these error values).
+	ErrMultipleAuthMethods = reauth.ErrMultipleAuthMethods
+	ErrMissingAuthMethod   = reauth.ErrMissingAuthMethod
+	ErrInvalidReauthToken  = reauth.ErrInvalidReauthToken
+	ErrReauthTokenExpired  = reauth.ErrReauthTokenExpired
+
+	ErrReauthRateLimited    = NewServiceAccountError("reauth rate limited")
+	ErrSignupWebhook        = NewServiceAccountError("Unable to call signup webhook.")
+	ErrPasswordTestRequired = NewServiceAccountError("password test operation required before replace")
 )
 
 // TOTPError is a custom error type for 2FA errors

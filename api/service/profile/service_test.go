@@ -24,6 +24,7 @@ type ProfileTestSuite struct {
 	suite.Suite
 	service            *profile.ProfileService
 	mockProfileRepo    *mocks.ProfileRepository
+	mockAccountRepo    *mocks.AccountRepository
 	mockBlocklistRepo  *mocks.BlocklistRepository
 	mockQueryLogsRepo  *mocks.QueryLogsRepository
 	mockStatisticsRepo *mocks.StatisticsRepository
@@ -52,12 +53,15 @@ func (suite *ProfileTestSuite) SetupSuite() {
 
 	// Initialize mocks
 	suite.mockProfileRepo = mocks.NewProfileRepository(suite.T())
+	suite.mockAccountRepo = mocks.NewAccountRepository(suite.T())
 	suite.mockBlocklistRepo = mocks.NewBlocklistRepository(suite.T())
 	suite.mockQueryLogsRepo = mocks.NewQueryLogsRepository(suite.T())
 	suite.mockStatisticsRepo = mocks.NewStatisticsRepository(suite.T())
 	suite.mockCache = mocks.NewCachecache(suite.T())
 	suite.mockIDGen = mocks.NewGeneratoridgen(suite.T())
-	suite.validator = validator.New()
+	apiValidator, vErr := intvldtr.NewAPIValidator()
+	suite.Require().NoError(vErr, "Failed to create APIValidator")
+	suite.validator = apiValidator.Validator
 
 	// Extract configs
 	suite.serverConfig = *cfg.Server
@@ -72,14 +76,16 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	// Create the StatisticsService with mocked dependencies
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo)
 
-	// Create the ProfileService with mocks
+	// Create the ProfileService with mocks (no catalog needed for non-import tests)
 	suite.service = profile.NewProfileService(
 		suite.serverConfig,
 		suite.serviceConfig,
 		suite.mockProfileRepo,
+		suite.mockAccountRepo,
 		suite.blocklistService,
 		suite.queryLogsService,
 		suite.statisticsService,
+		nil,
 		suite.mockCache,
 		suite.mockIDGen,
 		suite.validator,
@@ -115,6 +121,37 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 			accountID:     "account123",
 			maxProfiles:   5,
 			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Whitespace-only profile name",
+			profileName:   "   ",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Profile name with RLO bidi override",
+			profileName:   "Work\u202eHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:          "Profile name with zero-width space",
+			profileName:   "Work\u200bHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:        "Profile name trimmed before dup check",
+			profileName: "  Existing Profile  ",
+			accountID:   "account123",
+			maxProfiles: 5,
+			existingProfiles: []model.Profile{
+				{Name: "Existing Profile", AccountId: "account123"},
+			},
+			expectedError: "profile with this name already exists",
 		},
 		{
 			name:        "Profile name already exists",
@@ -2185,9 +2222,11 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 				suite.serverConfig,
 				suite.serviceConfig,
 				mockProfileRepo,
+				suite.mockAccountRepo,
 				suite.blocklistService,
 				suite.queryLogsService,
 				suite.statisticsService,
+				nil,
 				mockCache,
 				suite.mockIDGen,
 				apiVldtr.Validator,
@@ -2211,7 +2250,7 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 			if !tt.wantSkipped {
 				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
-				mockCache.On("AddCustomRule", mock.Anything, profileID, mock.Anything).
+				mockCache.On("AddCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
 			}
 
@@ -2237,6 +2276,62 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 			mockCache.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// TestCreateCustomRulesBulkEnforcesPerProfileCap verifies the per-profile
+// custom-rule cap (model.MaxCustomRulesPerProfile) is enforced on create:
+// adding rules that would push a profile over the cap is rejected with
+// ErrMaxCustomRulesReached and nothing is persisted.
+func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerProfileCap() {
+	const accountID = "acct-cap"
+	const profileID = "prof-cap"
+
+	apiVldtr, err := intvldtr.NewAPIValidator()
+	suite.Require().NoError(err)
+
+	mockProfileRepo := mocks.NewProfileRepository(suite.T())
+	mockCache := mocks.NewCachecache(suite.T())
+
+	svc := profile.NewProfileService(
+		suite.serverConfig,
+		suite.serviceConfig,
+		mockProfileRepo,
+		suite.mockAccountRepo,
+		suite.blocklistService,
+		suite.queryLogsService,
+		suite.statisticsService,
+		nil,
+		mockCache,
+		suite.mockIDGen,
+		apiVldtr.Validator,
+	)
+
+	// Profile already holding exactly the cap, so any net-new rule exceeds it.
+	existing := make([]*model.CustomRule, model.MaxCustomRulesPerProfile)
+	for i := range existing {
+		existing[i] = &model.CustomRule{Value: "filler.example.com"}
+	}
+	existingProfile := &model.Profile{
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			Privacy: &model.Privacy{
+				CustomRulesSubdomainsRule: "include",
+				DefaultRule:               "allow",
+			},
+			CustomRules: existing,
+		},
+	}
+	mockProfileRepo.On("GetProfileById", mock.Anything, profileID).Return(existingProfile, nil)
+
+	result, err := svc.CreateCustomRulesBulk(
+		context.Background(), accountID, profileID, "block", []string{"new-unique.example.com"},
+	)
+
+	suite.Require().Error(err)
+	suite.ErrorIs(err, profile.ErrMaxCustomRulesReached)
+	suite.Nil(result)
+	mockProfileRepo.AssertNotCalled(suite.T(), "CreateCustomRules", mock.Anything, mock.Anything, mock.Anything)
+	mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestProfileTestSuite(t *testing.T) {

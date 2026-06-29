@@ -140,13 +140,10 @@ func (r *ProfileRepository) CreateCustomRules(ctx context.Context, profileId str
 		}},
 	}
 
-	res, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
+	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
 	if err != nil {
 		return err
 	}
-	log.Info().
-		Int64("count", res.ModifiedCount).
-		Msgf("Added custom rules to profile")
 	return nil
 }
 

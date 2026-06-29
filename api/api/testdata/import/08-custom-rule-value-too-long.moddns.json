@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "exportedAt": "2026-01-01T00:00:00Z",
+  "profiles": [
+    {
+      "name": "Long value",
+      "settings": {
+        "customRules": [
+          {
+            "action": "block",
+            "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -19,6 +19,7 @@ import (
 	"github.com/ivpn/dns/api/internal/client"
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/profile"
@@ -516,51 +517,16 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 			return err
 		}
 	}
-	// Exactly one auth method check
-	if emailUpd.CurrentPassword == nil && emailUpd.ReauthToken == nil {
-		return ErrMissingAuthMethod
-	}
-
-	if emailUpd.CurrentPassword != nil && emailUpd.ReauthToken != nil {
-		return ErrMultipleAuthMethods
-	}
-
-	if emailUpd.CurrentPassword != nil {
-		if err := a.MfaCheck(ctx, acc, mfa); err != nil {
-			return err
-		}
-		currPass, err := cast.ToStringE(emailUpd.CurrentPassword)
-		if err != nil {
-			return err
-		}
-		// Verify current password
-		if acc.Password == nil || !auth.CheckPasswordHash(currPass, *acc.Password) {
-			return ErrInvalidCurrentPassword
-		}
-	}
-	if emailUpd.ReauthToken != nil {
-		reauthToken, err := cast.ToStringE(emailUpd.ReauthToken)
-		if err != nil {
-			return err
-		}
-		// Validate reauth token in acc.Tokens
-		var remaining []model.Token
-		var matched bool
-		for _, t := range acc.Tokens {
-			if t.Type == auth.TokenTypeReauthEmailChange && t.Value == reauthToken {
-				if time.Now().After(t.ExpiresAt) {
-					return ErrReauthTokenExpired
-				}
-				matched = true
-				// do not append (consume)
-				continue
-			}
-			remaining = append(remaining, t)
-		}
-		if !matched {
-			return ErrInvalidReauthToken
-		}
-		acc.Tokens = remaining // consume token
+	// Reauth via the unified helper. The account is already loaded by the
+	// outer UpdateAccount flow; VerifyOnAccount mutates acc.Tokens in place
+	// and leaves persistence to the outer flow.
+	if err := reauth.VerifyOnAccount(ctx, acc, a, reauth.Params{
+		TokenType:   auth.TokenTypeReauthEmailChange,
+		Password:    emailUpd.CurrentPassword,
+		ReauthToken: emailUpd.ReauthToken,
+		Mfa:         mfa,
+	}); err != nil {
+		return err
 	}
 	// Email format & presence validated at API layer via AccountEmailUpdate struct (requests.AccountEmailUpdate)
 	// Retain only defensive empty check in case future callers bypass handler.
@@ -641,42 +607,13 @@ func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, re
 		return ErrDeletionCodeExpired
 	}
 
-	if req.CurrentPassword == nil && req.ReauthToken == nil {
-		return ErrMissingAuthMethod
-	}
-	if req.CurrentPassword != nil && req.ReauthToken != nil {
-		return ErrMultipleAuthMethods
-	}
-
-	if req.CurrentPassword != nil {
-		if err := a.MfaCheck(ctx, account, mfa); err != nil {
-			return err
-		}
-		if account.Password == nil || !auth.CheckPasswordHash(*req.CurrentPassword, *account.Password) {
-			return ErrInvalidCurrentPassword
-		}
-	}
-
-	if req.ReauthToken != nil {
-		tokenValue := *req.ReauthToken
-		var (
-			remaining []model.Token
-			matched   bool
-		)
-		for _, t := range account.Tokens {
-			if t.Type == auth.TokenTypeReauthAccountDeletion && t.Value == tokenValue {
-				if time.Now().After(t.ExpiresAt) {
-					return ErrReauthTokenExpired
-				}
-				matched = true
-				continue
-			}
-			remaining = append(remaining, t)
-		}
-		if !matched {
-			return ErrInvalidReauthToken
-		}
-		account.Tokens = remaining
+	if err := reauth.VerifyOnAccount(ctx, account, a, reauth.Params{
+		TokenType:   auth.TokenTypeReauthAccountDeletion,
+		Password:    req.CurrentPassword,
+		ReauthToken: req.ReauthToken,
+		Mfa:         mfa,
+	}); err != nil {
+		return err
 	}
 
 	return a.PurgeAccountData(ctx, accountId)
