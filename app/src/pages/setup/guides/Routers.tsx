@@ -12,6 +12,7 @@ export const routersBadges = [
 export interface RoutersGuideDeps {
     dohEndpoint: string;      // https://<dnsServerDomain>/dns-query/<profileId>
     anycastIpv4: string;      // primary IPv4 from env list
+    anycastIpv6?: string;     // anycast IPv6 from env list; shown only when configured
     dnsServerDomain: string;  // e.g. dns.moddns.net (from env)
     dotHostname: string;      // <profileId>.<dnsServerDomain>
 }
@@ -45,19 +46,20 @@ const StepBlock = ({ number, text }: { number: number; text: React.ReactNode }) 
     </div>
 );
 
-const buildMikrotikCommands = ({ dohEndpoint, anycastIpv4, dnsServerDomain }: RoutersGuideDeps) => (
+const buildMikrotikCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6, dnsServerDomain }: RoutersGuideDeps) => (
     `/ip dns set servers=""\n` +
     `/ip dns static add name=${dnsServerDomain} address=${anycastIpv4} type=A\n` +
+    (anycastIpv6 ? `/ip dns static add name=${dnsServerDomain} address=${anycastIpv6} type=AAAA\n` : ``) +
     `/ip dns set use-doh-server="${dohEndpoint}" verify-doh-cert=yes\n` +
     `/ip dns set allow-remote-requests=yes`
 );
 
-const buildOpenWrtCommands = ({ dohEndpoint, anycastIpv4 }: RoutersGuideDeps) => (
+const buildOpenWrtCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6 }: RoutersGuideDeps) => (
     `opkg update\n` +
     `opkg install https-dns-proxy\n\n` +
     `while uci -q delete https-dns-proxy.@https-dns-proxy[0]; do :; done\n` +
     `uci set https-dns-proxy.dns="https-dns-proxy"\n` +
-    `uci set https-dns-proxy.dns.bootstrap_dns="${anycastIpv4}"\n` +
+    `uci set https-dns-proxy.dns.bootstrap_dns="${anycastIpv6 ? `${anycastIpv4},${anycastIpv6}` : anycastIpv4}"\n` +
     `uci set https-dns-proxy.dns.resolver_url="${dohEndpoint}"\n` +
     `uci set https-dns-proxy.dns.listen_addr="127.0.0.1"\n` +
     `uci set https-dns-proxy.dns.listen_port="5053"\n` +
@@ -92,6 +94,11 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                             <span>
                                 <strong>DNS Servers:</strong> add <CodeBlock inline noWrap value={deps.anycastIpv4} /> to <span className="font-medium">Address</span> and{' '}
                                 <CodeBlock inline noWrap value={deps.dotHostname} /> to <span className="font-medium">Hostname</span>, repeat for each IP address, hostname is always the same
+                                {deps.anycastIpv6 && (
+                                    <>
+                                        {' '}— you can also add the IPv6 address <CodeBlock inline noWrap value={deps.anycastIpv6} /> with the same hostname
+                                    </>
+                                )}
                             </span>
                         )}
                     />
@@ -144,7 +151,7 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                     <StepBlock number={2} text={<span>Click <strong>+</strong> to add a server</span>} />
                     <StepBlock number={3} text={<span><strong>Enabled:</strong> checked</span>} />
                     <StepBlock number={4} text={<span><strong>Domain:</strong> leave this field empty</span>} />
-                    <StepBlock number={5} text={<span><strong>Server IP:</strong> <CodeBlock inline noWrap value={deps.anycastIpv4} /></span>} />
+                    <StepBlock number={5} text={<span><strong>Server IP:</strong> <CodeBlock inline noWrap value={deps.anycastIpv4} />{deps.anycastIpv6 && <> (or IPv6 <CodeBlock inline noWrap value={deps.anycastIpv6} />)</>}</span>} />
                     <StepBlock number={6} text={<span><strong>Server Port:</strong> <CodeBlock inline noWrap value="853" /></span>} />
                     <StepBlock number={7} text={<span><strong>Forward First:</strong> unchecked</span>} />
                     <StepBlock number={8} text={<span><strong>Verify CN:</strong> <CodeBlock inline noWrap value={deps.dotHostname} /></span>} />

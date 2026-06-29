@@ -21,14 +21,19 @@ const StepBlock = ({ number, children }: { number: number; children: React.React
 
 interface TabDef { key: string; label: string; content: React.ReactNode }
 
-// We now rely on DI; provided context supplies primaryIp, profileId, domain
-const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => `[Resolve]\nDNS=${ctx.primaryIp}#${ctx.profileId}.${ctx.domain}\nDNSOverTLS=yes\nDomains=~.`;
+// We now rely on DI; provided context supplies primaryIp, profileId, domain, optional ipv6
+const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => {
+    const sni = `${ctx.profileId}.${ctx.domain}`;
+    // DoT transport works over IPv6; append the anycast IPv6 server when configured.
+    const servers = ctx.ipv6 ? `${ctx.primaryIp}#${sni} ${ctx.ipv6}#${sni}` : `${ctx.primaryIp}#${sni}`;
+    return `[Resolve]\nDNS=${servers}\nDNSOverTLS=yes\nDomains=~.`;
+};
 const buildDnsmasqConfig = (ctx: LinuxGuideDeps) => `no-resolv\nbogus-priv\nstrict-order\nserver=${ctx.primaryIp}\nadd-cpe-id=${ctx.profileId}`;
 const systemdRestartCmd = 'sudo systemctl restart systemd-resolved';
 const dnsmasqRestartCmd = 'sudo systemctl restart dnsmasq';
 
 // Factory to build tab definitions with current context
-interface LinuxGuideDeps { profileId: string; primaryIp: string; domain: string }
+interface LinuxGuideDeps { profileId: string; primaryIp: string; domain: string; ipv6?: string }
 
 function buildTabs(deps: LinuxGuideDeps): TabDef[] {
     const systemdResolvedConfig = buildSystemdResolvedConfig(deps);
