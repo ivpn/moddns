@@ -96,4 +96,16 @@ describe('formatReasons', () => {
             { kind: 'service', label: 'Service: some-svc' },
         ]);
     });
+
+    it('maps dnssec_failed to a "DNSSEC validation failed" chip, shown first', () => {
+        // tableRef: logs-reason-display-behaviour #13
+        expect(formatReasons(['dnssec_failed'])).toEqual([
+            { kind: 'dnssec', label: 'DNSSEC validation failed' },
+        ]);
+        // when combined with other reasons it is ordered first
+        expect(formatReasons(['default_rule', 'dnssec_failed'])).toEqual([
+            { kind: 'dnssec', label: 'DNSSEC validation failed' },
+            { kind: 'default', label: 'Default rule' },
+        ]);
+    });
 });

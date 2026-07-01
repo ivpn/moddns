@@ -94,26 +94,56 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
     const truncatedDomain = displayDomain && isDomainTruncatable ? displayDomain.slice(0, DOMAIN_TRUNCATE_THRESHOLD) + '…' : displayDomain;
     const protocolLabel = log?.protocol ? log.protocol.toUpperCase() : '—';
 
-    // DNSSEC-validated is a positive security signal (like the HTTPS padlock): shown inline next to
-    // the protocol ONLY when validated. The "not validated" case stays in the expanded panel only.
+    // DNSSEC status shown inline next to the protocol as a plain text badge (styled like the
+    // protocol label — no outline/background):
+    //   - validated (AD bit true)     -> brand-coloured "DNSSEC"
+    //   - failed (bogus/misconfigured) -> red "DNSSEC" (recursor SERVFAILed on validation)
+    // Neither shows for domains without a DNSSEC signal.
     const dnssecValidated = log.dns_request?.dnssec === true;
-    const renderDnssecBadge = (className?: string) => (
-        <Badge
-            variant="outline"
-            data-testid="querylog-dnssec-badge"
-            className={cn("inline-flex items-center h-5 px-1.5 rounded text-[9px] md:text-[10px] font-semibold uppercase tracking-wide leading-none", className)}
-        >
-            DNSSEC
-        </Badge>
-    );
+    const dnssecFailed = reasons.includes('dnssec_failed');
+    const dnssecShown = dnssecValidated || dnssecFailed;
+    // When reserveWhenHidden is set (desktop), the badge is always rendered — invisible
+    // when there's no DNSSEC — so it reserves a constant slot and the protocol label
+    // never shifts depending on whether DNSSEC is shown. The testid/color are only
+    // applied when actually shown.
+    const renderDnssecBadge = (className?: string, reserveWhenHidden = false) => {
+        if (!dnssecShown && !reserveWhenHidden) return null;
+        return (
+            <span
+                data-testid={dnssecShown ? 'querylog-dnssec-badge' : undefined}
+                data-dnssec={dnssecShown ? (dnssecFailed ? 'failed' : 'validated') : undefined}
+                aria-hidden={!dnssecShown || undefined}
+                className={cn(
+                    // Match the protocol label typography exactly (font/size/weight/leading).
+                    "font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase whitespace-nowrap",
+                    dnssecShown
+                        ? (dnssecFailed ? "text-[var(--tailwind-colors-red-600)]" : "text-[var(--tailwind-colors-rdns-600)]")
+                        : "opacity-0 pointer-events-none select-none",
+                    className,
+                )}
+            >
+                DNSSEC
+            </span>
+        );
+    };
 
-    // Detail-grid field: uppercase micro-label + selectable value.
-    const renderDetailField = (label: string, value: string, testid: string) => (
+    // Detail-grid field: uppercase micro-label + selectable value (optionally coloured).
+    const renderDetailField = (label: string, value: string, testid: string, valueClassName?: string) => (
         <div className="min-w-0">
             <dt className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{label}</dt>
-            <dd className="text-xs break-all select-text text-[var(--tailwind-colors-slate-50)]" data-testid={testid}>{value}</dd>
+            <dd className={cn("text-xs break-all select-text text-[var(--tailwind-colors-slate-50)]", valueClassName)} data-testid={testid}>{value}</dd>
         </div>
     );
+
+    // DNSSEC has three distinct states — keep them clearly worded and colour-coded:
+    //   failed (bogus)   -> "Validation failed" (red)     — signatures broken
+    //   validated (AD=1) -> "Validated" (brand/green)     — authentic
+    //   unsigned         -> "No DNSSEC" (muted)           — domain isn't signed
+    const dnssecDetail = dnssecFailed
+        ? { text: 'Validation failed', className: 'text-[var(--tailwind-colors-red-600)]' }
+        : dnssecValidated
+            ? { text: 'Validated', className: 'text-[var(--tailwind-colors-rdns-600)]' }
+            : { text: 'No DNSSEC', className: 'text-[var(--tailwind-colors-slate-200)]' };
 
     return (
         <div
@@ -165,7 +195,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3 text-[10px] uppercase font-semibold tracking-wide text-[var(--tailwind-colors-rdns-600)]">
                                         <span>{protocolLabel}</span>
-                                        {dnssecValidated && renderDnssecBadge()}
+                                        {dnssecShown && renderDnssecBadge()}
                                         {isBlocked && (
                                             <Badge
                                                 className="inline-flex items-center justify-center px-2 py-0.5 bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5"
@@ -210,7 +240,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                             <div className="relative w-[60px] md:w-[100px] font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] text-[var(--tailwind-colors-rdns-600)] text-left md:text-center tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase order-0 md:order-1">
                                 {protocolLabel}
                             </div>
-                            {dnssecValidated && renderDnssecBadge("order-2 md:order-2")}
+                            {renderDnssecBadge("order-2 md:order-2", true)}
                             <Badge className={`order-1 md:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none' : ''}`} aria-hidden={!isBlocked}>
                                 <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
                             </Badge>
@@ -252,7 +282,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                 )}
                             {log.dns_request?.query_type && renderDetailField("Query type", log.dns_request.query_type, "querylog-detail-query-type")}
                             {log.dns_request?.response_code && renderDetailField("Response code", log.dns_request.response_code, "querylog-detail-response-code")}
-                            {log.dns_request?.dnssec !== undefined && renderDetailField("DNSSEC", log.dns_request.dnssec ? "Validated" : "Not validated", "querylog-detail-dnssec")}
+                            {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
                             {log.client_ip && renderDetailField("Client IP", log.client_ip, "querylog-detail-client-ip")}
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
@@ -260,7 +290,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                         </dl>
                         {hasReasons && (
                             <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">
-                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{isBlocked ? "Block reason" : "Allow reason"}</span>
+                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{(isBlocked || dnssecFailed) ? "Block reason" : "Allow reason"}</span>
                                 <ReasonBadges reasons={reasons} blocklistNames={blocklistNames} serviceNames={serviceNames} />
                             </div>
                         )}

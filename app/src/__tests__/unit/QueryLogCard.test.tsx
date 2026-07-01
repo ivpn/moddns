@@ -180,13 +180,61 @@ describe('QueryLogCard whole-card expansion', () => {
         expect(screen.getByTestId('querylog-dnssec-badge')).toHaveTextContent('DNSSEC');
     });
 
-    test('omits the DNSSEC badge when not validated', () => {
+    test('omits the DNSSEC badge when neither validated nor failed', () => {
         const log: ModelQueryLog = {
             ...baseLog,
             dns_request: { ...baseLog.dns_request, dnssec: false }
         };
         render(<QueryLogCard log={log} />);
         expect(screen.queryByTestId('querylog-dnssec-badge')).not.toBeInTheDocument();
+    });
+
+    test('shows a red (failed) DNSSEC badge when validation failed', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        };
+        render(<QueryLogCard log={log} />);
+        const badge = screen.getByTestId('querylog-dnssec-badge');
+        expect(badge).toHaveTextContent('DNSSEC');
+        expect(badge).toHaveAttribute('data-dnssec', 'failed');
+    });
+
+    test('labels the reason "Block reason" for a DNSSEC-failed row (not "Allow reason")', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        };
+        render(<QueryLogCard log={log} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        const reasons = screen.getByTestId('querylog-reasons');
+        expect(reasons).toHaveTextContent('Block reason');
+        expect(reasons).not.toHaveTextContent('Allow reason');
+    });
+
+    test('DNSSEC detail field distinguishes the three states', () => {
+        const detailText = (log: ModelQueryLog) => {
+            const { unmount } = render(<QueryLogCard log={log} />);
+            fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+            const text = screen.getByTestId('querylog-detail-dnssec').textContent;
+            unmount();
+            return text;
+        };
+        // validated
+        expect(detailText(baseLog)).toBe('Validated');
+        // unsigned (dnssec false, no failure reason)
+        expect(detailText({ ...baseLog, dns_request: { ...baseLog.dns_request, dnssec: false } })).toBe('No DNSSEC');
+        // failed (bogus)
+        expect(detailText({
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        })).toBe('Validation failed');
     });
 });
 

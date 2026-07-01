@@ -4,7 +4,7 @@
 // If the chip mapping changes, update that spec and formatReasons.test.ts with
 // matching `tableRef: logs-reason-display-behaviour #N` annotations.
 
-export type ReasonKind = 'blocklist' | 'service' | 'custom_rule' | 'default' | 'subdomain';
+export type ReasonKind = 'blocklist' | 'service' | 'custom_rule' | 'default' | 'subdomain' | 'dnssec';
 
 export interface FormattedReason {
     kind: ReasonKind;
@@ -38,8 +38,13 @@ export function formatReasons(
     let hasSubdomain = false;
     let hasCustomRule = false;
     let hasDefault = false;
+    let hasDnssecFailed = false;
 
     for (const reason of reasons) {
+        if (reason === 'dnssec_failed') {
+            hasDnssecFailed = true;
+            continue;
+        }
         if (reason.startsWith(BLOCKLIST_PREFIX)) {
             const id = reason.slice(BLOCKLIST_PREFIX.length);
             if (!blocklistIdSet.has(id)) {
@@ -68,6 +73,11 @@ export function formatReasons(
 
     const chips: FormattedReason[] = [];
     const subdomainSuffix = hasSubdomain ? ' (subdomain)' : '';
+
+    // DNSSEC validation failure — shown first; explains an otherwise-opaque SERVFAIL.
+    if (hasDnssecFailed) {
+        chips.push({ kind: 'dnssec', label: 'DNSSEC validation failed' });
+    }
 
     // Blocklist tier — specific ids collapse the generic token; the subdomain
     // qualifier folds into the chip label rather than becoming its own chip.
