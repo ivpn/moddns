@@ -11,6 +11,10 @@ type ProfileRepository interface {
 	CreateProfile(ctx context.Context, profile *model.Profile) error
 	CreateCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error
 	RemoveCustomRules(ctx context.Context, profileId string, ruleIds []string) error
+	UpdateCustomRule(ctx context.Context, profileId string, rule *model.CustomRule) error
+	UpdateCustomRulesOrder(ctx context.Context, profileId string, idToOrder map[string]int) error
+	SetCustomRuleGroups(ctx context.Context, profileId string, groups model.CustomRuleGroups) error
+	ReassignCustomRuleGroup(ctx context.Context, profileId, action, from, to string) error
 	EnableBlocklists(ctx context.Context, profileId string, blocklistIds []string) error
 	DisableBlocklists(ctx context.Context, profileId string, blocklistIds []string) error
 	EnableServices(ctx context.Context, profileId string, serviceIds []string) error

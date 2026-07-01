@@ -102,6 +102,75 @@ func (_c *Servicer_AddPASession_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// ApplyCustomRuleGroupOps provides a mock function for the type Servicer
+func (_mock *Servicer) ApplyCustomRuleGroupOps(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp) error {
+	ret := _mock.Called(ctx, accountId, profileId, ops)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplyCustomRuleGroupOps")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []profile.CustomRuleGroupOp) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId, ops)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_ApplyCustomRuleGroupOps_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplyCustomRuleGroupOps'
+type Servicer_ApplyCustomRuleGroupOps_Call struct {
+	*mock.Call
+}
+
+// ApplyCustomRuleGroupOps is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - ops []profile.CustomRuleGroupOp
+func (_e *Servicer_Expecter) ApplyCustomRuleGroupOps(ctx interface{}, accountId interface{}, profileId interface{}, ops interface{}) *Servicer_ApplyCustomRuleGroupOps_Call {
+	return &Servicer_ApplyCustomRuleGroupOps_Call{Call: _e.mock.On("ApplyCustomRuleGroupOps", ctx, accountId, profileId, ops)}
+}
+
+func (_c *Servicer_ApplyCustomRuleGroupOps_Call) Run(run func(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp)) *Servicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []profile.CustomRuleGroupOp
+		if args[3] != nil {
+			arg3 = args[3].([]profile.CustomRuleGroupOp)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_ApplyCustomRuleGroupOps_Call) Return(err error) *Servicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_ApplyCustomRuleGroupOps_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, ops []profile.CustomRuleGroupOp) error) *Servicer_ApplyCustomRuleGroupOps_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BeginLogin provides a mock function for the type Servicer
 func (_mock *Servicer) BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error) {
 	ret := _mock.Called(ctx, email)
@@ -3314,6 +3383,75 @@ func (_c *Servicer_PurgeAccountData_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// ReorderCustomRules provides a mock function for the type Servicer
+func (_mock *Servicer) ReorderCustomRules(ctx context.Context, accountId string, profileId string, orderedIds []string) error {
+	ret := _mock.Called(ctx, accountId, profileId, orderedIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReorderCustomRules")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId, orderedIds)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_ReorderCustomRules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReorderCustomRules'
+type Servicer_ReorderCustomRules_Call struct {
+	*mock.Call
+}
+
+// ReorderCustomRules is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - orderedIds []string
+func (_e *Servicer_Expecter) ReorderCustomRules(ctx interface{}, accountId interface{}, profileId interface{}, orderedIds interface{}) *Servicer_ReorderCustomRules_Call {
+	return &Servicer_ReorderCustomRules_Call{Call: _e.mock.On("ReorderCustomRules", ctx, accountId, profileId, orderedIds)}
+}
+
+func (_c *Servicer_ReorderCustomRules_Call) Run(run func(ctx context.Context, accountId string, profileId string, orderedIds []string)) *Servicer_ReorderCustomRules_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_ReorderCustomRules_Call) Return(err error) *Servicer_ReorderCustomRules_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_ReorderCustomRules_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, orderedIds []string) error) *Servicer_ReorderCustomRules_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RequestEmailVerificationOTP provides a mock function for the type Servicer
 func (_mock *Servicer) RequestEmailVerificationOTP(ctx context.Context, accountId string) error {
 	ret := _mock.Called(ctx, accountId)
@@ -3982,6 +4120,92 @@ func (_c *Servicer_UpdateCredential_Call) Return(err error) *Servicer_UpdateCred
 }
 
 func (_c *Servicer_UpdateCredential_Call) RunAndReturn(run func(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID) error) *Servicer_UpdateCredential_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCustomRule provides a mock function for the type Servicer
+func (_mock *Servicer) UpdateCustomRule(ctx context.Context, accountId string, profileId string, customRuleId string, patch profile.CustomRulePatch) (*model.CustomRule, error) {
+	ret := _mock.Called(ctx, accountId, profileId, customRuleId, patch)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCustomRule")
+	}
+
+	var r0 *model.CustomRule
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, profile.CustomRulePatch) (*model.CustomRule, error)); ok {
+		return returnFunc(ctx, accountId, profileId, customRuleId, patch)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, profile.CustomRulePatch) *model.CustomRule); ok {
+		r0 = returnFunc(ctx, accountId, profileId, customRuleId, patch)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.CustomRule)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, profile.CustomRulePatch) error); ok {
+		r1 = returnFunc(ctx, accountId, profileId, customRuleId, patch)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Servicer_UpdateCustomRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCustomRule'
+type Servicer_UpdateCustomRule_Call struct {
+	*mock.Call
+}
+
+// UpdateCustomRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - customRuleId string
+//   - patch profile.CustomRulePatch
+func (_e *Servicer_Expecter) UpdateCustomRule(ctx interface{}, accountId interface{}, profileId interface{}, customRuleId interface{}, patch interface{}) *Servicer_UpdateCustomRule_Call {
+	return &Servicer_UpdateCustomRule_Call{Call: _e.mock.On("UpdateCustomRule", ctx, accountId, profileId, customRuleId, patch)}
+}
+
+func (_c *Servicer_UpdateCustomRule_Call) Run(run func(ctx context.Context, accountId string, profileId string, customRuleId string, patch profile.CustomRulePatch)) *Servicer_UpdateCustomRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 profile.CustomRulePatch
+		if args[4] != nil {
+			arg4 = args[4].(profile.CustomRulePatch)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_UpdateCustomRule_Call) Return(customRule *model.CustomRule, err error) *Servicer_UpdateCustomRule_Call {
+	_c.Call.Return(customRule, err)
+	return _c
+}
+
+func (_c *Servicer_UpdateCustomRule_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, customRuleId string, patch profile.CustomRulePatch) (*model.CustomRule, error)) *Servicer_UpdateCustomRule_Call {
 	_c.Call.Return(run)
 	return _c
 }

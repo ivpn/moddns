@@ -17,28 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from moddns.models.model_custom_rule_group import ModelCustomRuleGroup
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelExportedCustomRule(BaseModel):
+class ModelCustomRuleGroups(BaseModel):
     """
-    ModelExportedCustomRule
+    ModelCustomRuleGroups
     """ # noqa: E501
-    action: StrictStr
-    group: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="Group is the optional organizational label this rule belongs to.")
-    note: Optional[Annotated[str, Field(strict=True, max_length=80)]] = Field(default=None, description="Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.")
-    value: Annotated[str, Field(strict=True, max_length=255)]
-    __properties: ClassVar[List[str]] = ["action", "group", "note", "value"]
-
-    @field_validator('action')
-    def action_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow', 'comment']):
-            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
-        return value
+    allow: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=100)]] = None
+    block: Optional[Annotated[List[ModelCustomRuleGroup], Field(max_length=100)]] = None
+    __properties: ClassVar[List[str]] = ["allow", "block"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -58,7 +50,7 @@ class ModelExportedCustomRule(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a JSON string"""
+        """Create an instance of ModelCustomRuleGroups from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,11 +71,25 @@ class ModelExportedCustomRule(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in allow (list)
+        _items = []
+        if self.allow:
+            for _item_allow in self.allow:
+                if _item_allow:
+                    _items.append(_item_allow.to_dict())
+            _dict['allow'] = _items
+        # override the default output from pydantic by calling `to_dict()` of each item in block (list)
+        _items = []
+        if self.block:
+            for _item_block in self.block:
+                if _item_block:
+                    _items.append(_item_block.to_dict())
+            _dict['block'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a dict"""
+        """Create an instance of ModelCustomRuleGroups from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +97,8 @@ class ModelExportedCustomRule(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "action": obj.get("action"),
-            "group": obj.get("group"),
-            "note": obj.get("note"),
-            "value": obj.get("value")
+            "allow": [ModelCustomRuleGroup.from_dict(_item) for _item in obj["allow"]] if obj.get("allow") is not None else None,
+            "block": [ModelCustomRuleGroup.from_dict(_item) for _item in obj["block"]] if obj.get("block") is not None else None
         })
         return _obj
 

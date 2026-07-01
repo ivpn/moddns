@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
@@ -9,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // ProfileRepository is a MongoDB repository for profiles collection
@@ -145,6 +147,100 @@ func (r *ProfileRepository) CreateCustomRules(ctx context.Context, profileId str
 		return err
 	}
 	return nil
+}
+
+// UpdateCustomRule updates a single custom rule in place, matched by its ObjectID,
+// preserving the rule's position in the settings.custom_rules array.
+func (r *ProfileRepository) UpdateCustomRule(ctx context.Context, profileId string, rule *model.CustomRule) error {
+	filterBson := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "settings.custom_rules._id", Value: rule.ID},
+	}
+	updateBson := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "settings.custom_rules.$.action", Value: rule.Action},
+			{Key: "settings.custom_rules.$.value", Value: rule.Value},
+			{Key: "settings.custom_rules.$.syntax", Value: rule.Syntax},
+			{Key: "settings.custom_rules.$.note", Value: rule.Note},
+			{Key: "settings.custom_rules.$.group", Value: rule.Group},
+			{Key: "settings.custom_rules.$.order", Value: rule.Order},
+		}},
+	}
+
+	res, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.ErrCustomRuleNotFound
+	}
+	return nil
+}
+
+// UpdateCustomRulesOrder sets the display `order` of each rule identified by its
+// hex ObjectID, in a single atomic update using arrayFilters. Rules not present
+// in idToOrder keep their stored order.
+func (r *ProfileRepository) UpdateCustomRulesOrder(ctx context.Context, profileId string, idToOrder map[string]int) error {
+	if len(idToOrder) == 0 {
+		return nil
+	}
+
+	setDoc := bson.D{}
+	arrayFilters := make([]any, 0, len(idToOrder))
+	i := 0
+	for id, order := range idToOrder {
+		objectID, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			return err
+		}
+		identifier := fmt.Sprintf("r%d", i)
+		setDoc = append(setDoc, bson.E{
+			Key:   fmt.Sprintf("settings.custom_rules.$[%s].order", identifier),
+			Value: order,
+		})
+		arrayFilters = append(arrayFilters, bson.M{identifier + "._id": objectID})
+		i++
+	}
+
+	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{{Key: "$set", Value: setDoc}}
+	opts := options.Update().SetArrayFilters(options.ArrayFilters{Filters: arrayFilters})
+
+	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson, opts)
+	return err
+}
+
+// SetCustomRuleGroups replaces the profile's per-list group registry wholesale.
+// The registry is metadata only and is never synced to the proxy.
+func (r *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId string, groups model.CustomRuleGroups) error {
+	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "settings.custom_rule_groups", Value: groups},
+		}},
+	}
+
+	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson)
+	return err
+}
+
+// ReassignCustomRuleGroup sets group=to on every rule with the given action whose
+// group==from, in a single atomic update using an arrayFilter. Scoping by action
+// keeps denylist and allowlist groups independent. Passing to="" moves the rules
+// to Ungrouped (used by group deletion). Group labels are metadata only.
+func (r *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId, action, from, to string) error {
+	filterBson := bson.D{{Key: "profile_id", Value: profileId}}
+	updateBson := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "settings.custom_rules.$[elem].group", Value: to},
+		}},
+	}
+	opts := options.Update().SetArrayFilters(options.ArrayFilters{
+		Filters: []any{bson.M{"elem.group": from, "elem.action": action}},
+	})
+
+	_, err := r.profilesCollection.UpdateOne(ctx, filterBson, updateBson, opts)
+	return err
 }
 
 // EnableBlocklists adds the given blocklist IDs to the profile's enabled blocklists array atomically.

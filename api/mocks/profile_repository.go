@@ -603,6 +603,81 @@ func (_c *ProfileRepository_GetProfilesByAccountId_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// ReassignCustomRuleGroup provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId string, action string, from string, to string) error {
+	ret := _mock.Called(ctx, profileId, action, from, to)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReassignCustomRuleGroup")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = returnFunc(ctx, profileId, action, from, to)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileRepository_ReassignCustomRuleGroup_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReassignCustomRuleGroup'
+type ProfileRepository_ReassignCustomRuleGroup_Call struct {
+	*mock.Call
+}
+
+// ReassignCustomRuleGroup is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - action string
+//   - from string
+//   - to string
+func (_e *ProfileRepository_Expecter) ReassignCustomRuleGroup(ctx interface{}, profileId interface{}, action interface{}, from interface{}, to interface{}) *ProfileRepository_ReassignCustomRuleGroup_Call {
+	return &ProfileRepository_ReassignCustomRuleGroup_Call{Call: _e.mock.On("ReassignCustomRuleGroup", ctx, profileId, action, from, to)}
+}
+
+func (_c *ProfileRepository_ReassignCustomRuleGroup_Call) Run(run func(ctx context.Context, profileId string, action string, from string, to string)) *ProfileRepository_ReassignCustomRuleGroup_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_ReassignCustomRuleGroup_Call) Return(err error) *ProfileRepository_ReassignCustomRuleGroup_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileRepository_ReassignCustomRuleGroup_Call) RunAndReturn(run func(ctx context.Context, profileId string, action string, from string, to string) error) *ProfileRepository_ReassignCustomRuleGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemoveCustomRules provides a mock function for the type ProfileRepository
 func (_mock *ProfileRepository) RemoveCustomRules(ctx context.Context, profileId string, ruleIds []string) error {
 	ret := _mock.Called(ctx, profileId, ruleIds)
@@ -666,6 +741,69 @@ func (_c *ProfileRepository_RemoveCustomRules_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// SetCustomRuleGroups provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) SetCustomRuleGroups(ctx context.Context, profileId string, groups model.CustomRuleGroups) error {
+	ret := _mock.Called(ctx, profileId, groups)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetCustomRuleGroups")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.CustomRuleGroups) error); ok {
+		r0 = returnFunc(ctx, profileId, groups)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileRepository_SetCustomRuleGroups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCustomRuleGroups'
+type ProfileRepository_SetCustomRuleGroups_Call struct {
+	*mock.Call
+}
+
+// SetCustomRuleGroups is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - groups model.CustomRuleGroups
+func (_e *ProfileRepository_Expecter) SetCustomRuleGroups(ctx interface{}, profileId interface{}, groups interface{}) *ProfileRepository_SetCustomRuleGroups_Call {
+	return &ProfileRepository_SetCustomRuleGroups_Call{Call: _e.mock.On("SetCustomRuleGroups", ctx, profileId, groups)}
+}
+
+func (_c *ProfileRepository_SetCustomRuleGroups_Call) Run(run func(ctx context.Context, profileId string, groups model.CustomRuleGroups)) *ProfileRepository_SetCustomRuleGroups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.CustomRuleGroups
+		if args[2] != nil {
+			arg2 = args[2].(model.CustomRuleGroups)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_SetCustomRuleGroups_Call) Return(err error) *ProfileRepository_SetCustomRuleGroups_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileRepository_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, profileId string, groups model.CustomRuleGroups) error) *ProfileRepository_SetCustomRuleGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Update provides a mock function for the type ProfileRepository
 func (_mock *ProfileRepository) Update(ctx context.Context, profileId string, profile *model.Profile) error {
 	ret := _mock.Called(ctx, profileId, profile)
@@ -725,6 +863,132 @@ func (_c *ProfileRepository_Update_Call) Return(err error) *ProfileRepository_Up
 }
 
 func (_c *ProfileRepository_Update_Call) RunAndReturn(run func(ctx context.Context, profileId string, profile *model.Profile) error) *ProfileRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCustomRule provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) UpdateCustomRule(ctx context.Context, profileId string, rule *model.CustomRule) error {
+	ret := _mock.Called(ctx, profileId, rule)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCustomRule")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.CustomRule) error); ok {
+		r0 = returnFunc(ctx, profileId, rule)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileRepository_UpdateCustomRule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCustomRule'
+type ProfileRepository_UpdateCustomRule_Call struct {
+	*mock.Call
+}
+
+// UpdateCustomRule is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - rule *model.CustomRule
+func (_e *ProfileRepository_Expecter) UpdateCustomRule(ctx interface{}, profileId interface{}, rule interface{}) *ProfileRepository_UpdateCustomRule_Call {
+	return &ProfileRepository_UpdateCustomRule_Call{Call: _e.mock.On("UpdateCustomRule", ctx, profileId, rule)}
+}
+
+func (_c *ProfileRepository_UpdateCustomRule_Call) Run(run func(ctx context.Context, profileId string, rule *model.CustomRule)) *ProfileRepository_UpdateCustomRule_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *model.CustomRule
+		if args[2] != nil {
+			arg2 = args[2].(*model.CustomRule)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateCustomRule_Call) Return(err error) *ProfileRepository_UpdateCustomRule_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateCustomRule_Call) RunAndReturn(run func(ctx context.Context, profileId string, rule *model.CustomRule) error) *ProfileRepository_UpdateCustomRule_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCustomRulesOrder provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) UpdateCustomRulesOrder(ctx context.Context, profileId string, idToOrder map[string]int) error {
+	ret := _mock.Called(ctx, profileId, idToOrder)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCustomRulesOrder")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, map[string]int) error); ok {
+		r0 = returnFunc(ctx, profileId, idToOrder)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileRepository_UpdateCustomRulesOrder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCustomRulesOrder'
+type ProfileRepository_UpdateCustomRulesOrder_Call struct {
+	*mock.Call
+}
+
+// UpdateCustomRulesOrder is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - idToOrder map[string]int
+func (_e *ProfileRepository_Expecter) UpdateCustomRulesOrder(ctx interface{}, profileId interface{}, idToOrder interface{}) *ProfileRepository_UpdateCustomRulesOrder_Call {
+	return &ProfileRepository_UpdateCustomRulesOrder_Call{Call: _e.mock.On("UpdateCustomRulesOrder", ctx, profileId, idToOrder)}
+}
+
+func (_c *ProfileRepository_UpdateCustomRulesOrder_Call) Run(run func(ctx context.Context, profileId string, idToOrder map[string]int)) *ProfileRepository_UpdateCustomRulesOrder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 map[string]int
+		if args[2] != nil {
+			arg2 = args[2].(map[string]int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateCustomRulesOrder_Call) Return(err error) *ProfileRepository_UpdateCustomRulesOrder_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateCustomRulesOrder_Call) RunAndReturn(run func(ctx context.Context, profileId string, idToOrder map[string]int) error) *ProfileRepository_UpdateCustomRulesOrder_Call {
 	_c.Call.Return(run)
 	return _c
 }

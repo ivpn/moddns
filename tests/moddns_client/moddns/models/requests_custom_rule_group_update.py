@@ -23,21 +23,29 @@ from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelExportedCustomRule(BaseModel):
+class RequestsCustomRuleGroupUpdate(BaseModel):
     """
-    ModelExportedCustomRule
+    RequestsCustomRuleGroupUpdate
     """ # noqa: E501
-    action: StrictStr
-    group: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="Group is the optional organizational label this rule belongs to.")
-    note: Optional[Annotated[str, Field(strict=True, max_length=80)]] = Field(default=None, description="Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.")
-    value: Annotated[str, Field(strict=True, max_length=255)]
-    __properties: ClassVar[List[str]] = ["action", "group", "note", "value"]
+    action: StrictStr = Field(description="Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist); groups are per-list.")
+    var_from: Optional[Annotated[str, Field(strict=True, max_length=130)]] = Field(default=None, alias="from")
+    operation: StrictStr
+    path: Annotated[str, Field(strict=True, max_length=130)]
+    value: Optional[Annotated[str, Field(strict=True, max_length=80)]] = None
+    __properties: ClassVar[List[str]] = ["action", "from", "operation", "path", "value"]
 
     @field_validator('action')
     def action_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['block', 'allow', 'comment']):
-            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
+        if value not in set(['block', 'allow']):
+            raise ValueError("must be one of enum values ('block', 'allow')")
+        return value
+
+    @field_validator('operation')
+    def operation_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['add', 'replace', 'remove', 'move']):
+            raise ValueError("must be one of enum values ('add', 'replace', 'remove', 'move')")
         return value
 
     model_config = ConfigDict(
@@ -58,7 +66,7 @@ class ModelExportedCustomRule(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a JSON string"""
+        """Create an instance of RequestsCustomRuleGroupUpdate from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -83,7 +91,7 @@ class ModelExportedCustomRule(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a dict"""
+        """Create an instance of RequestsCustomRuleGroupUpdate from a dict"""
         if obj is None:
             return None
 
@@ -92,8 +100,9 @@ class ModelExportedCustomRule(BaseModel):
 
         _obj = cls.model_validate({
             "action": obj.get("action"),
-            "group": obj.get("group"),
-            "note": obj.get("note"),
+            "from": obj.get("from"),
+            "operation": obj.get("operation"),
+            "path": obj.get("path"),
             "value": obj.get("value")
         })
         return _obj

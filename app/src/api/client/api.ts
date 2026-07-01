@@ -494,13 +494,69 @@ export interface ModelCustomRule {
      * @type {string}
      * @memberof ModelCustomRule
      */
+    'group'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRule
+     */
     'id': string;
     /**
      * 
      * @type {string}
      * @memberof ModelCustomRule
      */
+    'note'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelCustomRule
+     */
+    'order'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRule
+     */
     'value': string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelCustomRuleGroup
+ */
+export interface ModelCustomRuleGroup {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRuleGroup
+     */
+    'comment'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelCustomRuleGroup
+     */
+    'name': string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelCustomRuleGroups
+ */
+export interface ModelCustomRuleGroups {
+    /**
+     * 
+     * @type {Array<ModelCustomRuleGroup>}
+     * @memberof ModelCustomRuleGroups
+     */
+    'allow'?: Array<ModelCustomRuleGroup>;
+    /**
+     * 
+     * @type {Array<ModelCustomRuleGroup>}
+     * @memberof ModelCustomRuleGroups
+     */
+    'block'?: Array<ModelCustomRuleGroup>;
 }
 /**
  * 
@@ -623,11 +679,17 @@ export interface ModelExportedCustomRule {
      */
     'action': ModelExportedCustomRuleActionEnum;
     /**
-     * 
+     * Group is the optional organizational label this rule belongs to.
      * @type {string}
      * @memberof ModelExportedCustomRule
      */
-    'comment'?: string;
+    'group'?: string;
+    /**
+     * Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.
+     * @type {string}
+     * @memberof ModelExportedCustomRule
+     */
+    'note'?: string;
     /**
      * 
      * @type {string}
@@ -832,6 +894,12 @@ export interface ModelExportedSettings {
      */
     'advanced'?: ModelExportedAdvanced;
     /**
+     * CustomRuleGroups is the per-list group registry; reuses the storage type (its json tags define the wire shape). Pointer so an empty registry is omitted. Round-trips with the rules\' `group` field.
+     * @type {ModelCustomRuleGroups}
+     * @memberof ModelExportedSettings
+     */
+    'customRuleGroups'?: ModelCustomRuleGroups;
+    /**
      * CustomRules holds the profile\'s custom filtering rules, capped at 1000 per profile.
      * @type {Array<ModelExportedCustomRule>}
      * @memberof ModelExportedSettings
@@ -1027,6 +1095,12 @@ export interface ModelProfileSettings {
      * @memberof ModelProfileSettings
      */
     'advanced': ModelAdvanced;
+    /**
+     * CustomRuleGroups is the per-list group registry (denylist/allowlist). Organizational metadata only; never synced to the proxy (redis:\"-\").
+     * @type {ModelCustomRuleGroups}
+     * @memberof ModelProfileSettings
+     */
+    'custom_rule_groups'?: ModelCustomRuleGroups;
     /**
      * 
      * @type {Array<ModelCustomRule>}
@@ -1969,6 +2043,72 @@ export type RequestsCreateProfileCustomRulesBatchBodyActionEnum = typeof Request
 /**
  * 
  * @export
+ * @interface RequestsCustomRuleGroupUpdate
+ */
+export interface RequestsCustomRuleGroupUpdate {
+    /**
+     * Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist); groups are per-list.
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'action': RequestsCustomRuleGroupUpdateActionEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'from'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'operation': RequestsCustomRuleGroupUpdateOperationEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'path': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsCustomRuleGroupUpdate
+     */
+    'value'?: string;
+}
+
+export const RequestsCustomRuleGroupUpdateActionEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type RequestsCustomRuleGroupUpdateActionEnum = typeof RequestsCustomRuleGroupUpdateActionEnum[keyof typeof RequestsCustomRuleGroupUpdateActionEnum];
+export const RequestsCustomRuleGroupUpdateOperationEnum = {
+    Add: 'add',
+    Replace: 'replace',
+    Remove: 'remove',
+    Move: 'move'
+} as const;
+
+export type RequestsCustomRuleGroupUpdateOperationEnum = typeof RequestsCustomRuleGroupUpdateOperationEnum[keyof typeof RequestsCustomRuleGroupUpdateOperationEnum];
+
+/**
+ * 
+ * @export
+ * @interface RequestsCustomRuleGroupUpdates
+ */
+export interface RequestsCustomRuleGroupUpdates {
+    /**
+     * 
+     * @type {Array<RequestsCustomRuleGroupUpdate>}
+     * @memberof RequestsCustomRuleGroupUpdates
+     */
+    'updates': Array<RequestsCustomRuleGroupUpdate>;
+}
+/**
+ * 
+ * @export
  * @interface RequestsExportRequest
  */
 export interface RequestsExportRequest {
@@ -2128,6 +2268,19 @@ export interface RequestsProfileUpdates {
 /**
  * 
  * @export
+ * @interface RequestsReorderProfileCustomRulesBody
+ */
+export interface RequestsReorderProfileCustomRulesBody {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RequestsReorderProfileCustomRulesBody
+     */
+    'order': Array<string>;
+}
+/**
+ * 
+ * @export
  * @interface RequestsResetPasswordBody
  */
 export interface RequestsResetPasswordBody {
@@ -2164,6 +2317,52 @@ export interface RequestsTotpReq {
      */
     'otp': string;
 }
+/**
+ * 
+ * @export
+ * @interface RequestsUpdateProfileCustomRuleBody
+ */
+export interface RequestsUpdateProfileCustomRuleBody {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsUpdateProfileCustomRuleBody
+     */
+    'action'?: RequestsUpdateProfileCustomRuleBodyActionEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsUpdateProfileCustomRuleBody
+     */
+    'group'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsUpdateProfileCustomRuleBody
+     */
+    'note'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof RequestsUpdateProfileCustomRuleBody
+     */
+    'order'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsUpdateProfileCustomRuleBody
+     */
+    'value'?: string;
+}
+
+export const RequestsUpdateProfileCustomRuleBodyActionEnum = {
+    Block: 'block',
+    Allow: 'allow',
+    Comment: 'comment'
+} as const;
+
+export type RequestsUpdateProfileCustomRuleBodyActionEnum = typeof RequestsUpdateProfileCustomRuleBodyActionEnum[keyof typeof RequestsUpdateProfileCustomRuleBodyActionEnum];
+
 /**
  * 
  * @export
@@ -4725,6 +4924,46 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRuleGroupsPatch: async (id: string, body: RequestsCustomRuleGroupUpdates, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRuleGroupsPatch', 'id', id)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRuleGroupsPatch', 'body', body)
+            const localVarPath = `/api/v1/profiles/{id}/custom_rule_groups`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Create up to 20 custom rules for a profile in a single request
          * @summary Create profile custom rules (batch)
          * @param {string} id Profile ID
@@ -4796,6 +5035,46 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Set the display order of a profile\'s custom rules. Order is organizational only and does not affect filtering precedence.
+         * @summary Reorder profile custom rules
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRulesBody} body Ordered rule IDs
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRulesOrderPatch: async (id: string, body: RequestsReorderProfileCustomRulesBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRulesOrderPatch', 'id', id)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRulesOrderPatch', 'body', body)
+            const localVarPath = `/api/v1/profiles/{id}/custom_rules/order`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -5108,6 +5387,50 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Partially update a single custom rule in place (value, action, note, group, order)
+         * @summary Update profile custom rule
+         * @param {string} profileId Profile ID
+         * @param {string} customRuleId Custom rule ID
+         * @param {RequestsUpdateProfileCustomRuleBody} body Update custom rule request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch: async (profileId: string, customRuleId: string, body: RequestsUpdateProfileCustomRuleBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'profileId' is not null or undefined
+            assertParamExists('apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch', 'profileId', profileId)
+            // verify required parameter 'customRuleId' is not null or undefined
+            assertParamExists('apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch', 'customRuleId', customRuleId)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch', 'body', body)
+            const localVarPath = `/api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id}`
+                .replace(`{${"profile_id"}}`, encodeURIComponent(String(profileId)))
+                .replace(`{${"custom_rule_id"}}`, encodeURIComponent(String(customRuleId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -5172,6 +5495,20 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesIdCustomRuleGroupsPatch']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Create up to 20 custom rules for a profile in a single request
          * @summary Create profile custom rules (batch)
          * @param {string} id Profile ID
@@ -5197,6 +5534,20 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdCustomRulesCustomRuleIdDelete(id, customRuleId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesIdCustomRulesCustomRuleIdDelete']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Set the display order of a profile\'s custom rules. Order is organizational only and does not affect filtering precedence.
+         * @summary Reorder profile custom rules
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRulesBody} body Ordered rule IDs
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdCustomRulesOrderPatch(id: string, body: RequestsReorderProfileCustomRulesBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdCustomRulesOrderPatch(id, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesIdCustomRulesOrderPatch']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -5308,6 +5659,21 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Partially update a single custom rule in place (value, action, note, group, order)
+         * @summary Update profile custom rule
+         * @param {string} profileId Profile ID
+         * @param {string} customRuleId Custom rule ID
+         * @param {RequestsUpdateProfileCustomRuleBody} body Update custom rule request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId: string, customRuleId: string, body: RequestsUpdateProfileCustomRuleBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelCustomRule>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId, customRuleId, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -5360,6 +5726,17 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdBlocklistsPost(id, blocklistIds, options).then((request) => request(axios, basePath));
         },
         /**
+         * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+         * @summary Update profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsCustomRuleGroupUpdates} body Group operations
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Create up to 20 custom rules for a profile in a single request
          * @summary Create profile custom rules (batch)
          * @param {string} id Profile ID
@@ -5380,6 +5757,17 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
          */
         apiV1ProfilesIdCustomRulesCustomRuleIdDelete(id: string, customRuleId: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.apiV1ProfilesIdCustomRulesCustomRuleIdDelete(id, customRuleId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Set the display order of a profile\'s custom rules. Order is organizational only and does not affect filtering precedence.
+         * @summary Reorder profile custom rules
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRulesBody} body Ordered rule IDs
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRulesOrderPatch(id: string, body: RequestsReorderProfileCustomRulesBody, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1ProfilesIdCustomRulesOrderPatch(id, body, options).then((request) => request(axios, basePath));
         },
         /**
          * Create profile custom rule
@@ -5466,6 +5854,18 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
         apiV1ProfilesPost(body: ApiCreateProfileBody, options?: RawAxiosRequestConfig): AxiosPromise<ModelProfile> {
             return localVarFp.apiV1ProfilesPost(body, options).then((request) => request(axios, basePath));
         },
+        /**
+         * Partially update a single custom rule in place (value, action, note, group, order)
+         * @summary Update profile custom rule
+         * @param {string} profileId Profile ID
+         * @param {string} customRuleId Custom rule ID
+         * @param {RequestsUpdateProfileCustomRuleBody} body Update custom rule request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId: string, customRuleId: string, body: RequestsUpdateProfileCustomRuleBody, options?: RawAxiosRequestConfig): AxiosPromise<ModelCustomRule> {
+            return localVarFp.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId, customRuleId, body, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -5526,6 +5926,19 @@ export class ProfileApi extends BaseAPI {
     }
 
     /**
+     * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
+     * @summary Update profile custom rule groups
+     * @param {string} id Profile ID
+     * @param {RequestsCustomRuleGroupUpdates} body Group operations
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesIdCustomRuleGroupsPatch(id: string, body: RequestsCustomRuleGroupUpdates, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesIdCustomRuleGroupsPatch(id, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
      * Create up to 20 custom rules for a profile in a single request
      * @summary Create profile custom rules (batch)
      * @param {string} id Profile ID
@@ -5549,6 +5962,19 @@ export class ProfileApi extends BaseAPI {
      */
     public apiV1ProfilesIdCustomRulesCustomRuleIdDelete(id: string, customRuleId: string, options?: RawAxiosRequestConfig) {
         return ProfileApiFp(this.configuration).apiV1ProfilesIdCustomRulesCustomRuleIdDelete(id, customRuleId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Set the display order of a profile\'s custom rules. Order is organizational only and does not affect filtering precedence.
+     * @summary Reorder profile custom rules
+     * @param {string} id Profile ID
+     * @param {RequestsReorderProfileCustomRulesBody} body Ordered rule IDs
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesIdCustomRulesOrderPatch(id: string, body: RequestsReorderProfileCustomRulesBody, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesIdCustomRulesOrderPatch(id, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5650,6 +6076,20 @@ export class ProfileApi extends BaseAPI {
      */
     public apiV1ProfilesPost(body: ApiCreateProfileBody, options?: RawAxiosRequestConfig) {
         return ProfileApiFp(this.configuration).apiV1ProfilesPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Partially update a single custom rule in place (value, action, note, group, order)
+     * @summary Update profile custom rule
+     * @param {string} profileId Profile ID
+     * @param {string} customRuleId Custom rule ID
+     * @param {RequestsUpdateProfileCustomRuleBody} body Update custom rule request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId: string, customRuleId: string, body: RequestsUpdateProfileCustomRuleBody, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(profileId, customRuleId, body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

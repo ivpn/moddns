@@ -2334,6 +2334,112 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerProfileCap() 
 	mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
 }
 
+// TestApplyCustomRuleGroupOps_Move (rename) reassigns the action's member rules and
+// moves the note within that list only.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_Move() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "ad note"}}},
+			CustomRules:      []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("ReassignCustomRuleGroup", ctx, profileID, "block", "Ads", "Marketing").Return(nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Marketing", Comment: "ad note"}}}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "move", Action: "block", From: "Ads", Group: "Marketing"},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_RemoveIsPerList deletes the denylist "Ads" group and
+// confirms the reassignment is action-scoped and the same-named allowlist group is
+// untouched.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_RemoveIsPerList() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{
+				Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "x"}},
+				Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep me"}},
+			},
+			CustomRules: []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	// Reassign is scoped to action "block" only.
+	suite.mockProfileRepo.On("ReassignCustomRuleGroup", ctx, profileID, "block", "Ads", "").Return(nil).Once()
+	// The allowlist "Ads" group survives; only the block entry is removed (→ nil).
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{
+		Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep me"}},
+	}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "remove", Action: "block", Group: "Ads"},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_AddSetsNote creates/updates a group note in the given
+// list without touching any rules.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_AddSetsNote() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+	note := "tracking domains"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{},
+			CustomRules:      []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: note}}}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "add", Action: "allow", Group: "Ads", Note: &note},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_RejectsBadAction rejects an op whose action is not
+// block/allow; the registry is not written.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_RejectsBadAction() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-empty"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings:  &model.ProfileSettings{CustomRuleGroups: model.CustomRuleGroups{}},
+	}
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "add", Action: "comment", Group: "Ads"},
+	})
+	suite.ErrorIs(err, model.ErrInvalidCustomRuleAction)
+}
+
 func TestProfileTestSuite(t *testing.T) {
 	suite.Run(t, new(ProfileTestSuite))
 }

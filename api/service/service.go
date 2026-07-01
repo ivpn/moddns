@@ -154,6 +154,9 @@ type ProfileServicer interface {
 	DeleteCustomRule(ctx context.Context, accountId, profileId, customRuleId string) error
 	CreateCustomRule(ctx context.Context, accountId, profileId, action, value string) error
 	CreateCustomRulesBulk(ctx context.Context, accountId, profileId, action string, values []string) (*profile.BulkCustomRuleResult, error)
+	UpdateCustomRule(ctx context.Context, accountId, profileId, customRuleId string, patch profile.CustomRulePatch) (*model.CustomRule, error)
+	ReorderCustomRules(ctx context.Context, accountId, profileId string, orderedIds []string) error
+	ApplyCustomRuleGroupOps(ctx context.Context, accountId, profileId string, ops []profile.CustomRuleGroupOp) error
 
 	// Blocklists
 	EnableBlocklists(ctx context.Context, accountId, profileId string, blocklistIds []string) error

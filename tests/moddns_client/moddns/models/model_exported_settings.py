@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
+from moddns.models.model_custom_rule_groups import ModelCustomRuleGroups
 from moddns.models.model_exported_advanced import ModelExportedAdvanced
 from moddns.models.model_exported_custom_rule import ModelExportedCustomRule
 from moddns.models.model_exported_logs import ModelExportedLogs
@@ -34,12 +35,13 @@ class ModelExportedSettings(BaseModel):
     ModelExportedSettings
     """ # noqa: E501
     advanced: Optional[ModelExportedAdvanced] = None
+    custom_rule_groups: Optional[ModelCustomRuleGroups] = Field(default=None, description="CustomRuleGroups is the per-list group registry; reuses the storage type (its json tags define the wire shape). Pointer so an empty registry is omitted. Round-trips with the rules' `group` field.", alias="customRuleGroups")
     custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=1000)]] = Field(default=None, description="CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.", alias="customRules")
     logs: Optional[ModelExportedLogs] = None
     privacy: Optional[ModelExportedPrivacy] = None
     security: Optional[ModelExportedSecurity] = None
     statistics: Optional[ModelExportedStatistics] = None
-    __properties: ClassVar[List[str]] = ["advanced", "customRules", "logs", "privacy", "security", "statistics"]
+    __properties: ClassVar[List[str]] = ["advanced", "customRuleGroups", "customRules", "logs", "privacy", "security", "statistics"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,6 +85,9 @@ class ModelExportedSettings(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of advanced
         if self.advanced:
             _dict['advanced'] = self.advanced.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of custom_rule_groups
+        if self.custom_rule_groups:
+            _dict['customRuleGroups'] = self.custom_rule_groups.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in custom_rules (list)
         _items = []
         if self.custom_rules:
@@ -115,6 +120,7 @@ class ModelExportedSettings(BaseModel):
 
         _obj = cls.model_validate({
             "advanced": ModelExportedAdvanced.from_dict(obj["advanced"]) if obj.get("advanced") is not None else None,
+            "customRuleGroups": ModelCustomRuleGroups.from_dict(obj["customRuleGroups"]) if obj.get("customRuleGroups") is not None else None,
             "customRules": [ModelExportedCustomRule.from_dict(_item) for _item in obj["customRules"]] if obj.get("customRules") is not None else None,
             "logs": ModelExportedLogs.from_dict(obj["logs"]) if obj.get("logs") is not None else None,
             "privacy": ModelExportedPrivacy.from_dict(obj["privacy"]) if obj.get("privacy") is not None else None,

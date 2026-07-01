@@ -28,6 +28,15 @@ const MaxCustomRulesPerProfile = 10000
 // regression test in profile_test.go keeps them aligned — change both together.
 const ExportedCustomRulesLimit = 1000
 
+// ExportedCustomRuleGroupsLimit is the maximum number of custom-rule groups emitted
+// per list (denylist/allowlist) in an export, and the per-list cap accepted on
+// import. Groups are not bounded by rule count (empty groups exist in the registry
+// independently of any rule), so they need their own modest guard against
+// empty-group bloat — real users have a handful. Mirrors the `max` literal in the
+// CustomRuleGroups.Block/Allow tags; the regression test in profile_test.go keeps
+// them aligned — change both together.
+const ExportedCustomRuleGroupsLimit = 100
+
 // Profile represents a DNS profile
 type Profile struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id" binding:"required"`

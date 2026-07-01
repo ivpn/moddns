@@ -1,0 +1,39 @@
+[
+  {
+    "update": "profiles",
+    "updates": [
+      {
+        "q": {},
+        "u": [
+          {
+            "$set": {
+              "settings.custom_rules": {
+                "$map": {
+                  "input": {
+                    "$range": [
+                      0,
+                      { "$size": { "$ifNull": ["$settings.custom_rules", []] } }
+                    ]
+                  },
+                  "as": "idx",
+                  "in": {
+                    "$mergeObjects": [
+                      { "note": "", "group": "" },
+                      { "$arrayElemAt": ["$settings.custom_rules", "$$idx"] },
+                      { "order": "$$idx" }
+                    ]
+                  }
+                }
+              },
+              "settings.custom_rule_groups": {
+                "$ifNull": ["$settings.custom_rule_groups", {}]
+              }
+            }
+          }
+        ],
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

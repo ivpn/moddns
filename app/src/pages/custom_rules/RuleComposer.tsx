@@ -35,7 +35,7 @@ export interface RuleOption {
 interface RuleComposerProps {
     tokens: RuleOption[];
     onTokensChange: (next: RuleOption[]) => void;
-    onSubmit: () => void;
+    onSubmit: (tokensOverride?: RuleOption[]) => void;
     loading: boolean;
     action: "denylist" | "allowlist";
     className?: string;
@@ -207,9 +207,9 @@ export function RuleComposer({
     const hasValidTokens = tokens.some((token) => !token.meta?.error);
     const availableSlots = MAX_RULES_PER_BATCH - tokens.length;
 
-    const addTokens = (rawValues: string[]) => {
+    const addTokens = (rawValues: string[]): RuleOption[] => {
         if (rawValues.length === 0) {
-            return;
+            return tokens;
         }
 
         const normalizedSet = new Set<string>();
@@ -243,8 +243,9 @@ export function RuleComposer({
             slots -= 1;
         });
 
+        const merged = added.length > 0 ? [...tokens, ...added] : tokens;
         if (added.length > 0) {
-            onTokensChange([...tokens, ...added]);
+            onTokensChange(merged);
         }
 
         if (duplicates.length > 0) {
@@ -256,6 +257,19 @@ export function RuleComposer({
         }
 
         setInputValue("");
+        return merged;
+    };
+
+    // handleAddClick powers the "+" / "Add" button. It first commits any text the
+    // user typed but did not yet turn into a chip, then submits the merged list in
+    // the same click — fixing the long-standing "nothing happens / press Enter
+    // twice" confusion.
+    const handleAddClick = () => {
+        const merged = inputValue.trim() ? addTokens(splitRulesFromInput(inputValue)) : tokens;
+        const submittable = merged.filter((token) => !token.meta?.error);
+        if (submittable.length > 0 && !loading) {
+            onSubmit(merged);
+        }
     };
 
     const handleCreateOption = (value: string) => {
@@ -338,8 +352,8 @@ export function RuleComposer({
             </div>
             <Button
                 className="flex items-center justify-center w-11 h-11 md:w-auto md:h-9 md:px-4 md:gap-2 rounded-md bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)]"
-                onClick={onSubmit}
-                disabled={loading || !hasValidTokens}
+                onClick={handleAddClick}
+                disabled={loading || (!hasValidTokens && !inputValue.trim())}
                 aria-label={`Add to ${action === "denylist" ? "Denylist" : "Allowlist"}`}
                 type="button"
             >

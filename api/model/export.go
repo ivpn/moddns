@@ -60,9 +60,13 @@ type ExportedSettings struct {
 	Security *ExportedSecurity `json:"security,omitempty"`
 	// CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.
 	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=1000,dive"`
-	Logs        *ExportedLogs        `json:"logs,omitempty"`
-	Statistics  *ExportedStatistics  `json:"statistics,omitempty"`
-	Advanced    *ExportedAdvanced    `json:"advanced,omitempty"`
+	// CustomRuleGroups is the per-list group registry; reuses the storage type
+	// (its json tags define the wire shape). Pointer so an empty registry is
+	// omitted. Round-trips with the rules' `group` field.
+	CustomRuleGroups *CustomRuleGroups   `json:"customRuleGroups,omitempty"`
+	Logs             *ExportedLogs       `json:"logs,omitempty"`
+	Statistics       *ExportedStatistics `json:"statistics,omitempty"`
+	Advanced         *ExportedAdvanced   `json:"advanced,omitempty"`
 }
 
 // ExportedPrivacy carries the privacy section of a profile.
@@ -90,11 +94,17 @@ type ExportedDNSSEC struct {
 
 // ExportedCustomRule represents a single user-authored filtering rule.
 // Note: addedAt is not in v1 -- CustomRule model has no timestamp field.
+// The rule's display `order` is intentionally NOT exported: it is positional and
+// re-derived from the array index on import.
 // specRef: V10–V14, F4
 type ExportedCustomRule struct {
-	Action  string `json:"action"            validate:"required,oneof=block allow comment"`
-	Value   string `json:"value"             validate:"required,max=255"`
-	Comment string `json:"comment,omitempty" validate:"omitempty,max=200,safe_name"`
+	Action string `json:"action"          validate:"required,oneof=block allow comment"`
+	Value  string `json:"value"           validate:"required,max=255"`
+	// Note is a free-text annotation. Free text (not safe_name) so users can write
+	// arbitrary reminders; length-capped to match the model/PATCH validators.
+	Note string `json:"note,omitempty"  validate:"omitempty,max=80"`
+	// Group is the optional organizational label this rule belongs to.
+	Group string `json:"group,omitempty" validate:"omitempty,max=64"`
 }
 
 // ExportedLogs carries the log settings for a profile.

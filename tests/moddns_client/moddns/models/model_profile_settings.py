@@ -17,10 +17,11 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_advanced import ModelAdvanced
 from moddns.models.model_custom_rule import ModelCustomRule
+from moddns.models.model_custom_rule_groups import ModelCustomRuleGroups
 from moddns.models.model_logs_settings import ModelLogsSettings
 from moddns.models.model_privacy import ModelPrivacy
 from moddns.models.model_security import ModelSecurity
@@ -33,13 +34,14 @@ class ModelProfileSettings(BaseModel):
     ModelProfileSettings
     """ # noqa: E501
     advanced: ModelAdvanced
+    custom_rule_groups: Optional[ModelCustomRuleGroups] = Field(default=None, description="CustomRuleGroups is the per-list group registry (denylist/allowlist). Organizational metadata only; never synced to the proxy (redis:\"-\").")
     custom_rules: Optional[List[ModelCustomRule]] = None
     logs: ModelLogsSettings
     privacy: ModelPrivacy
     profile_id: StrictStr
     security: ModelSecurity
     statistics: ModelStatisticsSettings
-    __properties: ClassVar[List[str]] = ["advanced", "custom_rules", "logs", "privacy", "profile_id", "security", "statistics"]
+    __properties: ClassVar[List[str]] = ["advanced", "custom_rule_groups", "custom_rules", "logs", "privacy", "profile_id", "security", "statistics"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,6 +85,9 @@ class ModelProfileSettings(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of advanced
         if self.advanced:
             _dict['advanced'] = self.advanced.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of custom_rule_groups
+        if self.custom_rule_groups:
+            _dict['custom_rule_groups'] = self.custom_rule_groups.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in custom_rules (list)
         _items = []
         if self.custom_rules:
@@ -115,6 +120,7 @@ class ModelProfileSettings(BaseModel):
 
         _obj = cls.model_validate({
             "advanced": ModelAdvanced.from_dict(obj["advanced"]) if obj.get("advanced") is not None else None,
+            "custom_rule_groups": ModelCustomRuleGroups.from_dict(obj["custom_rule_groups"]) if obj.get("custom_rule_groups") is not None else None,
             "custom_rules": [ModelCustomRule.from_dict(_item) for _item in obj["custom_rules"]] if obj.get("custom_rules") is not None else None,
             "logs": ModelLogsSettings.from_dict(obj["logs"]) if obj.get("logs") is not None else None,
             "privacy": ModelPrivacy.from_dict(obj["privacy"]) if obj.get("privacy") is not None else None,

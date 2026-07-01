@@ -17,28 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, ClassVar, Dict, List
 from typing_extensions import Annotated
+from moddns.models.requests_custom_rule_group_update import RequestsCustomRuleGroupUpdate
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelExportedCustomRule(BaseModel):
+class RequestsCustomRuleGroupUpdates(BaseModel):
     """
-    ModelExportedCustomRule
+    RequestsCustomRuleGroupUpdates
     """ # noqa: E501
-    action: StrictStr
-    group: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="Group is the optional organizational label this rule belongs to.")
-    note: Optional[Annotated[str, Field(strict=True, max_length=80)]] = Field(default=None, description="Note is a free-text annotation. Free text (not safe_name) so users can write arbitrary reminders; length-capped to match the model/PATCH validators.")
-    value: Annotated[str, Field(strict=True, max_length=255)]
-    __properties: ClassVar[List[str]] = ["action", "group", "note", "value"]
-
-    @field_validator('action')
-    def action_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['block', 'allow', 'comment']):
-            raise ValueError("must be one of enum values ('block', 'allow', 'comment')")
-        return value
+    updates: Annotated[List[RequestsCustomRuleGroupUpdate], Field(min_length=1, max_length=50)]
+    __properties: ClassVar[List[str]] = ["updates"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -58,7 +49,7 @@ class ModelExportedCustomRule(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a JSON string"""
+        """Create an instance of RequestsCustomRuleGroupUpdates from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,11 +70,18 @@ class ModelExportedCustomRule(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in updates (list)
+        _items = []
+        if self.updates:
+            for _item_updates in self.updates:
+                if _item_updates:
+                    _items.append(_item_updates.to_dict())
+            _dict['updates'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelExportedCustomRule from a dict"""
+        """Create an instance of RequestsCustomRuleGroupUpdates from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +89,7 @@ class ModelExportedCustomRule(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "action": obj.get("action"),
-            "group": obj.get("group"),
-            "note": obj.get("note"),
-            "value": obj.get("value")
+            "updates": [RequestsCustomRuleGroupUpdate.from_dict(_item) for _item in obj["updates"]] if obj.get("updates") is not None else None
         })
         return _obj
 

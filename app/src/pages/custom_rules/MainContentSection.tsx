@@ -11,13 +11,20 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import api from "@/api/api";
 import { toast } from "sonner";
-import type { ModelAccount, ModelCustomRule, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
+import type { ModelAccount, ModelCustomRule, ModelCustomRuleGroup, ModelProfile, ResponsesCustomRuleBatchSkipped } from "@/api/client/api";
 import { RuleComposer, type RuleOption } from "@/pages/custom_rules/RuleComposer";
 import CustomRulesCard from "@/pages/custom_rules/CustomRulesCard";
+import RuleEditDialog from "@/pages/custom_rules/RuleEditDialog";
+import type { RequestsUpdateProfileCustomRuleBody, RequestsCustomRuleGroupUpdate } from "@/api/client/api";
+import { RequestsCustomRuleGroupUpdateOperationEnum as GroupOp } from "@/api/client/api";
 import CustomRulesExportLimitBanner from "@/pages/custom_rules/CustomRulesExportLimitBanner";
 import { formatApiError } from "@/lib/apiError";
 
 type RuleTab = "denylist" | "allowlist";
+
+// toPointer encodes a group name as a single-segment RFC6901 JSON Pointer so it can
+// travel in the group-ops request body (never the URL). Escape ~ before /.
+const toPointer = (name: string): string => `/${name.replace(/~/g, "~0").replace(/\//g, "~1")}`;
 
 const TAB_TO_ACTION: Record<RuleTab, "block" | "allow"> = {
     denylist: "block",
@@ -40,6 +47,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
     const [loading, setLoading] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [editingRule, setEditingRule] = useState<ModelCustomRule | null>(null);
     const [composerTokens, setComposerTokens] = useState<Record<RuleTab, RuleOption[]>>({
         denylist: [],
         allowlist: [],
@@ -63,7 +71,10 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile, profiles, setActiveProfile]);
 
-    const customRules: ModelCustomRule[] = activeProfile?.settings?.custom_rules ?? [];
+    const customRules: ModelCustomRule[] = useMemo(
+        () => activeProfile?.settings?.custom_rules ?? [],
+        [activeProfile?.settings?.custom_rules],
+    );
     const denylist = customRules.filter(rule => rule.action === "block");
     const allowlist = customRules.filter(rule => rule.action === "allow");
     const denylistHasRules = denylist.length > 0;
@@ -81,13 +92,15 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeTabHasRules]);
 
-    const handleComposerSubmit = useCallback(async (tab: RuleTab) => {
+    const handleComposerSubmit = useCallback(async (tab: RuleTab, tokensOverride?: RuleOption[]) => {
         if (!activeProfile?.profile_id) {
             toast.error("Select a profile before adding custom rules.");
             return;
         }
 
-        const originalTokens = composerTokens[tab];
+        // tokensOverride is supplied by the Add button so a value typed-but-not-yet-
+        // chipped is included without waiting for a parent re-render.
+        const originalTokens = tokensOverride ?? composerTokens[tab];
         const staticTokens = originalTokens.filter(token => token.meta?.error);
         const submissionTokens = originalTokens.filter(token => !token.meta?.error);
 
@@ -220,6 +233,157 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         }
     }, [activeProfile?.profile_id, selectedIds, setActiveProfile]);
 
+    // Edit a single rule in place via the PATCH endpoint, then refetch to sync.
+    const handleSaveEdit = useCallback(async (ruleId: string, patch: RequestsUpdateProfileCustomRuleBody) => {
+        if (!activeProfile?.profile_id) return;
+        if (Object.keys(patch).length === 0) {
+            setEditingRule(null);
+            return;
+        }
+        setLoading(true);
+        try {
+            await api.Client.profilesApi.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(
+                activeProfile.profile_id,
+                ruleId,
+                patch,
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+            toast.success("Rule updated.");
+            setEditingRule(null);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to update rule"));
+        } finally {
+            setLoading(false);
+        }
+    }, [activeProfile?.profile_id, setActiveProfile]);
+
+    // Persist a drag-reorder. The card sends the active tab's full ordered IDs; we
+    // build the complete per-profile order (other tab keeps its order) so the
+    // backend renumbers everything without cross-tab collisions.
+    const handleReorder = useCallback(async (tab: RuleTab, orderedIdsForTab: string[]) => {
+        if (!activeProfile?.profile_id) return;
+        const byOrder = (a: ModelCustomRule, b: ModelCustomRule) => (a.order ?? 0) - (b.order ?? 0);
+        const denyIds = tab === "denylist" ? orderedIdsForTab : denylist.slice().sort(byOrder).map(r => r.id);
+        const allowIds = tab === "allowlist" ? orderedIdsForTab : allowlist.slice().sort(byOrder).map(r => r.id);
+        const fullOrder = [...denyIds, ...allowIds];
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRulesOrderPatch(
+                activeProfile.profile_id,
+                { order: fullOrder },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to reorder rules"));
+            // Revert optimistic ordering by refetching the persisted state.
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        }
+    }, [activeProfile?.profile_id, denylist, allowlist, setActiveProfile]);
+
+    // All group-registry mutations go through one JSON-Patch endpoint. Group names
+    // travel in the JSON-Pointer path/from (RFC6901), never the URL. Reverts via
+    // refetch on error.
+    const applyGroupOps = useCallback(async (
+        ops: RequestsCustomRuleGroupUpdate[],
+        failMsg: string,
+        successMsg?: string,
+    ) => {
+        if (!activeProfile?.profile_id) return;
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRuleGroupsPatch(
+                activeProfile.profile_id, { updates: ops },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+            if (successMsg) toast.success(successMsg);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, failMsg));
+        }
+    }, [activeProfile?.profile_id, setActiveProfile]);
+
+    // Save (or clear) a group note in a specific list. A cleared note keeps the
+    // group (replace "").
+    const handleGroupNote = useCallback((action: "block" | "allow", group: string, note: string | null) => {
+        void applyGroupOps(
+            [{ operation: GroupOp.Replace, action, path: toPointer(group), value: note ?? "" }],
+            "Failed to save group note",
+        );
+    }, [applyGroupOps]);
+
+    // Move a rule to another group (drag): set its group, then renumber the tab's
+    // full order, then a single refetch. Reverts via refetch on error.
+    const handleMoveRule = useCallback(async (tab: RuleTab, orderedIdsForTab: string[], ruleId: string, newGroup: string) => {
+        if (!activeProfile?.profile_id) return;
+        const byOrder = (a: ModelCustomRule, b: ModelCustomRule) => (a.order ?? 0) - (b.order ?? 0);
+        const denyIds = tab === "denylist" ? orderedIdsForTab : denylist.slice().sort(byOrder).map(r => r.id);
+        const allowIds = tab === "allowlist" ? orderedIdsForTab : allowlist.slice().sort(byOrder).map(r => r.id);
+        const fullOrder = [...denyIds, ...allowIds];
+        try {
+            await api.Client.profilesApi.apiV1ProfilesProfileIdCustomRulesCustomRuleIdPatch(
+                activeProfile.profile_id, ruleId, { group: newGroup },
+            );
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRulesOrderPatch(
+                activeProfile.profile_id, { order: fullOrder },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to move rule"));
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        }
+    }, [activeProfile?.profile_id, denylist, allowlist, setActiveProfile]);
+
+    // Create an empty group in a specific list (registers it in custom_rule_groups).
+    const handleCreateGroup = useCallback((action: "block" | "allow", name: string) => {
+        void applyGroupOps(
+            [{ operation: GroupOp.Add, action, path: toPointer(name), value: "" }],
+            "Failed to create group",
+        );
+    }, [applyGroupOps]);
+
+    const handleRenameGroup = useCallback((action: "block" | "allow", from: string, to: string) => {
+        void applyGroupOps(
+            [{ operation: GroupOp.Move, action, from: toPointer(from), path: toPointer(to) }],
+            "Failed to rename group",
+            `Group renamed to "${to}".`,
+        );
+    }, [applyGroupOps]);
+
+    const handleDeleteGroup = useCallback((action: "block" | "allow", name: string) => {
+        void applyGroupOps(
+            [{ operation: GroupOp.Remove, action, path: toPointer(name) }],
+            "Failed to delete group",
+            `Group "${name}" deleted. Its rules moved to Ungrouped.`,
+        );
+    }, [applyGroupOps]);
+
+    // Per-list group registry. The cards consume a name→comment map, so flatten
+    // each list's [{name, comment}] into that shape.
+    const groupRegistry = activeProfile?.settings?.custom_rule_groups;
+    const toNoteMap = (list?: ModelCustomRuleGroup[]): Record<string, string> =>
+        Object.fromEntries((list ?? []).map(g => [g.name, g.comment ?? ""]));
+    const denyGroupNotes = useMemo(() => toNoteMap(groupRegistry?.block), [groupRegistry?.block]);
+    const allowGroupNotes = useMemo(() => toNoteMap(groupRegistry?.allow), [groupRegistry?.allow]);
+
+    // Groups offered in the edit dialog are scoped to the rule's current list.
+    const existingGroups = useMemo(() => {
+        const action = editingRule?.action;
+        if (action !== "block" && action !== "allow") return [];
+        const registry = action === "block" ? groupRegistry?.block : groupRegistry?.allow;
+        return Array.from(
+            new Set([
+                ...customRules
+                    .filter(r => r.action === action)
+                    .map(r => r.group)
+                    .filter((g): g is string => !!g && g.trim() !== ""),
+                ...(registry ?? []).map(g => g.name).filter(n => n.trim() !== ""),
+            ]),
+        ).sort();
+    }, [customRules, groupRegistry?.block, groupRegistry?.allow, editingRule?.action]);
+
     // Show header only if at least one is selected
     const allSelected = selectedIds.length > 0;
     const selectedCount = selectedIds.length;
@@ -316,7 +480,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                         action={activeTab}
                                         tokens={composerTokens[activeTab]}
                                         onTokensChange={(next) => updateComposerTokens(activeTab, next)}
-                                        onSubmit={() => handleComposerSubmit(activeTab)}
+                                        onSubmit={(override) => handleComposerSubmit(activeTab, override)}
                                         loading={loading || !activeProfile?.profile_id || isRestricted}
                                         className="flex-1 min-w-0"
                                     />
@@ -367,9 +531,17 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="denylist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredDenylist}
+                                groupNotes={denyGroupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
+                                onEdit={setEditingRule}
+                                onReorder={(ids) => handleReorder("denylist", ids)}
+                                onMoveRule={(ids, ruleId, g) => handleMoveRule("denylist", ids, ruleId, g)}
+                                onSaveGroupNote={(group, note) => handleGroupNote("block", group, note)}
+                                onCreateGroup={(name) => handleCreateGroup("block", name)}
+                                onRenameGroup={(from, to) => handleRenameGroup("block", from, to)}
+                                onDeleteGroup={(name) => handleDeleteGroup("block", name)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -381,9 +553,17 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                         <TabsContent value="allowlist" className="flex flex-col gap-4 mt-2 flex-1">
                             <CustomRulesCard
                                 rules={filteredAllowlist}
+                                groupNotes={allowGroupNotes}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
+                                onEdit={setEditingRule}
+                                onReorder={(ids) => handleReorder("allowlist", ids)}
+                                onMoveRule={(ids, ruleId, g) => handleMoveRule("allowlist", ids, ruleId, g)}
+                                onSaveGroupNote={(group, note) => handleGroupNote("allow", group, note)}
+                                onCreateGroup={(name) => handleCreateGroup("allow", name)}
+                                onRenameGroup={(from, to) => handleRenameGroup("allow", from, to)}
+                                onDeleteGroup={(name) => handleDeleteGroup("allow", name)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -397,6 +577,15 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                     </Tabs>
                 </div>
             </div>
+
+            <RuleEditDialog
+                rule={editingRule}
+                open={editingRule !== null}
+                onOpenChange={(open) => { if (!open) setEditingRule(null); }}
+                existingGroups={existingGroups}
+                loading={loading}
+                onSave={handleSaveEdit}
+            />
         </div>
     );
 }
