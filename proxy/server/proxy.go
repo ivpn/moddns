@@ -11,6 +11,7 @@ import (
 	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/service"
 	"github.com/ivpn/dns/proxy/config"
+	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/rs/zerolog/log"
 )
 
@@ -67,9 +68,12 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to create upstream: %w", err)
 		}
+		// Wrap the upstream so we can read the DNSSEC-failure EDE code from the
+		// response before dnsproxy's filterMsg strips the OPT (see EmitQueryLog).
+		wrappedUps := dnssec.NewCapturingUpstream(ups, s.edeStore)
 		upCfg := &proxy.UpstreamConfig{
 			Upstreams: []upstream.Upstream{
-				ups,
+				wrappedUps,
 			},
 		}
 		customUpstreamConfig := proxy.NewCustomUpstreamConfig(
