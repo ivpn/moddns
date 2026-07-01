@@ -24,6 +24,7 @@ import VerificationBanner from '@/pages/setup/VerificationBanner';
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
+import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import SetupGuidePanel from './RightPanelGuide';
 
 
@@ -235,13 +236,18 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                         <Card
                                                             key={platformIndex}
                                                             data-testid={`setup-platform-card-desktop-${platform.name.replace(/\s+/g, '-').toLowerCase()}`}
-                                                            className={`flex-1 rounded-md transition-all duration-300 ${platform.disabled
-                                                                ? 'opacity-0 pointer-events-none'
-                                                                : `hover:scale-105 cursor-pointer transform ${selectedPlatform === platform.name
-                                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent'
-                                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
-                                                                }`
-                                                                }`}
+                                                            className={cn(
+                                                                "flex-1 rounded-md",
+                                                                platform.disabled
+                                                                    ? "opacity-0 pointer-events-none transition-all duration-300"
+                                                                    : cn(
+                                                                        INTERACTIVE_CARD,
+                                                                        "transform",
+                                                                        selectedPlatform === platform.name
+                                                                            ? "bg-[var(--tailwind-colors-rdns-600)] border-transparent"
+                                                                            : "bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]"
+                                                                    )
+                                                            )}
                                                             onClick={platform.disabled ? undefined : () => handlePlatformClick(platform.name)}
                                                         >
                                                             <CardContent className="flex items-center justify-center gap-3">
@@ -259,10 +265,13 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                             {/* Device Identification Card - full width */}
                                             <Card
                                                 data-testid="setup-platform-card-desktop-device-identification"
-                                                className={`w-full rounded-md hover:scale-105 transition-all duration-300 cursor-pointer transform ${selectedPlatform === 'Device Identification'
-                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
-                                                    }`}
+                                                className={cn(
+                                                    "w-full rounded-md transform",
+                                                    INTERACTIVE_CARD,
+                                                    selectedPlatform === 'Device Identification'
+                                                        ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
+                                                        : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                )}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >
                                                 <CardContent className="flex items-center gap-3 p-4">
@@ -300,10 +309,13 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                 <Card
                                                     key={idx}
                                                     data-testid={`setup-platform-card-${platform.name.replace(/\s+/g, '-').toLowerCase()}`}
-                                                    className={`rounded-md hover:scale-[1.03] active:scale-100 transition-all duration-300 cursor-pointer ${selectedPlatform === platform.name
-                                                        ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent'
-                                                        : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
-                                                        }`}
+                                                    className={cn(
+                                                        "rounded-md",
+                                                        INTERACTIVE_CARD,
+                                                        selectedPlatform === platform.name
+                                                            ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent'
+                                                            : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                    )}
                                                     onClick={() => handlePlatformClick(platform.name)}
                                                 >
                                                     <CardContent className="flex flex-col items-center justify-center gap-2 py-4 px-2">
@@ -318,10 +330,13 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                             ))}
                                             <Card
                                                 data-testid="setup-platform-card-device-identification"
-                                                className={`col-span-2 xs:col-span-3 rounded-md hover:scale-[1.02] transition-all duration-300 cursor-pointer ${selectedPlatform === 'Device Identification'
-                                                    ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
-                                                    : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
-                                                    }`}
+                                                className={cn(
+                                                    "col-span-2 xs:col-span-3 rounded-md",
+                                                    INTERACTIVE_CARD,
+                                                    selectedPlatform === 'Device Identification'
+                                                        ? 'bg-[var(--tailwind-colors-rdns-600)] border-transparent shadow-lg shadow-[var(--tailwind-colors-rdns-600)]/20'
+                                                        : 'bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent hover:bg-[var(--shadcn-ui-app-accent)]'
+                                                )}
                                                 onClick={() => handlePlatformClick('Device Identification')}
                                             >
                                                 <CardContent className="flex items-center gap-3 p-4">
