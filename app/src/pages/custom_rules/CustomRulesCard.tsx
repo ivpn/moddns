@@ -370,8 +370,8 @@ function NewGroupZone({
                 "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-sm font-medium transition-colors cursor-pointer",
                 isOver
                     // Brighter while a rule is dragged over — the active drop target.
-                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/20 text-[var(--tailwind-colors-rdns-600)]"
-                    : "border-[var(--tailwind-colors-rdns-600)]/40 bg-[var(--tailwind-colors-rdns-600)]/10 text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/20 hover:border-[var(--tailwind-colors-rdns-600)]",
+                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/10 text-[var(--tailwind-colors-rdns-600)]"
+                    : "border-[var(--tailwind-colors-rdns-600)]/40 bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/10 hover:border-[var(--tailwind-colors-rdns-600)]",
             ].join(" ")}
         >
             <FolderPlus className="w-4 h-4" />
