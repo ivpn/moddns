@@ -360,13 +360,34 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         );
     }, [applyGroupOps]);
 
-    // Per-list group registry. The cards consume a name→comment map, so flatten
-    // each list's [{name, comment}] into that shape.
+    // Persist a group-reorder (drag of a group header). The card sends the complete
+    // ordered name list for one list; unknown names are ignored and omitted groups
+    // keep their order server-side. Optimistic UI lives in the card; revert by refetch.
+    const handleReorderGroups = useCallback(async (action: "block" | "allow", orderedNames: string[]) => {
+        if (!activeProfile?.profile_id) return;
+        try {
+            await api.Client.profilesApi.apiV1ProfilesIdCustomRuleGroupsOrderPatch(
+                activeProfile.profile_id,
+                { action, order: orderedNames },
+            );
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        } catch (error: unknown) {
+            toast.error(formatApiError(error, "Failed to reorder groups"));
+            const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
+            setActiveProfile(updated.data);
+        }
+    }, [activeProfile?.profile_id, setActiveProfile]);
+
+    // Per-list group registry. The cards consume a name→comment map (notes) plus an
+    // ordered name list (display order); flatten each list's [{name, comment}] into both.
     const groupRegistry = activeProfile?.settings?.custom_rule_groups;
     const toNoteMap = (list?: ModelCustomRuleGroup[]): Record<string, string> =>
         Object.fromEntries((list ?? []).map(g => [g.name, g.comment ?? ""]));
     const denyGroupNotes = useMemo(() => toNoteMap(groupRegistry?.block), [groupRegistry?.block]);
     const allowGroupNotes = useMemo(() => toNoteMap(groupRegistry?.allow), [groupRegistry?.allow]);
+    const denyGroupOrder = useMemo(() => (groupRegistry?.block ?? []).map(g => g.name), [groupRegistry?.block]);
+    const allowGroupOrder = useMemo(() => (groupRegistry?.allow ?? []).map(g => g.name), [groupRegistry?.allow]);
 
     // Groups offered in the edit dialog are scoped to the rule's current list.
     const existingGroups = useMemo(() => {
@@ -532,6 +553,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                             <CustomRulesCard
                                 rules={filteredDenylist}
                                 groupNotes={denyGroupNotes}
+                                groupOrder={denyGroupOrder}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
@@ -542,6 +564,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                 onCreateGroup={(name) => handleCreateGroup("block", name)}
                                 onRenameGroup={(from, to) => handleRenameGroup("block", from, to)}
                                 onDeleteGroup={(name) => handleDeleteGroup("block", name)}
+                                onReorderGroups={(names) => handleReorderGroups("block", names)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}
@@ -554,6 +577,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                             <CustomRulesCard
                                 rules={filteredAllowlist}
                                 groupNotes={allowGroupNotes}
+                                groupOrder={allowGroupOrder}
                                 selectedIds={selectedIds}
                                 onCheck={handleEntryCheck}
                                 onDelete={(id: string) => { void handleDeleteRule(id); }}
@@ -564,6 +588,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
                                 onCreateGroup={(name) => handleCreateGroup("allow", name)}
                                 onRenameGroup={(from, to) => handleRenameGroup("allow", from, to)}
                                 onDeleteGroup={(name) => handleDeleteGroup("allow", name)}
+                                onReorderGroups={(names) => handleReorderGroups("allow", names)}
                                 allSelected={allSelected}
                                 selectedCount={selectedCount}
                                 handleBulkDelete={handleBulkDelete}

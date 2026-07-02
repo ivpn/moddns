@@ -74,9 +74,21 @@ const isGroupDropId = (id: string) => isContainerId(id) || isHeaderDropId(id);
 const groupFromDropId = (id: string) =>
     isHeaderDropId(id) ? groupFromHeader(id) : groupFromContainer(id);
 
+// Group headers are reorderable via their own sortable layer. Their sortable ids use
+// a distinct prefix so they never collide with rule ids or the `group:` droppable /
+// NEW_GROUP_ZONE container ids shared by the rule-drag layer.
+const GROUP_SORT_PREFIX = "groupsort:";
+const groupSortId = (name: string) => `${GROUP_SORT_PREFIX}${name}`;
+const isGroupSortId = (id: string) => id.startsWith(GROUP_SORT_PREFIX);
+const groupFromSortId = (id: string) => id.slice(GROUP_SORT_PREFIX.length);
+
 export interface CustomRulesCardProps {
     rules: ModelCustomRule[];
     groupNotes: Record<string, string>;
+    // Ordered group names from the per-list registry (custom_rule_groups). Drives the
+    // display order of group sections; groups discovered only via a rule label are
+    // appended after these.
+    groupOrder: string[];
     selectedIds: string[];
     onCheck: (id: string, checked: boolean) => void;
     onDelete: (id: string) => void | Promise<void>;
@@ -87,6 +99,7 @@ export interface CustomRulesCardProps {
     onCreateGroup: (name: string) => void | Promise<void>;
     onRenameGroup: (from: string, to: string) => void | Promise<void>;
     onDeleteGroup: (name: string) => void | Promise<void>;
+    onReorderGroups: (orderedNames: string[]) => void | Promise<void>;
     allSelected: boolean;
     selectedCount: number;
     handleBulkDelete: () => void | Promise<void>;
@@ -202,6 +215,8 @@ function GroupHeader({
     onRename,
     onDelete,
     loading,
+    dragHandle,
+    groupDragActive,
 }: {
     name: string;
     count: number;
@@ -212,6 +227,8 @@ function GroupHeader({
     onRename: (to: string) => void;
     onDelete: () => void;
     loading: boolean;
+    dragHandle?: JSX.Element | null;
+    groupDragActive: boolean;
 }): JSX.Element {
     const [editingNote, setEditingNote] = useState(false);
     const [noteDraft, setNoteDraft] = useState(note);
@@ -223,7 +240,10 @@ function GroupHeader({
     // is not hittable, so without this a collapsed group could not receive a drop.
     // The destination is expanded after the drop (see handleDragEnd) rather than on
     // hover, to avoid shifting the layout mid-drag.
-    const { setNodeRef, isOver } = useDroppable({ id: headerDropId(name) });
+    // Disabled while a group is being dragged: this header droppable would otherwise
+    // compete with the group-reorder sortable for the same region and steal the
+    // `over` target, silently breaking group reordering.
+    const { setNodeRef, isOver } = useDroppable({ id: headerDropId(name), disabled: groupDragActive });
 
     useEffect(() => { setNoteDraft(note); }, [note]);
     useEffect(() => { setNameDraft(name); }, [name]);
@@ -269,6 +289,7 @@ function GroupHeader({
             ].join(" ")}
         >
             <div className="flex items-center gap-1 w-full">
+                {dragHandle}
                 <button
                     type="button"
                     onClick={onToggle}
@@ -405,9 +426,153 @@ function NewGroupZone({
     );
 }
 
+// ── Section body ───────────────────────────────────────────────────────────────
+// The collapse-animated list of a section's rules (its own rule-level SortableContext
+// + droppable). Shared by the Ungrouped section and every named group.
+function SectionBody({
+    section,
+    isCollapsed,
+    selectedIds,
+    onCheck,
+    onEntryDelete,
+    onEdit,
+    removingIds,
+    allSelected,
+    draggable,
+}: {
+    section: { name: string; items: ModelCustomRule[] };
+    isCollapsed: boolean;
+    selectedIds: string[];
+    onCheck: (id: string, checked: boolean) => void;
+    onEntryDelete: (id: string) => void;
+    onEdit: (rule: ModelCustomRule) => void;
+    removingIds: string[];
+    allSelected: boolean;
+    draggable: boolean;
+}): JSX.Element {
+    const isEmpty = section.items.length === 0;
+    const sectionIds = section.items.map(r => r.id);
+    return (
+        /* grid-template-rows 0fr<->1fr animates the section height fluidly without
+           measuring; the inner wrapper clips during the transition. Kept mounted so
+           it stays a drop target. */
+        <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}>
+            <div className={`min-h-0 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
+                <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+                    <DroppableSection group={section.name} isEmpty={isEmpty}>
+                        {section.items.map((rule) => (
+                            <SortableEntry
+                                key={rule.id}
+                                rule={rule}
+                                checked={selectedIds.includes(rule.id)}
+                                onCheck={onCheck}
+                                onDelete={onEntryDelete}
+                                onEdit={onEdit}
+                                isRemoving={removingIds.includes(rule.id)}
+                                hideDeleteButton={allSelected}
+                                draggable={draggable}
+                            />
+                        ))}
+                    </DroppableSection>
+                </SortableContext>
+            </div>
+        </div>
+    );
+}
+
+// ── Sortable group section ─────────────────────────────────────────────────────
+// A named group whose header carries a grip handle to reorder the whole section.
+// The group-level useSortable lives here (must be inside the group SortableContext),
+// while the rule-level SortableContext for its rows lives in SectionBody.
+function SortableGroupSection({
+    section,
+    collapsed,
+    onToggleCollapse,
+    note,
+    onSaveNote,
+    onRename,
+    onRequestDelete,
+    loading,
+    draggable,
+    groupDragActive,
+    selectedIds,
+    onCheck,
+    onEntryDelete,
+    onEdit,
+    removingIds,
+    allSelected,
+}: {
+    section: { name: string; items: ModelCustomRule[] };
+    collapsed: boolean;
+    onToggleCollapse: () => void;
+    note: string;
+    onSaveNote: (note: string | null) => void;
+    onRename: (to: string) => void;
+    onRequestDelete: () => void;
+    loading: boolean;
+    draggable: boolean;
+    groupDragActive: boolean;
+    selectedIds: string[];
+    onCheck: (id: string, checked: boolean) => void;
+    onEntryDelete: (id: string) => void;
+    onEdit: (rule: ModelCustomRule) => void;
+    removingIds: string[];
+    allSelected: boolean;
+}): JSX.Element {
+    const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+        id: groupSortId(section.name),
+        disabled: !draggable,
+    });
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+    };
+    const handle = draggable ? (
+        <button
+            type="button"
+            className="flex items-center justify-center cursor-grab active:cursor-grabbing touch-none text-[var(--tailwind-colors-slate-500)] hover:text-[var(--tailwind-colors-slate-200)] shrink-0 -ml-1"
+            aria-label={`Drag to reorder group ${section.name}`}
+            {...attributes}
+            {...listeners}
+        >
+            <GripVertical className="w-4 h-4" />
+        </button>
+    ) : null;
+    return (
+        <div ref={setNodeRef} style={style} className="w-full">
+            <GroupHeader
+                name={section.name}
+                count={section.items.length}
+                collapsed={collapsed}
+                onToggle={onToggleCollapse}
+                note={note}
+                onSaveNote={onSaveNote}
+                onRename={onRename}
+                onDelete={onRequestDelete}
+                loading={loading}
+                dragHandle={handle}
+                groupDragActive={groupDragActive}
+            />
+            <SectionBody
+                section={section}
+                isCollapsed={collapsed}
+                selectedIds={selectedIds}
+                onCheck={onCheck}
+                onEntryDelete={onEntryDelete}
+                onEdit={onEdit}
+                removingIds={removingIds}
+                allSelected={allSelected}
+                draggable={draggable}
+            />
+        </div>
+    );
+}
+
 export default function CustomRulesCard({
     rules,
     groupNotes,
+    groupOrder,
     selectedIds,
     onCheck,
     onDelete,
@@ -418,6 +583,7 @@ export default function CustomRulesCard({
     onCreateGroup,
     onRenameGroup,
     onDeleteGroup,
+    onReorderGroups,
     allSelected,
     selectedCount,
     handleBulkDelete,
@@ -428,6 +594,9 @@ export default function CustomRulesCard({
     const [removingIds, setRemovingIds] = useState<string[]>([]);
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
     const [activeId, setActiveId] = useState<string | null>(null);
+    // The group name currently being dragged (group-reorder layer), null when a rule
+    // (or nothing) is being dragged.
+    const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
     const [creatingGroup, setCreatingGroup] = useState(false);
     // When a row is dropped on the "new group" zone we hold its id and prompt for a name.
     const [pendingDropRuleId, setPendingDropRuleId] = useState<string | null>(null);
@@ -454,15 +623,31 @@ export default function CustomRulesCard({
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    // Group existence = union of the registry (groupNotes) and any rule's label.
-    const groupNames = useMemo(() => {
-        const set = new Set<string>();
-        for (const r of localRules) { const g = r.group ?? ""; if (g !== "") set.add(g); }
-        for (const k of Object.keys(groupNotes)) { if (k !== "") set.add(k); }
-        return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
-    }, [localRules, groupNotes]);
+    // Group display order = the registry order (groupOrder) first, then any group that
+    // exists only via a rule's label but isn't in the registry yet, appended
+    // alphabetically. Replaces the old purely-alphabetical ordering.
+    const derivedGroupNames = useMemo(() => {
+        const ordered: string[] = [];
+        const seen = new Set<string>();
+        for (const n of groupOrder) {
+            if (n !== "" && !seen.has(n)) { ordered.push(n); seen.add(n); }
+        }
+        const labelOnly = new Set<string>();
+        for (const r of localRules) {
+            const g = r.group ?? "";
+            if (g !== "" && !seen.has(g)) labelOnly.add(g);
+        }
+        const extras = Array.from(labelOnly).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        return [...ordered, ...extras];
+    }, [localRules, groupOrder]);
 
-    // Sections: Ungrouped first, then named groups alphabetically. Empty groups included.
+    // Local, optimistic copy so a group drag reorders instantly; reset when the derived
+    // order changes (i.e. after the persisted profile refetches). Mirrors localRules.
+    const [localGroupOrder, setLocalGroupOrder] = useState<string[]>(derivedGroupNames);
+    useEffect(() => { setLocalGroupOrder(derivedGroupNames); }, [derivedGroupNames]);
+    const groupNames = localGroupOrder;
+
+    // Sections: Ungrouped first, then named groups in stored order. Empty groups included.
     const sections = useMemo(() => {
         const byGroup = new Map<string, ModelCustomRule[]>();
         byGroup.set(UNGROUPED, []);
@@ -485,7 +670,9 @@ export default function CustomRulesCard({
     const draggable = searchQuery.trim().length === 0 && !allSelected && !loading;
 
     const handleDragStart = useCallback((event: DragStartEvent) => {
-        setActiveId(String(event.active.id));
+        const id = String(event.active.id);
+        if (isGroupSortId(id)) { setActiveGroupName(groupFromSortId(id)); return; }
+        setActiveId(id);
     }, []);
 
     // Live cross-section move: when the row hovers a different group, relabel it and
@@ -494,6 +681,8 @@ export default function CustomRulesCard({
         const { active, over } = event;
         if (!over) return;
         const activeKey = String(active.id);
+        // Group-reorder drags are finalised on drop; no live rule relabelling.
+        if (isGroupSortId(activeKey)) return;
         const overKey = String(over.id);
         if (overKey === NEW_GROUP_ZONE) return; // resolved on drop
 
@@ -526,6 +715,25 @@ export default function CustomRulesCard({
     const handleDragEnd = useCallback((event: DragEndEvent) => {
         const { active, over } = event;
         const activeKey = String(active.id);
+
+        // Group-reorder layer: reorder the group sections and persist the new order.
+        if (isGroupSortId(activeKey)) {
+            setActiveGroupName(null);
+            if (!over) return;
+            const overKey = String(over.id);
+            if (!isGroupSortId(overKey)) return;
+            const from = groupFromSortId(activeKey);
+            const to = groupFromSortId(overKey);
+            if (from === to) return;
+            const oldIndex = localGroupOrder.indexOf(from);
+            const newIndex = localGroupOrder.indexOf(to);
+            if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return;
+            const nextOrder = arrayMove(localGroupOrder, oldIndex, newIndex);
+            setLocalGroupOrder(nextOrder);
+            void onReorderGroups(nextOrder);
+            return;
+        }
+
         setActiveId(null);
 
         if (!over) { setLocalRules(sortedFromProps); return; }
@@ -571,7 +779,7 @@ export default function CustomRulesCard({
             const prevIds = sortedFromProps.map(r => r.id);
             if (orderedIds.join("|") !== prevIds.join("|")) void onReorder(orderedIds);
         }
-    }, [localRules, rules, sortedFromProps, onMoveRule, onReorder]);
+    }, [localRules, localGroupOrder, rules, sortedFromProps, onMoveRule, onReorder, onReorderGroups]);
 
     const confirmNewGroup = useCallback((name: string) => {
         if (pendingDropRuleId) {
@@ -595,8 +803,24 @@ export default function CustomRulesCard({
         setGroupToDelete(null);
     }, [groupToDelete, onDeleteGroup]);
 
+    const toggleCollapse = useCallback((name: string) => {
+        setCollapsed(prev => {
+            const next = new Set(prev);
+            if (next.has(name)) next.delete(name);
+            else next.add(name);
+            return next;
+        });
+    }, []);
+
     const activeRule = activeId ? localRules.find(r => r.id === activeId) : null;
     const hasNamedGroups = groupNames.length > 0;
+    // sections[0] is always Ungrouped; the rest are named groups in stored order.
+    const ungroupedSection = sections[0];
+    const namedSections = sections.slice(1);
+    const groupSortIds = namedSections.map(s => groupSortId(s.name));
+    const activeGroupSection = activeGroupName !== null
+        ? namedSections.find(s => s.name === activeGroupName)
+        : undefined;
 
     if (rules.length === 0) {
         if (searchQuery.trim().length > 0) {
@@ -655,69 +879,54 @@ export default function CustomRulesCard({
                 onDragEnd={handleDragEnd}
             >
                 <div className="flex flex-col items-start gap-2 w-full">
-                    {sections.map((section) => {
-                        const isCollapsed = collapsed.has(section.name);
-                        const sectionIds = section.items.map(r => r.id);
-                        const isEmpty = section.items.length === 0;
-                        // Hide the empty Ungrouped section unless named groups exist (so it can
-                        // serve as a "remove from group" target).
-                        if (section.name === UNGROUPED && isEmpty && !hasNamedGroups) return null;
-
-                        return (
-                            <div key={section.name || "__ungrouped__"} className="w-full">
-                                {section.name !== UNGROUPED ? (
-                                    <GroupHeader
-                                        name={section.name}
-                                        count={section.items.length}
-                                        collapsed={isCollapsed}
-                                        onToggle={() => setCollapsed(prev => {
-                                            const next = new Set(prev);
-                                            if (next.has(section.name)) next.delete(section.name);
-                                            else next.add(section.name);
-                                            return next;
-                                        })}
-                                        note={groupNotes[section.name] ?? ""}
-                                        onSaveNote={(n) => onSaveGroupNote(section.name, n)}
-                                        onRename={(to) => onRenameGroup(section.name, to)}
-                                        onDelete={() => setGroupToDelete(section.name)}
-                                        loading={loading}
-                                    />
-                                ) : (
-                                    hasNamedGroups && (
-                                        <div className="px-1 py-1.5 mt-2 text-xs font-medium text-[var(--tailwind-colors-slate-400)] uppercase tracking-wide">
-                                            Ungrouped
-                                        </div>
-                                    )
-                                )}
-                                {/* grid-template-rows 0fr<->1fr animates the section height
-                                    fluidly without measuring; the inner wrapper clips during
-                                    the transition. Kept mounted so it stays a drop target. */}
-                                <div
-                                    className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}
-                                >
-                                    <div className={`min-h-0 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
-                                        <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
-                                            <DroppableSection group={section.name} isEmpty={isEmpty}>
-                                                {section.items.map((rule) => (
-                                                    <SortableEntry
-                                                        key={rule.id}
-                                                        rule={rule}
-                                                        checked={selectedIds.includes(rule.id)}
-                                                        onCheck={onCheck}
-                                                        onDelete={handleEntryDelete}
-                                                        onEdit={onEdit}
-                                                        isRemoving={removingIds.includes(rule.id)}
-                                                        hideDeleteButton={allSelected}
-                                                        draggable={draggable}
-                                                    />
-                                                ))}
-                                            </DroppableSection>
-                                        </SortableContext>
-                                    </div>
+                    {/* Ungrouped section — pinned first, never part of the group-reorder
+                        layer. Hidden when empty unless named groups exist (so it can serve
+                        as a "remove from group" drop target). */}
+                    {!(ungroupedSection.items.length === 0 && !hasNamedGroups) && (
+                        <div className="w-full">
+                            {hasNamedGroups && (
+                                <div className="px-1 py-1.5 mt-2 text-xs font-medium text-[var(--tailwind-colors-slate-400)] uppercase tracking-wide">
+                                    Ungrouped
                                 </div>
-                            </div>
-                        );
-                    })}
+                            )}
+                            <SectionBody
+                                section={ungroupedSection}
+                                isCollapsed={collapsed.has(UNGROUPED)}
+                                selectedIds={selectedIds}
+                                onCheck={onCheck}
+                                onEntryDelete={handleEntryDelete}
+                                onEdit={onEdit}
+                                removingIds={removingIds}
+                                allSelected={allSelected}
+                                draggable={draggable}
+                            />
+                        </div>
+                    )}
+
+                    {/* Named groups — reorderable via the grip handle on each header. */}
+                    <SortableContext items={groupSortIds} strategy={verticalListSortingStrategy}>
+                        {namedSections.map((section) => (
+                            <SortableGroupSection
+                                key={section.name}
+                                section={section}
+                                collapsed={collapsed.has(section.name)}
+                                onToggleCollapse={() => toggleCollapse(section.name)}
+                                note={groupNotes[section.name] ?? ""}
+                                onSaveNote={(n) => onSaveGroupNote(section.name, n)}
+                                onRename={(to) => onRenameGroup(section.name, to)}
+                                onRequestDelete={() => setGroupToDelete(section.name)}
+                                loading={loading}
+                                draggable={draggable}
+                                groupDragActive={activeGroupName !== null}
+                                selectedIds={selectedIds}
+                                onCheck={onCheck}
+                                onEntryDelete={handleEntryDelete}
+                                onEdit={onEdit}
+                                removingIds={removingIds}
+                                allSelected={allSelected}
+                            />
+                        ))}
+                    </SortableContext>
 
                     {draggable && (
                         <NewGroupZone
@@ -741,6 +950,13 @@ export default function CustomRulesCard({
                                 isRemoving={false}
                                 hideDeleteButton
                             />
+                        </div>
+                    ) : activeGroupSection ? (
+                        <div className="flex items-center gap-2 w-full px-1 py-1.5 rounded-md bg-background ring-1 ring-[var(--tailwind-colors-rdns-600)] shadow-lg shadow-black/30 cursor-grabbing">
+                            <GripVertical className="w-4 h-4 text-[var(--tailwind-colors-slate-500)] shrink-0" />
+                            <Folder className="w-5 h-5 md:w-4 md:h-4 shrink-0" />
+                            <span className="font-medium text-base md:text-sm truncate">{activeGroupSection.name}</span>
+                            <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)] shrink-0">{activeGroupSection.items.length}</span>
                         </div>
                     ) : null}
                 </DragOverlay>
