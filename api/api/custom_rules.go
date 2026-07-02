@@ -189,6 +189,43 @@ func (s *APIServer) reorderProfileCustomRules() fiber.Handler {
 	return handler
 }
 
+// @Summary Reorder profile custom rule groups
+// @Description Set the display order of a list's custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.
+// @Tags Profile
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Param body body requests.ReorderProfileCustomRuleGroupsBody true "List and ordered group names"
+// @Success 200
+// @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/custom_rule_groups/order [patch]
+func (s *APIServer) reorderProfileCustomRuleGroups() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		profileId := c.Params("id")
+
+		p := new(requests.ReorderProfileCustomRuleGroupsBody)
+		if err := c.BodyParser(p); err != nil {
+			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+
+		errMsgs := s.Validator.ValidateRequest(c, p, ErrFailedToUpdateCustomRule.Error())
+		if len(errMsgs) > 0 {
+			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
+		}
+
+		accountId := auth.GetAccountID(c)
+		if err := s.Service.ReorderCustomRuleGroups(c.Context(), accountId, profileId, p.Action, p.Order); err != nil {
+			return HandleError(c, err, ErrFailedToUpdateCustomRule.Error())
+		}
+
+		return c.SendStatus(200)
+	}
+	return handler
+}
+
 // decodeJSONPointerSegment turns a single-segment RFC6901 JSON Pointer ("/<name>")
 // into the plain group name, unescaping ~1 -> "/" and ~0 -> "~". Returns "" for an
 // empty pointer or "/".

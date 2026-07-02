@@ -310,6 +310,53 @@ func TestImport_GroupsCappedPerList(t *testing.T) {
 	assert.True(t, capped, "expected a denylist-groups-capped warning, got %v", result.Warnings)
 }
 
+// TestImport_PreservesGroupOrder confirms the per-list group display order survives
+// import as-is (it is stored as slice order), so an exported reordering round-trips.
+func TestImport_PreservesGroupOrder(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	var capturedSettings *model.ProfileSettings
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+		capturedSettings = p.Settings
+		return true
+	})).Return(nil).Once()
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+	// Deliberately non-alphabetical so a re-sort would be visible.
+	envelope := &model.ExportEnvelope{
+		SchemaVersion: 1,
+		Kind:          "moddns-export",
+		ExportedAt:    time.Now(),
+		Profiles: []model.ExportedProfile{{
+			Name: "Imported",
+			Settings: &model.ExportedSettings{CustomRuleGroups: &model.CustomRuleGroups{
+				Block: []model.CustomRuleGroup{{Name: "Work"}, {Name: "Ads"}, {Name: "Social"}},
+			}},
+		}},
+	}
+
+	result, err := env.svc.Import(
+		context.Background(), "acct1",
+		profile.ImportModeCreateNew,
+		envelope,
+		ptr("secret"), nil, nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, result.CreatedProfileIds, 1)
+	require.NotNil(t, capturedSettings)
+	require.Len(t, capturedSettings.CustomRuleGroups.Block, 3)
+	got := []string{
+		capturedSettings.CustomRuleGroups.Block[0].Name,
+		capturedSettings.CustomRuleGroups.Block[1].Name,
+		capturedSettings.CustomRuleGroups.Block[2].Name,
+	}
+	assert.Equal(t, []string{"Work", "Ads", "Social"}, got, "import must preserve group order")
+}
+
 // specRef: I11
 func TestImport_ModeUnknown_Rejected(t *testing.T) {
 	env := newImportTestEnv(t, "secret", 100)

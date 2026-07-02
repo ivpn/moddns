@@ -182,6 +182,41 @@ func (g *CustomRuleGroups) Rename(action, from, to string) {
 	g.assign(action, out)
 }
 
+// Reorder rewrites the display order of the given list to match orderedNames.
+// Names not present in the list are ignored; any existing group missing from
+// orderedNames is appended in its current relative order, so a stale or partial
+// client list can never drop a group. Comments (and per-group data) are preserved.
+// Order is organizational only — it is never synced to the proxy.
+func (g *CustomRuleGroups) Reorder(action string, orderedNames []string) {
+	list := g.list(action)
+	if len(list) == 0 {
+		return
+	}
+	byName := make(map[string]CustomRuleGroup, len(list))
+	for _, grp := range list {
+		byName[grp.Name] = grp
+	}
+	out := make([]CustomRuleGroup, 0, len(list))
+	placed := make(map[string]struct{}, len(list))
+	for _, name := range orderedNames {
+		if _, done := placed[name]; done {
+			continue
+		}
+		if grp, ok := byName[name]; ok {
+			out = append(out, grp)
+			placed[name] = struct{}{}
+		}
+	}
+	// Append any groups the client didn't mention, preserving their existing order.
+	for _, grp := range list {
+		if _, done := placed[grp.Name]; !done {
+			out = append(out, grp)
+			placed[grp.Name] = struct{}{}
+		}
+	}
+	g.assign(action, out)
+}
+
 // Clone returns a deep copy so service ops can mutate without touching the loaded profile.
 func (g CustomRuleGroups) Clone() CustomRuleGroups {
 	cp := CustomRuleGroups{}

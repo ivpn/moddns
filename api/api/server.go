@@ -264,6 +264,7 @@ func (s *APIServer) RegisterRoutes() {
 	// Register the literal "order" and group paths before the parameterized
 	// "/custom_rules/:custom_rule_id" PATCH so they are not shadowed by it.
 	profiles.Patch("/:id/custom_rules/order", middleware.NewLimit(20, 1*time.Minute), s.reorderProfileCustomRules())
+	profiles.Patch("/:id/custom_rule_groups/order", middleware.NewLimit(20, 1*time.Minute), s.reorderProfileCustomRuleGroups())
 	profiles.Patch("/:id/custom_rule_groups", middleware.NewLimit(20, 1*time.Minute), s.updateProfileCustomRuleGroups())
 	profiles.Patch("/:profile_id/custom_rules/:custom_rule_id", middleware.NewLimit(20, 1*time.Minute), s.updateProfileCustomRule())
 	profiles.Post("/:id/custom_rules/batch", middleware.NewLimit(20, 1*time.Minute), s.createProfileCustomRulesBatch())

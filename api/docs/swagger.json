@@ -1396,6 +1396,67 @@
                 }
             }
         },
+        "/api/v1/profiles/{id}/custom_rule_groups/order": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Set the display order of a list's custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Reorder profile custom rule groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "List and ordered group names",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReorderProfileCustomRuleGroupsBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/custom_rules": {
             "post": {
                 "security": [
@@ -4463,6 +4524,29 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/model.ProfileUpdate"
+                    }
+                }
+            }
+        },
+        "requests.ReorderProfileCustomRuleGroupsBody": {
+            "type": "object",
+            "required": [
+                "action",
+                "order"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "order": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
                     }
                 }
             }

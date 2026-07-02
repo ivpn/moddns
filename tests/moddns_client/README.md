@@ -115,6 +115,7 @@ Class | Method | HTTP request | Description
 *ProfileApi* | [**api_v1_profiles_get**](docs/ProfileApi.md#api_v1_profiles_get) | **GET** /api/v1/profiles | Get profiles data
 *ProfileApi* | [**api_v1_profiles_id_blocklists_delete**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_delete) | **DELETE** /api/v1/profiles/{id}/blocklists | Disable blocklists
 *ProfileApi* | [**api_v1_profiles_id_blocklists_post**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_post) | **POST** /api/v1/profiles/{id}/blocklists | Enable blocklists
+*ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_order_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_order_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups/order | Reorder profile custom rule groups
 *ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups | Update profile custom rule groups
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_batch_post**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_batch_post) | **POST** /api/v1/profiles/{id}/custom_rules/batch | Create profile custom rules (batch)
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_custom_rule_id_delete**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_custom_rule_id_delete) | **DELETE** /api/v1/profiles/{id}/custom_rules/{custom_rule_id} | Delete profile custom rule
@@ -225,6 +226,7 @@ Class | Method | HTTP request | Description
  - [RequestsMobileConfigReq](docs/RequestsMobileConfigReq.md)
  - [RequestsPASessionReq](docs/RequestsPASessionReq.md)
  - [RequestsProfileUpdates](docs/RequestsProfileUpdates.md)
+ - [RequestsReorderProfileCustomRuleGroupsBody](docs/RequestsReorderProfileCustomRuleGroupsBody.md)
  - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
