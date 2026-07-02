@@ -247,11 +247,11 @@ function GroupHeader({
             <button
                 type="button"
                 onClick={onToggle}
-                className="flex items-center gap-3 md:gap-2 min-w-0 py-1.5 md:py-0 text-[var(--tailwind-colors-slate-100)] shrink-0 cursor-pointer"
+                className="flex items-center gap-3 md:gap-2 min-w-0 py-1.5 md:py-0 text-[var(--tailwind-colors-slate-100)] cursor-pointer"
             >
-                {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4" />}
-                <span className="font-medium text-base md:text-sm truncate">{name}</span>
-                <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
+                {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4 shrink-0" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4 shrink-0" />}
+                <span className="font-medium text-base md:text-sm truncate min-w-0">{name}</span>
+                <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)] shrink-0">{count}</span>
             </button>
 
             {editingNote ? (
@@ -365,10 +365,13 @@ function NewGroupZone({
             type="button"
             onClick={onStartCreate}
             className={[
-                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors cursor-pointer",
+                // Dashed border keeps the "drop a rule here" affordance; the accent
+                // fill + colour is what sets it apart from the plain "Drop rules here" zone.
+                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-sm font-medium transition-colors cursor-pointer",
                 isOver
-                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)]"
-                    : "border-[var(--tailwind-colors-slate-light-400)] text-[var(--tailwind-colors-slate-light-600)] hover:border-[var(--tailwind-colors-slate-light-500)] hover:text-[var(--tailwind-colors-slate-light-800)] dark:border-[var(--tailwind-colors-slate-700)] dark:text-[var(--tailwind-colors-slate-400)] dark:hover:text-[var(--tailwind-colors-slate-200)] dark:hover:border-[var(--tailwind-colors-slate-500)]",
+                    // Brighter while a rule is dragged over — the active drop target.
+                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/20 text-[var(--tailwind-colors-rdns-600)]"
+                    : "border-[var(--tailwind-colors-rdns-600)]/40 bg-[var(--tailwind-colors-rdns-600)]/10 text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/20 hover:border-[var(--tailwind-colors-rdns-600)]",
             ].join(" ")}
         >
             <FolderPlus className="w-4 h-4" />

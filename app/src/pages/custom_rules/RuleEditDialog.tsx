@@ -81,7 +81,7 @@ export default function RuleEditDialog({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-4 py-2">
+                <div className="flex flex-col gap-4 py-2 min-w-0">
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="rule-edit-value">Value</Label>
                         <Input
@@ -114,13 +114,15 @@ export default function RuleEditDialog({
                                 value={group === "" ? NO_GROUP : group}
                                 onValueChange={(v) => setGroup(v === NO_GROUP ? "" : v)}
                             >
-                                <SelectTrigger id="rule-edit-group">
+                                <SelectTrigger id="rule-edit-group" className="w-full min-w-0">
                                     <SelectValue placeholder="No group" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value={NO_GROUP}>No group</SelectItem>
                                     {existingGroups.map((g) => (
-                                        <SelectItem key={g} value={g}>{g}</SelectItem>
+                                        <SelectItem key={g} value={g} className="max-w-[var(--radix-select-trigger-width)]">
+                                            <span className="truncate">{g}</span>
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
