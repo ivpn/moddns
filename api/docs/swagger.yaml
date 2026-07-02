@@ -179,6 +179,9 @@ definitions:
   model.Advanced:
     properties:
       recursor:
+        enum:
+        - sdns
+        - knot
         type: string
     required:
     - recursor

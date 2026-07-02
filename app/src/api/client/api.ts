@@ -365,8 +365,16 @@ export interface ModelAdvanced {
      * @type {string}
      * @memberof ModelAdvanced
      */
-    'recursor': string;
+    'recursor': ModelAdvancedRecursorEnum;
 }
+
+export const ModelAdvancedRecursorEnum = {
+    Sdns: 'sdns',
+    Knot: 'knot'
+} as const;
+
+export type ModelAdvancedRecursorEnum = typeof ModelAdvancedRecursorEnum[keyof typeof ModelAdvancedRecursorEnum];
+
 /**
  * 
  * @export

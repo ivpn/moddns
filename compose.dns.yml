@@ -3,8 +3,8 @@ services:
     image: dnsproxy:latest
     restart: always
     build:
-      context: ./proxy
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: proxy/Dockerfile
     networks:
       - dnsnetwork
     container_name: dnsproxy

@@ -6,6 +6,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ModelAdvancedRecursorEnum } from "@/api/client/api";
 
 interface RecursorChoiceSectionProps {
     currentRecursor: string;
@@ -18,7 +19,9 @@ const RecursorChoiceSection: React.FC<RecursorChoiceSectionProps> = ({
     onRecursorChange,
     loading = false,
 }) => {
-    const recursors = ['sdns', 'knot'];
+    // Derived from the OpenAPI-generated client so the option list stays in
+    // sync with the API's allowed recursors (api/model/advanced.go) — no hardcoding.
+    const recursors = Object.values(ModelAdvancedRecursorEnum);
 
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 flex-wrap max-w-full">
