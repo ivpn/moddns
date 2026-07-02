@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,6 +28,13 @@ class ModelAdvanced(BaseModel):
     """ # noqa: E501
     recursor: StrictStr
     __properties: ClassVar[List[str]] = ["recursor"]
+
+    @field_validator('recursor')
+    def recursor_validate_enum(cls, value):
+        """Validates the enum"""
+        if value not in set(['sdns', 'knot']):
+            raise ValueError("must be one of enum values ('sdns', 'knot')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

@@ -928,14 +928,14 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 
 		// Advanced settings tests
 		{
-			name:      "Successfully update advanced recursor to unbound",
+			name:      "Successfully update advanced recursor to knot",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
 					Path:      "/settings/advanced/recursor",
-					Value:     model.RECURSOR_UNBOUND,
+					Value:     model.RECURSOR_KNOT,
 				},
 			},
 			existingProfile: &model.Profile{
@@ -965,7 +965,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				AccountId: "account123",
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
-					Advanced: &model.Advanced{Recursor: model.RECURSOR_UNBOUND},
+					Advanced: &model.Advanced{Recursor: model.RECURSOR_KNOT},
 				},
 			},
 			expectedError: "",
@@ -1167,7 +1167,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				{
 					Operation: model.UpdateOperationReplace,
 					Path:      "/settings/advanced/recursor",
-					Value:     model.RECURSOR_UNBOUND,
+					Value:     model.RECURSOR_KNOT,
 				},
 				{
 					Operation: model.UpdateOperationReplace,

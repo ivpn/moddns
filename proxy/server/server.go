@@ -275,15 +275,23 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		upstreamName := s.Config.Upstream.Default
 		if settings.AdvancedErr != nil {
 			reqLogger.Info().Str("upstream", s.Config.Upstream.Default).Msg("Advanced settings not found, using default values")
+		} else if recursor, recursorFound := advancedSettings["recursor"]; recursorFound && recursor != "" {
+			upstreamName = recursor
 		} else {
-			var recursorFound bool
-			upstreamName, recursorFound = advancedSettings["recursor"]
-			if !recursorFound {
-				reqLogger.Trace().Msg("Recursor not set, using default")
-			}
+			reqLogger.Trace().Msg("Recursor not set, using default")
 		}
 
-		dctx.CustomUpstreamConfig = s.Upstreams[upstreamName]
+		// Fall back to the default recursor when the selected upstream is not
+		// configured (e.g. a stale/removed recursor name persisted on a profile),
+		// so a query is never routed to a nil upstream.
+		upstreamConfig, ok := s.Upstreams[upstreamName]
+		if !ok {
+			reqLogger.Warn().Str("recursor", upstreamName).Str("upstream", s.Config.Upstream.Default).Msg("Unknown recursor, falling back to default")
+			upstreamName = s.Config.Upstream.Default
+			upstreamConfig = s.Upstreams[upstreamName]
+		}
+
+		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
 		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, advancedSettings, reqLogger)
 		reqCtx.StartTime = time.Now()

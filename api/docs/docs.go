@@ -3043,7 +3043,11 @@ const docTemplate = `{
             ],
             "properties": {
                 "recursor": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "knot"
+                    ]
                 }
             }
         },
