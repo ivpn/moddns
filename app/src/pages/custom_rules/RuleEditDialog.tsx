@@ -121,7 +121,7 @@ export default function RuleEditDialog({
                                     <SelectItem value={NO_GROUP}>No group</SelectItem>
                                     {existingGroups.map((g) => (
                                         <SelectItem key={g} value={g} className="max-w-[var(--radix-select-trigger-width)]">
-                                            <span className="truncate">{g}</span>
+                                            <span className="block truncate max-w-[calc(var(--radix-select-trigger-width)-2.5rem)]">{g}</span>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
