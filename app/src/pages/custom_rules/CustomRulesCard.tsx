@@ -57,10 +57,22 @@ import CustomRuleEntry from "@/pages/custom_rules/Entry";
 const UNGROUPED = "";
 const CONTAINER_PREFIX = "group:";
 const NEW_GROUP_ZONE = "group:__new__";
+// A second droppable per group, anchored on the always-visible header, so a rule
+// can be dropped onto a group even when its body is collapsed (QA #634). It maps
+// to the same group as the body container but needs a distinct id (dnd-kit ids
+// must be unique).
+const HEADER_PREFIX = "grouphdr:";
 
 const containerId = (group: string) => `${CONTAINER_PREFIX}${group}`;
 const isContainerId = (id: string) => id.startsWith(CONTAINER_PREFIX);
 const groupFromContainer = (id: string) => id.slice(CONTAINER_PREFIX.length);
+const headerDropId = (group: string) => `${HEADER_PREFIX}${group}`;
+const isHeaderDropId = (id: string) => id.startsWith(HEADER_PREFIX);
+const groupFromHeader = (id: string) => id.slice(HEADER_PREFIX.length);
+// A drop target that resolves to a group: either the body container or the header.
+const isGroupDropId = (id: string) => isContainerId(id) || isHeaderDropId(id);
+const groupFromDropId = (id: string) =>
+    isHeaderDropId(id) ? groupFromHeader(id) : groupFromContainer(id);
 
 export interface CustomRulesCardProps {
     rules: ModelCustomRule[];
@@ -206,6 +218,13 @@ function GroupHeader({
     const [renaming, setRenaming] = useState(false);
     const [nameDraft, setNameDraft] = useState(name);
 
+    // Header doubles as a drop target so a rule can be dropped onto a group even
+    // when its body is collapsed (QA #634) — the collapsed body has zero height and
+    // is not hittable, so without this a collapsed group could not receive a drop.
+    // The destination is expanded after the drop (see handleDragEnd) rather than on
+    // hover, to avoid shifting the layout mid-drag.
+    const { setNodeRef, isOver } = useDroppable({ id: headerDropId(name) });
+
     useEffect(() => { setNoteDraft(note); }, [note]);
     useEffect(() => { setNameDraft(name); }, [name]);
 
@@ -242,75 +261,81 @@ function GroupHeader({
     }
 
     return (
-        <div className="flex flex-col w-full px-1 py-1.5 mt-2 gap-0.5">
-          <div className="flex items-center gap-1 w-full">
-            <button
-                type="button"
-                onClick={onToggle}
-                className="flex items-center gap-3 md:gap-2 min-w-0 py-1.5 md:py-0 text-[var(--tailwind-colors-slate-100)] shrink-0 cursor-pointer"
-            >
-                {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4" />}
-                <span className="font-medium text-base md:text-sm truncate">{name}</span>
-                <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)]">{count}</span>
-            </button>
+        <div
+            ref={setNodeRef}
+            className={[
+                "flex flex-col w-full px-1 py-1.5 mt-2 gap-0.5 rounded-md transition-colors",
+                isOver ? "bg-[var(--tailwind-colors-rdns-600)]/10 ring-1 ring-[var(--tailwind-colors-rdns-600)]/40" : "",
+            ].join(" ")}
+        >
+            <div className="flex items-center gap-1 w-full">
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    className="flex items-center gap-3 md:gap-2 min-w-0 py-1.5 md:py-0 text-[var(--tailwind-colors-slate-100)] cursor-pointer"
+                >
+                    {collapsed ? <Folder className="w-5 h-5 md:w-4 md:h-4 shrink-0" /> : <FolderOpen className="w-5 h-5 md:w-4 md:h-4 shrink-0" />}
+                    <span className="font-medium text-base md:text-sm truncate min-w-0">{name}</span>
+                    <span className="text-sm md:text-xs text-[var(--tailwind-colors-slate-400)] shrink-0">{count}</span>
+                </button>
 
-            {editingNote ? (
-                <div className="flex items-center gap-1 min-w-0">
-                    <Input
-                        value={noteDraft}
-                        onChange={(e) => setNoteDraft(e.target.value.slice(0, 80))}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") { e.preventDefault(); commitNote(); }
-                            else if (e.key === "Escape") { e.preventDefault(); cancelNote(); }
-                        }}
-                        placeholder="Group note"
-                        className="h-10 md:h-7 w-48 max-w-full"
-                        autoFocus
-                    />
-                    <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" disabled={loading} aria-label="Save group note" onClick={commitNote}>
-                        <Check className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-rdns-600)]" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Cancel" onClick={cancelNote}>
-                        <X className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-slate-400)]" />
-                    </Button>
-                </div>
-            ) : (
-                /* modal={false} so Radix never sets pointer-events:none on <body>.
-                   The Delete item opens a confirm Dialog whose confirmation refetches
-                   the profile and unmounts this header (and this menu). A modal menu
-                   unmounted mid-close never runs its body-unlock cleanup, leaving the
-                   whole app frozen. Non-modal has no body lock, so the freeze cannot occur. */
-                <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Group actions">
-                            <MoreVertical className="w-5 h-5 md:w-3.5 md:h-3.5 text-[var(--tailwind-colors-slate-400)]" />
+                {editingNote ? (
+                    <div className="flex items-center gap-1 min-w-0">
+                        <Input
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value.slice(0, 80))}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") { e.preventDefault(); commitNote(); }
+                                else if (e.key === "Escape") { e.preventDefault(); cancelNote(); }
+                            }}
+                            placeholder="Group note"
+                            className="h-10 md:h-7 w-48 max-w-full"
+                            autoFocus
+                        />
+                        <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" disabled={loading} aria-label="Save group note" onClick={commitNote}>
+                            <Check className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-rdns-600)]" />
                         </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="top" align="start">
-                        <DropdownMenuItem onClick={() => setRenaming(true)}>
-                            <Pencil className="w-4 h-4 mr-2" /> Rename group
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setEditingNote(true)}>
-                            <StickyNote className="w-4 h-4 mr-2" /> {note ? "Edit comment" : "Add comment"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="text-[var(--tailwind-colors-red-600)] focus:text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] dark:focus:text-[var(--tailwind-colors-red-400)]"
-                            onClick={onDelete}
-                        >
-                            <Trash2 className="w-4 h-4 mr-2 text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)]" /> Delete group
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )}
-          </div>
+                        <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Cancel" onClick={cancelNote}>
+                            <X className="w-5 h-5 md:w-4 md:h-4 text-[var(--tailwind-colors-slate-400)]" />
+                        </Button>
+                    </div>
+                ) : (
+                    /* modal={false} so Radix never sets pointer-events:none on <body>.
+                       The Delete item opens a confirm Dialog whose confirmation refetches
+                       the profile and unmounts this header (and this menu). A modal menu
+                       unmounted mid-close never runs its body-unlock cleanup, leaving the
+                       whole app frozen. Non-modal has no body lock, so the freeze cannot occur. */
+                    <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-10 w-10 md:h-7 md:w-7 p-0 shrink-0" aria-label="Group actions">
+                                <MoreVertical className="w-5 h-5 md:w-3.5 md:h-3.5 text-[var(--tailwind-colors-slate-400)]" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent side="top" align="start">
+                            <DropdownMenuItem onClick={() => setRenaming(true)}>
+                                <Pencil className="w-4 h-4 mr-2" /> Rename group
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setEditingNote(true)}>
+                                <StickyNote className="w-4 h-4 mr-2" /> {note ? "Edit comment" : "Add comment"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="text-[var(--tailwind-colors-red-600)] focus:text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] dark:focus:text-[var(--tailwind-colors-red-400)]"
+                                onClick={onDelete}
+                            >
+                                <Trash2 className="w-4 h-4 mr-2 text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)]" /> Delete group
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
+            </div>
 
-          {/* Group comment as an always-visible muted line under the name (indented
+            {/* Group comment as an always-visible muted line under the name (indented
               to align past the folder icon). Real text — no hover/tooltip. */}
-          {note && !editingNote && (
-              <div className="pl-8 md:pl-6 text-xs leading-4 line-clamp-2 text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-400)]">
-                  {note}
-              </div>
-          )}
+            {note && !editingNote && (
+                <div className="pl-8 md:pl-6 text-xs leading-4 line-clamp-2 text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-400)]">
+                    {note}
+                </div>
+            )}
         </div>
     );
 }
@@ -365,10 +390,13 @@ function NewGroupZone({
             type="button"
             onClick={onStartCreate}
             className={[
-                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-xs font-medium transition-colors cursor-pointer",
+                // Dashed border keeps the "drop a rule here" affordance; the accent
+                // fill + colour is what sets it apart from the plain "Drop rules here" zone.
+                "flex items-center justify-center gap-2 w-full min-h-16 mt-1 rounded-md border border-dashed text-sm font-medium transition-colors cursor-pointer",
                 isOver
-                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)]"
-                    : "border-[var(--tailwind-colors-slate-light-400)] text-[var(--tailwind-colors-slate-light-600)] hover:border-[var(--tailwind-colors-slate-light-500)] hover:text-[var(--tailwind-colors-slate-light-800)] dark:border-[var(--tailwind-colors-slate-700)] dark:text-[var(--tailwind-colors-slate-400)] dark:hover:text-[var(--tailwind-colors-slate-200)] dark:hover:border-[var(--tailwind-colors-slate-500)]",
+                    // Brighter while a rule is dragged over — the active drop target.
+                    ? "border-[var(--tailwind-colors-rdns-600)] bg-[var(--tailwind-colors-rdns-600)]/10 text-[var(--tailwind-colors-rdns-600)]"
+                    : "border-[var(--tailwind-colors-rdns-600)]/40 bg-[var(--tailwind-colors-rdns-600)]/5 text-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/10 hover:border-[var(--tailwind-colors-rdns-600)]",
             ].join(" ")}
         >
             <FolderPlus className="w-4 h-4" />
@@ -469,7 +497,7 @@ export default function CustomRulesCard({
         const overKey = String(over.id);
         if (overKey === NEW_GROUP_ZONE) return; // resolved on drop
 
-        const targetGroup = isContainerId(overKey) ? groupFromContainer(overKey) : groupOf(overKey);
+        const targetGroup = isGroupDropId(overKey) ? groupFromDropId(overKey) : groupOf(overKey);
         const activeGroup = groupOf(activeKey);
         if (targetGroup === activeGroup) return;
 
@@ -481,7 +509,7 @@ export default function CustomRulesCard({
             const relabelled = { ...moved, group: targetGroup === UNGROUPED ? "" : targetGroup };
 
             let insertIdx: number;
-            if (isContainerId(overKey)) {
+            if (isGroupDropId(overKey)) {
                 // Append to the end of the target group.
                 let last = -1;
                 next.forEach((r, i) => { if ((r.group ?? "") === (targetGroup === UNGROUPED ? "" : targetGroup)) last = i; });
@@ -513,7 +541,7 @@ export default function CustomRulesCard({
 
         // Same-list reorder finalisation.
         let next = localRules;
-        if (!isContainerId(overKey) && activeKey !== overKey) {
+        if (!isGroupDropId(overKey) && activeKey !== overKey) {
             const oldIndex = localRules.findIndex(r => r.id === activeKey);
             const newIndex = localRules.findIndex(r => r.id === overKey);
             if (oldIndex >= 0 && newIndex >= 0 && oldIndex !== newIndex) {
@@ -527,6 +555,16 @@ export default function CustomRulesCard({
         const orderedIds = next.map(r => r.id);
 
         if (finalGroup !== originalGroup) {
+            // Reveal the destination if it was collapsed, so the moved rule is
+            // visible after a drop onto a collapsed group header.
+            if (finalGroup !== UNGROUPED) {
+                setCollapsed(prev => {
+                    if (!prev.has(finalGroup)) return prev;
+                    const next = new Set(prev);
+                    next.delete(finalGroup);
+                    return next;
+                });
+            }
             void onMoveRule(orderedIds, activeKey, finalGroup);
         } else {
             // Only persist if order actually changed.
@@ -698,8 +736,8 @@ export default function CustomRulesCard({
                             <CustomRuleEntry
                                 rule={activeRule}
                                 checked={false}
-                                onCheck={() => {}}
-                                onDelete={() => {}}
+                                onCheck={() => { }}
+                                onDelete={() => { }}
                                 isRemoving={false}
                                 hideDeleteButton
                             />
@@ -712,8 +750,8 @@ export default function CustomRulesCard({
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Delete group</DialogTitle>
-                        <DialogDescription>
-                            Delete the group <span className="font-medium text-foreground">“{groupToDelete}”</span>? Its rules move to Ungrouped — they are not deleted.
+                        <DialogDescription className="break-words">
+                            Delete the group <span className="font-medium text-foreground break-all">“{groupToDelete}”</span>? Its rules move to Ungrouped — they are not deleted.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

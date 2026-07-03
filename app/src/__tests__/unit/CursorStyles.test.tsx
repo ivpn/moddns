@@ -24,6 +24,12 @@ import {
     SheetDescription,
     SheetTitle,
 } from "@/components/ui/sheet";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RuleComposer } from "@/pages/custom_rules/RuleComposer";
 
 const noop = () => { };
@@ -112,6 +118,20 @@ describe("Pointer cursor styles", () => {
 
         const closeButton = screen.getByRole("button", { name: /close/i });
         expect(closeButton.className).toContain("cursor-pointer");
+    });
+
+    it("dropdown menu items show pointer cursor", () => {
+        render(
+            <DropdownMenu open onOpenChange={noop}>
+                <DropdownMenuTrigger>Open</DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuItem>Rename group</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        );
+
+        const item = screen.getByRole("menuitem", { name: "Rename group" });
+        expect(item.className).toContain("cursor-pointer");
     });
 
     it("rule composer control shows text cursor", () => {
