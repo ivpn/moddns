@@ -39,6 +39,8 @@ interface AppState {
   // compute the unread indicator in the nav. null = never opened.
   announcementsLastSeenAt: string | null;
   markAnnouncementsSeen: () => void;
+  customRulesCollapsed: Record<string, string[]>;
+  setCustomRulesCollapsed: (key: string, collapsedNames: string[]) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -87,6 +89,9 @@ export const useAppStore = create<AppState>()(
       setSubscriptionDeletionScheduled: (scheduled) => set({ subscriptionDeletionScheduled: scheduled }),
       announcementsLastSeenAt: null,
       markAnnouncementsSeen: () => set({ announcementsLastSeenAt: new Date().toISOString() }),
+      customRulesCollapsed: {},
+      setCustomRulesCollapsed: (key, collapsedNames) =>
+        set((s) => ({ customRulesCollapsed: { ...s.customRulesCollapsed, [key]: collapsedNames } })),
     }),
     {
       name: "moddns-storage",
@@ -98,6 +103,7 @@ export const useAppStore = create<AppState>()(
         customRulesAlertDismissed: state.customRulesAlertDismissed,
         connectionStatusVisible: state.connectionStatusVisible,
         announcementsLastSeenAt: state.announcementsLastSeenAt,
+        customRulesCollapsed: state.customRulesCollapsed,
       }),
     }
   )
