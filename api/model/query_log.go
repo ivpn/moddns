@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -24,6 +25,17 @@ type QueryLog struct {
 	DNSRequest DNSRequest         `json:"dns_request" bson:"dns_request"`
 	ClientIP   string             `json:"client_ip" bson:"client_ip"`
 	Protocol   string             `json:"protocol" bson:"protocol"`
+}
+
+// MarshalJSON renders Reasons as an empty JSON array ([]) instead of null when
+// nil, so the API always returns a list for this field.
+func (q QueryLog) MarshalJSON() ([]byte, error) {
+	type alias QueryLog
+	a := alias(q)
+	if a.Reasons == nil {
+		a.Reasons = []string{}
+	}
+	return json.Marshal(a)
 }
 
 type DNSRequest struct {

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -27,9 +28,23 @@ type Account struct {
 	Profiles            []string           `json:"profiles" bson:"profiles"`
 	ErrorReportsConsent bool               `json:"error_reports_consent" bson:"error_reports_consent"`
 	MFA                 MFASettings        `json:"mfa" bson:"mfa"`
-	AuthMethods         []string           `json:"auth_methods,omitempty" bson:"-"`
+	AuthMethods         []string           `json:"auth_methods" bson:"-"`
 	DeletionCode        string             `json:"-" bson:"deletion_code,omitempty"`
 	DeletionCodeExpires *time.Time         `json:"-" bson:"deletion_code_expires,omitempty"`
+}
+
+// MarshalJSON renders Profiles and AuthMethods as empty JSON arrays ([]) instead
+// of null when nil, so the API always returns lists for these fields.
+func (a Account) MarshalJSON() ([]byte, error) {
+	type alias Account
+	x := alias(a)
+	if x.Profiles == nil {
+		x.Profiles = []string{}
+	}
+	if x.AuthMethods == nil {
+		x.AuthMethods = []string{}
+	}
+	return json.Marshal(x)
 }
 
 // New creates a new Account
