@@ -53,6 +53,7 @@ import {
 import type { ModelCustomRule } from "@/api/client/api";
 import NoRulesExist from "@/pages/custom_rules/NoRulesExist";
 import CustomRuleEntry from "@/pages/custom_rules/Entry";
+import { useAppStore } from "@/store/general";
 
 const UNGROUPED = "";
 const CONTAINER_PREFIX = "group:";
@@ -592,7 +593,22 @@ export default function CustomRulesCard({
     searchQuery,
 }: CustomRulesCardProps): JSX.Element {
     const [removingIds, setRemovingIds] = useState<string[]>([]);
-    const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+    // Collapsed group folders are persisted per-device in the app store, keyed by
+    // profile + list type, so open/closed state survives navigation and reload.
+    const activeProfile = useAppStore((s) => s.activeProfile);
+    const profileId = (activeProfile as (typeof activeProfile) & { profile_id?: string })?.profile_id
+        ?? activeProfile?.id ?? "";
+    const storageKey = `${profileId}:${type}`;
+    const persistedCollapsed = useAppStore((s) => s.customRulesCollapsed[storageKey]);
+    const setCustomRulesCollapsed = useAppStore((s) => s.setCustomRulesCollapsed);
+    const collapsed = useMemo(() => new Set(persistedCollapsed ?? []), [persistedCollapsed]);
+    const updateCollapsed = useCallback(
+        (updater: (prev: Set<string>) => Set<string>) => {
+            const next = updater(new Set(persistedCollapsed ?? []));
+            setCustomRulesCollapsed(storageKey, [...next]);
+        },
+        [persistedCollapsed, storageKey, setCustomRulesCollapsed],
+    );
     const [activeId, setActiveId] = useState<string | null>(null);
     // The group name currently being dragged (group-reorder layer), null when a rule
     // (or nothing) is being dragged.
@@ -766,7 +782,7 @@ export default function CustomRulesCard({
             // Reveal the destination if it was collapsed, so the moved rule is
             // visible after a drop onto a collapsed group header.
             if (finalGroup !== UNGROUPED) {
-                setCollapsed(prev => {
+                updateCollapsed(prev => {
                     if (!prev.has(finalGroup)) return prev;
                     const next = new Set(prev);
                     next.delete(finalGroup);
@@ -779,7 +795,7 @@ export default function CustomRulesCard({
             const prevIds = sortedFromProps.map(r => r.id);
             if (orderedIds.join("|") !== prevIds.join("|")) void onReorder(orderedIds);
         }
-    }, [localRules, localGroupOrder, rules, sortedFromProps, onMoveRule, onReorder, onReorderGroups]);
+    }, [localRules, localGroupOrder, rules, sortedFromProps, onMoveRule, onReorder, onReorderGroups, updateCollapsed]);
 
     const confirmNewGroup = useCallback((name: string) => {
         if (pendingDropRuleId) {
@@ -804,13 +820,13 @@ export default function CustomRulesCard({
     }, [groupToDelete, onDeleteGroup]);
 
     const toggleCollapse = useCallback((name: string) => {
-        setCollapsed(prev => {
+        updateCollapsed(prev => {
             const next = new Set(prev);
             if (next.has(name)) next.delete(name);
             else next.add(name);
             return next;
         });
-    }, []);
+    }, [updateCollapsed]);
 
     const activeRule = activeId ? localRules.find(r => r.id === activeId) : null;
     const hasNamedGroups = groupNames.length > 0;
