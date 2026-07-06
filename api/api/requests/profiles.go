@@ -31,6 +31,15 @@ type ReorderProfileCustomRulesBody struct {
 	Order []string `json:"order" validate:"required,min=1,max=10000,dive,required"`
 }
 
+// ReorderProfileCustomRuleGroupsBody carries the complete ordered list of group
+// names for one list (block/allow); the group at index 0 sorts first. Names not in
+// the profile are ignored and omitted groups keep their order, so a stale client
+// list cannot drop a group. Order is organizational only.
+type ReorderProfileCustomRuleGroupsBody struct {
+	Action string   `json:"action" validate:"required,oneof=block allow"`
+	Order  []string `json:"order" validate:"required,max=100,dive,required,max=64"`
+}
+
 // CustomRuleGroupUpdate is a single JSON-Patch-style operation on the custom-rule
 // group registry, mirroring the shape of model.ProfileUpdate. Group names travel
 // in the JSON-Pointer `path`/`from` fields (RFC6901, `~1`=/, `~0`=~) so they never

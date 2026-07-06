@@ -157,6 +157,7 @@ type ProfileServicer interface {
 	UpdateCustomRule(ctx context.Context, accountId, profileId, customRuleId string, patch profile.CustomRulePatch) (*model.CustomRule, error)
 	ReorderCustomRules(ctx context.Context, accountId, profileId string, orderedIds []string) error
 	ApplyCustomRuleGroupOps(ctx context.Context, accountId, profileId string, ops []profile.CustomRuleGroupOp) error
+	ReorderCustomRuleGroups(ctx context.Context, accountId, profileId, action string, orderedNames []string) error
 
 	// Blocklists
 	EnableBlocklists(ctx context.Context, accountId, profileId string, blocklistIds []string) error

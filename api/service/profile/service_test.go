@@ -2440,6 +2440,60 @@ func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_RejectsBadAction() {
 	suite.ErrorIs(err, model.ErrInvalidCustomRuleAction)
 }
 
+// TestReorderCustomRuleGroups_PersistsReorderedSlice reorders the denylist registry
+// and asserts the whole reordered slice (comments intact) is persisted, and that the
+// allowlist is left untouched (per-list scoping).
+// tableRef: I8
+func (suite *ProfileTestSuite) TestReorderCustomRuleGroups_PersistsReorderedSlice() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{
+				Block: []model.CustomRuleGroup{
+					{Name: "Ads", Comment: "a"}, {Name: "Social", Comment: "s"}, {Name: "Work", Comment: "w"},
+				},
+				Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep"}},
+			},
+			CustomRules: []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{
+		Block: []model.CustomRuleGroup{
+			{Name: "Work", Comment: "w"}, {Name: "Ads", Comment: "a"}, {Name: "Social", Comment: "s"},
+		},
+		Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep"}},
+	}).Return(nil).Once()
+
+	err := suite.service.ReorderCustomRuleGroups(ctx, accountID, profileID, "block", []string{"Work", "Ads", "Social"})
+	suite.NoError(err)
+}
+
+// TestReorderCustomRuleGroups_RejectsBadAction rejects a non-block/allow action; the
+// registry is not written.
+// tableRef: I8
+func (suite *ProfileTestSuite) TestReorderCustomRuleGroups_RejectsBadAction() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-empty"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings:  &model.ProfileSettings{CustomRuleGroups: model.CustomRuleGroups{}},
+	}
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+
+	err := suite.service.ReorderCustomRuleGroups(ctx, accountID, profileID, "comment", []string{"Ads"})
+	suite.ErrorIs(err, model.ErrInvalidCustomRuleAction)
+}
+
 func TestProfileTestSuite(t *testing.T) {
 	suite.Run(t, new(ProfileTestSuite))
 }

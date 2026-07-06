@@ -464,3 +464,24 @@ func (p *ProfileService) ApplyCustomRuleGroupOps(ctx context.Context, accountId,
 
 	return p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, groups)
 }
+
+// ReorderCustomRuleGroups sets the display order of a list's group registry to match
+// orderedNames (the group at index 0 sorts first). Action ("block"/"allow") scopes it
+// to one list. Unknown names are ignored and omitted groups keep their order (see
+// model.CustomRuleGroups.Reorder), so a stale client list cannot drop a group. Group
+// order is metadata only — no Redis writes.
+func (p *ProfileService) ReorderCustomRuleGroups(ctx context.Context, accountId, profileId, action string, orderedNames []string) error {
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	if err != nil {
+		return err
+	}
+
+	if action != model.ACTION_BLOCK && action != model.ACTION_ALLOW {
+		return model.ErrInvalidCustomRuleAction
+	}
+
+	groups := profile.Settings.CustomRuleGroups.Clone()
+	groups.Reorder(action, orderedNames)
+
+	return p.ProfileRepository.SetCustomRuleGroups(ctx, profileId, groups)
+}

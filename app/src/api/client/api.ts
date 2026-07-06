@@ -2276,6 +2276,33 @@ export interface RequestsProfileUpdates {
 /**
  * 
  * @export
+ * @interface RequestsReorderProfileCustomRuleGroupsBody
+ */
+export interface RequestsReorderProfileCustomRuleGroupsBody {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsReorderProfileCustomRuleGroupsBody
+     */
+    'action': RequestsReorderProfileCustomRuleGroupsBodyActionEnum;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof RequestsReorderProfileCustomRuleGroupsBody
+     */
+    'order': Array<string>;
+}
+
+export const RequestsReorderProfileCustomRuleGroupsBodyActionEnum = {
+    Block: 'block',
+    Allow: 'allow'
+} as const;
+
+export type RequestsReorderProfileCustomRuleGroupsBodyActionEnum = typeof RequestsReorderProfileCustomRuleGroupsBodyActionEnum[keyof typeof RequestsReorderProfileCustomRuleGroupsBodyActionEnum];
+
+/**
+ * 
+ * @export
  * @interface RequestsReorderProfileCustomRulesBody
  */
 export interface RequestsReorderProfileCustomRulesBody {
@@ -4932,6 +4959,46 @@ export const ProfileApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Set the display order of a list\'s custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.
+         * @summary Reorder profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRuleGroupsBody} body List and ordered group names
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRuleGroupsOrderPatch: async (id: string, body: RequestsReorderProfileCustomRuleGroupsBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRuleGroupsOrderPatch', 'id', id)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1ProfilesIdCustomRuleGroupsOrderPatch', 'body', body)
+            const localVarPath = `/api/v1/profiles/{id}/custom_rule_groups/order`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PATCH', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
          * @summary Update profile custom rule groups
          * @param {string} id Profile ID
@@ -5503,6 +5570,20 @@ export const ProfileApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Set the display order of a list\'s custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.
+         * @summary Reorder profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRuleGroupsBody} body List and ordered group names
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdCustomRuleGroupsOrderPatch(id: string, body: RequestsReorderProfileCustomRuleGroupsBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdCustomRuleGroupsOrderPatch(id, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProfileApi.apiV1ProfilesIdCustomRuleGroupsOrderPatch']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
          * @summary Update profile custom rule groups
          * @param {string} id Profile ID
@@ -5734,6 +5815,17 @@ export const ProfileApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1ProfilesIdBlocklistsPost(id, blocklistIds, options).then((request) => request(axios, basePath));
         },
         /**
+         * Set the display order of a list\'s custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.
+         * @summary Reorder profile custom rule groups
+         * @param {string} id Profile ID
+         * @param {RequestsReorderProfileCustomRuleGroupsBody} body List and ordered group names
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdCustomRuleGroupsOrderPatch(id: string, body: RequestsReorderProfileCustomRuleGroupsBody, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1ProfilesIdCustomRuleGroupsOrderPatch(id, body, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group\'s note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from->path.
          * @summary Update profile custom rule groups
          * @param {string} id Profile ID
@@ -5931,6 +6023,19 @@ export class ProfileApi extends BaseAPI {
      */
     public apiV1ProfilesIdBlocklistsPost(id: string, blocklistIds: ApiBlocklistsUpdates, options?: RawAxiosRequestConfig) {
         return ProfileApiFp(this.configuration).apiV1ProfilesIdBlocklistsPost(id, blocklistIds, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Set the display order of a list\'s custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.
+     * @summary Reorder profile custom rule groups
+     * @param {string} id Profile ID
+     * @param {RequestsReorderProfileCustomRuleGroupsBody} body List and ordered group names
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProfileApi
+     */
+    public apiV1ProfilesIdCustomRuleGroupsOrderPatch(id: string, body: RequestsReorderProfileCustomRuleGroupsBody, options?: RawAxiosRequestConfig) {
+        return ProfileApiFp(this.configuration).apiV1ProfilesIdCustomRuleGroupsOrderPatch(id, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

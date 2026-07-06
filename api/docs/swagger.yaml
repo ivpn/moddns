@@ -1234,6 +1234,22 @@ definitions:
     required:
     - updates
     type: object
+  requests.ReorderProfileCustomRuleGroupsBody:
+    properties:
+      action:
+        enum:
+        - block
+        - allow
+        type: string
+      order:
+        items:
+          type: string
+        maxItems: 100
+        type: array
+    required:
+    - action
+    - order
+    type: object
   requests.ReorderProfileCustomRulesBody:
     properties:
       order:
@@ -2215,6 +2231,48 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Update profile custom rule groups
+      tags:
+      - Profile
+  /api/v1/profiles/{id}/custom_rule_groups/order:
+    patch:
+      consumes:
+      - application/json
+      description: Set the display order of a list's custom-rule group registry. action
+        scopes it to one list (block=denylist, allow=allowlist); groups are per-list.
+        Order is organizational only; unknown names are ignored and omitted groups
+        keep their order, so a stale client list cannot drop a group.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: List and ordered group names
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ReorderProfileCustomRuleGroupsBody'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Reorder profile custom rule groups
       tags:
       - Profile
   /api/v1/profiles/{id}/custom_rules:
