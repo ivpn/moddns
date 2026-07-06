@@ -544,6 +544,52 @@ func TestNewMobileConfig_DefaultsAndIdentifiers(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, mobileCfg.DNSSettingsPayloadUUID)
 }
 
+// specRef: K3 — tls ServerAddresses array carries IPv4 then anycast IPv6 when configured.
+func TestNewMobileConfig_TLSServerAddressesIncludeIPv6(t *testing.T) {
+	cfg := &config.Config{
+		Server: &config.ServerConfig{
+			DnsDomain:           "dns.example.com",
+			ServerAddresses:     []string{"10.0.0.1"},
+			ServerAddressesIPv6: []string{"2a03:c040::5"},
+			FrontendDomain:      "frontend.example.com",
+		},
+		Service: &config.ServiceConfig{},
+	}
+	service := NewAppleService(cfg, mocks.NewCachecache(t), urlshort.NewURLShortener())
+
+	req := requests.MobileConfigReq{ProfileId: "profile-1", AdvancedOptionsReq: &requests.AdvancedOptionsReq{EncryptionType: "tls"}}
+	validated, err := service.validate(req)
+	require.NoError(t, err)
+
+	mobileCfg, err := service.newMobileConfig(context.Background(), *validated)
+	require.NoError(t, err)
+
+	// IPv4 first, IPv6 appended.
+	assert.Equal(t, []string{"10.0.0.1", "2a03:c040::5"}, mobileCfg.ServerAddresses)
+}
+
+// specRef: K3 — empty ServerAddressesIPv6 leaves the array IPv4-only.
+func TestNewMobileConfig_ServerAddressesIPv4OnlyWhenNoIPv6(t *testing.T) {
+	cfg := &config.Config{
+		Server: &config.ServerConfig{
+			DnsDomain:       "dns.example.com",
+			ServerAddresses: []string{"10.0.0.1", "10.0.0.2"},
+			FrontendDomain:  "frontend.example.com",
+		},
+		Service: &config.ServiceConfig{},
+	}
+	service := NewAppleService(cfg, mocks.NewCachecache(t), urlshort.NewURLShortener())
+
+	req := requests.MobileConfigReq{ProfileId: "profile-1", AdvancedOptionsReq: &requests.AdvancedOptionsReq{EncryptionType: "tls"}}
+	validated, err := service.validate(req)
+	require.NoError(t, err)
+
+	mobileCfg, err := service.newMobileConfig(context.Background(), *validated)
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2"}, mobileCfg.ServerAddresses)
+}
+
 func TestGenerateMobileConfig_NoLinkSkipsCache(t *testing.T) {
 	cfg := &config.Config{
 		Server: &config.ServerConfig{

@@ -72,12 +72,13 @@ type SentryConfig struct {
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Name            string
-	FQDN            string
-	DnsDomain       string
-	ServerAddresses []string
-	FrontendDomain  string
-	AllowedDomains  []string
+	Name                string
+	FQDN                string
+	DnsDomain           string
+	ServerAddresses     []string
+	ServerAddressesIPv6 []string
+	FrontendDomain      string
+	AllowedDomains      []string
 }
 
 // APIConfig represents the API configuration
@@ -123,6 +124,13 @@ func New() (*Config, error) {
 		return nil, errors.New("SERVER_DNS_SERVER_ADDRESSES is not set")
 	}
 	dnsServerAddresses := strings.Split(envDnsServerAddresses, ",")
+
+	// Optional: anycast IPv6 server address(es). Empty when IPv6 is not yet served
+	// in this environment, in which case it stays nil and consumers fall back to IPv4 only.
+	var dnsServerAddressesIPv6 []string
+	if envDnsServerAddressesIPv6 := os.Getenv("SERVER_DNS_SERVER_IPV6_ADDRESSES"); envDnsServerAddressesIPv6 != "" {
+		dnsServerAddressesIPv6 = strings.Split(envDnsServerAddressesIPv6, ",")
+	}
 
 	otpExp, err := time.ParseDuration(envOrDefault("OTP_EXPIRATION", "5m"))
 	if err != nil {
@@ -199,12 +207,13 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Name:            serverName,
-			FQDN:            serverFQDN,
-			DnsDomain:       os.Getenv("SERVER_DNS_DOMAIN"),
-			ServerAddresses: dnsServerAddresses,
-			FrontendDomain:  os.Getenv("SERVER_FRONTEND_DOMAIN"),
-			AllowedDomains:  allowedDomains,
+			Name:                serverName,
+			FQDN:                serverFQDN,
+			DnsDomain:           os.Getenv("SERVER_DNS_DOMAIN"),
+			ServerAddresses:     dnsServerAddresses,
+			ServerAddressesIPv6: dnsServerAddressesIPv6,
+			FrontendDomain:      os.Getenv("SERVER_FRONTEND_DOMAIN"),
+			AllowedDomains:      allowedDomains,
 		},
 		API: &APIConfig{
 			Port:                  os.Getenv("API_PORT"),

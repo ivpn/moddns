@@ -173,7 +173,8 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                             "DNS-over-TLS/QUIC": profileData.dnsOverTLS,
                                                             "DNS-over-HTTPS": profileData.dnsOverHTTPS,
                                                             "IPv4": profileData.ipv4,
-                                                            // "IPv6": profileData.ipv6, // TODO: bring back when we have IPv6 support
+                                                            // IPv6 anycast — only shown when configured for this environment.
+                                                            ...(profileData.ipv6 ? { "IPv6": profileData.ipv6 } : {}),
                                                         }).map(([label, value], index) => {
                                                             const interactive = !isDesktop; // mobile & tablet
                                                             return (
@@ -188,11 +189,11 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                                 >
                                                                     <span className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-[25.4px] select-none inline-flex items-center gap-1">
                                                                         {label}
-                                                                        {label === "IPv4" && (
+                                                                        {(label === "IPv4" || label === "IPv6") && (
                                                                             <Tooltip content="Note: Plain DNS is not supported. Must be used with DoH, DoT, or DoQ URI above." side="top" align="start" maxWidthClassName="max-w-[260px]">
                                                                                 <button
                                                                                     type="button"
-                                                                                    aria-label="IPv4 usage information"
+                                                                                    aria-label={`${label} usage information`}
                                                                                     className="inline-flex items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                                                                     onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
                                                                                     onKeyDown={(e) => e.stopPropagation()}

@@ -121,6 +121,8 @@ export function useProfileData(): DerivedProfileData | null {
   const envDomain = (import.meta as ImportMeta).env.VITE_DNS_SERVER_DOMAIN || 'example.com';
   const rawIps: string = (import.meta as ImportMeta).env.VITE_DNS_SERVER_IP_ADDRESSES || '';
   const primaryIp = rawIps.split(',').map((s: string) => s.trim()).filter(Boolean)[0] || '0.0.0.0';
+  const rawIpv6: string = (import.meta as ImportMeta).env.VITE_DNS_SERVER_IPV6_ADDRESSES || '';
+  const primaryIpv6 = rawIpv6.split(',').map((s: string) => s.trim()).filter(Boolean)[0] || undefined;
 
   return useMemo(() => {
     if (!activeProfile) return null;
@@ -132,9 +134,9 @@ export function useProfileData(): DerivedProfileData | null {
       dnsOverTLS,
       dnsOverHTTPS,
       ipv4: primaryIp,
-      ipv6: '2606:4700:4700::1111', // TODO: replace with real IPv6 when available
+      ipv6: primaryIpv6, // anycast IPv6 from env; undefined when not configured (e.g. staging)
       domain: envDomain,
       dohEndpoint: dnsOverHTTPS,
     } as DerivedProfileData;
-  }, [activeProfile, envDomain, primaryIp]);
+  }, [activeProfile, envDomain, primaryIp, primaryIpv6]);
 }
