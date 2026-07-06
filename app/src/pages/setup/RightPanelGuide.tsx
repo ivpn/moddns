@@ -148,7 +148,6 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
                 dohEndpoint,
                 dotEndpoint: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`,
                 primaryIp: effectivePrimaryIp,
-                ipv6: effectiveIpv6,
                 onPlatformChange,
             })
         };

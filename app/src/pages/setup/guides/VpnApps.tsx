@@ -11,7 +11,6 @@ export interface VpnAppsGuideDeps {
     dohEndpoint: string;     // https://<dnsServerDomain>/dns-query/<profileId>
     dotEndpoint: string;     // <profileId>.<dnsServerDomain>
     primaryIp: string;       // primary IPv4 from env list
-    ipv6?: string;           // anycast IPv6 from env list; shown only when configured
     onPlatformChange?: (platform: string) => void;
 }
 
@@ -73,12 +72,6 @@ export const createVpnAppsSteps = (deps: VpnAppsGuideDeps) => [
             <span>
                 Under <strong>DNS Server / IP Address</strong>, enter:
                 <div className="mt-2"><CodeBlock noWrap value={deps.primaryIp} className="w-full" /></div>
-                {deps.ipv6 && (
-                    <>
-                        <div className="mt-2 text-xs text-[var(--shadcn-ui-app-muted-foreground)]">or, for IPv6:</div>
-                        <div className="mt-2"><CodeBlock noWrap value={deps.ipv6} className="w-full" /></div>
-                    </>
-                )}
             </span>
         ),
     },
