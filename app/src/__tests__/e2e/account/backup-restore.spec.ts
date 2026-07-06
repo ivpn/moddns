@@ -314,6 +314,43 @@ test.describe('Backup & Restore — Import', () => {
         await expect(genericRow).not.toHaveClass(/yellow/);
     });
 
+    // Regression (issue #604 QA): the import confirm step must not overflow a short
+    // laptop viewport. A large profile list previously pushed the dialog header and
+    // action buttons off-screen because DialogBody dropped its height cap at >=640px
+    // wide (sm:max-h-none). On a short-but-wide viewport the header + submit button
+    // must stay in view, with the body scrolling internally.
+    test('import confirm step stays within a short laptop viewport (no cutoff)', async ({ page }) => {
+        // Short-but-wide viewport ~ a 13" laptop content area. Layout bugs like this
+        // are engine-specific — running this under the WebKit (iphone15pro-dark)
+        // project exercises the engine that shifts where Chromium does not.
+        await page.setViewportSize({ width: 1000, height: 560 });
+
+        await setupBaseMocks(page);
+        await gotoAccount(page);
+
+        await page.getByTestId('btn-import-profiles').click();
+        await expect(page.getByTestId('import-dialog')).toBeVisible();
+
+        // Many profiles → the selection list fills to its cap, maximising dialog height.
+        const manyNames = Array.from({ length: 40 }, (_, i) => `Profile ${i + 1}`);
+        await uploadJsonToDropzone(page, makeExportPayload(manyNames));
+
+        // Confirm step reached.
+        const submitBtn = page.getByTestId('import-submit-btn');
+        await expect(submitBtn).toBeVisible({ timeout: 5_000 });
+
+        // Header (top) and action button (bottom) must both be within the viewport —
+        // i.e. the modal is not clipped off either edge.
+        await expect(page.getByTestId('import-dialog').getByText('Select profiles to import')).toBeInViewport();
+        await expect(submitBtn).toBeInViewport();
+
+        // The dialog shell itself must fit vertically within the viewport.
+        const box = await page.getByTestId('import-dialog').boundingBox();
+        expect(box).not.toBeNull();
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(560);
+    });
+
     // Tier gating — specRef V5 (subscription guard)
     test('Import button is disabled for restricted subscription', async ({ page }) => {
         await setupBaseMocks(page, { subscriptionStatus: 'limited_access' });
