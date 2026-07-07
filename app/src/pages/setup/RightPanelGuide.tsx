@@ -83,6 +83,7 @@ const platformGuides: { [key: string]: { badges?: { label: string }[]; steps?: {
 export default function SetupGuidePanel({ platform, onClose, isVisible = true, mode = 'sidepanel', onPlatformChange }: SetupGuidePanelProps): JSX.Element {
     const profileData = useProfileData();
     const effectivePrimaryIp = profileData?.ipv4 || '0.0.0.0';
+    const effectiveIpv6 = profileData?.ipv6; // anycast IPv6; undefined when not configured
     const effectiveDomain = profileData?.domain || 'example.com';
     const dohEndpoint = profileData?.dohEndpoint || 'https://example.com/dns-query/your-profile-id';
     // Handle Device Identification dynamically with actual values
@@ -108,7 +109,8 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             badges: WindowsGuide.badges,
             steps: createWindowsSteps({
                 dohEndpoint,
-                primaryIp: effectivePrimaryIp
+                primaryIp: effectivePrimaryIp,
+                ipv6: effectiveIpv6
             })
         };
     } else if (platform === "Linux") {
@@ -117,7 +119,8 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             steps: createLinuxSteps({
                 profileId: profileData?.id || 'your-profile-id',
                 primaryIp: effectivePrimaryIp,
-                domain: effectiveDomain
+                domain: effectiveDomain,
+                ipv6: effectiveIpv6
             })
         };
     } else if (platform === "Android") {
@@ -133,6 +136,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
             steps: createRoutersSteps({
                 dohEndpoint,
                 anycastIpv4: effectivePrimaryIp,
+                anycastIpv6: effectiveIpv6,
                 dnsServerDomain: effectiveDomain,
                 dotHostname: profileData?.dnsOverTLS || `your-profile-id.${effectiveDomain}`
             })

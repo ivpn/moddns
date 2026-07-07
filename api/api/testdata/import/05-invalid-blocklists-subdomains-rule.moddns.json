@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "exportedAt": "2026-01-01T00:00:00Z",
+  "profiles": [
+    {
+      "name": "Bad bl-subdomains",
+      "settings": {
+        "privacy": {
+          "blocklistsSubdomainsRule": "maybe"
+        }
+      }
+    }
+  ]
+}

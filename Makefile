@@ -4,7 +4,6 @@ CWD=$$(pwd)
 help: ## Displays the help for each command.
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-RECURSOR?=unbound # unbound is default recursor
 up: ## Starts all of the services.
 	docker compose \
 		-f compose.yml \
@@ -14,33 +13,9 @@ up: ## Starts all of the services.
 		-f compose.redis.yml \
 		-f compose.dns.yml \
 		-f compose.dnscheck.yml \
-		-f compose.unbound.yml \
+		-f compose.knot.yml \
 		-f compose.sdns.yml \
 		up -d;
-
-	# @if [ ${RECURSOR} = "unbound" ]; then \
-	# 	echo "Using unbound recursor...\n";\
-    #   	docker compose \
-	# 	-f compose.yml \
-	# 	-f compose.app.yml \
-	# 	-f compose.nginx.yml \
-	# 	-f compose.db.yml \
-	# 	-f compose.redis.yml \
-	# 	-f compose.dns.yml \
-	# 	-f compose.dnscheck.yml \
-	# 	-f compose.unbound.yml \
-	# 	up -d;\
-    # else \
-	# 	echo "Using SDNS recursor...\n";\
-	#   	docker compose -f compose.yml \
-	# 	-f compose.app.yml \
-	# 	-f compose.nginx.yml \
-	# 	-f compose.redis.yml \
-	# 	-f compose.dns.yml \
-	# 	-f compose.dnscheck.yml \
-	# 	-f compose.sdns.yml \
-	# 	up -d; \
-	# fi
 
 down: ## Stops all of the services.
 	docker compose -f compose.yml \
@@ -51,49 +26,34 @@ down: ## Stops all of the services.
 	-f compose.dns.yml \
 	-f compose.dnscheck.yml \
 	-f compose.sdns.yml \
-	-f compose.unbound.yml \
+	-f compose.knot.yml \
 	down; \
 	docker kill -a
 
-up_dns: ## Starts the DNS services.
-	@if [ ${RECURSOR} = "sdns" ]; then \
-		echo "Using SDNS recursor...\n";\
-	  	docker compose \
-		-f compose.yml \
-		-f compose.dns.yml \
-		-f compose.sdns.yml up -d;\
-	else \
-		echo "Using Unbound recursor...\n";\
-	  	docker compose \
-		-f compose.yml \
-		-f compose.dns.yml \
-		-f compose.unbound.yml up -d;\
-	fi
+up_dns: ## Starts the DNS services (both recursors: sdns + knot).
+	docker compose \
+	-f compose.yml \
+	-f compose.redis.yml \
+	-f compose.dns.yml \
+	-f compose.sdns.yml \
+	-f compose.knot.yml \
+	up -d
 
-down_dns: ## Stops the DNS services.
-	@if [ ${RECURSOR} = "sdns" ]; then \
-		echo "Starting DNS services with SDNS recursor...\n";\
-	  	docker compose \
-		-f compose.yml \
-		-f compose.dns.yml \
-		-f compose.sdns.yml \
-		down ;\
-	else \
-		echo "Starting DNS services with Unbound recursor...\n";\
-	  	docker compose \
-		-f compose.yml \
-		-f compose.dns.yml \
-		-f compose.unbound.yml \
-		down ;\
-	fi
+down_dns: ## Stops the DNS services (both recursors: sdns + knot).
+	docker compose \
+	-f compose.yml \
+	-f compose.redis.yml \
+	-f compose.dns.yml \
+	-f compose.sdns.yml \
+	-f compose.knot.yml \
+	down
 
-# RECURSOR?=unbound # unbound is default recursor
 up_dev: ## Starts the services for development purposes.
 	docker compose \
 		-f compose.yml \
 		-f compose.dev.yml \
 		-f compose.redis.yml \
-		-f compose.unbound.yml \
+		-f compose.knot.yml \
 		-f compose.sdns.yml \
 		up -d
 
@@ -103,7 +63,7 @@ down_dev: ## Stops the development services.
 	-f compose.dev.yml \
 	-f compose.redis.yml \
 	-f compose.sdns.yml \
-	-f compose.unbound.yml \
+	-f compose.knot.yml \
 	down --remove-orphans --timeout 10
 
 restart_dev: ## Restarts development services (down + up with proper wait).
@@ -111,14 +71,14 @@ restart_dev: ## Restarts development services (down + up with proper wait).
 	-f compose.dev.yml \
 	-f compose.yml \
 	-f compose.sdns.yml \
-	-f compose.unbound.yml \
+	-f compose.knot.yml \
 	down --remove-orphans --timeout 10
 	@echo "Waiting for network resources to be released..."
 	@sleep 2
 	docker compose \
 		-f compose.yml \
 		-f compose.dev.yml \
-		-f compose.unbound.yml \
+		-f compose.knot.yml \
 		-f compose.sdns.yml \
 		up -d
 

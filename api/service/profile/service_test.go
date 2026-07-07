@@ -24,6 +24,7 @@ type ProfileTestSuite struct {
 	suite.Suite
 	service            *profile.ProfileService
 	mockProfileRepo    *mocks.ProfileRepository
+	mockAccountRepo    *mocks.AccountRepository
 	mockBlocklistRepo  *mocks.BlocklistRepository
 	mockQueryLogsRepo  *mocks.QueryLogsRepository
 	mockStatisticsRepo *mocks.StatisticsRepository
@@ -52,12 +53,15 @@ func (suite *ProfileTestSuite) SetupSuite() {
 
 	// Initialize mocks
 	suite.mockProfileRepo = mocks.NewProfileRepository(suite.T())
+	suite.mockAccountRepo = mocks.NewAccountRepository(suite.T())
 	suite.mockBlocklistRepo = mocks.NewBlocklistRepository(suite.T())
 	suite.mockQueryLogsRepo = mocks.NewQueryLogsRepository(suite.T())
 	suite.mockStatisticsRepo = mocks.NewStatisticsRepository(suite.T())
 	suite.mockCache = mocks.NewCachecache(suite.T())
 	suite.mockIDGen = mocks.NewGeneratoridgen(suite.T())
-	suite.validator = validator.New()
+	apiValidator, vErr := intvldtr.NewAPIValidator()
+	suite.Require().NoError(vErr, "Failed to create APIValidator")
+	suite.validator = apiValidator.Validator
 
 	// Extract configs
 	suite.serverConfig = *cfg.Server
@@ -72,14 +76,16 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	// Create the StatisticsService with mocked dependencies
 	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo)
 
-	// Create the ProfileService with mocks
+	// Create the ProfileService with mocks (no catalog needed for non-import tests)
 	suite.service = profile.NewProfileService(
 		suite.serverConfig,
 		suite.serviceConfig,
 		suite.mockProfileRepo,
+		suite.mockAccountRepo,
 		suite.blocklistService,
 		suite.queryLogsService,
 		suite.statisticsService,
+		nil,
 		suite.mockCache,
 		suite.mockIDGen,
 		suite.validator,
@@ -115,6 +121,37 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 			accountID:     "account123",
 			maxProfiles:   5,
 			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Whitespace-only profile name",
+			profileName:   "   ",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name cannot be empty",
+		},
+		{
+			name:          "Profile name with RLO bidi override",
+			profileName:   "Work\u202eHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:          "Profile name with zero-width space",
+			profileName:   "Work\u200bHome",
+			accountID:     "account123",
+			maxProfiles:   5,
+			expectedError: "profile name contains invalid characters",
+		},
+		{
+			name:        "Profile name trimmed before dup check",
+			profileName: "  Existing Profile  ",
+			accountID:   "account123",
+			maxProfiles: 5,
+			existingProfiles: []model.Profile{
+				{Name: "Existing Profile", AccountId: "account123"},
+			},
+			expectedError: "profile with this name already exists",
 		},
 		{
 			name:        "Profile name already exists",
@@ -891,14 +928,14 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 
 		// Advanced settings tests
 		{
-			name:      "Successfully update advanced recursor to unbound",
+			name:      "Successfully update advanced recursor to knot",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
 					Path:      "/settings/advanced/recursor",
-					Value:     model.RECURSOR_UNBOUND,
+					Value:     model.RECURSOR_KNOT,
 				},
 			},
 			existingProfile: &model.Profile{
@@ -928,7 +965,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				AccountId: "account123",
 				Name:      "Test Profile",
 				Settings: &model.ProfileSettings{
-					Advanced: &model.Advanced{Recursor: model.RECURSOR_UNBOUND},
+					Advanced: &model.Advanced{Recursor: model.RECURSOR_KNOT},
 				},
 			},
 			expectedError: "",
@@ -1130,7 +1167,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 				{
 					Operation: model.UpdateOperationReplace,
 					Path:      "/settings/advanced/recursor",
-					Value:     model.RECURSOR_UNBOUND,
+					Value:     model.RECURSOR_KNOT,
 				},
 				{
 					Operation: model.UpdateOperationReplace,
@@ -2185,9 +2222,11 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 				suite.serverConfig,
 				suite.serviceConfig,
 				mockProfileRepo,
+				suite.mockAccountRepo,
 				suite.blocklistService,
 				suite.queryLogsService,
 				suite.statisticsService,
+				nil,
 				mockCache,
 				suite.mockIDGen,
 				apiVldtr.Validator,
@@ -2211,7 +2250,7 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 			if !tt.wantSkipped {
 				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
-				mockCache.On("AddCustomRule", mock.Anything, profileID, mock.Anything).
+				mockCache.On("AddCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
 			}
 
@@ -2237,6 +2276,222 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 			mockCache.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// TestCreateCustomRulesBulkEnforcesPerProfileCap verifies the per-profile
+// custom-rule cap (model.MaxCustomRulesPerProfile) is enforced on create:
+// adding rules that would push a profile over the cap is rejected with
+// ErrMaxCustomRulesReached and nothing is persisted.
+func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerProfileCap() {
+	const accountID = "acct-cap"
+	const profileID = "prof-cap"
+
+	apiVldtr, err := intvldtr.NewAPIValidator()
+	suite.Require().NoError(err)
+
+	mockProfileRepo := mocks.NewProfileRepository(suite.T())
+	mockCache := mocks.NewCachecache(suite.T())
+
+	svc := profile.NewProfileService(
+		suite.serverConfig,
+		suite.serviceConfig,
+		mockProfileRepo,
+		suite.mockAccountRepo,
+		suite.blocklistService,
+		suite.queryLogsService,
+		suite.statisticsService,
+		nil,
+		mockCache,
+		suite.mockIDGen,
+		apiVldtr.Validator,
+	)
+
+	// Profile already holding exactly the cap, so any net-new rule exceeds it.
+	existing := make([]*model.CustomRule, model.MaxCustomRulesPerProfile)
+	for i := range existing {
+		existing[i] = &model.CustomRule{Value: "filler.example.com"}
+	}
+	existingProfile := &model.Profile{
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			Privacy: &model.Privacy{
+				CustomRulesSubdomainsRule: "include",
+				DefaultRule:               "allow",
+			},
+			CustomRules: existing,
+		},
+	}
+	mockProfileRepo.On("GetProfileById", mock.Anything, profileID).Return(existingProfile, nil)
+
+	result, err := svc.CreateCustomRulesBulk(
+		context.Background(), accountID, profileID, "block", []string{"new-unique.example.com"},
+	)
+
+	suite.Require().Error(err)
+	suite.ErrorIs(err, profile.ErrMaxCustomRulesReached)
+	suite.Nil(result)
+	mockProfileRepo.AssertNotCalled(suite.T(), "CreateCustomRules", mock.Anything, mock.Anything, mock.Anything)
+	mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// TestApplyCustomRuleGroupOps_Move (rename) reassigns the action's member rules and
+// moves the note within that list only.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_Move() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "ad note"}}},
+			CustomRules:      []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("ReassignCustomRuleGroup", ctx, profileID, "block", "Ads", "Marketing").Return(nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Marketing", Comment: "ad note"}}}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "move", Action: "block", From: "Ads", Group: "Marketing"},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_RemoveIsPerList deletes the denylist "Ads" group and
+// confirms the reassignment is action-scoped and the same-named allowlist group is
+// untouched.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_RemoveIsPerList() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{
+				Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "x"}},
+				Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep me"}},
+			},
+			CustomRules: []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	// Reassign is scoped to action "block" only.
+	suite.mockProfileRepo.On("ReassignCustomRuleGroup", ctx, profileID, "block", "Ads", "").Return(nil).Once()
+	// The allowlist "Ads" group survives; only the block entry is removed (→ nil).
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{
+		Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep me"}},
+	}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "remove", Action: "block", Group: "Ads"},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_AddSetsNote creates/updates a group note in the given
+// list without touching any rules.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_AddSetsNote() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+	note := "tracking domains"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{},
+			CustomRules:      []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: note}}}).Return(nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "add", Action: "allow", Group: "Ads", Note: &note},
+	})
+	suite.NoError(err)
+}
+
+// TestApplyCustomRuleGroupOps_RejectsBadAction rejects an op whose action is not
+// block/allow; the registry is not written.
+func (suite *ProfileTestSuite) TestApplyCustomRuleGroupOps_RejectsBadAction() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-empty"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings:  &model.ProfileSettings{CustomRuleGroups: model.CustomRuleGroups{}},
+	}
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+
+	err := suite.service.ApplyCustomRuleGroupOps(ctx, accountID, profileID, []profile.CustomRuleGroupOp{
+		{Operation: "add", Action: "comment", Group: "Ads"},
+	})
+	suite.ErrorIs(err, model.ErrInvalidCustomRuleAction)
+}
+
+// TestReorderCustomRuleGroups_PersistsReorderedSlice reorders the denylist registry
+// and asserts the whole reordered slice (comments intact) is persisted, and that the
+// allowlist is left untouched (per-list scoping).
+// tableRef: I8
+func (suite *ProfileTestSuite) TestReorderCustomRuleGroups_PersistsReorderedSlice() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-grp"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings: &model.ProfileSettings{
+			CustomRuleGroups: model.CustomRuleGroups{
+				Block: []model.CustomRuleGroup{
+					{Name: "Ads", Comment: "a"}, {Name: "Social", Comment: "s"}, {Name: "Work", Comment: "w"},
+				},
+				Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep"}},
+			},
+			CustomRules: []*model.CustomRule{},
+		},
+	}
+
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+	suite.mockProfileRepo.On("SetCustomRuleGroups", ctx, profileID, model.CustomRuleGroups{
+		Block: []model.CustomRuleGroup{
+			{Name: "Work", Comment: "w"}, {Name: "Ads", Comment: "a"}, {Name: "Social", Comment: "s"},
+		},
+		Allow: []model.CustomRuleGroup{{Name: "Ads", Comment: "keep"}},
+	}).Return(nil).Once()
+
+	err := suite.service.ReorderCustomRuleGroups(ctx, accountID, profileID, "block", []string{"Work", "Ads", "Social"})
+	suite.NoError(err)
+}
+
+// TestReorderCustomRuleGroups_RejectsBadAction rejects a non-block/allow action; the
+// registry is not written.
+// tableRef: I8
+func (suite *ProfileTestSuite) TestReorderCustomRuleGroups_RejectsBadAction() {
+	ctx := context.Background()
+	const accountID = "acct-grp"
+	const profileID = "prof-empty"
+
+	profileRec := &model.Profile{
+		ProfileId: profileID,
+		AccountId: accountID,
+		Settings:  &model.ProfileSettings{CustomRuleGroups: model.CustomRuleGroups{}},
+	}
+	suite.mockProfileRepo.On("GetProfileById", ctx, profileID).Return(profileRec, nil).Once()
+
+	err := suite.service.ReorderCustomRuleGroups(ctx, accountID, profileID, "comment", []string{"Ads"})
+	suite.ErrorIs(err, model.ErrInvalidCustomRuleAction)
 }
 
 func TestProfileTestSuite(t *testing.T) {

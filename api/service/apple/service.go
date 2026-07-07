@@ -11,6 +11,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/template"
 	"unicode/utf8"
@@ -74,24 +75,26 @@ const (
 )
 
 type AppleService struct {
-	DnsServerDomain string
-	ServerAddresses []string
-	FrontendDomain  string
-	PrivateKeyPath  string
-	CertPath        string
-	Shortener       *urlshort.URLShortener
-	Cache           cache.Cache
+	DnsServerDomain     string
+	ServerAddresses     []string
+	ServerAddressesIPv6 []string
+	FrontendDomain      string
+	PrivateKeyPath      string
+	CertPath            string
+	Shortener           *urlshort.URLShortener
+	Cache               cache.Cache
 }
 
 func NewAppleService(cfg *config.Config, cache cache.Cache, shortener *urlshort.URLShortener) *AppleService {
 	return &AppleService{
-		DnsServerDomain: cfg.Server.DnsDomain,
-		ServerAddresses: cfg.Server.ServerAddresses,
-		FrontendDomain:  cfg.Server.FrontendDomain,
-		PrivateKeyPath:  cfg.Service.MobileConfigPrivateKeyPath,
-		CertPath:        cfg.Service.MobileConfigCertPath,
-		Shortener:       shortener,
-		Cache:           cache,
+		DnsServerDomain:     cfg.Server.DnsDomain,
+		ServerAddresses:     cfg.Server.ServerAddresses,
+		ServerAddressesIPv6: cfg.Server.ServerAddressesIPv6,
+		FrontendDomain:      cfg.Server.FrontendDomain,
+		PrivateKeyPath:      cfg.Service.MobileConfigPrivateKeyPath,
+		CertPath:            cfg.Service.MobileConfigCertPath,
+		Shortener:           shortener,
+		Cache:               cache,
 	}
 }
 
@@ -208,7 +211,10 @@ func (a *AppleService) newMobileConfig(ctx context.Context, req requests.MobileC
 	mobilecfg.ContentIdentifier = uuid.New()
 	mobilecfg.PayloadUUID = uuid.New()
 
-	mobilecfg.ServerAddresses = a.ServerAddresses
+	// Combine IPv4 and (optional) IPv6 anycast addresses for the DoT ServerAddresses
+	// array. IPv4 stays first; the DNS-stamp endpoint pins ServerAddresses[0] elsewhere
+	// and is unaffected because it reads cfg.Server.ServerAddresses directly.
+	mobilecfg.ServerAddresses = slices.Concat(a.ServerAddresses, a.ServerAddressesIPv6)
 
 	mobilecfg.ServerDomain = a.DnsServerDomain
 	parts := strings.Split(a.DnsServerDomain, ".")

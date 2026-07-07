@@ -1,47 +1,41 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-
-	"github.com/go-playground/validator/v10"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// Profile default-rule values (the fallback action when no rule matches). The
+// custom-rule action/syntax vocabulary they reference lives in custom_rule.go.
 const (
-	ACTION_BLOCK                    = "block"
-	ACTION_ALLOW                    = "allow"
-	ACTION_COMMENT                  = "comment"
-	DEFAULT_RULE_BLOCK              = ACTION_BLOCK
-	DEFAULT_RULE_ALLOW              = ACTION_ALLOW
-	CUSTOM_RULES_SUBDOMAINS_INCLUDE = "include"
-	CUSTOM_RULES_SUBDOMAINS_EXACT   = "exact"
-	SYNTAX_IPV4                     = "ip4_addr"
-	SYNTAX_IPV4_WILDCARD            = "ip4_wildcard"
-	SYNTAX_IPV4_CIDR                = "ip4_cidr"
-	SYNTAX_IPV6                     = "ip6"
-	SYNTAX_IPV6_WILDCARD            = "ip6_wildcard"
-	SYNTAX_IPV6_CIDR                = "ip6_cidr"
-	SYNTAX_FQDN                     = "fqdn"
-	SYNTAX_FQDN_WILDCARD            = "fqdn_wildcard"
-	SYNTAX_ASN                      = "asn"
-	SYNTAX_UNKNOWN                  = "unknown_syntax"
-)
-
-var (
-	ErrInvalidCustomRuleAction = errors.New("invalid custom rule action type")
-	ErrInvalidCustomRuleSyntax = errors.New("invalid custom rule value syntax")
+	DEFAULT_RULE_BLOCK = ACTION_BLOCK
+	DEFAULT_RULE_ALLOW = ACTION_ALLOW
 )
 
 // ProfileSettings represents profile settings, it's internal model used in `profiles` collection
 type ProfileSettings struct {
-	ProfileId   string              `json:"profile_id" bson:"profile_id" redis:"profile_id" binding:"required"`
-	Security    *Security           `json:"security" bson:"security" redis:"security" binding:"required"`
-	Privacy     *Privacy            `json:"privacy" bson:"privacy" redis:"privacy" binding:"required"`
-	CustomRules []*CustomRule       `json:"custom_rules" bson:"custom_rules" redis:"-"`
-	Logs        *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
-	Statistics  *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
-	Advanced    *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
+	ProfileId   string        `json:"profile_id" bson:"profile_id" redis:"profile_id" binding:"required"`
+	Security    *Security     `json:"security" bson:"security" redis:"security" binding:"required"`
+	Privacy     *Privacy      `json:"privacy" bson:"privacy" redis:"privacy" binding:"required"`
+	CustomRules []*CustomRule `json:"custom_rules" bson:"custom_rules" redis:"-"`
+	// CustomRuleGroups is the per-list group registry (denylist/allowlist).
+	// Organizational metadata only; never synced to the proxy (redis:"-").
+	CustomRuleGroups CustomRuleGroups    `json:"custom_rule_groups" bson:"custom_rule_groups" redis:"-"`
+	Logs             *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
+	Statistics       *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
+	Advanced         *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
+}
+
+// MarshalJSON renders CustomRules as an empty JSON array ([]) instead of null
+// when nil, so the API always returns a list. Storage (bson) is unchanged.
+func (s ProfileSettings) MarshalJSON() ([]byte, error) {
+	type alias ProfileSettings
+	a := alias(s)
+	if a.CustomRules == nil {
+		a.CustomRules = []*CustomRule{}
+	}
+	return json.Marshal(a)
 }
 
 // NewSettings creates a new, empty settings object
@@ -69,7 +63,8 @@ func NewSettings() *ProfileSettings {
 		Statistics: &StatisticsSettings{
 			Enabled: false,
 		},
-		CustomRules: make([]*CustomRule, 0),
+		CustomRules:      make([]*CustomRule, 0),
+		CustomRuleGroups: CustomRuleGroups{},
 		Advanced: &Advanced{
 			Recursor: RECURSOR_DEFAULT,
 		},
@@ -79,54 +74,6 @@ func NewSettings() *ProfileSettings {
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
-}
-
-// CustomRule represents a custom rule
-type CustomRule struct {
-	ID     primitive.ObjectID `json:"id" bson:"_id" redis:"-" binding:"required"`
-	Action CustomRuleAction   `json:"action" bson:"action" redis:"action" binding:"required"`
-	Value  string             `json:"value" bson:"value" redis:"value" binding:"required"`
-	Syntax CustomRuleSyntax   `json:"-" bson:"syntax" redis:"syntax" binding:"required"`
-}
-
-// CustomRuleAction represents a custom rule action type
-type CustomRuleAction string
-
-func (p CustomRuleAction) MarshalBinary() (data []byte, err error) {
-	return fmt.Append(nil, p), nil
-}
-
-func NewCustomRuleAction(action string) (CustomRuleAction, error) {
-	switch action {
-	case ACTION_BLOCK:
-		return ACTION_BLOCK, nil
-	case ACTION_ALLOW:
-		return ACTION_ALLOW, nil
-	case ACTION_COMMENT:
-		return ACTION_COMMENT, nil
-	default:
-		return "", ErrInvalidCustomRuleAction
-	}
-}
-
-// CustomRuleSyntax represents a custom rule action syntax
-type CustomRuleSyntax string
-
-func (p CustomRuleSyntax) MarshalBinary() (data []byte, err error) {
-	return []byte(fmt.Sprint(p)), nil
-}
-
-var (
-	validations = []string{"fqdn", "ip4_addr", "ip6_addr", "fqdn_wildcard", "asn"}
-)
-
-func NewCustomRuleSyntax(vldtr *validator.Validate, value string) (CustomRuleSyntax, error) {
-	for _, validation := range validations {
-		if err := vldtr.Var(value, validation); err == nil {
-			return CustomRuleSyntax(validation), nil
-		}
-	}
-	return SYNTAX_UNKNOWN, ErrInvalidCustomRuleSyntax
 }
 
 type LogsSettings struct {

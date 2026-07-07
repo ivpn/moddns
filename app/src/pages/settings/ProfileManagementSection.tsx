@@ -132,7 +132,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
     const [advancedLoading, setAdvancedLoading] = useState(false);
 
     // State for recursor choice
-    const [currentRecursor, setCurrentRecursor] = useState("sdns");
+    const [currentRecursor, setCurrentRecursor] = useState("knot");
 
     // Dialog state for delete profile
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -379,7 +379,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
         ]);
 
         // Update recursor choice
-        setCurrentRecursor(profile.settings?.advanced?.recursor || "sdns");
+        setCurrentRecursor(profile.settings?.advanced?.recursor || "knot");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeProfile, profiles]);
 

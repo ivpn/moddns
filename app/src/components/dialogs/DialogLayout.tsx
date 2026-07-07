@@ -6,8 +6,13 @@ export const DialogBody: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ cla
     <div
         className={cn(
             "px-6 pb-4 pt-0 w-full overflow-y-auto",
-            // Max height on small screens (minus header+footer approximate) ensure usability
-            "max-h-[calc(100dvh-12rem)] sm:max-h-none",
+            // Cap the body height (viewport minus an approximate header+footer reserve)
+            // and keep it scrollable at ALL breakpoints. Previously this was
+            // sm:max-h-none, which removed the cap on >=640px-wide screens and disabled
+            // the body scroll — so on short-but-wide laptop viewports tall content (e.g.
+            // a long import profile list + re-auth block) overflowed and the modal
+            // header/footer were clipped off-screen with no way to scroll.
+            "max-h-[calc(100dvh-12rem)]",
             className
         )}
         {...props}

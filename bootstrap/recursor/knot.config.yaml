@@ -1,0 +1,34 @@
+## Knot Resolver (kresd) 6.x — modDNS recursor config.
+## Validating recursive resolver behind the modDNS proxy.
+## DNSSEC validation is enabled (trust anchors are auto-bootstrapped/managed),
+## which is the reason Knot is offered alongside sdns: it correctly validates
+## RSASHA1 (alg-7) dual-algorithm zones (e.g. mailbox.org) that sdns 1.6.4+
+## false-SERVFAILs.
+
+## Number of single-threaded kresd workers the manager supervises (all share one
+## LMDB cache). 2 gives CPU headroom for DNSSEC validation + crash-restart
+## resilience. Do NOT use "auto" here — these are shared multi-container hosts.
+workers: 2
+
+## Management API — bound on TCP so Prometheus can scrape /metrics/prometheus
+## (default is a unix socket). Exposes resolver_* metrics + /config + /metrics/json.
+management:
+  interface: 0.0.0.0@5000
+
+network:
+  listen:
+    - interface: 0.0.0.0
+      port: 53
+      kind: dns
+
+## ACL: kresd answers recursive queries only for allowed clients. Allow the
+## internal DNS network (proxy) plus loopback.
+views:
+  - subnets: [10.5.0.0/16, 127.0.0.0/8, "::1/128"]
+    answer: allow
+
+## DNSSEC validation is enabled by default in Knot Resolver 6.x; no extra config
+## needed. (The `dnssec` key takes a dict of overrides, not a bool.)
+
+cache:
+  size-max: 256M

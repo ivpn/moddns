@@ -650,6 +650,16 @@
                         "description": "Created",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {
@@ -894,6 +904,161 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/export": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Export user's profiles as a downloadable JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Export profiles",
+                "parameters": [
+                    {
+                        "description": "Export request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ExportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.ExportEnvelope"
+                        },
+                        "headers": {
+                            "Cache-Control": {
+                                "type": "string",
+                                "description": "no-store; the export contains sensitive data"
+                            },
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment with a filename of the form moddns-export-\u003cUTC\u003e.moddns.json (contains no PII)"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/vnd.moddns.export+json; charset=utf-8"
+                            },
+                            "Pragma": {
+                                "type": "string",
+                                "description": "no-cache"
+                            },
+                            "X-modDNS-Export-Truncated": {
+                                "type": "integer",
+                                "description": "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/import": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Import profiles from a previously exported JSON file",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Import profiles",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CSRF guard header — must equal \\",
+                        "name": "X-modDNS-Import",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Import request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ImportRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/profile.ImportResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported Media Type",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -1176,6 +1341,122 @@
                 }
             }
         },
+        "/api/v1/profiles/{id}/custom_rule_groups": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Apply JSON-Patch-style operations to the custom-rule group registry. Group names travel in the JSON-Pointer path/from (never the URL). operation=add|replace sets a group's note (creating it); remove deletes a group (its rules move to Ungrouped, not deleted); move renames from-\u003epath.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update profile custom rule groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Group operations",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CustomRuleGroupUpdates"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/custom_rule_groups/order": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Set the display order of a list's custom-rule group registry. action scopes it to one list (block=denylist, allow=allowlist); groups are per-list. Order is organizational only; unknown names are ignored and omitted groups keep their order, so a stale client list cannot drop a group.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Reorder profile custom rule groups",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "List and ordered group names",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReorderProfileCustomRuleGroupsBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/custom_rules": {
             "post": {
                 "security": [
@@ -1276,6 +1557,67 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/custom_rules/order": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Set the display order of a profile's custom rules. Order is organizational only and does not affect filtering precedence.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Reorder profile custom rules",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ordered rule IDs",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReorderProfileCustomRulesBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -1709,6 +2051,77 @@
                 }
             }
         },
+        "/api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id}": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Partially update a single custom rule in place (value, action, note, group, order)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update profile custom rule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "profile_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Custom rule ID",
+                        "name": "custom_rule_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update custom rule request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.UpdateProfileCustomRuleBody"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.CustomRule"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/services": {
             "get": {
                 "security": [
@@ -1804,6 +2217,16 @@
                         "description": "OK",
                         "schema": {
                             "type": "string"
+                        },
+                        "headers": {
+                            "Content-Disposition": {
+                                "type": "string",
+                                "description": "attachment; the downloaded .mobileconfig filename"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "application/x-apple-aspen-config"
+                            }
                         }
                     },
                     "400": {
@@ -2673,7 +3096,11 @@
             ],
             "properties": {
                 "recursor": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "knot"
+                    ]
                 }
             }
         },
@@ -2737,7 +3164,7 @@
                     }
                 },
                 "type": {
-                    "description": "ownership: public (platform-provided) or private (user-uploaded)",
+                    "description": "ownership: currently always \"public\" (platform-provided)",
                     "type": "string"
                 }
             }
@@ -2764,11 +3191,55 @@
                 "action": {
                     "type": "string"
                 },
+                "group": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
+                "note": {
+                    "type": "string"
+                },
+                "order": {
+                    "type": "integer"
+                },
                 "value": {
                     "type": "string"
+                }
+            }
+        },
+        "model.CustomRuleGroup": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 64
+                }
+            }
+        },
+        "model.CustomRuleGroups": {
+            "type": "object",
+            "properties": {
+                "allow": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "$ref": "#/definitions/model.CustomRuleGroup"
+                    }
+                },
+                "block": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "$ref": "#/definitions/model.CustomRuleGroup"
+                    }
                 }
             }
         },
@@ -2800,6 +3271,243 @@
                     "type": "boolean"
                 },
                 "send_do_bit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.ExportEnvelope": {
+            "type": "object",
+            "required": [
+                "exportedAt",
+                "kind",
+                "profiles",
+                "schemaVersion"
+            ],
+            "properties": {
+                "exportedAt": {
+                    "type": "string"
+                },
+                "exportedFrom": {
+                    "$ref": "#/definitions/model.ExportedFromInfo"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "profiles": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedProfile"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.ExportedAdvanced": {
+            "type": "object",
+            "properties": {
+                "recursor": {
+                    "type": "string",
+                    "enum": [
+                        "sdns",
+                        "unbound"
+                    ]
+                }
+            }
+        },
+        "model.ExportedCustomRule": {
+            "type": "object",
+            "required": [
+                "action",
+                "value"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "group": {
+                    "description": "Group is the optional organizational label this rule belongs to.",
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "note": {
+                    "description": "Note is a free-text annotation. Free text (not safe_name) so users can write\narbitrary reminders; length-capped to match the model/PATCH validators.",
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 255
+                }
+            }
+        },
+        "model.ExportedDNSSEC": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "sendDoBit": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.ExportedFromInfo": {
+            "type": "object",
+            "properties": {
+                "appVersion": {
+                    "type": "string"
+                },
+                "service": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ExportedLogs": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "logClientsIPs": {
+                    "type": "boolean"
+                },
+                "logDomains": {
+                    "type": "boolean"
+                },
+                "retention": {
+                    "type": "string",
+                    "enum": [
+                        "1h",
+                        "6h",
+                        "1d",
+                        "1w",
+                        "1m"
+                    ]
+                }
+            }
+        },
+        "model.ExportedPrivacy": {
+            "type": "object",
+            "required": [
+                "blocklists",
+                "services"
+            ],
+            "properties": {
+                "blocklists": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "blocklistsSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "customRulesSubdomainsRule": {
+                    "type": "string",
+                    "enum": [
+                        "include",
+                        "exact"
+                    ]
+                },
+                "defaultRule": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "services": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "model.ExportedProfile": {
+            "type": "object",
+            "required": [
+                "name",
+                "settings"
+            ],
+            "properties": {
+                "comment": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "name": {
+                    "description": "Name of the profile. Names longer than 50 characters are truncated on\nimport (with a warning) rather than rejected, so the wire limit is 200\nwhile the persisted profile name is capped at 50.",
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "settings": {
+                    "$ref": "#/definitions/model.ExportedSettings"
+                }
+            }
+        },
+        "model.ExportedSecurity": {
+            "type": "object",
+            "properties": {
+                "dnssec": {
+                    "$ref": "#/definitions/model.ExportedDNSSEC"
+                }
+            }
+        },
+        "model.ExportedSettings": {
+            "type": "object",
+            "properties": {
+                "advanced": {
+                    "$ref": "#/definitions/model.ExportedAdvanced"
+                },
+                "customRuleGroups": {
+                    "description": "CustomRuleGroups is the per-list group registry; reuses the storage type\n(its json tags define the wire shape). Pointer so an empty registry is\nomitted. Round-trips with the rules' `group` field.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.CustomRuleGroups"
+                        }
+                    ]
+                },
+                "customRules": {
+                    "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
+                    "type": "array",
+                    "maxItems": 1000,
+                    "items": {
+                        "$ref": "#/definitions/model.ExportedCustomRule"
+                    }
+                },
+                "logs": {
+                    "$ref": "#/definitions/model.ExportedLogs"
+                },
+                "privacy": {
+                    "$ref": "#/definitions/model.ExportedPrivacy"
+                },
+                "security": {
+                    "$ref": "#/definitions/model.ExportedSecurity"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/model.ExportedStatistics"
+                }
+            }
+        },
+        "model.ExportedStatistics": {
+            "type": "object",
+            "properties": {
+                "enabled": {
                     "type": "boolean"
                 }
             }
@@ -2918,6 +3626,14 @@
             "properties": {
                 "advanced": {
                     "$ref": "#/definitions/model.Advanced"
+                },
+                "custom_rule_groups": {
+                    "description": "CustomRuleGroups is the per-list group registry (denylist/allowlist).\nOrganizational metadata only; never synced to the proxy (redis:\"-\").",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.CustomRuleGroups"
+                        }
+                    ]
                 },
                 "custom_rules": {
                     "type": "array",
@@ -3144,6 +3860,29 @@
                 "enabled": {
                     "description": "Indicates if TOTP is enabled.",
                     "type": "boolean"
+                }
+            }
+        },
+        "profile.ImportResult": {
+            "type": "object",
+            "properties": {
+                "createdProfileIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdProfileNames": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3613,6 +4352,116 @@
                 }
             }
         },
+        "requests.CustomRuleGroupUpdate": {
+            "type": "object",
+            "required": [
+                "action",
+                "operation",
+                "path"
+            ],
+            "properties": {
+                "action": {
+                    "description": "Action scopes the op to one list (\"block\" = denylist, \"allow\" = allowlist);\ngroups are per-list.",
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "from": {
+                    "type": "string",
+                    "maxLength": 130
+                },
+                "operation": {
+                    "type": "string",
+                    "enum": [
+                        "add",
+                        "replace",
+                        "remove",
+                        "move"
+                    ]
+                },
+                "path": {
+                    "type": "string",
+                    "maxLength": 130
+                },
+                "value": {
+                    "type": "string",
+                    "maxLength": 80
+                }
+            }
+        },
+        "requests.CustomRuleGroupUpdates": {
+            "type": "object",
+            "required": [
+                "updates"
+            ],
+            "properties": {
+                "updates": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/requests.CustomRuleGroupUpdate"
+                    }
+                }
+            }
+        },
+        "requests.ExportRequest": {
+            "type": "object",
+            "required": [
+                "scope"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "profile_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "scope": {
+                    "type": "string",
+                    "enum": [
+                        "all",
+                        "selected"
+                    ]
+                }
+            }
+        },
+        "requests.ImportRequest": {
+            "type": "object",
+            "required": [
+                "mode",
+                "payload"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "create_new"
+                    ]
+                },
+                "payload": {
+                    "$ref": "#/definitions/model.ExportEnvelope"
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.LoginBody": {
             "type": "object",
             "required": [
@@ -3679,6 +4528,45 @@
                 }
             }
         },
+        "requests.ReorderProfileCustomRuleGroupsBody": {
+            "type": "object",
+            "required": [
+                "action",
+                "order"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow"
+                    ]
+                },
+                "order": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "requests.ReorderProfileCustomRulesBody": {
+            "type": "object",
+            "required": [
+                "order"
+            ],
+            "properties": {
+                "order": {
+                    "type": "array",
+                    "maxItems": 10000,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "requests.ResetPasswordBody": {
             "type": "object",
             "required": [
@@ -3714,6 +4602,34 @@
                 }
             }
         },
+        "requests.UpdateProfileCustomRuleBody": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "block",
+                        "allow",
+                        "comment"
+                    ]
+                },
+                "group": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "note": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "order": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.WebAuthnReauthBeginRequest": {
             "type": "object",
             "required": [
@@ -3724,7 +4640,9 @@
                     "type": "string",
                     "enum": [
                         "email_change",
-                        "account_deletion"
+                        "account_deletion",
+                        "profile_export",
+                        "profile_import"
                     ]
                 }
             }

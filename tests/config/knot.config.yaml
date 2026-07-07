@@ -1,0 +1,25 @@
+## Knot Resolver (kresd) 6.x — integration-test recursor config.
+## Mirrors the deterministic host overrides that sdns loads from testhosts.txt
+## (config/testhosts.txt) via local-data, so tests pass regardless of which
+## recursor (sdns/knot) a profile selects. Live (non-overridden) queries are
+## resolved recursively with DNSSEC validation (on by default in 6.x).
+
+network:
+  listen:
+    - interface: 0.0.0.0
+      port: 53
+      kind: dns
+
+views:
+  - subnets: [10.5.0.0/16, 127.0.0.0/8, "::1/128"]
+    answer: allow
+
+## Deterministic test overrides (kept in sync with config/testhosts.txt).
+local-data:
+  addresses:
+    test.com: [104.18.74.230]
+    ads.wp.pl: [212.77.99.7]
+    svctest-google.com: [8.8.8.8]
+
+cache:
+  size-max: 256M

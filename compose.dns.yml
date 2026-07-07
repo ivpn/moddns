@@ -3,15 +3,15 @@ services:
     image: dnsproxy:latest
     restart: always
     build:
-      context: ./proxy
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: proxy/Dockerfile
     networks:
       - dnsnetwork
     container_name: dnsproxy
     depends_on:
       - redis_replica_dns
       - recursor_sdns
-      - recursor_unbound
+      - recursor_knot
     ports:
       - "53000:53/udp" # PLAIN DNS
       - "53000:53/tcp" # PLAIN DNS

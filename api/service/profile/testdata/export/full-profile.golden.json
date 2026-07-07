@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "kind": "moddns-export",
+  "exportedAt": "0001-01-01T00:00:00Z",
+  "profiles": [
+    {
+      "name": "Full Profile",
+      "settings": {
+        "privacy": {
+          "blocklists": [
+            "bl-1",
+            "bl-2"
+          ],
+          "services": [
+            "svc-a"
+          ],
+          "defaultRule": "allow",
+          "blocklistsSubdomainsRule": "block",
+          "customRulesSubdomainsRule": "include"
+        },
+        "security": {
+          "dnssec": {
+            "enabled": true,
+            "sendDoBit": true
+          }
+        },
+        "customRules": [
+          {
+            "action": "block",
+            "value": "ads.example.com",
+            "note": "blocks ad network",
+            "group": "Ads"
+          },
+          {
+            "action": "allow",
+            "value": "safe.example.com"
+          }
+        ],
+        "customRuleGroups": {
+          "block": [
+            {
+              "name": "Ads",
+              "comment": "advertising domains"
+            }
+          ]
+        },
+        "logs": {
+          "enabled": true,
+          "logClientsIPs": true,
+          "logDomains": false,
+          "retention": "1w"
+        },
+        "statistics": {
+          "enabled": true
+        }
+      }
+    }
+  ]
+}

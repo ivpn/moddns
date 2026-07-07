@@ -111,18 +111,24 @@ Class | Method | HTTP request | Description
 *BlocklistsApi* | [**api_v1_blocklists_get**](docs/BlocklistsApi.md#api_v1_blocklists_get) | **GET** /api/v1/blocklists | Get blocklists data
 *PASessionApi* | [**api_v1_pasession_add_post**](docs/PASessionApi.md#api_v1_pasession_add_post) | **POST** /api/v1/pasession/add | Add pre-auth session
 *PASessionApi* | [**api_v1_pasession_rotate_put**](docs/PASessionApi.md#api_v1_pasession_rotate_put) | **PUT** /api/v1/pasession/rotate | Rotate pre-auth session ID
+*ProfileApi* | [**api_v1_profiles_export_post**](docs/ProfileApi.md#api_v1_profiles_export_post) | **POST** /api/v1/profiles/export | Export profiles
 *ProfileApi* | [**api_v1_profiles_get**](docs/ProfileApi.md#api_v1_profiles_get) | **GET** /api/v1/profiles | Get profiles data
 *ProfileApi* | [**api_v1_profiles_id_blocklists_delete**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_delete) | **DELETE** /api/v1/profiles/{id}/blocklists | Disable blocklists
 *ProfileApi* | [**api_v1_profiles_id_blocklists_post**](docs/ProfileApi.md#api_v1_profiles_id_blocklists_post) | **POST** /api/v1/profiles/{id}/blocklists | Enable blocklists
+*ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_order_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_order_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups/order | Reorder profile custom rule groups
+*ProfileApi* | [**api_v1_profiles_id_custom_rule_groups_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rule_groups_patch) | **PATCH** /api/v1/profiles/{id}/custom_rule_groups | Update profile custom rule groups
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_batch_post**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_batch_post) | **POST** /api/v1/profiles/{id}/custom_rules/batch | Create profile custom rules (batch)
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_custom_rule_id_delete**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_custom_rule_id_delete) | **DELETE** /api/v1/profiles/{id}/custom_rules/{custom_rule_id} | Delete profile custom rule
+*ProfileApi* | [**api_v1_profiles_id_custom_rules_order_patch**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_order_patch) | **PATCH** /api/v1/profiles/{id}/custom_rules/order | Reorder profile custom rules
 *ProfileApi* | [**api_v1_profiles_id_custom_rules_post**](docs/ProfileApi.md#api_v1_profiles_id_custom_rules_post) | **POST** /api/v1/profiles/{id}/custom_rules | Create profile custom rule
 *ProfileApi* | [**api_v1_profiles_id_delete**](docs/ProfileApi.md#api_v1_profiles_id_delete) | **DELETE** /api/v1/profiles/{id} | Delete profile
 *ProfileApi* | [**api_v1_profiles_id_get**](docs/ProfileApi.md#api_v1_profiles_id_get) | **GET** /api/v1/profiles/{id} | Get profile data
 *ProfileApi* | [**api_v1_profiles_id_patch**](docs/ProfileApi.md#api_v1_profiles_id_patch) | **PATCH** /api/v1/profiles/{id} | Update profile
 *ProfileApi* | [**api_v1_profiles_id_services_delete**](docs/ProfileApi.md#api_v1_profiles_id_services_delete) | **DELETE** /api/v1/profiles/{id}/services | Disable services
 *ProfileApi* | [**api_v1_profiles_id_services_post**](docs/ProfileApi.md#api_v1_profiles_id_services_post) | **POST** /api/v1/profiles/{id}/services | Enable services
+*ProfileApi* | [**api_v1_profiles_import_post**](docs/ProfileApi.md#api_v1_profiles_import_post) | **POST** /api/v1/profiles/import | Import profiles
 *ProfileApi* | [**api_v1_profiles_post**](docs/ProfileApi.md#api_v1_profiles_post) | **POST** /api/v1/profiles | Create profile
+*ProfileApi* | [**api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch**](docs/ProfileApi.md#api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch) | **PATCH** /api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id} | Update profile custom rule
 *QueryLogsApi* | [**api_v1_profiles_id_logs_delete**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_delete) | **DELETE** /api/v1/profiles/{id}/logs | Delete profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_download_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_download_get) | **GET** /api/v1/profiles/{id}/logs/download | Download profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_get) | **GET** /api/v1/profiles/{id}/logs | Get profile query logs
@@ -156,8 +162,21 @@ Class | Method | HTTP request | Description
  - [ModelBlocklist](docs/ModelBlocklist.md)
  - [ModelCredential](docs/ModelCredential.md)
  - [ModelCustomRule](docs/ModelCustomRule.md)
+ - [ModelCustomRuleGroup](docs/ModelCustomRuleGroup.md)
+ - [ModelCustomRuleGroups](docs/ModelCustomRuleGroups.md)
  - [ModelDNSRequest](docs/ModelDNSRequest.md)
  - [ModelDNSSECSettings](docs/ModelDNSSECSettings.md)
+ - [ModelExportEnvelope](docs/ModelExportEnvelope.md)
+ - [ModelExportedAdvanced](docs/ModelExportedAdvanced.md)
+ - [ModelExportedCustomRule](docs/ModelExportedCustomRule.md)
+ - [ModelExportedDNSSEC](docs/ModelExportedDNSSEC.md)
+ - [ModelExportedFromInfo](docs/ModelExportedFromInfo.md)
+ - [ModelExportedLogs](docs/ModelExportedLogs.md)
+ - [ModelExportedPrivacy](docs/ModelExportedPrivacy.md)
+ - [ModelExportedProfile](docs/ModelExportedProfile.md)
+ - [ModelExportedSecurity](docs/ModelExportedSecurity.md)
+ - [ModelExportedSettings](docs/ModelExportedSettings.md)
+ - [ModelExportedStatistics](docs/ModelExportedStatistics.md)
  - [ModelLogsSettings](docs/ModelLogsSettings.md)
  - [ModelMFASettings](docs/ModelMFASettings.md)
  - [ModelPrivacy](docs/ModelPrivacy.md)
@@ -174,6 +193,7 @@ Class | Method | HTTP request | Description
  - [ModelTOTPBackup](docs/ModelTOTPBackup.md)
  - [ModelTOTPNew](docs/ModelTOTPNew.md)
  - [ModelTotpSettings](docs/ModelTotpSettings.md)
+ - [ProfileImportResult](docs/ProfileImportResult.md)
  - [ProtocolAttestationFormat](docs/ProtocolAttestationFormat.md)
  - [ProtocolAuthenticatorAttachment](docs/ProtocolAuthenticatorAttachment.md)
  - [ProtocolAuthenticatorSelection](docs/ProtocolAuthenticatorSelection.md)
@@ -198,13 +218,20 @@ Class | Method | HTTP request | Description
  - [RequestsConfirmResetPasswordBody](docs/RequestsConfirmResetPasswordBody.md)
  - [RequestsCreateProfileCustomRuleBody](docs/RequestsCreateProfileCustomRuleBody.md)
  - [RequestsCreateProfileCustomRulesBatchBody](docs/RequestsCreateProfileCustomRulesBatchBody.md)
+ - [RequestsCustomRuleGroupUpdate](docs/RequestsCustomRuleGroupUpdate.md)
+ - [RequestsCustomRuleGroupUpdates](docs/RequestsCustomRuleGroupUpdates.md)
+ - [RequestsExportRequest](docs/RequestsExportRequest.md)
+ - [RequestsImportRequest](docs/RequestsImportRequest.md)
  - [RequestsLoginBody](docs/RequestsLoginBody.md)
  - [RequestsMobileConfigReq](docs/RequestsMobileConfigReq.md)
  - [RequestsPASessionReq](docs/RequestsPASessionReq.md)
  - [RequestsProfileUpdates](docs/RequestsProfileUpdates.md)
+ - [RequestsReorderProfileCustomRuleGroupsBody](docs/RequestsReorderProfileCustomRuleGroupsBody.md)
+ - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
+ - [RequestsUpdateProfileCustomRuleBody](docs/RequestsUpdateProfileCustomRuleBody.md)
  - [RequestsWebAuthnReauthBeginRequest](docs/RequestsWebAuthnReauthBeginRequest.md)
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)
  - [ResponsesCustomRuleBatchCreated](docs/ResponsesCustomRuleBatchCreated.md)

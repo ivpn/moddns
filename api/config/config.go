@@ -13,9 +13,17 @@ import (
 	"github.com/ivpn/dns/libs/store"
 )
 
-// parseBoolEnv returns true if the environment variable equals "true" (case-sensitive)
+// parseBoolEnv returns true if the environment variable parses to a true
+// boolean. Parsing is case-insensitive and accepts the forms understood by
+// strconv.ParseBool (1, t, T, TRUE, true, True, ...). This tolerates values
+// such as "True" that templating engines (e.g. Ansible/Jinja2 rendering a YAML
+// boolean) emit. Unset, empty, or unparseable values are treated as false.
 func parseBoolEnv(key string) bool {
-	return os.Getenv(key) == "true"
+	v, err := strconv.ParseBool(strings.TrimSpace(os.Getenv(key)))
+	if err != nil {
+		return false
+	}
+	return v
 }
 
 // envOrDefault returns the value of the environment variable or fallback if empty.
@@ -64,12 +72,13 @@ type SentryConfig struct {
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Name            string
-	FQDN            string
-	DnsDomain       string
-	ServerAddresses []string
-	FrontendDomain  string
-	AllowedDomains  []string
+	Name                string
+	FQDN                string
+	DnsDomain           string
+	ServerAddresses     []string
+	ServerAddressesIPv6 []string
+	FrontendDomain      string
+	AllowedDomains      []string
 }
 
 // APIConfig represents the API configuration
@@ -115,6 +124,13 @@ func New() (*Config, error) {
 		return nil, errors.New("SERVER_DNS_SERVER_ADDRESSES is not set")
 	}
 	dnsServerAddresses := strings.Split(envDnsServerAddresses, ",")
+
+	// Optional: anycast IPv6 server address(es). Empty when IPv6 is not yet served
+	// in this environment, in which case it stays nil and consumers fall back to IPv4 only.
+	var dnsServerAddressesIPv6 []string
+	if envDnsServerAddressesIPv6 := os.Getenv("SERVER_DNS_SERVER_IPV6_ADDRESSES"); envDnsServerAddressesIPv6 != "" {
+		dnsServerAddressesIPv6 = strings.Split(envDnsServerAddressesIPv6, ",")
+	}
 
 	otpExp, err := time.ParseDuration(envOrDefault("OTP_EXPIRATION", "5m"))
 	if err != nil {
@@ -191,12 +207,13 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Name:            serverName,
-			FQDN:            serverFQDN,
-			DnsDomain:       os.Getenv("SERVER_DNS_DOMAIN"),
-			ServerAddresses: dnsServerAddresses,
-			FrontendDomain:  os.Getenv("SERVER_FRONTEND_DOMAIN"),
-			AllowedDomains:  allowedDomains,
+			Name:                serverName,
+			FQDN:                serverFQDN,
+			DnsDomain:           os.Getenv("SERVER_DNS_DOMAIN"),
+			ServerAddresses:     dnsServerAddresses,
+			ServerAddressesIPv6: dnsServerAddressesIPv6,
+			FrontendDomain:      os.Getenv("SERVER_FRONTEND_DOMAIN"),
+			AllowedDomains:      allowedDomains,
 		},
 		API: &APIConfig{
 			Port:                  os.Getenv("API_PORT"),

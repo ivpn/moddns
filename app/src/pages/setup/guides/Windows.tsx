@@ -12,10 +12,11 @@ import CodeBlock from '@/components/setup/CodeBlock';
 interface WindowsGuideDeps {
   dohEndpoint: string; // fully constructed DoH URL with profile id
   primaryIp: string;
+  ipv6?: string; // anycast IPv6; shown only when configured
 }
 
 export const createWindowsSteps = (deps: WindowsGuideDeps) => {
-  const { dohEndpoint, primaryIp } = deps;
+  const { dohEndpoint, primaryIp, ipv6 } = deps;
   const doh = dohEndpoint;
   return [
     {
@@ -47,6 +48,11 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       instruction: (
         <span>
           Select <span className="font-medium">Manual</span> and toggle <span className="font-medium">IPv4</span> to <span className="font-medium">On</span>
+          {ipv6 && (
+            <>
+              {' '}(toggle <span className="font-medium">IPv6</span> to <span className="font-medium">On</span> as well if you want to use IPv6)
+            </>
+          )}
         </span>
       ),
     },
@@ -55,6 +61,12 @@ export const createWindowsSteps = (deps: WindowsGuideDeps) => {
       instruction: (
         <span>
           In the <span className="font-medium">Preferred DNS</span> field, enter the <CodeBlock inline noWrap value={primaryIp} /> IP address
+          {ipv6 && (
+            <>
+              <br />
+              For IPv6, enter <CodeBlock inline noWrap value={ipv6} /> in the IPv6 <span className="font-medium">Preferred DNS</span> field
+            </>
+          )}
         </span>
       ),
     },

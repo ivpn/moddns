@@ -1,0 +1,20 @@
+[
+  {
+    "update": "profiles",
+    "updates": [
+      {
+        "q": {},
+        "u": {
+          "$unset": {
+            "settings.custom_rules.$[].note": "",
+            "settings.custom_rules.$[].group": "",
+            "settings.custom_rules.$[].order": "",
+            "settings.custom_rule_groups": ""
+          }
+        },
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

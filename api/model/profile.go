@@ -5,12 +5,44 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// MaxProfileNameLen is the canonical maximum length (in characters) for a
+// profile name. Mirrors the `max=50` literal in the Profile.Name struct tag
+// below, in the corresponding ExportedProfile.Name tag in export.go, and in
+// the createProfileBody.Name tag in api/api/profiles.go. The reflection-based
+// regression tests in profile_test.go and api/api/profiles_test.go assert
+// the tags and this const stay aligned — do not change one without the other.
+const MaxProfileNameLen = 50
+
+// MaxCustomRulesPerProfile is the hard upper ceiling on how many custom rules a
+// single profile may hold. It is a high abuse/resource guard (protecting Redis
+// memory and the proxy's in-memory rule cache), not a product-facing limit —
+// real users never reach it. Enforced by the create path
+// (service/profile/custom_rules.go).
+const MaxCustomRulesPerProfile = 10000
+
+// ExportedCustomRulesLimit is the maximum number of custom rules emitted per
+// profile in an export, and therefore the per-profile cap accepted on import.
+// Exports beyond this are truncated (oldest-first) so an export always re-imports
+// cleanly regardless of how many rules a profile accumulated. Mirrors the
+// `max` literal in the ExportedSettings.CustomRules tag in export.go; the
+// regression test in profile_test.go keeps them aligned — change both together.
+const ExportedCustomRulesLimit = 1000
+
+// ExportedCustomRuleGroupsLimit is the maximum number of custom-rule groups emitted
+// per list (denylist/allowlist) in an export, and the per-list cap accepted on
+// import. Groups are not bounded by rule count (empty groups exist in the registry
+// independently of any rule), so they need their own modest guard against
+// empty-group bloat — real users have a handful. Mirrors the `max` literal in the
+// CustomRuleGroups.Block/Allow tags; the regression test in profile_test.go keeps
+// them aligned — change both together.
+const ExportedCustomRuleGroupsLimit = 100
+
 // Profile represents a DNS profile
 type Profile struct {
 	ID        primitive.ObjectID `json:"id" bson:"_id" binding:"required"`
 	ProfileId string             `json:"profile_id" bson:"profile_id" binding:"required"`
 	AccountId string             `json:"account_id" bson:"account_id" binding:"required"`
-	Name      string             `json:"name" validate:"required,max=50" binding:"required"`
+	Name      string             `json:"name" validate:"required,max=50,safe_name" binding:"required"`
 	Settings  *ProfileSettings   `json:"settings" bson:"settings" binding:"required"`
 }
 

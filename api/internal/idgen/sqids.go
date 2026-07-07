@@ -1,14 +1,23 @@
 package idgen
 
 import (
-	"fmt"
+	"sync"
 	"time"
 
 	sqids "github.com/sqids/sqids-go"
 )
 
+// SquidsGenerator emits unique IDs by encoding a monotonic millisecond
+// timestamp through the sqids library. The last-emitted timestamp is tracked
+// in mu-guarded `last`; if the wall clock hasn't advanced since the previous
+// call, `last` is incremented by one so every Generate call produces a
+// strictly-increasing value and therefore a unique ID — even under concurrent
+// callers in a tight loop. Encoding a single uint64 keeps the output at the
+// configured MinLength (10 chars by default).
 type SquidsGenerator struct {
 	Sqids *sqids.Sqids
+	mu    sync.Mutex
+	last  uint64
 }
 
 func NewSqidsGenerator(minLength int) (*SquidsGenerator, error) {
@@ -36,9 +45,12 @@ func NewSqidsGenerator(minLength int) (*SquidsGenerator, error) {
 }
 
 func (gen *SquidsGenerator) Generate() (string, error) {
-	now := time.Now().UnixMilli()
-	if now < 0 {
-		return "", fmt.Errorf("negative timestamp: %d", now)
+	gen.mu.Lock()
+	now := uint64(time.Now().UnixMilli())
+	if now <= gen.last {
+		now = gen.last + 1
 	}
-	return gen.Sqids.Encode([]uint64{uint64(now)})
+	gen.last = now
+	gen.mu.Unlock()
+	return gen.Sqids.Encode([]uint64{now})
 }

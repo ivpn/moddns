@@ -71,4 +71,36 @@ describe("RuleComposer", () => {
 
         expect(onSubmit).toHaveBeenCalledTimes(1);
     });
+
+    it("tokenizes typed input AND submits in a single Add-button click", async () => {
+        const user = userEvent.setup();
+        const onSubmit = vi.fn();
+        const onTokensChange = vi.fn();
+        renderRuleComposer({ onSubmit, onTokensChange });
+
+        const input = getEditableInput();
+        await user.type(input, "example.com");
+
+        // The button is enabled even though no chip has been committed yet.
+        const addButton = screen.getByRole("button", { name: /add to denylist/i });
+        expect(addButton).toBeEnabled();
+
+        await user.click(addButton);
+
+        // The typed value is committed as a token and submitted in one action,
+        // with the freshly-merged list passed explicitly (parent state is async).
+        expect(onTokensChange).toHaveBeenCalledWith([
+            { label: "example.com", value: "example.com" },
+        ]);
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        expect(onSubmit).toHaveBeenCalledWith([
+            { label: "example.com", value: "example.com" },
+        ]);
+    });
+
+    it("keeps the Add button disabled when input and tokens are both empty", () => {
+        renderRuleComposer({ tokens: [] });
+        const addButton = screen.getByRole("button", { name: /add to denylist/i });
+        expect(addButton).toBeDisabled();
+    });
 });

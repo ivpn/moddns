@@ -17,8 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,9 +27,12 @@ class ModelCustomRule(BaseModel):
     ModelCustomRule
     """ # noqa: E501
     action: StrictStr
+    group: Optional[StrictStr] = None
     id: StrictStr
+    note: Optional[StrictStr] = None
+    order: Optional[StrictInt] = None
     value: StrictStr
-    __properties: ClassVar[List[str]] = ["action", "id", "value"]
+    __properties: ClassVar[List[str]] = ["action", "group", "id", "note", "order", "value"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,7 +86,10 @@ class ModelCustomRule(BaseModel):
 
         _obj = cls.model_validate({
             "action": obj.get("action"),
+            "group": obj.get("group"),
             "id": obj.get("id"),
+            "note": obj.get("note"),
+            "order": obj.get("order"),
             "value": obj.get("value")
         })
         return _obj

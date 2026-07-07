@@ -5,7 +5,7 @@ import (
 	"slices"
 )
 
-// EnableServices adds the given service IDs to settings.privacy.services.blocked for the profile.
+// EnableServices adds the given service IDs to settings.privacy.services for the profile.
 func (p *ProfileService) EnableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
@@ -37,7 +37,7 @@ func (p *ProfileService) EnableServices(ctx context.Context, accountId, profileI
 	return nil
 }
 
-// DisableServices removes the given service IDs from settings.privacy.services.blocked for the profile.
+// DisableServices removes the given service IDs from settings.privacy.services for the profile.
 func (p *ProfileService) DisableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error {
 	_, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {

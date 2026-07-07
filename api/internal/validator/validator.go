@@ -3,15 +3,18 @@ package validator
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Pre-compiled regexes for password validation (avoid re-compilation on every call).
@@ -50,6 +53,7 @@ type ErrorResponse struct {
 	Error       bool
 	FailedField string
 	Tag         string
+	Param       string
 	Value       any
 }
 
@@ -60,6 +64,16 @@ type APIValidator struct {
 
 func NewAPIValidator() (*APIValidator, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
+	// Report fields by their JSON name so validation errors reference the field
+	// as it appears in the request/file the user sent (e.g. "customRules",
+	// "defaultRule") rather than the Go struct field name.
+	validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+		name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+		if name == "-" || name == "" {
+			return fld.Name
+		}
+		return name
+	})
 	apiValidator := &APIValidator{
 		Validator:       validate,
 		WildcardRegexes: make(map[string]*regexp.Regexp),
@@ -77,6 +91,10 @@ func NewAPIValidator() (*APIValidator, error) {
 		return nil, err
 	}
 	err = apiValidator.Validator.RegisterValidation("device_id", deviceIDValidation)
+	if err != nil {
+		return nil, err
+	}
+	err = apiValidator.Validator.RegisterValidation("safe_name", safeNameValidation)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +117,10 @@ func (v APIValidator) Validate(data any) []ErrorResponse {
 		for _, err := range errs.(validator.ValidationErrors) {
 			var elem ErrorResponse
 
-			elem.FailedField = err.Field() // Export struct field name
-			elem.Tag = err.Tag()           // Export struct tag
-			elem.Value = err.Value()       // Export field value
+			elem.FailedField = err.Field() // JSON field name (see RegisterTagNameFunc)
+			elem.Tag = err.Tag()           // validation tag, e.g. "max", "oneof"
+			elem.Param = err.Param()       // tag parameter, e.g. "1000" for max=1000
+			elem.Value = err.Value()       // field value
 			elem.Error = true
 
 			validationErrors = append(validationErrors, elem)
@@ -111,24 +130,48 @@ func (v APIValidator) Validate(data any) []ErrorResponse {
 	return validationErrors
 }
 
-// ValidateRequest validates the request payload according to the provided struct tags
+// ValidateRequest validates the request payload according to the provided struct
+// tags and returns user-facing error sentences (one per failed field).
 func (v APIValidator) ValidateRequest(c *fiber.Ctx, payload any, errMsg string) []string {
 	errMsgs := make([]string, 0)
 	if errs := v.Validate(payload); len(errs) > 0 && errs[0].Error {
 
 		for _, err := range errs {
-			validationErr := fmt.Sprintf(
-				"[%s]: Needs to implement '%s'",
-				err.FailedField,
-				err.Tag,
-			)
-			log.Error().Str("path", c.Route().Path).Str("tag", err.Tag).Err(errors.New("validation error")).Msg(validationErr)
+			validationErr := humanValidationError(err.FailedField, err.Tag, err.Param)
+			log.Error().Str("path", c.Route().Path).Str("field", err.FailedField).Str("tag", err.Tag).Err(errors.New("validation error")).Msg(validationErr)
 			errMsgs = append(errMsgs, validationErr)
 		}
 
 		return errMsgs
 	}
 	return errMsgs
+}
+
+// humanValidationError turns a single field validation failure into a user-facing
+// sentence. field is the wire (JSON) field name; tag/param come from the
+// go-playground validation tag (e.g. tag="max", param="1000").
+func humanValidationError(field, tag, param string) string {
+	switch tag {
+	case "required":
+		return fmt.Sprintf("%s is required", field)
+	case "max":
+		return fmt.Sprintf("%s must be at most %s", field, param)
+	case "min":
+		return fmt.Sprintf("%s must be at least %s", field, param)
+	case "eq":
+		return fmt.Sprintf("%s must equal %s", field, param)
+	case "oneof":
+		return fmt.Sprintf("%s must be one of: %s", field, strings.ReplaceAll(param, " ", ", "))
+	case "safe_name":
+		return fmt.Sprintf("%s contains invalid characters", field)
+	default:
+		// fqdn|ipv4|ipv6|asn (and their OR-combinations) guard custom-rule values.
+		if strings.Contains(tag, "fqdn") || strings.Contains(tag, "ipv4") ||
+			strings.Contains(tag, "ipv6") || strings.Contains(tag, "asn") {
+			return fmt.Sprintf("%s must be a valid domain, IP address, wildcard, or ASN", field)
+		}
+		return fmt.Sprintf("%s is invalid", field)
+	}
 }
 
 // Custom validation function for wildcard patterns in FQDN and IP addresses
@@ -142,6 +185,13 @@ func (v APIValidator) wildcardValidation(fl validator.FieldLevel) bool {
 
 	// If still no wildcard, skip validation (handled by other validators)
 	if !strings.Contains(value, "*") {
+		return false
+	}
+
+	// Reject patterns with no domain content (e.g. "*", "*.", "**"). The FQDN
+	// regex permits empty pre/post sides, which would let "*" through and
+	// match every domain in the proxy filter.
+	if strings.Trim(value, "*.") == "" {
 		return false
 	}
 
@@ -217,4 +267,35 @@ func ValidatePassword(password string) bool {
 func deviceIDValidation(fl validator.FieldLevel) bool {
 	value := fl.Field().String()
 	return value == deviceid.Normalize(value)
+}
+
+// safeNameValidation accepts a user-facing display name that:
+//   - is non-empty after trimming Unicode whitespace
+//   - contains no Unicode control (Cc), format (Cf — bidi overrides, zero-width
+//     joiners, etc.), surrogate (Cs), or private-use (Co) runes
+//
+// Length is checked separately via min/max tags. Allows Unicode letters, marks,
+// digits, punctuation, symbols, and ordinary spaces so international names work.
+func safeNameValidation(fl validator.FieldLevel) bool {
+	return IsSafeName(fl.Field().String())
+}
+
+// IsSafeName reports whether s is a safe display name. See safeNameValidation.
+func IsSafeName(s string) bool {
+	if strings.TrimSpace(s) == "" {
+		return false
+	}
+	for _, r := range s {
+		if unicode.In(r, unicode.Cc, unicode.Cf, unicode.Cs, unicode.Co) {
+			return false
+		}
+	}
+	return true
+}
+
+// NormalizeName trims surrounding Unicode whitespace and returns the NFC form.
+// Apply at the storage boundary so duplicate-name checks see canonical strings
+// (e.g. "Café" vs "Café" collapse to the same form).
+func NormalizeName(s string) string {
+	return norm.NFC.String(strings.TrimSpace(s))
 }

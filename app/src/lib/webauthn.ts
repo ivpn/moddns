@@ -279,12 +279,13 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
 }
 
 /**
- * Begin and finish passkey-based reauthentication for an email change.
- * Returns a short-lived reauth token consumed by the email update payload.
+ * Shared implementation for passkey-based reauthentication flows.
+ * Begins the WebAuthn ceremony for the given purpose, completes the assertion,
+ * and returns the short-lived reauth token from the finish endpoint.
  */
-export async function beginEmailChangeReauth(): Promise<string> {
+async function beginReauthForPurpose(purpose: string): Promise<string> {
   try {
-    const begin = await api.Client.authApi.apiV1WebauthnPasskeyReauthBeginPost({ purpose: 'email_change' as unknown as string });
+    const begin = await api.Client.authApi.apiV1WebauthnPasskeyReauthBeginPost({ purpose: purpose as unknown as string });
     const options = begin.data;
     const optionsRecord = options as Record<string, unknown>;
     const opts = optionsRecord.publicKey ? optionsRecord.publicKey : options;
@@ -306,28 +307,33 @@ export async function beginEmailChangeReauth(): Promise<string> {
 }
 
 /**
+ * Begin and finish passkey-based reauthentication for an email change.
+ * Returns a short-lived reauth token consumed by the email update payload.
+ */
+export async function beginEmailChangeReauth(): Promise<string> {
+  return beginReauthForPurpose('email_change');
+}
+
+/**
  * Begin and finish passkey-based reauthentication for account deletion.
  * Returns a short-lived reauth token consumed by the account deletion payload.
  */
 export async function beginAccountDeletionReauth(): Promise<string> {
-  try {
-    const begin = await api.Client.authApi.apiV1WebauthnPasskeyReauthBeginPost({ purpose: 'account_deletion' as unknown as string });
-    const options = begin.data;
-    const optionsRecord = options as Record<string, unknown>;
-    const opts = optionsRecord.publicKey ? optionsRecord.publicKey : options;
-    const assertionResponse = await startAuthentication({ optionsJSON: opts as PublicKeyCredentialRequestOptionsJSON });
-    const finish = await api.Client.authApi.apiV1WebauthnPasskeyReauthFinishPost({ data: JSON.stringify(assertionResponse) });
-    const token = finish.data.reauth_token;
-    if (!token) throw new Error('Missing reauth token');
-    return token;
-  } catch (err: unknown) {
-    const webauthnErr = err as WebAuthnError;
-    if (webauthnErr.name === 'NotAllowedError') {
-      throw new Error('Passkey verification was cancelled or timed out.');
-    }
-    if (webauthnErr.response?.data?.error) {
-      throw new Error(webauthnErr.response.data.error);
-    }
-    throw new Error(webauthnErr.message || 'Passkey reauthentication failed.');
-  }
+  return beginReauthForPurpose('account_deletion');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for profile export.
+ * Returns a short-lived reauth token consumed by the export request payload.
+ */
+export async function beginProfileExportReauth(): Promise<string> {
+  return beginReauthForPurpose('profile_export');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for profile import.
+ * Returns a short-lived reauth token consumed by the import request payload.
+ */
+export async function beginProfileImportReauth(): Promise<string> {
+  return beginReauthForPurpose('profile_import');
 }
