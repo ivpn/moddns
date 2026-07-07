@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -27,6 +28,20 @@ type Blocklist struct {
 	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
 	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
 	Default      bool               `json:"default" bson:"default"`     // default blocklist is enabled when profile is created
+}
+
+// MarshalJSON renders Tags and Intensity as empty JSON arrays ([]) instead of
+// null when nil, so the API always returns lists for these fields.
+func (b Blocklist) MarshalJSON() ([]byte, error) {
+	type alias Blocklist
+	a := alias(b)
+	if a.Tags == nil {
+		a.Tags = []string{}
+	}
+	if a.Intensity == nil {
+		a.Intensity = []string{}
+	}
+	return json.Marshal(a)
 }
 
 // NewBlocklist creates a new blocklist

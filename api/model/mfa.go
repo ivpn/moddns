@@ -1,5 +1,7 @@
 package model
 
+import "encoding/json"
+
 // MFASettings represents the settings for multi-factor authentication.
 type MFASettings struct {
 	TOTP TotpSettings `json:"totp" bson:"totp"`
@@ -23,8 +25,30 @@ type TOTPBackup struct {
 	BackupCodes []string `json:"backup_codes"`
 }
 
+// MarshalJSON renders BackupCodes as an empty JSON array ([]) instead of null
+// when nil, so the API always returns a list for this field.
+func (b TOTPBackup) MarshalJSON() ([]byte, error) {
+	type alias TOTPBackup
+	a := alias(b)
+	if a.BackupCodes == nil {
+		a.BackupCodes = []string{}
+	}
+	return json.Marshal(a)
+}
+
 // MfaData represents the data required for multi-factor authentication sent in HTTP headers.
 type MfaData struct {
 	OTP     string   `json:"otp"`
 	Methods []string `json:"methods"`
+}
+
+// MarshalJSON renders Methods as an empty JSON array ([]) instead of null when
+// nil, so the API always returns a list for this field.
+func (m MfaData) MarshalJSON() ([]byte, error) {
+	type alias MfaData
+	a := alias(m)
+	if a.Methods == nil {
+		a.Methods = []string{}
+	}
+	return json.Marshal(a)
 }

@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -30,6 +31,25 @@ type ImportResult struct {
 	CreatedProfileIds   []string `json:"createdProfileIds"`
 	CreatedProfileNames []string `json:"createdProfileNames"`
 	Warnings            []string `json:"warnings"`
+}
+
+// MarshalJSON renders the result slices as empty JSON arrays ([]) instead of null
+// when nil, so the import response always returns lists (matching the API's
+// empty-list contract). The happy path already initializes them, but this keeps
+// the guarantee at the serialization boundary rather than by construction.
+func (r ImportResult) MarshalJSON() ([]byte, error) {
+	type alias ImportResult
+	a := alias(r)
+	if a.CreatedProfileIds == nil {
+		a.CreatedProfileIds = []string{}
+	}
+	if a.CreatedProfileNames == nil {
+		a.CreatedProfileNames = []string{}
+	}
+	if a.Warnings == nil {
+		a.Warnings = []string{}
+	}
+	return json.Marshal(a)
 }
 
 // ErrImportNotImplemented is returned by Import until the implementation lands.

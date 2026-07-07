@@ -1,0 +1,25 @@
+[
+  {
+    "update": "profiles",
+    "updates": [
+      {
+        "q": { "settings.privacy.services": { "$not": { "$type": "array" } } },
+        "u": [
+          {
+            "$set": {
+              "settings.privacy.services": {
+                "$cond": [
+                  { "$eq": [{ "$type": "$settings.privacy.services" }, "object"] },
+                  { "$ifNull": ["$settings.privacy.services.blocked", []] },
+                  { "$ifNull": ["$settings.privacy.services", []] }
+                ]
+              }
+            }
+          }
+        ],
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

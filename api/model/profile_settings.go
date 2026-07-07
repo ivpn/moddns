@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -24,6 +25,17 @@ type ProfileSettings struct {
 	Logs             *LogsSettings       `json:"logs" bson:"logs" redis:"-" binding:"required"`
 	Statistics       *StatisticsSettings `json:"statistics" bson:"statistics" redis:"-" binding:"required"`
 	Advanced         *Advanced           `json:"advanced" bson:"advanced" redis:"advanced" binding:"required"`
+}
+
+// MarshalJSON renders CustomRules as an empty JSON array ([]) instead of null
+// when nil, so the API always returns a list. Storage (bson) is unchanged.
+func (s ProfileSettings) MarshalJSON() ([]byte, error) {
+	type alias ProfileSettings
+	a := alias(s)
+	if a.CustomRules == nil {
+		a.CustomRules = []*CustomRule{}
+	}
+	return json.Marshal(a)
 }
 
 // NewSettings creates a new, empty settings object
