@@ -2,7 +2,7 @@ package model
 
 const RECURSOR_SDNS = "sdns"
 const RECURSOR_KNOT = "knot"
-const RECURSOR_DEFAULT = RECURSOR_SDNS
+const RECURSOR_DEFAULT = RECURSOR_KNOT
 
 // RECURSORS is the source of truth for allowed recursors. Keep it in sync with
 // the `enums` tag on Advanced.Recursor below, which swaggo publishes into the
