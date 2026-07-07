@@ -202,8 +202,8 @@ class TestRoundTrip(ProfileHelpers):
 
         imported = _get_profile(self.api_config, cookie, new_profile_id)
         recursor = imported.settings.advanced.recursor
-        assert recursor == "sdns", (
-            f"advanced.recursor was carried through import; expected 'sdns' got {recursor!r}"
+        assert recursor == "knot", (
+            f"advanced.recursor was carried through import; expected 'knot' got {recursor!r}"
         )
 
 
