@@ -42,7 +42,7 @@ export default function PrivacyPolicy() {
                                 <h1 className="text-2xl font-bold text-[var(--shadcn-ui-app-foreground)] text-center font-mono">
                                     Privacy Policy
                                 </h1>
-                            </div>                            <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
+                            </div>                            <div className="max-w-none text-[var(--shadcn-ui-app-foreground)]">
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
