@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -36,6 +37,35 @@ type Service struct {
 
 type Catalog struct {
 	Services []Service `json:"services" yaml:"services"`
+
+	// index maps every service ID and alias to its position in Services, giving
+	// O(1) FindByID instead of a linear scan on the per-query hot path. It is
+	// built lazily on first lookup so every construction path (LoadFromFile and
+	// direct struct literals) gets it transparently, and exactly once so it is
+	// safe under the concurrent reads the proxy issues against a loaded catalog.
+	// Unexported, so it is ignored by YAML/JSON (de)serialization.
+	indexOnce sync.Once
+	index     map[string]int
+}
+
+// buildIndex populates the id/alias -> Services-position map. First occurrence
+// wins, matching the precedence of the former linear scan (a service's own ID,
+// then its aliases, in declaration order). Validate rejects duplicate ids and
+// aliases, so in a validated catalog every key is unique anyway.
+func (c *Catalog) buildIndex() {
+	idx := make(map[string]int, len(c.Services)*2)
+	for i := range c.Services {
+		s := &c.Services[i]
+		if _, exists := idx[s.ID]; !exists {
+			idx[s.ID] = i
+		}
+		for _, a := range s.Aliases {
+			if _, exists := idx[a]; !exists {
+				idx[a] = i
+			}
+		}
+	}
+	c.index = idx
 }
 
 func LoadFromFile(path string) (*Catalog, error) {
@@ -102,15 +132,9 @@ func (c *Catalog) FindByID(id string) (Service, bool) {
 	if c == nil {
 		return Service{}, false
 	}
-	for _, s := range c.Services {
-		if s.ID == id {
-			return s, true
-		}
-		for _, a := range s.Aliases {
-			if a == id {
-				return s, true
-			}
-		}
+	c.indexOnce.Do(c.buildIndex)
+	if i, ok := c.index[id]; ok {
+		return c.Services[i], true
 	}
 	return Service{}, false
 }
