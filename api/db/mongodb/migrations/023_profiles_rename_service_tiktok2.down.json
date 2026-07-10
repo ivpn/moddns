@@ -1,0 +1,30 @@
+[
+  {
+    "update": "profiles",
+    "updates": [
+      {
+        "q": { "settings.privacy.services": "tiktok" },
+        "u": [
+          {
+            "$set": {
+              "settings.privacy.services": {
+                "$map": {
+                  "input": "$settings.privacy.services",
+                  "in": {
+                    "$cond": [
+                      { "$eq": ["$$this", "tiktok"] },
+                      "tiktok2",
+                      "$$this"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]
