@@ -44,7 +44,7 @@ export default function TermsOfService() {
                                 </h1>
                             </div>
 
-                            <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
+                            <div className="max-w-none text-[var(--shadcn-ui-app-foreground)]">
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
