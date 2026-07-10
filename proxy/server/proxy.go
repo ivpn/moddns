@@ -140,5 +140,31 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 	if serverConfig.DoT.ListenAddr != 0 {
 		conf.TLSListenAddr = []*net.TCPAddr{{Port: serverConfig.DoT.ListenAddr}}
 	}
+
+	if dc := serverConfig.DNSCrypt; dc != nil && (dc.UDPListenAddr != 0 || dc.TCPListenAddr != 0) {
+		cert, err := newDNSCryptCert(dc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build dnscrypt cert: %w", err)
+		}
+		conf.DNSCryptResolverCert = cert
+		conf.DNSCryptProviderName = dc.ProviderName
+		if dc.UDPListenAddr != 0 {
+			conf.DNSCryptUDPListenAddr = []*net.UDPAddr{{Port: dc.UDPListenAddr}}
+		}
+		if dc.TCPListenAddr != 0 {
+			conf.DNSCryptTCPListenAddr = []*net.TCPAddr{{Port: dc.TCPListenAddr}}
+		}
+		// Log the long-term provider public key so the client-facing sdns://
+		// stamp can be assembled later (Phase 3). Public key only — no secrets.
+		if pub, err := dnsCryptProviderPublicKey(dc); err != nil {
+			log.Warn().Err(err).Msg("Could not derive DNSCrypt provider public key")
+		} else {
+			log.Info().
+				Str("provider_name", dc.ProviderName).
+				Str("provider_public_key", pub).
+				Msg("DNSCrypt server listener enabled")
+		}
+	}
+
 	return conf, nil
 }

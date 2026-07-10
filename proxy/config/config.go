@@ -26,6 +26,7 @@ type Config struct {
 	DoH                 *DoHConfig
 	DoT                 *DoTConfig
 	DoQ                 *DoQConfig
+	DNSCrypt            *DNSCryptConfig
 	Sentry              *SentryConfig
 	Log                 *LogConfig
 	RateLimit           *RateLimitConfig
@@ -128,6 +129,26 @@ type DoTConfig struct {
 // DoQConfig represents the DNS-over-QUIC configuration
 type DoQConfig struct {
 	ListenAddr int
+}
+
+// DNSCryptConfig represents the DNSCrypt server (client-facing) configuration.
+//
+// Key material is supplied as hex strings via env vars — consistent with the
+// proxy's env-driven config. All fields (long-term PrivateKey and the
+// short-term ResolverSk/ResolverPk pair) must be IDENTICAL across every
+// load-balanced instance: a client may fetch the resolver cert from one
+// instance (learning ResolverPk) then send an encrypted query to another, so
+// each instance must hold the matching ResolverSk to decrypt it. Generate a
+// key set with `GEN_DNSCRYPT=1 go test -run TestGenerateDNSCryptKeys ./server`.
+//
+// DNSCrypt is disabled unless at least one of UDPListenAddr/TCPListenAddr is set.
+type DNSCryptConfig struct {
+	UDPListenAddr int    // DNSCRYPT_UDP_LISTEN_ADDR (0 = disabled)
+	TCPListenAddr int    // DNSCRYPT_TCP_LISTEN_ADDR (0 = disabled)
+	ProviderName  string // DNSCRYPT_PROVIDER_NAME, e.g. 2.dnscrypt-cert.dns.moddns.net
+	PrivateKey    string // DNSCRYPT_PRIVATE_KEY (hex, long-term Ed25519 signing key)
+	ResolverSk    string // DNSCRYPT_RESOLVER_SECRET (hex, short-term secret key)
+	ResolverPk    string // DNSCRYPT_RESOLVER_PUBLIC (hex, short-term public key)
 }
 
 // parseCSV splits a comma-separated string into trimmed, non-empty values.
@@ -276,6 +297,16 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	dnsCryptUDPListenAddr, err := GetEnvInt("DNSCRYPT_UDP_LISTEN_ADDR")
+	if err != nil {
+		return nil, err
+	}
+
+	dnsCryptTCPListenAddr, err := GetEnvInt("DNSCRYPT_TCP_LISTEN_ADDR")
+	if err != nil {
+		return nil, err
+	}
+
 	upstreamConfig, err := LoadUpstreamConfig("DNS_UPSTREAMS", "DNS_UPSTREAMS_DEFAULT")
 	if err != nil {
 		return nil, err
@@ -388,6 +419,14 @@ func New() (*Config, error) {
 		},
 		DoQ: &DoQConfig{
 			ListenAddr: doqListenAddr,
+		},
+		DNSCrypt: &DNSCryptConfig{
+			UDPListenAddr: dnsCryptUDPListenAddr,
+			TCPListenAddr: dnsCryptTCPListenAddr,
+			ProviderName:  os.Getenv("DNSCRYPT_PROVIDER_NAME"),
+			PrivateKey:    os.Getenv("DNSCRYPT_PRIVATE_KEY"),
+			ResolverSk:    os.Getenv("DNSCRYPT_RESOLVER_SECRET"),
+			ResolverPk:    os.Getenv("DNSCRYPT_RESOLVER_PUBLIC"),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),

@@ -100,7 +100,7 @@ require (
 
 require (
 	github.com/allegro/bigcache/v3 v3.1.0
-	github.com/ameshkov/dnscrypt/v2 v2.4.0 // indirect
+	github.com/ameshkov/dnscrypt/v2 v2.4.0
 	github.com/ameshkov/dnsstamps v1.0.3 // indirect
 	github.com/beefsack/go-rate v0.0.0-20220214233405-116f4ca011a0 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
