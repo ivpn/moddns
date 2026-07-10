@@ -113,6 +113,15 @@ func multiServiceCatalog(asn uint) *servicescatalog.Catalog {
 	}}
 }
 
+func googleCatalogWithAlias(asn uint, alias string) *servicescatalog.Catalog {
+	return &servicescatalog.Catalog{Services: []servicescatalog.Service{{
+		ID:      "google",
+		Name:    "Google",
+		ASNs:    []uint{asn},
+		Aliases: []string{alias},
+	}}}
+}
+
 func TestIPFilter_filterServices_Table(t *testing.T) {
 	const (
 		profileID = "profile-services-table"
@@ -219,6 +228,29 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:     []string{"unknown"},
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantDecision:   model.DecisionNone,
+		},
+		{
+			// A profile that still references the pre-rename ID (an alias) must
+			// block via the canonical service's ASN — the rename must not fail open.
+			name:           "blocks when blocked by catalog alias",
+			servicesGetter: staticCatalog{cat: googleCatalogWithAlias(asn, "google-legacy")},
+			asnLookup:      staticASNLookup{asn: asn},
+			blockedIDs:     []string{"google-legacy"},
+			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
+			wantDecision:   model.DecisionBlock,
+			// Reason reports the canonical ID, not the alias.
+			wantReasons: []string{REASON_SERVICES, "service: google"},
+		},
+		{
+			// An alias and its canonical ID both present must resolve to one
+			// service (deduped), not double-count.
+			name:           "alias and canonical id dedupe to one service",
+			servicesGetter: staticCatalog{cat: googleCatalogWithAlias(asn, "google-legacy")},
+			asnLookup:      staticASNLookup{asn: asn},
+			blockedIDs:     []string{"google", "google-legacy"},
+			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
+			wantDecision:   model.DecisionBlock,
+			wantReasons:    []string{REASON_SERVICES, "service: google"},
 		},
 		{
 			name:           "multiple answers can match",
