@@ -11,6 +11,12 @@ import (
 // Service represents a user-facing “service” preset that maps to a set of ASNs.
 // IDs are stable identifiers used in profile settings.
 //
+// Aliases are additional identifiers that also resolve to this service via
+// FindByID. They exist to rename a service ID without a fail-open window: keep
+// the old ID as an alias while profiles are migrated to the new ID, then drop
+// the alias once no profile references it. Aliases carry no domains or ASNs of
+// their own — they are pure lookup keys.
+//
 // YAML schema:
 // services:
 //   - id: google
@@ -18,12 +24,14 @@ import (
 //     logo_key: google
 //     asns: [15169]
 //     domains: [google.com, youtube.com]
+//     aliases: [google-legacy]
 type Service struct {
 	ID      string   `json:"id" yaml:"id"`
 	Name    string   `json:"name" yaml:"name"`
 	LogoKey string   `json:"logo_key,omitempty" yaml:"logo_key"`
 	ASNs    []uint   `json:"asns" yaml:"asns"`
 	Domains []string `json:"domains,omitempty" yaml:"domains"`
+	Aliases []string `json:"aliases,omitempty" yaml:"aliases,omitempty"`
 }
 
 type Catalog struct {
@@ -62,6 +70,17 @@ func Validate(cat *Catalog) error {
 			return fmt.Errorf("duplicate service id: %q", svc.ID)
 		}
 		seen[svc.ID] = struct{}{}
+		// Aliases share the ID namespace so FindByID stays unambiguous, but they
+		// carry no domains and are therefore skipped by the domain-uniqueness check.
+		for _, a := range svc.Aliases {
+			if a == "" {
+				return fmt.Errorf("services[%d] (%s): alias must not be empty", i, svc.ID)
+			}
+			if _, ok := seen[a]; ok {
+				return fmt.Errorf("services[%d] (%s): alias %q duplicates an existing service id or alias", i, svc.ID, a)
+			}
+			seen[a] = struct{}{}
+		}
 		for _, d := range svc.Domains {
 			dl := strings.ToLower(d)
 			if dl != d {
@@ -86,6 +105,11 @@ func (c *Catalog) FindByID(id string) (Service, bool) {
 	for _, s := range c.Services {
 		if s.ID == id {
 			return s, true
+		}
+		for _, a := range s.Aliases {
+			if a == id {
+				return s, true
+			}
 		}
 	}
 	return Service{}, false

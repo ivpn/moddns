@@ -48,6 +48,35 @@ func TestValidate_DomainRules(t *testing.T) {
 				{ID: "a", Name: "A", ASNs: []uint{1}},
 			}},
 		},
+		{
+			name: "alias is valid and does not need its own domains",
+			cat: &Catalog{Services: []Service{
+				{ID: "tiktok", Name: "TikTok", Domains: []string{"tiktok.com"}, Aliases: []string{"tiktok2"}},
+			}},
+		},
+		{
+			name: "alias duplicating another service id rejected",
+			cat: &Catalog{Services: []Service{
+				{ID: "a", Name: "A"},
+				{ID: "b", Name: "B", Aliases: []string{"a"}},
+			}},
+			wantErr: "duplicates an existing service id or alias",
+		},
+		{
+			name: "service id duplicating an earlier alias rejected",
+			cat: &Catalog{Services: []Service{
+				{ID: "a", Name: "A", Aliases: []string{"legacy"}},
+				{ID: "legacy", Name: "Legacy"},
+			}},
+			wantErr: "duplicate service id",
+		},
+		{
+			name: "empty alias rejected",
+			cat: &Catalog{Services: []Service{
+				{ID: "a", Name: "A", Aliases: []string{""}},
+			}},
+			wantErr: "alias must not be empty",
+		},
 	}
 
 	for _, tt := range tests {
@@ -81,4 +110,29 @@ func TestDomainMapForServiceIDs(t *testing.T) {
 
 	m = cat.DomainMapForServiceIDs([]string{"unknown"})
 	assert.Empty(t, m)
+}
+
+func TestFindByID_Aliases(t *testing.T) {
+	cat := &Catalog{Services: []Service{
+		{ID: "tiktok", Name: "TikTok", Domains: []string{"tiktok.com", "tiktokcdn.com"}, Aliases: []string{"tiktok2"}},
+	}}
+
+	// Canonical ID resolves.
+	svc, ok := cat.FindByID("tiktok")
+	require.True(t, ok)
+	assert.Equal(t, "tiktok", svc.ID)
+
+	// Alias resolves to the same service (the migration window: profiles still
+	// referencing the old ID keep blocking).
+	svc, ok = cat.FindByID("tiktok2")
+	require.True(t, ok)
+	assert.Equal(t, "tiktok", svc.ID)
+
+	// Both the canonical ID and the alias yield the service's domains, so
+	// domain-phase blocking never fails open during the rename.
+	assert.Equal(t, "tiktok", cat.DomainMapForServiceIDs([]string{"tiktok2"})["tiktok.com"])
+	assert.Equal(t, "tiktok", cat.DomainMapForServiceIDs([]string{"tiktok"})["tiktok.com"])
+
+	_, ok = cat.FindByID("nope")
+	assert.False(t, ok)
 }
