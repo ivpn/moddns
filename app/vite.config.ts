@@ -45,22 +45,16 @@ export default defineConfig({
     target: 'es2020',
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-radix': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toggle',
-            '@radix-ui/react-toggle-group',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-label',
-            '@radix-ui/react-separator',
-          ],
-          'vendor-sentry': ['@sentry/react'],
+        // vite 8 bundles with rolldown, whose manualChunks takes the function
+        // form (the object form is a rollup-only API). Same vendor split as before.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom)[\\/]/.test(id)) {
+            return 'vendor-react'
+          }
+          if (id.includes('/node_modules/@radix-ui/')) return 'vendor-radix'
+          if (id.includes('/node_modules/@sentry/')) return 'vendor-sentry'
+          return undefined
         },
       },
     },
