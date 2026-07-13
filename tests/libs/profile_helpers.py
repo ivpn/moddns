@@ -21,6 +21,7 @@ from moddns import (
 SVC_GOOGLE_DOMAIN = "svctest-google.com"
 SVC_GOOGLE_IP = "8.8.8.8"  # AS15169 (Google)
 SVC_GOOGLE_ID = "google"
+SVC_GOOGLE_ALIAS_ID = "google-legacy"  # Catalog alias of "google" (rename fixture)
 SVC_APPLE_DOMAIN = "apple.com"  # Real domain; AS714 (Apple Inc.)
 SVC_APPLE_ID = "apple"
 SVC_MICROSOFT_DOMAIN = "microsoft.com"  # Real domain; AS8075 (Microsoft Corporation)
