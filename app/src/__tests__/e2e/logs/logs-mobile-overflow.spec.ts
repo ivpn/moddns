@@ -255,4 +255,83 @@ test.describe('Logs mobile layout', () => {
     await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
     await expect(page.getByTestId('logs-expand-hint')).toHaveCount(0);
   });
+
+  test('consolidation: adjacent duplicate queries collapse into one card with a ×N badge', async ({ page }) => {
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+
+    // Two adjacent rows share domain/status/device/client_ip/protocol and differ only in
+    // query_type (A + AAAA) → they consolidate. A third distinct row stays separate.
+    const now = new Date().toISOString();
+    const items = [
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'dup.example.test', query_type: 'A', response_code: 'NOERROR' } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'dup.example.test', query_type: 'AAAA', response_code: 'NOERROR' } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'other.example.test', query_type: 'A', response_code: 'NOERROR' } }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // 3 raw logs → 2 cards (the A+AAAA pair merges). The badge renders once per layout
+    // branch (desktop + mobile, one CSS-hidden), so assert on the single VISIBLE badge.
+    await expect(page.getByTestId('querylog-card-toggle')).toHaveCount(2);
+    const badge = page.getByTestId('querylog-count-badge').and(page.locator(':visible'));
+    await expect(badge).toHaveCount(1);
+    await expect(badge).toHaveText('×2');
+
+    // Expanding the merged card surfaces the aggregated occurrence count and query types.
+    await page.getByTestId('querylog-card-toggle').first().click();
+    const panel = page.getByTestId('querylog-expanded-panel').first();
+    await expect(panel).toHaveAttribute('data-expanded', 'true');
+    await expect(panel.getByTestId('querylog-detail-occurrences')).toHaveText('2');
+    await expect(panel.getByTestId('querylog-detail-query-type')).toHaveText('A, AAAA');
+  });
+
+  test('tablet width: meta labels stack vertically and the row has no horizontal overflow', async ({ page }, testInfo) => {
+    // The tablet band (769–1023px) renders the desktop branch at Tailwind `md`. No project sits
+    // there, so drive it on the desktop project with an explicit tablet viewport.
+    test.skip(!/chromium-desktop/i.test(testInfo.project.name), 'tablet-band layout is desktop-branch only');
+    await page.setViewportSize({ width: 820, height: 1000 });
+
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+    const now = new Date().toISOString();
+    const items = [
+      // Long domain + blocked (so DNSSEC/Blocked labels are present in the stack).
+      { profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.1', dns_request: { domain: 'a-very-long-subdomain-name.example-reallylongdomainforlayout-validation.test', query_type: 'A', response_code: 'NOERROR', dnssec: true } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.2', dns_request: { domain: 'short.example.test', query_type: 'A', response_code: 'NOERROR' } }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // The meta-label group (protocol/DNSSEC/Blocked) must be a vertical stack at tablet width.
+    const flexDir = await page.evaluate(() => {
+      const group = document.querySelector('.md\\:flex.flex-col.lg\\:flex-row') as HTMLElement | null;
+      return group ? getComputedStyle(group).flexDirection : 'not-found';
+    });
+    expect(flexDir).toBe('column');
+
+    // No horizontal overflow at tablet width even with the long domain.
+    const result = await page.evaluate(() => {
+      const docEl = document.documentElement;
+      const vw = window.innerWidth;
+      const scrollingElWidth = document.scrollingElement ? document.scrollingElement.scrollWidth : docEl.scrollWidth;
+      const sc = document.querySelector('[data-testid="logs-scroll-container"]') as HTMLElement | null;
+      const scOverflow = sc ? sc.scrollWidth - sc.clientWidth : 0;
+      return { vw, scrollingElWidth, scOverflow };
+    });
+    expect(result.scrollingElWidth).toBeLessThanOrEqual(result.vw + 1);
+    expect(result.scOverflow).toBeLessThanOrEqual(1);
+  });
 });

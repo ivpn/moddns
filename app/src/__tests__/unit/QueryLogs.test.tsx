@@ -59,10 +59,11 @@ vi.mock("@/pages/logs/Filters", () => ({
         onSearchInputChange,
         onSearchCommit,
         onFilterChange,
+        onSortChange,
         onTimespanChange,
         onDeviceIdChange,
         onRefresh,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void }) => (
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void }) => (
         <div>
             <input
                 data-testid="search-input"
@@ -71,6 +72,7 @@ vi.mock("@/pages/logs/Filters", () => ({
             />
             <button data-testid="commit-search" onClick={() => onSearchCommit?.()}>Commit</button>
             <button data-testid="filter-blocked" onClick={() => onFilterChange?.("blocked")}>Filter Blocked</button>
+            <button data-testid="sort-domain" onClick={() => onSortChange?.("domain")}>Sort Domain</button>
             <button data-testid="timespan-all" onClick={() => onTimespanChange?.("all")}>Timespan</button>
             <button data-testid="device-select" onClick={() => onDeviceIdChange?.("device-1")}>Device</button>
             <button data-testid="refresh" onClick={() => onRefresh?.()}>Refresh</button>
@@ -229,6 +231,35 @@ describe("QueryLogs", () => {
             undefined,
             "created"
         );
+    });
+
+    test("consolidates adjacent duplicate rows into a single card under the default time sort", async () => {
+        // Same domain/status/device/client_ip/protocol, differing only in query_type (A + AAAA):
+        // these are sequential duplicates and collapse into one card.
+        const dupA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:02Z" });
+        const dupAAAA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "AAAA" }, timestamp: "2024-01-01T00:00:01Z" });
+        const other = makeLog({ dns_request: { domain: "other.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:00Z" });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [dupA, dupAAAA, other] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        // 3 raw logs → 2 cards (the A+AAAA pair merges).
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+    });
+
+    test("does not consolidate when sorted by domain", async () => {
+        const dupA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:02Z" });
+        const dupAAAA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "AAAA" }, timestamp: "2024-01-01T00:00:01Z" });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [dupA, dupAAAA] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(1));
+
+        act(() => {
+            fireEvent.click(screen.getByTestId("sort-domain"));
+        });
+
+        // Under domain sort, sequential-duplicate consolidation is disabled → both rows render.
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
     });
 
     test("shows not active state when logs disabled", async () => {

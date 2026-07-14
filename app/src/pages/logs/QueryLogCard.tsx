@@ -9,9 +9,16 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { ReasonBadges } from "@/components/ui/ReasonBadges";
 import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
+import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
+    /**
+     * Consolidation group this row represents (issue #161). When `count > 1` the row shows a
+     * ×N badge and the expanded panel aggregates the members. Omitted / count 1 → single-entry
+     * row, rendered identically to before this feature.
+     */
+    group?: ConsolidatedLogGroup;
     isLast?: boolean;
     lastLogRef?: (node: HTMLDivElement | null) => void;
     onQuickRule?: (domain?: string, defaultAction?: "denylist" | "allowlist") => void;
@@ -22,7 +29,10 @@ interface QueryLogCardProps {
     onExpand?: () => void;
 }
 
-const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricted, blocklistNames, serviceNames, onExpand }: QueryLogCardProps): JSX.Element | null => {
+const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRestricted, blocklistNames, serviceNames, onExpand }: QueryLogCardProps): JSX.Element | null => {
+    // Consolidation: count>1 means this card stands in for a run of adjacent duplicate queries.
+    const count = group?.count ?? 1;
+    const isConsolidated = count > 1;
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
     const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
@@ -118,7 +128,9 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                     "font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase whitespace-nowrap",
                     dnssecShown
                         ? (dnssecFailed ? "text-[var(--tailwind-colors-red-600)]" : "text-[var(--tailwind-colors-rdns-600)]")
-                        : "opacity-0 pointer-events-none select-none",
+                        // Reserve placeholder (desktop only): take no vertical line in the tablet
+                        // stack (md), but keep reserving horizontal space in the lg row.
+                        : "opacity-0 pointer-events-none select-none md:hidden lg:inline-block",
                     className,
                 )}
             >
@@ -144,6 +156,39 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
         : dnssecValidated
             ? { text: 'Validated', className: 'text-[var(--tailwind-colors-rdns-600)]' }
             : { text: 'No DNSSEC', className: 'text-[var(--tailwind-colors-slate-200)]' };
+
+    // Consolidation badge: a small non-interactive "×N" pill shown next to the domain when
+    // this card merges multiple adjacent duplicate queries. Styled like the protocol/DNSSEC
+    // micro-labels. Plain text, so it can sit under the whole-card toggle overlay.
+    const renderCountBadge = (className?: string) => {
+        if (!isConsolidated) return null;
+        return (
+            <span
+                data-testid="querylog-count-badge"
+                data-count={count}
+                aria-label={`${count} duplicate queries`}
+                className={cn(
+                    "shrink-0 font-semibold text-[10px] tracking-wide uppercase whitespace-nowrap text-[var(--tailwind-colors-rdns-600)]",
+                    className,
+                )}
+            >
+                ×{count}
+            </span>
+        );
+    };
+
+    // Expanded-panel field values: aggregate across members when consolidated, else fall back
+    // to the representative's single value.
+    const queryTypeText = isConsolidated ? group?.queryTypes.join(', ') : log.dns_request?.query_type;
+    const responseCodeText = isConsolidated ? group?.responseCodes.join(', ') : log.dns_request?.response_code;
+    const timeText = (() => {
+        if (isConsolidated && group?.firstTimestamp && group?.lastTimestamp) {
+            const first = format(parseISO(group.firstTimestamp), "MMMM d, yyyy 'at' hh:mm:ss a");
+            const last = format(parseISO(group.lastTimestamp), "hh:mm:ss a");
+            return `${first} – ${last}`;
+        }
+        return log.timestamp ? format(parseISO(log.timestamp), "MMMM d, yyyy 'at' hh:mm:ss a") : "—";
+    })();
 
     return (
         <div
@@ -175,7 +220,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                         <div className="flex items-start gap-2">
                             <div className="inline-flex items-center gap-2 relative min-w-0 flex-1">
                                 <div className="relative flex flex-col gap-1 min-w-0">
-                                    <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[480px] lg:max-w-[560px]">
+                                    <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[560px] lg:max-w-[560px]">
                                         {displayDomain ? (
                                             <span
                                                 className="truncate"
@@ -186,6 +231,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                         ) : (
                                             '-'
                                         )}
+                                        {renderCountBadge()}
                                     </div>
                                 </div>
                             </div>
@@ -224,6 +270,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                             ) : (
                                                 '-'
                                             )}
+                                            {renderCountBadge()}
                                         </div>
                                     </div>
                                     <div className="flex-shrink-0 ml-auto">
@@ -236,12 +283,12 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                 </div>
                 {!isMobile && (
                     <div className="flex items-stretch md:items-center gap-3.5 md:gap-3 relative flex-[0_0_auto] min-w-0">
-                        <div className="hidden md:flex flex-col md:flex-row items-start md:items-center md:gap-2.5 gap-1 flex-shrink-0">
-                            <div className="relative w-[60px] md:w-[100px] font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] text-[var(--tailwind-colors-rdns-600)] text-left md:text-center tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase order-0 md:order-1">
+                        <div className="hidden md:flex flex-col lg:flex-row items-end lg:items-center gap-1 lg:gap-2.5 flex-shrink-0">
+                            <div className="relative w-[60px] md:w-auto lg:w-[100px] font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] text-[var(--tailwind-colors-rdns-600)] text-left md:text-right lg:text-center tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase order-1">
                                 {protocolLabel}
                             </div>
-                            {renderDnssecBadge("order-2 md:order-2", true)}
-                            <Badge className={`order-1 md:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none' : ''}`} aria-hidden={!isBlocked}>
+                            {renderDnssecBadge("order-2", true)}
+                            <Badge className={`order-3 lg:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none md:hidden lg:inline-flex' : ''}`} aria-hidden={!isBlocked}>
                                 <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
                             </Badge>
                         </div>
@@ -280,13 +327,14 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                         <dd className="text-xs italic select-text text-[var(--tailwind-colors-slate-200)]" data-testid="querylog-detail-domain">Domain logging disabled</dd>
                                     </div>
                                 )}
-                            {log.dns_request?.query_type && renderDetailField("Query type", log.dns_request.query_type, "querylog-detail-query-type")}
-                            {log.dns_request?.response_code && renderDetailField("Response code", log.dns_request.response_code, "querylog-detail-response-code")}
+                            {queryTypeText && renderDetailField(isConsolidated ? "Query types" : "Query type", queryTypeText, "querylog-detail-query-type")}
+                            {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
+                            {isConsolidated && renderDetailField("Occurrences", String(count), "querylog-detail-occurrences")}
                             {log.client_ip && renderDetailField("Client IP", log.client_ip, "querylog-detail-client-ip")}
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
-                            {renderDetailField("Time", log.timestamp ? format(parseISO(log.timestamp), "MMMM d, yyyy 'at' hh:mm:ss a") : "—", "querylog-detail-timestamp")}
+                            {renderDetailField(isConsolidated ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
                         </dl>
                         {hasReasons && (
                             <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">

@@ -238,6 +238,62 @@ describe('QueryLogCard whole-card expansion', () => {
     });
 });
 
+describe('QueryLogCard consolidation (issue #161)', () => {
+    beforeEach(() => {
+        (window as unknown as { innerWidth: number }).innerWidth = 1440;
+        stubDesktopMatchMedia(true);
+    });
+
+    const memberA: ModelQueryLog = {
+        profile_id: 'p-con',
+        timestamp: '2026-06-15T10:20:32.000Z',
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'con-device',
+        client_ip: '10.0.0.9',
+        dns_request: { domain: 'dup.example.com', query_type: 'A', response_code: 'NOERROR' },
+    };
+    const memberAAAA: ModelQueryLog = {
+        ...memberA,
+        timestamp: '2026-06-15T10:20:30.000Z',
+        dns_request: { domain: 'dup.example.com', query_type: 'AAAA', response_code: 'NXDOMAIN' },
+    };
+    const group = {
+        key: 'con-group',
+        representative: memberA,
+        count: 3,
+        members: [memberA, memberAAAA, memberA],
+        firstTimestamp: memberA.timestamp,
+        lastTimestamp: memberAAAA.timestamp,
+        queryTypes: ['A', 'AAAA'],
+        responseCodes: ['NOERROR', 'NXDOMAIN'],
+    };
+
+    test('single-entry row (no group / count 1) shows no count badge', () => {
+        render(<QueryLogCard log={memberA} />);
+        expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
+        render(<QueryLogCard log={memberA} group={{ ...group, count: 1, members: [memberA], queryTypes: ['A'], responseCodes: ['NOERROR'] }} />);
+        expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
+    });
+
+    test('consolidated row shows a ×N count badge', () => {
+        render(<QueryLogCard log={memberA} group={group} />);
+        const badge = screen.getByTestId('querylog-count-badge');
+        expect(badge).toHaveTextContent('×3');
+        expect(badge).toHaveAttribute('data-count', '3');
+    });
+
+    test('expanded panel aggregates query types, response codes, occurrences and a time range', () => {
+        render(<QueryLogCard log={memberA} group={group} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-query-type')).toHaveTextContent('A, AAAA');
+        expect(screen.getByTestId('querylog-detail-response-code')).toHaveTextContent('NOERROR, NXDOMAIN');
+        expect(screen.getByTestId('querylog-detail-occurrences')).toHaveTextContent('3');
+        // Time range renders both endpoints separated by an en dash.
+        expect(screen.getByTestId('querylog-detail-timestamp').textContent).toMatch(/–/);
+    });
+});
+
 describe('QueryLogCard quick rule button', () => {
     beforeEach(() => {
         (window as unknown as { innerWidth: number }).innerWidth = 1280;
