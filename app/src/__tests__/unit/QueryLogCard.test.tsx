@@ -289,8 +289,24 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         expect(screen.getByTestId('querylog-detail-query-type')).toHaveTextContent('A, AAAA');
         expect(screen.getByTestId('querylog-detail-response-code')).toHaveTextContent('NOERROR, NXDOMAIN');
         expect(screen.getByTestId('querylog-detail-occurrences')).toHaveTextContent('3');
-        // Time range renders both endpoints separated by an en dash.
+        // group spans 2s (10:20:30 → 10:20:32) → a time RANGE with an en dash and "Time range" label.
         expect(screen.getByTestId('querylog-detail-timestamp').textContent).toMatch(/–/);
+        expect(screen.getByText('Time range')).toBeInTheDocument();
+    });
+
+    test('a group whose members share the same second shows a single "Time", not a range', () => {
+        // A + AAAA fired back-to-back: same second, differing only in milliseconds.
+        const sameSecondGroup = {
+            ...group,
+            firstTimestamp: '2026-06-15T10:20:32.480Z',
+            lastTimestamp: '2026-06-15T10:20:32.010Z',
+        };
+        render(<QueryLogCard log={{ ...memberA, timestamp: '2026-06-15T10:20:32.480Z' }} group={sameSecondGroup} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        // No en dash → single time; label is the plain "Time" (exact, not "Time range").
+        expect(screen.getByTestId('querylog-detail-timestamp').textContent).not.toMatch(/–/);
+        expect(screen.getByText('Time')).toBeInTheDocument();
+        expect(screen.queryByText('Time range')).not.toBeInTheDocument();
     });
 });
 

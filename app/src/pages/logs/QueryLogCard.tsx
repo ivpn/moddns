@@ -181,14 +181,18 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     // to the representative's single value.
     const queryTypeText = isConsolidated ? group?.queryTypes.join(', ') : log.dns_request?.query_type;
     const responseCodeText = isConsolidated ? group?.responseCodes.join(', ') : log.dns_request?.response_code;
-    const timeText = (() => {
-        if (isConsolidated && group?.firstTimestamp && group?.lastTimestamp) {
-            const first = format(parseISO(group.firstTimestamp), "MMMM d, yyyy 'at' hh:mm:ss a");
-            const last = format(parseISO(group.lastTimestamp), "hh:mm:ss a");
-            return `${first} – ${last}`;
-        }
-        return log.timestamp ? format(parseISO(log.timestamp), "MMMM d, yyyy 'at' hh:mm:ss a") : "—";
-    })();
+    // A group only shows a first–last time RANGE when its endpoints differ at second granularity.
+    // A + AAAA fired back-to-back land in the same second, so those collapse to a single "Time"
+    // (like a non-consolidated row); groups that genuinely span >=1s (e.g. grouped blocked queries)
+    // keep the range.
+    const secKey = (ts?: string) => (ts ? format(parseISO(ts), "yyyy-MM-dd'T'HH:mm:ss") : undefined);
+    const hasTimeRange = Boolean(
+        isConsolidated && group?.firstTimestamp && group?.lastTimestamp &&
+        secKey(group.firstTimestamp) !== secKey(group.lastTimestamp)
+    );
+    const timeText = hasTimeRange
+        ? `${format(parseISO(group!.firstTimestamp!), "MMMM d, yyyy 'at' hh:mm:ss a")} – ${format(parseISO(group!.lastTimestamp!), "hh:mm:ss a")}`
+        : (log.timestamp ? format(parseISO(log.timestamp), "MMMM d, yyyy 'at' hh:mm:ss a") : "—");
 
     return (
         <div
@@ -334,7 +338,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             {isConsolidated && renderDetailField("Occurrences", String(count), "querylog-detail-occurrences")}
                             {log.client_ip && renderDetailField("Client IP", log.client_ip, "querylog-detail-client-ip")}
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
-                            {renderDetailField(isConsolidated ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
+                            {renderDetailField(hasTimeRange ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
                         </dl>
                         {hasReasons && (
                             <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">
