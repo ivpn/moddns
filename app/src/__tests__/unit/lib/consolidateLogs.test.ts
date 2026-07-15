@@ -103,6 +103,58 @@ describe('consolidateLogs', () => {
         expect(consolidateLogs([])).toEqual([]);
     });
 
+    it('does not merge same-domain entries more than the span window apart', () => {
+        // Blocked-filter scenario: two blocks of the same domain 5 minutes apart become adjacent
+        // in the filtered stream, but must NOT merge (default 10s window).
+        const groups = consolidateLogs([
+            log({ domain: 'ads.tracker.com', status: 'blocked', timestamp: '2026-06-15T11:38:09.000Z' }),
+            log({ domain: 'ads.tracker.com', status: 'blocked', timestamp: '2026-06-15T11:33:09.000Z' }),
+        ]);
+        expect(groups).toHaveLength(2);
+        expect(groups.every((g) => g.count === 1)).toBe(true);
+    });
+
+    it('splits a domain blocked repeatedly over an hour into one row per block', () => {
+        const base = Date.parse('2026-06-15T11:38:09.000Z');
+        const items = Array.from({ length: 8 }, (_, i) =>
+            // ~8 minutes apart, newest first (created-desc).
+            log({ domain: 'ads.tracker.com', status: 'blocked', timestamp: new Date(base - i * 8 * 60_000).toISOString() })
+        );
+        const groups = consolidateLogs(items);
+        expect(groups).toHaveLength(8);
+        expect(groups.every((g) => g.count === 1)).toBe(true);
+    });
+
+    it('measures the span from the run first member, not the previous member', () => {
+        // 12:00:00 anchors the run. 11:59:55 is 5s away → merges. 11:59:48 is only 7s from the
+        // previous member but 12s from the anchor → it starts a new group.
+        const groups = consolidateLogs([
+            log({ domain: 'a.com', query_type: 'A', timestamp: '2026-06-15T12:00:00.000Z' }),
+            log({ domain: 'a.com', query_type: 'AAAA', timestamp: '2026-06-15T11:59:55.000Z' }),
+            log({ domain: 'a.com', query_type: 'A', timestamp: '2026-06-15T11:59:48.000Z' }),
+        ]);
+        expect(groups.map((g) => g.count)).toEqual([2, 1]);
+    });
+
+    it('respects a custom span window', () => {
+        const items = [
+            log({ domain: 'a.com', query_type: 'A', timestamp: '2026-06-15T12:00:00.000Z' }),
+            log({ domain: 'a.com', query_type: 'AAAA', timestamp: '2026-06-15T11:59:30.000Z' }),
+        ];
+        // 30s apart: outside the default 10s window (2 groups) but inside a 60s window (1 group).
+        expect(consolidateLogs(items)).toHaveLength(2);
+        expect(consolidateLogs(items, 60_000)).toHaveLength(1);
+    });
+
+    it('still merges a sub-second A + AAAA pair', () => {
+        const groups = consolidateLogs([
+            log({ domain: 'example.com', query_type: 'A', timestamp: '2026-06-15T10:00:00.400Z' }),
+            log({ domain: 'example.com', query_type: 'AAAA', timestamp: '2026-06-15T10:00:00.000Z' }),
+        ]);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].count).toBe(2);
+    });
+
     it('toSingletonGroup wraps one log as a count-1 group', () => {
         const g = toSingletonGroup(log({ domain: 'a.com', query_type: 'A' }), 0);
         expect(g.count).toBe(1);
