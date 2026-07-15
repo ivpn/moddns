@@ -124,7 +124,7 @@ func clientIDFromClientServerName(
 
 // clientIDFromDNSContextHTTPS extracts the client's ID and device ID from the path of the
 // client's DNS-over-HTTPS request.
-// To test: https://ivpndns.com:443/dns-query/123/device-id
+// To test: https://moddns.dev:443/dns-query/123/device-id
 func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId string, err error) {
 	r := pctx.HTTPRequest
 	if r == nil {

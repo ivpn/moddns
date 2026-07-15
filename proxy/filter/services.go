@@ -50,14 +50,16 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 		return result, nil
 	}
 
-	blockedSet := make(map[string]struct{}, len(blockedServices))
+	blockedSvcs := make(map[string]servicescatalog.Service, len(blockedServices))
 	for _, id := range blockedServices {
 		if id == "" {
 			continue
 		}
-		blockedSet[id] = struct{}{}
+		if svc, ok := cat.FindByID(id); ok {
+			blockedSvcs[svc.ID] = svc
+		}
 	}
-	if len(blockedSet) == 0 {
+	if len(blockedSvcs) == 0 {
 		return result, nil
 	}
 
@@ -70,10 +72,7 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 			continue
 		}
 
-		for _, svc := range cat.Services {
-			if _, ok := blockedSet[svc.ID]; !ok {
-				continue
-			}
+		for _, svc := range blockedSvcs {
 			for _, svcASN := range svc.ASNs {
 				if svcASN == asn {
 					matchedServices[svc.ID] = struct{}{}

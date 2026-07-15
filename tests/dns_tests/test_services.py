@@ -24,6 +24,7 @@ from libs.profile_helpers import (
     SVC_GOOGLE_DOMAIN,
     SVC_GOOGLE_IP,
     SVC_GOOGLE_ID,
+    SVC_GOOGLE_ALIAS_ID,
     SVC_APPLE_DOMAIN,
     SVC_APPLE_ID,
     SVC_MICROSOFT_DOMAIN,
@@ -124,6 +125,104 @@ class TestServicesBlocking(ProfileHelpers):
             assert ip_str != "0.0.0.0", (
                 f"After unblocking {SVC_GOOGLE_ID}, {SVC_GOOGLE_DOMAIN} should "
                 f"resolve normally; got {ip_str}"
+            )
+
+
+# ===================================================================
+# Services blocking via a catalog ALIAS (service-ID rename path)
+# ===================================================================
+class TestServicesAliasBlocking(ProfileHelpers):
+    """End-to-end verification that a catalog *alias* resolves to its service.
+
+    Exercises the zero-downtime service-ID rename mechanism: the proxy's
+    FindByID resolves an alias (``google-legacy``) to the underlying service
+    (``google``), so a profile that blocks the alias must get exactly the same
+    ASN blocking as one that blocks the canonical ID. This is what keeps
+    blocking from failing open while profiles are migrated off an old ID.
+
+    Uses the deterministic google path (svctest-google.com -> 8.8.8.8, AS15169)
+    and the ``aliases: [google-legacy]`` entry in the test services catalog.
+    """
+
+    def setup_class(self):
+        self.config = get_settings()
+        self.api_config = api_config.Configuration(host=self.config.DNS_API_ADDR)
+        self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
+
+    @pytest.mark.asyncio
+    async def test_services_block_by_alias(self, create_account_and_login):
+        """Blocking the alias 'google-legacy' must block svctest-google.com
+        (AS15169) identically to blocking the canonical 'google' service."""
+        account, cookie = create_account_and_login
+        with client.ApiClient(self.api_config) as api_client:
+            p = api.ProfileApi(api_client)
+            p.api_client.default_headers["Cookie"] = cookie
+
+            if not await services_available(self.dns_lib, p, cookie):
+                pytest.skip("Services/ASN blocking not available (GeoIP DB missing?)")
+
+            profile_id = self._create_profile(p, "svc_block_alias")
+            self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
+
+            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            ip_str = extract_ip(resp)
+            assert ip_str == "0.0.0.0", (
+                f"Alias block for {SVC_GOOGLE_ALIAS_ID} did not block "
+                f"{SVC_GOOGLE_DOMAIN}; alias must resolve to the "
+                f"{SVC_GOOGLE_ID} service. got {ip_str}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_services_block_by_alias_does_not_affect_other_asn(
+        self, create_account_and_login
+    ):
+        """Blocking the alias must not over-block: test.com (AS13335) stays
+        resolvable, same as blocking the canonical service."""
+        account, cookie = create_account_and_login
+        with client.ApiClient(self.api_config) as api_client:
+            p = api.ProfileApi(api_client)
+            p.api_client.default_headers["Cookie"] = cookie
+
+            if not await services_available(self.dns_lib, p, cookie):
+                pytest.skip("Services/ASN blocking not available")
+
+            profile_id = self._create_profile(p, "svc_alias_other_asn")
+            self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
+
+            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            ip_str = extract_ip(resp)
+            assert ip_str != "0.0.0.0", (
+                f"Blocking alias {SVC_GOOGLE_ALIAS_ID} should not affect "
+                f"{TEST_DOMAIN} (different ASN); got {ip_str}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_services_unblock_by_alias_restores_resolution(
+        self, create_account_and_login
+    ):
+        """Unblocking the alias restores resolution — the alias round-trips
+        through enable/disable exactly like a canonical service ID."""
+        account, cookie = create_account_and_login
+        with client.ApiClient(self.api_config) as api_client:
+            p = api.ProfileApi(api_client)
+            p.api_client.default_headers["Cookie"] = cookie
+
+            if not await services_available(self.dns_lib, p, cookie):
+                pytest.skip("Services/ASN blocking not available")
+
+            profile_id = self._create_profile(p, "svc_unblock_alias")
+            self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
+
+            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            assert extract_ip(resp) == "0.0.0.0", "Expected blocked before unblock"
+
+            self._unblock_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
+
+            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            ip_str = extract_ip(resp)
+            assert ip_str != "0.0.0.0", (
+                f"After unblocking alias {SVC_GOOGLE_ALIAS_ID}, "
+                f"{SVC_GOOGLE_DOMAIN} should resolve normally; got {ip_str}"
             )
 
 

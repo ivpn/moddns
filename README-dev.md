@@ -19,7 +19,7 @@ This document captures the practical steps needed to spin up the full stack loca
     make up
     ```
 
-    This builds containers, seeds databases, and exposes the web UI via Nginx at `https://ivpndns.com`.
+    This builds containers, seeds databases, and exposes the web UI via Nginx at `https://moddns.dev`.
 3. Use `make logs` to tail container output, and `make down` to stop everything when you are done hacking.
 
 ## Wildcard certificate workflow
@@ -34,10 +34,15 @@ This document captures the practical steps needed to spin up the full stack loca
 ### Detailed steps (mkcert)
 
 ```bash
-./mkcert ivpndns.com "*.ivpndns.com" localhost 127.0.0.1 ::1
+./mkcert moddns.dev "*.moddns.dev" localhost 127.0.0.1 ::1
 ```
 
-mkcert automatically installs its root CA into the system trust store, so browsers accept `https://ivpndns.com` when the dev proxy serves it locally.
+mkcert automatically installs its root CA into the system trust store, so browsers accept `https://moddns.dev` when the dev proxy serves it locally.
+
+> [!NOTE]
+> The certificates committed under `certs/` (`moddns.dev+4.pem` / `moddns.dev+4-key.pem`, signed by
+> `moddns_dev_development_CA.crt`) are what the integration tests use. mkcert is only needed if you want a
+> CA your **browser** trusts automatically for local dev. See `certs/README.md` for the regeneration recipe.
 
 ## Local DNS overrides with dnsmasq
 
@@ -52,8 +57,8 @@ sudo systemctl start dnsmasq.service
 `/etc/dnsmasq.conf` snippet:
 
 ```
-# Map every *.ivpndns.com host to localhost for HTTPS and DoT/DoQ tests
-address=/ivpndns.com/127.0.0.1
+# Map every *.moddns.dev host to localhost for HTTPS and DoT/DoQ tests
+address=/moddns.dev/127.0.0.1
 cache-size=1000
 ```
 
@@ -62,7 +67,7 @@ Helpful `/etc/hosts` entries (in addition to dnsmasq):
 ```
 # DNS check entry for local testing
 127.0.0.1   123.test.localdnsleaktest.com
-127.0.0.1   ivpndns.com
+127.0.0.1   moddns.dev
 ```
 
 > [!TIP]
@@ -73,10 +78,10 @@ Helpful `/etc/hosts` entries (in addition to dnsmasq):
 1. Point your browser or OS DNS setting to the local DoH endpoint:
 
     ```
-    https://ivpndns.com:443/dns-query/<profile-id>
+    https://moddns.dev:443/dns-query/<profile-id>
     ```
 
-2. Import `certs/ivpndns.com+4.pem` (or the certificate generated via mkcert) into the browser's trust store:
+2. Import `certs/moddns_dev_development_CA.crt` (or the CA generated via mkcert) into the browser's trust store:
     - Chrome/Edge: Settings → Privacy and Security → Security → Manage certificates → Authorities
     - Firefox: Settings → Privacy & Security → Certificates → View Certificates → Authorities
 
@@ -141,7 +146,7 @@ future entry to confirm the API hides them.
 
 ## Troubleshooting
 
-- **TLS errors**: confirm the CA is trusted and the certificate's SAN includes the host you're testing (`*.ivpndns.com`).
+- **TLS errors**: confirm the CA is trusted and the certificate's SAN includes the host you're testing (`*.moddns.dev`).
 - **Wildcard not resolving**: restart dnsmasq after editing the config (`sudo systemctl reload dnsmasq`).
 - **API allow list failures**: verify `API_ALLOW_IP` matches the docker bridge gateway or set it to `*` for local-only usage.
 

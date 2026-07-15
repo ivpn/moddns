@@ -5,23 +5,23 @@
 1. Add locally generated root certificate to the browser
 
 - Search for Certificates --> View Certificates --> Authorities --> Import
-- location of root cert in repo: `certs/mkcert_development_CA_307611231582065277882115426409270736451.crt`
+- location of root cert in repo: `certs/moddns_dev_development_CA.crt`
 
 2. Set DNS settings for your browser
 
 - Search for DNS --> Enable DNS over HTTPS using --> Check Max Protection
-- Paste your custom endpoint into `custom` provider field: `https://ivpndns.com:443/dns-query/7geckax1e5`
+- Paste your custom endpoint into `custom` provider field: `https://moddns.dev:443/dns-query/7geckax1e5`
 
 ### Test DNS over HTTPS
 
 ```
-dig +https=/dns-query/ju8eamnqfn @ivpndns.com google.com
+dig +https=/dns-query/ju8eamnqfn @moddns.dev google.com
 ```
 
 OR
 
 ```
-q -S jinghuazhijia.com A @https://ivpndns.com:443/dns-query/7geckax1e5 -v
+q -S jinghuazhijia.com A @https://moddns.dev:443/dns-query/7geckax1e5 -v
 ```
 
 OR
@@ -34,30 +34,30 @@ A example.com. 23h12m06s   93.184.216.34
 In this case real DoH server can be pointed to (I'm using cloudflare DoH endpoint here):
 
 ```
-maciek@maciek-ThinkPad-T14s-Gen-4:~$ dog example.com --https @https://ivpndns.com/dns-query
+maciek@maciek-ThinkPad-T14s-Gen-4:~$ dog example.com --https @https://moddns.dev/dns-query
 A example.com. 59m49s   93.184.216.34
 ```
 
 In case unbound is configured as upstream (not sure if queries from Unbound up are encrypted, Unbound also supports /dns-query endpoint):
 
 ```
-dog wp.pl --https @https://ivpndns.com/dns-query
+dog wp.pl --https @https://moddns.dev/dns-query
 ```
 
 JSON output:
 
 ```
-dog wp.pl -J --time --https @https://ivpndns.com/dns-query | jq
+dog wp.pl -J --time --https @https://moddns.dev/dns-query | jq
 ```
 
 ### DNS over TLS
 
 ```
-maciek@maciek-ThinkPad-T14s-Gen-4:~$ kdig -d @ivpndns.com:853 +tls-ca wp.pl
-;; DEBUG: Querying for owner(wp.pl.), class(1), type(1), server(ivpndns.com), port(853), protocol(TCP)
+maciek@maciek-ThinkPad-T14s-Gen-4:~$ kdig -d @moddns.dev:853 +tls-ca wp.pl
+;; DEBUG: Querying for owner(wp.pl.), class(1), type(1), server(moddns.dev), port(853), protocol(TCP)
 ;; DEBUG: TLS, imported 139 system certificates
 ;; DEBUG: TLS, received certificate hierarchy:
-;; DEBUG:  #1, O=mkcert development certificate,OU=maciek@maciek-ThinkPad-T14s-Gen-4 (Maciek)
+;; DEBUG:  #1, O=modDNS development certificate
 ;; DEBUG:      SHA-256 PIN: 4PRWwapk+ZA3PVrskDGi6C2CHMNpT1laXFujVP/RKxg=
 ;; DEBUG: TLS, skipping certificate PIN check
 ;; DEBUG: TLS, The certificate is trusted.
@@ -105,7 +105,7 @@ Q examples:
 
 Local server:
 ```
-./q wp.pl A @tls://test-3mdq3851b9.ivpndns.com -v
+./q wp.pl A @tls://test-3mdq3851b9.moddns.dev -v
 ```
 
 ### Location Subdomain Testing (DoT/DoQ)
@@ -146,11 +146,11 @@ Production locations: `tor1.dns.moddns.net` (dfn1), `ams1.dns.moddns.net` (dfn3)
 I found a DNS client which is capable of sending all mentioned types of DNS requests, not only DoQ: https://github.com/natesales/q
 
 ```
-maciek@maciek-ThinkPad-T14s-Gen-4:~/git/coredns$ q -S wp.pl A @quic://123asd3.ivpndns.com
+maciek@maciek-ThinkPad-T14s-Gen-4:~/git/coredns$ q -S wp.pl A @quic://123asd3.moddns.dev
 2024/04/22 16:39:56 failed to sufficiently increase send buffer size (was: 208 kiB, wanted: 2048 kiB, got: 416 kiB). See https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes for details.
 wp.pl. 2m51s A 212.77.98.9
 Stats:
-Received 44 B from 123asd3.ivpndns.com in 27.3ms (16:39:56 04-22-2024 CEST)
+Received 44 B from 123asd3.moddns.dev in 27.3ms (16:39:56 04-22-2024 CEST)
 Opcode: QUERY Status: NOERROR ID 0: Flags: qr aa rd ra (1 Q 1 A 0 N 0 E)
 ```
 
@@ -170,13 +170,13 @@ In order to get Postman collection for DNS REST API, swagger docs can be importe
 
 
 ```
-dig +https=/dns-query/ju8eamnqfn @ivpndns.com ietf.org +dnssec +multiline
+dig +https=/dns-query/ju8eamnqfn @moddns.dev ietf.org +dnssec +multiline
 ```
 
 
 Improperly configured DNSSEC domain:
 ```
-dig +https=/dns-query/ju8eamnqfn @ivpndns.com dnssec-failed.org +dnssec +multiline
+dig +https=/dns-query/ju8eamnqfn @moddns.dev dnssec-failed.org +dnssec +multiline
 ```
 
 ### Passkeys

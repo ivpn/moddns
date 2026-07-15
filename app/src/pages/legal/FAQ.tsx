@@ -659,7 +659,7 @@ export default function FAQ(): JSX.Element {
                                 </h1>
                             </div>
 
-                            <div className="prose prose-invert max-w-none text-[var(--shadcn-ui-app-foreground)]">
+                            <div className="max-w-none text-[var(--shadcn-ui-app-foreground)]">
                                 <div className="mb-6">
                                     <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
                                         Last updated: {FAQ_LAST_UPDATED}

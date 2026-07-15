@@ -38,7 +38,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@sentry/react": "^9.38.0",
     "@simplewebauthn/browser": "^13.1.2",
-    "@tailwindcss/vite": "^4.1.7",
+    "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -54,20 +54,22 @@
     "react-select": "^5.10.2",
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.0",
-    "tailwindcss": "^4.1.7",
+    "tailwindcss": "^4.3.2",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.0",
     "@eslint/js": "^9.25.0",
     "@playwright/test": "^1.48.0",
+    "@tailwindcss/typography": "^0.5.20",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.19",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
-    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
@@ -76,8 +78,11 @@
     "tw-animate-css": "^1.3.0",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5",
-    "vite-plugin-pwa": "^0.21.1",
-    "vitest": "^2.1.4"
+    "vite": "^8.1.4",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "@babel/core": "^7.29.0"
   }
 }
