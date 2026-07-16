@@ -109,6 +109,20 @@ describe('setupSWUpdate', () => {
         expect(updateSWMock).toHaveBeenCalledTimes(1);
     });
 
+    it('does not re-apply via the tab-away listener after Refresh is clicked', () => {
+        const options = capturedOptions();
+        options.onNeedRefresh?.();
+
+        const [, toastOptions] = toastInfoMock.mock.calls[0];
+        toastOptions.action.onClick();
+        expect(updateSWMock).toHaveBeenCalledTimes(1);
+
+        // Tabbing away before the reload lands must not apply the update again.
+        setDocumentHidden(true);
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(updateSWMock).toHaveBeenCalledTimes(1);
+    });
+
     it('applies a pending (toasted) update once the user tabs away', () => {
         const options = capturedOptions();
         options.onNeedRefresh?.();
