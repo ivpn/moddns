@@ -44,9 +44,9 @@ from libs.session import ProfileSession
 
 
 # Test domain set up via tests/config/api.env:
-#   SERVER_DNS_DOMAIN=ivpndns.com
+#   SERVER_DNS_DOMAIN=moddns.dev
 #   SERVER_DNS_SERVER_ADDRESSES=127.0.0.1
-EXPECTED_DOMAIN = "ivpndns.com"
+EXPECTED_DOMAIN = "moddns.dev"
 EXPECTED_IP = "127.0.0.1"
 EXPECTED_DOT_PORT = 853
 EXPECTED_DOQ_PORT = 853

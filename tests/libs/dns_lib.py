@@ -65,8 +65,11 @@ def assert_not_blocked(resp: Message, domain: str = "domain") -> None:
     assert ip not in BLOCKED_IPS, f"{domain} was unexpectedly blocked (got {ip})"
 
 
-def _mkcert_ca_path() -> str:
-    """Locate the mkcert dev CA bundle.
+DEV_CA_FILENAME = "moddns_dev_development_CA.crt"
+
+
+def _dev_ca_path() -> str:
+    """Locate the development CA bundle (see certs/README.md).
 
     DoT/DoQ via dns.query.tls/quic uses Python's system trust store (NOT certifi),
     so we must pass the CA path explicitly — relying on the CI workflow's certifi
@@ -75,7 +78,7 @@ def _mkcert_ca_path() -> str:
     Resolution order:
       1. MODDNS_TEST_CA_PATH env var (explicit override / escape hatch).
       2. IVPN_CERT_PATH env var (already set by .github/workflows/integration_tests.yml).
-      3. Walk up from this file to find <repo>/certs/mkcert_development_CA_*.crt.
+      3. Walk up from this file to find <repo>/certs/<DEV_CA_FILENAME>.
          Works identically on dev machines and CI runners — only the repo root path
          differs.
     """
@@ -91,14 +94,12 @@ def _mkcert_ca_path() -> str:
 
     here = Path(__file__).resolve()
     for parent in here.parents:
-        cert_dir = parent / "certs"
-        if cert_dir.is_dir():
-            matches = sorted(cert_dir.glob("mkcert_development_CA_*.crt"))
-            if matches:
-                return str(matches[0])
+        candidate = parent / "certs" / DEV_CA_FILENAME
+        if candidate.is_file():
+            return str(candidate)
 
     raise RuntimeError(
-        "mkcert dev CA not found. Expected <repo>/certs/mkcert_development_CA_*.crt; "
+        f"Development CA not found. Expected <repo>/certs/{DEV_CA_FILENAME}; "
         "override via MODDNS_TEST_CA_PATH or IVPN_CERT_PATH env."
     )
 
@@ -182,14 +183,14 @@ class DNSLib:
         """Dispatch a DNS query through the protocol encoded in a parsed dnsstamps stamp.
 
         Connects to LOCAL_PROXY_HOST (loopback) but uses the stamp's hostname for SNI
-        — that's what carries profile-id dispatch through the proxy. The mkcert dev
-        CA is used to verify TLS; the cert SANs include *.ivpndns.com so per-profile
+        — that's what carries profile-id dispatch through the proxy. The development
+        CA is used to verify TLS; the cert SANs include *.moddns.dev so per-profile
         subdomains validate.
         """
         from dnsstamps import Protocol  # local import — only needed when this helper is used
 
         query = message.make_query(domain, record_type)
-        ca = _mkcert_ca_path()
+        ca = _dev_ca_path()
 
         if stamp.protocol == Protocol.DOH:
             url = f"https://{stamp.hostname}{stamp.path}"
