@@ -11,15 +11,15 @@ export default defineConfig({
     }
   },
   test: {
-  include: ['src/__tests__/unit/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/__tests__/unit/**/*.{test,spec}.{ts,tsx}'],
     exclude: [
       'node_modules',
       'dist',
       'tests',
-      '__tests__/e2e'
+      '__tests__/e2e',
     ],
     environment: 'jsdom',
-  setupFiles: ['src/__tests__/unit/setupTests.ts'],
-    globals: true
-  }
+    setupFiles: ['src/__tests__/unit/setupTests.ts'],
+    globals: true,
+  },
 });

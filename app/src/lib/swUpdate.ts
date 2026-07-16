@@ -44,16 +44,21 @@ export function setupSWUpdate() {
         applyUpdate();
         return;
       }
-      const onHidden = () => {
-        if (!document.hidden) return;
+      // Single entry point for both triggers (toast click, tab-away) that
+      // detaches the listener first, so the update is only ever applied once.
+      const applyOnce = () => {
         document.removeEventListener("visibilitychange", onHidden);
         applyUpdate();
+      };
+      const onHidden = () => {
+        if (!document.hidden) return;
+        applyOnce();
       };
       document.addEventListener("visibilitychange", onHidden);
       toast.info("A new version of modDNS is available.", {
         id: UPDATE_TOAST_ID,
         duration: Infinity,
-        action: { label: "Refresh", onClick: applyUpdate },
+        action: { label: "Refresh", onClick: applyOnce },
       });
     },
     onRegisterError() {

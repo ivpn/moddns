@@ -11,8 +11,9 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       // 'prompt': the new SW stays in "waiting" until the app applies it via
-      // updateServiceWorker() (src/lib/swUpdate.ts), so an open tab never mixes
-      // old page code with a new SW whose precache dropped the old chunks.
+      // the update flow in setupSWUpdate (src/lib/swUpdate.ts), so an open tab
+      // never mixes old page code with a new SW whose precache dropped the old
+      // chunks.
       registerType: 'prompt',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],

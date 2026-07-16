@@ -35,6 +35,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
           error: "!bg-[var(--tailwind-colors-red-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-red-600)]",
           info: "!bg-[var(--tailwind-colors-rdns-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-rdns-600)]",
           warning: "!bg-[var(--tailwind-colors-rdns-50)] dark:!bg-[var(--shadcn-ui-app-background)] !border-[var(--tailwind-colors-rdns-600)]",
+          // Match the app's teal action buttons (e.g. CreateProfileDialog)
+          // instead of sonner's built-in action styling.
+          actionButton:
+            "!bg-[var(--tailwind-colors-rdns-600)] !text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)] !rounded-md !text-sm !font-medium !h-8 !px-3 !shadow-xs !cursor-pointer !transition-all",
         },
       }}
       icons={{
