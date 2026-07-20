@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, type JSX } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, type JSX } from "react";
 import type { AxiosError } from "axios";
 
 interface NetworkError extends AxiosError { code?: string; }
@@ -11,6 +11,7 @@ import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
 import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
+import { consolidateLogs, toSingletonGroup } from "@/lib/consolidateLogs";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -89,6 +90,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             if (node) observer.current.observe(node);
         },
         [loading, hasMore]
+    );
+
+    // Consolidate sequential duplicate rows (issue #161). Runs over the FULL accumulated
+    // logs array, so groups that straddle a pagination boundary heal automatically once the
+    // next page appends. Sequential adjacency is only meaningful under the default time sort;
+    // under domain/client_ip sort every row stays un-merged (identical to before this feature).
+    const displayGroups = useMemo(
+        () => (sortValue === "created" ? consolidateLogs(logs) : logs.map(toSingletonGroup)),
+        [logs, sortValue]
     );
 
     const activeProfile = useAppStore((state) => state.activeProfile);
@@ -471,12 +481,13 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                             </button>
                                         </div>
                                     )}
-                                    {logs.map((log, index) => {
-                                        const isLast = index === logs.length - 1;
+                                    {displayGroups.map((group, index) => {
+                                        const isLast = index === displayGroups.length - 1;
                                         return (
                                             <QueryLogCard
-                                                key={`${log.profile_id}-${log.timestamp}-${index}`}
-                                                log={log}
+                                                key={group.key}
+                                                log={group.representative}
+                                                group={group}
                                                 isLast={isLast}
                                                 lastLogRef={isLast ? lastLogRef : undefined}
                                                 onQuickRule={handleOpenQuickRule}
