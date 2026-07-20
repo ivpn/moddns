@@ -169,6 +169,16 @@ def ensure_blocklists_configured(start_compose):
 
 @pytest.fixture(scope="session")  # autouse=True
 def start_compose():
+    """Session-scoped compose lifecycle.
+
+    Set ``TESTS_SKIP_COMPOSE=1`` to run against an already-running stack
+    (e.g. started manually with ``docker compose up``) — skips the build,
+    start, teardown, and container-log collection. Useful for running a
+    single test repeatedly without paying the compose round-trip.
+    """
+    if os.getenv("TESTS_SKIP_COMPOSE") == "1":
+        yield None
+        return
     with DockerCompose("./", build=True, wait=True) as compose:
         yield compose
 
@@ -183,6 +193,8 @@ def docker_logs(start_compose, request):
 
     # Get compose instance from the existing fixture
     compose = request.getfixturevalue("start_compose")
+    if compose is None:  # TESTS_SKIP_COMPOSE=1 — external stack, no log access
+        return
 
     # Save logs for all containers
     save_container_logs(compose, logs_dir)

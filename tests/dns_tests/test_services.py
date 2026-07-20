@@ -75,7 +75,7 @@ class TestServicesBlocking:
     )
     async def test_services_block_by_asn(self, user, service_id, domain):
         """Blocking a service blocks every domain resolving into its ASN set.
-        Behaviour table #2. Each parametrized service resolves to an IP in the
+        tableRef: #2. Each parametrized service resolves to an IP in the
         service's ASN and must come back as the block sentinel (0.0.0.0):
 
         - google: svctest-google.com -> 8.8.8.8 (AS15169), pinned/deterministic.
@@ -107,7 +107,7 @@ class TestServicesBlocking:
         """Blocking the google service (by canonical ID or alias) must NOT
         over-block: test.com (Cloudflare AS13335) stays resolvable — a
         different ASN is unaffected.
-        Behaviour table #1 (no rules matched in IP phase)."""
+        tableRef: #1 (no rules matched in IP phase)."""
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
                 pytest.skip("Services/ASN blocking not available")
@@ -159,7 +159,7 @@ class TestIPAllowOverridesServices:
     @pytest.mark.asyncio
     async def test_ip_allow_overrides_services_block(self, user):
         """Services block + IP allow for the resolved IP -> Processed.
-        IP custom rule (T200) overrides services (T100). Table #6."""
+        IP custom rule (T200) overrides services (T100). tableRef: #6."""
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
                 pytest.skip("Services/ASN blocking not available")
@@ -184,7 +184,7 @@ class TestASNCustomRules:
     @pytest.mark.asyncio
     async def test_asn_custom_block(self, user):
         """Block ASN 15169 (Google) -> svctest-google.com should return 0.0.0.0.
-        Table #3 variant (IP CR block via ASN syntax)."""
+        tableRef: #3 variant (IP CR block via ASN syntax)."""
         profile_id = user.new_profile("asn_block")
         user.add_rule(profile_id, "block", "AS15169")
 
@@ -204,7 +204,7 @@ class TestASNCustomRules:
     @pytest.mark.asyncio
     async def test_asn_allow_overrides_services_block(self, user):
         """Services block + ASN allow -> Processed.
-        ASN custom allow (T200) overrides services block (T100). Table #6 variant."""
+        ASN custom allow (T200) overrides services block (T100). tableRef: #6 variant."""
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
                 pytest.skip("Services/ASN blocking not available")

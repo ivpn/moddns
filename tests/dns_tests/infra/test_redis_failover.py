@@ -6,9 +6,13 @@ its co-located read replica becomes unavailable, and switches back when the
 replica recovers.
 
 The proxy's DualClient health check runs every 3 s and requires 3 consecutive
-failures before swapping (~9 s worst-case).  We use 15 s waits to be safe.
+failures before swapping (~9 s worst-case). Instead of fixed sleeps, tests
+poll DNS resolution with a generous deadline — queries fail while the proxy
+is still pointed at the dead replica and succeed once the swap completes, so
+"first successful query" is the observable swap signal.
 """
 
+import asyncio
 import time
 
 import docker
@@ -18,9 +22,10 @@ from libs.dns_lib import DNSLib
 from libs.settings import get_settings
 
 REPLICA_CONTAINER = "redis-replica-dns"
-# Health check: 3 failures × 3 s interval = ~9 s.  Add generous margin.
-FAILOVER_WAIT = 15
-RECOVERY_WAIT = 15
+# Health check: 3 failures × 3 s interval = ~9 s before the swap; poll with margin.
+FAILOVER_TIMEOUT = 30.0
+RECOVERY_TIMEOUT = 30.0
+POLL_INTERVAL = 1.0
 
 pytestmark = pytest.mark.redis_failover
 
@@ -56,6 +61,25 @@ class TestRedisReplicaFailover:
     def _get_replica(self):
         return self.docker_client.containers.get(REPLICA_CONTAINER)
 
+    async def _wait_dns_healthy(self, timeout: float, context: str):
+        """Poll until a DoH query returns an answer, tolerating errors while
+        the proxy's DualClient detects the topology change. Returns the first
+        healthy response; fails the test on deadline."""
+        deadline = time.monotonic() + timeout
+        last_err = None
+        while time.monotonic() < deadline:
+            try:
+                resp = await self.dns_lib.send_doh_request(
+                    self.profile_id, "example.com", "A"
+                )
+                if resp.answer:
+                    return resp
+                last_err = "empty answer"
+            except Exception as exc:  # connection dropped mid-swap
+                last_err = exc
+            await asyncio.sleep(POLL_INTERVAL)
+        pytest.fail(f"{context}: DNS did not recover within {timeout}s (last: {last_err})")
+
     @pytest.fixture(autouse=True)
     def _ensure_replica_running(self):
         """Guarantee the replica container is running after every test."""
@@ -65,8 +89,10 @@ class TestRedisReplicaFailover:
         container.reload()
         if container.status != "running":
             container.start()
-            # Wait for replica to sync and proxy health check to detect recovery.
-            time.sleep(RECOVERY_WAIT)
+            # Wait for replica sync + proxy health-check recovery.
+            asyncio.run(
+                self._wait_dns_healthy(RECOVERY_TIMEOUT, "post-test replica restore")
+            )
 
     @pytest.mark.asyncio
     async def test_proxy_falls_back_to_master_when_replica_stops(self):
@@ -83,12 +109,9 @@ class TestRedisReplicaFailover:
         # 2. Stop the read replica.
         self._get_replica().stop()
 
-        # 3. Wait for DualClient health check to detect the failure and swap.
-        time.sleep(FAILOVER_WAIT)
-
-        # 4. Query must still succeed — now served via master.
-        resp = await self.dns_lib.send_doh_request(
-            self.profile_id, "example.com", "A"
+        # 3. Poll until the DualClient swaps to master and queries succeed again.
+        resp = await self._wait_dns_healthy(
+            FAILOVER_TIMEOUT, "fallback to master after replica stop"
         )
         assert len(resp.answer) > 0, (
             "DNS query failed after replica stop — fallback to master did not work"
@@ -106,24 +129,13 @@ class TestRedisReplicaFailover:
         )
         assert len(resp.answer) > 0
 
-        # 2. Stop replica → trigger failover to master.
+        # 2. Stop replica → poll until failover to master completes.
         self._get_replica().stop()
-        time.sleep(FAILOVER_WAIT)
-
-        # 3. Verify queries work via master.
-        resp = await self.dns_lib.send_doh_request(
-            self.profile_id, "example.com", "A"
-        )
+        resp = await self._wait_dns_healthy(FAILOVER_TIMEOUT, "fallback to master")
         assert len(resp.answer) > 0, "Fallback to master failed"
 
-        # 4. Restart replica.
+        # 3. Restart replica; poll until queries are healthy (proxy swaps back
+        #    within one health-check cycle; master keeps serving meanwhile).
         self._get_replica().start()
-        time.sleep(RECOVERY_WAIT)
-
-        # 5. Verify queries still work — proxy should have switched back.
-        resp = await self.dns_lib.send_doh_request(
-            self.profile_id, "example.com", "A"
-        )
-        assert len(resp.answer) > 0, (
-            "DNS query failed after replica recovery"
-        )
+        resp = await self._wait_dns_healthy(RECOVERY_TIMEOUT, "replica recovery")
+        assert len(resp.answer) > 0, "DNS query failed after replica recovery"

@@ -116,7 +116,7 @@ class TestIPCustomRules:
         domain allow wins through unified cross-phase aggregation.
 
         Domain Allow (T200) overrides IP custom block (T200) — any Allow
-        present wins. Behaviour table #9.
+        present wins. tableRef: #9.
         """
         profile_id = user.new_profile("domain_allow_ip_block")
         # Allow the domain explicitly.

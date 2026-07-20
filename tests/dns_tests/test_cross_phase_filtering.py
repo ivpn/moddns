@@ -37,7 +37,7 @@ class TestCrossPhaseAggregation:
     async def test_domain_allow_overrides_services_block(self, user):
         """Domain custom allow + services block -> Processed.
         Domain Allow (T200) overrides services block (T100) through
-        unified cross-phase aggregation. Behaviour table #8."""
+        unified cross-phase aggregation. tableRef: #8."""
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
                 pytest.skip("Services/ASN blocking not available")
@@ -58,7 +58,7 @@ class TestCrossPhaseAggregation:
     async def test_domain_allow_overrides_ip_block(self, user):
         """Domain custom allow + IP custom block -> Processed.
         Domain Allow (T200) overrides IP custom block (T200) — Allow
-        always wins. Behaviour table #9."""
+        always wins. tableRef: #9."""
         profile_id = user.new_profile("cross_phase_9")
 
         user.add_rule(profile_id, "allow", RESOLVABLE_TEST_DOMAIN)
@@ -77,7 +77,7 @@ class TestCrossPhaseAggregation:
     ):
         """BL block + domain CR allow + IP CR block -> Processed.
         Domain Allow (T200) overrides both blocklist (T100) and IP
-        custom block (T200). Behaviour table #15."""
+        custom block (T200). tableRef: #15."""
         ensure_domain_blocklisted(RESOLVABLE_TEST_DOMAIN)
         profile_id = user.new_profile("cross_phase_15")
         # Default blocklist (TEST_BLOCKLIST_ID) is already enabled on new profiles.
@@ -98,7 +98,7 @@ class TestCrossPhaseAggregation:
     ):
         """BL block + domain CR allow + services block -> Processed.
         Domain Allow (T200) overrides both blocklist (T100) and services
-        block (T100). Behaviour table #14."""
+        block (T100). tableRef: #14."""
         ensure_domain_blocklisted(SVC_GOOGLE_DOMAIN)
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
@@ -120,7 +120,7 @@ class TestCrossPhaseAggregation:
     @pytest.mark.asyncio
     async def test_ip_allow_overrides_services_with_domain_allow(self, user):
         """Domain allow + services block + IP allow -> Processed.
-        Both domain and IP allow, services blocked. Table #12."""
+        Both domain and IP allow, services blocked. tableRef: #12."""
         with user.profiles_api() as p:
             if not await services_available(user.dns, p, user.cookie):
                 pytest.skip("Services/ASN blocking not available")
@@ -150,7 +150,7 @@ class TestDomainBlockTerminal:
     async def test_domain_block_ignores_ip_allow(self, user):
         """Domain CR block + IP CR allow -> Blocked.
         IP allow can't fire because domain block prevents upstream resolution
-        (no response IPs to match). Table #24."""
+        (no response IPs to match). tableRef: #24."""
         profile_id = user.new_profile("terminal_24")
 
         user.add_rule(profile_id, "block", RESOLVABLE_TEST_DOMAIN)
@@ -168,7 +168,7 @@ class TestDomainBlockTerminal:
         self, user, ensure_domain_blocklisted
     ):
         """BL block (no domain CR allow to override) + IP CR allow -> Blocked.
-        Table #19 variant with IP allow configured."""
+        tableRef: #19 variant with IP allow configured."""
         ensure_domain_blocklisted(RESOLVABLE_TEST_DOMAIN)
         profile_id = user.new_profile("terminal_bl_19")
         # Default blocklist (TEST_BLOCKLIST_ID) is already enabled on new profiles.
