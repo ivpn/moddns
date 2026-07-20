@@ -6,6 +6,7 @@ import pytest
 from dns.rdataclass import IN
 from dns.rdatatype import A
 
+from libs.dns_lib import is_resolved
 from libs.session import ProfileSession
 
 
@@ -49,9 +50,13 @@ class TestMultipleUsers:
                 ),
             ]
 
+            # wait_for, not resolve: the accounts were just created, so the
+            # first query must poll until each profile replicates to the proxy.
             results = await asyncio.gather(
                 *[
-                    session.resolve(session.default_profile_id, dns_request.domain, A)
+                    session.wait_for(
+                        session.default_profile_id, dns_request.domain, A, is_resolved
+                    )
                     for session, dns_request in requests
                 ]
             )

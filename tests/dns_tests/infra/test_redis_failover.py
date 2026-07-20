@@ -100,11 +100,11 @@ class TestRedisReplicaFailover:
         Stop the DNS read-replica and verify the proxy continues to
         resolve queries by falling back to the sentinel-managed master.
         """
-        # 1. Baseline: query succeeds via replica.
-        resp = await self.dns_lib.send_doh_request(
-            self.profile_id, "example.com", "A"
+        # 1. Baseline: poll rather than one-shot — the class account was just
+        # created and its profile must replicate to the proxy's replica first.
+        await self._wait_dns_healthy(
+            RECOVERY_TIMEOUT, "baseline (fresh profile replication)"
         )
-        assert len(resp.answer) > 0, "Baseline DNS query failed"
 
         # 2. Stop the read replica.
         self._get_replica().stop()
