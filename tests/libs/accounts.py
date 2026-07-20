@@ -27,12 +27,32 @@ from moddns.models.requests_account_deletion_request import (
 from moddns.models.requests_pa_session_req import RequestsPASessionReq
 from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
-from helpers import generate_complex_password
 from libs.settings import get_settings
 
 
 def random_email(prefix: str = "test") -> str:
     return f"{prefix}{''.join(random.choice(string.digits) for _ in range(5))}@ivpn.net"
+
+
+def generate_complex_password(length: int = 16) -> str:
+    """Generate a random password with at least one uppercase letter, one
+    lowercase letter, one digit and one special character.
+
+    The API accepts any non-alphanumeric character as the special character
+    (OWASP guidance), so the full string.punctuation pool is safe.
+    """
+    password_chars = [
+        random.choice(string.ascii_uppercase),
+        random.choice(string.ascii_lowercase),
+        random.choice(string.digits),
+        random.choice(string.punctuation),
+    ]
+    password_chars.extend(
+        random.choice(string.ascii_letters + string.digits + string.punctuation)
+        for _ in range(length - 4)
+    )
+    random.shuffle(password_chars)
+    return "".join(password_chars)
 
 
 def create_temp_subscription(
