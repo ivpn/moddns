@@ -1,4 +1,4 @@
-import { useState, type JSX } from "react";
+import { useId, useState, type JSX } from "react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { formatDistanceToNow, parseISO, format } from "date-fns";
 import { Clock, ShieldPlus } from "lucide-react";
@@ -6,6 +6,8 @@ import { Clock, ShieldPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge"; // still used for Blocked status only
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { ReasonBadges } from "@/components/ui/ReasonBadges";
+import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 
 interface QueryLogCardProps {
@@ -14,9 +16,13 @@ interface QueryLogCardProps {
     lastLogRef?: (node: HTMLDivElement | null) => void;
     onQuickRule?: (domain?: string, defaultAction?: "denylist" | "allowlist") => void;
     quickRuleRestricted?: boolean;
+    blocklistNames?: Record<string, string>;
+    serviceNames?: Record<string, string>;
+    /** Called the first time this row is expanded (used to dismiss the one-time mobile hint). */
+    onExpand?: () => void;
 }
 
-const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricted }: QueryLogCardProps): JSX.Element | null => {
+const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricted, blocklistNames, serviceNames, onExpand }: QueryLogCardProps): JSX.Element | null => {
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
     const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
@@ -38,6 +44,8 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
         : isProcessed
             ? "bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-100)] hover:!bg-[var(--tailwind-colors-red-600)] hover:!text-[var(--tailwind-colors-slate-50)]"
             : "bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-slate-900)] hover:!text-[var(--tailwind-colors-rdns-600)]";
+    // Quick-rule is the ONLY control excluded from the whole-card expand overlay; its wrapper
+    // sits above the overlay (relative z-20) so it stays clickable.
     const renderQuickRuleButton = (wrapperClassName: string) => (
         <div className={wrapperClassName}>
             <Tooltip content={quickRuleTooltip} side="top" align="center" delay={150}>
@@ -50,21 +58,28 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                         aria-label="Quick custom rule"
                         onClick={handleQuickRule}
                         disabled={quickRuleDisabled}
-                        className={`h-9 w-9 lg:min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
+                        className={`h-11 w-11 md:h-9 md:w-9 min-h-0 p-0 aspect-square rounded-full disabled:opacity-40 ${quickRuleButtonClasses}`}
                         data-testid="logs-quick-rule-button"
                     >
-                        <ShieldPlus className="w-4 h-4" />
+                        <ShieldPlus className="size-5 md:size-4" />
                     </Button>
                 </span>
             </Tooltip>
         </div>
     );
 
-    // Track timestamp expansion to increase card height smoothly on mobile
-    const [timestampExpanded, setTimestampExpanded] = useState(false);
-
-    // Expansion state for mobile tap-to-expand of truncated domain (device id no longer truncates)
-    const [showFullDomainMobile, setShowFullDomainMobile] = useState(false);
+    // Whole-card expand: every row is expandable (blocked and processed, with or without reasons).
+    // There is no visible chevron — expandability is signalled by the hover lift (desktop),
+    // the press/active feedback (both), and a one-time hint (mobile, owned by the Logs page).
+    const reasons = log.reasons ?? [];
+    const hasReasons = reasons.length > 0;
+    const [expanded, setExpanded] = useState(false);
+    const panelId = useId();
+    const toggleExpanded = () => setExpanded(v => {
+        const next = !v;
+        if (next) onExpand?.();
+        return next;
+    });
 
     // Device ID: backend allows up to 36 chars; truncate only for mobile (<=768px)
     const { isMobile } = useScreenDetector();
@@ -75,24 +90,86 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
     else deviceIdOrIp = rawDeviceId.slice(0, 36);
 
     const DOMAIN_TRUNCATE_THRESHOLD = 65; // existing logic threshold
-    const MOBILE_EXPANDED_DOMAIN_LIMIT = 50;
-    const TIMESTAMP_COLLAPSED_MAX_HEIGHT = 24;
-    const TIMESTAMP_EXPANDED_MAX_HEIGHT = 48;
     const isDomainTruncatable = displayDomain ? displayDomain.length > DOMAIN_TRUNCATE_THRESHOLD : false;
     const truncatedDomain = displayDomain && isDomainTruncatable ? displayDomain.slice(0, DOMAIN_TRUNCATE_THRESHOLD) + '…' : displayDomain;
-    const mobileExpandedDomain = displayDomain
-        ? displayDomain.length > MOBILE_EXPANDED_DOMAIN_LIMIT
-            ? displayDomain.slice(0, MOBILE_EXPANDED_DOMAIN_LIMIT) + '…'
-            : displayDomain
-        : undefined;
     const protocolLabel = log?.protocol ? log.protocol.toUpperCase() : '—';
+
+    // DNSSEC status shown inline next to the protocol as a plain text badge (styled like the
+    // protocol label — no outline/background):
+    //   - validated (AD bit true)     -> brand-coloured "DNSSEC"
+    //   - failed (bogus/misconfigured) -> red "DNSSEC" (recursor SERVFAILed on validation)
+    // Neither shows for domains without a DNSSEC signal.
+    const dnssecValidated = log.dns_request?.dnssec === true;
+    const dnssecFailed = reasons.includes('dnssec_failed');
+    const dnssecShown = dnssecValidated || dnssecFailed;
+    // When reserveWhenHidden is set (desktop), the badge is always rendered — invisible
+    // when there's no DNSSEC — so it reserves a constant slot and the protocol label
+    // never shifts depending on whether DNSSEC is shown. The testid/color are only
+    // applied when actually shown.
+    const renderDnssecBadge = (className?: string, reserveWhenHidden = false) => {
+        if (!dnssecShown && !reserveWhenHidden) return null;
+        return (
+            <span
+                data-testid={dnssecShown ? 'querylog-dnssec-badge' : undefined}
+                data-dnssec={dnssecShown ? (dnssecFailed ? 'failed' : 'validated') : undefined}
+                aria-hidden={!dnssecShown || undefined}
+                className={cn(
+                    // Match the protocol label typography exactly (font/size/weight/leading).
+                    "font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase whitespace-nowrap",
+                    dnssecShown
+                        ? (dnssecFailed ? "text-[var(--tailwind-colors-red-600)]" : "text-[var(--tailwind-colors-rdns-600)]")
+                        : "opacity-0 pointer-events-none select-none",
+                    className,
+                )}
+            >
+                DNSSEC
+            </span>
+        );
+    };
+
+    // Detail-grid field: uppercase micro-label + selectable value (optionally coloured).
+    const renderDetailField = (label: string, value: string, testid: string, valueClassName?: string) => (
+        <div className="min-w-0">
+            <dt className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{label}</dt>
+            <dd className={cn("text-xs break-all select-text text-[var(--tailwind-colors-slate-50)]", valueClassName)} data-testid={testid}>{value}</dd>
+        </div>
+    );
+
+    // DNSSEC has three distinct states — keep them clearly worded and colour-coded:
+    //   failed (bogus)   -> "Validation failed" (red)     — signatures broken
+    //   validated (AD=1) -> "Validated" (brand/green)     — authentic
+    //   unsigned         -> "No DNSSEC" (muted)           — domain isn't signed
+    const dnssecDetail = dnssecFailed
+        ? { text: 'Validation failed', className: 'text-[var(--tailwind-colors-red-600)]' }
+        : dnssecValidated
+            ? { text: 'Validated', className: 'text-[var(--tailwind-colors-rdns-600)]' }
+            : { text: 'No DNSSEC', className: 'text-[var(--tailwind-colors-slate-200)]' };
 
     return (
         <div
             ref={isLast ? lastLogRef : undefined}
-            className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent"
+            className={cn(
+                "w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent",
+                INTERACTIVE_CARD,
+                "relative hover:z-10 hover:shadow-lg hover:border-[var(--tailwind-colors-rdns-600)]",
+                // Press/active feedback (works on touch where there is no hover) — subtle tint on tap.
+                "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]"
+            )}
         >
-            <div className={`flex h-auto md:h-[66px] items-stretch md:items-center justify-between gap-3 md:gap-4 px-3 md:pt-[var(--tailwind-primitives-gap-gap-3)] md:pr-[var(--tailwind-primitives-gap-gap-4)] md:pb-[var(--tailwind-primitives-gap-gap-3)] md:pl-[var(--tailwind-primitives-gap-gap-4)] min-w-0 py-2 md:py-0 transition-all duration-200 ease-out min-h-[64px] ${timestampExpanded ? 'pb-3.5 min-h-[84px]' : ''}`}>
+            {/* Whole-card expand/collapse trigger: a real button (native keyboard/focus/aria).
+                Spans the ENTIRE card (absolute inset-0 on the card root), so clicking anywhere —
+                the header row OR the expanded detail panel — toggles it. Collapsed, the panel is
+                0-height so the button only covers the header. Quick-rule (z-20) stays above it. */}
+            <button
+                type="button"
+                onClick={toggleExpanded}
+                aria-expanded={expanded}
+                aria-controls={panelId}
+                aria-label={expanded ? "Hide query details" : "Show query details"}
+                data-testid="querylog-card-toggle"
+                className="absolute inset-0 z-10 w-full cursor-pointer rounded-[var(--primitives-radius-radius-md)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+            />
+            <div className="relative flex h-auto md:h-[66px] items-stretch md:items-center justify-between gap-3 md:gap-4 px-3 md:pt-[var(--tailwind-primitives-gap-gap-3)] md:pr-[var(--tailwind-primitives-gap-gap-4)] md:pb-[var(--tailwind-primitives-gap-gap-3)] md:pl-[var(--tailwind-primitives-gap-gap-4)] min-w-0 py-2 md:py-0 min-h-[64px]">
                 <div className="flex items-center gap-3 relative min-w-0 flex-1">
                     <div className="flex flex-col gap-1 w-full">
                         <div className="flex items-start gap-2">
@@ -100,14 +177,12 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                 <div className="relative flex flex-col gap-1 min-w-0">
                                     <div className="hidden md:flex items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-[200px] md:max-w-[480px] lg:max-w-[560px]">
                                         {displayDomain ? (
-                                            <Tooltip content={displayDomain} side="top" align="start" delay={150}>
-                                                <span
-                                                    className="truncate"
-                                                    data-testid={!isDomainTruncatable ? 'querylog-domain-full' : 'querylog-domain-truncated-desktop'}
-                                                >
-                                                    {isDomainTruncatable ? truncatedDomain : displayDomain}
-                                                </span>
-                                            </Tooltip>
+                                            <span
+                                                className="truncate"
+                                                data-testid={!isDomainTruncatable ? 'querylog-domain-full' : 'querylog-domain-truncated-desktop'}
+                                            >
+                                                {isDomainTruncatable ? truncatedDomain : displayDomain}
+                                            </span>
                                         ) : (
                                             '-'
                                         )}
@@ -120,6 +195,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-3 text-[10px] uppercase font-semibold tracking-wide text-[var(--tailwind-colors-rdns-600)]">
                                         <span>{protocolLabel}</span>
+                                        {dnssecShown && renderDnssecBadge()}
                                         {isBlocked && (
                                             <Badge
                                                 className="inline-flex items-center justify-center px-2 py-0.5 bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5"
@@ -132,47 +208,26 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                         <div className="flex items-center gap-1 max-w-[200px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs text-right">
                                             <span data-testid="querylog-device-id-full">{deviceIdOrIp}</span>
                                         </div>
-                                        {renderQuickRuleButton("flex-shrink-0")}
+                                        {renderQuickRuleButton("flex-shrink-0 relative z-20")}
                                     </div>
                                 </div>
-                                <div className={`flex gap-x-2 gap-y-2 min-w-0 flex-wrap transition-all duration-300 ease-out ${timestampExpanded ? 'items-start' : 'items-center'}`}>
-                                    <div className="flex items-center gap-2 min-w-0 flex-1 order-1 transition-all duration-300 ease-out">
+                                <div className="flex items-center gap-x-2 gap-y-2 min-w-0 flex-wrap">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
                                         <div className="relative flex flex-1 items-center gap-2 font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-foreground text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] truncate max-w-full text-left min-w-0">
                                             {displayDomain ? (
-                                                timestampExpanded ? (
-                                                    <span
-                                                        className="truncate whitespace-nowrap"
-                                                        data-testid="querylog-domain-expanded"
-                                                    >
-                                                        {mobileExpandedDomain}
-                                                    </span>
-                                                ) : isDomainTruncatable ? (
-                                                    <button
-                                                        type="button"
-                                                        aria-label={showFullDomainMobile ? 'Hide full domain' : 'Show full domain'}
-                                                        onClick={() => setShowFullDomainMobile(v => !v)}
-                                                        className="truncate focus:outline-none active:scale-[0.98] transition-transform text-left"
-                                                        data-testid={showFullDomainMobile ? 'querylog-domain-full' : 'querylog-domain-truncated'}
-                                                    >
-                                                        {showFullDomainMobile ? displayDomain : truncatedDomain}
-                                                    </button>
-                                                ) : (
-                                                    <span className="truncate" data-testid="querylog-domain-full">{displayDomain}</span>
-                                                )
+                                                <span
+                                                    className="truncate"
+                                                    data-testid={isDomainTruncatable ? 'querylog-domain-truncated' : 'querylog-domain-full'}
+                                                >
+                                                    {isDomainTruncatable ? truncatedDomain : displayDomain}
+                                                </span>
                                             ) : (
                                                 '-'
                                             )}
                                         </div>
                                     </div>
-                                    <div
-                                        className={`${timestampExpanded ? 'order-2 basis-full w-full flex justify-end' : 'order-2 flex-shrink-0 ml-auto self-stretch'} transition-[flex-basis,padding,margin] duration-300 ease-out`}
-                                    >
-                                        <div
-                                            className="overflow-hidden transition-[max-height] duration-300 ease-out"
-                                            style={{ maxHeight: timestampExpanded ? TIMESTAMP_EXPANDED_MAX_HEIGHT : TIMESTAMP_COLLAPSED_MAX_HEIGHT }}
-                                        >
-                                            <TimestampDisplay timestamp={log.timestamp} onToggle={setTimestampExpanded} />
-                                        </div>
+                                    <div className="flex-shrink-0 ml-auto">
+                                        <TimestampDisplay timestamp={log.timestamp} />
                                     </div>
                                 </div>
                             </div>
@@ -185,6 +240,7 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                             <div className="relative w-[60px] md:w-[100px] font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] text-[var(--tailwind-colors-rdns-600)] text-left md:text-center tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase order-0 md:order-1">
                                 {protocolLabel}
                             </div>
+                            {renderDnssecBadge("order-2 md:order-2", true)}
                             <Badge className={`order-1 md:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none' : ''}`} aria-hidden={!isBlocked}>
                                 <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
                             </Badge>
@@ -198,46 +254,66 @@ const QueryLogCard = ({ log, isLast, lastLogRef, onQuickRule, quickRuleRestricte
                                     {deviceIdOrIp}
                                 </span>
                             </div>
-                            <TimestampDisplay timestamp={log.timestamp} onToggle={setTimestampExpanded} />
+                            <TimestampDisplay timestamp={log.timestamp} />
                         </div>
-                        {renderQuickRuleButton("flex items-center justify-center")}
+                        {renderQuickRuleButton("flex items-center justify-center relative z-20")}
                     </div>
                 )}
+            </div>
+            <div
+                id={panelId}
+                role="region"
+                aria-label="Query details"
+                aria-hidden={!expanded}
+                data-testid="querylog-expanded-panel"
+                data-expanded={expanded}
+                className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+            >
+                <div className="overflow-hidden">
+                    <div className="border-t border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent px-4 py-3 flex flex-col gap-3 min-w-0">
+                        <dl data-testid="querylog-detail-grid" className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 min-w-0">
+                            {normalizedDomain !== undefined
+                                ? renderDetailField("Domain", normalizedDomain, "querylog-detail-domain")
+                                : (
+                                    <div className="min-w-0">
+                                        <dt className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">Domain</dt>
+                                        <dd className="text-xs italic select-text text-[var(--tailwind-colors-slate-200)]" data-testid="querylog-detail-domain">Domain logging disabled</dd>
+                                    </div>
+                                )}
+                            {log.dns_request?.query_type && renderDetailField("Query type", log.dns_request.query_type, "querylog-detail-query-type")}
+                            {log.dns_request?.response_code && renderDetailField("Response code", log.dns_request.response_code, "querylog-detail-response-code")}
+                            {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
+                            {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
+                            {log.client_ip && renderDetailField("Client IP", log.client_ip, "querylog-detail-client-ip")}
+                            {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
+                            {renderDetailField("Time", log.timestamp ? format(parseISO(log.timestamp), "MMMM d, yyyy 'at' hh:mm:ss a") : "—", "querylog-detail-timestamp")}
+                        </dl>
+                        {hasReasons && (
+                            <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">
+                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{(isBlocked || dnssecFailed) ? "Block reason" : "Allow reason"}</span>
+                                <ReasonBadges reasons={reasons} blocklistNames={blocklistNames} serviceNames={serviceNames} />
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
-interface TimestampDisplayProps { timestamp?: string; onToggle?: (expanded: boolean) => void }
+interface TimestampDisplayProps { timestamp?: string }
 
-const TimestampDisplay = ({ timestamp, onToggle }: TimestampDisplayProps) => {
-    const [expanded, setExpanded] = useState(false);
+// Static relative-time label (Clock icon + "x ago"). The absolute timestamp moves to the panel.
+const TimestampDisplay = ({ timestamp }: TimestampDisplayProps) => {
     if (!timestamp) return null;
-    const date = parseISO(timestamp);
-    const relative = formatDistanceToNow(date, { addSuffix: true });
-    const absolute = format(date, "MMMM d, yyyy 'at' hh:mm:ss a");
+    const relative = formatDistanceToNow(parseISO(timestamp), { addSuffix: true });
     return (
-        <button
-            type="button"
-            aria-expanded={expanded}
-            onClick={() => setExpanded(e => { const next = !e; onToggle?.(next); return next; })}
-            className={`group relative w-fit font-text-xs-leading-5-normal font-[number:var(--text-xs-leading-5-normal-font-weight)] text-[var(--tailwind-colors-slate-100)] text-[length:var(--text-xs-leading-5-normal-font-size)] tracking-[var(--text-xs-leading-5-normal-letter-spacing)] leading-[var(--text-xs-leading-5-normal-line-height)] whitespace-nowrap [font-style:var(--text-xs-leading-5-normal-font-style)] inline-flex items-center gap-1 focus:outline-none cursor-pointer select-text transition-all duration-300 ease-out ${expanded ? 'mt-0.5' : ''}`}
-            title={expanded ? 'Show relative time' : 'Show full timestamp'}
+        <span
+            className="relative w-fit font-text-xs-leading-5-normal font-[number:var(--text-xs-leading-5-normal-font-weight)] text-[var(--tailwind-colors-slate-100)] text-[length:var(--text-xs-leading-5-normal-font-size)] tracking-[var(--text-xs-leading-5-normal-letter-spacing)] leading-[var(--text-xs-leading-5-normal-line-height)] whitespace-nowrap [font-style:var(--text-xs-leading-5-normal-font-style)] inline-flex items-center gap-1 select-text"
         >
-            <Clock className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
-            <span className="relative inline-flex min-h-[20px]">
-                <span
-                    className={`whitespace-nowrap transition-all duration-200 ease-out ${expanded ? 'opacity-0 -translate-y-1 absolute left-0 top-0 pointer-events-none' : 'opacity-100 translate-y-0 relative'}`}
-                >
-                    {relative}
-                </span>
-                <span
-                    className={`whitespace-nowrap transition-all duration-200 ease-out ${expanded ? 'opacity-100 translate-y-0 relative' : 'opacity-0 translate-y-1 absolute left-0 top-0 pointer-events-none'}`}
-                >
-                    {absolute}
-                </span>
-            </span>
-        </button>
+            <Clock className="w-3 h-3 opacity-60" />
+            <span className="whitespace-nowrap">{relative}</span>
+        </span>
     );
 };
 

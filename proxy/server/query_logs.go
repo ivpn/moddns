@@ -6,13 +6,26 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
+	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
 )
 
+// appendReason returns a new slice with r appended, without mutating existing
+// (which is shared with the request context's FilterResult).
+func appendReason(existing []string, r string) []string {
+	out := make([]string, len(existing), len(existing)+1)
+	copy(out, existing)
+	return append(out, r)
+}
+
 func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
 	defer sentry.Recover()
+
+	// Drain any captured DNSSEC-failure EDE for this request unconditionally (even
+	// if logging is disabled) so the edeStore never leaks entries.
+	_, dnssecFailed := s.edeStore.Take(dctx.Req)
 
 	// Use the contextual logger from the request context
 	logger := reqCtx.Logger
@@ -58,6 +71,10 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 		if dctx.Res != nil {
 			queryLog.DNSRequest.ResponseCode = dns.RcodeToString[dctx.Res.Rcode]
 			queryLog.DNSRequest.DNSSEC = dctx.Res.AuthenticatedData
+		}
+
+		if dnssecFailed {
+			queryLog.Reasons = appendReason(queryLog.Reasons, dnssec.ReasonFailed)
 		}
 		retention := model.Retention(logsSettings["retention"])
 		// send event to channel

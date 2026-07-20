@@ -19,6 +19,7 @@ import (
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
 	"github.com/ivpn/dns/proxy/internal/asnlookup"
+	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
 	"github.com/ivpn/dns/proxy/model"
@@ -40,9 +41,12 @@ type RequestManager interface {
 }
 
 type Server struct {
-	Config               *config.Config
-	Proxy                *proxy.Proxy // service.Interface
-	Upstreams            map[string]*proxy.CustomUpstreamConfig
+	Config    *config.Config
+	Proxy     *proxy.Proxy // service.Interface
+	Upstreams map[string]*proxy.CustomUpstreamConfig
+	// edeStore holds DNSSEC-failure Extended DNS Error codes captured from upstream
+	// responses (by dnssec.CapturingUpstream), drained per-request by EmitQueryLog.
+	edeStore             *dnssec.EDEStore
 	DomainFilter         filter.Filter
 	IPFilter             filter.Filter
 	Cache                cache.Cache
@@ -96,6 +100,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		ProfileSettingsCache: profileSettingsCache,
 		CollectorChannels:    collectorChannels,
 		Upstreams:            make(map[string]*proxy.CustomUpstreamConfig, 0),
+		edeStore:             &dnssec.EDEStore{},
 		LoggerFactory:        loggerFactory,
 		RateLimiter:          rl,
 		Metrics:              metrics.NewServerMetrics(prometheus.DefaultRegisterer),
@@ -303,16 +308,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			return err
 		}
 
-		dctx.Req.Extra = make([]dns.RR, 0)
-		if !dnssecEnabled {
-			dctx.Req.CheckingDisabled = true
-		}
-
-		if sendDoBit {
-			// Enable EDNS0 with a reasonable UDP buffer size and DO=1
-			// This sets a proper OPT RR instead of constructing one manually.
-			dctx.Req.SetEdns0(2048, true)
-		}
+		dnssec.ApplyRequestFlags(dctx.Req, dnssecEnabled, sendDoBit)
 	}
 
 	return nil

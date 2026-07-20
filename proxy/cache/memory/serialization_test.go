@@ -40,6 +40,10 @@ func TestRequestContextSerialization(t *testing.T) {
 	assert.Equal(t, "test-profile", reqCtx.LoggerConfig.ProfileID, "Logger config should have correct profile ID")
 	assert.False(t, reqCtx.LoggerConfig.Enabled, "Logger config should show enabled=false")
 
+	// UpstreamName must survive the cache round-trip — EmitQueryLog needs it to pick
+	// the recursor for the DNSSEC-failure CD probe. Regression guard: it was json:"-".
+	reqCtx.UpstreamName = "knot"
+
 	// Test serialization by setting in cache
 	requestID := "test-request-123"
 	err = profileIDCache.SetRequestCtx(requestID, reqCtx)
@@ -55,6 +59,7 @@ func TestRequestContextSerialization(t *testing.T) {
 	assert.Equal(t, map[string]string{"privacy": "setting"}, retrievedCtx.PrivacySettings, "Privacy settings should be preserved")
 	assert.Equal(t, map[string]string{"dnssec": "enabled"}, retrievedCtx.DNSSECSettings, "DNSSEC settings should be preserved")
 	assert.Equal(t, map[string]string{"advanced": "setting"}, retrievedCtx.AdvancedSettings, "Advanced settings should be preserved")
+	assert.Equal(t, "knot", retrievedCtx.UpstreamName, "UpstreamName must survive the cache round-trip (needed by the DNSSEC-failure probe)")
 
 	// Verify the logger is recreated correctly
 	require.NotNil(t, retrievedCtx.Logger, "Logger should be recreated")

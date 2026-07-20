@@ -25,7 +25,7 @@ function stubDesktopMatchMedia(isDesktop: boolean) {
     };
 }
 
-describe('QueryLogCard truncation interactions', () => {
+describe('QueryLogCard truncation display', () => {
     beforeEach(() => {
         // Reset viewport width
         // Override viewport width for desktop simulation
@@ -49,9 +49,6 @@ describe('QueryLogCard truncation interactions', () => {
         expect(fullEl).toHaveTextContent(deviceId);
         expect(fullEl.textContent).toHaveLength(deviceId.length);
         expect(fullEl.textContent?.endsWith('…')).toBeFalsy();
-        // Tooltip still present wrapping element; hover should not change content
-        fireEvent.mouseEnter(fullEl);
-        expect(fullEl).toHaveTextContent(deviceId);
     });
 
     test('desktop domain display strips trailing dot', () => {
@@ -71,7 +68,7 @@ describe('QueryLogCard truncation interactions', () => {
         expect(domainSpan).not.toHaveTextContent(/\.$/);
     });
 
-    test('mobile tap expands truncated domain (threshold 65)', () => {
+    test('mobile renders a static truncated domain span (no tap-to-reveal)', () => {
         stubDesktopMatchMedia(false);
         // Override viewport width for mobile simulation
         (window as unknown as { innerWidth: number }).innerWidth = 375;
@@ -87,13 +84,157 @@ describe('QueryLogCard truncation interactions', () => {
             dns_request: { domain: longDomain }
         };
         render(<QueryLogCard log={log} />);
-        const truncatedDomainBtn = screen.getByTestId('querylog-domain-truncated');
-        expect(truncatedDomainBtn).toBeInTheDocument();
-        // Verify it contains ellipsis at end
-        expect(truncatedDomainBtn.textContent).toMatch(/…$/);
-        fireEvent.click(truncatedDomainBtn);
-        const fullDomainSpan = screen.getByTestId('querylog-domain-full');
-        expect(fullDomainSpan).toHaveTextContent(longDomain);
+        const truncatedDomain = screen.getByTestId('querylog-domain-truncated');
+        expect(truncatedDomain).toBeInTheDocument();
+        // Static truncated text ends with an ellipsis; it is a plain span (not a button).
+        expect(truncatedDomain.textContent).toMatch(/…$/);
+        expect(truncatedDomain.tagName).toBe('SPAN');
+    });
+});
+
+describe('QueryLogCard whole-card expansion', () => {
+    beforeEach(() => {
+        (window as unknown as { innerWidth: number }).innerWidth = 1440;
+        stubDesktopMatchMedia(true);
+    });
+
+    const baseLog: ModelQueryLog = {
+        profile_id: 'p-exp',
+        timestamp: '2026-06-15T10:20:30.000Z',
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'expand-device',
+        client_ip: '10.0.0.9',
+        dns_request: { domain: 'expand.example.com', query_type: 'A', response_code: 'NOERROR', dnssec: true }
+    };
+
+    test('renders the whole-card toggle', () => {
+        render(<QueryLogCard log={baseLog} />);
+        expect(screen.getByTestId('querylog-card-toggle')).toBeInTheDocument();
+    });
+
+    test('clicking the toggle flips the expanded panel state', () => {
+        render(<QueryLogCard log={baseLog} />);
+        const toggle = screen.getByTestId('querylog-card-toggle');
+        const panel = screen.getByTestId('querylog-expanded-panel');
+        expect(panel).toHaveAttribute('data-expanded', 'false');
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(toggle);
+        expect(panel).toHaveAttribute('data-expanded', 'true');
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    test('expanded panel shows the detail grid with protocol and timestamp', () => {
+        render(<QueryLogCard log={baseLog} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-grid')).toBeInTheDocument();
+        expect(screen.getByTestId('querylog-detail-protocol')).toHaveTextContent('DNS');
+        expect(screen.getByTestId('querylog-detail-timestamp')).toBeInTheDocument();
+    });
+
+    test('row with reasons renders the reasons block', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'blocked',
+            reasons: ['blocklist: some-blocklist-id']
+        };
+        render(<QueryLogCard log={log} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-reasons')).toBeInTheDocument();
+    });
+
+    test('row without reasons omits the reasons block but still expands', () => {
+        render(<QueryLogCard log={baseLog} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-grid')).toBeInTheDocument();
+        expect(screen.queryByTestId('querylog-reasons')).not.toBeInTheDocument();
+    });
+
+    test('domain-logging-disabled row is still expandable and shows a placeholder', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            dns_request: undefined as unknown as ModelQueryLog['dns_request']
+        };
+        render(<QueryLogCard log={log} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-domain')).toHaveTextContent('Domain logging disabled');
+    });
+
+    test('there is no visible chevron indicator', () => {
+        render(<QueryLogCard log={baseLog} />);
+        expect(screen.queryByTestId('querylog-expand-indicator')).not.toBeInTheDocument();
+    });
+
+    test('onExpand fires only when expanding (not when collapsing)', () => {
+        const onExpand = vi.fn();
+        render(<QueryLogCard log={baseLog} onExpand={onExpand} />);
+        const toggle = screen.getByTestId('querylog-card-toggle');
+        fireEvent.click(toggle); // expand
+        expect(onExpand).toHaveBeenCalledTimes(1);
+        fireEvent.click(toggle); // collapse
+        expect(onExpand).toHaveBeenCalledTimes(1);
+    });
+
+    test('shows the DNSSEC badge on the collapsed row when validated', () => {
+        render(<QueryLogCard log={baseLog} />); // baseLog has dns_request.dnssec === true
+        expect(screen.getByTestId('querylog-dnssec-badge')).toHaveTextContent('DNSSEC');
+    });
+
+    test('omits the DNSSEC badge when neither validated nor failed', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            dns_request: { ...baseLog.dns_request, dnssec: false }
+        };
+        render(<QueryLogCard log={log} />);
+        expect(screen.queryByTestId('querylog-dnssec-badge')).not.toBeInTheDocument();
+    });
+
+    test('shows a red (failed) DNSSEC badge when validation failed', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        };
+        render(<QueryLogCard log={log} />);
+        const badge = screen.getByTestId('querylog-dnssec-badge');
+        expect(badge).toHaveTextContent('DNSSEC');
+        expect(badge).toHaveAttribute('data-dnssec', 'failed');
+    });
+
+    test('labels the reason "Block reason" for a DNSSEC-failed row (not "Allow reason")', () => {
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        };
+        render(<QueryLogCard log={log} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        const reasons = screen.getByTestId('querylog-reasons');
+        expect(reasons).toHaveTextContent('Block reason');
+        expect(reasons).not.toHaveTextContent('Allow reason');
+    });
+
+    test('DNSSEC detail field distinguishes the three states', () => {
+        const detailText = (log: ModelQueryLog) => {
+            const { unmount } = render(<QueryLogCard log={log} />);
+            fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+            const text = screen.getByTestId('querylog-detail-dnssec').textContent;
+            unmount();
+            return text;
+        };
+        // validated
+        expect(detailText(baseLog)).toBe('Validated');
+        // unsigned (dnssec false, no failure reason)
+        expect(detailText({ ...baseLog, dns_request: { ...baseLog.dns_request, dnssec: false } })).toBe('No DNSSEC');
+        // failed (bogus)
+        expect(detailText({
+            ...baseLog,
+            status: 'processed',
+            dns_request: { ...baseLog.dns_request, dnssec: false, response_code: 'SERVFAIL' },
+            reasons: ['dnssec_failed'],
+        })).toBe('Validation failed');
     });
 });
 
@@ -141,4 +282,3 @@ describe('QueryLogCard quick rule button', () => {
         expect(onQuickRule).not.toHaveBeenCalled();
     });
 });
-

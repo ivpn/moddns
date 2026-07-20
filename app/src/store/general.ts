@@ -21,6 +21,8 @@ interface AppState {
   setBlocklistsAlertDismissed: (dismissed: boolean) => void;
   customRulesAlertDismissed: boolean; // session-only dismissal (not persisted)
   setCustomRulesAlertDismissed: (dismissed: boolean) => void;
+  logsExpandHintDismissed: boolean; // persisted dismissal of the one-time "tap a row" logs hint
+  setLogsExpandHintDismissed: (dismissed: boolean) => void;
   passkeys: ModelCredential[];
   setPasskeys: (passkeys: ModelCredential[]) => void;
   subscriptionStatus: string | null;
@@ -79,6 +81,8 @@ export const useAppStore = create<AppState>()(
       setBlocklistsAlertDismissed: (dismissed) => set({ blocklistsAlertDismissed: dismissed }),
       customRulesAlertDismissed: false,
       setCustomRulesAlertDismissed: (dismissed) => set({ customRulesAlertDismissed: dismissed }),
+      logsExpandHintDismissed: false,
+      setLogsExpandHintDismissed: (dismissed) => set({ logsExpandHintDismissed: dismissed }),
       passkeys: [],
       setPasskeys: (passkeys) => set({ passkeys }),
       subscriptionStatus: null,
@@ -104,6 +108,7 @@ export const useAppStore = create<AppState>()(
         connectionStatusVisible: state.connectionStatusVisible,
         announcementsLastSeenAt: state.announcementsLastSeenAt,
         customRulesCollapsed: state.customRulesCollapsed,
+        logsExpandHintDismissed: state.logsExpandHintDismissed,
       }),
     }
   )

@@ -14,6 +14,7 @@ import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Info, X } from "lucide-react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
@@ -50,6 +51,20 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     // Maintain a separate list of all available device IDs (not filtered by current selection)
     const [allAvailableDeviceIds, setAllAvailableDeviceIds] = useState<string[]>([]);
+
+    // id→name catalogs for enriching query-log reasons (blocklist/service ids). Loaded once on
+    // mount; failures degrade gracefully to raw ids and must never block logs from rendering.
+    const [blocklistNames, setBlocklistNames] = useState<Record<string, string>>({});
+    const [serviceNames, setServiceNames] = useState<Record<string, string>>({});
+
+    // One-time mobile hint teaching that a row is tappable (there is no visible chevron).
+    // Dismissed on the ✕ or after the first row expand. Persisted in the shared "moddns-storage"
+    // zustand store (alongside the other one-time dismissals) so it never reappears.
+    const expandHintDismissed = useAppStore((state) => state.logsExpandHintDismissed);
+    const setLogsExpandHintDismissed = useAppStore((state) => state.setLogsExpandHintDismissed);
+    const dismissExpandHint = useCallback(() => {
+        setLogsExpandHintDismissed(true);
+    }, [setLogsExpandHintDismissed]);
 
     // Compose filters object for API
     const filters = {
@@ -96,6 +111,37 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- activeProfile is intentionally excluded to avoid re-running this effect when the profile object changes (which this effect itself triggers via setActiveProfile)
     }, [profiles, setActiveProfile]);
+
+    // Load blocklist + service catalogs once to resolve reason ids to human names in the
+    // expandable log card. Best-effort: on failure the maps stay empty and reasons fall back
+    // to raw ids — never block logs on catalog load.
+    useEffect(() => {
+        let cancelled = false;
+        const loadCatalogs = async () => {
+            try {
+                const [blocklistsResp, servicesResp] = await Promise.all([
+                    api.Client.blocklistsApi.apiV1BlocklistsGet(),
+                    api.Client.servicesApi.apiV1ServicesGet(),
+                ]);
+                if (cancelled) return;
+                const blMap: Record<string, string> = {};
+                (blocklistsResp.data || []).forEach(bl => {
+                    if (bl.blocklist_id) blMap[bl.blocklist_id] = bl.name;
+                });
+                setBlocklistNames(blMap);
+
+                const svcMap: Record<string, string> = {};
+                (servicesResp.data?.services || []).forEach(svc => {
+                    if (svc.id && svc.name) svcMap[svc.id] = svc.name;
+                });
+                setServiceNames(svcMap);
+            } catch {
+                // Leave maps empty; reasons degrade to raw ids.
+            }
+        };
+        loadCatalogs();
+        return () => { cancelled = true; };
+    }, []);
 
     const handleOpenQuickRule = useCallback((domain?: string, defaultAction: QuickRuleAction = "denylist") => {
         if (!domain) return;
@@ -406,7 +452,25 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                                 : "Pull to refresh"}
                                     </div>
                                 )}
-                                <div className={`flex flex-col gap-1.5 md:gap-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
+                                <div className={`flex flex-col gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
+                                    {!expandHintDismissed && logs.length > 0 && (
+                                        <div
+                                            className="md:hidden flex items-start gap-2 rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent bg-transparent dark:bg-[var(--variable-collection-surface)] px-3 py-2 text-xs text-[var(--tailwind-colors-slate-100)]"
+                                            data-testid="logs-expand-hint"
+                                        >
+                                            <Info className="w-4 h-4 shrink-0 mt-0.5 text-[var(--tailwind-colors-rdns-600)]" aria-hidden />
+                                            <span className="flex-1">Tap any entry to see full request details.</span>
+                                            <button
+                                                type="button"
+                                                aria-label="Dismiss hint"
+                                                onClick={dismissExpandHint}
+                                                data-testid="logs-expand-hint-dismiss"
+                                                className="shrink-0 p-0.5 -m-0.5 text-[var(--tailwind-colors-slate-200)] hover:text-[var(--tailwind-colors-slate-50)]"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    )}
                                     {logs.map((log, index) => {
                                         const isLast = index === logs.length - 1;
                                         return (
@@ -417,6 +481,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                                 lastLogRef={isLast ? lastLogRef : undefined}
                                                 onQuickRule={handleOpenQuickRule}
                                                 quickRuleRestricted={isRestricted}
+                                                blocklistNames={blocklistNames}
+                                                serviceNames={serviceNames}
+                                                onExpand={dismissExpandHint}
                                             />
                                         );
                                     })}

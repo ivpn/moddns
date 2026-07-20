@@ -23,7 +23,7 @@ type RequestContext struct {
 	Logger                  logging.LoggerInterface `json:"-"`
 	LoggerConfig            logging.LoggingConfig   `json:"logger_config"`
 	StartTime               time.Time               `json:"-"`
-	UpstreamName            string                  `json:"-"`
+	UpstreamName string `json:"upstream_name"`
 }
 
 func NewRequestContext(ctx context.Context, p *proxy.Proxy, profileId string, deviceId string, privacySettings, logsSettings, dnssecSettings, advancedSettings map[string]string, logger logging.LoggerInterface) *RequestContext {
