@@ -25,28 +25,8 @@ import moddns.api as api
 import moddns.api_client as client
 import moddns.configuration as api_config
 from moddns import RequestsLoginBody
+from helpers import generate_complex_password
 from libs.settings import get_settings
-
-
-# Special-char set matching the API's `reSpecialChar` regex in
-# api/internal/validator/validator.go:23. `helpers.generate_complex_password`
-# draws from string.punctuation, which can pick characters outside this set
-# (e.g. apostrophe, backslash) and cause flaky registration failures —
-# regenerate here with a constrained pool so account creation is deterministic.
-_PASSWORD_SPECIALS = "!@#$%^&*(),;.?:{}[]|<>_-"
-
-
-def _stable_complex_password(length: int = 16) -> str:
-    pool = string.ascii_letters + string.digits + _PASSWORD_SPECIALS
-    parts = [
-        random.choice(string.ascii_uppercase),
-        random.choice(string.ascii_lowercase),
-        random.choice(string.digits),
-        random.choice(_PASSWORD_SPECIALS),
-    ]
-    parts.extend(random.choice(pool) for _ in range(length - 4))
-    random.shuffle(parts)
-    return "".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +51,7 @@ def create_account_with_password() -> tuple[Any, str, str, str]:
         email = (
             f"test{''.join(random.choice(string.digits) for _ in range(5))}@ivpn.net"
         )
-        password = _stable_complex_password()
+        password = generate_complex_password()
 
         subscription_id, pa_cookie = create_temp_subscription()
 

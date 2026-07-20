@@ -289,9 +289,8 @@ def save_container_logs(compose: DockerCompose, output_dir: str) -> None:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for container in containers:
+        container_name = container.Name
         try:
-            # Get container name and logs
-            container_name = container.Name
             stdout, stderr = compose.get_logs(container_name)
 
             # Create log file with timestamp
