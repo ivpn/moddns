@@ -4,10 +4,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 import shutil
-import random
-import string
-import uuid
-from datetime import timedelta, timezone
+from typing import Iterator
 import redis
 
 from dns.rdatatype import A
@@ -15,31 +12,20 @@ from dns.rdatatype import A
 from retry import retry
 from testcontainers.compose import DockerCompose
 
-import hashlib
-import base64
-import requests as http_requests
-
 import moddns.api_client as client
 import moddns.api as api
 import moddns.configuration as api_config
-from moddns import RequestsLoginBody
-from moddns.api.pa_session_api import PASessionApi
-from moddns.models.requests_pa_session_req import RequestsPASessionReq
-from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
-from helpers import generate_complex_password
+# Re-exported so existing `from conftest import …` sites keep working.
+from libs.accounts import (  # noqa: F401
+    create_account,
+    create_temp_subscription,
+    delete_account,
+)
+from libs.constants import BLOCKLISTED_DOMAIN, TEST_BLOCKLIST_ID
 from libs.dns_lib import DNSLib, is_resolved
+from libs.session import ProfileSession
 from libs.settings import get_settings
-from moddns.models.requests_account_deletion_request import (
-    RequestsAccountDeletionRequest,
-)
-
-# Shared deterministic blocklist test constants
-TEST_BLOCKLIST_ID = "hagezi_threat_intelligence_feeds_full"
-TEST_DOMAIN = "example.com"  # parent only inserted, existing domain so it's resolvable
-TEST_SUBDOMAIN = (
-    f"sub.{TEST_DOMAIN}"  # not inserted; used to validate inherited blocking
-)
 
 
 @pytest.fixture
@@ -50,11 +36,11 @@ def ensure_test_blocklisted():
     cfg = get_settings()
     r = redis.Redis(host=cfg.REDIS_HOST, port=cfg.REDIS_PORT, db=0)
     key = f"blocklist:{TEST_BLOCKLIST_ID}"
-    r.sadd(key, TEST_DOMAIN)
+    r.sadd(key, BLOCKLISTED_DOMAIN)
     try:
         yield
     finally:
-        r.srem(key, TEST_DOMAIN)
+        r.srem(key, BLOCKLISTED_DOMAIN)
 
 
 @pytest.fixture
@@ -79,163 +65,46 @@ def ensure_domain_blocklisted():
         r.srem(key, d)
 
 
-# TODO: class scope can be troublesome, investigate usage and change if necessary
+@pytest.fixture(scope="class")
+def user() -> Iterator[ProfileSession]:
+    """Class-scoped logged-in test user (ProfileSession facade).
+
+    Tests needing isolation create per-test profiles via ``user.new_profile()``
+    — the account itself is shared across the class for speed and deleted on
+    teardown.
+    """
+    session = ProfileSession.create()
+    yield session
+    session.cleanup()
+
+
+# Deprecated: migrate to the `user` fixture. Kept while old-style tests remain.
 @pytest.fixture(scope="class")
 def create_account_and_login():
     """
     Pytest fixture to create a new account, log in, and return the account object with session cookie.
     Cleans up by deleting the account (and all its profiles) after the test class is completed.
     """
-    account, cookie, password = create_acc_and_login_func()
+    account, cookie, password, _ = create_account()
     yield account, cookie
     delete_account(cookie, password, account_id=account.id)
 
 
-def delete_account(cookie: str, password: str, *, account_id: str = "?") -> None:
-    """Best-effort account deletion via the deletion-code + password-reauth flow.
-
-    Deleting the account removes all its profiles and cached state, so test
-    runs don't accumulate data in Mongo/Redis. Failures are logged, not raised —
-    cleanup problems must not fail an otherwise green test.
-    """
-    try:
-        config = get_settings()
-        api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-        with client.ApiClient(api_conf) as api_client:
-            account_api = api.AccountApi(api_client)
-            account_api.api_client.default_headers["Cookie"] = cookie
-            code_resp = account_api.api_v1_accounts_current_deletion_code_post()
-            resp = account_api.api_v1_accounts_current_delete_with_http_info(
-                body=RequestsAccountDeletionRequest(
-                    deletion_code=code_resp.code, current_password=password
-                )
-            )
-            assert resp.status_code in (200, 204), (
-                f"Account deletion failed with status code: {resp.status_code}"
-            )
-    except Exception as e:
-        print(f"Warning: Failed to delete test account {account_id}: {e}")
-
-
-def create_temp_subscription(validity_days: int = 30) -> tuple[str, str]:
-    """Provision a pre-auth session (PASession) for the ZLA signup flow.
-
-    Flow:
-      1. Generate a random token and compute its SHA256 hash
-      2. Create a preauth entry in the mock preauth service
-      3. Call POST /api/v1/pasession/add with PSK to cache the PASession
-      4. Call PUT /api/v1/pasession/rotate to get a rotated session cookie
-      5. Return (subscription_id, pa_session_cookie)
-    """
-    config = get_settings()
-
-    subscription_id = str(uuid.uuid4())
-    session_id = str(uuid.uuid4())
-    preauth_id = str(uuid.uuid4())
-    token = str(uuid.uuid4())  # random token
-
-    active_until_dt = datetime.utcnow().replace(tzinfo=timezone.utc) + timedelta(
-        days=validity_days
-    )
-    active_until = active_until_dt.isoformat().replace("+00:00", "Z")
-
-    # Compute token hash (SHA256, base64-encoded) matching what the API validates
-    token_hash = base64.b64encode(hashlib.sha256(token.encode()).digest()).decode()
-
-    # 1. Create preauth entry in mock preauth service
-    mock_preauth_url = config.MOCK_PREAUTH_URL
-    http_requests.post(
-        f"{mock_preauth_url}/entry",
-        json={
-            "id": preauth_id,
-            "token_hash": token_hash,
-            "is_active": True,
-            "active_until": active_until,
-            "tier": "Tier 2",
-        },
-    ).raise_for_status()
-
-    # 2. Add PASession via API (PSK-protected endpoint)
-    api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    psk = ""  # empty PSK works if no PSK is set in API .env
-
-    with client.ApiClient(api_conf) as api_client:
-        pa_api = PASessionApi(api_client)
-        pa_api.api_client.default_headers["Authorization"] = f"Bearer {psk}"
-        body = RequestsPASessionReq(id=session_id, preauth_id=preauth_id, token=token)
-        resp = pa_api.api_v1_pasession_add_post(body=body)
-        assert (
-            resp.get("message") == "pre-auth session added"
-        ), f"Unexpected PASession add response: {resp}"
-
-    # 3. Rotate PASession to get cookie
-    with client.ApiClient(api_conf) as api_client:
-        pa_api = PASessionApi(api_client)
-        rotate_body = RequestsRotatePASessionReq(sessionid=session_id)
-        rotate_resp = pa_api.api_v1_pasession_rotate_put_with_http_info(
-            body=rotate_body
-        )
-        assert rotate_resp.status_code == 200, (
-            f"PASession rotation failed: {rotate_resp.status_code}"
-        )
-        pa_cookie = rotate_resp.headers.get("Set-Cookie", "")
-        assert "pa_session=" in pa_cookie, (
-            f"No pa_session cookie in rotation response: {pa_cookie}"
-        )
-
-    return subscription_id, pa_cookie
+@pytest.fixture(scope="session")
+def redis_client():
+    """Session-scoped Redis client for fixtures/tests that seed blocklist sets."""
+    cfg = get_settings()
+    return redis.Redis(host=cfg.REDIS_HOST, port=cfg.REDIS_PORT, db=0)
 
 
 def create_acc_and_login_func():
-    """Create a new account, log in, fetch current account and return (account, cookie, password).
-    Flow:
-        1. create temp subscription cache key
-        2. register account (201 expected)
-        3. login to obtain session cookie
-        4. GET /accounts/current to retrieve full account object
+    """Deprecated wrapper over libs.accounts.create_account.
 
-    The plaintext password is returned so callers can perform reauth flows
-    (e.g. account deletion in fixture teardown).
+    Returns (account, cookie, password). New code should use the `user`
+    fixture (ProfileSession) or libs.accounts.create_account directly.
     """
-    config = get_settings()
-    api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    with client.ApiClient(api_conf) as api_client:
-        account_api = api.AccountApi(api_client)
-        auth_api = api.AuthenticationApi(api_client)
-
-        # Create a new account with a random email
-        email = (
-            f"test{''.join(random.choice(string.digits) for _ in range(5))}@ivpn.net"
-        )
-        password = generate_complex_password()
-
-        # Prepare PASession for ZLA signup flow
-        subscription_id, pa_cookie = create_temp_subscription()
-
-        # Set pa_session cookie for registration
-        account_api.api_client.default_headers["Cookie"] = pa_cookie
-        reg_resp = account_api.api_v1_accounts_post_with_http_info(
-            body={"email": email, "password": password, "subid": subscription_id}
-        )
-        assert (
-            reg_resp.status_code == 201
-        ), f"Registration failed with status code: {reg_resp.status_code}"
-        # registration success is 201; full account not returned anymore
-        # Log in to the account
-        login_response = auth_api.api_v1_login_post_with_http_info(
-            body=RequestsLoginBody(email=email, password=password)
-        )
-        assert (
-            login_response.status_code == 200
-        ), f"Login failed with status code: {login_response.status_code}"
-        cookie = login_response.headers.get("Set-Cookie")
-        assert cookie, "No session cookie returned after login"
-
-        # Fetch current account data using cookie
-        account_api.api_client.default_headers["Cookie"] = cookie
-        account = account_api.api_v1_accounts_current_get()
-        assert len(account.profiles) == 1
-        return account, cookie, password
+    account, cookie, password, _ = create_account()
+    return account, cookie, password
 
 
 @pytest.fixture(scope="session", autouse=True)

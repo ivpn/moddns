@@ -36,6 +36,27 @@ def answer_ip_is(expected: str) -> Callable[[Message], bool]:
     return lambda resp: first_answer_ip(resp) == expected
 
 
+def assert_blocked(resp: Message, domain: str = "domain") -> None:
+    """Assert the response is the proxy's block sentinel (0.0.0.0 / ::)."""
+    assert resp.answer, f"Expected a blocked answer for {domain}, got empty answer"
+    ip = first_answer_ip(resp)
+    assert ip in BLOCKED_IPS, f"{domain} was not blocked; got {ip}"
+
+
+def assert_not_blocked(resp: Message, domain: str = "domain") -> None:
+    """Assert the response is NOT the proxy's block sentinel.
+
+    An empty answer (NXDOMAIN/NODATA) or a CNAME-first answer counts as "not
+    blocked" — blocking always yields a synthetic 0.0.0.0/:: answer, so only
+    the sentinel itself is a failure. When the test also requires the domain to
+    genuinely resolve, poll with ``wait_until(..., is_resolved)`` first.
+    """
+    if not resp.answer:
+        return
+    ip = first_answer_ip(resp)
+    assert ip not in BLOCKED_IPS, f"{domain} was unexpectedly blocked (got {ip})"
+
+
 class DNSLib:
     def __init__(self, server: str):
         self.server = server

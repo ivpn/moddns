@@ -13,10 +13,9 @@ import time
 
 import docker
 import pytest
+from libs.accounts import create_account, delete_account
 from libs.dns_lib import DNSLib
 from libs.settings import get_settings
-
-from conftest import create_acc_and_login_func
 
 REPLICA_CONTAINER = "redis-replica-dns"
 # Health check: 3 failures × 3 s interval = ~9 s.  Add generous margin.
@@ -40,12 +39,19 @@ class TestRedisReplicaFailover:
         self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
         self.docker_client = docker.from_env()
         # Create a test account once for the whole class.
-        account, _, _ = create_acc_and_login_func()
+        account, cookie, password, _ = create_account()
         assert len(account.profiles) == 1
         self.profile_id = account.profiles[0]
+        self._cookie = cookie
+        self._password = password
+        self._account_id = account.id
 
     def teardown_class(self):
-        self.docker_client.close()
+        # Best-effort account cleanup, but always release the docker client.
+        try:
+            delete_account(self._cookie, self._password, account_id=self._account_id)
+        finally:
+            self.docker_client.close()
 
     def _get_replica(self):
         return self.docker_client.containers.get(REPLICA_CONTAINER)

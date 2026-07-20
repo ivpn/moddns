@@ -27,7 +27,7 @@ from libs.export_import_helpers import (
     make_rules,
     raw_export,
 )
-from conftest import TEST_DOMAIN
+from libs.constants import BLOCKLISTED_DOMAIN
 from dns.rdatatype import A
 
 import moddns.api as api
@@ -111,10 +111,10 @@ class TestRoundTrip(ProfileHelpers):
         new_profile_id = body["createdProfileIds"][0]
         assert isinstance(new_profile_id, str) and new_profile_id
 
-        resp = await self.dns_lib.send_doh_request(new_profile_id, TEST_DOMAIN, A)
+        resp = await self.dns_lib.send_doh_request(new_profile_id, BLOCKLISTED_DOMAIN, A)
         ip_addr = resp.answer[0].to_text().split(" ")[-1]
         assert ip_addr == "0.0.0.0", (
-            f"Imported profile did not apply blocklist; {TEST_DOMAIN} -> {ip_addr}"
+            f"Imported profile did not apply blocklist; {BLOCKLISTED_DOMAIN} -> {ip_addr}"
         )
 
         resp = await self.dns_lib.send_doh_request(

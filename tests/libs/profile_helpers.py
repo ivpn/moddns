@@ -34,10 +34,7 @@ REAL_GOOGLE_DOMAIN = "google.com"  # Real domain; HTTPS record has alpn but NO i
 # rather than break CI.
 REAL_HTTPS_HINTS_DOMAIN = "cloudflare.com"
 
-TEST_DOMAIN = "test.com"
-TEST_IP = "104.18.74.230"  # AS13335 (Cloudflare, not in catalog)
-
-TEST_BLOCKLIST_ID = "hagezi_threat_intelligence_feeds_full"
+from libs.constants import TEST_BLOCKLIST_ID  # noqa: E402, F401  (re-export)
 
 
 # ---------------------------------------------------------------------------
