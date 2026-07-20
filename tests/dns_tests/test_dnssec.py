@@ -1,7 +1,7 @@
 from ipaddress import ip_address
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_resolved
 from libs.settings import get_settings
 from dns.rdataclass import IN
 from dns.rdatatype import A, RRSIG
@@ -44,7 +44,7 @@ class TestDNSSEC:
                 not profile.settings.security.dnssec.send_do_bit
             ), "DO bit is enabled by default for new profiles but should be disabled"
 
-        resp = await self.dns_lib.send_doh_request(profile_id, "example.com", "A")
+        resp = await self.dns_lib.wait_until(profile_id, "example.com", "A", is_resolved)
         assert (
             len(resp.answer) == 1
         )  # 1 answers since DNSSEC is configured on example.com
@@ -77,7 +77,9 @@ class TestDNSSEC:
                 resp.status_code == 200
             ), f"Profile DNSSEC settings update failed with status code: {resp.status_code} and payload {resp.data}"
 
-        resp = await self.dns_lib.send_doh_request(profile_id, "example.com", "A")
+        resp = await self.dns_lib.wait_until(
+            profile_id, "example.com", "A", lambda r: len(r.answer) == 2
+        )
         assert (
             len(resp.answer) == 2
         )  # 2 answers since DNSSEC is configured on example.com
@@ -102,7 +104,9 @@ class TestDNSSEC:
         assert len(account.profiles) == 1
 
         profile_id = account.profiles[0]
-        resp = await self.dns_lib.send_doh_request(profile_id, "dnssec-failed.org", "A")
+        resp = await self.dns_lib.wait_until(
+            profile_id, "dnssec-failed.org", "A", lambda r: r.rcode() == SERVFAIL
+        )
         assert (
             len(resp.answer) == 0
         )  # No answers since DNSSEC check failed on dnssec-failed.org
@@ -166,7 +170,9 @@ class TestDNSSEC:
             assert (
                 resp.status_code == 200
             ), f"Profile DNSSEC settings update failed with status code: {resp.status_code} and payload {resp.data}"
-            resp = await self.dns_lib.send_doh_request(profile_id, test_domain, "A")
+            resp = await self.dns_lib.wait_until(
+                profile_id, test_domain, "A", lambda r: r.flags & CD
+            )
             assert len(resp.answer) == expected_results["resp_length"]
             assert resp.rcode() == expected_results["rcode"]
             assert resp.answer[0].rdtype == expected_results["rdtype"]

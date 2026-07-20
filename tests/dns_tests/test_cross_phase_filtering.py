@@ -10,7 +10,7 @@ Test domains (controlled via testhosts.txt -> sdns hostsfile):
 """
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked
 from libs.settings import get_settings
 from libs.profile_helpers import (
     ProfileHelpers,
@@ -66,6 +66,7 @@ class TestCrossPhaseAggregation(ProfileHelpers):
             )
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, SVC_GOOGLE_DOMAIN, A
             )
@@ -91,6 +92,7 @@ class TestCrossPhaseAggregation(ProfileHelpers):
             self._create_custom_rule(p, profile_id, "allow", TEST_DOMAIN)
             self._create_custom_rule(p, profile_id, "block", TEST_IP)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -114,6 +116,7 @@ class TestCrossPhaseAggregation(ProfileHelpers):
             self._create_custom_rule(p, profile_id, "allow", TEST_DOMAIN)
             self._create_custom_rule(p, profile_id, "block", TEST_IP)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -144,6 +147,7 @@ class TestCrossPhaseAggregation(ProfileHelpers):
             )
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, SVC_GOOGLE_DOMAIN, A
             )
@@ -174,6 +178,7 @@ class TestCrossPhaseAggregation(ProfileHelpers):
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
             self._create_custom_rule(p, profile_id, "allow", SVC_GOOGLE_IP)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, SVC_GOOGLE_DOMAIN, A
             )
@@ -210,7 +215,7 @@ class TestDomainBlockTerminal(ProfileHelpers):
             self._create_custom_rule(p, profile_id, "block", TEST_DOMAIN)
             self._create_custom_rule(p, profile_id, "allow", TEST_IP)
 
-            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"#24: Domain block must be terminal -- IP allow should be "
@@ -232,7 +237,7 @@ class TestDomainBlockTerminal(ProfileHelpers):
             # Default blocklist (TEST_BLOCKLIST_ID) is already enabled on new profiles.
             self._create_custom_rule(p, profile_id, "allow", TEST_IP)
 
-            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"#19 variant: Blocklist block must be terminal -- IP allow "
@@ -265,7 +270,7 @@ class TestDomainBlockTerminal(ProfileHelpers):
             )
             self._create_custom_rule(p, profile_id, "allow", TEST_IP)
 
-            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"Default block must be terminal -- IP allow should be inert; "

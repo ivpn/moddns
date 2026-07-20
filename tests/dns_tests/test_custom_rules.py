@@ -1,7 +1,7 @@
 from ipaddress import ip_address, IPv6Address
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked
 from libs.settings import get_settings
 from dns.rdataclass import IN
 from dns.rdatatype import A, AAAA
@@ -125,6 +125,7 @@ class TestCustomRules:
                 ur_resp.status_code == 201
             ), f"Custom rule creation failed for {test_domain} with status code: {ur_resp.status_code}"
 
+            waited = False
             for query, expected_value in queries.items():
                 # Determine if we should send an A or AAAA query
                 try:
@@ -137,10 +138,17 @@ class TestCustomRules:
                 else:
                     record_type = A
 
-                # Send DNS query
-                resp = await self.dns_lib.send_doh_request(
-                    profile_id, query, record_type
-                )
+                # Send DNS query. The first query whose block outcome depends on
+                # the rule just created polls for replication to catch up.
+                if expected_value in ("0.0.0.0", "::") and not waited:
+                    resp = await self.dns_lib.wait_until(
+                        profile_id, query, record_type, is_blocked
+                    )
+                    waited = True
+                else:
+                    resp = await self.dns_lib.send_doh_request(
+                        profile_id, query, record_type
+                    )
                 # Blocked expectations: ensure an answer and it matches the block IP
                 if expected_value in ("0.0.0.0", "::"):
                     assert resp.answer, f"Expected a blocked answer for {query}"

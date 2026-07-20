@@ -2,7 +2,7 @@ from ipaddress import ip_address
 import uuid
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked, is_resolved
 from libs.settings import get_settings
 from dns.rdatatype import A
 import redis
@@ -113,7 +113,7 @@ class TestSubdomainBlocking:
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
 
-        resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+        resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
         assert _is_blocked(
             resp
         ), f"Blocklisted parent domain {TEST_DOMAIN} was not blocked (expected 0.0.0.0)"
@@ -131,7 +131,7 @@ class TestSubdomainBlocking:
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
 
-        resp = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
+        resp = await self.dns_lib.wait_until(profile_id, TEST_SUBDOMAIN, A, is_blocked)
         assert _is_blocked(
             resp
         ), f"Subdomain {TEST_SUBDOMAIN} was not blocked by default (expected 0.0.0.0)"
@@ -149,7 +149,7 @@ class TestSubdomainBlocking:
         profile_id = self._create_profile(cookie)
 
         domain = f"www.{TEST_DOMAIN}"
-        resp = await self.dns_lib.send_doh_request(profile_id, domain, A)
+        resp = await self.dns_lib.wait_until(profile_id, domain, A, is_blocked)
         assert _is_blocked(
             resp
         ), f"www subdomain {domain} was not blocked (expected 0.0.0.0)"
@@ -167,7 +167,7 @@ class TestSubdomainBlocking:
         profile_id = self._create_profile(cookie)
 
         domain = f"a.b.{TEST_DOMAIN}"
-        resp = await self.dns_lib.send_doh_request(profile_id, domain, A)
+        resp = await self.dns_lib.wait_until(profile_id, domain, A, is_blocked)
         assert _is_blocked(
             resp
         ), f"Deep subdomain {domain} was not blocked (expected 0.0.0.0)"
@@ -187,7 +187,7 @@ class TestSubdomainBlocking:
 
         self._set_blocklists_subdomains_rule(cookie, profile_id, "allow")
 
-        resp = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
+        resp = await self.dns_lib.wait_until(profile_id, TEST_SUBDOMAIN, A, is_resolved)
         assert _is_not_blocked(
             resp
         ), f"Subdomain {TEST_SUBDOMAIN} was still blocked after setting blocklists_subdomains_rule to 'allow'"
@@ -207,21 +207,21 @@ class TestSubdomainBlocking:
         profile_id = self._create_profile(cookie)
 
         # Step 1: default setting is "block"
-        resp1 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
+        resp1 = await self.dns_lib.wait_until(profile_id, TEST_SUBDOMAIN, A, is_blocked)
         assert _is_blocked(
             resp1
         ), f"Step 1 failed: {TEST_SUBDOMAIN} should be blocked with default blocklists_subdomains_rule"
 
         # Step 2: switch to "allow"
         self._set_blocklists_subdomains_rule(cookie, profile_id, "allow")
-        resp2 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
+        resp2 = await self.dns_lib.wait_until(profile_id, TEST_SUBDOMAIN, A, is_resolved)
         assert _is_not_blocked(
             resp2
         ), f"Step 2 failed: {TEST_SUBDOMAIN} should not be blocked after setting blocklists_subdomains_rule to 'allow'"
 
         # Step 3: switch back to "block"
         self._set_blocklists_subdomains_rule(cookie, profile_id, "block")
-        resp3 = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
+        resp3 = await self.dns_lib.wait_until(profile_id, TEST_SUBDOMAIN, A, is_blocked)
         assert _is_blocked(
             resp3
         ), f"Step 3 failed: {TEST_SUBDOMAIN} should be blocked again after restoring blocklists_subdomains_rule to 'block'"
@@ -238,6 +238,7 @@ class TestSubdomainBlocking:
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
 
+        # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
         resp = await self.dns_lib.send_doh_request(profile_id, "facebook.com", A)
         assert resp.answer, "Expected an answer for unrelated domain facebook.com"
         ip_addr = resp.answer[0].to_text().split(" ")[-1]
@@ -266,7 +267,7 @@ class TestSubdomainBlocking:
         _, cookie = create_account_and_login
         profile_id = self._create_profile(cookie)
 
-        resp = await self.dns_lib.send_doh_request(profile_id, subdomain, A)
+        resp = await self.dns_lib.wait_until(profile_id, subdomain, A, is_blocked)
         assert _is_blocked(
             resp
         ), f"Subdomain {subdomain} was not blocked (expected 0.0.0.0)"

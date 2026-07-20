@@ -1,7 +1,7 @@
 from ipaddress import ip_address
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked, is_resolved
 from libs.settings import get_settings
 from dns.rdatatype import A
 import redis
@@ -97,7 +97,11 @@ class TestBlocklistFilters:
                 resp.data.settings.privacy.blocklists[0] == TEST_BLOCKLIST_ID
             ), "Threat Intelligence Feeds blocklist is not enabled for profile"
 
-        resp = await self.dns_lib.send_doh_request(profile_id, domain, A)
+        if expected_blocked:
+            resp = await self.dns_lib.wait_until(profile_id, domain, A, is_blocked)
+        else:
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
+            resp = await self.dns_lib.send_doh_request(profile_id, domain, A)
         ip_addr = resp.answer[0].to_text().split(" ")[-1]
         if expected_blocked:
             assert (
@@ -118,7 +122,7 @@ class TestBlocklistFilters:
             profiles_instance = api.ProfileApi(api_client)
             profile_id = account.profiles[0]
 
-            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert (
                 ip_addr == "0.0.0.0"
@@ -145,7 +149,7 @@ class TestBlocklistFilters:
                 len(get_resp.data.settings.privacy.blocklists) == 0
             ), "Blocklist still enabled after disabling"
 
-            resp2 = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp2 = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_resolved)
             ip_addr2 = resp2.answer[0].to_text().split(" ")[-1]
             assert (
                 ip_address(ip_addr2) and ip_addr2 != "0.0.0.0"
@@ -168,8 +172,8 @@ class TestBlocklistFilters:
             profile_id = resp.data.profile_id
 
             # Parent domain should be blocked
-            resp_parent = await self.dns_lib.send_doh_request(
-                profile_id, TEST_DOMAIN, A
+            resp_parent = await self.dns_lib.wait_until(
+                profile_id, TEST_DOMAIN, A, is_blocked
             )
             ip_parent = resp_parent.answer[0].to_text().split(" ")[-1]
             assert (

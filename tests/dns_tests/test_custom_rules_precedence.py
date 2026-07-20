@@ -1,7 +1,7 @@
 from ipaddress import ip_address
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked, is_resolved
 from libs.settings import get_settings
 from dns.rdatatype import A
 import redis
@@ -125,8 +125,8 @@ class TestCustomRulesPrecedence:
             )
 
             # Confirm the domain is blocked by the blocklist before adding the custom rule
-            resp_blocked = await self.dns_lib.send_doh_request(
-                profile_id, TEST_DOMAIN, A
+            resp_blocked = await self.dns_lib.wait_until(
+                profile_id, TEST_DOMAIN, A, is_blocked
             )
             ip_blocked = resp_blocked.answer[0].to_text().split(" ")[-1]
             assert (
@@ -139,7 +139,7 @@ class TestCustomRulesPrecedence:
             )
 
             # Query again -- custom allow should override blocklist block
-            resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_resolved)
             assert resp.answer, f"Expected an answer for {TEST_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert ip_addr != "0.0.0.0", (
@@ -173,8 +173,8 @@ class TestCustomRulesPrecedence:
             )
 
             # Confirm subdomain is blocked by inherited blocklist rule
-            resp_blocked = await self.dns_lib.send_doh_request(
-                profile_id, TEST_SUBDOMAIN, A
+            resp_blocked = await self.dns_lib.wait_until(
+                profile_id, TEST_SUBDOMAIN, A, is_blocked
             )
             ip_blocked = resp_blocked.answer[0].to_text().split(" ")[-1]
             assert (
@@ -189,6 +189,7 @@ class TestCustomRulesPrecedence:
             # Query again -- custom allow should override subdomain blocklist match.
             # Note: sub.example.com may not exist in DNS (NXDOMAIN / empty answer),
             # which is fine -- we only verify it's not actively blocked (0.0.0.0).
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
             if resp.answer:
                 ip_addr = resp.answer[0].to_text().split(" ")[-1]
@@ -221,8 +222,8 @@ class TestCustomRulesPrecedence:
             )
 
             # Confirm subdomain is blocked before adding wildcard allow
-            resp_blocked = await self.dns_lib.send_doh_request(
-                profile_id, TEST_SUBDOMAIN, A
+            resp_blocked = await self.dns_lib.wait_until(
+                profile_id, TEST_SUBDOMAIN, A, is_blocked
             )
             ip_blocked = resp_blocked.answer[0].to_text().split(" ")[-1]
             assert (
@@ -237,6 +238,7 @@ class TestCustomRulesPrecedence:
             # Query subdomain -- wildcard allow should override blocklist.
             # Note: sub.example.com may not exist in DNS (NXDOMAIN / empty answer),
             # which is fine -- we only verify it's not actively blocked (0.0.0.0).
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_SUBDOMAIN, A)
             if resp.answer:
                 ip_addr = resp.answer[0].to_text().split(" ")[-1]
@@ -273,7 +275,9 @@ class TestCustomRulesPrecedence:
                 profiles_instance, profile_id, "block", "facebook.com"
             )
 
-            resp = await self.dns_lib.send_doh_request(profile_id, "facebook.com", A)
+            resp = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
+            )
             assert resp.answer, "Expected a blocked answer for facebook.com"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert (
@@ -303,7 +307,9 @@ class TestCustomRulesPrecedence:
             # Set default_rule to block
             self._set_default_rule(profiles_instance, profile_id, "block")
 
-            resp = await self.dns_lib.send_doh_request(profile_id, "google.com", A)
+            resp = await self.dns_lib.wait_until(
+                profile_id, "google.com", A, is_blocked
+            )
             assert resp.answer, "Expected a blocked answer for google.com"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert (
@@ -337,8 +343,8 @@ class TestCustomRulesPrecedence:
             self._set_default_rule(profiles_instance, profile_id, "block")
 
             # Confirm facebook.com is blocked by default rule
-            resp_blocked = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_blocked = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             ip_blocked = resp_blocked.answer[0].to_text().split(" ")[-1]
             assert (
@@ -351,7 +357,9 @@ class TestCustomRulesPrecedence:
             )
 
             # Query again -- custom allow should override default block
-            resp = await self.dns_lib.send_doh_request(profile_id, "facebook.com", A)
+            resp = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_resolved
+            )
             assert resp.answer, "Expected an answer for facebook.com"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert ip_addr != "0.0.0.0", (
@@ -388,8 +396,8 @@ class TestCustomRulesPrecedence:
             self._set_default_rule(profiles_instance, profile_id, "block")
 
             # Blocklisted domain should be blocked (both blocklist and default rule)
-            resp_blocklisted = await self.dns_lib.send_doh_request(
-                profile_id, TEST_DOMAIN, A
+            resp_blocklisted = await self.dns_lib.wait_until(
+                profile_id, TEST_DOMAIN, A, is_blocked
             )
             assert (
                 resp_blocklisted.answer
@@ -400,8 +408,8 @@ class TestCustomRulesPrecedence:
             ), f"Expected {TEST_DOMAIN} to be blocked, got {ip_blocklisted}"
 
             # Non-blocklisted domain should also be blocked (by default rule)
-            resp_non_blocklisted = await self.dns_lib.send_doh_request(
-                profile_id, "google.com", A
+            resp_non_blocklisted = await self.dns_lib.wait_until(
+                profile_id, "google.com", A, is_blocked
             )
             assert (
                 resp_non_blocklisted.answer
@@ -448,8 +456,8 @@ class TestCustomRulesPrecedence:
             )
 
             # facebook.com itself should be blocked
-            resp_exact = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_exact = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             assert resp_exact.answer, "Expected a blocked answer for facebook.com"
             ip_exact = resp_exact.answer[0].to_text().split(" ")[-1]
@@ -492,8 +500,8 @@ class TestCustomRulesPrecedence:
             )
 
             # facebook.com itself should be blocked
-            resp_root = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_root = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             assert resp_root.answer, "Expected a blocked answer for facebook.com"
             ip_root = resp_root.answer[0].to_text().split(" ")[-1]
@@ -535,8 +543,8 @@ class TestCustomRulesPrecedence:
             )
 
             # facebook.com itself should be blocked
-            resp_root = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_root = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             assert resp_root.answer, "Expected a blocked answer for facebook.com"
             ip_root = resp_root.answer[0].to_text().split(" ")[-1]
@@ -601,7 +609,13 @@ class TestCustomRulesPrecedence:
                 profiles_instance, profile_id, "block", pattern
             )
 
-            resp = await self.dns_lib.send_doh_request(profile_id, subdomain, A)
+            if expect_blocked:
+                resp = await self.dns_lib.wait_until(
+                    profile_id, subdomain, A, is_blocked
+                )
+            else:
+                # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
+                resp = await self.dns_lib.send_doh_request(profile_id, subdomain, A)
 
             if expect_blocked:
                 assert resp.answer, f"Expected a blocked answer for {subdomain}"
@@ -644,8 +658,8 @@ class TestCustomRulesPrecedence:
             )
 
             # facebook.com itself should be blocked
-            resp_root = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_root = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             assert resp_root.answer, "Expected a blocked answer for facebook.com"
             ip_root = resp_root.answer[0].to_text().split(" ")[-1]
@@ -689,8 +703,8 @@ class TestCustomRulesPrecedence:
             )
 
             # facebook.com itself should be blocked
-            resp_root = await self.dns_lib.send_doh_request(
-                profile_id, "facebook.com", A
+            resp_root = await self.dns_lib.wait_until(
+                profile_id, "facebook.com", A, is_blocked
             )
             assert resp_root.answer, "Expected a blocked answer for facebook.com"
             ip_root = resp_root.answer[0].to_text().split(" ")[-1]

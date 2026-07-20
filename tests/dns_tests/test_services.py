@@ -15,7 +15,7 @@ Requirements:
 """
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked, is_resolved
 from libs.settings import get_settings
 from libs.profile_helpers import (
     ProfileHelpers,
@@ -68,7 +68,7 @@ class TestServicesBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_block")
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"Services block for {SVC_GOOGLE_ID} did not block "
@@ -92,6 +92,7 @@ class TestServicesBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_other_asn")
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -114,13 +115,13 @@ class TestServicesBlocking(ProfileHelpers):
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
             # Verify blocked first.
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
             assert extract_ip(resp) == "0.0.0.0", "Expected blocked before unblock"
 
             # Unblock.
             self._unblock_service(p, profile_id, [SVC_GOOGLE_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_resolved)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
                 f"After unblocking {SVC_GOOGLE_ID}, {SVC_GOOGLE_DOMAIN} should "
@@ -164,7 +165,7 @@ class TestServicesAliasBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_block_alias")
             self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"Alias block for {SVC_GOOGLE_ALIAS_ID} did not block "
@@ -189,6 +190,7 @@ class TestServicesAliasBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_alias_other_asn")
             self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -213,12 +215,12 @@ class TestServicesAliasBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_unblock_alias")
             self._block_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
             assert extract_ip(resp) == "0.0.0.0", "Expected blocked before unblock"
 
             self._unblock_service(p, profile_id, [SVC_GOOGLE_ALIAS_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_resolved)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
                 f"After unblocking alias {SVC_GOOGLE_ALIAS_ID}, "
@@ -260,7 +262,7 @@ class TestAppleServicesBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_block_apple")
             self._block_service(p, profile_id, [SVC_APPLE_ID])
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_APPLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_APPLE_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"Services block for {SVC_APPLE_ID} did not block "
@@ -302,8 +304,8 @@ class TestMicrosoftServicesBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_block_msft")
             self._block_service(p, profile_id, [SVC_MICROSOFT_ID])
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, SVC_MICROSOFT_DOMAIN, A
+            resp = await self.dns_lib.wait_until(
+                profile_id, SVC_MICROSOFT_DOMAIN, A, is_blocked
             )
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
@@ -341,6 +343,7 @@ class TestIPAllowOverridesServices(ProfileHelpers):
             # Allow the specific IP that svctest-google.com resolves to.
             self._create_custom_rule(p, profile_id, "allow", SVC_GOOGLE_IP)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -373,7 +376,7 @@ class TestASNCustomRules(ProfileHelpers):
 
             self._create_custom_rule(p, profile_id, "block", "AS15169")
 
-            resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
+            resp = await self.dns_lib.wait_until(profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (
                 f"ASN block for AS15169 did not block {SVC_GOOGLE_DOMAIN}; "
@@ -393,6 +396,7 @@ class TestASNCustomRules(ProfileHelpers):
 
             self._create_custom_rule(p, profile_id, "block", "AS15169")
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, TEST_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -416,6 +420,7 @@ class TestASNCustomRules(ProfileHelpers):
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
             self._create_custom_rule(p, profile_id, "allow", "AS15169")
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(profile_id, SVC_GOOGLE_DOMAIN, A)
             ip_str = extract_ip(resp)
             assert ip_str != "0.0.0.0", (
@@ -461,8 +466,8 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_https_hints")
             self._block_service(p, profile_id, [SVC_GOOGLE_ID])
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, REAL_GOOGLE_DOMAIN, HTTPS
+            resp = await self.dns_lib.wait_until(
+                profile_id, REAL_GOOGLE_DOMAIN, HTTPS, lambda r: bool(r.answer)
             )
 
             # HTTPS records without IP hints (e.g. alpn-only) are safe
@@ -497,8 +502,8 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
             profile_id = self._create_profile(p, "svc_real_https_noblock")
             # Do NOT block any service.
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, REAL_GOOGLE_DOMAIN, HTTPS
+            resp = await self.dns_lib.wait_until(
+                profile_id, REAL_GOOGLE_DOMAIN, HTTPS, lambda r: bool(r.answer)
             )
 
             assert resp.answer, (
@@ -547,8 +552,8 @@ class TestHTTPSRecordIPHints(ProfileHelpers):
 
             profile_id = self._create_profile(p, "https_hints_pre")
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, REAL_HTTPS_HINTS_DOMAIN, HTTPS
+            resp = await self.dns_lib.wait_until(
+                profile_id, REAL_HTTPS_HINTS_DOMAIN, HTTPS, lambda r: bool(r.answer)
             )
             assert resp.answer, (
                 f"HTTPS query for {REAL_HTTPS_HINTS_DOMAIN} returned empty answer"
@@ -583,8 +588,9 @@ class TestHTTPSRecordIPHints(ProfileHelpers):
             profile_id = self._create_profile(p, "https_hints_asn")
             self._create_custom_rule(p, profile_id, "block", "AS13335")
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, REAL_HTTPS_HINTS_DOMAIN, HTTPS
+            resp = await self.dns_lib.wait_until(
+                profile_id, REAL_HTTPS_HINTS_DOMAIN, HTTPS,
+                lambda r: r.rcode() == dns.rcode.NOERROR and not r.answer,
             )
             # When the proxy extracts ipv4hint IPs from the HTTPS record
             # and matches them against the ASN custom rule, the query
@@ -620,8 +626,8 @@ class TestHTTPSRecordIPHints(ProfileHelpers):
             profile_id = self._create_profile(p, "https_hints_a")
             self._create_custom_rule(p, profile_id, "block", "AS13335")
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, REAL_HTTPS_HINTS_DOMAIN, A
+            resp = await self.dns_lib.wait_until(
+                profile_id, REAL_HTTPS_HINTS_DOMAIN, A, is_blocked
             )
             ip_str = extract_ip(resp)
             assert ip_str == "0.0.0.0", (

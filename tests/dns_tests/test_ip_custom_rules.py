@@ -15,7 +15,7 @@ and are assumed stable for the CI environment.
 from ipaddress import ip_address
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked
 from libs.settings import get_settings
 from dns.rdatatype import A, AAAA
 
@@ -78,8 +78,8 @@ class TestIPCustomRules:
 
             self._create_custom_rule(p, profile_id, "block", TEST_IPV4)
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, TEST_IPV4_DOMAIN, A
+            resp = await self.dns_lib.wait_until(
+                profile_id, TEST_IPV4_DOMAIN, A, is_blocked
             )
             assert resp.answer, f"Expected a blocked answer for {TEST_IPV4_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
@@ -104,8 +104,8 @@ class TestIPCustomRules:
 
             self._create_custom_rule(p, profile_id, "block", TEST_IPV6)
 
-            resp = await self.dns_lib.send_doh_request(
-                profile_id, TEST_IPV6_DOMAIN, AAAA
+            resp = await self.dns_lib.wait_until(
+                profile_id, TEST_IPV6_DOMAIN, AAAA, is_blocked
             )
             assert resp.answer, f"Expected a blocked answer for {TEST_IPV6_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
@@ -133,6 +133,7 @@ class TestIPCustomRules:
             # Block an IP from TEST-NET that no real domain resolves to.
             self._create_custom_rule(p, profile_id, "block", NONEXISTENT_IPV4)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, "google.com", A
             )
@@ -162,6 +163,7 @@ class TestIPCustomRules:
 
             self._create_custom_rule(p, profile_id, "block", TEST_IPV4)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, "google.com", A
             )
@@ -188,6 +190,7 @@ class TestIPCustomRules:
 
             self._create_custom_rule(p, profile_id, "allow", TEST_IPV4)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, TEST_IPV4_DOMAIN, A
             )
@@ -223,6 +226,7 @@ class TestIPCustomRules:
             # Block the IP it resolves to.
             self._create_custom_rule(p, profile_id, "block", TEST_IPV4)
 
+            # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
                 profile_id, TEST_IPV4_DOMAIN, A
             )
