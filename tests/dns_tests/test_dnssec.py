@@ -133,7 +133,7 @@ class TestDNSSEC:
         """
         Create account, disable DNSSEC validation, send query to DNSSEC-configured domain and make sure the DNS response does not contain DNSSEC validation results (DO bit is not sent).
         """
-        account, cookie = create_acc_and_login_func()
+        account, cookie, _ = create_acc_and_login_func()
         profile_id = account.profiles[0]
 
         with client.ApiClient(self.api_config) as api_client:

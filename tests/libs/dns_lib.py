@@ -92,7 +92,16 @@ class DNSLib:
         """
         deadline = time.monotonic() + timeout
         while True:
-            resp = await self.send_doh_request(profile_id, domain, record_type)
+            try:
+                resp = await self.send_doh_request(profile_id, domain, record_type)
+            except (ShortHeader, httpx.ConnectError, httpx.ReadError, OSError):
+                # The proxy drops connections for unknown profiles, so a freshly
+                # created profile can cause ShortHeader until it propagates to
+                # the replica. Treat as "not ready yet"; re-raise on deadline.
+                if time.monotonic() >= deadline:
+                    raise
+                await asyncio.sleep(interval)
+                continue
             try:
                 if predicate(resp):
                     return resp

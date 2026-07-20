@@ -40,7 +40,7 @@ class TestRedisReplicaFailover:
         self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
         self.docker_client = docker.from_env()
         # Create a test account once for the whole class.
-        account, _ = create_acc_and_login_func()
+        account, _, _ = create_acc_and_login_func()
         assert len(account.profiles) == 1
         self.profile_id = account.profiles[0]
 

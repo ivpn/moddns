@@ -1,3 +1,4 @@
+import asyncio
 import os
 import pytest
 from datetime import datetime
@@ -7,8 +8,9 @@ import random
 import string
 import uuid
 from datetime import timedelta, timezone
-import os as _os
 import redis
+
+from dns.rdatatype import A
 
 from retry import retry
 from testcontainers.compose import DockerCompose
@@ -26,7 +28,11 @@ from moddns.models.requests_pa_session_req import RequestsPASessionReq
 from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
 from helpers import generate_complex_password
+from libs.dns_lib import DNSLib, is_resolved
 from libs.settings import get_settings
+from moddns.models.requests_account_deletion_request import (
+    RequestsAccountDeletionRequest,
+)
 
 # Shared deterministic blocklist test constants
 TEST_BLOCKLIST_ID = "hagezi_threat_intelligence_feeds_full"
@@ -41,7 +47,8 @@ def ensure_test_blocklisted():
     """Insert a deterministic test domain into the target blocklist for the duration of a test.
     The subdomain is intentionally not added; proxy logic should still block it when subdomain rule applies.
     """
-    r = redis.Redis(host="localhost", port=6379, db=0)
+    cfg = get_settings()
+    r = redis.Redis(host=cfg.REDIS_HOST, port=cfg.REDIS_PORT, db=0)
     key = f"blocklist:{TEST_BLOCKLIST_ID}"
     r.sadd(key, TEST_DOMAIN)
     try:
@@ -58,7 +65,8 @@ def ensure_domain_blocklisted():
     then request this fixture.  The domain is removed on teardown.
     """
     _inserted = []
-    r = redis.Redis(host="localhost", port=6379, db=0)
+    cfg = get_settings()
+    r = redis.Redis(host=cfg.REDIS_HOST, port=cfg.REDIS_PORT, db=0)
     key = f"blocklist:{TEST_BLOCKLIST_ID}"
 
     def _insert(domain: str):
@@ -76,27 +84,37 @@ def ensure_domain_blocklisted():
 def create_account_and_login():
     """
     Pytest fixture to create a new account, log in, and return the account object with session cookie.
-    Cleans up by deleting the account after the test class is completed.
+    Cleans up by deleting the account (and all its profiles) after the test class is completed.
     """
-    account, cookie = create_acc_and_login_func()
+    account, cookie, password = create_acc_and_login_func()
     yield account, cookie
+    delete_account(cookie, password, account_id=account.id)
 
-    # TODO: Cleanup: delete the account after the test
-    # this has to be done together with scope change
-    # try:
-    #     config = get_settings()
-    #     api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    #     with client.ApiClient(api_conf) as api_client:
-    #         account_api = api.AccountApi(api_client)
-    #         account_api.api_client.default_headers["Cookie"] = cookie
-    # TODO: get deletion code before
-    #         resp = account_api.api_v1_accounts_current_delete_with_http_info()
-    #         assert (
-    #             resp.status_code == 204
-    #         ), f"Account deletion failed with status code: {resp.status_code}"
-    # except Exception as e:
-    #     # Log the error but don't fail the test due to cleanup issues
-    #     print(f"Warning: Failed to delete test account {account.id}: {str(e)}")
+
+def delete_account(cookie: str, password: str, *, account_id: str = "?") -> None:
+    """Best-effort account deletion via the deletion-code + password-reauth flow.
+
+    Deleting the account removes all its profiles and cached state, so test
+    runs don't accumulate data in Mongo/Redis. Failures are logged, not raised —
+    cleanup problems must not fail an otherwise green test.
+    """
+    try:
+        config = get_settings()
+        api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
+        with client.ApiClient(api_conf) as api_client:
+            account_api = api.AccountApi(api_client)
+            account_api.api_client.default_headers["Cookie"] = cookie
+            code_resp = account_api.api_v1_accounts_current_deletion_code_post()
+            resp = account_api.api_v1_accounts_current_delete_with_http_info(
+                body=RequestsAccountDeletionRequest(
+                    deletion_code=code_resp.code, current_password=password
+                )
+            )
+            assert resp.status_code in (200, 204), (
+                f"Account deletion failed with status code: {resp.status_code}"
+            )
+    except Exception as e:
+        print(f"Warning: Failed to delete test account {account_id}: {e}")
 
 
 def create_temp_subscription(validity_days: int = 30) -> tuple[str, str]:
@@ -125,7 +143,7 @@ def create_temp_subscription(validity_days: int = 30) -> tuple[str, str]:
     token_hash = base64.b64encode(hashlib.sha256(token.encode()).digest()).decode()
 
     # 1. Create preauth entry in mock preauth service
-    mock_preauth_url = _os.getenv("MOCK_PREAUTH_URL", "http://localhost:8080")
+    mock_preauth_url = config.MOCK_PREAUTH_URL
     http_requests.post(
         f"{mock_preauth_url}/entry",
         json={
@@ -169,12 +187,15 @@ def create_temp_subscription(validity_days: int = 30) -> tuple[str, str]:
 
 
 def create_acc_and_login_func():
-    """Create a new account, log in, fetch current account and return (account, cookie).
+    """Create a new account, log in, fetch current account and return (account, cookie, password).
     Flow:
         1. create temp subscription cache key
         2. register account (201 expected)
         3. login to obtain session cookie
         4. GET /accounts/current to retrieve full account object
+
+    The plaintext password is returned so callers can perform reauth flows
+    (e.g. account deletion in fixture teardown).
     """
     config = get_settings()
     api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
@@ -214,17 +235,21 @@ def create_acc_and_login_func():
         account_api.api_client.default_headers["Cookie"] = cookie
         account = account_api.api_v1_accounts_current_get()
         assert len(account.profiles) == 1
-        return account, cookie
+        return account, cookie, password
 
 
 @pytest.fixture(scope="session", autouse=True)
-def ensure_blocklists_configured():
+def ensure_blocklists_configured(start_compose):
     """
-    Autouse fixture that runs once per test session to ensure blocklists are configured.
+    Autouse fixture that runs once per test session to ensure blocklists are
+    configured and the DNS stack is ready to serve queries.
     Fails the test run early if no blocklists are found.
     Uses retry with exponential backoff to handle temporary unavailability.
+
+    Depends on ``start_compose`` explicitly so the containers are guaranteed
+    to be up before the first API call, regardless of autouse ordering.
     """
-    acc, cookie = create_acc_and_login_func()
+    acc, cookie, password = create_acc_and_login_func()
     config = get_settings()
     api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
 
@@ -252,6 +277,25 @@ def ensure_blocklists_configured():
             ), "Threat Intelligence Feeds blocklist is not enabled. Please enable it before running tests."
 
     check_blocklists()
+
+    # DNS-stack readiness gate. The proxy image is FROM scratch (no shell), so
+    # it cannot declare a compose healthcheck and testcontainers' wait=True
+    # only gates the API. One successfully resolved query through the full
+    # chain (proxy TLS → replica Redis profile lookup → recursor, using the
+    # testhosts-pinned test.com) proves the stack is ready before any test runs.
+    dns_lib = DNSLib(config.DOH_ENDPOINT)
+    resp = asyncio.run(
+        dns_lib.wait_until(
+            acc.profiles[0], "test.com", A, is_resolved, timeout=60.0, interval=1.0
+        )
+    )
+    assert is_resolved(resp), (
+        "DNS stack not ready: proxy did not resolve pinned domain test.com within 60s"
+    )
+
+    yield
+
+    delete_account(cookie, password, account_id=acc.id)
 
 
 @pytest.fixture(scope="session")  # autouse=True

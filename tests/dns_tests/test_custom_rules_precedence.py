@@ -35,7 +35,9 @@ class TestCustomRulesPrecedence:
         self.config = get_settings()
         self.api_config = api_config.Configuration(host=self.config.DNS_API_ADDR)
         self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
-        self.redis_client = redis.Redis(host="localhost", port=6379, db=0)
+        self.redis_client = redis.Redis(
+            host=self.config.REDIS_HOST, port=self.config.REDIS_PORT, db=0
+        )
 
     def _create_profile(self, profiles_instance, name):
         """Helper to create a new profile and return its ID."""

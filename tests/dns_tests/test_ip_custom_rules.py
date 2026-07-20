@@ -34,6 +34,9 @@ TEST_IPV6 = "2001:41d0:701:1100::29c8"
 TEST_IPV6_DOMAIN = "ipv6-test.com"
 # RFC 5737 TEST-NET address — guaranteed to not appear in any real DNS response.
 NONEXISTENT_IPV4 = "192.0.2.1"
+# Pinned to 8.8.8.8 in config/testhosts.txt — resolves deterministically and
+# shares no IP with TEST_IPV4_DOMAIN, so "unrelated domain" tests need no live DNS.
+UNRELATED_PINNED_DOMAIN = "svctest-google.com"
 
 
 class TestIPCustomRules:
@@ -135,13 +138,13 @@ class TestIPCustomRules:
 
             # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
-                profile_id, "google.com", A
+                profile_id, TEST_IPV4_DOMAIN, A
             )
-            assert resp.answer, "Expected an answer for google.com"
+            assert resp.answer, f"Expected an answer for {TEST_IPV4_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert ip_addr != "0.0.0.0", (
                 f"Non-matching IP block rule for {NONEXISTENT_IPV4} should not "
-                f"block google.com; got {ip_addr}"
+                f"block {TEST_IPV4_DOMAIN}; got {ip_addr}"
             )
             assert ip_address(ip_addr), f"Expected a valid IP, got {ip_addr}"
 
@@ -153,8 +156,8 @@ class TestIPCustomRules:
     async def test_ip_block_does_not_affect_unrelated_domain(
         self, create_account_and_login
     ):
-        """Blocking an IP that test.com resolves to must not block google.com
-        (which resolves to a different IP)."""
+        """Blocking an IP that test.com resolves to must not block an
+        unrelated pinned domain that resolves to a different IP."""
         account, cookie = create_account_and_login
         with client.ApiClient(self.api_config) as api_client:
             p = api.ProfileApi(api_client)
@@ -165,13 +168,13 @@ class TestIPCustomRules:
 
             # NOTE: negative assertion — cannot poll; may read pre-mutation state (see DNSLib.wait_until docstring)
             resp = await self.dns_lib.send_doh_request(
-                profile_id, "google.com", A
+                profile_id, UNRELATED_PINNED_DOMAIN, A
             )
-            assert resp.answer, "Expected an answer for google.com"
+            assert resp.answer, f"Expected an answer for {UNRELATED_PINNED_DOMAIN}"
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
             assert ip_addr != "0.0.0.0", (
-                f"IP block rule for {TEST_IPV4} should not block google.com; "
-                f"got {ip_addr}"
+                f"IP block rule for {TEST_IPV4} should not block "
+                f"{UNRELATED_PINNED_DOMAIN}; got {ip_addr}"
             )
 
     # ------------------------------------------------------------------

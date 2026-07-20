@@ -35,6 +35,10 @@ class TestBasic:
             await self.dns_lib.send_doh_request(profile_id, "example.com", "A")
 
     @pytest.mark.asyncio
+    @pytest.mark.xfail(
+        strict=False,
+        reason="depends on live external DNS (facebook.com via real recursion)",
+    )
     async def test_regular_account(self):
         """
         Create account and use its profile_id to resolve some DNS request.

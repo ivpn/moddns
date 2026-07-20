@@ -1,3 +1,4 @@
+import uuid
 from ipaddress import ip_address, IPv6Address
 
 import pytest
@@ -10,7 +11,7 @@ from dns.flags import RD, QR
 import moddns.api_client as client
 import moddns.api as api
 import moddns.configuration as api_config
-from moddns import RequestsCreateProfileCustomRuleBody
+from moddns import ApiCreateProfileBody, RequestsCreateProfileCustomRuleBody
 
 
 class TestCustomRules:
@@ -110,12 +111,22 @@ class TestCustomRules:
         account, cookie = create_account_and_login
         with client.ApiClient(self.api_config) as api_client:
             profiles_instance = api.ProfileApi(api_client)
+            profiles_instance.api_client.default_headers["Cookie"] = cookie
 
-            profile_id = account.profiles[0]
+            # Fresh profile per parametrization: rules must not accumulate on
+            # the shared class profile across the 13 params. Name must be
+            # unique — the API rejects duplicate profile names per account.
+            create_resp = profiles_instance.api_v1_profiles_post_with_http_info(
+                body=ApiCreateProfileBody(name=f"custom_rule_{uuid.uuid4().hex[:8]}")
+            )
+            assert (
+                create_resp.status_code == 201
+            ), f"Failed to create profile with status code: {create_resp.status_code}"
+            profile_id = create_resp.data.profile_id
+
             custom_rule_body = RequestsCreateProfileCustomRuleBody(
                 action="block", value=test_domain
             )
-            profiles_instance.api_client.default_headers["Cookie"] = cookie
             ur_resp = (
                 profiles_instance.api_v1_profiles_id_custom_rules_post_with_http_info(
                     id=profile_id, body=custom_rule_body

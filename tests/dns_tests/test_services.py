@@ -447,6 +447,10 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
         self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
 
     @pytest.mark.asyncio
+    @pytest.mark.xfail(
+        strict=False,
+        reason="depends on live external DNS (google.com HTTPS records)",
+    )
     async def test_services_block_https_query_no_ip_hints(
         self, create_account_and_login
     ):
@@ -485,6 +489,10 @@ class TestServicesHTTPSBlocking(ProfileHelpers):
                     )
 
     @pytest.mark.asyncio
+    @pytest.mark.xfail(
+        strict=False,
+        reason="depends on live external DNS (google.com HTTPS records)",
+    )
     async def test_services_no_block_real_domain_https_query(
         self, create_account_and_login
     ):

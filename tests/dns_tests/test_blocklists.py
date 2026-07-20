@@ -30,7 +30,9 @@ class TestBlocklistFilters:
         self.config = get_settings()
         self.api_config = api_config.Configuration(host=self.config.DNS_API_ADDR)
         self.dns_lib = DNSLib(self.config.DOH_ENDPOINT)
-        self.redis_client = redis.Redis(host="localhost", port=6379, db=0)
+        self.redis_client = redis.Redis(
+            host=self.config.REDIS_HOST, port=self.config.REDIS_PORT, db=0
+        )
 
     def test_threat_intelligence_feeds_blocklist(
         self, create_account_and_login, ensure_test_blocklisted
@@ -120,7 +122,16 @@ class TestBlocklistFilters:
         account, cookie = create_account_and_login
         with client.ApiClient(self.api_config) as api_client:
             profiles_instance = api.ProfileApi(api_client)
-            profile_id = account.profiles[0]
+            # Fresh profile: this test disables the blocklist and must not
+            # mutate the shared class profile other tests assert against.
+            profiles_instance.api_client.default_headers["Cookie"] = cookie
+            create_resp = profiles_instance.api_v1_profiles_post_with_http_info(
+                body=ApiCreateProfileBody(name="bl_disable_test")
+            )
+            assert (
+                create_resp.status_code == 201
+            ), f"Failed to create profile with status code: {create_resp.status_code}"
+            profile_id = create_resp.data.profile_id
 
             resp = await self.dns_lib.wait_until(profile_id, TEST_DOMAIN, A, is_blocked)
             ip_addr = resp.answer[0].to_text().split(" ")[-1]
