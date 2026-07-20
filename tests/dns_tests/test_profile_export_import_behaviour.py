@@ -7,7 +7,7 @@ catalog degradation, and the profile-count cap.
 """
 
 import pytest
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, assert_blocked, is_blocked
 from libs.settings import get_settings
 from libs.profile_helpers import (
     ProfileHelpers,
@@ -111,29 +111,20 @@ class TestRoundTrip(ProfileHelpers):
         new_profile_id = body["createdProfileIds"][0]
         assert isinstance(new_profile_id, str) and new_profile_id
 
-        resp = await self.dns_lib.send_doh_request(new_profile_id, BLOCKLISTED_DOMAIN, A)
-        ip_addr = resp.answer[0].to_text().split(" ")[-1]
-        assert ip_addr == "0.0.0.0", (
-            f"Imported profile did not apply blocklist; {BLOCKLISTED_DOMAIN} -> {ip_addr}"
+        resp = await self.dns_lib.wait_until(
+            new_profile_id, BLOCKLISTED_DOMAIN, A, is_blocked
         )
+        assert_blocked(resp, f"{BLOCKLISTED_DOMAIN} (imported blocklist)")
 
-        resp = await self.dns_lib.send_doh_request(
-            new_profile_id, SVC_GOOGLE_DOMAIN, A
+        resp = await self.dns_lib.wait_until(
+            new_profile_id, SVC_GOOGLE_DOMAIN, A, is_blocked
         )
-        ip_addr = resp.answer[0].to_text().split(" ")[-1]
-        assert ip_addr == "0.0.0.0", (
-            f"Imported profile did not apply service block; "
-            f"{SVC_GOOGLE_DOMAIN} -> {ip_addr}"
-        )
+        assert_blocked(resp, f"{SVC_GOOGLE_DOMAIN} (imported service block)")
 
-        resp = await self.dns_lib.send_doh_request(
-            new_profile_id, CUSTOM_RULE_DOMAIN, A
+        resp = await self.dns_lib.wait_until(
+            new_profile_id, CUSTOM_RULE_DOMAIN, A, is_blocked
         )
-        ip_addr = resp.answer[0].to_text().split(" ")[-1]
-        assert ip_addr == "0.0.0.0", (
-            f"Imported profile did not apply custom rule; "
-            f"{CUSTOM_RULE_DOMAIN} -> {ip_addr}"
-        )
+        assert_blocked(resp, f"{CUSTOM_RULE_DOMAIN} (imported custom rule)")
 
         imported = _get_profile(self.api_config, cookie_b, new_profile_id)
         assert imported.settings.security.dnssec.enabled is True, (
