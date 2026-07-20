@@ -1,4 +1,4 @@
-"""HTTP-contract integration tests for profile export/import endpoints.
+"""HTTP-contract backend E2E tests for profile export/import endpoints.
 
 Covers Sections E, I, V, M, S of docs/specs/account-export-import-behaviour.md.
 These tests assert only HTTP-level behaviour (status codes, headers, response

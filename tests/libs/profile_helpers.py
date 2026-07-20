@@ -1,4 +1,4 @@
-"""Shared helpers for integration tests that manage profiles, custom rules, services, and blocklists."""
+"""Shared helpers for backend E2E tests that manage profiles, custom rules, services, and blocklists."""
 
 import uuid
 

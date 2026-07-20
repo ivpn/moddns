@@ -1,4 +1,4 @@
-"""Minimal mock preauth server for integration tests.
+"""Minimal mock preauth server for backend E2E tests.
 
 Stores preauth entries in memory. The test creates entries via POST /entry,
 and the API service fetches them via GET /<id>.

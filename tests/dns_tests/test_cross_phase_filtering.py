@@ -1,4 +1,4 @@
-"""Cross-phase DNS filtering integration tests.
+"""Cross-phase DNS filtering backend E2E tests.
 
 Tests interactions between domain-phase (pre-resolve) and IP-phase
 (post-resolve) filters, covering scenarios from the behaviour table

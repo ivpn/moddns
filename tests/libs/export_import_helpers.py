@@ -1,4 +1,4 @@
-"""Helpers for profile export/import integration tests.
+"""Helpers for profile export/import backend E2E tests.
 
 The generated Python API client uses strict pydantic models that reject many
 of the invalid inputs we need to test (unknown scope values, schemaVersion=2,

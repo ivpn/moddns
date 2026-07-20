@@ -1,4 +1,4 @@
-These are stub .mmdb files for integration tests, NOT full GeoLite2 databases.
+These are stub .mmdb files for backend E2E tests, NOT full GeoLite2 databases.
 
 They contain only two entries (AS15169 Google, AS13335 Cloudflare).
 City lookups return empty records but won't crash.

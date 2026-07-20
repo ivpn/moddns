@@ -1,4 +1,4 @@
-"""End-to-end integration tests for the signup-reset (account retirement) flow.
+"""Backend E2E tests for the signup-reset (account retirement) flow.
 
 specRef: docs/specs/signup-reset-behaviour.md (RT3, RT5-RT8, R-E9, and the
 no-false-positive invariant)

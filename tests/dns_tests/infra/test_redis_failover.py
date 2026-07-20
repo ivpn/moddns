@@ -1,5 +1,5 @@
 """
-Redis Read-Replica Failover Integration Test
+Redis Read-Replica Failover Backend E2E Test
 
 Verifies that the proxy falls back to the Redis master (via sentinel) when
 its co-located read replica becomes unavailable, and switches back when the

@@ -21,7 +21,7 @@ from conftest import TEST_BLOCKLIST_ID, TEST_DOMAIN, TEST_SUBDOMAIN
 
 class TestCustomRulesPrecedence:
     """
-    End-to-end integration tests verifying that custom rules take precedence
+    Backend E2E tests verifying that custom rules take precedence
     over blocklist blocking and default_rule settings.
 
     The DNS proxy evaluates filtering tiers in priority order:
