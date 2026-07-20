@@ -66,3 +66,9 @@ jobs:
 
       - name: Run backend E2E tests
         run: cd tests/; make test_ci
+
+      # Destructive (stops/starts the Redis replica container), so it is
+      # excluded from the default invocation via pytest addopts and runs
+      # here as its own session with a fresh compose stack.
+      - name: Run Redis failover backend E2E tests
+        run: cd tests/; make test_failover
