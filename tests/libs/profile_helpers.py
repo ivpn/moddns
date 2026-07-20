@@ -1,8 +1,8 @@
-"""Shared helpers for integration tests that manage profiles, custom rules, services, and blocklists."""
+"""Shared helpers for backend E2E tests that manage profiles, custom rules, services, and blocklists."""
 
 import uuid
 
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, is_blocked
 from dns.rdatatype import A
 
 import moddns.api_client as client
@@ -34,10 +34,7 @@ REAL_GOOGLE_DOMAIN = "google.com"  # Real domain; HTTPS record has alpn but NO i
 # rather than break CI.
 REAL_HTTPS_HINTS_DOMAIN = "cloudflare.com"
 
-TEST_DOMAIN = "test.com"
-TEST_IP = "104.18.74.230"  # AS13335 (Cloudflare, not in catalog)
-
-TEST_BLOCKLIST_ID = "hagezi_threat_intelligence_feeds_full"
+from libs.constants import TEST_BLOCKLIST_ID  # noqa: E402, F401  (re-export)
 
 
 # ---------------------------------------------------------------------------
@@ -132,7 +129,7 @@ async def _services_available_probe(dns_lib, profiles_api):
             id=probe_id, service_ids=svc_body
         )
 
-        dns_resp = await dns_lib.send_doh_request(probe_id, SVC_GOOGLE_DOMAIN, A)
+        dns_resp = await dns_lib.wait_until(probe_id, SVC_GOOGLE_DOMAIN, A, is_blocked)
         ip_str = extract_ip(dns_resp)
         return ip_str == "0.0.0.0"
     except Exception:

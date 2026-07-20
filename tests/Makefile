@@ -10,6 +10,9 @@ install_test_dependencies: ## Install the test dependencies
 test_ci: ## Run the tests in CI mode
 	pytest -s dns_tests/
 
+test_failover: ## Run the destructive Redis failover tests (excluded from test_ci by default addopts)
+	pytest -s -m redis_failover dns_tests/infra/
+
 venv:
 	source venv/bin/activate
 

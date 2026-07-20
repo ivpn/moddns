@@ -1,0 +1,38 @@
+# Test-suite tooling config. pytest resolves this as its rootdir config when
+# run from tests/ (e.g. `make test_ci` → `pytest -s dns_tests/`).
+
+[tool.pytest.ini_options]
+# pytest-asyncio: strict was previously only the library default; pin it so
+# async tests must carry @pytest.mark.asyncio explicitly.
+asyncio_mode = "strict"
+# The redis_failover tests stop/start Redis containers and take minutes of
+# fixed waits — run them deliberately with `pytest -m redis_failover`.
+addopts = '-m "not redis_failover"'
+markers = [
+    "integration: end-to-end flows requiring the full docker stack",
+    "redis_failover: destructive tests that stop/start the Redis replica container (excluded by default)",
+]
+# A typo'd marker name should fail loudly instead of silently never deselecting.
+filterwarnings = [
+    "error::pytest.PytestUnknownMarkWarning",
+]
+
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["moddns_client", "venv", "__pycache__", "docker_logs"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "B",     # bugbear
+    "UP",    # pyupgrade (e.g. deprecated datetime.utcnow)
+    "SIM",   # simplify
+    "ASYNC", # blocking calls inside async functions
+    "RUF",
+]
+ignore = [
+    "E501", # tests carry long table-data / assertion-message lines
+]

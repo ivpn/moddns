@@ -149,7 +149,7 @@ make test
 ```
 (See `proxy/Makefile` for additional targets like `make lint`, `make dev`, etc.)
 
-### Integration tests (`tests/`)
+### Backend E2E tests (`tests/`)
 ```bash
 python -m venv tests/venv
 source tests/venv/bin/activate

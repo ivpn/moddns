@@ -20,6 +20,7 @@ local-data:
     test.com: [104.18.74.230]
     ads.wp.pl: [212.77.99.7]
     svctest-google.com: [8.8.8.8]
+    ipv6-test.com: [2001:41d0:701:1100::29c8]
 
 cache:
   size-max: 256M

@@ -1,4 +1,4 @@
-# Services catalog for integration tests.
+# Services catalog for backend E2E tests.
 # Copied from bootstrap/services/catalog.yml — keep in sync.
 #
 # Test infrastructure:

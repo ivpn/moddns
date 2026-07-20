@@ -1,5 +1,5 @@
 """
-Integration tests for DNS Connection Status Check feature.
+Backend E2E tests for DNS Connection Status Check feature.
 
 This test suite validates the complete flow of the DNS connection check feature:
 1. DNS query to dnscheck authoritative server
@@ -28,7 +28,7 @@ from libs.dns_lib import DNSLib
 
 @pytest.mark.skip(reason="I did not manage to fully setup the test environment")
 class TestDnsConnectionStatus:
-    """Integration tests for DNS connection status check feature."""
+    """Backend E2E tests for DNS connection status check feature."""
 
     def setup_class(self):
         """Setup the test class."""

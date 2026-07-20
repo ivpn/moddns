@@ -2,10 +2,9 @@
 
 This directory contains certificates necessary for local development and testing.
 
-
-1. `private_key.pem` and `certificate.pem` are used in API unit tests and integration tests (mobileconfig generation).
-2. `moddns.dev+4.pem` and `moddns.dev+4-key.pem` are the TLS server cert/key (SANs: `moddns.dev`, `*.moddns.dev`, `localhost`, `127.0.0.1`, `::1`) used for local development and in integration tests. The proxy serves them for DoH/DoT/DoQ on `moddns.dev`.
-3. `moddns_dev_development_CA.crt` is the root CA that signed the cert above. It is trusted by the integration test client (both locally via `tests/Dockerfile` and in the GitHub workflow) so `https://moddns.dev` validates.
+1. `private_key.pem` and `certificate.pem` are used in API unit tests and backend E2E tests (mobileconfig generation).
+2. `moddns.dev+4.pem` and `moddns.dev+4-key.pem` are the TLS server cert/key (SANs: `moddns.dev`, `*.moddns.dev`, `localhost`, `127.0.0.1`, `::1`) used for local development and in backend E2E tests. The proxy serves them for DoH/DoT/DoQ on `moddns.dev`.
+3. `moddns_dev_development_CA.crt` is the root CA that signed the cert above. It is trusted by the backend E2E test client (both locally via `tests/Dockerfile` and in the GitHub workflow) so `https://moddns.dev` validates.
 
 #### Regenerating on expiry
 

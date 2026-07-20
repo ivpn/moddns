@@ -1,4 +1,4 @@
-"""Helpers for profile export/import integration tests.
+"""Helpers for profile export/import backend E2E tests.
 
 The generated Python API client uses strict pydantic models that reject many
 of the invalid inputs we need to test (unknown scope values, schemaVersion=2,
@@ -25,28 +25,8 @@ import moddns.api as api
 import moddns.api_client as client
 import moddns.configuration as api_config
 from moddns import RequestsLoginBody
+from libs.accounts import create_account
 from libs.settings import get_settings
-
-
-# Special-char set matching the API's `reSpecialChar` regex in
-# api/internal/validator/validator.go:23. `helpers.generate_complex_password`
-# draws from string.punctuation, which can pick characters outside this set
-# (e.g. apostrophe, backslash) and cause flaky registration failures —
-# regenerate here with a constrained pool so account creation is deterministic.
-_PASSWORD_SPECIALS = "!@#$%^&*(),;.?:{}[]|<>_-"
-
-
-def _stable_complex_password(length: int = 16) -> str:
-    pool = string.ascii_letters + string.digits + _PASSWORD_SPECIALS
-    parts = [
-        random.choice(string.ascii_uppercase),
-        random.choice(string.ascii_lowercase),
-        random.choice(string.digits),
-        random.choice(_PASSWORD_SPECIALS),
-    ]
-    parts.extend(random.choice(pool) for _ in range(length - 4))
-    random.shuffle(parts)
-    return "".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -55,47 +35,11 @@ def _stable_complex_password(length: int = 16) -> str:
 def create_account_with_password() -> tuple[Any, str, str, str]:
     """Create a new account and return (account, cookie, password, email).
 
-    Mirrors conftest.create_acc_and_login_func but also surfaces the plaintext
-    password and email so tests can perform reauth via the current_password
-    path. Each call yields a fresh account so rate-limit / max-profiles tests
+    Thin wrapper over libs.accounts.create_account, kept for existing call
+    sites. Each call yields a fresh account so rate-limit / max-profiles tests
     stay isolated.
     """
-    from conftest import create_temp_subscription  # local to avoid cycles
-
-    config = get_settings()
-    api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    with client.ApiClient(api_conf) as api_client:
-        account_api = api.AccountApi(api_client)
-        auth_api = api.AuthenticationApi(api_client)
-
-        email = (
-            f"test{''.join(random.choice(string.digits) for _ in range(5))}@ivpn.net"
-        )
-        password = _stable_complex_password()
-
-        subscription_id, pa_cookie = create_temp_subscription()
-
-        account_api.api_client.default_headers["Cookie"] = pa_cookie
-        reg_resp = account_api.api_v1_accounts_post_with_http_info(
-            body={"email": email, "password": password, "subid": subscription_id}
-        )
-        assert reg_resp.status_code == 201, (
-            f"Registration failed with status code: {reg_resp.status_code}"
-        )
-
-        login_response = auth_api.api_v1_login_post_with_http_info(
-            body=RequestsLoginBody(email=email, password=password)
-        )
-        assert login_response.status_code == 200, (
-            f"Login failed with status code: {login_response.status_code}"
-        )
-        cookie = login_response.headers.get("Set-Cookie")
-        assert cookie, "No session cookie returned after login"
-
-        account_api.api_client.default_headers["Cookie"] = cookie
-        account = account_api.api_v1_accounts_current_get()
-        assert len(account.profiles) == 1
-        return account, cookie, password, email
+    return create_account()
 
 
 # ---------------------------------------------------------------------------

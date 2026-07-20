@@ -41,7 +41,7 @@ mkcert automatically installs its root CA into the system trust store, so browse
 
 > [!NOTE]
 > The certificates committed under `certs/` (`moddns.dev+4.pem` / `moddns.dev+4-key.pem`, signed by
-> `moddns_dev_development_CA.crt`) are what the integration tests use. mkcert is only needed if you want a
+> `moddns_dev_development_CA.crt`) are what the backend E2E tests use. mkcert is only needed if you want a
 > CA your **browser** trusts automatically for local dev. See `certs/README.md` for the regeneration recipe.
 
 ## Local DNS overrides with dnsmasq
