@@ -29,6 +29,12 @@ export const Tooltip: React.FC<TooltipProps> = ({
     const triggerRef = useRef<HTMLSpanElement | null>(null);
     const [style, setStyle] = useState<React.CSSProperties>({});
     const [mounted, setMounted] = useState(false);
+    // Touch support (#127): hover never fires on touchscreens, so taps toggle the
+    // tooltip instead. Track the last pointerdown's type with a timestamp — the
+    // synthetic mouseenter/focus/click a tap emits arrive within milliseconds, so
+    // a recent non-mouse pointerdown means "this interaction is a tap".
+    const lastPointerRef = useRef<{ type: string; at: number }>({ type: 'mouse', at: 0 });
+    const openedByTapRef = useRef(false);
 
     useEffect(() => { setMounted(true); return () => setMounted(false); }, []);
 
@@ -38,7 +44,40 @@ export const Tooltip: React.FC<TooltipProps> = ({
         clear();
         timeoutRef.current = window.setTimeout(() => setOpen(true), delay);
     };
-    const hide = () => { clear(); setOpen(false); };
+    const hide = () => { clear(); openedByTapRef.current = false; setOpen(false); };
+
+    const isRecentTouch = () =>
+        lastPointerRef.current.type !== 'mouse' && Date.now() - lastPointerRef.current.at < 1000;
+
+    const recordPointer = (e: React.PointerEvent) => {
+        lastPointerRef.current = { type: e.pointerType || 'mouse', at: Date.now() };
+    };
+
+    const handleMouseEnter = () => { if (!isRecentTouch()) show(); };
+    const handleMouseLeave = () => { if (!openedByTapRef.current) hide(); };
+    const handleFocus = () => { if (!isRecentTouch()) show(); };
+    const handleClick = () => {
+        if (!isRecentTouch()) return; // mouse/keyboard users keep the pure hover/focus UX
+        clear();
+        openedByTapRef.current = !open;
+        setOpen(v => !v);
+    };
+
+    // While tap-opened, dismiss on tap outside the trigger or on Escape.
+    useEffect(() => {
+        if (!open || !openedByTapRef.current) return;
+        const onDocPointerDown = (e: PointerEvent) => {
+            if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) hide();
+        };
+        const onKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') hide(); };
+        document.addEventListener('pointerdown', onDocPointerDown, true);
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', onDocPointerDown, true);
+            document.removeEventListener('keydown', onKeyDown);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     useEffect(() => {
         if (open && triggerRef.current) {
@@ -102,10 +141,13 @@ export const Tooltip: React.FC<TooltipProps> = ({
     return (
         <span
             ref={triggerRef}
-            onMouseEnter={show}
-            onMouseLeave={hide}
-            onFocus={show}
+            onPointerEnter={recordPointer}
+            onPointerDown={recordPointer}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onFocus={handleFocus}
             onBlur={hide}
+            onClick={handleClick}
             className="relative inline-flex"
         >
             {children}
