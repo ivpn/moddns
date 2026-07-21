@@ -532,7 +532,11 @@ function ProtectedLayout() {
 
         <div
           ref={mainHeaderRef}
-          className={`fixed z-50 transition-all duration-500 ${isDesktop ? '' : 'left-0 right-0'}`}
+          data-testid="app-header-wrapper"
+          // Only desktop geometry changes (sidebar collapse, connection-header toggle)
+          // should animate. On mobile a transition here animates URL-bar-collapse
+          // reflows on Android Chrome, opening a transient gap below the header (#121).
+          className={`fixed z-50 ${isDesktop ? 'transition-[top,left,width] duration-500' : 'left-0 right-0'}`}
           // Desktop: size by width off 100vw (matching app-content) rather than anchoring
           // with `right`, so a classic scrollbar appearing doesn't shift the header (#118).
           style={isDesktop ? {
