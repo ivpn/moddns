@@ -117,8 +117,8 @@ export default function EditProfileDialog({
 
                             {/* Delete profile section */}
                             <Card className="w-full bg-transparent dark:bg-[var(--danger-zone-bg)] border border-[var(--tailwind-colors-red-400)] dark:border-transparent rounded-md">
-                                <CardContent className="flex items-center justify-between p-4">
-                                    <div className="flex flex-col gap-2 max-w-[412px]">
+                                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 flex-wrap p-4">
+                                    <div className="flex flex-col gap-2 min-w-0 max-w-full break-words sm:max-w-[412px]">
                                         <h3 className="font-['Roboto_Flex-Medium',Helvetica] font-medium text-[var(--shadcn-ui-app-foreground)] text-base leading-4">
                                             Delete profile
                                         </h3>
@@ -131,7 +131,7 @@ export default function EditProfileDialog({
                                     </div>
 
                                     <Button
-                                        className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto min-w-40"
+                                        className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
                                         onClick={() => setShowDeleteDialog(true)}
                                     >
                                         <Trash2Icon className="w-4 h-4 text-white" />
