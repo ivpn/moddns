@@ -10,9 +10,14 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': the new SW stays in "waiting" until the app applies it via
+      // the update flow in setupSWUpdate (src/lib/swUpdate.ts), so an open tab
+      // never mixes old page code with a new SW whose precache dropped the old
+      // chunks.
+      registerType: 'prompt',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp)$/,
