@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,12 +51,14 @@ const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, 
                 <div className="flex flex-col items-center w-full">
                     <div className="inline-flex items-center gap-[var(--spacing-spacing-16)] flex-col">
                         {/* Logo */}
-                        <img
-                            className="mb-8 w-[200px] h-10 mx-auto"
-                            alt="modDNS logo"
-                            src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
-                            style={{ display: "block" }}
-                        />
+                        <Link to="/" aria-label="modDNS home" className="mb-8 mx-auto block">
+                            <img
+                                className="w-[200px] h-10"
+                                alt="modDNS logo"
+                                src={isDarkMode ? modDNSLogoDarkTheme : modDNSLogoLightTheme}
+                                style={{ display: "block" }}
+                            />
+                        </Link>
                     </div>
 
                     <div className="text-center max-w-[316px]">
