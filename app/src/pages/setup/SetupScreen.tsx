@@ -181,13 +181,11 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                             return (
                                                                 <div
                                                                     key={index}
-                                                                    className={`flex items-center justify-between w-full ${interactive ? 'cursor-pointer rounded-md px-2 -mx-2 active:bg-muted focus:bg-muted focus:outline-none' : ''}`}
-                                                                    onClick={interactive ? () => copyToClipboard(value as string, label) : undefined}
-                                                                    role={interactive ? 'button' : undefined}
-                                                                    tabIndex={interactive ? 0 : undefined}
-                                                                    aria-label={interactive ? `Copy ${label}` : undefined}
-                                                                    onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(value as string, label); } } : undefined}
+                                                                    className="flex items-center justify-between w-full gap-2"
                                                                 >
+                                                                    {/* Left side (label + info icon) is deliberately outside the
+                                                                        copy tap zone so the tooltip tap and copy tap can't collide
+                                                                        on touch devices (#127). */}
                                                                     <span className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] leading-[25.4px] select-none inline-flex items-center gap-1">
                                                                         {label}
                                                                         {(label === "IPv4" || label === "IPv6") && (
@@ -195,16 +193,24 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
                                                                                 <button
                                                                                     type="button"
                                                                                     aria-label={`${label} usage information`}
-                                                                                    className="inline-flex items-center justify-center rounded-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                                                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                                                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                                                    className="inline-flex items-center justify-center rounded-sm p-2 -m-1.5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                                                                 >
                                                                                     <Info className="w-3.5 h-3.5 text-[var(--shadcn-ui-app-muted-foreground)]" />
                                                                                 </button>
                                                                             </Tooltip>
                                                                         )}
                                                                     </span>
-                                                                    <div className="inline-flex items-center justify-end gap-2">
+                                                                    {/* flex-1: the copy tap zone always fills the row up to the
+                                                                        label/info area, independent of the value's length, so
+                                                                        IPv4 and IPv6 get identical tap targets. */}
+                                                                    <div
+                                                                        className={`flex flex-1 min-w-0 items-center justify-end gap-2 ${interactive ? 'cursor-pointer rounded-md px-2 -mx-2 active:bg-muted focus:bg-muted focus:outline-none' : ''}`}
+                                                                        onClick={interactive ? () => copyToClipboard(value as string, label) : undefined}
+                                                                        role={interactive ? 'button' : undefined}
+                                                                        tabIndex={interactive ? 0 : undefined}
+                                                                        aria-label={interactive ? `Copy ${label}` : undefined}
+                                                                        onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyToClipboard(value as string, label); } } : undefined}
+                                                                    >
                                                                         <span className="text-sm text-[var(--shadcn-ui-app-foreground)] leading-5 font-mono break-all select-all">
                                                                             {value}
                                                                         </span>
