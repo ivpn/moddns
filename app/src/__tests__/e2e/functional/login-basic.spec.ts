@@ -108,4 +108,13 @@ test.describe('Login basic flows (desktop only)', () => {
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toBeVisible();
   });
+
+  test('clicking the modDNS logo navigates to the landing page', async ({ page }) => {
+    await registerMocks(page, { authenticated: false });
+    await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
+    await page.getByRole('link', { name: 'modDNS home' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('.moddns-landing')).toBeVisible();
+  });
 });
