@@ -1,5 +1,6 @@
 import React, { Suspense, useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
 import { useHeaderStackHeight } from '@/lib/useHeaderStackHeight';
+import { useScrolled } from '@/hooks/useScrolled';
 import NavigationMenu from './pages/navigation_menu/NavigationMenu';
 import { useScreenDetector } from './hooks/useScreenDetector';
 import Header from './pages/header/Header';
@@ -369,7 +370,10 @@ function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'publ
     );
   }
   return (
-    <div className={'flex w-full min-h-screen overflow-x-hidden bg-[var(--shadcn-ui-app-background)]'}>
+    // flex-col so the mobile sticky header and app-content stack in flow.
+    // overflow-x-clip, NOT -hidden: `hidden` computes overflow-y:auto and turns
+    // this into a scroll container, which silently breaks position:sticky.
+    <div className={'flex flex-col w-full min-h-screen overflow-x-clip bg-[var(--shadcn-ui-app-background)]'}>
       {children}
     </div>
   );
@@ -432,7 +436,11 @@ function ProtectedLayout() {
 
   const connectionHeaderRef = useRef<HTMLDivElement | null>(null);
   const mainHeaderRef = useRef<HTMLDivElement | null>(null);
+  // Desktop-only consumption: the fixed desktop header needs a measured content
+  // offset (--app-header-stack, tightened by reducePx). Mobile uses a sticky
+  // in-flow header and no longer reads the variable.
   useHeaderStackHeight([connectionHeaderRef, mainHeaderRef], { reducePx: 30 });
+  const scrolled = useScrolled();
 
   useEffect(() => {
     if (rightPanelOpen && location.pathname !== '/setup') {
@@ -530,24 +538,30 @@ function ProtectedLayout() {
           </div>
         )}
 
-        <div
+        {/* On mobile /home every header element is hidden (logo, profile
+            dropdown, page title) — skip the whole bar instead of showing an
+            empty sticky band. Desktop always renders its header. */}
+        {(isDesktop || location.pathname !== '/home') && <div
           ref={mainHeaderRef}
           data-testid="app-header-wrapper"
-          // Only desktop geometry changes (sidebar collapse, connection-header toggle)
-          // should animate. On mobile a transition here animates URL-bar-collapse
-          // reflows on Android Chrome, opening a transient gap below the header (#121).
-          className={`fixed z-50 ${isDesktop ? 'transition-[top,left,width] duration-500' : 'left-0 right-0'}`}
+          // Desktop: fixed, and only its geometry changes (sidebar collapse,
+          // connection-header toggle) animate.
+          // Mobile (#121): sticky in-flow with an edge-to-edge opaque surface —
+          // the content offset is layout-native, so Android URL-bar reflows can
+          // never open a gap. The boundary (hairline + soft shadow, theme-aware)
+          // materializes only while scrolled; geometry is never animated.
+          className={isDesktop
+            ? 'fixed z-50 transition-[top,left,width] duration-500'
+            : `sticky top-0 z-50 w-full bg-[var(--shadcn-ui-app-background)] border-b transition-[border-color,box-shadow] duration-200 ${scrolled
+              ? 'border-border shadow-[0_2px_8px_-2px_rgba(0,0,0,0.10)] dark:shadow-none'
+              : 'border-transparent'}`}
           // Desktop: size by width off 100vw (matching app-content) rather than anchoring
           // with `right`, so a classic scrollbar appearing doesn't shift the header (#118).
           style={isDesktop ? {
             top: `${headerTopOffset}px`,
             left: `${sidebarWidth + shellOffset}px`,
             width: `calc(100vw - ${sidebarWidth + shellOffset}px - ${headerRightOffset + shellOffset}px)`
-          } : {
-            top: '0px',
-            left: '0px',
-            right: '0px'
-          }}
+          } : undefined}
         >
           <div className="mx-auto w-full px-4 sm:px-6 lg:px-8" style={{ maxWidth: contentMaxWidth }}>
             <Header
@@ -561,11 +575,16 @@ function ProtectedLayout() {
               onRestoreConnectionStatus={() => setConnectionStatusVisible(true)}
             />
           </div>
-        </div>
+        </div>}
 
         <div
           data-testid="app-content"
-          className="transition-all duration-200 bg-[var(--shadcn-ui-app-background)] w-full overflow-x-hidden box-border"
+          // The transition is desktop-only: on mobile `transition-all` would
+          // animate 100dvh-driven size changes during Android URL-bar collapse
+          // (same bug class as the old header wrapper transition, #121).
+          // Mobile top offset comes from the sticky in-flow header; flex-1
+          // (BaseLayout is flex-col) replaces the old measured minHeight.
+          className={`bg-[var(--shadcn-ui-app-background)] w-full overflow-x-hidden box-border ${isDesktop ? 'transition-all duration-200' : 'flex-1'}`}
           style={isDesktop ? {
             paddingTop: 'var(--app-header-stack, 64px)',
             marginLeft: `${sidebarWidth + shellOffset}px`,
@@ -573,12 +592,10 @@ function ProtectedLayout() {
             minHeight: 'calc(100vh - (var(--app-header-stack, 64px)))',
             maxWidth: '100vw'
           } : {
-            paddingTop: 'var(--app-header-stack, 110px)',
             paddingBottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
             paddingLeft: '0px',
             marginLeft: '0px',
             width: '100%',
-            minHeight: 'calc(100dvh - 72px - env(safe-area-inset-bottom, 0px))',
             maxWidth: '100vw'
           }}
         >

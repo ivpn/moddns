@@ -14,8 +14,25 @@ test.describe('@layout mobile header wrapper transition', () => {
     await registerMocks(page, { authenticated: true });
   });
 
-  test('fixed header wrapper does not animate geometry on mobile', async ({ page }) => {
+  test('header wrapper is sticky in-flow on mobile', async ({ page }) => {
+    await page.goto('/setup');
+    const wrapper = page.getByTestId('app-header-wrapper');
+    await expect(wrapper).toBeVisible();
+
+    // Sticky (not fixed + measured padding) makes the content offset
+    // layout-native, so Android URL-bar reflows cannot open a gap (#121).
+    const position = await wrapper.evaluate((el) => getComputedStyle(el).position);
+    expect(position).toBe('sticky');
+  });
+
+  test('no empty header bar on /home (all header elements are hidden there)', async ({ page }) => {
     await page.goto('/home');
+    await expect(page.getByTestId('app-content')).toBeVisible();
+    await expect(page.getByTestId('app-header-wrapper')).toHaveCount(0);
+  });
+
+  test('header wrapper does not animate geometry on mobile', async ({ page }) => {
+    await page.goto('/setup');
     const wrapper = page.getByTestId('app-header-wrapper');
     await expect(wrapper).toBeVisible();
 
