@@ -455,8 +455,10 @@ export default function MainContentSection(): JSX.Element {
                                     </Button>
                                 </div>
                             </div>
-                            {/* Row 2: horizontal scroll filters line (mobile) / single row on desktop */}
-                            <div className="flex items-start gap-2 md:gap-3 w-full flex-wrap md:flex-nowrap overflow-visible md:overflow-x-auto no-scrollbar md:flex-row">
+                            {/* Row 2: horizontal scroll filters line (mobile) / single row on desktop.
+                                md:p-1/-m-1 keeps the 3px focus ring of the search input (and trailing
+                                icon button) inside the overflow-x-auto clip box without shifting layout. */}
+                            <div className="flex items-start gap-2 md:gap-3 w-full flex-wrap md:flex-nowrap overflow-visible md:overflow-x-auto no-scrollbar md:flex-row md:p-1 md:-m-1">
                                 {/* Desktop search (hidden on mobile second row) */}
                                 <div className="relative flex-1 min-w-0 hidden md:block">
                                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--tailwind-colors-slate-400)]" />
