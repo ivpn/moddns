@@ -1,5 +1,5 @@
 import { Settings2, LogOutIcon } from "lucide-react";
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext } from "react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { Button } from "@/components/ui/button";
 import type { ModelProfile } from "@/api/client/api";
@@ -47,19 +47,8 @@ export default function Header({
     const setActiveProfile = useAppStore((state) => state.setActiveProfile);
     const setProfiles = useAppStore((state) => state.setProfiles);
     const auth = useContext(AuthContext);
-    const [scrolled, setScrolled] = useState(false);
     const { theme } = useTheme();
     const isDarkMode = theme === 'dark';
-
-    useEffect(() => {
-        const onScroll = () => {
-            const shouldBeScrolled = window.scrollY > 4;
-            setScrolled((prev) => prev === shouldBeScrolled ? prev : shouldBeScrolled);
-        };
-        window.addEventListener('scroll', onScroll, { passive: true });
-        onScroll();
-        return () => window.removeEventListener('scroll', onScroll);
-    }, []);
 
     // State to control BlocklistsPreferencesDialog open/close
     const [showBlocklistsDialog, setShowBlocklistsDialog] = useState(false);
@@ -174,7 +163,9 @@ export default function Header({
     // Mobile header
     return (
         <>
-            <div data-testid="app-header-bar" data-slot="mobile-header" className={`flex items-center justify-between px-4 sm:px-6 py-4 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}>
+            {/* Surface + scroll boundary live on the sticky wrapper in App.tsx —
+                rows are transparent so the header reads as one edge-to-edge bar. */}
+            <div data-testid="app-header-bar" data-slot="mobile-header" className="flex items-center justify-between px-4 sm:px-6 py-4">
                 {/* Left: modDNS logo - hidden on /home page */}
                 <div className="flex items-center min-w-0">
                     {location.pathname !== "/home" && (
@@ -205,9 +196,9 @@ export default function Header({
             {currentPageName && (
                 <div
                     data-testid="mobile-header-page-title"
-                    className={`md:hidden px-4 sm:px-6 pt-1 pb-8 flex items-center justify-between gap-3 bg-[var(--shadcn-ui-app-background)] transition-shadow duration-200 ${scrolled ? 'shadow-[0_2px_6px_-1px_rgba(0,0,0,0.5)]' : ''}`}
+                    className="md:hidden px-4 sm:px-6 pt-1 pb-2 flex items-center justify-between gap-3"
                 >
-                    <h2 data-slot="mobile-page-title" className="font-bold text-[var(--tailwind-colors-slate-50)] text-3xl tracking-tight leading-8">
+                    <h2 data-slot="mobile-page-title" className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8">
                         {currentPageName}
                     </h2>
                     {location.pathname === '/blocklists' && (
