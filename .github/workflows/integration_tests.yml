@@ -30,7 +30,9 @@ jobs:
           python_certs_path=`python -m certifi`
           echo "Python CA store path: ${python_certs_path}"
           echo "PYTHON_CERTS_PATH=${python_certs_path}" >> $GITHUB_ENV
-          echo "IVPN_CERT_PATH=./certs/moddns_dev_development_CA.crt" >> $GITHUB_ENV
+          # Absolute: consumed both from the repo root (cert setup step below) and
+          # from tests/ (pytest CWD, via libs/dns_lib.py for DoT/DoQ verification).
+          echo "IVPN_CERT_PATH=${GITHUB_WORKSPACE}/certs/moddns_dev_development_CA.crt" >> $GITHUB_ENV
 
       - name: SSL cert setup
         run: |

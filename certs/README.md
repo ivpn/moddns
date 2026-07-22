@@ -28,4 +28,9 @@ openssl x509 -req -in /tmp/leaf.csr -CA moddns_dev_development_CA.crt \
   -days 3650 -sha256 -extfile /tmp/leaf-ext.cnf
 ```
 
-If the CA filename changes, update `tests/Dockerfile` and `.github/workflows/integration_tests.yml`.
+If the CA filename changes, update `tests/Dockerfile`, `.github/workflows/integration_tests.yml` and
+`DEV_CA_FILENAME` in `tests/libs/dns_lib.py`.
+
+If the leaf cert's SANs change, the dev domain must change with them: `SERVER_DNS_DOMAIN` in
+`tests/config/api.env` (stamp/mobileconfig generation), `SERVER_NAME` in `tests/config/proxy.env`,
+`DOH_ENDPOINT` in `tests/libs/settings.py`, and the `/etc/hosts` entry in the integration workflow.

@@ -75,6 +75,7 @@ const Client = {
   servicesApi: new client.ServicesApi(config),
   verificationApi: new client.VerificationApi(config),
   appleMobileconfigApi: new client.AppleMobileconfigApi(config),
+  dnsStampsApi: new client.DNSStampsApi(config),
   sessionsApi: new client.SessionsApi(config),
   subscriptionApi: new client.SubscriptionApi(config),
   paSessionApi: new client.PASessionApi(config),
