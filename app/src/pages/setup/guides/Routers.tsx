@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldCheck, EyeOff, ChevronRight } from 'lucide-react';
 import CodeBlock from '@/components/setup/CodeBlock';
+import { buildDnscryptProxyToml } from '@/components/setup/dnscryptProxy';
 import api from '@/api/api';
 import type { ResponsesDNSStampResponse } from '@/api/client';
 
@@ -189,6 +190,19 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
                         value={stamps?.doh ?? ''}
                         loading={loading}
                     />
+
+                    <div className="flex flex-col gap-1.5" data-testid="dnscrypt-proxy-config">
+                        <SectionLabel>Use with dnscrypt-proxy</SectionLabel>
+                        <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
+                            Running <strong>dnscrypt-proxy</strong>? Paste this into your{' '}
+                            <code className="font-mono">dnscrypt-proxy.toml</code> to consume the DoH stamp above.
+                        </div>
+                        {loading || !stamps?.doh ? (
+                            <div className="h-9 rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] animate-pulse" />
+                        ) : (
+                            <CodeBlock value={buildDnscryptProxyToml(deps.profileId, stamps.doh)} />
+                        )}
+                    </div>
 
                     <div className="flex flex-col gap-1.5 pt-2">
                         <SectionLabel>Niche: AdGuard ecosystem only</SectionLabel>
