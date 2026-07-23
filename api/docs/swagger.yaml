@@ -601,6 +601,7 @@ definitions:
         - /settings/privacy/custom_rules_subdomains_rule
         - /settings/security/dnssec/enabled
         - /settings/security/dnssec/send_do_bit
+        - /settings/security/rebinding_protection/enabled
         - /settings/advanced/recursor
         type: string
       value: {}
@@ -632,6 +633,11 @@ definitions:
       timestamp:
         type: string
     type: object
+  model.RebindingProtection:
+    properties:
+      enabled:
+        type: boolean
+    type: object
   model.Retention:
     enum:
     - 1h
@@ -650,6 +656,8 @@ definitions:
     properties:
       dnssec:
         $ref: '#/definitions/model.DNSSECSettings'
+      rebinding_protection:
+        $ref: '#/definitions/model.RebindingProtection'
     required:
     - dnssec
     type: object

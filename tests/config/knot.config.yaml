@@ -21,6 +21,13 @@ local-data:
     ads.wp.pl: [212.77.99.7]
     svctest-google.com: [8.8.8.8]
     ipv6-test.com: [2001:41d0:701:1100::29c8]
+    ## DNS rebinding protection tests — public names deliberately mapped to
+    ## private IPs so the proxy IP-phase rebinding filter can be exercised.
+    rebinding-private-v4.com: [192.168.0.10]
+    rebinding-private-10.com: [10.0.0.10]
+    rebinding-loopback.com: [127.0.0.1]
+    rebinding-allow-rule.com: [192.168.0.20]
+    router.local: [192.168.0.30]
 
 cache:
   size-max: 256M

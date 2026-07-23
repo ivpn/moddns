@@ -273,8 +273,8 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			asnLookup: mapASNLookup{asnByIP: map[string]uint{
 				"142.250.74.46": asn,
 			}},
-			blockedIDs: []string{"google"},
-			dnsCtx:     dnsCtxWithHTTPSAnswer(t, "example.com.", []net.IP{net.ParseIP("142.250.74.46").To4()}, nil),
+			blockedIDs:   []string{"google"},
+			dnsCtx:       dnsCtxWithHTTPSAnswer(t, "example.com.", []net.IP{net.ParseIP("142.250.74.46").To4()}, nil),
 			wantDecision: model.DecisionBlock,
 			wantReasons:  []string{REASON_SERVICES, "service: google"},
 		},
@@ -284,8 +284,8 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			asnLookup: mapASNLookup{asnByIP: map[string]uint{
 				"2a00:1450:4010:c0a::5e": asn,
 			}},
-			blockedIDs: []string{"google"},
-			dnsCtx:     dnsCtxWithHTTPSAnswer(t, "example.com.", nil, []net.IP{net.ParseIP("2a00:1450:4010:c0a::5e")}),
+			blockedIDs:   []string{"google"},
+			dnsCtx:       dnsCtxWithHTTPSAnswer(t, "example.com.", nil, []net.IP{net.ParseIP("2a00:1450:4010:c0a::5e")}),
 			wantDecision: model.DecisionBlock,
 			wantReasons:  []string{REASON_SERVICES, "service: google"},
 		},
@@ -419,7 +419,7 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			}
 
 			dnsProxy := &proxy.Proxy{}
-			ipFilter := NewIPFilter(dnsProxy, mockCache, staticCatalog{cat: tt.catalog}, tt.asnLookup)
+			ipFilter := NewIPFilter(dnsProxy, mockCache, staticCatalog{cat: tt.catalog}, tt.asnLookup, nil)
 			reqCtx := newTestReqCtx(t, tt.profileID)
 
 			err := ipFilter.Execute(reqCtx, tt.dnsCtx)

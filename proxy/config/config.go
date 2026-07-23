@@ -30,8 +30,19 @@ type Config struct {
 	Log                 *LogConfig
 	RateLimit           *RateLimitConfig
 	Metrics             *MetricsConfig
+	Rebinding           *RebindingConfig
 	TrustedProxies      []string
 	ProfileIDMinLength  int
+}
+
+// RebindingConfig configures DNS rebinding protection (block answers where a public
+// name resolves to a private/loopback/link-local IP). The per-profile opt-in
+// toggle lives in Redis; this is the global operator config.
+type RebindingConfig struct {
+	Enabled       bool     // REBINDING_PROTECTION_ENABLED (master switch, default true)
+	BlockCGNAT    bool     // REBINDING_BLOCK_CGNAT - block 100.64.0.0/10 (default false, opt-in)
+	BlockNAT64    bool     // REBINDING_BLOCK_NAT64 - block 64:ff9b::/96 (default false, opt-in)
+	AllowSuffixes []string // REBINDING_ALLOW_SUFFIXES - CSV; names with these suffixes are never blocked
 }
 
 // DNSCacheConfig configures the vendor (AdGuard) DNS response cache.
@@ -145,6 +156,31 @@ func parseCSV(s string) []string {
 func getEnvBool(env string) bool {
 	v := strings.ToLower(strings.TrimSpace(os.Getenv(env)))
 	return v == "true" || v == "1"
+}
+
+// getEnvBoolDefault returns the environment variable as a bool, falling back to
+// def when the variable is unset or empty (unlike getEnvBool, which defaults false).
+func getEnvBoolDefault(env string, def bool) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(env)))
+	if v == "" {
+		return def
+	}
+	return v == "true" || v == "1"
+}
+
+// loadRebindingConfig reads DNS rebinding protection settings from environment
+// variables. The master switch defaults ON; CGNAT/NAT64 blocking are opt-in.
+func loadRebindingConfig() *RebindingConfig {
+	cfg := &RebindingConfig{
+		Enabled:       getEnvBoolDefault("REBINDING_PROTECTION_ENABLED", true),
+		BlockCGNAT:    getEnvBool("REBINDING_BLOCK_CGNAT"),
+		BlockNAT64:    getEnvBool("REBINDING_BLOCK_NAT64"),
+		AllowSuffixes: parseCSV(os.Getenv("REBINDING_ALLOW_SUFFIXES")),
+	}
+	if len(cfg.AllowSuffixes) == 0 {
+		cfg.AllowSuffixes = []string{".local", ".lan", ".home.arpa", ".internal"}
+	}
+	return cfg
 }
 
 // GetEnvInt returns the integer value of an environment variable
@@ -301,6 +337,7 @@ func New() (*Config, error) {
 	}
 
 	dnsCacheCfg := loadDNSCacheConfig()
+	rebindingCfg := loadRebindingConfig()
 	// Profile settings in-memory cache TTL (default 30s, "0" disables expiration)
 	profileSettingsCacheTTL := 30 * time.Second
 	if v := os.Getenv("PROFILE_SETTINGS_CACHE_TTL"); v != "" {
@@ -349,6 +386,7 @@ func New() (*Config, error) {
 			GeoIPASNDBPath:     geoIPASNDBPath,
 		},
 		DNSCache:           dnsCacheCfg,
+		Rebinding:          rebindingCfg,
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,
 		Cache: &cache.Config{

@@ -1041,6 +1041,55 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectedError: "",
 			expectProfile: true,
 		},
+		// Rebinding protection settings tests. specRef: G18 (api-endpoint-behaviour.md)
+		{
+			name:      "Successfully update rebinding_protection enabled",
+			profileID: "profile123",
+			accountID: "account123",
+			updates: []model.ProfileUpdate{
+				{
+					Operation: model.UpdateOperationReplace,
+					Path:      "/settings/security/rebinding_protection/enabled",
+					Value:     true,
+				},
+			},
+			existingProfile: &model.Profile{
+				ProfileId: "profile123",
+				AccountId: "account123",
+				Name:      "Test Profile",
+				Settings: &model.ProfileSettings{
+					Security: &model.Security{
+						RebindingProtection: model.RebindingProtection{Enabled: false},
+					},
+				},
+			},
+			expectedError: "",
+			expectProfile: true,
+		},
+		{
+			name:      "Update rebinding_protection enabled with invalid value",
+			profileID: "profile123",
+			accountID: "account123",
+			updates: []model.ProfileUpdate{
+				{
+					Operation: model.UpdateOperationReplace,
+					Path:      "/settings/security/rebinding_protection/enabled",
+					Value:     "not_a_bool",
+				},
+			},
+			existingProfile: &model.Profile{
+				ProfileId: "profile123",
+				AccountId: "account123",
+				Name:      "Test Profile",
+				Settings: &model.ProfileSettings{
+					Security: &model.Security{
+						RebindingProtection: model.RebindingProtection{Enabled: false},
+					},
+				},
+			},
+			expectedError: "parsing",
+			expectProfile: false,
+		},
 		{
 			name:      "Update DNSSEC enabled with invalid value",
 			profileID: "profile123",

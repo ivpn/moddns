@@ -3755,6 +3755,7 @@ const docTemplate = `{
                         "/settings/privacy/custom_rules_subdomains_rule",
                         "/settings/security/dnssec/enabled",
                         "/settings/security/dnssec/send_do_bit",
+                        "/settings/security/rebinding_protection/enabled",
                         "/settings/advanced/recursor"
                     ]
                 },
@@ -3796,6 +3797,14 @@ const docTemplate = `{
                 }
             }
         },
+        "model.RebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.Retention": {
             "type": "string",
             "enum": [
@@ -3821,6 +3830,9 @@ const docTemplate = `{
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.DNSSECSettings"
+                },
+                "rebinding_protection": {
+                    "$ref": "#/definitions/model.RebindingProtection"
                 }
             }
         },

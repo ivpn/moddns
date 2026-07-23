@@ -5,6 +5,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/cache"
+	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
@@ -16,20 +17,23 @@ type IPFilter struct {
 	Proxy           *proxy.Proxy
 	ServicesCatalog ServicesCatalogGetter
 	ASNLookup       ASNLookup
+	RebindingConfig *config.RebindingConfig
 	// patternCache   sync.Map
 	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
 // NewIPFilter creates a new IPFilter instance
-func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog ServicesCatalogGetter, asnLookup ASNLookup) *IPFilter {
+func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog ServicesCatalogGetter, asnLookup ASNLookup, rebindingConfig *config.RebindingConfig) *IPFilter {
 	fltrManager := &IPFilter{
 		Cache:           cache,
 		Proxy:           dnsProxy,
 		ServicesCatalog: servicesCatalog,
 		ASNLookup:       asnLookup,
+		RebindingConfig: rebindingConfig,
 	}
 	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
 		fltrManager.filterServices,
+		fltrManager.filterRebinding,
 		fltrManager.filterCustomRules,
 	}
 	return fltrManager
