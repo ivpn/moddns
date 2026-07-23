@@ -185,7 +185,7 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
             ) : (
                 <div className="flex flex-col gap-4" data-testid="stamps-list">
                     <StampRow
-                        label="DNS over HTTPS"
+                        label="DNS over HTTPS - Recommended"
                         compat="Works with: UniFi Network, AdGuard Home, dnscrypt-proxy, Intra, Pi-hole (via dnscrypt-proxy), and most sdns:// consumers"
                         value={stamps?.doh ?? ''}
                         loading={loading}
@@ -205,7 +205,7 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
                     </div>
 
                     <div className="flex flex-col gap-1.5 pt-2">
-                        <SectionLabel>Niche: AdGuard ecosystem only</SectionLabel>
+                        <SectionLabel>DoT / DoQ - AdGuard only</SectionLabel>
                         <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
                             DoT and DoQ stamps are part of the sdns:// spec but only{' '}
                             <strong>AdGuard Home</strong> and <strong>AdGuard dnsproxy</strong> parse them today.

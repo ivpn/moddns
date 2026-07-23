@@ -106,9 +106,9 @@ const STAMPS_WITH_DEVICE = {
     // DoH has a broad consumer list; DoT/DoQ share the narrower "AdGuard ecosystem only" hint.
     await expect(tab.getByText(/Works with: UniFi Network/)).toBeVisible();
     await expect(tab.getByText(/Works with: AdGuard Home, AdGuard dnsproxy/).first()).toBeVisible();
-    // The "Niche" callout makes the asymmetry explicit so users don't paste DoT/DoQ stamps
+    // The DoT/DoQ callout makes the asymmetry explicit so users don't paste DoT/DoQ stamps
     // into clients that won't parse them.
-    await expect(tab.getByText(/Niche: AdGuard ecosystem only/)).toBeVisible();
+    await expect(tab.getByText(/DoT \/ DoQ - AdGuard only/)).toBeVisible();
 
     // The dnscrypt-proxy config block renders a ready-to-paste TOML snippet built from
     // the live DoH stamp — server_names label + a [static] entry carrying the sdns:// stamp.
