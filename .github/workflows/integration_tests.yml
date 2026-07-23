@@ -43,6 +43,14 @@ jobs:
         run: |
           sudo echo "127.0.0.1 moddns.dev" | sudo tee -a /etc/hosts
 
+      # dnscrypt-proxy client for the DoH-stamp E2E test (dns_tests/test_dnscrypt_proxy.py).
+      # The pinned version + URL + sha256 live in tests/libs/dnscrypt_proxy.py (single
+      # source of truth); this invokes that module to download + checksum-verify the
+      # binary and export its path. Fails loudly here; the test itself skips if unset.
+      - name: Install dnscrypt-proxy client (pinned)
+        run: |
+          echo "MODDNS_DNSCRYPT_PROXY_BIN=$(cd tests && python -m libs.dnscrypt_proxy)" >> "$GITHUB_ENV"
+
       - name: Prepare .env from sample
         run: |
           if [ ! -f tests/.env ]; then
