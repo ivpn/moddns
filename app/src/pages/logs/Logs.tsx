@@ -37,7 +37,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [error, setError] = useState<string | null>(null);
     const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Add trigger for forced refresh
-    const [fadeClass, setFadeClass] = useState('opacity-100 transition-opacity duration-300 ease-in-out'); // Track fade animation state
+    // Fade choreography for page-1 loads: true = list held at opacity-0. Starts true so the
+    // initial load fades in. Set true by every refresh/filter trigger; cleared ONLY by the
+    // dedicated effect below once loading settles — never by the fetch effect's cleanup, so
+    // a mid-refresh page bump cannot cancel the fade-in and strand the list invisible.
+    const [isListFading, setIsListFading] = useState(true);
     const [isQuickRuleSheetOpen, setIsQuickRuleSheetOpen] = useState(false);
     const [quickRuleDomain, setQuickRuleDomain] = useState<string | undefined>(undefined);
     const [quickRuleDefaultAction, setQuickRuleDefaultAction] = useState<QuickRuleAction>("denylist");
@@ -174,7 +178,18 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setPage(1);
         setHasMore(true);
         setAllAvailableDeviceIds([]);
+        setIsListFading(true);
     }, [committedSearchValue, filterValue, sortValue, timespanValue, deviceIdValue]);
+
+    // Fade-in: once no fetch is in flight, release the fade after a short delay so the
+    // swapped-in content is committed before the opacity transition starts. Lives in its own
+    // effect keyed only on [isListFading, loading]: a new refresh (loading goes true) merely
+    // postpones it, and it always converges to visible once loading settles.
+    useEffect(() => {
+        if (!isListFading || loading) return;
+        const fadeIn = setTimeout(() => setIsListFading(false), 100);
+        return () => clearTimeout(fadeIn);
+    }, [isListFading, loading]);
 
     useEffect(() => {
         const currentId = activeProfile?.profile_id;
@@ -192,7 +207,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     // Fetch logs and then fetch logos for the batch
     useEffect(() => {
         let cancelled = false;
-        let fadeInTimeout: ReturnType<typeof setTimeout> | undefined;
         const fetchLogs = async () => {
             // Don't fetch if no active profile
             if (!activeProfile?.profile_id) {
@@ -202,11 +216,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
             setLoading(true);
             setError(null);
-
-            // Start fade-out animation only for page 1 (refresh)
-            if (page === 1) {
-                setFadeClass('opacity-0 transition-opacity duration-200 ease-out');
-            }
 
             try {
                 // Status is already handled in filters.Status
@@ -223,6 +232,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     searchParam,
                     sortValue
                 );
+                // A newer fetch (or unmount) superseded this one — drop the stale response
+                // instead of letting it overwrite fresher state.
+                if (cancelled) return;
                 if (response.status === 200) {
                     const newLogs = response.data || [];
 
@@ -238,21 +250,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                         });
                         return Array.from(merged).sort();
                     });
-
-
-                    // Trigger fade-in animation with a delay to ensure content is rendered
-                    if (page === 1) {
-                        fadeInTimeout = setTimeout(() => {
-                            setFadeClass('opacity-100 transition-opacity duration-200 ease-in');
-                        }, 100);
-                    }
                 } else {
                     setHasMore(false);
-                    if (page === 1) {
-                        setFadeClass('opacity-100 transition-opacity duration-400 ease-in-out');
-                    }
                 }
             } catch (err: unknown) {
+                if (cancelled) return;
                 // Handle different HTTP error codes with specific messages
                 let errorMessage = "Failed to load logs";
                 const httpErr = err as AxiosError & { code?: string };
@@ -263,9 +265,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     // /account-preferences, so surface no toast here — matching how
                     // the other restricted pages behave during cut-off.
                     setHasMore(false);
-                    if (page === 1) {
-                        setFadeClass('opacity-100 transition-opacity duration-300 ease-in-out');
-                    }
                     return;
                 } else if (status === 429) {
                     errorMessage = "Too many requests. Please wait a moment before trying again.";
@@ -279,9 +278,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
                 toast.error(errorMessage);
                 setHasMore(false);
-                if (page === 1) {
-                    setFadeClass('opacity-100 transition-opacity duration-300 ease-in-out');
-                }
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -289,7 +285,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         fetchLogs();
         return () => {
             cancelled = true;
-            if (fadeInTimeout) clearTimeout(fadeInTimeout);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- committedSearchValue, isAutoRefreshing, and sortValue are consumed via the `filters` object and `refreshTrigger`; adding them directly would cause redundant re-fetches since the filters object already captures their derived values
     }, [page, filters.Limit, filters.Status, filters.Timespan.Value, filters.Search, filters.Sort, activeProfile, refreshTrigger, deviceIdValue]);
@@ -300,10 +295,12 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
         if (isAutoRefreshing && activeProfile?.profile_id) {
             interval = setInterval(() => {
-                // Force refresh by incrementing trigger and resetting to first page
+                // Force refresh by incrementing trigger and resetting to first page.
+                // The current list stays on screen until the page-1 response replaces it
+                // wholesale — clearing it here would blank (or, with the old fade logic,
+                // permanently hide) the cards on every tick.
                 setPage(1);
-                setLogs([]);
-                setHasMore(true);
+                setIsListFading(true);
                 setRefreshTrigger(prev => prev + 1);
             }, 10000); // 10 seconds
         }
@@ -320,18 +317,16 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setIsAutoRefreshing(prev => !prev);
         if (!isAutoRefreshing) {
             // When starting auto-refresh, immediately refresh once
-            setLogs([]);
             setPage(1);
-            setHasMore(true);
+            setIsListFading(true);
             setRefreshTrigger(prev => prev + 1);
         }
     };
 
     // Handle manual refresh
     const handleRefresh = () => {
-        setLogs([]);
         setPage(1);
-        setHasMore(true);
+        setIsListFading(true);
         setRefreshTrigger(prev => prev + 1);
     };
 
@@ -373,10 +368,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         if (pullDistance > PULL_THRESHOLD && !isRefreshing && !loading) {
             setIsRefreshing(true);
             setPullDistance(0);
-            // Trigger the existing refresh mechanism
-            setLogs([]);
+            // Trigger the existing refresh mechanism (keeps current rows until new data lands)
             setPage(1);
-            setHasMore(true);
+            setIsListFading(true);
             setRefreshTrigger(prev => prev + 1);
             // Reset refreshing indicator after a short delay
             setTimeout(() => setIsRefreshing(false), 1200);
@@ -462,7 +456,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                                 : "Pull to refresh"}
                                     </div>
                                 )}
-                                <div className={`flex flex-col gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden ${fadeClass || 'opacity-100'}`}>
+                                <div className={`flex flex-col gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden transition-opacity duration-200 ease-in-out ${isListFading ? 'opacity-0' : 'opacity-100'}`}>
                                     {!expandHintDismissed && logs.length > 0 && (
                                         <div
                                             className="md:hidden flex items-start gap-2 rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent bg-transparent dark:bg-[var(--variable-collection-surface)] px-3 py-2 text-xs text-[var(--tailwind-colors-slate-100)]"
@@ -498,7 +492,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                             />
                                         );
                                     })}
-                                    {loading && (
+                                    {/* Skeletons: initial load / post-filter-clear (empty list) and pagination.
+                                        An in-place refresh (page 1 with rows on screen) shows nothing extra —
+                                        the current cards stay until the response replaces them. */}
+                                    {loading && (page > 1 || logs.length === 0) && (
                                         <div className="space-y-2">
                                             {Array.from({ length: 8 }).map((_, i) => (
                                                 <div key={i} className="flex items-center gap-3 px-3 py-3 bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
