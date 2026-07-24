@@ -132,6 +132,26 @@ func TestFilterRebinding(t *testing.T) {
 	}
 }
 
+// TestFilterRebinding_ReasonReachesFinalFilterResult verifies the rebinding
+// block reason survives aggregation into FilterResult.Reasons — the exact value
+// EmitQueryLog stores, and the token the frontend log view renders as the
+// "Rebinding protection" chip (docs/specs/logs-reason-display-behaviour.md #14).
+// specRef: proxy-filtering-behaviour R1
+func TestFilterRebinding_ReasonReachesFinalFilterResult(t *testing.T) {
+	reqCtx := newTestReqCtx(t, "rebinding-final-result")
+	reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
+	f := &IPFilter{RebindingConfig: defaultRebindingConfig()}
+
+	res, err := f.filterRebinding(reqCtx, dnsCtxNameA(t, "evil.com.", "192.168.1.1"))
+	assert.NoError(t, err)
+
+	final := getFinalFilteringResult(append(reqCtx.PartialFilteringResults, *res))
+	assert.Equal(t, model.StatusBlocked, final.Status)
+	// Assert the literal wire token, not the constant: query logs persist this
+	// string and the frontend chip mapping matches on it verbatim.
+	assert.Equal(t, []string{"rebinding_protection"}, final.Reasons)
+}
+
 // TestFilterRebinding_HTTPSHint verifies private IPs in HTTPS/SVCB ipv4hint are caught.
 func TestFilterRebinding_HTTPSHint(t *testing.T) {
 	reqCtx := newTestReqCtx(t, "rebinding-https")
