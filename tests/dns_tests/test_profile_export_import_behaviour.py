@@ -42,6 +42,9 @@ from moddns import (
 
 CUSTOM_RULE_DOMAIN = "ads.example.test"
 PUNYCODE_RULE = "xn--80ak6aa92e.com"
+# Pinned in config/testhosts.txt (and knot local-data) to 192.168.0.10, so the
+# rebinding filter deterministically blocks it when the toggle is on.
+REBINDING_PRIVATE_DOMAIN = "rebinding-private-v4.com"
 
 
 def _get_profile(api_config_, cookie, profile_id):
@@ -51,6 +54,25 @@ def _get_profile(api_config_, cookie, profile_id):
         resp = p.api_v1_profiles_id_get_with_http_info(id=profile_id)
         assert resp.status_code == 200, resp
         return resp.data
+
+
+def _set_rebinding_protection(api_config_, cookie, profile_id, enabled):
+    with client.ApiClient(api_config_) as api_client:
+        p = api.ProfileApi(api_client)
+        p.api_client.default_headers["Cookie"] = cookie
+        body = RequestsProfileUpdates(
+            updates=[
+                ModelProfileUpdate(
+                    operation="replace",
+                    path="/settings/security/rebinding_protection/enabled",
+                    value={"value": enabled},
+                )
+            ]
+        )
+        resp = p.api_v1_profiles_id_patch_with_http_info(profile_id, body=body)
+        assert resp.status_code == 200, (
+            f"rebinding_protection update failed: {resp.status_code} {resp.data}"
+        )
 
 
 def _rename_profile(api_config_, cookie, profile_id, new_name):
@@ -82,7 +104,8 @@ class TestRoundTrip(ProfileHelpers):
     async def test_export_then_import_preserves_dns_filtering(
         self, ensure_test_blocklisted
     ):
-        """Round-trip preserves blocklist, service, custom-rule and DNSSEC behaviour. specRef: F1-F6, S3."""
+        """Round-trip preserves blocklist, service, custom-rule, DNSSEC and
+        rebinding-protection behaviour. specRef: F1-F6, F8, S3."""
         account_a, cookie_a, password_a, _ = create_account_with_password()
         profile_id_a = account_a.profiles[0]
 
@@ -96,6 +119,8 @@ class TestRoundTrip(ProfileHelpers):
             )
             self._block_service(p, profile_id_a, [SVC_GOOGLE_ID])
             self._create_custom_rule(p, profile_id_a, "block", CUSTOM_RULE_DOMAIN)
+
+        _set_rebinding_protection(self.api_config, cookie_a, profile_id_a, True)
 
         export_resp = do_export(cookie_a, password_a, scope="all")
         assert export_resp.status_code == 200, export_resp.text
@@ -126,9 +151,20 @@ class TestRoundTrip(ProfileHelpers):
         )
         assert_blocked(resp, f"{CUSTOM_RULE_DOMAIN} (imported custom rule)")
 
+        # Rebinding protection round-trip — specRef: F8. The DoH check proves the
+        # imported toggle reached Redis and the proxy enforces it, not just that
+        # the API echoes the flag back.
+        resp = await self.dns_lib.wait_until(
+            new_profile_id, REBINDING_PRIVATE_DOMAIN, A, is_blocked
+        )
+        assert_blocked(resp, f"{REBINDING_PRIVATE_DOMAIN} (imported rebinding protection)")
+
         imported = _get_profile(self.api_config, cookie_b, new_profile_id)
         assert imported.settings.security.dnssec.enabled is True, (
             "DNSSEC enabled flag did not round-trip through import"
+        )
+        assert imported.settings.security.rebinding_protection.enabled is True, (
+            "rebinding_protection enabled flag did not round-trip through import"
         )
 
     def test_round_trip_regenerates_internal_ids(self):
