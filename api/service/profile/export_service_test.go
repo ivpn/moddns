@@ -88,7 +88,8 @@ func fullProfile(accountId string) *model.Profile {
 		CustomRulesSubdomainsRule: "include",
 	}
 	p.Settings.Security = &model.Security{
-		DNSSECSettings: model.DNSSECSettings{Enabled: true, SendDoBit: true},
+		DNSSECSettings:      model.DNSSECSettings{Enabled: true, SendDoBit: true},
+		RebindingProtection: model.RebindingProtection{Enabled: true},
 	}
 	p.Settings.CustomRules = []*model.CustomRule{
 		{ID: primitive.NewObjectID(), Action: "block", Value: "ads.example.com", Note: "blocks ad network", Group: "Ads", Order: 0},
@@ -264,6 +265,10 @@ func TestExport_ProfileMapping_Includes(t *testing.T) {
 	require.NotNil(t, ep.Settings.Security.DNSSEC)
 	assert.True(t, ep.Settings.Security.DNSSEC.Enabled)
 	assert.True(t, ep.Settings.Security.DNSSEC.SendDoBit)
+
+	// Rebinding protection — specRef: F8
+	require.NotNil(t, ep.Settings.Security.RebindingProtection)
+	assert.True(t, ep.Settings.Security.RebindingProtection.Enabled)
 
 	// Custom rules — specRef: F7; ObjectID must not appear (F9)
 	require.Len(t, ep.Settings.CustomRules, 2)

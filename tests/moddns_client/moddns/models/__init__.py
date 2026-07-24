@@ -44,6 +44,7 @@ from moddns.models.model_exported_from_info import ModelExportedFromInfo
 from moddns.models.model_exported_logs import ModelExportedLogs
 from moddns.models.model_exported_privacy import ModelExportedPrivacy
 from moddns.models.model_exported_profile import ModelExportedProfile
+from moddns.models.model_exported_rebinding_protection import ModelExportedRebindingProtection
 from moddns.models.model_exported_security import ModelExportedSecurity
 from moddns.models.model_exported_settings import ModelExportedSettings
 from moddns.models.model_exported_statistics import ModelExportedStatistics

@@ -3525,11 +3525,27 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExportedRebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.ExportedSecurity": {
             "type": "object",
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.ExportedDNSSEC"
+                },
+                "rebindingProtection": {
+                    "description": "RebindingProtection is optional on the wire: envelopes produced before\nthe field existed import with the opt-in default (disabled).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ExportedRebindingProtection"
+                        }
+                    ]
                 }
             }
         },

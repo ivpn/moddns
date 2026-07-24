@@ -17,20 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
-from moddns.models.model_exported_dnssec import ModelExportedDNSSEC
-from moddns.models.model_exported_rebinding_protection import ModelExportedRebindingProtection
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelExportedSecurity(BaseModel):
+class ModelExportedRebindingProtection(BaseModel):
     """
-    ModelExportedSecurity
+    ModelExportedRebindingProtection
     """ # noqa: E501
-    dnssec: Optional[ModelExportedDNSSEC] = None
-    rebinding_protection: Optional[ModelExportedRebindingProtection] = Field(default=None, description="RebindingProtection is optional on the wire: envelopes produced before the field existed import with the opt-in default (disabled).", alias="rebindingProtection")
-    __properties: ClassVar[List[str]] = ["dnssec", "rebindingProtection"]
+    enabled: Optional[StrictBool] = None
+    __properties: ClassVar[List[str]] = ["enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +47,7 @@ class ModelExportedSecurity(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelExportedSecurity from a JSON string"""
+        """Create an instance of ModelExportedRebindingProtection from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,17 +68,11 @@ class ModelExportedSecurity(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of dnssec
-        if self.dnssec:
-            _dict['dnssec'] = self.dnssec.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of rebinding_protection
-        if self.rebinding_protection:
-            _dict['rebindingProtection'] = self.rebinding_protection.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelExportedSecurity from a dict"""
+        """Create an instance of ModelExportedRebindingProtection from a dict"""
         if obj is None:
             return None
 
@@ -89,8 +80,7 @@ class ModelExportedSecurity(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "dnssec": ModelExportedDNSSEC.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None,
-            "rebindingProtection": ModelExportedRebindingProtection.from_dict(obj["rebindingProtection"]) if obj.get("rebindingProtection") is not None else None
+            "enabled": obj.get("enabled")
         })
         return _obj
 

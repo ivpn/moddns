@@ -56,6 +56,7 @@ moddns/models/model_exported_from_info.py
 moddns/models/model_exported_logs.py
 moddns/models/model_exported_privacy.py
 moddns/models/model_exported_profile.py
+moddns/models/model_exported_rebinding_protection.py
 moddns/models/model_exported_security.py
 moddns/models/model_exported_settings.py
 moddns/models/model_exported_statistics.py

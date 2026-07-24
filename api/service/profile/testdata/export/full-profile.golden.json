@@ -22,6 +22,9 @@
           "dnssec": {
             "enabled": true,
             "sendDoBit": true
+          },
+          "rebindingProtection": {
+            "enabled": true
           }
         },
         "customRules": [

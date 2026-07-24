@@ -175,6 +175,7 @@ Class | Method | HTTP request | Description
  - [ModelExportedLogs](docs/ModelExportedLogs.md)
  - [ModelExportedPrivacy](docs/ModelExportedPrivacy.md)
  - [ModelExportedProfile](docs/ModelExportedProfile.md)
+ - [ModelExportedRebindingProtection](docs/ModelExportedRebindingProtection.md)
  - [ModelExportedSecurity](docs/ModelExportedSecurity.md)
  - [ModelExportedSettings](docs/ModelExportedSettings.md)
  - [ModelExportedStatistics](docs/ModelExportedStatistics.md)

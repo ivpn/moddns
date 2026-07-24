@@ -879,6 +879,19 @@ export interface ModelExportedProfile {
 /**
  * 
  * @export
+ * @interface ModelExportedRebindingProtection
+ */
+export interface ModelExportedRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ModelExportedSecurity
  */
 export interface ModelExportedSecurity {
@@ -888,6 +901,12 @@ export interface ModelExportedSecurity {
      * @memberof ModelExportedSecurity
      */
     'dnssec'?: ModelExportedDNSSEC;
+    /**
+     * RebindingProtection is optional on the wire: envelopes produced before the field existed import with the opt-in default (disabled).
+     * @type {ModelExportedRebindingProtection}
+     * @memberof ModelExportedSecurity
+     */
+    'rebindingProtection'?: ModelExportedRebindingProtection;
 }
 /**
  * 

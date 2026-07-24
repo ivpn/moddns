@@ -439,10 +439,21 @@ definitions:
     - name
     - settings
     type: object
+  model.ExportedRebindingProtection:
+    properties:
+      enabled:
+        type: boolean
+    type: object
   model.ExportedSecurity:
     properties:
       dnssec:
         $ref: '#/definitions/model.ExportedDNSSEC'
+      rebindingProtection:
+        allOf:
+        - $ref: '#/definitions/model.ExportedRebindingProtection'
+        description: |-
+          RebindingProtection is optional on the wire: envelopes produced before
+          the field existed import with the opt-in default (disabled).
     type: object
   model.ExportedSettings:
     properties:
