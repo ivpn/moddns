@@ -655,8 +655,9 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 	err := ipFilter.Execute(reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
-	// Domain (1) + services (1) + rebinding (1) + custom rules (1) = 4 partial results.
-	assert.Equal(t, 4, len(reqCtx.PartialFilteringResults),
+	// Domain (1) + services (1) + rebinding (1) + custom rules (1) + cname (1)
+	// = 5 partial results.
+	assert.Equal(t, 5, len(reqCtx.PartialFilteringResults),
 		"PartialFilteringResults should contain domain + all IP-phase results")
 
 	// Final decision based on unified aggregation: domain Allow (T200) wins

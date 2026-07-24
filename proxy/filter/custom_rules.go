@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
@@ -32,6 +33,12 @@ const (
 //   - "ads.*"        => matches ads.<any TLD>, but not the bare "ads" and not subdomains (e.g. sub.ads.com)
 //   - "*ads*"        => matches any domain containing "ads" as a substring
 func (f *DomainFilter) matchDomain(domain, pattern string) bool {
+	return matchDomainPattern(&f.patternCache, domain, pattern)
+}
+
+// matchDomainPattern is the phase-independent core of matchDomain; patternCache
+// caches compiled regexes for wildcard patterns that need the regex fallback.
+func matchDomainPattern(patternCache *sync.Map, domain, pattern string) bool {
 	domain = strings.ToLower(domain)
 	pattern = strings.ToLower(pattern)
 
@@ -84,7 +91,7 @@ func (f *DomainFilter) matchDomain(domain, pattern string) bool {
 
 	// For all other wildcard patterns, fall back to regex-based matching.
 	var re *regexp.Regexp
-	if cached, ok := f.patternCache.Load(pattern); ok {
+	if cached, ok := patternCache.Load(pattern); ok {
 		re = cached.(*regexp.Regexp)
 	} else {
 		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(pattern), "\\*", ".*") + "$"
@@ -93,7 +100,7 @@ func (f *DomainFilter) matchDomain(domain, pattern string) bool {
 			log.Error().Err(err).Str("pattern", pattern).Msg("Error compiling pattern")
 			return false
 		}
-		f.patternCache.Store(pattern, compiled)
+		patternCache.Store(pattern, compiled)
 		re = compiled
 	}
 	return re.MatchString(domain)

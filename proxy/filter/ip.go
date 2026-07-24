@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"sync"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/cache"
@@ -18,8 +19,8 @@ type IPFilter struct {
 	ServicesCatalog ServicesCatalogGetter
 	ASNLookup       ASNLookup
 	RebindingConfig *config.RebindingConfig
-	// patternCache   sync.Map
-	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
+	patternCache    sync.Map
+	FilteringFuncs  []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
 // NewIPFilter creates a new IPFilter instance
@@ -35,6 +36,7 @@ func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog Servi
 		fltrManager.filterServices,
 		fltrManager.filterRebinding,
 		fltrManager.filterCustomRules,
+		fltrManager.filterCNAME,
 	}
 	return fltrManager
 }
