@@ -93,9 +93,12 @@ func fullProfile(accountId string) *model.Profile {
 	}
 	p.Settings.CustomRules = []*model.CustomRule{
 		{ID: primitive.NewObjectID(), Action: "block", Value: "ads.example.com", Note: "blocks ad network", Group: "Ads", Order: 0},
-		{ID: primitive.NewObjectID(), Action: "allow", Value: "safe.example.com", Order: 1},
+		{ID: primitive.NewObjectID(), Action: "allow", Value: "safe.example.com", Group: "Trusted", Order: 1},
 	}
-	p.Settings.CustomRuleGroups = model.CustomRuleGroups{Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "advertising domains"}}}
+	p.Settings.CustomRuleGroups = model.CustomRuleGroups{
+		Block: []model.CustomRuleGroup{{Name: "Ads", Comment: "advertising domains"}},
+		Allow: []model.CustomRuleGroup{{Name: "Trusted", Comment: "known-safe domains"}},
+	}
 	p.Settings.Logs = &model.LogsSettings{
 		Enabled:       true,
 		LogClientsIPs: true,
