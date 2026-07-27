@@ -1249,6 +1249,12 @@ export interface ModelQueryLog {
      */
     'id'?: string;
     /**
+     * Outcome is the proxy-computed resolution-outcome token (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+     * @type {string}
+     * @memberof ModelQueryLog
+     */
+    'outcome'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelQueryLog
@@ -2662,6 +2668,12 @@ export interface ServicescatalogCatalog {
  * @interface ServicescatalogService
  */
 export interface ServicescatalogService {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ServicescatalogService
+     */
+    'aliases'?: Array<string>;
     /**
      * 
      * @type {Array<number>}

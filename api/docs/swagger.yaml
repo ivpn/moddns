@@ -631,6 +631,11 @@ definitions:
         $ref: '#/definitions/model.DNSRequest'
       id:
         type: string
+      outcome:
+        description: |-
+          Outcome is the proxy-computed resolution-outcome token
+          (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+        type: string
       profile_id:
         type: string
       protocol:
@@ -1424,6 +1429,10 @@ definitions:
     type: object
   servicescatalog.Service:
     properties:
+      aliases:
+        items:
+          type: string
+        type: array
       asns:
         items:
           type: integer

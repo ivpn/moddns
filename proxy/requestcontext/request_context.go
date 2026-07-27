@@ -25,6 +25,9 @@ type RequestContext struct {
 	LoggerConfig                logging.LoggingConfig   `json:"logger_config"`
 	StartTime                   time.Time               `json:"-"`
 	UpstreamName                string                  `json:"upstream_name"`
+	// UpstreamErr is the resolve error captured from the vendor proxy (nil on
+	// success). Consumed by query-log outcome classification; never serialized.
+	UpstreamErr error `json:"-"`
 }
 
 func NewRequestContext(ctx context.Context, p *proxy.Proxy, profileId string, deviceId string, privacySettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings map[string]string, logger logging.LoggerInterface) *RequestContext {

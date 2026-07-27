@@ -10,6 +10,7 @@ import { ReasonBadges } from "@/components/ui/ReasonBadges";
 import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
+import { formatOutcome } from "@/lib/formatOutcome";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
@@ -181,6 +182,12 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     // to the representative's single value.
     const queryTypeText = isConsolidated ? group?.queryTypes.join(', ') : log.dns_request?.query_type;
     const responseCodeText = isConsolidated ? group?.responseCodes.join(', ') : log.dns_request?.response_code;
+    // Resolution outcome (spec: query-log-outcomes-behaviour.md). Consolidated
+    // groups show each member's distinct outcome; legacy members without the
+    // field fall back to an rcode-derived label via formatOutcome.
+    const outcomeText = isConsolidated
+        ? Array.from(new Set(group!.members.map((m) => formatOutcome(m.outcome, m.dns_request?.response_code)))).join(', ')
+        : formatOutcome(log.outcome, log.dns_request?.response_code);
     // A group only shows a first–last time RANGE when its endpoints differ at second granularity.
     // A + AAAA fired back-to-back land in the same second, so those collapse to a single "Time"
     // (like a non-consolidated row); groups that genuinely span >=1s (e.g. grouped blocked queries)
@@ -332,6 +339,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                                     </div>
                                 )}
                             {queryTypeText && renderDetailField(isConsolidated ? "Query types" : "Query type", queryTypeText, "querylog-detail-query-type")}
+                            {outcomeText && renderDetailField(isConsolidated ? "Outcomes" : "Outcome", outcomeText, "querylog-detail-outcome")}
                             {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}

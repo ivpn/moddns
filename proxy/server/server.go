@@ -355,6 +355,7 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 			reqLogger.Trace().Msg("Triggering default resolver")
 			upstreamStart := time.Now()
 			if err := s.Proxy.Resolve(dctx); err != nil {
+				reqCtx.UpstreamErr = err
 				reqLogger.Err(err).Msg("DNS resolving error")
 			}
 			s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
@@ -422,6 +423,9 @@ func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
 
 		if err != nil {
 			logger.Err(err).Msg("DNS resolving error")
+			if ctxErr == nil {
+				reqCtx.UpstreamErr = err
+			}
 		}
 
 		// Only continue if we have a valid request context

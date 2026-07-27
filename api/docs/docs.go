@@ -3793,6 +3793,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "outcome": {
+                    "description": "Outcome is the proxy-computed resolution-outcome token\n(docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.",
+                    "type": "string"
+                },
                 "profile_id": {
                     "type": "string"
                 },
@@ -4872,6 +4876,12 @@ const docTemplate = `{
         "servicescatalog.Service": {
             "type": "object",
             "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "asns": {
                     "type": "array",
                     "items": {
