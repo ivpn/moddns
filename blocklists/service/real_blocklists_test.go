@@ -34,7 +34,7 @@ var realFixtures = []realFixture{
 	{file: "oisd.txt", blocklistID: "oisd_small", extractor: "OISD", url: "https://small.oisd.nl/domainswild2", strictMeta: true, minDomains: 1000},
 	{file: "steven_black.txt", blocklistID: "steven_black_ads_malware", extractor: "StevenBlack", url: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts", strictMeta: true, minDomains: 1000},
 	{file: "blp.txt", blocklistID: "blp_gambling", extractor: "Domains/blp", url: "https://blocklistproject.github.io/Lists/alt-version/gambling-nl.txt", strictMeta: false, minDomains: 500},
-	{file: "blp_fakenews.txt", blocklistID: "blp_fakenews", extractor: "Domains/blp(hosts)", url: "https://raw.githubusercontent.com/marktron/fakenews/master/fakenews", strictMeta: false, minDomains: 500},
+	{file: "blp_fakenews.txt", blocklistID: "blp_fakenews", extractor: "Domains/blp(hosts)", url: "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-only/hosts", strictMeta: false, minDomains: 500},
 	{file: "ut1.txt", blocklistID: "ut1_gaming", extractor: "Domains/ut1", url: "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/games/domains", strictMeta: false, minDomains: 500},
 	{file: "shadowwhisperer.txt", blocklistID: "shadowwhisperer_dating", extractor: "Domains/shadowwhisperer", url: "https://raw.githubusercontent.com/ShadowWhisperer/BlockLists/master/RAW/Dating", strictMeta: false, minDomains: 500},
 
@@ -129,8 +129,7 @@ func TestRealBlocklists(t *testing.T) {
 			}
 
 			// Floor: catches catastrophic regressions (validation dropping
-			// everything / would-be gate abort). blp_fakenews fails here until
-			// the Domains hosts-tolerance fix lands.
+			// everything / would-be gate abort).
 			if len(domains) < fx.minDomains {
 				t.Errorf("%s: got %d valid domains, want >= %d", fx.extractor, len(domains), fx.minDomains)
 			}
