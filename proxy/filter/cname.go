@@ -55,6 +55,11 @@ func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *prox
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
+	// Operator master switch (spec F/U14): explicit CNAME_UNCLOAKING_ENABLED=false
+	// makes the stage inert; nil config means defaults (enabled).
+	if f.FilteringConfig != nil && !f.FilteringConfig.CNAMEUncloakingEnabled {
+		return result, nil
+	}
 	if dctx == nil || dctx.Res == nil {
 		return result, nil
 	}

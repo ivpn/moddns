@@ -6,6 +6,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/libs/logging"
+	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
@@ -120,6 +121,8 @@ func TestFilterCNAME(t *testing.T) {
 		privacySettings  map[string]string
 		customHashes     []string
 		customRules      map[string]map[string]string
+		// uncloakingDisabled simulates the CNAME_UNCLOAKING_ENABLED=false master switch.
+		uncloakingDisabled bool
 		// expectNoCacheCalls asserts the early exit fires before any Redis access.
 		expectNoCacheCalls bool
 		wantDecision       model.Decision
@@ -270,6 +273,14 @@ func TestFilterCNAME(t *testing.T) {
 			customHashes:    []string{},
 			wantDecision:    model.DecisionNone,
 		},
+		{
+			name:               "U14 — master switch off: None despite blocklisted target, no cache calls",
+			tableRef:           "F/U14",
+			response:           buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
+			uncloakingDisabled: true,
+			expectNoCacheCalls: true,
+			wantDecision:       model.DecisionNone,
+		},
 	}
 
 	for _, tt := range tests {
@@ -295,7 +306,8 @@ func TestFilterCNAME(t *testing.T) {
 					Return(false, nil).Maybe()
 			}
 
-			f := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+			f := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil,
+				&config.FilteringConfig{CNAMEUncloakingEnabled: !tt.uncloakingDisabled})
 
 			loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 			reqCtx := &requestcontext.RequestContext{
@@ -374,7 +386,7 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			mockCache.On("GetBlocklistEntry", mock.Anything, mock.Anything, mock.Anything).
 				Return(false, nil).Maybe()
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(

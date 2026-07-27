@@ -40,7 +40,7 @@ func BenchmarkExtractCNAMETargets(b *testing.B) {
 // on this path would nil-panic, which doubles as a guard that the early exit
 // stays Redis-free (spec F/U1).
 func BenchmarkFilterCNAME_EarlyExit(b *testing.B) {
-	f := NewIPFilter(&proxy.Proxy{}, nil, nil, nil, nil)
+	f := NewIPFilter(&proxy.Proxy{}, nil, nil, nil, nil, nil)
 	res := buildCNAMEChainResponse("plain.example.com", dns.TypeA, nil, "1.2.3.4")
 	req := new(dns.Msg)
 	req.SetQuestion("plain.example.com.", dns.TypeA)

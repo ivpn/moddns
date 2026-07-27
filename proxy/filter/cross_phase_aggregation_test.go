@@ -355,7 +355,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			// Pre-populate with domain-phase results to simulate the real pipeline.
@@ -423,7 +423,7 @@ func TestIPFilter_RebindingCrossPhase(t *testing.T) {
 			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
 				Return([]string{}, nil).Maybe()
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, defaultRebindingConfig())
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, defaultRebindingConfig(), nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
@@ -482,7 +482,7 @@ func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
 				Return([]string{}, nil).Maybe()
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(
@@ -594,7 +594,7 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(
@@ -640,10 +640,10 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 			"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr",
 		}, nil)
 
-	ipFilter := NewIPFilter(
-		&proxy.Proxy{}, mockCache,
+	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache,
 		staticCatalog{cat: googleCatalogWithASN(asn)},
 		staticASNLookup{asn: asn},
+		nil,
 		nil,
 	)
 
@@ -724,7 +724,7 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 			"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr",
 		}, nil)
 
-	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 	reqCtx := newTestReqCtx(t, profileID)
 	reqCtx.PartialFilteringResults = []model.StageResult{domainAllowResult()}

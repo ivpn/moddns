@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Server              *ServerConfig
 	Services            *ServicesConfig
+	Filtering           *FilteringConfig
 	Cache               *cache.Config
 	DNSCache            *DNSCacheConfig
 	CollectorQueryLogs  CollectorConfig
@@ -107,6 +108,12 @@ type ServicesConfig struct {
 	CatalogPath        string
 	CatalogReloadEvery time.Duration
 	GeoIPASNDBPath     string
+}
+
+// FilteringConfig holds global filter master switches. These are operator-level
+// incident-response knobs, never exposed per-profile.
+type FilteringConfig struct {
+	CNAMEUncloakingEnabled bool // CNAME_UNCLOAKING_ENABLED (default true; only an explicit "false"/"0" disables)
 }
 
 // UpstreamConfig represents the upstream configuration
@@ -388,6 +395,9 @@ func New() (*Config, error) {
 			CatalogPath:        servicesCatalogPath,
 			CatalogReloadEvery: servicesCatalogReloadEvery,
 			GeoIPASNDBPath:     geoIPASNDBPath,
+		},
+		Filtering: &FilteringConfig{
+			CNAMEUncloakingEnabled: getEnvBoolDefault("CNAME_UNCLOAKING_ENABLED", true),
 		},
 		DNSCache:           dnsCacheCfg,
 		Rebinding:          rebindingCfg,

@@ -115,7 +115,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
 
 	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
-	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding)
+	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding, serverConfig.Filtering)
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength
