@@ -4,15 +4,41 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { VitePWA } from "vite-plugin-pwa"
 
+// Unique per build. Injected into the bundle as __APP_BUILD_ID__ and emitted
+// as /version.json; src/lib/swUpdate.ts polls the latter to detect deploys on
+// browsers where the SW lifecycle never surfaces them (Safari/iOS).
+const buildId = crypto.randomUUID()
+
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_BUILD_ID__: JSON.stringify(buildId),
+  },
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'moddns:emit-version-json',
+      apply: 'build',
+      generateBundle() {
+        // Not precached: the PWA globPatterns exclude .json on purpose, so the
+        // freshness poll always sees the server's current build id.
+        this.emitFile({
+          type: 'asset',
+          fileName: 'version.json',
+          source: JSON.stringify({ buildId }),
+        })
+      },
+    },
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': the new SW stays in "waiting" until the app applies it via
+      // the update flow in setupSWUpdate (src/lib/swUpdate.ts), so an open tab
+      // never mixes old page code with a new SW whose precache dropped the old
+      // chunks.
+      registerType: 'prompt',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp)$/,
