@@ -292,6 +292,14 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
     });
 
+    test('Occurrences renders for every row so grid positions never shift', () => {
+        // Single entry → "1"; consolidated → the group count. Conditional
+        // rendering would reflow the fields after it between row kinds.
+        render(<QueryLogCard log={memberA} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-occurrences')).toHaveTextContent('1');
+    });
+
     test('the Queries chip block renders for every row and there is no Outcome field', () => {
         // tableRef: query-log-outcomes-behaviour C1 — consistent placement: the
         // block appears for uniform groups too, one chip per distinct pair.

@@ -355,7 +355,9 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
-                            {isConsolidated && renderDetailField("Occurrences", String(count), "querylog-detail-occurrences")}
+                            {/* Always rendered ("1" for single rows) so grid field positions
+                                never shift between single and consolidated cards. */}
+                            {renderDetailField("Occurrences", String(count), "querylog-detail-occurrences")}
                             {log.client_ip && renderDetailField("Client IP", log.client_ip, "querylog-detail-client-ip")}
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
                             {renderDetailField(hasTimeRange ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
