@@ -3,14 +3,14 @@ import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { formatDistanceToNow, parseISO, format } from "date-fns";
 import { Clock, ShieldPlus } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge"; // still used for Blocked status only
+import { Badge } from "@/components/ui/badge"; // Blocked status pill + outcome-pair chips
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ReasonBadges } from "@/components/ui/ReasonBadges";
 import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
-import { formatOutcome } from "@/lib/formatOutcome";
+import { formatOutcome, consolidatedOutcomePairs } from "@/lib/formatOutcome";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
@@ -182,12 +182,16 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     // to the representative's single value.
     const queryTypeText = isConsolidated ? group?.queryTypes.join(', ') : log.dns_request?.query_type;
     const responseCodeText = isConsolidated ? group?.responseCodes.join(', ') : log.dns_request?.response_code;
-    // Resolution outcome (spec: query-log-outcomes-behaviour.md). Consolidated
-    // groups show each member's distinct outcome; legacy members without the
-    // field fall back to an rcode-derived label via formatOutcome.
+    // Resolution outcome (spec: query-log-outcomes-behaviour.md, rows C1-C2).
+    // Single entries get the type-aware label ("No AAAA records"). Consolidated
+    // groups: one singular label when all members agree (C1); when they diverge,
+    // a full-width paired type·outcome chip block below the grid (C2) — a flat
+    // joined list would sever which type produced which outcome.
+    const consolidatedOutcomes = isConsolidated ? consolidatedOutcomePairs(group!.members) : undefined;
     const outcomeText = isConsolidated
-        ? Array.from(new Set(group!.members.map((m) => formatOutcome(m.outcome, m.dns_request?.response_code)))).join(', ')
-        : formatOutcome(log.outcome, log.dns_request?.response_code);
+        ? (consolidatedOutcomes!.uniform ? consolidatedOutcomes!.uniformLabel : undefined)
+        : formatOutcome(log.outcome, log.dns_request?.response_code, log.dns_request?.query_type);
+    const outcomePairs = consolidatedOutcomes && !consolidatedOutcomes.uniform ? consolidatedOutcomes.pairs : undefined;
     // A group only shows a first–last time RANGE when its endpoints differ at second granularity.
     // A + AAAA fired back-to-back land in the same second, so those collapse to a single "Time"
     // (like a non-consolidated row); groups that genuinely span >=1s (e.g. grouped blocked queries)
@@ -339,7 +343,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                                     </div>
                                 )}
                             {queryTypeText && renderDetailField(isConsolidated ? "Query types" : "Query type", queryTypeText, "querylog-detail-query-type")}
-                            {outcomeText && renderDetailField(isConsolidated ? "Outcomes" : "Outcome", outcomeText, "querylog-detail-outcome")}
+                            {outcomeText && renderDetailField("Outcome", outcomeText, "querylog-detail-outcome")}
                             {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
@@ -348,6 +352,24 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
                             {renderDetailField(hasTimeRange ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
                         </dl>
+                        {outcomePairs && (
+                            <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-outcome-pairs">
+                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">Queries</span>
+                                <div className="flex flex-wrap gap-1.5 min-w-0">
+                                    {outcomePairs.map((pair) => (
+                                        <Badge
+                                            key={`${pair.queryType}-${pair.label}`}
+                                            variant="secondary"
+                                            className={cn("max-w-full truncate", pair.failure && "text-[var(--tailwind-colors-red-600)]")}
+                                            aria-label={`${pair.queryType}: ${pair.label}`}
+                                            data-testid="querylog-outcome-pair"
+                                        >
+                                            {pair.queryType} · {pair.label}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {hasReasons && (
                             <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">
                                 <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{(isBlocked || dnssecFailed) ? "Block reason" : "Allow reason"}</span>

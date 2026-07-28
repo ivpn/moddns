@@ -267,6 +267,7 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         lastTimestamp: memberAAAA.timestamp,
         queryTypes: ['A', 'AAAA'],
         responseCodes: ['NOERROR', 'NXDOMAIN'],
+        outcomes: [],
     };
 
     test('single-entry row (no group / count 1) shows no count badge', () => {
@@ -274,6 +275,50 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
         render(<QueryLogCard log={memberA} group={{ ...group, count: 1, members: [memberA], queryTypes: ['A'], responseCodes: ['NOERROR'] }} />);
         expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
+    });
+
+    test('uniform-outcome group shows a singular Outcome field and no pair chips', () => {
+        // tableRef: query-log-outcomes-behaviour C1
+        const uniformA = { ...memberA, outcome: 'blocked', status: 'blocked' };
+        const uniformAAAA = { ...memberAAAA, outcome: 'blocked', status: 'blocked' };
+        const uniformGroup = { ...group, members: [uniformA, uniformAAAA, uniformA] };
+        render(<QueryLogCard log={uniformA} group={uniformGroup} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-outcome')).toHaveTextContent('Blocked');
+        expect(screen.getByText('Outcome')).toBeInTheDocument();
+        expect(screen.queryByTestId('querylog-outcome-pairs')).not.toBeInTheDocument();
+    });
+
+    test('mismatched-outcome group replaces the flat field with paired type·outcome chips', () => {
+        // tableRef: query-log-outcomes-behaviour C2
+        const resolvedA = { ...memberA, outcome: 'resolved' };
+        const nodataAAAA = {
+            ...memberAAAA,
+            outcome: 'nodata',
+            dns_request: { ...memberAAAA.dns_request, response_code: 'NOERROR' },
+        };
+        const mixedGroup = { ...group, members: [resolvedA, nodataAAAA, resolvedA] };
+        render(<QueryLogCard log={resolvedA} group={mixedGroup} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.queryByTestId('querylog-detail-outcome')).not.toBeInTheDocument();
+        const chips = screen.getAllByTestId('querylog-outcome-pair');
+        expect(chips).toHaveLength(2);
+        expect(chips[0]).toHaveTextContent('A · Resolved');
+        // Generic label inside the chip — the type prefix supplies the "which".
+        expect(chips[1]).toHaveTextContent('AAAA · No records');
+        expect(chips[1]).toHaveAttribute('aria-label', 'AAAA: No records');
+    });
+
+    test('single entry renders the type-aware nodata label', () => {
+        // tableRef: query-log-outcomes-behaviour O2
+        const nodataLog = {
+            ...memberAAAA,
+            outcome: 'nodata',
+            dns_request: { ...memberAAAA.dns_request, response_code: 'NOERROR' },
+        };
+        render(<QueryLogCard log={nodataLog} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-detail-outcome')).toHaveTextContent('No AAAA records');
     });
 
     test('consolidated row shows a ×N count badge', () => {
