@@ -214,6 +214,12 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
             className={cn(
                 "w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent",
                 INTERACTIVE_CARD,
+                // Override INTERACTIVE_CARD's hover:scale — the logs list wrapper is
+                // overflow-x-hidden with only ~8px side padding, so a 1.02 scale pushes
+                // the left/right borders past the clip edge (visible as missing border
+                // segments in light mode). A small upward translate keeps the "lift"
+                // signal without any horizontal growth.
+                "hover:scale-100 hover:-translate-y-0.5",
                 "relative hover:z-10 hover:shadow-lg hover:border-[var(--tailwind-colors-rdns-600)]",
                 // Press/active feedback (works on touch where there is no hover) — subtle tint on tap.
                 "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]"
