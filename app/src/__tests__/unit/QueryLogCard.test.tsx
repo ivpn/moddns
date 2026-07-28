@@ -202,7 +202,10 @@ describe('QueryLogCard whole-card expansion', () => {
         expect(badge).toHaveAttribute('data-dnssec', 'failed');
     });
 
-    test('labels the reason "Block reason" for a DNSSEC-failed row (not "Allow reason")', () => {
+    test('labels the reason "Failure reason" for a DNSSEC-failed processed row', () => {
+        // tableRef: logs-reason-display-behaviour #18 — nothing was blocked (the
+        // recursor SERVFAILed on validation), so neither "Block reason" nor
+        // "Allow reason" is truthful.
         const log: ModelQueryLog = {
             ...baseLog,
             status: 'processed',
@@ -212,8 +215,21 @@ describe('QueryLogCard whole-card expansion', () => {
         render(<QueryLogCard log={log} />);
         fireEvent.click(screen.getByTestId('querylog-card-toggle'));
         const reasons = screen.getByTestId('querylog-reasons');
-        expect(reasons).toHaveTextContent('Block reason');
+        expect(reasons).toHaveTextContent('Failure reason');
+        expect(reasons).not.toHaveTextContent('Block reason');
         expect(reasons).not.toHaveTextContent('Allow reason');
+    });
+
+    test('keeps "Block reason" for genuinely blocked rows with a dnssec reason present', () => {
+        // tableRef: logs-reason-display-behaviour #18 — blocked wins the label.
+        const log: ModelQueryLog = {
+            ...baseLog,
+            status: 'blocked',
+            reasons: ['blocklists', 'dnssec_failed'],
+        };
+        render(<QueryLogCard log={log} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByTestId('querylog-reasons')).toHaveTextContent('Block reason');
     });
 
     test('DNSSEC detail field distinguishes the three states', () => {
@@ -267,7 +283,6 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         lastTimestamp: memberAAAA.timestamp,
         queryTypes: ['A', 'AAAA'],
         responseCodes: ['NOERROR', 'NXDOMAIN'],
-        outcomes: [],
     };
 
     test('single-entry row (no group / count 1) shows no count badge', () => {
@@ -277,20 +292,24 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         expect(screen.queryByTestId('querylog-count-badge')).not.toBeInTheDocument();
     });
 
-    test('uniform-outcome group shows a singular Outcome field and no pair chips', () => {
-        // tableRef: query-log-outcomes-behaviour C1
+    test('the Queries chip block renders for every row and there is no Outcome field', () => {
+        // tableRef: query-log-outcomes-behaviour C1 — consistent placement: the
+        // block appears for uniform groups too, one chip per distinct pair.
         const uniformA = { ...memberA, outcome: 'blocked', status: 'blocked' };
         const uniformAAAA = { ...memberAAAA, outcome: 'blocked', status: 'blocked' };
         const uniformGroup = { ...group, members: [uniformA, uniformAAAA, uniformA] };
         render(<QueryLogCard log={uniformA} group={uniformGroup} />);
         fireEvent.click(screen.getByTestId('querylog-card-toggle'));
-        expect(screen.getByTestId('querylog-detail-outcome')).toHaveTextContent('Blocked');
-        expect(screen.getByText('Outcome')).toBeInTheDocument();
-        expect(screen.queryByTestId('querylog-outcome-pairs')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('querylog-detail-outcome')).not.toBeInTheDocument();
+        expect(screen.getByTestId('querylog-outcome-pairs')).toBeInTheDocument();
+        const chips = screen.getAllByTestId('querylog-outcome-pair');
+        expect(chips).toHaveLength(2);
+        expect(chips[0]).toHaveTextContent('A · Blocked');
+        expect(chips[1]).toHaveTextContent('AAAA · Blocked');
     });
 
-    test('mismatched-outcome group replaces the flat field with paired type·outcome chips', () => {
-        // tableRef: query-log-outcomes-behaviour C2
+    test('a mixed group shows one chip per distinct type·outcome pair', () => {
+        // tableRef: query-log-outcomes-behaviour C1
         const resolvedA = { ...memberA, outcome: 'resolved' };
         const nodataAAAA = {
             ...memberAAAA,
@@ -300,17 +319,43 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         const mixedGroup = { ...group, members: [resolvedA, nodataAAAA, resolvedA] };
         render(<QueryLogCard log={resolvedA} group={mixedGroup} />);
         fireEvent.click(screen.getByTestId('querylog-card-toggle'));
-        expect(screen.queryByTestId('querylog-detail-outcome')).not.toBeInTheDocument();
         const chips = screen.getAllByTestId('querylog-outcome-pair');
         expect(chips).toHaveLength(2);
         expect(chips[0]).toHaveTextContent('A · Resolved');
-        // Generic label inside the chip — the type prefix supplies the "which".
         expect(chips[1]).toHaveTextContent('AAAA · No records');
         expect(chips[1]).toHaveAttribute('aria-label', 'AAAA: No records');
     });
 
-    test('single entry renders the type-aware nodata label', () => {
-        // tableRef: query-log-outcomes-behaviour O2
+    test('consolidated reasons aggregate across all members, not just the representative', () => {
+        // tableRef: query-log-outcomes-behaviour C2 — `reasons` is not part of
+        // the consolidation signature, so members can carry different reasons;
+        // showing only the representative's silently drops the rest.
+        const blockedA = { ...memberA, status: 'blocked', outcome: 'blocked', reasons: ['blocklists'] };
+        const blockedAAAA = { ...memberAAAA, status: 'blocked', outcome: 'blocked', reasons: ['custom_rules'] };
+        const mixedReasonGroup = { ...group, members: [blockedA, blockedAAAA, blockedA] };
+        render(<QueryLogCard log={blockedA} group={mixedReasonGroup} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        const reasonsBlock = screen.getByTestId('querylog-reasons');
+        expect(reasonsBlock).toHaveTextContent('Blocklist');
+        expect(reasonsBlock).toHaveTextContent('Custom rule');
+    });
+
+    test('chip sections are programmatically labeled groups', () => {
+        const blockedA = { ...memberA, status: 'blocked', outcome: 'blocked', reasons: ['blocklists'] };
+        render(<QueryLogCard log={blockedA} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        for (const testid of ['querylog-outcome-pairs', 'querylog-reasons']) {
+            const section = screen.getByTestId(testid);
+            expect(section).toHaveAttribute('role', 'group');
+            const labelledBy = section.getAttribute('aria-labelledby');
+            expect(labelledBy).toBeTruthy();
+            expect(document.getElementById(labelledBy!)).not.toBeNull();
+        }
+    });
+
+    test('a single entry renders one Queries chip in the same block', () => {
+        // tableRef: query-log-outcomes-behaviour C1 — single rows use the
+        // identical block/slot so the panel layout never shifts between rows.
         const nodataLog = {
             ...memberAAAA,
             outcome: 'nodata',
@@ -318,7 +363,10 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         };
         render(<QueryLogCard log={nodataLog} />);
         fireEvent.click(screen.getByTestId('querylog-card-toggle'));
-        expect(screen.getByTestId('querylog-detail-outcome')).toHaveTextContent('No AAAA records');
+        expect(screen.queryByTestId('querylog-detail-outcome')).not.toBeInTheDocument();
+        const chips = screen.getAllByTestId('querylog-outcome-pair');
+        expect(chips).toHaveLength(1);
+        expect(chips[0]).toHaveTextContent('AAAA · No records');
     });
 
     test('consolidated row shows a ×N count badge', () => {

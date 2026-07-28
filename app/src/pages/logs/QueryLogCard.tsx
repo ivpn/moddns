@@ -10,7 +10,7 @@ import { ReasonBadges } from "@/components/ui/ReasonBadges";
 import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
-import { formatOutcome, consolidatedOutcomePairs } from "@/lib/formatOutcome";
+import { outcomePairs } from "@/lib/formatOutcome";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
@@ -82,7 +82,14 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     // Whole-card expand: every row is expandable (blocked and processed, with or without reasons).
     // There is no visible chevron — expandability is signalled by the hover lift (desktop),
     // the press/active feedback (both), and a one-time hint (mobile, owned by the Logs page).
-    const reasons = log.reasons ?? [];
+    //
+    // Reasons scope (spec: query-log-outcomes-behaviour.md C2): `reasons` is NOT part
+    // of the consolidation signature, so members of a group can be blocked for
+    // different reasons — aggregate the union across members (insertion-ordered;
+    // formatReasons dedupes) instead of showing only the representative's.
+    const reasons = isConsolidated
+        ? group!.members.flatMap((m) => m.reasons ?? [])
+        : (log.reasons ?? []);
     const hasReasons = reasons.length > 0;
     const [expanded, setExpanded] = useState(false);
     const panelId = useId();
@@ -182,16 +189,12 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     // to the representative's single value.
     const queryTypeText = isConsolidated ? group?.queryTypes.join(', ') : log.dns_request?.query_type;
     const responseCodeText = isConsolidated ? group?.responseCodes.join(', ') : log.dns_request?.response_code;
-    // Resolution outcome (spec: query-log-outcomes-behaviour.md, rows C1-C2).
-    // Single entries get the type-aware label ("No AAAA records"). Consolidated
-    // groups: one singular label when all members agree (C1); when they diverge,
-    // a full-width paired type·outcome chip block below the grid (C2) — a flat
-    // joined list would sever which type produced which outcome.
-    const consolidatedOutcomes = isConsolidated ? consolidatedOutcomePairs(group!.members) : undefined;
-    const outcomeText = isConsolidated
-        ? (consolidatedOutcomes!.uniform ? consolidatedOutcomes!.uniformLabel : undefined)
-        : formatOutcome(log.outcome, log.dns_request?.response_code, log.dns_request?.query_type);
-    const outcomePairs = consolidatedOutcomes && !consolidatedOutcomes.uniform ? consolidatedOutcomes.pairs : undefined;
+    // Resolution outcomes (spec: query-log-outcomes-behaviour.md, row C1): the
+    // "Queries" chip block renders for EVERY row — single entries and groups,
+    // uniform or mixed — always in the same slot, so the panel's shape never
+    // shifts between rows. One chip per distinct type·outcome pair; there is no
+    // separate Outcome field.
+    const queryOutcomePairs = outcomePairs(isConsolidated ? group!.members : [log]);
     // A group only shows a first–last time RANGE when its endpoints differ at second granularity.
     // A + AAAA fired back-to-back land in the same second, so those collapse to a single "Time"
     // (like a non-consolidated row); groups that genuinely span >=1s (e.g. grouped blocked queries)
@@ -343,7 +346,6 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                                     </div>
                                 )}
                             {queryTypeText && renderDetailField(isConsolidated ? "Query types" : "Query type", queryTypeText, "querylog-detail-query-type")}
-                            {outcomeText && renderDetailField("Outcome", outcomeText, "querylog-detail-outcome")}
                             {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
                             {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
@@ -352,15 +354,25 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             {log.device_id && renderDetailField("Device ID", log.device_id, "querylog-detail-device-id")}
                             {renderDetailField(hasTimeRange ? "Time range" : "Time", timeText, "querylog-detail-timestamp")}
                         </dl>
-                        {outcomePairs && (
-                            <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-outcome-pairs">
-                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">Queries</span>
+                        {queryOutcomePairs.length > 0 && (
+                            <div className="flex flex-col gap-1.5 min-w-0" role="group" aria-labelledby={`${panelId}-queries-label`} data-testid="querylog-outcome-pairs">
+                                <span id={`${panelId}-queries-label`} className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">Queries</span>
                                 <div className="flex flex-wrap gap-1.5 min-w-0">
-                                    {outcomePairs.map((pair) => (
+                                    {queryOutcomePairs.map((pair) => (
                                         <Badge
                                             key={`${pair.queryType}-${pair.label}`}
                                             variant="secondary"
-                                            className={cn("max-w-full truncate", pair.failure && "text-[var(--tailwind-colors-red-600)]")}
+                                            // Outcome chips carry a tinted surface + border so they read as a
+                                            // different species from the plain reason chips below. Failure state
+                                            // is a red-tinted SURFACE, not red text — the default foreground
+                                            // keeps AA contrast, and the failure word in the chip text ensures
+                                            // color is never the sole carrier.
+                                            className={cn(
+                                                "max-w-full truncate border",
+                                                pair.failure
+                                                    ? "border-[var(--tailwind-colors-red-600)]/40 bg-[var(--tailwind-colors-red-600)]/10"
+                                                    : "border-[var(--tailwind-colors-slate-200)]/30",
+                                            )}
                                             aria-label={`${pair.queryType}: ${pair.label}`}
                                             data-testid="querylog-outcome-pair"
                                         >
@@ -371,8 +383,13 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             </div>
                         )}
                         {hasReasons && (
-                            <div className="flex flex-col gap-1.5 min-w-0" data-testid="querylog-reasons">
-                                <span className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">{(isBlocked || dnssecFailed) ? "Block reason" : "Allow reason"}</span>
+                            <div className="flex flex-col gap-1.5 min-w-0" role="group" aria-labelledby={`${panelId}-reasons-label`} data-testid="querylog-reasons">
+                                {/* Three-way label (logs-reason-display-behaviour #18): "Block reason"
+                                    only when the filter actually blocked; a dnssec_failed row is
+                                    status processed — the recursor failed, nothing was blocked. */}
+                                <span id={`${panelId}-reasons-label`} className="text-[10px] uppercase tracking-wide font-semibold text-[var(--tailwind-colors-slate-100)]">
+                                    {isBlocked ? "Block reason" : dnssecFailed ? "Failure reason" : "Allow reason"}
+                                </span>
                                 <ReasonBadges reasons={reasons} blocklistNames={blocklistNames} serviceNames={serviceNames} />
                             </div>
                         )}
