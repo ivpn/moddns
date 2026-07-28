@@ -2,37 +2,138 @@ import { registerSW } from "virtual:pwa-register";
 import { toast } from "sonner";
 
 const CHECK_INTERVAL_MS = 15 * 60 * 1000;
-// Stable toast id so repeated onNeedRefresh calls update one toast instead of stacking.
+// Stable toast id so repeated update signals update one toast instead of stacking.
 const UPDATE_TOAST_ID = "sw-update";
+// Startup version check is delayed so a normal waiting-SW discovery (which the
+// browser kicks off on navigation) gets to fire onNeedRefresh first.
+const STARTUP_VERSION_CHECK_MS = 5 * 1000;
+// Reload fallback after skip-waiting, for engines where controllerchange
+// doesn't arrive reliably.
+const APPLY_RELOAD_FALLBACK_MS = 4 * 1000;
+// sessionStorage key recording the build id we already auto-reloaded for.
+const AUTO_RELOAD_GUARD_KEY = "sw-update-auto-reload";
+
+// Injected via `define` (vite.config.ts and the unit vitest config); the build
+// also emits /version.json carrying the same id.
+declare const __APP_BUILD_ID__: string;
 
 /**
  * Deploy-freshness policy (issue #631):
- * - poll for a new sw.js every 15 minutes and whenever the tab regains
- *   visibility — by default the browser only checks on navigation, which a
- *   SPA rarely does, so long-lived tabs would never discover a deploy;
- * - when an update is waiting: apply it immediately if the tab is hidden,
- *   otherwise show a persistent "Refresh" toast AND apply the moment the
- *   user tabs away. The plugin's register module reloads every open tab on
- *   the workbox `controlling` (isUpdate) event, so multi-tab reload and
- *   loop-safety are handled by the library.
+ * - poll every 15 minutes and whenever the tab regains visibility — by default
+ *   the browser only checks on navigation, which a SPA rarely does — for BOTH
+ *   a new sw.js (registration.update) and a new build id (version.json). The
+ *   version poll covers Safari/iOS, which evicts tabs and applies SW updates
+ *   around navigation before page JS runs: the page can be stale with the new
+ *   SW already in control and nothing ever reaching "waiting", so the SW
+ *   lifecycle events alone never fire there;
+ * - when an update is detected: apply it immediately if the tab is hidden,
+ *   otherwise show a persistent "Refresh" toast AND apply the moment the user
+ *   tabs away. Applying prefers the waiting-SW path (skip-waiting, then reload
+ *   every open tab) and falls back to a plain reload when no SW is waiting;
+ * - reload on `controllerchange` ourselves rather than relying on the
+ *   register module's `isUpdate`-gated reload: workbox only sets isUpdate when
+ *   the page was already controlled at registration time, so on a first visit
+ *   after clearing site data the Refresh click would otherwise do nothing;
+ * - hidden-tab fallback reloads are guarded to once per build id so a stale
+ *   cache that survives a reload cannot cause a reload loop.
  */
 export function setupSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
 
-  const applyUpdate = () => {
+  let swRegistration: ServiceWorkerRegistration | undefined;
+  let updateHandled = false;
+  let reloading = false;
+
+  const reload = () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  };
+
+  const applyWaiting = () => {
+    navigator.serviceWorker.addEventListener("controllerchange", reload, { once: true });
+    setTimeout(reload, APPLY_RELOAD_FALLBACK_MS);
     void updateSW();
+  };
+
+  // One automatic reload per deployed build; returns whether it reloaded.
+  const autoReload = (buildId: string) => {
+    try {
+      if (sessionStorage.getItem(AUTO_RELOAD_GUARD_KEY) === buildId) return false;
+      sessionStorage.setItem(AUTO_RELOAD_GUARD_KEY, buildId);
+    } catch {
+      // No storage (e.g. private mode edge cases) → no loop guard → never
+      // auto-reload; the visible-tab toast still offers a manual refresh.
+      return false;
+    }
+    reload();
+    return true;
+  };
+
+  // hasWaiting distinguishes the trigger: onNeedRefresh guarantees a waiting
+  // SW; the version poll may fire when the SW already updated silently.
+  const onUpdateAvailable = (source: { hasWaiting: boolean; buildId?: string }) => {
+    if (updateHandled) return;
+    const apply = (manual: boolean) => {
+      if (source.hasWaiting || swRegistration?.waiting) {
+        applyWaiting();
+        return true;
+      }
+      if (manual) {
+        reload();
+        return true;
+      }
+      return autoReload(source.buildId ?? "unknown");
+    };
+    if (document.hidden) {
+      // A guard-skipped auto-reload leaves updateHandled false so the next
+      // check after the tab becomes visible surfaces the toast instead.
+      updateHandled = apply(false);
+      return;
+    }
+    updateHandled = true;
+    // Single entry point for both triggers (toast click, tab-away) that
+    // detaches the listener first, so the update is only ever applied once.
+    const applyOnce = () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      apply(true);
+    };
+    const onHidden = () => {
+      if (!document.hidden) return;
+      document.removeEventListener("visibilitychange", onHidden);
+      apply(false);
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    toast.info("A new version of modDNS is available.", {
+      id: UPDATE_TOAST_ID,
+      duration: Infinity,
+      action: { label: "Refresh", onClick: applyOnce },
+    });
+  };
+
+  const versionCheck = async () => {
+    try {
+      const res = await fetch("/version.json", { cache: "no-store" });
+      if (!res.ok) return;
+      const { buildId } = (await res.json()) as { buildId?: string };
+      if (!buildId || buildId === __APP_BUILD_ID__) return;
+      onUpdateAvailable({ hasWaiting: false, buildId });
+    } catch {
+      // Offline, or dev server without version.json — the next tick retries.
+    }
   };
 
   const updateSW = registerSW({
     immediate: true,
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
+      swRegistration = registration;
       const check = () => {
-        if (navigator.onLine) {
-          registration.update().catch(() => {
-            // Transient network error — the next tick retries.
-          });
-        }
+        if (!navigator.onLine) return;
+        registration.update().catch(() => {
+          // Transient network error — the next tick retries.
+        });
+        void versionCheck();
       };
       setInterval(check, CHECK_INTERVAL_MS);
       document.addEventListener("visibilitychange", () => {
@@ -40,29 +141,16 @@ export function setupSWUpdate() {
       });
     },
     onNeedRefresh() {
-      if (document.hidden) {
-        applyUpdate();
-        return;
-      }
-      // Single entry point for both triggers (toast click, tab-away) that
-      // detaches the listener first, so the update is only ever applied once.
-      const applyOnce = () => {
-        document.removeEventListener("visibilitychange", onHidden);
-        applyUpdate();
-      };
-      const onHidden = () => {
-        if (!document.hidden) return;
-        applyOnce();
-      };
-      document.addEventListener("visibilitychange", onHidden);
-      toast.info("A new version of modDNS is available.", {
-        id: UPDATE_TOAST_ID,
-        duration: Infinity,
-        action: { label: "Refresh", onClick: applyOnce },
-      });
+      onUpdateAvailable({ hasWaiting: true });
     },
     onRegisterError() {
       // Non-fatal: the app works without a service worker.
     },
   });
+
+  // Catch the stale-page-under-a-new-SW race at startup (Safari can swap the
+  // SW mid-navigation, after the old HTML was already served).
+  setTimeout(() => {
+    if (navigator.onLine) void versionCheck();
+  }, STARTUP_VERSION_CHECK_MS);
 }

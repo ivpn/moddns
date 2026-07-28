@@ -2,6 +2,11 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  // Build-time constant injected by vite.config.ts in real builds; pinned here
+  // so unit tests can exercise the version.json freshness check.
+  define: {
+    __APP_BUILD_ID__: JSON.stringify('test-build'),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '../'), // __tests__ sibling of app/src root
