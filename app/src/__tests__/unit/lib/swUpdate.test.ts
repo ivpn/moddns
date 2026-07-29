@@ -230,6 +230,47 @@ describe('setupSWUpdate', () => {
         expect(toastInfoMock).not.toHaveBeenCalled();
     });
 
+    // Double-toast regression (staging report): the version poll outruns the
+    // SW install. Toasting then would offer a plain reload that the old SW
+    // answers with the old page — producing a second toast after reload. While
+    // an install is in flight the poll must stay quiet and let the 'waiting'
+    // event raise the toast once it is actually actionable.
+    it('stays quiet on version mismatch while the new SW is still installing', async () => {
+        fetchMock.mockImplementation(() => versionResponse('newer-build'));
+        const options = capturedOptions();
+        options.onRegisteredSW?.('/sw.js', {
+            update: vi.fn().mockResolvedValue(undefined),
+            installing: {},
+        });
+
+        await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
+        expect(fetchMock).toHaveBeenCalled();
+        expect(toastInfoMock).not.toHaveBeenCalled();
+
+        // Install completes → the normal waiting-SW flow shows ONE toast.
+        options.onNeedRefresh?.();
+        expect(toastInfoMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the skip-waiting path when the update check surfaces a waiting worker', async () => {
+        fetchMock.mockImplementation(() => versionResponse('newer-build'));
+        const options = capturedOptions();
+        const registration: { update: () => Promise<void>; waiting?: unknown } = {
+            // update() discovers the new SW and it lands in waiting before resolve
+            update: vi.fn().mockImplementation(async () => {
+                registration.waiting = {};
+            }),
+        };
+        options.onRegisteredSW?.('/sw.js', registration);
+
+        await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
+        expect(toastInfoMock).toHaveBeenCalled();
+        const [, toastOptions] = toastInfoMock.mock.calls[0];
+        toastOptions.action.onClick();
+        expect(updateSWMock).toHaveBeenCalledTimes(1);
+        expect(reloadMock).not.toHaveBeenCalled();
+    });
+
     it('prefers the waiting-SW path when one exists at Refresh-click time', async () => {
         fetchMock.mockImplementation(() => versionResponse('newer-build'));
         const options = capturedOptions();
