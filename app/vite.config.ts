@@ -37,7 +37,14 @@ export default defineConfig({
       // chunks.
       registerType: 'prompt',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        // Images are deliberately NOT precached: the hashed marketing/setup
+        // illustrations (screenshots, browser logos) bloat SW install — the
+        // window during which a deploy is invisible to open tabs — and the
+        // runtime CacheFirst rule below caches them lazily instead. Hashed
+        // filenames make that safe (an updated image is a new URL, so it can
+        // never be served stale). Unhashed icons that must survive image
+        // updates atomically stay precached via includeAssets.
+        globPatterns: ['**/*.{js,css,html,ico,webmanifest}'],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {

@@ -6,7 +6,7 @@ const toastInfoMock = vi.hoisted(() => vi.fn());
 vi.mock('virtual:pwa-register', () => ({ registerSW: registerSWMock }));
 vi.mock('sonner', () => ({ toast: { info: toastInfoMock } }));
 
-import { setupSWUpdate } from '@/lib/swUpdate';
+import { setupSWUpdate, checkForAppUpdate } from '@/lib/swUpdate';
 
 type RegisterSWOptions = {
     immediate?: boolean;
@@ -230,6 +230,47 @@ describe('setupSWUpdate', () => {
         expect(toastInfoMock).not.toHaveBeenCalled();
     });
 
+    // Double-toast regression (staging report): the version poll outruns the
+    // SW install. Toasting then would offer a plain reload that the old SW
+    // answers with the old page — producing a second toast after reload. While
+    // an install is in flight the poll must stay quiet and let the 'waiting'
+    // event raise the toast once it is actually actionable.
+    it('stays quiet on version mismatch while the new SW is still installing', async () => {
+        fetchMock.mockImplementation(() => versionResponse('newer-build'));
+        const options = capturedOptions();
+        options.onRegisteredSW?.('/sw.js', {
+            update: vi.fn().mockResolvedValue(undefined),
+            installing: {},
+        });
+
+        await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
+        expect(fetchMock).toHaveBeenCalled();
+        expect(toastInfoMock).not.toHaveBeenCalled();
+
+        // Install completes → the normal waiting-SW flow shows ONE toast.
+        options.onNeedRefresh?.();
+        expect(toastInfoMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the skip-waiting path when the update check surfaces a waiting worker', async () => {
+        fetchMock.mockImplementation(() => versionResponse('newer-build'));
+        const options = capturedOptions();
+        const registration: { update: () => Promise<void>; waiting?: unknown } = {
+            // update() discovers the new SW and it lands in waiting before resolve
+            update: vi.fn().mockImplementation(async () => {
+                registration.waiting = {};
+            }),
+        };
+        options.onRegisteredSW?.('/sw.js', registration);
+
+        await vi.advanceTimersByTimeAsync(15 * 60 * 1000);
+        expect(toastInfoMock).toHaveBeenCalled();
+        const [, toastOptions] = toastInfoMock.mock.calls[0];
+        toastOptions.action.onClick();
+        expect(updateSWMock).toHaveBeenCalledTimes(1);
+        expect(reloadMock).not.toHaveBeenCalled();
+    });
+
     it('prefers the waiting-SW path when one exists at Refresh-click time', async () => {
         fetchMock.mockImplementation(() => versionResponse('newer-build'));
         const options = capturedOptions();
@@ -243,6 +284,47 @@ describe('setupSWUpdate', () => {
         toastOptions.action.onClick();
         expect(updateSWMock).toHaveBeenCalledTimes(1);
         expect(reloadMock).not.toHaveBeenCalled();
+    });
+
+    // Route-navigation trigger: SPA navigations call checkForAppUpdate() so an
+    // active user discovers a deploy within ~a minute instead of the 15-minute
+    // interval; throttled so click-heavy sessions don't hammer the server.
+    it('checks for updates on navigation, throttled to once a minute', () => {
+        const options = capturedOptions();
+        const registration = { update: vi.fn().mockResolvedValue(undefined) };
+        options.onRegisteredSW?.('/sw.js', registration);
+
+        vi.advanceTimersByTime(61 * 1000); // past the throttle window since setup
+        checkForAppUpdate();
+        expect(registration.update).toHaveBeenCalledTimes(1);
+
+        // Rapid follow-up navigations inside the window are swallowed.
+        checkForAppUpdate();
+        vi.advanceTimersByTime(30 * 1000);
+        checkForAppUpdate();
+        expect(registration.update).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(31 * 1000);
+        checkForAppUpdate();
+        expect(registration.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('navigation checks respect a recent visibility-triggered check', () => {
+        const options = capturedOptions();
+        const registration = { update: vi.fn().mockResolvedValue(undefined) };
+        options.onRegisteredSW?.('/sw.js', registration);
+
+        vi.advanceTimersByTime(61 * 1000);
+        document.dispatchEvent(new Event('visibilitychange')); // visible → immediate check
+        expect(registration.update).toHaveBeenCalledTimes(1);
+
+        checkForAppUpdate(); // right after — inside the shared throttle window
+        expect(registration.update).toHaveBeenCalledTimes(1);
+    });
+
+    it('checkForAppUpdate is a safe no-op before registration completes', () => {
+        setupSWUpdate();
+        expect(() => checkForAppUpdate()).not.toThrow();
     });
 
     it('auto-reloads a hidden stale tab at most once per build', async () => {
