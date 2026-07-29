@@ -411,6 +411,83 @@ describe('QueryLogCard consolidation (issue #161)', () => {
     });
 });
 
+describe('QueryLogCard collapsed status indicator', () => {
+    beforeEach(() => {
+        (window as unknown as { innerWidth: number }).innerWidth = 1440;
+        stubDesktopMatchMedia(true);
+    });
+
+    const baseLog: ModelQueryLog = {
+        profile_id: 'p-chip',
+        timestamp: '2026-06-15T10:20:30.000Z',
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'chip-device',
+        client_ip: '10.0.0.9',
+        dns_request: { domain: 'chip.example.com', query_type: 'A', response_code: 'NOERROR' },
+    };
+
+    test('blocked row shows the red Blocked pill', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — Blocked precedence unchanged.
+        render(<QueryLogCard log={{ ...baseLog, status: 'blocked', outcome: 'blocked' }} />);
+        const indicator = screen.getByTestId('querylog-status-indicator');
+        expect(indicator).toHaveTextContent('Blocked');
+        expect(indicator).toHaveAttribute('data-state', 'blocked');
+    });
+
+    test('unanswered outcomes show the "No answer" text label on the collapsed row', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — a text micro-label (like the
+        // protocol/DNSSEC labels), not a filled pill: pills are policy actions.
+        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused']) {
+            const { unmount } = render(<QueryLogCard log={{
+                ...baseLog,
+                outcome,
+                dns_request: { ...baseLog.dns_request, response_code: 'SERVFAIL' },
+            }} />);
+            const indicator = screen.getByTestId('querylog-status-indicator');
+            expect(indicator).toHaveTextContent('No answer');
+            expect(indicator).toHaveAttribute('data-state', 'unanswered');
+            expect(indicator.tagName).toBe('SPAN'); // text label, not a Badge pill
+            unmount();
+        }
+    });
+
+    test('answered rows show no status indicator at all', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — resolved/nodata/nxdomain are
+        // healthy answers; servfail_dnssec is owned by the red DNSSEC label.
+        for (const outcome of ['resolved', 'nodata', 'nxdomain', 'servfail_dnssec']) {
+            const { unmount } = render(<QueryLogCard log={{ ...baseLog, outcome }} />);
+            expect(screen.queryByTestId('querylog-status-indicator')).not.toBeInTheDocument();
+            unmount();
+        }
+    });
+
+    test('a consolidated group with any unanswered member shows the label', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — outcome is not in the
+        // consolidation signature; the representative alone would miss the timeout.
+        const resolvedA = { ...baseLog, outcome: 'resolved' };
+        const timeoutAAAA = {
+            ...baseLog,
+            outcome: 'timeout',
+            dns_request: { ...baseLog.dns_request, query_type: 'AAAA', response_code: '' },
+        };
+        const group = {
+            key: 'chip-group',
+            representative: resolvedA,
+            count: 2,
+            members: [resolvedA, timeoutAAAA],
+            firstTimestamp: baseLog.timestamp,
+            lastTimestamp: baseLog.timestamp,
+            queryTypes: ['A', 'AAAA'],
+            responseCodes: ['NOERROR'],
+        };
+        render(<QueryLogCard log={resolvedA} group={group} />);
+        const indicator = screen.getByTestId('querylog-status-indicator');
+        expect(indicator).toHaveTextContent('No answer');
+        expect(indicator).toHaveAttribute('data-state', 'unanswered');
+    });
+});
+
 describe('QueryLogCard quick rule button', () => {
     beforeEach(() => {
         (window as unknown as { innerWidth: number }).innerWidth = 1280;

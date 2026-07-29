@@ -29,5 +29,18 @@ local-data:
     rebinding-allow-rule.com: [192.168.0.20]
     router.local: [192.168.0.30]
 
+## Deliberately-unresolvable test zone (query-log outcome C3, "No answer"):
+## forwarded to a blackholed TEST-NET-1 address, so any query under
+## broken.test times out at the proxy (outcome `timeout`) or SERVFAILs once
+## knot caches the failure (outcome `servfail_upstream`) — never resolves.
+## knot-only: sdns's testhosts.txt hosts file cannot express a dead
+## delegation; sdns profiles get a harmless NXDOMAIN from the root instead
+## (.test does not exist in the public DNS).
+forward:
+  - subtree: broken.test
+    servers: [192.0.2.1]
+    options:
+      dnssec: false
+
 cache:
   size-max: 256M

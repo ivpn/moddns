@@ -86,4 +86,32 @@ export function outcomePairs(members: ModelQueryLog[]): OutcomePair[] {
     return pairs;
 }
 
+// Collapsed-card "Not answered" chip trigger set (C3). Deliberately narrower
+// than FAILURE_OUTCOMES: `blocked` is owned by the red Blocked pill and
+// `servfail_dnssec` by the red DNSSEC text label already on the collapsed row.
+const UNANSWERED_OUTCOMES = new Set([
+    'servfail_upstream', 'timeout', 'network_error', 'refused',
+]);
+
+// O10 legacy entries carry only an rcode; these two mean the query went
+// unanswered. NOERROR/NXDOMAIN (and unmapped rcodes) do not trigger the chip.
+const UNANSWERED_LEGACY_RCODES = new Set(['SERVFAIL', 'REFUSED']);
+
+/**
+ * Should the collapsed row show the amber "Not answered" chip? True when ANY
+ * member went unanswered (C3) — `outcome` is not part of the consolidation
+ * signature, so a group can mix e.g. a resolved query with a timed-out retry
+ * and the representative alone would hide the failure.
+ */
+export function hasUnansweredMember(members: ModelQueryLog[]): boolean {
+    return members.some((m) => {
+        if (m.status === 'blocked') return false; // O4/O10: Blocked pill owns it
+        if (m.outcome) return UNANSWERED_OUTCOMES.has(m.outcome);
+        // Legacy DNSSEC failures are SERVFAIL + dnssec_failed reason (the O5
+        // signal) — the red DNSSEC label covers them, like modern servfail_dnssec.
+        if (m.reasons?.includes('dnssec_failed')) return false;
+        return UNANSWERED_LEGACY_RCODES.has(m.dns_request?.response_code ?? '');
+    });
+}
+
 export default formatOutcome;

@@ -30,5 +30,16 @@ views:
 ## DNSSEC validation is enabled by default in Knot Resolver 6.x; no extra config
 ## needed. (The `dnssec` key takes a dict of overrides, not a bool.)
 
+## Deliberately-unresolvable test zone (query-log outcome C3, "No answer"):
+## forwarded to a blackholed TEST-NET-1 address, so any query under
+## broken.test times out at the proxy (outcome `timeout`) or SERVFAILs once
+## knot caches the failure (outcome `servfail_upstream`) — never resolves.
+## Local/dev stack only — do not ship to production recursors.
+forward:
+  - subtree: broken.test
+    servers: [192.0.2.1]
+    options:
+      dnssec: false
+
 cache:
   size-max: 256M
