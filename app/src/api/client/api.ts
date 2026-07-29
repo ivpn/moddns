@@ -879,6 +879,19 @@ export interface ModelExportedProfile {
 /**
  * 
  * @export
+ * @interface ModelExportedRebindingProtection
+ */
+export interface ModelExportedRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ModelExportedSecurity
  */
 export interface ModelExportedSecurity {
@@ -888,6 +901,12 @@ export interface ModelExportedSecurity {
      * @memberof ModelExportedSecurity
      */
     'dnssec'?: ModelExportedDNSSEC;
+    /**
+     * RebindingProtection is optional on the wire: envelopes produced before the field existed import with the opt-in default (disabled).
+     * @type {ModelExportedRebindingProtection}
+     * @memberof ModelExportedSecurity
+     */
+    'rebindingProtection'?: ModelExportedRebindingProtection;
 }
 /**
  * 
@@ -1193,6 +1212,7 @@ export const ModelProfileUpdatePathEnum = {
     SettingsPrivacyCustomRulesSubdomainsRule: '/settings/privacy/custom_rules_subdomains_rule',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
+    SettingsSecurityRebindingProtectionEnabled: '/settings/security/rebinding_protection/enabled',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'
 } as const;
 
@@ -1229,6 +1249,12 @@ export interface ModelQueryLog {
      */
     'id'?: string;
     /**
+     * Outcome is the proxy-computed resolution-outcome token (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+     * @type {string}
+     * @memberof ModelQueryLog
+     */
+    'outcome'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelQueryLog
@@ -1262,6 +1288,19 @@ export interface ModelQueryLog {
 /**
  * 
  * @export
+ * @interface ModelRebindingProtection
+ */
+export interface ModelRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @enum {string}
  */
 
@@ -1288,6 +1327,12 @@ export interface ModelSecurity {
      * @memberof ModelSecurity
      */
     'dnssec': ModelDNSSECSettings;
+    /**
+     * 
+     * @type {ModelRebindingProtection}
+     * @memberof ModelSecurity
+     */
+    'rebinding_protection'?: ModelRebindingProtection;
 }
 /**
  * 
@@ -2623,6 +2668,12 @@ export interface ServicescatalogCatalog {
  * @interface ServicescatalogService
  */
 export interface ServicescatalogService {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ServicescatalogService
+     */
+    'aliases'?: Array<string>;
     /**
      * 
      * @type {Array<number>}

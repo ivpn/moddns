@@ -17,22 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ServicescatalogService(BaseModel):
+class ModelExportedRebindingProtection(BaseModel):
     """
-    ServicescatalogService
+    ModelExportedRebindingProtection
     """ # noqa: E501
-    aliases: Optional[List[StrictStr]] = None
-    asns: Optional[List[StrictInt]] = None
-    domains: Optional[List[StrictStr]] = None
-    id: Optional[StrictStr] = None
-    logo_key: Optional[StrictStr] = None
-    name: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["aliases", "asns", "domains", "id", "logo_key", "name"]
+    enabled: Optional[StrictBool] = None
+    __properties: ClassVar[List[str]] = ["enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +47,7 @@ class ServicescatalogService(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ServicescatalogService from a JSON string"""
+        """Create an instance of ModelExportedRebindingProtection from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -77,7 +72,7 @@ class ServicescatalogService(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ServicescatalogService from a dict"""
+        """Create an instance of ModelExportedRebindingProtection from a dict"""
         if obj is None:
             return None
 
@@ -85,12 +80,7 @@ class ServicescatalogService(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "aliases": obj.get("aliases"),
-            "asns": obj.get("asns"),
-            "domains": obj.get("domains"),
-            "id": obj.get("id"),
-            "logo_key": obj.get("logo_key"),
-            "name": obj.get("name")
+            "enabled": obj.get("enabled")
         })
         return _obj
 

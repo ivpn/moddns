@@ -72,6 +72,7 @@ func TestStrictNoLogging_RequestContext_LoggerIntegration(t *testing.T) {
 		map[string]string{"enabled": "false"},
 		map[string]string{},
 		map[string]string{},
+		map[string]string{},
 		disabledLogger,
 	)
 
@@ -88,6 +89,7 @@ func TestStrictNoLogging_RequestContext_LoggerIntegration(t *testing.T) {
 		"", // deviceId
 		map[string]string{},
 		map[string]string{"enabled": "true"},
+		map[string]string{},
 		map[string]string{},
 		map[string]string{},
 		enabledLogger,

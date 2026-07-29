@@ -297,6 +297,12 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			}
 		}
 
+		if strings.Contains(update.Path, "/settings/security/rebinding_protection/") {
+			if err = p.handleRebindingProtectionUpdate(profile, update.Path, update); err != nil {
+				return nil, err
+			}
+		}
+
 		if strings.Contains(update.Path, "/settings/advanced/") {
 			if err = p.handleAdvancedSettingsUpdate(profile, update.Path, update); err != nil {
 				return nil, err
@@ -539,6 +545,29 @@ func (p *ProfileService) handleDNSSECSettingsUpdate(profile *model.Profile, upda
 		return p.updateDNSSECEnabled(profile, update)
 	case "/settings/security/dnssec/send_do_bit":
 		return p.updateDNSSECOKBit(profile, update)
+	}
+
+	return nil
+}
+
+func (p *ProfileService) handleRebindingProtectionUpdate(profile *model.Profile, updatePath string, update model.ProfileUpdate) error {
+	switch updatePath { // nolint
+	case "/settings/security/rebinding_protection/enabled":
+		return p.updateRebindingProtectionEnabled(profile, update)
+	}
+
+	return nil
+}
+
+func (p *ProfileService) updateRebindingProtectionEnabled(profile *model.Profile, update model.ProfileUpdate) (err error) {
+	var enabled bool
+	switch update.Operation { // nolint
+	case model.UpdateOperationReplace:
+		enabled, err = cast.ToBoolE(update.Value)
+		if err != nil {
+			return err
+		}
+		profile.Settings.Security.RebindingProtection.Enabled = enabled
 	}
 
 	return nil

@@ -53,6 +53,9 @@ func NewSettings() *ProfileSettings {
 				Enabled:   true,
 				SendDoBit: false,
 			},
+			RebindingProtection: RebindingProtection{
+				Enabled: false,
+			},
 		},
 		Logs: &LogsSettings{
 			Enabled:       false,

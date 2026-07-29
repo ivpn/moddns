@@ -439,10 +439,21 @@ definitions:
     - name
     - settings
     type: object
+  model.ExportedRebindingProtection:
+    properties:
+      enabled:
+        type: boolean
+    type: object
   model.ExportedSecurity:
     properties:
       dnssec:
         $ref: '#/definitions/model.ExportedDNSSEC'
+      rebindingProtection:
+        allOf:
+        - $ref: '#/definitions/model.ExportedRebindingProtection'
+        description: |-
+          RebindingProtection is optional on the wire: envelopes produced before
+          the field existed import with the opt-in default (disabled).
     type: object
   model.ExportedSettings:
     properties:
@@ -601,6 +612,7 @@ definitions:
         - /settings/privacy/custom_rules_subdomains_rule
         - /settings/security/dnssec/enabled
         - /settings/security/dnssec/send_do_bit
+        - /settings/security/rebinding_protection/enabled
         - /settings/advanced/recursor
         type: string
       value: {}
@@ -619,6 +631,11 @@ definitions:
         $ref: '#/definitions/model.DNSRequest'
       id:
         type: string
+      outcome:
+        description: |-
+          Outcome is the proxy-computed resolution-outcome token
+          (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+        type: string
       profile_id:
         type: string
       protocol:
@@ -631,6 +648,11 @@ definitions:
         type: string
       timestamp:
         type: string
+    type: object
+  model.RebindingProtection:
+    properties:
+      enabled:
+        type: boolean
     type: object
   model.Retention:
     enum:
@@ -650,6 +672,8 @@ definitions:
     properties:
       dnssec:
         $ref: '#/definitions/model.DNSSECSettings'
+      rebinding_protection:
+        $ref: '#/definitions/model.RebindingProtection'
     required:
     - dnssec
     type: object
@@ -1405,6 +1429,10 @@ definitions:
     type: object
   servicescatalog.Service:
     properties:
+      aliases:
+        items:
+          type: string
+        type: array
       asns:
         items:
           type: integer

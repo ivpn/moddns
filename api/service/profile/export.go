@@ -152,12 +152,15 @@ func exportSettings(s *model.ProfileSettings) *model.ExportedSettings {
 		}
 	}
 
-	// Security section — specRef: F6
+	// Security section — specRef: F6, F8
 	if s.Security != nil {
 		es.Security = &model.ExportedSecurity{
 			DNSSEC: &model.ExportedDNSSEC{
 				Enabled:   s.Security.DNSSECSettings.Enabled,
 				SendDoBit: s.Security.DNSSECSettings.SendDoBit,
+			},
+			RebindingProtection: &model.ExportedRebindingProtection{
+				Enabled: s.Security.RebindingProtection.Enabled,
 			},
 		}
 	}

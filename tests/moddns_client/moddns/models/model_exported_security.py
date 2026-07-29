@@ -17,9 +17,10 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_exported_dnssec import ModelExportedDNSSEC
+from moddns.models.model_exported_rebinding_protection import ModelExportedRebindingProtection
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,7 +29,8 @@ class ModelExportedSecurity(BaseModel):
     ModelExportedSecurity
     """ # noqa: E501
     dnssec: Optional[ModelExportedDNSSEC] = None
-    __properties: ClassVar[List[str]] = ["dnssec"]
+    rebinding_protection: Optional[ModelExportedRebindingProtection] = Field(default=None, description="RebindingProtection is optional on the wire: envelopes produced before the field existed import with the opt-in default (disabled).", alias="rebindingProtection")
+    __properties: ClassVar[List[str]] = ["dnssec", "rebindingProtection"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -72,6 +74,9 @@ class ModelExportedSecurity(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of dnssec
         if self.dnssec:
             _dict['dnssec'] = self.dnssec.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of rebinding_protection
+        if self.rebinding_protection:
+            _dict['rebindingProtection'] = self.rebinding_protection.to_dict()
         return _dict
 
     @classmethod
@@ -84,7 +89,8 @@ class ModelExportedSecurity(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "dnssec": ModelExportedDNSSEC.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None
+            "dnssec": ModelExportedDNSSEC.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None,
+            "rebindingProtection": ModelExportedRebindingProtection.from_dict(obj["rebindingProtection"]) if obj.get("rebindingProtection") is not None else None
         })
         return _obj
 

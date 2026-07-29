@@ -108,4 +108,22 @@ describe('formatReasons', () => {
             { kind: 'default', label: 'Default rule' },
         ]);
     });
+
+    it('maps rebinding_protection to a "Rebinding protection" chip', () => {
+        // tableRef: logs-reason-display-behaviour #14
+        expect(formatReasons(['rebinding_protection'])).toEqual([
+            { kind: 'rebinding', label: 'Rebinding protection' },
+        ]);
+    });
+
+    it('orders the rebinding chip by tier: after service, before custom rule', () => {
+        // tableRef: logs-reason-display-behaviour #14
+        expect(
+            formatReasons(['custom_rules', 'rebinding_protection', 'service: tiktok'], blocklistNames, serviceNames),
+        ).toEqual([
+            { kind: 'service', label: 'Service: TikTok' },
+            { kind: 'rebinding', label: 'Rebinding protection' },
+            { kind: 'custom_rule', label: 'Custom rule' },
+        ]);
+    });
 });

@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_dns_request import ModelDNSRequest
 from typing import Optional, Set
@@ -31,12 +31,13 @@ class ModelQueryLog(BaseModel):
     device_id: Optional[StrictStr] = None
     dns_request: Optional[ModelDNSRequest] = None
     id: Optional[StrictStr] = None
+    outcome: Optional[StrictStr] = Field(default=None, description="Outcome is the proxy-computed resolution-outcome token (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.")
     profile_id: Optional[StrictStr] = None
     protocol: Optional[StrictStr] = None
     reasons: Optional[List[StrictStr]] = None
     status: Optional[StrictStr] = None
     timestamp: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["client_ip", "device_id", "dns_request", "id", "profile_id", "protocol", "reasons", "status", "timestamp"]
+    __properties: ClassVar[List[str]] = ["client_ip", "device_id", "dns_request", "id", "outcome", "profile_id", "protocol", "reasons", "status", "timestamp"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -96,6 +97,7 @@ class ModelQueryLog(BaseModel):
             "device_id": obj.get("device_id"),
             "dns_request": ModelDNSRequest.from_dict(obj["dns_request"]) if obj.get("dns_request") is not None else None,
             "id": obj.get("id"),
+            "outcome": obj.get("outcome"),
             "profile_id": obj.get("profile_id"),
             "protocol": obj.get("protocol"),
             "reasons": obj.get("reasons"),

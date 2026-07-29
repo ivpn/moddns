@@ -3525,11 +3525,27 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExportedRebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.ExportedSecurity": {
             "type": "object",
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.ExportedDNSSEC"
+                },
+                "rebindingProtection": {
+                    "description": "RebindingProtection is optional on the wire: envelopes produced before\nthe field existed import with the opt-in default (disabled).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ExportedRebindingProtection"
+                        }
+                    ]
                 }
             }
         },
@@ -3755,6 +3771,7 @@ const docTemplate = `{
                         "/settings/privacy/custom_rules_subdomains_rule",
                         "/settings/security/dnssec/enabled",
                         "/settings/security/dnssec/send_do_bit",
+                        "/settings/security/rebinding_protection/enabled",
                         "/settings/advanced/recursor"
                     ]
                 },
@@ -3776,6 +3793,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "outcome": {
+                    "description": "Outcome is the proxy-computed resolution-outcome token\n(docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.",
+                    "type": "string"
+                },
                 "profile_id": {
                     "type": "string"
                 },
@@ -3793,6 +3814,14 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "model.RebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3821,6 +3850,9 @@ const docTemplate = `{
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.DNSSECSettings"
+                },
+                "rebinding_protection": {
+                    "$ref": "#/definitions/model.RebindingProtection"
                 }
             }
         },
@@ -4844,6 +4876,12 @@ const docTemplate = `{
         "servicescatalog.Service": {
             "type": "object",
             "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "asns": {
                     "type": "array",
                     "items": {

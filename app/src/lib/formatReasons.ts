@@ -4,7 +4,7 @@
 // If the chip mapping changes, update that spec and formatReasons.test.ts with
 // matching `tableRef: logs-reason-display-behaviour #N` annotations.
 
-export type ReasonKind = 'blocklist' | 'service' | 'custom_rule' | 'default' | 'subdomain' | 'dnssec';
+export type ReasonKind = 'blocklist' | 'service' | 'custom_rule' | 'default' | 'subdomain' | 'dnssec' | 'rebinding';
 
 export interface FormattedReason {
     kind: ReasonKind;
@@ -39,6 +39,7 @@ export function formatReasons(
     let hasCustomRule = false;
     let hasDefault = false;
     let hasDnssecFailed = false;
+    let hasRebinding = false;
 
     for (const reason of reasons) {
         if (reason === 'dnssec_failed') {
@@ -63,6 +64,8 @@ export function formatReasons(
             }
         } else if (reason === 'services') {
             hasGenericService = true;
+        } else if (reason === 'rebinding_protection') {
+            hasRebinding = true;
         } else if (reason === 'custom_rules') {
             hasCustomRule = true;
         } else if (reason === 'default_rule') {
@@ -99,6 +102,12 @@ export function formatReasons(
         }
     } else if (hasGenericService) {
         chips.push({ kind: 'service', label: 'Service' });
+    }
+
+    // Rebinding protection (tier 150) — ordered between services (100) and
+    // custom rules (200) to mirror the proxy's tier order.
+    if (hasRebinding) {
+        chips.push({ kind: 'rebinding', label: 'Rebinding protection' });
     }
 
     if (hasCustomRule) {

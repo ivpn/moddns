@@ -355,7 +355,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			// Pre-populate with domain-phase results to simulate the real pipeline.
@@ -385,6 +385,54 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			}
 
 			mockCache.AssertExpectations(t)
+		})
+	}
+}
+
+// TestIPFilter_RebindingCrossPhase verifies that a custom Allow (T200) overrides a
+// rebinding block (T150) through unified aggregation, and that rebinding alone blocks
+// a private-IP answer when no Allow is present (table #R12).
+func TestIPFilter_RebindingCrossPhase(t *testing.T) {
+	const profileID = "rebinding-cross-phase"
+
+	tests := []struct {
+		name          string
+		tableRef      string
+		domainResults []model.StageResult
+		wantStatus    model.Status
+	}{
+		{
+			name:          "#R12 — Rebinding Block alone → Blocked (private IP, opt-in on)",
+			tableRef:      "R12",
+			domainResults: nil,
+			wantStatus:    model.StatusBlocked,
+		},
+		{
+			name:          "#R12 — Domain CR Allow (T200) + Rebinding Block (T150) → Processed (allow wins)",
+			tableRef:      "R12",
+			domainResults: []model.StageResult{domainAllowResult()},
+			wantStatus:    model.StatusProcessed,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCache := new(mocks.Cache)
+			mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
+				Return([]string{}, nil).Maybe()
+			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
+				Return([]string{}, nil).Maybe()
+
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, defaultRebindingConfig())
+
+			reqCtx := newTestReqCtx(t, profileID)
+			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
+			reqCtx.PartialFilteringResults = append(reqCtx.PartialFilteringResults, tt.domainResults...)
+
+			err := ipFilter.Execute(reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status,
+				"table %s: expected status %s", tt.tableRef, tt.wantStatus)
 		})
 	}
 }
@@ -434,7 +482,7 @@ func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
 				Return([]string{}, nil).Maybe()
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(
@@ -546,7 +594,7 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(
@@ -596,6 +644,7 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 		&proxy.Proxy{}, mockCache,
 		staticCatalog{cat: googleCatalogWithASN(asn)},
 		staticASNLookup{asn: asn},
+		nil,
 	)
 
 	reqCtx := newTestReqCtx(t, profileID)
@@ -606,8 +655,8 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 	err := ipFilter.Execute(reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
-	// Domain (1) + services (1) + custom rules (1) = 3 partial results.
-	assert.Equal(t, 3, len(reqCtx.PartialFilteringResults),
+	// Domain (1) + services (1) + rebinding (1) + custom rules (1) = 4 partial results.
+	assert.Equal(t, 4, len(reqCtx.PartialFilteringResults),
 		"PartialFilteringResults should contain domain + all IP-phase results")
 
 	// Final decision based on unified aggregation: domain Allow (T200) wins
@@ -674,7 +723,7 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 			"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr",
 		}, nil)
 
-	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil)
+	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
 
 	reqCtx := newTestReqCtx(t, profileID)
 	reqCtx.PartialFilteringResults = []model.StageResult{domainAllowResult()}

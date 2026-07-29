@@ -44,7 +44,7 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_IP(t *testing.T) {
 
 	// Create filter manager with mock cache
 	dnsProxy := &proxy.Proxy{}
-	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, nil)
+	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, nil, nil)
 
 	// Create DNS request/response with two A answers.
 	req := new(dns.Msg)

@@ -206,6 +206,18 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 		return err
 	}
 
+	// add security rebinding protection settings
+	rebindingSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection")
+	securityRebindingCmd := rdp.HSet(ctx, rebindingSettings, settings.Security.RebindingProtection)
+	if err := securityRebindingCmd.Err(); err != nil {
+		log.Err(err).Msg("Cache: failed to create security rebinding protection settings")
+		if rollback {
+			log.Warn().Msg("Cache: rolling back security rebinding protection settings")
+			rdp.Del(ctx, rebindingSettings)
+		}
+		return err
+	}
+
 	// add advanced settings
 	advancedSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced")
 	advancedCmd := rdp.HSet(ctx, advancedSettings, settings.Advanced)
