@@ -16,6 +16,7 @@ import {
     ListFilterIcon,
     SearchIcon,
     ToggleLeftIcon,
+    ToggleRightIcon,
     ArrowUpDown,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,6 +85,39 @@ export const formatUpdatedRelative = (isoDate?: string): string => {
     }
     return raw;
 };
+
+function ToggleListedButton({
+    active,
+    disableMode,
+    updating,
+    restricted,
+    onClick,
+    sizeClassName,
+}: {
+    active: boolean;
+    disableMode: boolean;
+    updating: boolean;
+    restricted: boolean;
+    onClick: () => void;
+    sizeClassName: string;
+}): JSX.Element {
+    const ToggleIcon = disableMode ? ToggleRightIcon : ToggleLeftIcon;
+    const actionLabel = disableMode ? "Disable" : "Enable";
+    return (
+        <Button
+            data-testid="toggle-listed-blocklists"
+            aria-label={`${actionLabel} listed blocklists`}
+            variant="outline"
+            size="icon"
+            className={`${sizeClassName} !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${active && !restricted ? "opacity-100" : "opacity-50"}`}
+            disabled={!active || updating || restricted}
+            onClick={onClick}
+            title={restricted ? "Feature unavailable in limited access mode" : `${actionLabel} currently listed blocklists`}
+        >
+            <ToggleIcon className={`w-4 h-4 ${active ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
+        </Button>
+    );
+}
 
 export default function MainContentSection(): JSX.Element {
     const { isRestricted } = useSubscriptionGuard();
@@ -292,39 +326,46 @@ export default function MainContentSection(): JSX.Element {
         });
     }
 
-    // Enable Listed Button: active if any filter is set (not "all" or "enabled") and there are filtered blocklists
-    const enableListedActive =
-        filterValue !== "all" &&
-        filterValue !== "enabled" &&
-        filteredBlocklists.length > 0;
+    // Toggle Listed Button: active if any filter is set (not "all") and there are filtered blocklists
+    const toggleListedActive =
+        filterValue !== "all" && filteredBlocklists.length > 0;
 
-    // Handler to enable all filtered blocklists
-    const handleEnableListed = async () => {
-        if (!activeProfile?.profile_id || !enableListedActive) return;
+    // When every filtered blocklist is already enabled the button acts as "disable all"
+    const allListedEnabled =
+        filteredBlocklists.length > 0 &&
+        filteredBlocklists.every((b) => enabledBlocklists.includes(b.blocklist_id));
+
+    // Handler to enable all filtered blocklists, or disable them all when
+    // every filtered blocklist is already enabled (select-all toggle semantics)
+    const handleToggleListed = async () => {
+        if (!activeProfile?.profile_id || !toggleListedActive) return;
         setUpdating("all");
-        // Get all filtered blocklist IDs not already enabled
-        const toEnable = filteredBlocklists
-            .map(b => b.blocklist_id)
-            .filter(id => !enabledBlocklists.includes(id));
-        if (toEnable.length === 0) {
-            setUpdating(null);
-            return;
-        }
         try {
-            // Enable all at once using ApiBlocklistsUpdates
-            await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
-                activeProfile.profile_id,
-                { blocklist_ids: toEnable } as ApiBlocklistsUpdates
-            );
-            // Refetch profile after enabling
+            if (allListedEnabled) {
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsDelete(
+                    activeProfile.profile_id,
+                    { blocklist_ids: filteredBlocklists.map(b => b.blocklist_id) } as ApiBlocklistsUpdates
+                );
+            } else {
+                const toEnable = filteredBlocklists
+                    .map(b => b.blocklist_id)
+                    .filter(id => !enabledBlocklists.includes(id));
+                await api.Client.profilesApi.apiV1ProfilesIdBlocklistsPost(
+                    activeProfile.profile_id,
+                    { blocklist_ids: toEnable } as ApiBlocklistsUpdates
+                );
+            }
+            // Refetch profile after updating
             const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
             setActiveProfile(updatedProfile.data);
-            toast.success("Blocklists enabled", {
-                description: "All filtered blocklists have been enabled successfully.",
+            toast.success(allListedEnabled ? "Blocklists disabled" : "Blocklists enabled", {
+                description: allListedEnabled
+                    ? "All filtered blocklists have been disabled successfully."
+                    : "All filtered blocklists have been enabled successfully.",
             });
         } catch {
             toast.error("Error", {
-                description: "Failed to enable blocklists. Please try again.",
+                description: "Failed to update blocklists. Please try again.",
             });
         } finally {
             setUpdating(null);
@@ -442,17 +483,14 @@ export default function MainContentSection(): JSX.Element {
                                     />
                                 </div>
                                 <div className="flex-shrink-0">
-                                    <Button
-                                        aria-label="Enable listed blocklists"
-                                        variant="outline"
-                                        size="icon"
-                                        className={`w-11 h-11 min-h-11 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive && !isRestricted ? "opacity-100" : "opacity-50"}`}
-                                        disabled={!enableListedActive || updating === "all" || isRestricted}
-                                        onClick={handleEnableListed}
-                                        title={isRestricted ? "Feature unavailable in limited access mode" : "Enable currently listed blocklists"}
-                                    >
-                                        <ToggleLeftIcon className={`w-4 h-4 ${enableListedActive ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
-                                    </Button>
+                                    <ToggleListedButton
+                                        active={toggleListedActive}
+                                        disableMode={allListedEnabled}
+                                        updating={updating === "all"}
+                                        restricted={isRestricted}
+                                        onClick={handleToggleListed}
+                                        sizeClassName="w-11 h-11 min-h-11"
+                                    />
                                 </div>
                             </div>
                             {/* Row 2: horizontal scroll filters line (mobile) / single row on desktop.
@@ -513,19 +551,16 @@ export default function MainContentSection(): JSX.Element {
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {/* Enable Listed Button (desktop only - mobile version is in row 1) */}
+                                {/* Toggle Listed Button (desktop only - mobile version is in row 1) */}
                                 <div className="flex-shrink-0 ml-auto hidden md:block">
-                                    <Button
-                                        aria-label="Enable listed blocklists"
-                                        variant="outline"
-                                        size="icon"
-                                        className={`w-11 h-11 md:h-11 lg:h-9 min-h-11 md:min-h-11 lg:min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-700)] ${enableListedActive && !isRestricted ? "opacity-100" : "opacity-50"}`}
-                                        disabled={!enableListedActive || updating === "all" || isRestricted}
-                                        onClick={handleEnableListed}
-                                        title={isRestricted ? "Feature unavailable in limited access mode" : "Enable currently listed blocklists"}
-                                    >
-                                        <ToggleLeftIcon className={`w-4 h-4 ${enableListedActive ? 'text-[var(--tailwind-colors-rdns-600)]' : 'text-[var(--tailwind-colors-slate-500)]'}`} />
-                                    </Button>
+                                    <ToggleListedButton
+                                        active={toggleListedActive}
+                                        disableMode={allListedEnabled}
+                                        updating={updating === "all"}
+                                        restricted={isRestricted}
+                                        onClick={handleToggleListed}
+                                        sizeClassName="w-11 h-11 md:h-11 lg:h-9 min-h-11 md:min-h-11 lg:min-h-0"
+                                    />
                                 </div>
                             </div>
                         </section>
