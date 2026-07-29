@@ -247,6 +247,9 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                 // signal without any horizontal growth.
                 "hover:scale-100 hover:-translate-y-0.5",
                 "relative hover:z-10 hover:shadow-lg hover:border-[var(--tailwind-colors-rdns-600)] dark:hover:border-[var(--tailwind-colors-rdns-600)]/40",
+                // Open cards keep the outline independently of the pointer (matches hover
+                // intensity per theme) — the only boundary feedback touch users ever get.
+                expanded && "border-[var(--tailwind-colors-rdns-600)] dark:border-[var(--tailwind-colors-rdns-600)]/40",
                 // Press/active feedback (works on touch where there is no hover) — subtle tint on tap.
                 "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]"
             )}
