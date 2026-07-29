@@ -106,6 +106,18 @@ test.describe('Logs mobile layout', () => {
         device_id: 'device-no-reasons',
         client_ip: '10.0.0.2',
         dns_request: { domain: 'processed-no-reasons.example.test' }
+      },
+      // Unanswered row (spec C3) — the collapsed amber "Not answered" chip is wider
+      // than "Blocked"; it must not introduce horizontal overflow either.
+      {
+        profile_id: 'prof1',
+        timestamp: now,
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'device-unanswered',
+        client_ip: '10.0.0.3',
+        outcome: 'timeout',
+        dns_request: { domain: 'timed-out-query.example-longdomainforlayout-validation.test', query_type: 'A' }
       }
     ];
     await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
@@ -122,6 +134,13 @@ test.describe('Logs mobile layout', () => {
     await expect(toggles).toHaveCount(items.length);
     const panels = page.getByTestId('querylog-expanded-panel');
     await expect(panels).toHaveCount(items.length);
+
+    // Collapsed status indicators (spec C3): red Blocked pill on row 0, amber
+    // "No answer" text label on row 2, nothing on the plain processed row.
+    await expect(page.getByTestId('querylog-status-indicator').filter({ hasText: 'Blocked' })).toHaveCount(1);
+    const unansweredLabel = page.getByTestId('querylog-status-indicator').filter({ hasText: 'No answer' });
+    await expect(unansweredLabel).toHaveCount(1);
+    await expect(unansweredLabel).toHaveAttribute('data-state', 'unanswered');
 
     const firstPanel = panels.nth(0);
     const secondPanel = panels.nth(1);

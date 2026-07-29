@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatOutcome, outcomePairs } from '@/lib/formatOutcome';
+import { formatOutcome, outcomePairs, hasUnansweredMember } from '@/lib/formatOutcome';
 import type { ModelQueryLog } from '@/api/client';
 
 const member = (queryType?: string, outcome?: string, responseCode?: string): ModelQueryLog => ({
@@ -108,3 +108,61 @@ describe('outcomePairs', () => {
         ]);
     });
 });
+
+describe('hasUnansweredMember', () => {
+    it('flags each unanswered outcome token', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — collapsed-card chip trigger set
+        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused']) {
+            expect(hasUnansweredMember([member('A', outcome)])).toBe(true);
+        }
+    });
+
+    it('does not flag answered outcomes or nxdomain', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — nxdomain/nodata are healthy
+        // protocol answers; resolved obviously so.
+        for (const outcome of ['resolved', 'nodata', 'nxdomain']) {
+            expect(hasUnansweredMember([member('A', outcome)])).toBe(false);
+        }
+    });
+
+    it('does not flag servfail_dnssec — the red DNSSEC label owns that signal', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — the collapsed row already
+        // shows a red "DNSSEC" text label for validation failures.
+        expect(hasUnansweredMember([member('A', 'servfail_dnssec')])).toBe(false);
+    });
+
+    it('does not flag blocked entries — the Blocked pill owns those', () => {
+        // tableRef: query-log-outcomes-behaviour C3
+        expect(hasUnansweredMember([{ ...member('A', 'blocked'), status: 'blocked' }])).toBe(false);
+        // legacy blocked: no outcome, synthesized NOERROR
+        expect(hasUnansweredMember([{ ...member('A', undefined, 'NOERROR'), status: 'blocked' }])).toBe(false);
+    });
+
+    it('flags a mixed group when any member went unanswered', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — outcome is not part of the
+        // consolidation signature, so a group can mix e.g. resolved + timeout.
+        expect(hasUnansweredMember([member('A', 'resolved'), member('A', 'timeout')])).toBe(true);
+        expect(hasUnansweredMember([member('A', 'resolved'), member('AAAA', 'nodata')])).toBe(false);
+    });
+
+    it('falls back to the response code for legacy entries', () => {
+        // tableRef: query-log-outcomes-behaviour C3, O10 — legacy SERVFAIL/REFUSED
+        // entries went unanswered too; NOERROR/NXDOMAIN did not.
+        expect(hasUnansweredMember([member('A', undefined, 'SERVFAIL')])).toBe(true);
+        expect(hasUnansweredMember([member('A', undefined, 'REFUSED')])).toBe(true);
+        expect(hasUnansweredMember([member('A', undefined, 'NOERROR')])).toBe(false);
+        expect(hasUnansweredMember([member('A', undefined, 'NXDOMAIN')])).toBe(false);
+        expect(hasUnansweredMember([member('A')])).toBe(false);
+    });
+
+    it('legacy DNSSEC-failed SERVFAIL entries defer to the DNSSEC label', () => {
+        // tableRef: query-log-outcomes-behaviour C3 — pre-outcome entries carry the
+        // dnssec_failed reason (same signal as O5); the red DNSSEC label covers them.
+        const legacyDnssec: ModelQueryLog = {
+            ...member('A', undefined, 'SERVFAIL'),
+            reasons: ['dnssec_failed'],
+        };
+        expect(hasUnansweredMember([legacyDnssec])).toBe(false);
+    });
+});
+

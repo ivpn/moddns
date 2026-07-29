@@ -10,7 +10,7 @@ import { ReasonBadges } from "@/components/ui/ReasonBadges";
 import { cn, INTERACTIVE_CARD } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
-import { outcomePairs } from "@/lib/formatOutcome";
+import { outcomePairs, hasUnansweredMember } from "@/lib/formatOutcome";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
@@ -41,6 +41,14 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     const quickRuleAvailable = Boolean(normalizedDomain);
     const isBlocked = log.status === "blocked";
     const isProcessed = log.status === "processed";
+    // Collapsed status indicator (spec: query-log-outcomes-behaviour.md C3): the
+    // slot shows the red "Blocked" pill OR the amber "No answer" text micro-label
+    // (any member unanswered — outcome is not in the consolidation signature) OR
+    // nothing. Mutually exclusive by construction: status IS in the signature, so
+    // blocked groups never mix with processed members. Filled pills are reserved
+    // for policy actions (Blocked); resolution/transport state renders as text
+    // micro-labels like the protocol and DNSSEC labels.
+    const isUnanswered = !isBlocked && hasUnansweredMember(group?.members ?? [log]);
     const quickRuleDisabled = !quickRuleAvailable || quickRuleRestricted;
     const quickRuleTooltip = quickRuleRestricted
         ? "Feature unavailable in limited access mode"
@@ -146,6 +154,24 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
             </span>
         );
     };
+
+    // "No answer" indicator (spec C3): styled exactly like the protocol/DNSSEC
+    // micro-labels. Literal text stays mixed-case (CSS uppercases it) so screen
+    // readers don't spell it out. amber-700/amber-400 matches the red DNSSEC
+    // label's contrast on the light theme and exceeds it on dark.
+    const renderUnansweredLabel = (className?: string) => (
+        <span
+            data-testid="querylog-status-indicator"
+            data-state="unanswered"
+            className={cn(
+                "font-text-xs-leading-4-semibold font-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] tracking-wide leading-4 md:leading-[var(--text-xs-leading-4-semibold-line-height)] uppercase whitespace-nowrap",
+                "text-amber-700 dark:text-amber-400",
+                className,
+            )}
+        >
+            No answer
+        </span>
+    );
 
     // Detail-grid field: uppercase micro-label + selectable value (optionally coloured).
     const renderDetailField = (label: string, value: string, testid: string, valueClassName?: string) => (
@@ -269,10 +295,13 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                                         {isBlocked && (
                                             <Badge
                                                 className="inline-flex items-center justify-center px-2 py-0.5 bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5"
+                                                data-testid="querylog-status-indicator"
+                                                data-state="blocked"
                                             >
                                                 <span className="font-text-xs-leading-4-semibold text-[10px] leading-4 text-white font-semibold">Blocked</span>
                                             </Badge>
                                         )}
+                                        {isUnanswered && renderUnansweredLabel()}
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center gap-1 max-w-[200px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs text-right">
@@ -312,9 +341,20 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                                 {protocolLabel}
                             </div>
                             {renderDnssecBadge("order-2", true)}
-                            <Badge className={`order-3 lg:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none md:hidden lg:inline-flex' : ''}`} aria-hidden={!isBlocked}>
-                                <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
-                            </Badge>
+                            {isUnanswered ? (
+                                renderUnansweredLabel("order-3 lg:order-0")
+                            ) : (
+                                /* Ghost slot: on non-blocked rows keep rendering an invisible
+                                   "Blocked"-width badge so the lg row reserves a constant slot. */
+                                <Badge
+                                    className={`order-3 lg:order-0 inline-flex items-center justify-center px-2 py-0.5 md:pt-[var(--tailwind-primitives-padding-p-0-5)] md:pr-[var(--tailwind-primitives-padding-p-2-5)] md:pb-[var(--tailwind-primitives-padding-p-0-5)] md:pl-[var(--tailwind-primitives-padding-p-2-5)] bg-[var(--tailwind-colors-red-600)] rounded border-0 h-5 md:h-auto ${!isBlocked ? 'opacity-0 pointer-events-none select-none md:hidden lg:inline-flex' : ''}`}
+                                    aria-hidden={!isBlocked}
+                                    data-testid={isBlocked ? "querylog-status-indicator" : undefined}
+                                    data-state={isBlocked ? "blocked" : undefined}
+                                >
+                                    <span className="font-text-xs-leading-4-semibold text-[10px] md:text-[length:var(--text-xs-leading-4-semibold-font-size)] leading-4 text-white font-semibold">Blocked</span>
+                                </Badge>
+                            )}
                         </div>
                         <div className="flex flex-col w-[140px] md:w-[220px] lg:w-[280px] items-end justify-center gap-0.5 md:gap-[var(--tailwind-primitives-gap-gap-0-5)] relative min-w-0 flex-shrink-0">
                             <div className="relative w-full mt-[-1.00px] font-text-sm-leading-5-semibold text-[var(--tailwind-colors-slate-50)] text-xs md:text-[length:var(--text-sm-leading-5-semibold-font-size)] leading-4 md:leading-[var(--text-sm-leading-5-semibold-line-height)] text-right">
