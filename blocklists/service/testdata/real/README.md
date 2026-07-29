@@ -25,7 +25,7 @@ its own license (see the source repos).
 | oisd.txt | oisd_small | OISD | https://small.oisd.nl/domainswild2 |
 | steven_black.txt | steven_black_ads_malware | StevenBlack | https://github.com/StevenBlack/hosts |
 | blp.txt | blp_gambling | Domains | https://github.com/blocklistproject/Lists (alt-version/gambling-nl.txt) |
-| blp_fakenews.txt | blp_fakenews | Domains | https://github.com/marktron/fakenews (hosts format) |
+| blp_fakenews.txt | blp_fakenews | Domains | https://github.com/StevenBlack/hosts (alternates/fakenews-only/hosts, hosts format) |
 | ut1.txt | ut1_gaming | Domains | https://github.com/olbat/ut1-blacklists (games/domains) |
 | shadowwhisperer.txt | shadowwhisperer_dating | Domains | https://github.com/ShadowWhisperer/BlockLists (RAW/Dating) |
 | hagezi_tif.txt | hagezi_threat_intelligence_feeds_full | Hagezi | https://github.com/hagezi/dns-blocklists (domains/tif.txt, security) |
