@@ -12,6 +12,9 @@ const STARTUP_VERSION_CHECK_MS = 5 * 1000;
 const APPLY_RELOAD_FALLBACK_MS = 4 * 1000;
 // sessionStorage key recording the build id we already auto-reloaded for.
 const AUTO_RELOAD_GUARD_KEY = "sw-update-auto-reload";
+// SPA navigations also trigger a check (checkForAppUpdate), throttled so
+// click-heavy sessions don't hammer the server.
+const NAV_CHECK_MIN_INTERVAL_MS = 60 * 1000;
 
 // Injected via `define` (vite.config.ts and the unit vitest config); the build
 // also emits /version.json carrying the same id.
@@ -37,8 +40,22 @@ declare const __APP_BUILD_ID__: string;
  * - hidden-tab fallback reloads are guarded to once per build id so a stale
  *   cache that survives a reload cannot cause a reload loop.
  */
+// Bound by setupSWUpdate once registration completes; see checkForAppUpdate.
+let activeNavCheck: (() => void) | undefined;
+
+/**
+ * Update check for SPA route navigations (mounted in App.tsx). Complements the
+ * 15-minute interval: an active user discovers a deploy within about a minute
+ * of it landing. Throttled against ALL checks (interval, visibility, previous
+ * navigations) and a safe no-op until the service worker is registered.
+ */
+export function checkForAppUpdate() {
+  activeNavCheck?.();
+}
+
 export function setupSWUpdate() {
   if (!("serviceWorker" in navigator)) return;
+  activeNavCheck = undefined;
 
   let swRegistration: ServiceWorkerRegistration | undefined;
   let updateHandled = false;
@@ -128,12 +145,20 @@ export function setupSWUpdate() {
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
       swRegistration = registration;
+      // The page load itself just fetched everything fresh, so the first
+      // navigation check is only useful once the throttle window has passed.
+      let lastCheckAt = Date.now();
       const check = () => {
         if (!navigator.onLine) return;
+        lastCheckAt = Date.now();
         registration.update().catch(() => {
           // Transient network error — the next tick retries.
         });
         void versionCheck();
+      };
+      activeNavCheck = () => {
+        if (Date.now() - lastCheckAt < NAV_CHECK_MIN_INTERVAL_MS) return;
+        check();
       };
       setInterval(check, CHECK_INTERVAL_MS);
       document.addEventListener("visibilitychange", () => {

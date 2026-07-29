@@ -52,6 +52,7 @@ import { AUTH_KEY } from "@/lib/consts"
 import { useAppStore } from "@/store/general"
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard"
 import { Toaster } from "@/components/ui/sonner"
+import { checkForAppUpdate } from "@/lib/swUpdate"
 import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
 import { RouterErrorBoundary } from "@/components/errors/RouterErrorBoundary";
 import { useApiEventHandler } from "@/api/eventHandler";
@@ -701,10 +702,22 @@ function EventHandlerMount() {
   return null;
 }
 
+// SPA navigations trigger a throttled deploy-freshness check (issue #631) so
+// active users see the update toast within ~a minute instead of the 15-minute
+// poll interval. Needs Router context for useLocation.
+function SWUpdateNavigationCheck() {
+  const location = useLocation();
+  useEffect(() => {
+    checkForAppUpdate();
+  }, [location.pathname]);
+  return null;
+}
+
 function AppWithEventHandler() {
   return (
     <>
       <ScrollRestoration />
+      <SWUpdateNavigationCheck />
       <Toaster />
       <AuthProvider>
         <NavigationCollapseProvider>
