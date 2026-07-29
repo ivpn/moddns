@@ -246,7 +246,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                 // segments in light mode). A small upward translate keeps the "lift"
                 // signal without any horizontal growth.
                 "hover:scale-100 hover:-translate-y-0.5",
-                "relative hover:z-10 hover:shadow-lg hover:border-[var(--tailwind-colors-rdns-600)]",
+                "relative hover:z-10 hover:shadow-lg hover:border-[var(--tailwind-colors-rdns-600)] dark:hover:border-[var(--tailwind-colors-rdns-600)]/40",
                 // Press/active feedback (works on touch where there is no hover) — subtle tint on tap.
                 "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]"
             )}
