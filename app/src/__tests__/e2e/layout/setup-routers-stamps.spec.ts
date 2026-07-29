@@ -90,7 +90,9 @@ const STAMPS_WITH_DEVICE = {
 
     // Three stamps render — wait for initial fetch.
     await expect.poll(() => calls.length, { timeout: 5000 }).toBeGreaterThanOrEqual(1);
-    await expect(tab.getByText(STAMPS_NO_DEVICE.doh, { exact: false })).toBeVisible();
+    // The DoH stamp appears twice — once in its StampRow, once embedded in the
+    // dnscrypt-proxy TOML block below — so scope to the first (the StampRow).
+    await expect(tab.getByText(STAMPS_NO_DEVICE.doh, { exact: false }).first()).toBeVisible();
     await expect(tab.getByText(STAMPS_NO_DEVICE.dot, { exact: false })).toBeVisible();
     await expect(tab.getByText(STAMPS_NO_DEVICE.doq, { exact: false })).toBeVisible();
 
@@ -104,9 +106,16 @@ const STAMPS_WITH_DEVICE = {
     // DoH has a broad consumer list; DoT/DoQ share the narrower "AdGuard ecosystem only" hint.
     await expect(tab.getByText(/Works with: UniFi Network/)).toBeVisible();
     await expect(tab.getByText(/Works with: AdGuard Home, AdGuard dnsproxy/).first()).toBeVisible();
-    // The "Niche" callout makes the asymmetry explicit so users don't paste DoT/DoQ stamps
+    // The DoT/DoQ callout makes the asymmetry explicit so users don't paste DoT/DoQ stamps
     // into clients that won't parse them.
-    await expect(tab.getByText(/Niche: AdGuard ecosystem only/)).toBeVisible();
+    await expect(tab.getByText(/DoT \/ DoQ - AdGuard only/)).toBeVisible();
+
+    // The dnscrypt-proxy config block renders a ready-to-paste TOML snippet built from
+    // the live DoH stamp — server_names label + a [static] entry carrying the sdns:// stamp.
+    const dnscryptConfig = tab.getByTestId('dnscrypt-proxy-config');
+    await expect(dnscryptConfig).toBeVisible();
+    await expect(dnscryptConfig.getByText(/server_names = \['modDNS-abc123def4'\]/)).toBeVisible();
+    await expect(dnscryptConfig.getByText(new RegExp(`stamp = '${STAMPS_NO_DEVICE.doh}'`))).toBeVisible();
 
     // dnscrypt.info reference is a real external link that opens in a new tab.
     const specLink = tab.getByRole('link', { name: /dnscrypt\.info\/stamps-specifications/i });
@@ -139,7 +148,7 @@ const STAMPS_WITH_DEVICE = {
     ).not.toBeNull();
 
     // Stamps update to the device-scoped variants.
-    await expect(tab.getByText(STAMPS_WITH_DEVICE.doh, { exact: false })).toBeVisible();
+    await expect(tab.getByText(STAMPS_WITH_DEVICE.doh, { exact: false }).first()).toBeVisible();
     await expect(tab.getByText(STAMPS_WITH_DEVICE.dot, { exact: false })).toBeVisible();
     await expect(tab.getByText(STAMPS_WITH_DEVICE.doq, { exact: false })).toBeVisible();
   });
