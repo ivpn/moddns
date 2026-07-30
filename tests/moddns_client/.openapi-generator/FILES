@@ -12,6 +12,7 @@ moddns/api/announcements_api.py
 moddns/api/apple_mobileconfig_api.py
 moddns/api/authentication_api.py
 moddns/api/blocklists_api.py
+moddns/api/dns_stamps_api.py
 moddns/api/pa_session_api.py
 moddns/api/profile_api.py
 moddns/api/query_logs_api.py
@@ -55,6 +56,7 @@ moddns/models/model_exported_from_info.py
 moddns/models/model_exported_logs.py
 moddns/models/model_exported_privacy.py
 moddns/models/model_exported_profile.py
+moddns/models/model_exported_rebinding_protection.py
 moddns/models/model_exported_security.py
 moddns/models/model_exported_settings.py
 moddns/models/model_exported_statistics.py
@@ -65,6 +67,7 @@ moddns/models/model_profile.py
 moddns/models/model_profile_settings.py
 moddns/models/model_profile_update.py
 moddns/models/model_query_log.py
+moddns/models/model_rebinding_protection.py
 moddns/models/model_retention.py
 moddns/models/model_security.py
 moddns/models/model_statistics_aggregated.py
@@ -101,6 +104,7 @@ moddns/models/requests_create_profile_custom_rule_body.py
 moddns/models/requests_create_profile_custom_rules_batch_body.py
 moddns/models/requests_custom_rule_group_update.py
 moddns/models/requests_custom_rule_group_updates.py
+moddns/models/requests_dns_stamp_req.py
 moddns/models/requests_export_request.py
 moddns/models/requests_import_request.py
 moddns/models/requests_login_body.py
@@ -118,6 +122,7 @@ moddns/models/responses_create_profile_custom_rules_batch_response.py
 moddns/models/responses_custom_rule_batch_created.py
 moddns/models/responses_custom_rule_batch_skipped.py
 moddns/models/responses_deletion_code_response.py
+moddns/models/responses_dns_stamp_response.py
 moddns/models/responses_registration_success_response.py
 moddns/models/responses_short_link_response.py
 moddns/models/responses_web_authn_reauth_finish_response.py

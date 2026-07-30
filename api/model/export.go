@@ -80,9 +80,12 @@ type ExportedPrivacy struct {
 }
 
 // ExportedSecurity carries the security section of a profile.
-// specRef: F5
+// specRef: F5, F8
 type ExportedSecurity struct {
 	DNSSEC *ExportedDNSSEC `json:"dnssec,omitempty"`
+	// RebindingProtection is optional on the wire: envelopes produced before
+	// the field existed import with the opt-in default (disabled).
+	RebindingProtection *ExportedRebindingProtection `json:"rebindingProtection,omitempty"`
 }
 
 // ExportedDNSSEC carries DNSSEC settings.
@@ -90,6 +93,12 @@ type ExportedSecurity struct {
 type ExportedDNSSEC struct {
 	Enabled   bool `json:"enabled"`
 	SendDoBit bool `json:"sendDoBit"`
+}
+
+// ExportedRebindingProtection carries the per-profile DNS rebinding protection toggle.
+// specRef: F8
+type ExportedRebindingProtection struct {
+	Enabled bool `json:"enabled"`
 }
 
 // ExportedCustomRule represents a single user-authored filtering rule.

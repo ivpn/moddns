@@ -18,8 +18,9 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_dnssec_settings import ModelDNSSECSettings
+from moddns.models.model_rebinding_protection import ModelRebindingProtection
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,7 +29,8 @@ class ModelSecurity(BaseModel):
     ModelSecurity
     """ # noqa: E501
     dnssec: ModelDNSSECSettings
-    __properties: ClassVar[List[str]] = ["dnssec"]
+    rebinding_protection: Optional[ModelRebindingProtection] = None
+    __properties: ClassVar[List[str]] = ["dnssec", "rebinding_protection"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -72,6 +74,9 @@ class ModelSecurity(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of dnssec
         if self.dnssec:
             _dict['dnssec'] = self.dnssec.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of rebinding_protection
+        if self.rebinding_protection:
+            _dict['rebinding_protection'] = self.rebinding_protection.to_dict()
         return _dict
 
     @classmethod
@@ -84,7 +89,8 @@ class ModelSecurity(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "dnssec": ModelDNSSECSettings.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None
+            "dnssec": ModelDNSSECSettings.from_dict(obj["dnssec"]) if obj.get("dnssec") is not None else None,
+            "rebinding_protection": ModelRebindingProtection.from_dict(obj["rebinding_protection"]) if obj.get("rebinding_protection") is not None else None
         })
         return _obj
 

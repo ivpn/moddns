@@ -20,6 +20,27 @@ local-data:
     test.com: [104.18.74.230]
     ads.wp.pl: [212.77.99.7]
     svctest-google.com: [8.8.8.8]
+    ipv6-test.com: [2001:41d0:701:1100::29c8]
+    ## DNS rebinding protection tests — public names deliberately mapped to
+    ## private IPs so the proxy IP-phase rebinding filter can be exercised.
+    rebinding-private-v4.com: [192.168.0.10]
+    rebinding-private-10.com: [10.0.0.10]
+    rebinding-loopback.com: [127.0.0.1]
+    rebinding-allow-rule.com: [192.168.0.20]
+    router.local: [192.168.0.30]
+
+## Deliberately-unresolvable test zone (query-log outcome C3, "No answer"):
+## forwarded to a blackholed TEST-NET-1 address, so any query under
+## broken.test times out at the proxy (outcome `timeout`) or SERVFAILs once
+## knot caches the failure (outcome `servfail_upstream`) — never resolves.
+## knot-only: sdns's testhosts.txt hosts file cannot express a dead
+## delegation; sdns profiles get a harmless NXDOMAIN from the root instead
+## (.test does not exist in the public DNS).
+forward:
+  - subtree: broken.test
+    servers: [192.0.2.1]
+    options:
+      dnssec: false
 
 cache:
   size-max: 256M

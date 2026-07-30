@@ -195,6 +195,62 @@ func TestImport_ModeCreateNew_Accepted(t *testing.T) {
 	assert.Equal(t, []string{}, result.Warnings)
 }
 
+// specRef: F8 — the rebinding-protection toggle survives an import, and an
+// envelope without it (e.g. produced before the field existed) falls back to
+// the opt-in default (disabled).
+func TestImport_RebindingProtection_RoundTrips(t *testing.T) {
+	cases := []struct {
+		name     string
+		security *model.ExportedSecurity
+		want     bool
+	}{
+		{"enabled toggle applied", &model.ExportedSecurity{
+			RebindingProtection: &model.ExportedRebindingProtection{Enabled: true},
+		}, true},
+		{"absent field defaults off", &model.ExportedSecurity{
+			DNSSEC: &model.ExportedDNSSEC{Enabled: true},
+		}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newImportTestEnv(t, "secret", 100)
+
+			var capturedSettings *model.ProfileSettings
+			env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+				Return([]model.Profile{}, nil).Once()
+			env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+			env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+				capturedSettings = p.Settings
+				return true
+			})).Return(nil).Once()
+			env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+				mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+			envelope := &model.ExportEnvelope{
+				SchemaVersion: 1,
+				Kind:          "moddns-export",
+				ExportedAt:    time.Now(),
+				Profiles: []model.ExportedProfile{{
+					Name:     "Imported",
+					Settings: &model.ExportedSettings{Security: tc.security},
+				}},
+			}
+
+			_, err := env.svc.Import(
+				context.Background(), "acct1",
+				profile.ImportModeCreateNew,
+				envelope,
+				ptr("secret"), nil, nil,
+			)
+			require.NoError(t, err)
+			require.NotNil(t, capturedSettings)
+			require.NotNil(t, capturedSettings.Security)
+			assert.Equal(t, tc.want, capturedSettings.Security.RebindingProtection.Enabled)
+		})
+	}
+}
+
 // specRef: V11, V12, F4 — per-rule note/group and the group-note map survive an
 // import, and display order is re-derived from payload position.
 func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {

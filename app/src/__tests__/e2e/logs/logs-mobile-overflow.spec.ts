@@ -70,4 +70,287 @@ test.describe('Logs mobile layout', () => {
     });
     expect(hasHorizontalScrollbar).toBeFalsy();
   });
+
+  test('whole-card expansion: every row expands, quick-rule is excluded, no overflow with long labels', async ({ page }) => {
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+
+    // Register the logs route AFTER registerMocks so it is tested BEFORE the catch-all
+    // route (Playwright matches routes in reverse registration order). The catch-all in
+    // registerMocks matches `/api/v1/profiles` and would otherwise shadow this endpoint,
+    // returning the profiles array instead of our logs payload.
+    const now = new Date().toISOString();
+    const items = [
+      // Blocked row WITH reasons — deliberately long ids to challenge layout / overflow
+      {
+        profile_id: 'prof1',
+        timestamp: now,
+        status: 'blocked',
+        protocol: 'dns',
+        device_id: 'device-with-reasons',
+        client_ip: '10.0.0.1',
+        dns_request: { domain: 'blocked-with-reasons.example-longdomainforlayout-validation.test' },
+        reasons: [
+          'blocklist: very-long-blocklist-identifier-xxxxxxxxxxxxxxxxxxxx',
+          'service: another-long-service-id-yyyyyyyyyyyyyyyyyyyy'
+        ]
+      },
+      // Processed row WITHOUT reasons — now also expandable (detail grid, no reasons block)
+      {
+        profile_id: 'prof1',
+        timestamp: now,
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'device-no-reasons',
+        client_ip: '10.0.0.2',
+        dns_request: { domain: 'processed-no-reasons.example.test' }
+      },
+      // Unanswered row (spec C3) — the collapsed amber "Not answered" chip is wider
+      // than "Blocked"; it must not introduce horizontal overflow either.
+      {
+        profile_id: 'prof1',
+        timestamp: now,
+        status: 'processed',
+        protocol: 'dns',
+        device_id: 'device-unanswered',
+        client_ip: '10.0.0.3',
+        outcome: 'timeout',
+        dns_request: { domain: 'timed-out-query.example-longdomainforlayout-validation.test', query_type: 'A' }
+      }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+
+    const scrollContainer = page.getByTestId('logs-scroll-container');
+    await scrollContainer.first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // Every row is expandable now → one toggle + one panel per mocked row (2).
+    const toggles = page.getByTestId('querylog-card-toggle');
+    await expect(toggles).toHaveCount(items.length);
+    const panels = page.getByTestId('querylog-expanded-panel');
+    await expect(panels).toHaveCount(items.length);
+
+    // Collapsed status indicators (spec C3): red Blocked pill on row 0, amber
+    // "No answer" text label on row 2, nothing on the plain processed row.
+    await expect(page.getByTestId('querylog-status-indicator').filter({ hasText: 'Blocked' })).toHaveCount(1);
+    const unansweredLabel = page.getByTestId('querylog-status-indicator').filter({ hasText: 'No answer' });
+    await expect(unansweredLabel).toHaveCount(1);
+    await expect(unansweredLabel).toHaveAttribute('data-state', 'unanswered');
+
+    const firstPanel = panels.nth(0);
+    const secondPanel = panels.nth(1);
+
+    // Collapsed initial state
+    await expect(toggles.nth(0)).toHaveAttribute('aria-expanded', 'false');
+    await expect(firstPanel).toHaveAttribute('data-expanded', 'false');
+
+    // Quick-rule button is excluded from the overlay: clicking it must NOT expand the card.
+    await page.getByTestId('logs-quick-rule-button').nth(0).click();
+    await expect(firstPanel).toHaveAttribute('data-expanded', 'false');
+    // Close any sheet the quick-rule action opened so it doesn't cover the cards below.
+    await page.keyboard.press('Escape');
+
+    // Keyboard: focus the first card's toggle and press Enter to expand.
+    await toggles.nth(0).focus();
+    await page.keyboard.press('Enter');
+    await expect(toggles.nth(0)).toHaveAttribute('aria-expanded', 'true');
+    await expect(firstPanel).toHaveAttribute('data-expanded', 'true');
+
+    // Expanded panel shows the detail grid (protocol + timestamp always render) and the reasons block.
+    await expect(firstPanel.getByTestId('querylog-detail-grid')).toBeVisible();
+    await expect(firstPanel.getByTestId('querylog-detail-protocol')).toBeVisible();
+    await expect(firstPanel.getByTestId('querylog-detail-timestamp')).toBeVisible();
+    await expect(firstPanel.getByTestId('querylog-reasons')).toBeVisible();
+
+    // The processed (no-reasons) row expands too: detail grid visible, but no reasons block.
+    await toggles.nth(1).click();
+    await expect(secondPanel).toHaveAttribute('data-expanded', 'true');
+    await expect(secondPanel.getByTestId('querylog-detail-grid')).toBeVisible();
+    await expect(secondPanel.getByTestId('querylog-reasons')).toHaveCount(0);
+
+    // Re-run overflow assertions AFTER expansion, with the long labels rendered
+    const result = await page.evaluate(() => {
+      const docEl = document.documentElement;
+      const body = document.body;
+      const vw = window.innerWidth;
+      const sc = document.querySelector('[data-testid="logs-scroll-container"]') as HTMLElement | null;
+      const scrollWidthDoc = Math.max(
+        body.scrollWidth,
+        docEl.scrollWidth,
+        body.offsetWidth,
+        docEl.offsetWidth
+      );
+      const scrollingElWidth = document.scrollingElement ? document.scrollingElement.scrollWidth : docEl.scrollWidth;
+      const scOverflow = sc ? sc.scrollWidth - sc.clientWidth : 0;
+      return { vw, scrollWidthDoc, scrollingElWidth, scOverflow };
+    });
+    expect(result.scrollingElWidth).toBeLessThanOrEqual(result.vw + 1);
+    expect(result.scrollWidthDoc).toBeLessThanOrEqual(result.vw + 1);
+    expect(result.scOverflow).toBeLessThanOrEqual(1);
+
+    // The expanded panel's bounding box must sit within the viewport horizontally
+    const viewport = page.viewportSize();
+    const viewportWidth = viewport?.width ?? result.vw;
+    const box = await firstPanel.boundingBox();
+    expect(box, 'Expected expanded panel to have a bounding box').not.toBeNull();
+    if (box) {
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(viewportWidth + 1);
+    }
+  });
+
+  test('expanded card collapses when clicking anywhere, including the expanded panel', async ({ page }) => {
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+    const now = new Date().toISOString();
+    const items = [
+      {
+        profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns',
+        device_id: 'd1', client_ip: '10.0.0.1',
+        dns_request: { domain: 'blocked.example.test' },
+        reasons: ['blocklist: some-blocklist-id']
+      }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    const toggle = page.getByTestId('querylog-card-toggle').first();
+    const panel = page.getByTestId('querylog-expanded-panel').first();
+
+    // Expand.
+    await toggle.click();
+    await expect(panel).toHaveAttribute('data-expanded', 'true');
+
+    // Click inside the EXPANDED PANEL region (below the header) — must collapse the card.
+    const box = await panel.boundingBox();
+    expect(box, 'Expected an expanded panel bounding box').not.toBeNull();
+    if (box) {
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    }
+    await expect(panel).toHaveAttribute('data-expanded', 'false');
+  });
+
+  test('mobile: one-time expand hint shows, dismisses after first expand, and stays gone', async ({ page }, testInfo) => {
+    // The hint is mobile-only (md:hidden); skip on desktop projects.
+    test.skip(!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name), 'mobile-only hint');
+
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+    const now = new Date().toISOString();
+    const items = [
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'a.example.test' } },
+      { profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns', device_id: 'd2', client_ip: '10.0.0.2', dns_request: { domain: 'b.example.test' } }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // Hint is visible on first visit.
+    const hint = page.getByTestId('logs-expand-hint');
+    await expect(hint).toBeVisible();
+
+    // Expanding a row dismisses the hint.
+    await page.getByTestId('querylog-card-toggle').first().click();
+    await expect(hint).toHaveCount(0);
+
+    // Persisted: reload keeps it gone.
+    await page.reload();
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+    await expect(page.getByTestId('logs-expand-hint')).toHaveCount(0);
+  });
+
+  test('consolidation: adjacent duplicate queries collapse into one card with a ×N badge', async ({ page }) => {
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+
+    // Two adjacent rows share domain/status/device/client_ip/protocol and differ only in
+    // query_type (A + AAAA) → they consolidate. A third distinct row stays separate.
+    const now = new Date().toISOString();
+    const items = [
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'dup.example.test', query_type: 'A', response_code: 'NOERROR' } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'dup.example.test', query_type: 'AAAA', response_code: 'NOERROR' } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'other.example.test', query_type: 'A', response_code: 'NOERROR' } }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // 3 raw logs → 2 cards (the A+AAAA pair merges). The badge renders once per layout
+    // branch (desktop + mobile, one CSS-hidden), so assert on the single VISIBLE badge.
+    await expect(page.getByTestId('querylog-card-toggle')).toHaveCount(2);
+    const badge = page.getByTestId('querylog-count-badge').and(page.locator(':visible'));
+    await expect(badge).toHaveCount(1);
+    await expect(badge).toHaveText('×2');
+
+    // Expanding the merged card surfaces the aggregated occurrence count and query types.
+    await page.getByTestId('querylog-card-toggle').first().click();
+    const panel = page.getByTestId('querylog-expanded-panel').first();
+    await expect(panel).toHaveAttribute('data-expanded', 'true');
+    await expect(panel.getByTestId('querylog-detail-occurrences')).toHaveText('2');
+    await expect(panel.getByTestId('querylog-detail-query-type')).toHaveText('A, AAAA');
+  });
+
+  test('tablet width: meta labels stack vertically and the row has no horizontal overflow', async ({ page }, testInfo) => {
+    // The tablet band (769–1023px) renders the desktop branch at Tailwind `md`. No project sits
+    // there, so drive it on the desktop project with an explicit tablet viewport.
+    test.skip(!/chromium-desktop/i.test(testInfo.project.name), 'tablet-band layout is desktop-branch only');
+    await page.setViewportSize({ width: 820, height: 1000 });
+
+    await registerMocks(page, {
+      authenticated: true,
+      customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
+    });
+    const now = new Date().toISOString();
+    const items = [
+      // Long domain + blocked (so DNSSEC/Blocked labels are present in the stack).
+      { profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.1', dns_request: { domain: 'a-very-long-subdomain-name.example-reallylongdomainforlayout-validation.test', query_type: 'A', response_code: 'NOERROR', dnssec: true } },
+      { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.2', dns_request: { domain: 'short.example.test', query_type: 'A', response_code: 'NOERROR' } }
+    ];
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
+    });
+
+    await page.goto('/query-logs');
+    await page.getByTestId('logs-scroll-container').first().waitFor({ state: 'attached', timeout: 10000 });
+
+    // The meta-label group (protocol/DNSSEC/Blocked) must be a vertical stack at tablet width.
+    const flexDir = await page.evaluate(() => {
+      const group = document.querySelector('.md\\:flex.flex-col.lg\\:flex-row') as HTMLElement | null;
+      return group ? getComputedStyle(group).flexDirection : 'not-found';
+    });
+    expect(flexDir).toBe('column');
+
+    // No horizontal overflow at tablet width even with the long domain.
+    const result = await page.evaluate(() => {
+      const docEl = document.documentElement;
+      const vw = window.innerWidth;
+      const scrollingElWidth = document.scrollingElement ? document.scrollingElement.scrollWidth : docEl.scrollWidth;
+      const sc = document.querySelector('[data-testid="logs-scroll-container"]') as HTMLElement | null;
+      const scOverflow = sc ? sc.scrollWidth - sc.clientWidth : 0;
+      return { vw, scrollingElWidth, scOverflow };
+    });
+    expect(result.scrollingElWidth).toBeLessThanOrEqual(result.vw + 1);
+    expect(result.scOverflow).toBeLessThanOrEqual(1);
+  });
 });

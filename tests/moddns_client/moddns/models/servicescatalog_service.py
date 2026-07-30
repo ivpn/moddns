@@ -26,12 +26,13 @@ class ServicescatalogService(BaseModel):
     """
     ServicescatalogService
     """ # noqa: E501
+    aliases: Optional[List[StrictStr]] = None
     asns: Optional[List[StrictInt]] = None
     domains: Optional[List[StrictStr]] = None
     id: Optional[StrictStr] = None
     logo_key: Optional[StrictStr] = None
     name: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["asns", "domains", "id", "logo_key", "name"]
+    __properties: ClassVar[List[str]] = ["aliases", "asns", "domains", "id", "logo_key", "name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -84,6 +85,7 @@ class ServicescatalogService(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "aliases": obj.get("aliases"),
             "asns": obj.get("asns"),
             "domains": obj.get("domains"),
             "id": obj.get("id"),

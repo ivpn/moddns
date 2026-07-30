@@ -87,14 +87,22 @@ test.describe('@layout setup guide scrollability', () => {
     const lastStep = page.getByTestId('setup-guide-step').last();
     await expect(lastStep).toBeAttached();
 
-    // Scroll the last step into view (mirrors what a user does on touch).
-    await lastStep.evaluate(el => el.scrollIntoView({ block: 'end', inline: 'nearest' }));
-
-    const navTop = await bottomNav.evaluate(el => el.getBoundingClientRect().top);
-    const lastStepBottom = await lastStep.evaluate(el => el.getBoundingClientRect().bottom);
-
-    // The last step's bottom edge must sit at or above the bottom nav's top edge.
+    // Scroll the last step into view (mirrors what a user does on touch) and
+    // assert its bottom edge sits at or above the bottom nav's top edge.
+    // The panel's top/height are measured asynchronously and animate
+    // (transition duration-500), and late-settling content (DNS status check,
+    // header remeasures) can reflow the guide after a one-shot scroll — so
+    // re-scroll and re-measure until the layout stabilises. If the nav offset
+    // regression returns, the panel scrollport extends under the nav and this
+    // can never converge, so the guard still fails.
     // Allow 1px epsilon for sub-pixel rounding.
-    expect(lastStepBottom).toBeLessThanOrEqual(navTop + 1);
+    await expect
+      .poll(async () => {
+        await lastStep.evaluate(el => el.scrollIntoView({ block: 'end', inline: 'nearest' }));
+        const navTop = await bottomNav.evaluate(el => el.getBoundingClientRect().top);
+        const lastStepBottom = await lastStep.evaluate(el => el.getBoundingClientRect().bottom);
+        return lastStepBottom - navTop;
+      }, { timeout: 10_000 })
+      .toBeLessThanOrEqual(1);
   });
 });

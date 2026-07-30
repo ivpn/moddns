@@ -1,9 +1,12 @@
 import React from 'react';
 import CodeBlock from '@/components/setup/CodeBlock';
+import { buildDnscryptProxyToml } from '@/components/setup/dnscryptProxy';
+import api from '@/api/api';
 
 export const linuxBadges = [
     { label: 'Linux' },
     { label: 'DNS over TLS' },
+    { label: 'DNS over HTTPS' },
 ];
 
 // STEP block component
@@ -31,9 +34,90 @@ const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => {
 const buildDnsmasqConfig = (ctx: LinuxGuideDeps) => `no-resolv\nbogus-priv\nstrict-order\nserver=${ctx.primaryIp}\nadd-cpe-id=${ctx.profileId}`;
 const systemdRestartCmd = 'sudo systemctl restart systemd-resolved';
 const dnsmasqRestartCmd = 'sudo systemctl restart dnsmasq';
+const dnscryptRestartCmd = 'sudo systemctl restart dnscrypt-proxy';
 
 // Factory to build tab definitions with current context
 interface LinuxGuideDeps { profileId: string; primaryIp: string; domain: string; ipv6?: string }
+
+// dnscrypt-proxy consumes the modDNS DoH stamp (proto 0x02) natively — this is
+// DoH via dnscrypt-proxy, not the native DNSCrypt protocol. The Linux guide does
+// not otherwise fetch stamps, so this tab fetches the DoH stamp itself, mirroring
+// the fetch/loading/error handling in Routers' StampsTab.
+// eslint-disable-next-line react-refresh/only-export-components
+const LinuxDnscryptProxyTab = ({ deps }: { deps: LinuxGuideDeps }) => {
+    const [doh, setDoh] = React.useState('');
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState<string | null>(null);
+
+    const fetchStamp = React.useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await api.Client.dnsStampsApi.apiV1DnsstampPost({
+                profile_id: deps.profileId,
+                device_id: '',
+            });
+            setDoh(res.data.doh ?? '');
+        } catch {
+            setError('Could not generate the DoH stamp. Try again.');
+            setDoh('');
+        } finally {
+            setLoading(false);
+        }
+    }, [deps.profileId]);
+
+    React.useEffect(() => { fetchStamp(); }, [fetchStamp]);
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="text-sm font-medium text-[var(--tailwind-colors-slate-200)]">Linux dnscrypt-proxy - DNS-over-HTTPS</div>
+            <div className="flex flex-col gap-6">
+                <StepBlock number={1}>
+                    Install <strong>dnscrypt-proxy</strong> from your distribution's package manager
+                    (e.g. <code className="font-mono text-xs">sudo apt install dnscrypt-proxy</code>), or download the
+                    official binary from{' '}
+                    <a
+                        href="https://github.com/DNSCrypt/dnscrypt-proxy/releases"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="!underline !text-[var(--tailwind-colors-slate-300)]"
+                    >
+                        the dnscrypt-proxy releases
+                    </a>.
+                </StepBlock>
+                <StepBlock number={2}>
+                    Edit <code className="font-mono text-xs">dnscrypt-proxy.toml</code> to consume the modDNS DoH stamp:
+                    <div data-testid="dnscrypt-proxy-config">
+                        {error ? (
+                            <div
+                                role="alert"
+                                className="mt-2 flex items-center justify-between rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] px-3 py-2 text-sm text-[var(--tailwind-colors-slate-200)]"
+                            >
+                                <span>{error}</span>
+                                <button
+                                    type="button"
+                                    onClick={fetchStamp}
+                                    className="text-xs px-2 py-1 rounded-md bg-[var(--tailwind-colors-rdns-600)] text-white hover:opacity-90"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : loading || !doh ? (
+                            <div className="mt-2 h-24 rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] animate-pulse" />
+                        ) : (
+                            <CodeBlock value={buildDnscryptProxyToml(deps.profileId, doh)} />
+                        )}
+                    </div>
+                </StepBlock>
+                <StepBlock number={3}>
+                    Point your system resolver at dnscrypt-proxy's <code className="font-mono text-xs">listen_addresses</code>
+                    {' '}(default <code className="font-mono text-xs">127.0.0.1:53</code>), then restart the service:
+                    <CodeBlock value={dnscryptRestartCmd} />
+                </StepBlock>
+            </div>
+        </div>
+    );
+};
 
 function buildTabs(deps: LinuxGuideDeps): TabDef[] {
     const systemdResolvedConfig = buildSystemdResolvedConfig(deps);
@@ -85,6 +169,11 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
                     </div>
                 </div>
             )
+        },
+        {
+            key: 'dnscrypt-proxy',
+            label: 'dnscrypt-proxy',
+            content: <LinuxDnscryptProxyTab deps={deps} />
         }
     ];
 }

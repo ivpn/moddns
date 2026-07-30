@@ -41,7 +41,7 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
 	mockASN.On("ASN", net.ParseIP(blockIP)).Return(allowASN, nil)
 
 	dnsProxy := &proxy.Proxy{}
-	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, mockASN)
+	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, mockASN, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -83,7 +83,7 @@ func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
 	mockASN.On("ASN", net.ParseIP(ipStr)).Return(asn, nil)
 
 	dnsProxy := &proxy.Proxy{}
-	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, mockASN)
+	ipFilter := NewIPFilter(dnsProxy, mockCache, nil, mockASN, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)

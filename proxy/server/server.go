@@ -19,6 +19,7 @@ import (
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
 	"github.com/ivpn/dns/proxy/internal/asnlookup"
+	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
 	"github.com/ivpn/dns/proxy/model"
@@ -40,9 +41,12 @@ type RequestManager interface {
 }
 
 type Server struct {
-	Config               *config.Config
-	Proxy                *proxy.Proxy // service.Interface
-	Upstreams            map[string]*proxy.CustomUpstreamConfig
+	Config    *config.Config
+	Proxy     *proxy.Proxy // service.Interface
+	Upstreams map[string]*proxy.CustomUpstreamConfig
+	// edeStore holds DNSSEC-failure Extended DNS Error codes captured from upstream
+	// responses (by dnssec.CapturingUpstream), drained per-request by EmitQueryLog.
+	edeStore             *dnssec.EDEStore
 	DomainFilter         filter.Filter
 	IPFilter             filter.Filter
 	Cache                cache.Cache
@@ -96,6 +100,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		ProfileSettingsCache: profileSettingsCache,
 		CollectorChannels:    collectorChannels,
 		Upstreams:            make(map[string]*proxy.CustomUpstreamConfig, 0),
+		edeStore:             &dnssec.EDEStore{},
 		LoggerFactory:        loggerFactory,
 		RateLimiter:          rl,
 		Metrics:              metrics.NewServerMetrics(prometheus.DefaultRegisterer),
@@ -122,7 +127,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
 
 	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
-	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup)
+	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding)
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength
@@ -270,6 +275,10 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			}
 		}
 
+		// Rebinding protection (security): missing hash = empty map = opt-in OFF.
+		// Raw map is threaded through; the IP-phase filter reads the "enabled" key.
+		rebindingProtectionSettings := settings.RebindingProtection
+
 		// Advanced settings: default upstream if unavailable.
 		advancedSettings := settings.Advanced
 		upstreamName := s.Config.Upstream.Default
@@ -293,7 +302,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
-		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, advancedSettings, reqLogger)
+		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
 		reqCtx.StartTime = time.Now()
 		reqCtx.UpstreamName = upstreamName
 		// TODO: set TTL for this request context - it's unnecessary to keep it in cache for long time since it's read right away in RequestHandler
@@ -303,16 +312,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			return err
 		}
 
-		dctx.Req.Extra = make([]dns.RR, 0)
-		if !dnssecEnabled {
-			dctx.Req.CheckingDisabled = true
-		}
-
-		if sendDoBit {
-			// Enable EDNS0 with a reasonable UDP buffer size and DO=1
-			// This sets a proper OPT RR instead of constructing one manually.
-			dctx.Req.SetEdns0(2048, true)
-		}
+		dnssec.ApplyRequestFlags(dctx.Req, dnssecEnabled, sendDoBit)
 	}
 
 	return nil
@@ -355,6 +355,7 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 			reqLogger.Trace().Msg("Triggering default resolver")
 			upstreamStart := time.Now()
 			if err := s.Proxy.Resolve(dctx); err != nil {
+				reqCtx.UpstreamErr = err
 				reqLogger.Err(err).Msg("DNS resolving error")
 			}
 			s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
@@ -422,6 +423,9 @@ func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
 
 		if err != nil {
 			logger.Err(err).Msg("DNS resolving error")
+			if ctxErr == nil {
+				reqCtx.UpstreamErr = err
+			}
 		}
 
 		// Only continue if we have a valid request context

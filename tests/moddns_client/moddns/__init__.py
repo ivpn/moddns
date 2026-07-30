@@ -22,6 +22,7 @@ from moddns.api.announcements_api import AnnouncementsApi
 from moddns.api.apple_mobileconfig_api import AppleMobileconfigApi
 from moddns.api.authentication_api import AuthenticationApi
 from moddns.api.blocklists_api import BlocklistsApi
+from moddns.api.dns_stamps_api import DNSStampsApi
 from moddns.api.pa_session_api import PASessionApi
 from moddns.api.profile_api import ProfileApi
 from moddns.api.query_logs_api import QueryLogsApi
@@ -73,6 +74,7 @@ from moddns.models.model_exported_from_info import ModelExportedFromInfo
 from moddns.models.model_exported_logs import ModelExportedLogs
 from moddns.models.model_exported_privacy import ModelExportedPrivacy
 from moddns.models.model_exported_profile import ModelExportedProfile
+from moddns.models.model_exported_rebinding_protection import ModelExportedRebindingProtection
 from moddns.models.model_exported_security import ModelExportedSecurity
 from moddns.models.model_exported_settings import ModelExportedSettings
 from moddns.models.model_exported_statistics import ModelExportedStatistics
@@ -83,6 +85,7 @@ from moddns.models.model_profile import ModelProfile
 from moddns.models.model_profile_settings import ModelProfileSettings
 from moddns.models.model_profile_update import ModelProfileUpdate
 from moddns.models.model_query_log import ModelQueryLog
+from moddns.models.model_rebinding_protection import ModelRebindingProtection
 from moddns.models.model_retention import ModelRetention
 from moddns.models.model_security import ModelSecurity
 from moddns.models.model_statistics_aggregated import ModelStatisticsAggregated
@@ -119,6 +122,7 @@ from moddns.models.requests_create_profile_custom_rule_body import RequestsCreat
 from moddns.models.requests_create_profile_custom_rules_batch_body import RequestsCreateProfileCustomRulesBatchBody
 from moddns.models.requests_custom_rule_group_update import RequestsCustomRuleGroupUpdate
 from moddns.models.requests_custom_rule_group_updates import RequestsCustomRuleGroupUpdates
+from moddns.models.requests_dns_stamp_req import RequestsDNSStampReq
 from moddns.models.requests_export_request import RequestsExportRequest
 from moddns.models.requests_import_request import RequestsImportRequest
 from moddns.models.requests_login_body import RequestsLoginBody
@@ -135,6 +139,7 @@ from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAut
 from moddns.models.responses_create_profile_custom_rules_batch_response import ResponsesCreateProfileCustomRulesBatchResponse
 from moddns.models.responses_custom_rule_batch_created import ResponsesCustomRuleBatchCreated
 from moddns.models.responses_custom_rule_batch_skipped import ResponsesCustomRuleBatchSkipped
+from moddns.models.responses_dns_stamp_response import ResponsesDNSStampResponse
 from moddns.models.responses_deletion_code_response import ResponsesDeletionCodeResponse
 from moddns.models.responses_registration_success_response import ResponsesRegistrationSuccessResponse
 from moddns.models.responses_short_link_response import ResponsesShortLinkResponse

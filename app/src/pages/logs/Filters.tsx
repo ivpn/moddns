@@ -76,8 +76,10 @@ const Filters = ({
                 </Button>
             </div>
 
-            {/* Row 2 (mobile: single horizontal scroll line) / Full single row (desktop) */}
-            <div className="flex lg:flex-nowrap items-start w-full min-w-0 lg:flex-1 lg:grow overflow-x-auto no-scrollbar flex-nowrap gap-1.5 lg:gap-2.5">
+            {/* Row 2 (mobile: single horizontal scroll line) / Full single row (desktop).
+                p-1/-m-1 keeps the 3px focus rings of the search input and filter
+                controls inside the overflow-x-auto clip box without shifting layout. */}
+            <div className="flex lg:flex-nowrap items-start w-full min-w-0 lg:flex-1 lg:grow overflow-x-auto no-scrollbar flex-nowrap gap-1.5 lg:gap-2.5 p-1 -m-1">
                 {/* Desktop search (hidden on mobile) */}
                 <div className="relative flex-1 grow min-w-0 hidden lg:block">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tailwind-colors-slate-400)] pointer-events-none flex items-center">

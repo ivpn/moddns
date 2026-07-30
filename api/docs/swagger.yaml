@@ -439,10 +439,21 @@ definitions:
     - name
     - settings
     type: object
+  model.ExportedRebindingProtection:
+    properties:
+      enabled:
+        type: boolean
+    type: object
   model.ExportedSecurity:
     properties:
       dnssec:
         $ref: '#/definitions/model.ExportedDNSSEC'
+      rebindingProtection:
+        allOf:
+        - $ref: '#/definitions/model.ExportedRebindingProtection'
+        description: |-
+          RebindingProtection is optional on the wire: envelopes produced before
+          the field existed import with the opt-in default (disabled).
     type: object
   model.ExportedSettings:
     properties:
@@ -601,6 +612,7 @@ definitions:
         - /settings/privacy/custom_rules_subdomains_rule
         - /settings/security/dnssec/enabled
         - /settings/security/dnssec/send_do_bit
+        - /settings/security/rebinding_protection/enabled
         - /settings/advanced/recursor
         type: string
       value: {}
@@ -619,6 +631,11 @@ definitions:
         $ref: '#/definitions/model.DNSRequest'
       id:
         type: string
+      outcome:
+        description: |-
+          Outcome is the proxy-computed resolution-outcome token
+          (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+        type: string
       profile_id:
         type: string
       protocol:
@@ -631,6 +648,11 @@ definitions:
         type: string
       timestamp:
         type: string
+    type: object
+  model.RebindingProtection:
+    properties:
+      enabled:
+        type: boolean
     type: object
   model.Retention:
     enum:
@@ -650,6 +672,8 @@ definitions:
     properties:
       dnssec:
         $ref: '#/definitions/model.DNSSECSettings'
+      rebinding_protection:
+        $ref: '#/definitions/model.RebindingProtection'
     required:
     - dnssec
     type: object
@@ -1147,6 +1171,21 @@ definitions:
     required:
     - updates
     type: object
+  requests.DNSStampReq:
+    properties:
+      device_id:
+        description: |-
+          DeviceId is an optional human-friendly identifier for the device.
+          It is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -])
+          before being embedded in the stamps. Empty means "profile-only stamp".
+        type: string
+      profile_id:
+        maxLength: 64
+        minLength: 10
+        type: string
+    required:
+    - profile_id
+    type: object
   requests.ExportRequest:
     properties:
       current_password:
@@ -1347,6 +1386,15 @@ definitions:
       value:
         type: string
     type: object
+  responses.DNSStampResponse:
+    properties:
+      doh:
+        type: string
+      doq:
+        type: string
+      dot:
+        type: string
+    type: object
   responses.DeletionCodeResponse:
     properties:
       code:
@@ -1381,6 +1429,10 @@ definitions:
     type: object
   servicescatalog.Service:
     properties:
+      aliases:
+        items:
+          type: string
+        type: array
       asns:
         items:
           type: integer
@@ -1780,6 +1832,46 @@ paths:
       summary: Get blocklists data
       tags:
       - Blocklists
+  /api/v1/dnsstamp:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Returns DoH, DoT, and DoQ sdns:// strings for the given profile,
+        optionally scoped to a specific device label. Stamps are
+        consumed by clients that don't expose separate hostname/path
+        fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+      parameters:
+      - description: Generate DNS stamp request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.DNSStampReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.DNSStampResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Generate DNS Stamps for a modDNS profile
+      tags:
+      - DNS Stamps
   /api/v1/login:
     post:
       consumes:

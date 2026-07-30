@@ -553,6 +553,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/dnsstamp": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns DoH, DoT, and DoQ sdns:// strings for the given profile,\noptionally scoped to a specific device label. Stamps are\nconsumed by clients that don't expose separate hostname/path\nfields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DNS Stamps"
+                ],
+                "summary": "Generate DNS Stamps for a modDNS profile",
+                "parameters": [
+                    {
+                        "description": "Generate DNS stamp request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.DNSStampReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DNSStampResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/login": {
             "post": {
                 "description": "Login endpoint",
@@ -3468,11 +3525,27 @@ const docTemplate = `{
                 }
             }
         },
+        "model.ExportedRebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
         "model.ExportedSecurity": {
             "type": "object",
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.ExportedDNSSEC"
+                },
+                "rebindingProtection": {
+                    "description": "RebindingProtection is optional on the wire: envelopes produced before\nthe field existed import with the opt-in default (disabled).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ExportedRebindingProtection"
+                        }
+                    ]
                 }
             }
         },
@@ -3698,6 +3771,7 @@ const docTemplate = `{
                         "/settings/privacy/custom_rules_subdomains_rule",
                         "/settings/security/dnssec/enabled",
                         "/settings/security/dnssec/send_do_bit",
+                        "/settings/security/rebinding_protection/enabled",
                         "/settings/advanced/recursor"
                     ]
                 },
@@ -3719,6 +3793,10 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "outcome": {
+                    "description": "Outcome is the proxy-computed resolution-outcome token\n(docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.",
+                    "type": "string"
+                },
                 "profile_id": {
                     "type": "string"
                 },
@@ -3736,6 +3814,14 @@ const docTemplate = `{
                 },
                 "timestamp": {
                     "type": "string"
+                }
+            }
+        },
+        "model.RebindingProtection": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3764,6 +3850,9 @@ const docTemplate = `{
             "properties": {
                 "dnssec": {
                     "$ref": "#/definitions/model.DNSSECSettings"
+                },
+                "rebinding_protection": {
+                    "$ref": "#/definitions/model.RebindingProtection"
                 }
             }
         },
@@ -4415,6 +4504,23 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.DNSStampReq": {
+            "type": "object",
+            "required": [
+                "profile_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "description": "DeviceId is an optional human-friendly identifier for the device.\nIt is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -])\nbefore being embedded in the stamps. Empty means \"profile-only stamp\".",
+                    "type": "string"
+                },
+                "profile_id": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 10
+                }
+            }
+        },
         "requests.ExportRequest": {
             "type": "object",
             "required": [
@@ -4703,6 +4809,20 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.DNSStampResponse": {
+            "type": "object",
+            "properties": {
+                "doh": {
+                    "type": "string"
+                },
+                "doq": {
+                    "type": "string"
+                },
+                "dot": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.DeletionCodeResponse": {
             "type": "object",
             "properties": {
@@ -4756,6 +4876,12 @@ const docTemplate = `{
         "servicescatalog.Service": {
             "type": "object",
             "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "asns": {
                     "type": "array",
                     "items": {

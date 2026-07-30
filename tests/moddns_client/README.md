@@ -109,6 +109,7 @@ Class | Method | HTTP request | Description
 *AuthenticationApi* | [**api_v1_webauthn_register_begin_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_begin_post) | **POST** /api/v1/webauthn/register/begin | Begin passkey registration
 *AuthenticationApi* | [**api_v1_webauthn_register_finish_post**](docs/AuthenticationApi.md#api_v1_webauthn_register_finish_post) | **POST** /api/v1/webauthn/register/finish | Finish passkey registration
 *BlocklistsApi* | [**api_v1_blocklists_get**](docs/BlocklistsApi.md#api_v1_blocklists_get) | **GET** /api/v1/blocklists | Get blocklists data
+*DNSStampsApi* | [**api_v1_dnsstamp_post**](docs/DNSStampsApi.md#api_v1_dnsstamp_post) | **POST** /api/v1/dnsstamp | Generate DNS Stamps for a modDNS profile
 *PASessionApi* | [**api_v1_pasession_add_post**](docs/PASessionApi.md#api_v1_pasession_add_post) | **POST** /api/v1/pasession/add | Add pre-auth session
 *PASessionApi* | [**api_v1_pasession_rotate_put**](docs/PASessionApi.md#api_v1_pasession_rotate_put) | **PUT** /api/v1/pasession/rotate | Rotate pre-auth session ID
 *ProfileApi* | [**api_v1_profiles_export_post**](docs/ProfileApi.md#api_v1_profiles_export_post) | **POST** /api/v1/profiles/export | Export profiles
@@ -174,6 +175,7 @@ Class | Method | HTTP request | Description
  - [ModelExportedLogs](docs/ModelExportedLogs.md)
  - [ModelExportedPrivacy](docs/ModelExportedPrivacy.md)
  - [ModelExportedProfile](docs/ModelExportedProfile.md)
+ - [ModelExportedRebindingProtection](docs/ModelExportedRebindingProtection.md)
  - [ModelExportedSecurity](docs/ModelExportedSecurity.md)
  - [ModelExportedSettings](docs/ModelExportedSettings.md)
  - [ModelExportedStatistics](docs/ModelExportedStatistics.md)
@@ -184,6 +186,7 @@ Class | Method | HTTP request | Description
  - [ModelProfileSettings](docs/ModelProfileSettings.md)
  - [ModelProfileUpdate](docs/ModelProfileUpdate.md)
  - [ModelQueryLog](docs/ModelQueryLog.md)
+ - [ModelRebindingProtection](docs/ModelRebindingProtection.md)
  - [ModelRetention](docs/ModelRetention.md)
  - [ModelSecurity](docs/ModelSecurity.md)
  - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)
@@ -220,6 +223,7 @@ Class | Method | HTTP request | Description
  - [RequestsCreateProfileCustomRulesBatchBody](docs/RequestsCreateProfileCustomRulesBatchBody.md)
  - [RequestsCustomRuleGroupUpdate](docs/RequestsCustomRuleGroupUpdate.md)
  - [RequestsCustomRuleGroupUpdates](docs/RequestsCustomRuleGroupUpdates.md)
+ - [RequestsDNSStampReq](docs/RequestsDNSStampReq.md)
  - [RequestsExportRequest](docs/RequestsExportRequest.md)
  - [RequestsImportRequest](docs/RequestsImportRequest.md)
  - [RequestsLoginBody](docs/RequestsLoginBody.md)
@@ -236,6 +240,7 @@ Class | Method | HTTP request | Description
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)
  - [ResponsesCustomRuleBatchCreated](docs/ResponsesCustomRuleBatchCreated.md)
  - [ResponsesCustomRuleBatchSkipped](docs/ResponsesCustomRuleBatchSkipped.md)
+ - [ResponsesDNSStampResponse](docs/ResponsesDNSStampResponse.md)
  - [ResponsesDeletionCodeResponse](docs/ResponsesDeletionCodeResponse.md)
  - [ResponsesRegistrationSuccessResponse](docs/ResponsesRegistrationSuccessResponse.md)
  - [ResponsesShortLinkResponse](docs/ResponsesShortLinkResponse.md)

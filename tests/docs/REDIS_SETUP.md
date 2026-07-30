@@ -1,6 +1,6 @@
 # Redis Sentinel Test Topology (Multi-User ACL)
 
-Current integration test topology provides a minimal high-availability Redis deployment with explicit ACL users for clearer separation of application vs. replication/failover concerns.
+Current backend E2E test topology provides a minimal high-availability Redis deployment with explicit ACL users for clearer separation of application vs. replication/failover concerns.
 
 ## Services
 - `cache`: Primary Redis (master) on port 6379 (`tests/redis/master.conf`)

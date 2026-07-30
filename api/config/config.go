@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -79,6 +80,14 @@ type ServerConfig struct {
 	ServerAddressesIPv6 []string
 	FrontendDomain      string
 	AllowedDomains      []string
+	// DoTPort and DoQPort are the externally-visible ports for DNS over TLS
+	// and DNS over QUIC respectively. Used when generating DNS Stamps so
+	// the encoded ServerAddrStr matches the actual proxy listen ports.
+	// Defaults: 853 / 853 — matches ansible defaults for DOT_LISTEN_ADDR /
+	// DOQ_LISTEN_ADDR. Override via SERVER_DOT_PORT / SERVER_DOQ_PORT if
+	// a deployment uses non-standard ports.
+	DoTPort int
+	DoQPort int
 }
 
 // APIConfig represents the API configuration
@@ -130,6 +139,15 @@ func New() (*Config, error) {
 	var dnsServerAddressesIPv6 []string
 	if envDnsServerAddressesIPv6 := os.Getenv("SERVER_DNS_SERVER_IPV6_ADDRESSES"); envDnsServerAddressesIPv6 != "" {
 		dnsServerAddressesIPv6 = strings.Split(envDnsServerAddressesIPv6, ",")
+	}
+
+	dotPort, err := strconv.Atoi(envOrDefault("SERVER_DOT_PORT", "853"))
+	if err != nil || dotPort <= 0 {
+		return nil, fmt.Errorf("SERVER_DOT_PORT must be a positive integer: %w", err)
+	}
+	doqPort, err := strconv.Atoi(envOrDefault("SERVER_DOQ_PORT", "853"))
+	if err != nil || doqPort <= 0 {
+		return nil, fmt.Errorf("SERVER_DOQ_PORT must be a positive integer: %w", err)
 	}
 
 	otpExp, err := time.ParseDuration(envOrDefault("OTP_EXPIRATION", "5m"))
@@ -214,6 +232,8 @@ func New() (*Config, error) {
 			ServerAddressesIPv6: dnsServerAddressesIPv6,
 			FrontendDomain:      os.Getenv("SERVER_FRONTEND_DOMAIN"),
 			AllowedDomains:      allowedDomains,
+			DoTPort:             dotPort,
+			DoQPort:             doqPort,
 		},
 		API: &APIConfig{
 			Port:                  os.Getenv("API_PORT"),

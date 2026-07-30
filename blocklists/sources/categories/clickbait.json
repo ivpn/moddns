@@ -2,13 +2,13 @@
   {
     "blocklist_id": "blp_fakenews",
     "name": "Fake News / Clickbait",
-    "description": "Community-maintained list blocking fake news, clickbait, and misinformation domains.",
-    "source_url": "https://raw.githubusercontent.com/marktron/fakenews/master/fakenews",
-    "homepage": "https://github.com/marktron/fakenews",
+    "description": "StevenBlack community-curated list blocking fake news and misinformation domains.",
+    "source_url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-only/hosts",
+    "homepage": "https://github.com/StevenBlack/hosts",
     "syntax": "domains",
     "kind": "category",
     "category": "clickbait",
-    "tags": ["category", "clickbait", "blp"],
+    "tags": ["category", "clickbait", "steven_black"],
     "schedule": "48 * * * *"
   }
 ]

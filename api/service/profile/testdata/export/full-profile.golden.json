@@ -22,6 +22,9 @@
           "dnssec": {
             "enabled": true,
             "sendDoBit": true
+          },
+          "rebindingProtection": {
+            "enabled": true
           }
         },
         "customRules": [
@@ -33,7 +36,8 @@
           },
           {
             "action": "allow",
-            "value": "safe.example.com"
+            "value": "safe.example.com",
+            "group": "Trusted"
           }
         ],
         "customRuleGroups": {
@@ -41,6 +45,12 @@
             {
               "name": "Ads",
               "comment": "advertising domains"
+            }
+          ],
+          "allow": [
+            {
+              "name": "Trusted",
+              "comment": "known-safe domains"
             }
           ]
         },

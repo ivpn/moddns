@@ -32,9 +32,9 @@ func newRateLimitServer(ipResponse, profileResponse string) *Server {
 			},
 		},
 		RateLimiter: ratelimit.New(ratelimit.Config{
-			PerIPEnabled:    true,
-			PerIPRate:       1,
-			PerIPBurst:      1,
+			PerIPEnabled:      true,
+			PerIPRate:         1,
+			PerIPBurst:        1,
 			PerProfileEnabled: true,
 			PerProfileRate:    1,
 			PerProfileBurst:   1,

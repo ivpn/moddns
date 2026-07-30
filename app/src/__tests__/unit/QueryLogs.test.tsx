@@ -59,10 +59,12 @@ vi.mock("@/pages/logs/Filters", () => ({
         onSearchInputChange,
         onSearchCommit,
         onFilterChange,
+        onSortChange,
         onTimespanChange,
         onDeviceIdChange,
         onRefresh,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void }) => (
+        onToggleAutoRefresh,
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onToggleAutoRefresh?: () => void }) => (
         <div>
             <input
                 data-testid="search-input"
@@ -71,9 +73,11 @@ vi.mock("@/pages/logs/Filters", () => ({
             />
             <button data-testid="commit-search" onClick={() => onSearchCommit?.()}>Commit</button>
             <button data-testid="filter-blocked" onClick={() => onFilterChange?.("blocked")}>Filter Blocked</button>
+            <button data-testid="sort-domain" onClick={() => onSortChange?.("domain")}>Sort Domain</button>
             <button data-testid="timespan-all" onClick={() => onTimespanChange?.("all")}>Timespan</button>
             <button data-testid="device-select" onClick={() => onDeviceIdChange?.("device-1")}>Device</button>
             <button data-testid="refresh" onClick={() => onRefresh?.()}>Refresh</button>
+            <button data-testid="auto-refresh-toggle" onClick={() => onToggleAutoRefresh?.()}>Auto refresh</button>
         </div>
     ),
 }));
@@ -229,6 +233,103 @@ describe("QueryLogs", () => {
             undefined,
             "created"
         );
+    });
+
+    test("consolidates adjacent duplicate rows into a single card under the default time sort", async () => {
+        // Same domain/status/device/client_ip/protocol, differing only in query_type (A + AAAA):
+        // these are sequential duplicates and collapse into one card.
+        const dupA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:02Z" });
+        const dupAAAA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "AAAA" }, timestamp: "2024-01-01T00:00:01Z" });
+        const other = makeLog({ dns_request: { domain: "other.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:00Z" });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [dupA, dupAAAA, other] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        // 3 raw logs → 2 cards (the A+AAAA pair merges).
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+    });
+
+    test("does not consolidate when sorted by domain", async () => {
+        const dupA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "A" }, timestamp: "2024-01-01T00:00:02Z" });
+        const dupAAAA = makeLog({ dns_request: { domain: "dup.example.com", query_type: "AAAA" }, timestamp: "2024-01-01T00:00:01Z" });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [dupA, dupAAAA] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(1));
+
+        act(() => {
+            fireEvent.click(screen.getByTestId("sort-domain"));
+        });
+
+        // Under domain sort, sequential-duplicate consolidation is disabled → both rows render.
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+    });
+
+    test("keeps cards visible when auto-refresh is toggled and pagination fires during refresh", async () => {
+        // Regression test for the auto-refresh "invisible cards" bug: the list container was
+        // faded to opacity-0 on every page-1 refresh and only restored by a 100ms setTimeout
+        // that the fetch effect's cleanup cancels. An IntersectionObserver page bump inside
+        // that window (opacity-0 elements still intersect) left the cards mounted and
+        // clickable but permanently invisible.
+        vi.useFakeTimers();
+        try {
+            const distinctLogs = (count: number, offset: number) =>
+                Array.from({ length: count }).map((_, i) =>
+                    makeLog({
+                        dns_request: { domain: `d${offset + i}.example.com` },
+                        timestamp: `2024-01-01T00:${Math.floor((offset + i) / 60).toString().padStart(2, "0")}:${((offset + i) % 60).toString().padStart(2, "0")}Z`,
+                    })
+                );
+            // Call 1: initial load (page 1, limit 100). Call 2: refresh triggered by the
+            // auto-refresh toggle (page 1, limit 25 → full page, so hasMore recomputes true).
+            // Call 3: the observer-driven page-2 fetch.
+            queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 0) });
+            queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(25, 100) });
+            queryLogsMock.mockResolvedValueOnce({ status: 200, data: [] });
+
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            // Resolve the initial fetch and let the baseline fade-in (100ms) fire.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(150);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+            expect(screen.getAllByTestId("log-card").length).toBeGreaterThan(0);
+
+            act(() => {
+                fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+            });
+            // Previous data must stay on screen while the refresh is in flight — no blank flash.
+            expect(screen.getAllByTestId("log-card").length).toBeGreaterThan(0);
+
+            // Resolve the refresh fetch (microtasks only): the fade-in restore is now pending
+            // but has not fired yet — we are inside the 100ms window.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+
+            // Page bump inside the window: re-runs the fetch effect, whose cleanup cancels
+            // the pending fade-in on the buggy code.
+            act(() => {
+                MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+            });
+            // Let everything settle (stay below the 10s auto-refresh interval). Two advances:
+            // the page-2 fetch resolves during the first; the fade-in timer it schedules is
+            // created in a passive effect flushed at the end of that act block, so a second
+            // advance is needed for it to fire.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(500);
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(500);
+            });
+
+            // Cards exist AND nothing hides them: the invisible-but-clickable state means an
+            // ancestor stuck at opacity-0 inside the scroll container.
+            expect(screen.getAllByTestId("log-card").length).toBeGreaterThan(0);
+            expect(screen.getByTestId("logs-scroll-container").querySelector(".opacity-0")).toBeNull();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     test("shows not active state when logs disabled", async () => {

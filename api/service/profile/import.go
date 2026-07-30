@@ -359,6 +359,10 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 		s.Security.DNSSECSettings.Enabled = src.Security.DNSSEC.Enabled
 		s.Security.DNSSECSettings.SendDoBit = src.Security.DNSSEC.SendDoBit
 	}
+	// specRef: F8 — absent (pre-F8 envelopes) keeps the opt-in default (disabled).
+	if src.Security != nil && src.Security.RebindingProtection != nil {
+		s.Security.RebindingProtection.Enabled = src.Security.RebindingProtection.Enabled
+	}
 
 	if src.Logs != nil {
 		s.Logs.Enabled = src.Logs.Enabled

@@ -357,6 +357,62 @@ export default function FAQ(): JSX.Element {
         </ol>
     );
 
+    const whatAreDNSStamps = (
+        <div className="space-y-2">
+            <p>A DNS Stamp is a single string starting with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> that bundles everything a client needs to reach a resolver — its IP address, port, protocol (DoH, DoT, DoQ), hostname for TLS, URL path, and properties such as DNSSEC support. Instead of typing each field separately, you paste one string and the client unpacks the rest.</p>
+            <p>Stamps were originally introduced by the DNSCrypt project, but today most encrypted-DNS clients understand them regardless of the underlying protocol. For the full format definition, see <a href="https://dnscrypt.info/stamps-specifications/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt.info/stamps-specifications</code></a>.</p>
+        </div>
+    );
+
+    const whereToFindDNSStamps = (
+        <ol className="list-decimal pl-5 space-y-1">
+            <li>Open the modDNS dashboard and select the profile you want a stamp for</li>
+            <li>Go to <strong>Setup</strong> and choose <strong>Routers</strong></li>
+            <li>Switch to the <strong>DNS Stamps</strong> tab</li>
+            <li>Copy any of the three generated stamps: <strong>DNS over HTTPS</strong>, <strong>DNS over TLS</strong>, or <strong>DNS over QUIC</strong></li>
+        </ol>
+    );
+
+    const dnsStampsCompatibleClients = (
+        <div className="space-y-2">
+            <p>Almost all stamp-aware clients accept the <strong>DoH stamp</strong>. The DoT and DoQ stamps are part of the <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> specification but are far less widely adopted — at the time of writing, only AdGuard's ecosystem parses them.</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>DoH stamp</strong> — works with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, AdGuard Home, AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code>, UniFi Network DNS Shield, Intra (Android), and Pi-hole via an embedded dnscrypt-proxy</li>
+                <li><strong>DoT stamp</strong> — AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only. Everything else (Stubby, Unbound, systemd-resolved, MikroTik, OpenWrt's <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https-dns-proxy</code>) configures DoT by hostname + port directly, not via a stamp.</li>
+                <li><strong>DoQ stamp</strong> — same as DoT: AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only.</li>
+            </ul>
+            <p>A common point of confusion: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> accepts only DoH, DNSCrypt, and ODoH stamps — feeding it a DoT or DoQ stamp returns an "Unsupported protocol" error.</p>
+            <p>If your device only exposes hostname, port, and path fields separately, you don't need a stamp — follow the platform-specific guide under <strong>Setup</strong> instead.</p>
+        </div>
+    );
+
+    const dnsStampsEncryption = (
+        <div className="space-y-2">
+            <p>No. A DNS Stamp is an <em>encoding format</em>, not an encryption layer. The encryption is already provided by the protocol the stamp points to:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>DoH</strong> stamps → connection uses TLS over HTTPS</li>
+                <li><strong>DoT</strong> stamps → connection uses TLS directly</li>
+                <li><strong>DoQ</strong> stamps → connection uses QUIC, which negotiates TLS 1.3 in its handshake</li>
+            </ul>
+            <p>All three protocols encrypt every DNS query end-to-end between your client and modDNS. Using a stamp gives you the same encrypted transport you'd get by typing the resolver details by hand — it's just easier to copy and paste.</p>
+        </div>
+    );
+
+    const whyNoDNSCryptStamp = (
+        <div className="space-y-2">
+            <p>The DNSCrypt protocol is a separate encrypted-DNS wire format that predates DoH/DoT/DoQ. modDNS doesn't currently run a DNSCrypt server, so issuing a DNSCrypt-protocol stamp would point clients at a service that doesn't exist.</p>
+            <p>The DoH, DoT, and DoQ stamps we provide give you equivalent end-to-end encryption (all TLS-based). If you specifically use <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, configure it with the DoH stamp — that client supports DoH but not DoT/DoQ stamps. For DoT/DoQ stamps, AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> are the most common consumers.</p>
+        </div>
+    );
+
+    const perDeviceDNSStamps = (
+        <div className="space-y-2">
+            <p>Yes. In the DNS Stamps tab, expand <strong>Advanced options</strong> and enter a label in the <strong>Device label</strong> field (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">Living Room</code>). The three stamps refresh automatically a moment after you stop typing.</p>
+            <p>The label is embedded in the DoH URL path and in the DoT/DoQ TLS hostname, exactly as described in the Device Identification section above. Generate one stamp per device, paste it into that device's client, and your Query Logs will tag each entry with that label.</p>
+            <p>The same character and length rules apply as for any device identifier — see <em>"What are the rules for device identifiers?"</em> in the Device Identification section.</p>
+        </div>
+    );
+
     const renderFAQContent = () => (
         <div className="space-y-6">
             <FAQSection title="Basics" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
@@ -588,6 +644,33 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="When a domain resolves to many IP addresses, do I need to add them all?"
                     answer={ipAddressRules}
+                />
+            </FAQSection>
+
+            <FAQSection title="DNS Stamps" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
+                <FAQItem
+                    question="What are DNS Stamps?"
+                    answer={whatAreDNSStamps}
+                />
+                <FAQItem
+                    question="Where do I find my DNS Stamps?"
+                    answer={whereToFindDNSStamps}
+                />
+                <FAQItem
+                    question="Which clients can I use a DNS Stamp with?"
+                    answer={dnsStampsCompatibleClients}
+                />
+                <FAQItem
+                    question="Do DNS Stamps add an extra layer of encryption?"
+                    answer={dnsStampsEncryption}
+                />
+                <FAQItem
+                    question="Why don't you provide a DNSCrypt stamp?"
+                    answer={whyNoDNSCryptStamp}
+                />
+                <FAQItem
+                    question="Can I generate a per-device DNS Stamp?"
+                    answer={perDeviceDNSStamps}
                 />
             </FAQSection>
 

@@ -48,10 +48,18 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 		}
 
 		if reqCtx.PrivacySettings[SUBDOMAINS_RULE] == RULE_BLOCK {
-			// iterate over all subdomains
+			// iterate over all parent domains, excluding the TLD and the full
+			// FQDN (already covered by the exact-match check above)
 			parts := strings.Split(fqdn, ".")
-			for i := range len(parts) - 1 {
-				candidate := strings.Join(parts[i:], ".")
+			var candidate string
+			for i := len(parts) - 2; i >= 1; i-- {
+				// Build candidate incrementally by prepending current part
+				if i == len(parts)-2 {
+					candidate = parts[i] + "." + parts[i+1]
+				} else {
+					candidate = parts[i] + "." + candidate
+				}
+
 				// now, check if candidate domain is part of any blocklist entry
 				blocklisted, err = f.Cache.GetBlocklistEntry(context.Background(), blocklistId, candidate)
 				if err != nil {

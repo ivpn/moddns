@@ -879,6 +879,19 @@ export interface ModelExportedProfile {
 /**
  * 
  * @export
+ * @interface ModelExportedRebindingProtection
+ */
+export interface ModelExportedRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelExportedRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ModelExportedSecurity
  */
 export interface ModelExportedSecurity {
@@ -888,6 +901,12 @@ export interface ModelExportedSecurity {
      * @memberof ModelExportedSecurity
      */
     'dnssec'?: ModelExportedDNSSEC;
+    /**
+     * RebindingProtection is optional on the wire: envelopes produced before the field existed import with the opt-in default (disabled).
+     * @type {ModelExportedRebindingProtection}
+     * @memberof ModelExportedSecurity
+     */
+    'rebindingProtection'?: ModelExportedRebindingProtection;
 }
 /**
  * 
@@ -1193,6 +1212,7 @@ export const ModelProfileUpdatePathEnum = {
     SettingsPrivacyCustomRulesSubdomainsRule: '/settings/privacy/custom_rules_subdomains_rule',
     SettingsSecurityDnssecEnabled: '/settings/security/dnssec/enabled',
     SettingsSecurityDnssecSendDoBit: '/settings/security/dnssec/send_do_bit',
+    SettingsSecurityRebindingProtectionEnabled: '/settings/security/rebinding_protection/enabled',
     SettingsAdvancedRecursor: '/settings/advanced/recursor'
 } as const;
 
@@ -1229,6 +1249,12 @@ export interface ModelQueryLog {
      */
     'id'?: string;
     /**
+     * Outcome is the proxy-computed resolution-outcome token (docs/specs/query-log-outcomes-behaviour.md). Empty on legacy entries.
+     * @type {string}
+     * @memberof ModelQueryLog
+     */
+    'outcome'?: string;
+    /**
      * 
      * @type {string}
      * @memberof ModelQueryLog
@@ -1262,6 +1288,19 @@ export interface ModelQueryLog {
 /**
  * 
  * @export
+ * @interface ModelRebindingProtection
+ */
+export interface ModelRebindingProtection {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelRebindingProtection
+     */
+    'enabled'?: boolean;
+}
+/**
+ * 
+ * @export
  * @enum {string}
  */
 
@@ -1288,6 +1327,12 @@ export interface ModelSecurity {
      * @memberof ModelSecurity
      */
     'dnssec': ModelDNSSECSettings;
+    /**
+     * 
+     * @type {ModelRebindingProtection}
+     * @memberof ModelSecurity
+     */
+    'rebinding_protection'?: ModelRebindingProtection;
 }
 /**
  * 
@@ -2117,6 +2162,25 @@ export interface RequestsCustomRuleGroupUpdates {
 /**
  * 
  * @export
+ * @interface RequestsDNSStampReq
+ */
+export interface RequestsDNSStampReq {
+    /**
+     * DeviceId is an optional human-friendly identifier for the device. It is normalized via libs/deviceid.Normalize (allowing only [A-Za-z0-9 -]) before being embedded in the stamps. Empty means \"profile-only stamp\".
+     * @type {string}
+     * @memberof RequestsDNSStampReq
+     */
+    'device_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsDNSStampReq
+     */
+    'profile_id': string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsExportRequest
  */
 export interface RequestsExportRequest {
@@ -2499,6 +2563,31 @@ export interface ResponsesCustomRuleBatchSkipped {
 /**
  * 
  * @export
+ * @interface ResponsesDNSStampResponse
+ */
+export interface ResponsesDNSStampResponse {
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesDNSStampResponse
+     */
+    'doh'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesDNSStampResponse
+     */
+    'doq'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesDNSStampResponse
+     */
+    'dot'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ResponsesDeletionCodeResponse
  */
 export interface ResponsesDeletionCodeResponse {
@@ -2579,6 +2668,12 @@ export interface ServicescatalogCatalog {
  * @interface ServicescatalogService
  */
 export interface ServicescatalogService {
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof ServicescatalogService
+     */
+    'aliases'?: Array<string>;
     /**
      * 
      * @type {Array<number>}
@@ -4623,6 +4718,116 @@ export const ApiV1BlocklistsGetSortByEnum = {
     Entries: 'entries'
 } as const;
 export type ApiV1BlocklistsGetSortByEnum = typeof ApiV1BlocklistsGetSortByEnum[keyof typeof ApiV1BlocklistsGetSortByEnum];
+
+
+/**
+ * DNSStampsApi - axios parameter creator
+ * @export
+ */
+export const DNSStampsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * Returns DoH, DoT, and DoQ sdns:// strings for the given profile, optionally scoped to a specific device label. Stamps are consumed by clients that don\'t expose separate hostname/path fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+         * @summary Generate DNS Stamps for a modDNS profile
+         * @param {RequestsDNSStampReq} body Generate DNS stamp request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1DnsstampPost: async (body: RequestsDNSStampReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1DnsstampPost', 'body', body)
+            const localVarPath = `/api/v1/dnsstamp`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * DNSStampsApi - functional programming interface
+ * @export
+ */
+export const DNSStampsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = DNSStampsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * Returns DoH, DoT, and DoQ sdns:// strings for the given profile, optionally scoped to a specific device label. Stamps are consumed by clients that don\'t expose separate hostname/path fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+         * @summary Generate DNS Stamps for a modDNS profile
+         * @param {RequestsDNSStampReq} body Generate DNS stamp request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1DnsstampPost(body: RequestsDNSStampReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesDNSStampResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1DnsstampPost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DNSStampsApi.apiV1DnsstampPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * DNSStampsApi - factory interface
+ * @export
+ */
+export const DNSStampsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = DNSStampsApiFp(configuration)
+    return {
+        /**
+         * Returns DoH, DoT, and DoQ sdns:// strings for the given profile, optionally scoped to a specific device label. Stamps are consumed by clients that don\'t expose separate hostname/path fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+         * @summary Generate DNS Stamps for a modDNS profile
+         * @param {RequestsDNSStampReq} body Generate DNS stamp request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1DnsstampPost(body: RequestsDNSStampReq, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesDNSStampResponse> {
+            return localVarFp.apiV1DnsstampPost(body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * DNSStampsApi - object-oriented interface
+ * @export
+ * @class DNSStampsApi
+ * @extends {BaseAPI}
+ */
+export class DNSStampsApi extends BaseAPI {
+    /**
+     * Returns DoH, DoT, and DoQ sdns:// strings for the given profile, optionally scoped to a specific device label. Stamps are consumed by clients that don\'t expose separate hostname/path fields (UniFi Network, dnscrypt-proxy, AdGuard Home upstreams, etc.).
+     * @summary Generate DNS Stamps for a modDNS profile
+     * @param {RequestsDNSStampReq} body Generate DNS stamp request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof DNSStampsApi
+     */
+    public apiV1DnsstampPost(body: RequestsDNSStampReq, options?: RawAxiosRequestConfig) {
+        return DNSStampsApiFp(this.configuration).apiV1DnsstampPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
 
 
 /**

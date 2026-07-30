@@ -1,4 +1,4 @@
-name: Smoke / integration tests
+name: Smoke / backend E2E tests
 
 on:
   push:
@@ -30,7 +30,9 @@ jobs:
           python_certs_path=`python -m certifi`
           echo "Python CA store path: ${python_certs_path}"
           echo "PYTHON_CERTS_PATH=${python_certs_path}" >> $GITHUB_ENV
-          echo "IVPN_CERT_PATH=./certs/moddns_dev_development_CA.crt" >> $GITHUB_ENV
+          # Absolute: consumed both from the repo root (cert setup step below) and
+          # from tests/ (pytest CWD, via libs/dns_lib.py for DoT/DoQ verification).
+          echo "IVPN_CERT_PATH=${GITHUB_WORKSPACE}/certs/moddns_dev_development_CA.crt" >> $GITHUB_ENV
 
       - name: SSL cert setup
         run: |
@@ -40,6 +42,14 @@ jobs:
       - name: Add hosts to /etc/hosts
         run: |
           sudo echo "127.0.0.1 moddns.dev" | sudo tee -a /etc/hosts
+
+      # dnscrypt-proxy client for the DoH-stamp E2E test (dns_tests/test_dnscrypt_proxy.py).
+      # The pinned version + URL + sha256 live in tests/libs/dnscrypt_proxy.py (single
+      # source of truth); this invokes that module to download + checksum-verify the
+      # binary and export its path. Fails loudly here; the test itself skips if unset.
+      - name: Install dnscrypt-proxy client (pinned)
+        run: |
+          echo "MODDNS_DNSCRYPT_PROXY_BIN=$(cd tests && python -m libs.dnscrypt_proxy)" >> "$GITHUB_ENV"
 
       - name: Prepare .env from sample
         run: |
@@ -64,5 +74,11 @@ jobs:
             fi
           done < tests/.env
 
-      - name: Run integration tests
+      - name: Run backend E2E tests
         run: cd tests/; make test_ci
+
+      # Destructive (stops/starts the Redis replica container), so it is
+      # excluded from the default invocation via pytest addopts and runs
+      # here as its own session with a fresh compose stack.
+      - name: Run Redis failover backend E2E tests
+        run: cd tests/; make test_failover

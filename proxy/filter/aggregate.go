@@ -10,6 +10,7 @@ const (
 	TierDefaultRule = 0
 	TierBlocklists  = 100
 	TierServices    = 100
+	TierRebinding   = 150
 	TierCustomRules = 200
 )
 
