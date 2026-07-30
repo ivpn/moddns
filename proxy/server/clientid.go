@@ -219,7 +219,7 @@ func (s *Server) clientIDFromDNSContext(pctx *proxy.DNSContext) (clientID, devic
 			proto,
 		)
 		if err == nil && clientID != "" {
-			zerolog.Info().Str("cliSrvName", cliSrvName).Str("hostSrvName", hostSrvName).Str("clientID", clientID).Str("deviceId", deviceId).Msg("client and server names")
+			zerolog.Debug().Str("cliSrvName", cliSrvName).Str("hostSrvName", hostSrvName).Str("clientID", clientID).Str("deviceId", deviceId).Msg("client and server names")
 			return clientID, deviceId, nil
 		}
 		if err != nil {
