@@ -27,8 +27,7 @@ down: ## Stops all of the services.
 	-f compose.dnscheck.yml \
 	-f compose.sdns.yml \
 	-f compose.knot.yml \
-	down; \
-	docker kill -a
+	down
 
 up_dns: ## Starts the DNS services (both recursors: sdns + knot).
 	docker compose \
