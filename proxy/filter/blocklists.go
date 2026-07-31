@@ -25,10 +25,17 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 	}
 
 	question := dctx.Req.Question[0].Name // answer only first question - google dns does the same
+
+	// DNS preserves query-name case on the wire (RFC 1035 §2.3.3) while name
+	// comparison is case-insensitive (RFC 4343), and blocklist members are stored
+	// lowercased — so normalise before the byte-exact cache lookup. `question`
+	// keeps its original case for logging.
+	fqdn, _ := strings.CutSuffix(question, ".")
+	fqdn = strings.ToLower(fqdn)
+
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
 	for _, blocklistId := range blocklists {
 
-		fqdn, _ := strings.CutSuffix(question, ".")
 		// check exact match first
 		blocklisted, err := f.Cache.GetBlocklistEntry(context.Background(), blocklistId, fqdn)
 		if err != nil {
