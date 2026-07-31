@@ -29,7 +29,7 @@ type realFixture struct {
 
 var realFixtures = []realFixture{
 	{file: "adguard.txt", blocklistID: "adguard_dns_filter", extractor: "AdGuard", url: "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt", strictMeta: true, minDomains: 500},
-	{file: "hagezi_domains.txt", blocklistID: "hagezi_multi_light", extractor: "Hagezi/domains", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/light.txt", strictMeta: true, minDomains: 1000},
+	{file: "hagezi_domains.txt", blocklistID: "hagezi_multi_light", extractor: "Hagezi/domains", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/light-onlydomains.txt", strictMeta: true, minDomains: 1000},
 	{file: "hagezi_wildcard.txt", blocklistID: "hagezi_gambling", extractor: "Hagezi/wildcard", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/gambling-onlydomains.txt", strictMeta: true, minDomains: 1000},
 	{file: "oisd.txt", blocklistID: "oisd_small", extractor: "OISD", url: "https://small.oisd.nl/domainswild2", strictMeta: true, minDomains: 1000},
 	{file: "steven_black.txt", blocklistID: "steven_black_ads_malware", extractor: "StevenBlack", url: "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts", strictMeta: true, minDomains: 1000},
@@ -41,7 +41,7 @@ var realFixtures = []realFixture{
 	// Additional category/security lists. These reuse the same extractors as
 	// above (no new syntax) but add real-content breadth and catch per-list
 	// upstream drift in the lists users actually select.
-	{file: "hagezi_tif.txt", blocklistID: "hagezi_threat_intelligence_feeds_full", extractor: "Hagezi/security", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt", strictMeta: true, minDomains: 1000},
+	{file: "hagezi_tif.txt", blocklistID: "hagezi_threat_intelligence_feeds_full", extractor: "Hagezi/security", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif-onlydomains.txt", strictMeta: true, minDomains: 1000},
 	{file: "hagezi_nsfw.txt", blocklistID: "hagezi_nsfw", extractor: "Hagezi/wildcard(category)", url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt", strictMeta: true, minDomains: 1000},
 	{file: "blp_drugs.txt", blocklistID: "blp_drugs", extractor: "Domains/blp(category)", url: "https://blocklistproject.github.io/Lists/alt-version/drugs-nl.txt", strictMeta: false, minDomains: 100},
 	{file: "ut1_dating.txt", blocklistID: "ut1_dating", extractor: "Domains/ut1(category)", url: "https://raw.githubusercontent.com/olbat/ut1-blacklists/master/blacklists/dating/domains", strictMeta: false, minDomains: 100},
