@@ -6,6 +6,20 @@ See README.md on this branch for the full format and publishing guide.
 -->
 
 ---
+id: 2026-07-query-logs-dnscrypt-stamps-rebinding
+category: feature
+severity: info
+title: Query logs improvements, dnscrypt-proxy support, DNS rebinding protection
+published_at: 2026-07-30
+---
+Latest additions:
+
+- [Query logs](https://moddns.net/query-logs) now consolidate duplicate entries, and each card expands to show query details, block reasons, and a "no answer" label when a domain cannot be resolved.
+- dnscrypt support: reach modDNS from a dnscrypt-proxy client over DoH. See the [Linux setup guide](https://moddns.net/setup).
+- DNS Stamps: generate a stamp to configure network devices that support the format. See the [Routers setup guide](https://moddns.net/setup).
+- DNS rebinding protection blocks public domains that resolve to private IP addresses. Enable it in the [Blocklists Security tab](https://moddns.net/blocklists).
+
+---
 id: 2026-07-locations-ipv6-export-import
 category: feature
 severity: info
