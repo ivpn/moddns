@@ -26,6 +26,30 @@ type Handler struct {
 }
 
 func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
+	// Runs in a goroutine per packet, so an unrecovered panic would terminate the
+	// process.
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Error().Interface("panic", rec).
+				Str("remote", w.RemoteAddr().String()).
+				Msg("Recovered from panic while serving DNS request")
+		}
+	}()
+
+	// QDCOUNT (RFC 1035 §4.1.1) is a header field and is not validated against the
+	// body, so a message can declare a question yet carry none. That unpacks
+	// without error, leaving Question empty here.
+	if len(r.Question) == 0 {
+		log.Debug().Str("remote", w.RemoteAddr().String()).
+			Msg("Rejecting DNS request with no question section")
+		m := new(dns.Msg)
+		m.SetRcode(r, dns.RcodeFormatError)
+		if err := w.WriteMsg(m); err != nil {
+			log.Error().Err(err).Msg("Failed to write FORMERR response")
+		}
+		return
+	}
+
 	log.Debug().Str("protocol", w.RemoteAddr().Network()).Str("qtype", dns.Type(r.Question[0].Qtype).String()).Msgf("Received DNS request: %s", r.Question[0].Name)
 
 	msg := dns.Msg{}
