@@ -10,6 +10,7 @@ import (
 	adlog "github.com/AdguardTeam/golibs/log"
 	"github.com/getsentry/sentry-go"
 	sentryzerolog "github.com/getsentry/sentry-go/zerolog"
+	"github.com/ivpn/dns/libs/telemetry"
 	"github.com/ivpn/dns/proxy/cache/memory"
 	"github.com/ivpn/dns/proxy/collector"
 	"github.com/ivpn/dns/proxy/collector/channel"
@@ -47,30 +48,18 @@ func main() {
 	adlogLevel := utils.ParseAdGuardLogLevel(serverConfig.Log.AdGuardLogLevel)
 	adlog.SetLevel(adlogLevel)
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              serverConfig.Sentry.DSN,
-		Environment:      serverConfig.Sentry.Environment,
-		Release:          serverConfig.Sentry.Release,
-		TracesSampleRate: 1.0,
-		AttachStacktrace: true,
-		EnableTracing:    true,
-	}); err != nil {
+	sentryConfig := telemetry.Config{
+		DSN:         serverConfig.Sentry.DSN,
+		Environment: serverConfig.Sentry.Environment,
+		Release:     serverConfig.Sentry.Release,
+	}
+
+	if err := sentry.Init(telemetry.InitOptions(sentryConfig)); err != nil {
 		log.Panic().Err(err).Msg("Failed to initialize Sentry")
 	}
 
 	// Configure Zerolog to use Sentry as a writer
-	sentryWriter, err := sentryzerolog.New(sentryzerolog.Config{
-		ClientOptions: sentry.ClientOptions{
-			Dsn:         serverConfig.Sentry.DSN,
-			Environment: serverConfig.Sentry.Environment,
-			Release:     serverConfig.Sentry.Release,
-		},
-		Options: sentryzerolog.Options{
-			Levels:          []zerolog.Level{zerolog.WarnLevel, zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel},
-			WithBreadcrumbs: true,
-			FlushTimeout:    3 * time.Second,
-		},
-	})
+	sentryWriter, err := sentryzerolog.New(telemetry.LogWriterConfig(sentryConfig))
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sentry writer")
 	}
