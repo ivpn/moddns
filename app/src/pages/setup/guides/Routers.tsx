@@ -60,8 +60,12 @@ const buildMikrotikCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6, dnsServe
 );
 
 const buildOpenWrtCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6 }: RoutersGuideDeps) => (
+    `# OpenWrt 24.10 and older use opkg package manager\n` +
     `opkg update\n` +
     `opkg install https-dns-proxy\n\n` +
+    `# OpenWrt 25.12 and newer use apk package manager\n` +
+    `apk update\n` +
+    `apk add https-dns-proxy\n\n` +
     `while uci -q delete https-dns-proxy.@https-dns-proxy[0]; do :; done\n` +
     `uci set https-dns-proxy.dns="https-dns-proxy"\n` +
     `uci set https-dns-proxy.dns.bootstrap_dns="${anycastIpv6 ? `${anycastIpv4},${anycastIpv6}` : anycastIpv4}"\n` +
