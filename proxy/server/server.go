@@ -182,7 +182,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 	if profileId == "" {
 		// drop DNS request if profile_id is not provided
-		systemLogger.Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
+		systemLogger.Warn().Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return errProfileIdNotProvided
 	} else {
 		// Layer 2: per-profile rate limit (after profile extraction, before Redis).
@@ -218,7 +218,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 		// Privacy settings are required — missing means profile doesn't exist.
 		if settings.PrivacyErr != nil {
-			systemLogger.Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
+			systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
 			return errProfileIdNotFound
 		}
 		prvSettings := settings.Privacy
@@ -227,7 +227,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		logsSettings := settings.Logs
 		var loggingEnabled bool
 		if settings.LogsErr != nil {
-			systemLogger.Err(settings.LogsErr).Msg("Error getting profile logs settings, defaulting to enabled")
+			systemLogger.Warn().Err(settings.LogsErr).Msg("Error getting profile logs settings, defaulting to enabled")
 			loggingEnabled = true
 		} else {
 			loggingEnabled, err = strconv.ParseBool(logsSettings["enabled"])

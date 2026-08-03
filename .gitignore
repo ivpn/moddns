@@ -12,3 +12,4 @@ libs/vendor
 tests/docker_logs
 .qodo
 .nginx-validate.*
+/docs/
