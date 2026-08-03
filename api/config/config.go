@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/ivpn/dns/libs/cache"
@@ -35,15 +36,38 @@ func envOrDefault(key, fallback string) string {
 	return fallback
 }
 
+// parseLogLevel maps the LOG_LEVEL env value to a zerolog level. Unknown or
+// empty values default to info. Mirrors blocklists/config and
+// proxy/utils/log.go's ParseZerologLevel.
+func parseLogLevel(s string) zerolog.Level {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "trace":
+		return zerolog.TraceLevel
+	case "debug":
+		return zerolog.DebugLevel
+	case "info":
+		return zerolog.InfoLevel
+	case "warn", "warning":
+		return zerolog.WarnLevel
+	case "error":
+		return zerolog.ErrorLevel
+	case "disabled":
+		return zerolog.Disabled
+	default:
+		return zerolog.InfoLevel
+	}
+}
+
 // Config represents the application configuration
 type Config struct {
-	Server  *ServerConfig
-	Service *ServiceConfig
-	API     *APIConfig
-	DB      *store.Config
-	Cache   *cache.Config
-	Email   *EmailSenderConfig
-	Sentry  *SentryConfig
+	Server   *ServerConfig
+	Service  *ServiceConfig
+	API      *APIConfig
+	DB       *store.Config
+	Cache    *cache.Config
+	Email    *EmailSenderConfig
+	Sentry   *SentryConfig
+	LogLevel zerolog.Level
 }
 
 // ServiceConfig represents the service configuration
@@ -309,5 +333,6 @@ func New() (*Config, error) {
 			Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 			Release:     os.Getenv("SENTRY_RELEASE"),
 		},
+		LogLevel: parseLogLevel(os.Getenv("LOG_LEVEL")),
 	}, nil
 }

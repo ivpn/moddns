@@ -156,13 +156,13 @@ func (s *SubscriptionService) RotatePASessionID(ctx context.Context, oldID strin
 func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error) {
 	paSession, err := s.Cache.GetPASession(ctx, sessionID)
 	if err != nil {
-		log.Warn().Err(err).Str("session_id", sessionID).Msg("ValidateAndGetPreauth: PASession not found in cache")
+		log.Warn().Err(err).Msg("ValidateAndGetPreauth: PASession not found in cache")
 		return nil, ErrPASessionNotFound
 	}
 
 	preauth, err := s.Http.GetPreauth(paSession.PreauthID)
 	if err != nil {
-		log.Warn().Err(err).Str("preauth_id", paSession.PreauthID).Msg("ValidateAndGetPreauth: preauth service call failed")
+		log.Warn().Err(err).Msg("ValidateAndGetPreauth: preauth service call failed")
 		return nil, ErrPANotFound
 	}
 
@@ -170,12 +170,7 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 	tokenHashStr := base64.StdEncoding.EncodeToString(tokenHash[:])
 
 	if subtle.ConstantTimeCompare([]byte(tokenHashStr), []byte(preauth.TokenHash)) != 1 {
-		log.Warn().
-			Str("session_id", sessionID).
-			Str("preauth_id", paSession.PreauthID).
-			Str("computed_hash", tokenHashStr).
-			Str("preauth_hash", preauth.TokenHash).
-			Msg("ValidateAndGetPreauth: token hash mismatch")
+		log.Warn().Msg("ValidateAndGetPreauth: token hash mismatch")
 		return nil, ErrTokenHashMismatch
 	}
 

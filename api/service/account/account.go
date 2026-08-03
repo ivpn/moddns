@@ -174,7 +174,7 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 	// Blocking: invalid email syntax / unreachable MX is a legitimate signup
 	// failure; better to surface it than to async-send into the void.
 	if err := a.validateEmailAddress(account.Email); err != nil {
-		log.Warn().Err(err).Str("email", account.Email).Msg("Email address validation failed during registration")
+		log.Warn().Err(err).Msg("Email address validation failed during registration")
 		return err
 	}
 
@@ -186,7 +186,7 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 	}
 
 	if err := a.Cache.RemovePASession(ctx, sessionID); err != nil {
-		log.Debug().Err(err).Str("session_id", sessionID).Msg("Failed to remove PA session cache entry (TTL will eventually evict)")
+		log.Debug().Err(err).Msg("Failed to remove PA session cache entry (TTL will eventually evict)")
 	}
 
 	a.dispatchWelcomeEmail(account, account.Email)
@@ -221,14 +221,12 @@ func (a *AccountService) dispatchWelcomeEmail(acc *model.Account, email string) 
 		if err != nil {
 			log.Warn().Err(err).
 				Str("account_id", acc.ID.Hex()).
-				Str("email", email).
 				Str("category", EmailCategoryWelcome).
 				Msg("Welcome email send failed; signup is unaffected")
 			return
 		}
 		log.Info().
 			Str("account_id", acc.ID.Hex()).
-			Str("email", email).
 			Str("category", EmailCategoryWelcome).
 			Msg("Welcome email sent")
 	}()
@@ -338,15 +336,15 @@ func (a *AccountService) SendResetPasswordEmail(ctx context.Context, email strin
 	if err != nil {
 		if errors.Is(err, dbErrors.ErrAccountNotFound) {
 			// Do not reveal whether the account exists.
-			log.Debug().Str("email", email).Msg("Password reset requested for non-existent account")
+			log.Debug().Msg("Password reset requested for non-existent account")
 			return nil
 		}
-		log.Error().Err(err).Str("email", email).Msg("Error retrieving account for password reset")
+		log.Error().Err(err).Msg("Error retrieving account for password reset")
 		return nil
 	}
 
 	if !acc.EmailVerified {
-		log.Info().Str("email", email).Msg("Password reset requested for unverified email")
+		log.Info().Str("account_id", acc.ID.Hex()).Msg("Password reset requested for unverified email")
 		return nil
 	}
 

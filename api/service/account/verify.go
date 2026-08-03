@@ -133,7 +133,7 @@ func (a *AccountService) VerifyPasswordReset(ctx context.Context, tokenValue, ne
 		return ErrInvalidVerificationToken
 	}
 	if !acc.EmailVerified {
-		log.Warn().Str("email", acc.Email).Msg("Email not verified")
+		log.Warn().Str("account_id", acc.ID.Hex()).Msg("Email not verified")
 	}
 	if err := a.MfaCheck(ctx, acc, mfa); err != nil {
 		return err

@@ -56,7 +56,7 @@ func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, acco
 		}
 
 		if err := mailer.SendSubscriptionExpiryEmail(ctx, account.Email); err != nil {
-			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send subscription expiry email")
+			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to send subscription expiry email")
 			continue
 		}
 
@@ -132,7 +132,7 @@ func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, acco
 		}
 
 		if err := mailer.SendInactiveEmail(ctx, account.Email); err != nil {
-			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send inactive-account email")
+			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to send inactive-account email")
 			// Leave sub unnotified so the retry happens next tick.
 			continue
 		}

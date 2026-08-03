@@ -20,6 +20,7 @@ import (
 	libscache "github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/store"
+	"github.com/ivpn/dns/libs/telemetry"
 
 	"github.com/getsentry/sentry-go"
 	sentryzerolog "github.com/getsentry/sentry-go/zerolog"
@@ -43,38 +44,27 @@ const (
 // @description     modDNS REST API
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	appConfig, err := config.New()
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to read app configuration")
 	}
+	zerolog.SetGlobalLevel(appConfig.LogLevel)
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              appConfig.Sentry.DSN,
-		Environment:      appConfig.Sentry.Environment,
-		Release:          appConfig.Sentry.Release,
-		TracesSampleRate: 1.0,
-		AttachStacktrace: true,
-		EnableTracing:    true,
-	}); err != nil {
+	sentryConfig := telemetry.Config{
+		DSN:         appConfig.Sentry.DSN,
+		Environment: appConfig.Sentry.Environment,
+		Release:     appConfig.Sentry.Release,
+	}
+
+	if err := sentry.Init(telemetry.InitOptions(sentryConfig)); err != nil {
 		log.Panic().Err(err).Msg("Failed to initialize Sentry")
 	}
 
 	// Configure Zerolog to use Sentry as a writer
-	sentryWriter, err := sentryzerolog.New(sentryzerolog.Config{
-		ClientOptions: sentry.ClientOptions{
-			Dsn:         appConfig.Sentry.DSN,
-			Environment: appConfig.Sentry.Environment,
-			Release:     appConfig.Sentry.Release,
-		},
-		Options: sentryzerolog.Options{
-			Levels:          []zerolog.Level{zerolog.WarnLevel, zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel},
-			WithBreadcrumbs: true,
-			FlushTimeout:    3 * time.Second,
-		},
-	})
+	sentryWriter, err := sentryzerolog.New(telemetry.LogWriterConfig(sentryConfig))
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sentry writer")
 	}

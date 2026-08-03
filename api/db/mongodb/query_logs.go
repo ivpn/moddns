@@ -140,7 +140,7 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 			Str("retention", string(retention)).
 			Str("status", status).
 			Str("sort", sortBy).
-			Str("search", search).
+			Int("search_len", len(search)).
 			Int("page", page).
 			Int("page_size", pageSize).
 			Int("result_count", len(results)).
