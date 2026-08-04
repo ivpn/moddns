@@ -101,7 +101,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 { value: "1w", label: "1 W" },
                 { value: "1m", label: "1 M" },
             ],
-            value: "1d",
+            value: "1h",
         },
     ]);
 
@@ -352,7 +352,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             },
             {
                 ...logsSettings[3],
-                value: profile.settings?.logs?.retention ?? "1d",
+                value: profile.settings?.logs?.retention ?? "1h",
             },
         ]);
 

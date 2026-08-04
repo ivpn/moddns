@@ -175,10 +175,10 @@ func (r *QueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId str
 		res, err := coll.DeleteMany(ctx, bson.D{
 			primitive.E{Key: "profile_id", Value: profileId},
 		})
-		log.Ctx(ctx).Debug().Str("collection_name", string(retention)).Int64("count", res.DeletedCount).Msg("Deleted query logs")
 		if err != nil {
 			return err
 		}
+		log.Ctx(ctx).Debug().Str("collection_name", string(retention)).Int64("count", res.DeletedCount).Msg("Deleted query logs")
 	}
 
 	return nil

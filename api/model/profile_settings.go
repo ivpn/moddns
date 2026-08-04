@@ -61,7 +61,7 @@ func NewSettings() *ProfileSettings {
 			Enabled:       false,
 			LogClientsIPs: false,
 			LogDomains:    true,
-			Retention:     RetentionOneDay,
+			Retention:     RetentionOneHour,
 		},
 		Statistics: &StatisticsSettings{
 			Enabled: false,

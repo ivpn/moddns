@@ -371,7 +371,7 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 		if ret, err := model.NewRetention(src.Logs.Retention); err == nil {
 			s.Logs.Retention = ret
 		}
-		// Invalid retention values silently fall back to the default (RetentionOneDay).
+		// Invalid retention values silently fall back to the default (RetentionOneHour).
 	}
 
 	if src.Statistics != nil {

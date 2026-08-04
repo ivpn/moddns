@@ -34,6 +34,8 @@ var SensitiveLogKeys = map[string]struct{}{
 	"retired_account_id": {},
 	"new_account_id":     {},
 	"token_hash":         {},
+	"device_id":          {},
+	"client_id":          {},
 }
 
 // emailPattern matches email addresses embedded in free text, such as
