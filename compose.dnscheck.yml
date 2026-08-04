@@ -1,8 +1,8 @@
 services:
   dnscheck:
     build:
-      context: ./dnscheck
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: dnscheck/Dockerfile
     image: dnscheck:latest
     restart: always
     command: sleep infinity
