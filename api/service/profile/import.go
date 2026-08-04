@@ -561,14 +561,14 @@ func capGroups(list []model.CustomRuleGroup, listName, profileName string, warni
 func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId string, profileIds []string) {
 	for _, pid := range profileIds {
 		if err := p.ProfileRepository.DeleteProfileById(ctx, pid); err != nil {
-			log.Warn().
+			log.Ctx(ctx).Warn().
 				Str("account_id", accountId).
 				Str("profile_id", pid).
 				Err(err).
 				Msg("import rollback: failed to delete partially-created profile")
 		}
 		if err := p.Cache.DeleteProfileSettings(ctx, pid); err != nil {
-			log.Warn().
+			log.Ctx(ctx).Warn().
 				Str("account_id", accountId).
 				Str("profile_id", pid).
 				Err(err).
