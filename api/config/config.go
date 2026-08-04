@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
 )
 
@@ -34,28 +35,6 @@ func envOrDefault(key, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-// parseLogLevel maps the LOG_LEVEL env value to a zerolog level. Unknown or
-// empty values default to info. Mirrors blocklists/config and
-// proxy/utils/log.go's ParseZerologLevel.
-func parseLogLevel(s string) zerolog.Level {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "trace":
-		return zerolog.TraceLevel
-	case "debug":
-		return zerolog.DebugLevel
-	case "info":
-		return zerolog.InfoLevel
-	case "warn", "warning":
-		return zerolog.WarnLevel
-	case "error":
-		return zerolog.ErrorLevel
-	case "disabled":
-		return zerolog.Disabled
-	default:
-		return zerolog.InfoLevel
-	}
 }
 
 // Config represents the application configuration
@@ -247,6 +226,8 @@ func New() (*Config, error) {
 		log.Warn().Msg("PREAUTH_URL is not set; ZLA pre-auth session flow will be unavailable")
 	}
 
+	logLevel, _ := logging.ParseLevel(os.Getenv("LOG_LEVEL"))
+
 	return &Config{
 		Server: &ServerConfig{
 			Name:                serverName,
@@ -333,6 +314,6 @@ func New() (*Config, error) {
 			Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 			Release:     os.Getenv("SENTRY_RELEASE"),
 		},
-		LogLevel: parseLogLevel(os.Getenv("LOG_LEVEL")),
+		LogLevel: logLevel,
 	}, nil
 }

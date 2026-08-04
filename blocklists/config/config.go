@@ -9,6 +9,7 @@ import (
 	"github.com/ivpn/dns/blocklists/internal/downloader"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
 	"github.com/rs/zerolog"
 )
@@ -73,6 +74,8 @@ func New() (*Config, error) {
 
 	cacheAddrs := strings.Split(os.Getenv("CACHE_ADDRESSES"), ",")
 
+	logLevel, _ := logging.ParseLevel(os.Getenv("LOG_LEVEL"))
+
 	return &Config{
 		Server: &ServerConfig{
 			Name: os.Getenv("SERVER_NAME"),
@@ -117,30 +120,8 @@ func New() (*Config, error) {
 		},
 		Metrics:  loadMetricsConfig(),
 		Download: loadDownloadConfig(),
-		LogLevel: parseLogLevel(os.Getenv("LOG_LEVEL")),
+		LogLevel: logLevel,
 	}, nil
-}
-
-// parseLogLevel maps the LOG_LEVEL env value to a zerolog level. Unknown or empty
-// values default to info, keeping a normal run's output to the startup summary
-// and errors. Mirrors proxy/utils/log.go's ParseZerologLevel.
-func parseLogLevel(s string) zerolog.Level {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "trace":
-		return zerolog.TraceLevel
-	case "debug":
-		return zerolog.DebugLevel
-	case "info":
-		return zerolog.InfoLevel
-	case "warn", "warning":
-		return zerolog.WarnLevel
-	case "error":
-		return zerolog.ErrorLevel
-	case "disabled":
-		return zerolog.Disabled
-	default:
-		return zerolog.InfoLevel
-	}
 }
 
 // loadDownloadConfig reads the gentle-downloader tuning knobs from the
