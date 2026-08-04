@@ -41,7 +41,7 @@ func (r *AccountRepository) CreateAccount(ctx context.Context, email, passwordPl
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Msgf("Created new account")
+	log.Ctx(ctx).Info().Msgf("Created new account")
 	return acc, nil
 }
 
@@ -63,7 +63,7 @@ func (r *AccountRepository) UpdateAccount(ctx context.Context, account *model.Ac
 	if err != nil {
 		return nil, err
 	}
-	log.Info().Int64("modified_count", res.ModifiedCount).Msgf("Account updated")
+	log.Ctx(ctx).Info().Int64("modified_count", res.ModifiedCount).Msgf("Account updated")
 	return account, nil
 }
 
@@ -134,7 +134,7 @@ func (r *AccountRepository) DeleteAccountById(ctx context.Context, accountId str
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("deleted_count", res.DeletedCount).Msgf("Account deleted")
+	log.Ctx(ctx).Info().Int64("deleted_count", res.DeletedCount).Msgf("Account deleted")
 	return nil
 }
 
@@ -158,7 +158,7 @@ func (r *AccountRepository) UpdateDeletionCode(ctx context.Context, accountId st
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("modified_count", res.ModifiedCount).Msgf("Updated deletion code")
+	log.Ctx(ctx).Info().Int64("modified_count", res.ModifiedCount).Msgf("Updated deletion code")
 	return nil
 }
 
@@ -183,7 +183,7 @@ func (r *AccountRepository) AddProfileToAccount(ctx context.Context, accountId s
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("modified_count", res.ModifiedCount).Msgf("Added profile to account")
+	log.Ctx(ctx).Info().Int64("modified_count", res.ModifiedCount).Msgf("Added profile to account")
 	return nil
 }
 
@@ -203,6 +203,6 @@ func (r *AccountRepository) RemoveProfileFromAccount(ctx context.Context, accoun
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("modified_count", res.ModifiedCount).Msgf("Removed profile from account")
+	log.Ctx(ctx).Info().Int64("modified_count", res.ModifiedCount).Msgf("Removed profile from account")
 	return nil
 }

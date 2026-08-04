@@ -14,10 +14,10 @@ func (c *RedisCache) SetTOTPSecret(ctx context.Context, accountId, secret string
 
 	intCmd := c.client.Set(ctx, totpKey, secret, expiresIn)
 	if err := intCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create TOTP secret")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create TOTP secret")
 		return err
 	}
-	log.Trace().Msg("Created totp secret")
+	log.Ctx(ctx).Trace().Msg("Created totp secret")
 	return nil
 }
 
@@ -27,10 +27,10 @@ func (c *RedisCache) GetTOTPSecret(ctx context.Context, accountId string) (strin
 
 	strCmd := c.client.Get(ctx, totpKey)
 	if err := strCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to get TOTP secret")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to get TOTP secret")
 		return "", err
 	}
 	secret := strCmd.Val()
-	log.Trace().Msg("Got totp secret")
+	log.Ctx(ctx).Trace().Msg("Got totp secret")
 	return secret, nil
 }

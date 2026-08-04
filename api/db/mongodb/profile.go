@@ -37,7 +37,7 @@ func (r *ProfileRepository) CreateProfile(ctx context.Context, profile *model.Pr
 	if err != nil {
 		return err
 	}
-	log.Info().Msgf("Created new profile")
+	log.Ctx(ctx).Info().Msgf("Created new profile")
 	return nil
 }
 
@@ -75,7 +75,7 @@ func (r *ProfileRepository) DeleteProfileById(ctx context.Context, profileId str
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("count", res.DeletedCount).Msgf("Deleted profile")
+	log.Ctx(ctx).Info().Int64("count", res.DeletedCount).Msgf("Deleted profile")
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (r *ProfileRepository) Update(ctx context.Context, profileId string, profil
 	if err != nil {
 		return err
 	}
-	log.Debug().Int64("count", res.MatchedCount).Msgf("Updated profile")
+	log.Ctx(ctx).Debug().Int64("count", res.MatchedCount).Msgf("Updated profile")
 
 	return nil
 }
@@ -98,7 +98,7 @@ func (r *ProfileRepository) UpdateSettings(ctx context.Context, profileId string
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("count", res.MatchedCount).Msgf("Updated profile settings")
+	log.Ctx(ctx).Info().Int64("count", res.MatchedCount).Msgf("Updated profile settings")
 
 	return nil
 }
@@ -126,7 +126,7 @@ func (r *ProfileRepository) RemoveCustomRules(ctx context.Context, profileId str
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("count", res.MatchedCount).Msgf("Removed custom rules")
+	log.Ctx(ctx).Info().Int64("count", res.MatchedCount).Msgf("Removed custom rules")
 
 	return nil
 }
@@ -258,7 +258,7 @@ func (r *ProfileRepository) EnableBlocklists(ctx context.Context, profileId stri
 	if err != nil {
 		return err
 	}
-	log.Info().
+	log.Ctx(ctx).Info().
 		Int64("count", res.ModifiedCount).
 		Msgf("Enabled blocklists for profile")
 	return nil
@@ -279,7 +279,7 @@ func (r *ProfileRepository) DisableBlocklists(ctx context.Context, profileId str
 	if err != nil {
 		return err
 	}
-	log.Info().
+	log.Ctx(ctx).Info().
 		Int64("count", res.ModifiedCount).
 		Msgf("Disabled blocklists for profile")
 	return nil
@@ -300,7 +300,7 @@ func (r *ProfileRepository) EnableServices(ctx context.Context, profileId string
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("count", res.ModifiedCount).Msg("Enabled services for profile")
+	log.Ctx(ctx).Info().Int64("count", res.ModifiedCount).Msg("Enabled services for profile")
 	return nil
 }
 
@@ -319,6 +319,6 @@ func (r *ProfileRepository) DisableServices(ctx context.Context, profileId strin
 	if err != nil {
 		return err
 	}
-	log.Info().Int64("count", res.ModifiedCount).Msg("Disabled services for profile")
+	log.Ctx(ctx).Info().Int64("count", res.ModifiedCount).Msg("Disabled services for profile")
 	return nil
 }
