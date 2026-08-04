@@ -25,9 +25,9 @@ type Config struct {
 	Release     string
 }
 
-// credentialHeaders are request headers that carry credentials or client
-// network identity and must not leave the host.
-var credentialHeaders = []string{"Authorization", "Cookie", "X-Forwarded-For", "X-Real-Ip"}
+// credentialHeaders are request headers that carry credentials, client
+// network identity or device information and must not leave the host.
+var credentialHeaders = []string{"Authorization", "Cookie", "X-Forwarded-For", "X-Real-Ip", "User-Agent"}
 
 // InitOptions returns the ClientOptions for a service's global Sentry hub
 // (panic recovery, HTTP middleware) with scrubbing hooks installed.
@@ -77,6 +77,11 @@ func Scrub(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
 	}
 
 	logging.ScrubFields(event.Extra)
+	for key, value := range event.Extra {
+		if s, ok := value.(string); ok {
+			event.Extra[key] = logging.RedactEmails(s)
+		}
+	}
 
 	event.Message = logging.RedactEmails(event.Message)
 	for i := range event.Exception {

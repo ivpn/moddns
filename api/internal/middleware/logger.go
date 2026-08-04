@@ -18,11 +18,3 @@ func RequestLogger() fiber.Handler {
 		return c.Next()
 	}
 }
-
-// WithAccountLogger re-derives the request's context logger with the
-// authenticated account attached. Called by the auth middleware once the
-// session is resolved.
-func WithAccountLogger(c *fiber.Ctx, accountID string) {
-	logger := log.Ctx(c.UserContext()).With().Str("account_id", accountID).Logger()
-	c.SetUserContext(logger.WithContext(c.UserContext()))
-}

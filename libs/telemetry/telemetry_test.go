@@ -126,6 +126,31 @@ func TestErrorStringEmailRedacted(t *testing.T) {
 	}
 }
 
+// specRef: logging-behaviour.md D2 — addresses embedded in surviving Extra
+// string values are redacted before delivery.
+func TestExtraStringValuesEmailRedacted(t *testing.T) {
+	logger, transport := newTestLogger(t)
+
+	logger.Error().
+		Str("provider_error", `550 address "user@example.com" rejected`).
+		Msg("send failed")
+
+	events := transport.Events()
+	if len(events) != 1 {
+		t.Fatalf("Expected exactly one delivered event, got %d", len(events))
+	}
+	got, ok := events[0].Extra["provider_error"].(string)
+	if !ok {
+		t.Fatalf("Expected provider_error to survive as a string, got %v", events[0].Extra)
+	}
+	if strings.Contains(got, "user@example.com") {
+		t.Errorf("Expected email redacted from Extra value, got %q", got)
+	}
+	if !strings.Contains(got, "[redacted-email]") {
+		t.Errorf("Expected redaction marker in Extra value, got %q", got)
+	}
+}
+
 // specRef: logging-behaviour.md D4 — request payloads and credential-bearing
 // headers never leave the host.
 func TestScrubClearsRequestData(t *testing.T) {
@@ -140,6 +165,7 @@ func TestScrubClearsRequestData(t *testing.T) {
 			"Cookie":          "session=abc",
 			"X-Forwarded-For": "203.0.113.7",
 			"X-Real-Ip":       "203.0.113.7",
+			"User-Agent":      "Mozilla/5.0 (X11; Linux x86_64)",
 			"Content-Type":    "application/json",
 		},
 	}
@@ -153,7 +179,7 @@ func TestScrubClearsRequestData(t *testing.T) {
 	if req.Data != "" || req.Cookies != "" || req.QueryString != "" {
 		t.Errorf("Expected request data/cookies/query cleared, got %+v", req)
 	}
-	for _, header := range []string{"Authorization", "Cookie", "X-Forwarded-For", "X-Real-Ip"} {
+	for _, header := range []string{"Authorization", "Cookie", "X-Forwarded-For", "X-Real-Ip", "User-Agent"} {
 		if _, ok := req.Headers[header]; ok {
 			t.Errorf("Expected header %q to be removed", header)
 		}

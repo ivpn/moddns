@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/ivpn/dns/api/internal/email/content"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/rs/zerolog/log"
 	"github.com/sendgrid/rest"
 	sg "github.com/sendgrid/sendgrid-go"
@@ -103,14 +104,14 @@ func (m *Mailer) sendBasic(ctx context.Context, toEmail, subject, plainContent, 
 	to := mail.NewEmail("User", toEmail)
 	message := mail.NewSingleEmail(from, subject, to, plainContent, htmlContent)
 	res, err := m.client.Send(message)
-	log.Debug().Str("email", toEmail).Str("sendgrid_response", res.Body).Msg("SendGrid: request sent")
+	log.Debug().Str("sendgrid_response", logging.RedactEmails(res.Body)).Msg("SendGrid: request sent")
 	if err != nil {
 		return err
 	}
 	if res.StatusCode >= 400 {
-		log.Error().Str("email", toEmail).Int("status", res.StatusCode).Msg("SendGrid: failed to send basic email")
+		log.Error().Int("status", res.StatusCode).Msg("SendGrid: failed to send basic email")
 		return ErrFailedToSendEmail
 	}
-	log.Info().Str("email", toEmail).Str("subject", subject).Msg("SendGrid: basic email sent")
+	log.Info().Str("subject", subject).Msg("SendGrid: basic email sent")
 	return nil
 }

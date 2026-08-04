@@ -503,11 +503,7 @@ func (p *ProfileService) validateAndMapRules(
 			))
 			log.Info().
 				Str("event", "import_idn_rule").
-				Str("account_id", accountId).
-				Str("profile_name", profileName).
 				Int("rule_index", i).
-				Str("rule_value_punycode", r.Value).
-				Str("rule_value_decoded", decoded).
 				Msg("imported custom rule contains internationalized domain")
 		}
 

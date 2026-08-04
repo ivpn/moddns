@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/ivpn/dns/api/internal/email/content"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/rs/zerolog/log"
 )
 
@@ -115,16 +116,16 @@ func (m *Mailpit) SendInactiveEmail(ctx context.Context, sendTo string) error {
 }
 
 // sendEmail sends an email using the Mailpit API
-func (m *Mailpit) sendEmail(ctx context.Context, email string, reqBody mailpitSendRequest) error {
+func (m *Mailpit) sendEmail(ctx context.Context, _ string, reqBody mailpitSendRequest) error {
 	payload, err := json.Marshal(reqBody)
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Mailpit: Failed to marshal email payload")
+		log.Err(err).Msg("Mailpit: Failed to marshal email payload")
 		return err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.apiEndpoint, bytes.NewReader(payload))
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Mailpit: Failed to create request")
+		log.Err(err).Msg("Mailpit: Failed to create request")
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
@@ -133,23 +134,23 @@ func (m *Mailpit) sendEmail(ctx context.Context, email string, reqBody mailpitSe
 
 	res, err := m.httpClient.Do(req) //nolint:gosec // G704 - URL is internally configured
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Mailpit: Failed to send HTTP request")
+		log.Err(err).Msg("Mailpit: Failed to send HTTP request")
 		return err
 	}
 	defer res.Body.Close()
 
 	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Mailpit: Failed to read response body")
+		log.Err(err).Msg("Mailpit: Failed to read response body")
 		return err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		log.Error().Str("email", email).Int("status", res.StatusCode).Str("body", string(responseBody)).Msg(ErrFailedToSendEmail)
+		log.Error().Int("status", res.StatusCode).Str("body", logging.RedactEmails(string(responseBody))).Msg(ErrFailedToSendEmail)
 		return errors.New(ErrFailedToSendEmail)
 	}
 
-	log.Info().Str("email", email).Msg("Mailpit: Email sent successfully")
+	log.Info().Msg("Mailpit: Email sent successfully")
 	return nil
 }
 

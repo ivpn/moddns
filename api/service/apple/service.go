@@ -160,7 +160,7 @@ func (a *AppleService) GenerateMobileConfig(ctx context.Context, req requests.Mo
 		}
 
 		link = fmt.Sprintf("%s/short/%s", a.FrontendDomain, urlToken)
-		log.Ctx(ctx).Info().Str("link", link).Msg("Generated short link for mobileconfig")
+		log.Ctx(ctx).Info().Msg("Generated short link for mobileconfig")
 	}
 	return data, link, nil
 }

@@ -210,16 +210,12 @@ func ReportDuplicateTokenHashAccounts(subRepo repository.SubscriptionRepository)
 
 	excess := 0
 	for _, g := range groups {
-		ids := make([]string, 0, len(g.AccountIDs))
-		for _, id := range g.AccountIDs {
-			ids = append(ids, id.Hex())
-		}
 		excess += g.Count - 1
+		// Affected token hashes and account IDs are intentionally not logged;
+		// re-run the duplicate-groups aggregation to identify them.
 		log.Ctx(ctx).Warn().
 			Str("event", "signup_reset_duplicate_token_hash").
-			Str("token_hash", g.TokenHash).
 			Int("account_count", g.Count).
-			Strs("account_ids", ids).
 			Msg("Cron: duplicate token_hash — multiple non-retired accounts for one IVPN customer")
 	}
 
