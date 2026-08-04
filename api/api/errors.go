@@ -132,7 +132,7 @@ func friendlyJSONType(goType string) string {
 }
 
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {
-	log.Error().Err(err).Msg(errMsg)
+	log.Ctx(c.UserContext()).Error().Err(err).Msg(errMsg)
 	resp := new(ErrResponse)
 
 	if len(details) > 0 {
@@ -167,7 +167,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	{
 		var profileErr *profile.ProfileError
 		if errors.As(err, &profileErr) {
-			log.Debug().Str("code", profileErr.Code).Msg(err.Error())
+			log.Ctx(c.UserContext()).Debug().Str("code", profileErr.Code).Msg(err.Error())
 			resp.Error = err.Error()
 			return c.Status(400).JSON(resp)
 		}

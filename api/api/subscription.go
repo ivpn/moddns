@@ -23,7 +23,7 @@ func (s *APIServer) getSubscription() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		accountId := auth.GetAccountID(c)
 
-		subscription, err := s.Service.GetSubscription(c.Context(), accountId)
+		subscription, err := s.Service.GetSubscription(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetSubscription.Error())
 		}
@@ -67,12 +67,12 @@ func (s *APIServer) updateSubscription() fiber.Handler {
 			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
-		sub, err := s.Service.GetSubscription(c.Context(), accountId)
+		sub, err := s.Service.GetSubscription(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetSubscription.Error())
 		}
 
-		if err := s.Service.UpdateSubscriptionFromPASession(c.Context(), sub, sessionID, p.SubID); err != nil {
+		if err := s.Service.UpdateSubscriptionFromPASession(c.UserContext(), sub, sessionID, p.SubID); err != nil {
 			return HandleError(c, err, "failed to update subscription")
 		}
 

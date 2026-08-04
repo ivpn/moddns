@@ -59,12 +59,12 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 		}
 
 		sessionID := c.Cookies(PASessionCookie)
-		acc, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), req.Email, "", req.SubID, sessionID)
+		acc, err := s.Service.GetUnfinishedSignupOrPostAccount(c.UserContext(), req.Email, "", req.SubID, sessionID)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToRegisterAccount.Error())
 		}
 
-		options, token, err := s.Service.BeginRegistration(c.Context(), acc, req.SubID)
+		options, token, err := s.Service.BeginRegistration(c.UserContext(), acc, req.SubID)
 		if err != nil {
 			return HandleError(c, err, "Failed to begin registration")
 		}
@@ -111,7 +111,7 @@ func (s *APIServer) finishRegistration() fiber.Handler {
 		}
 
 		paSessionID := c.Cookies(PASessionCookie)
-		if err = s.Service.FinishRegistration(c.Context(), token, httpReq, paSessionID); err != nil {
+		if err = s.Service.FinishRegistration(c.UserContext(), token, httpReq, paSessionID); err != nil {
 			return HandleError(c, err, "Failed to finish registration")
 		}
 
@@ -146,7 +146,7 @@ func (s *APIServer) beginLogin() fiber.Handler {
 			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
-		options, token, err := s.Service.BeginLogin(c.Context(), req.Email)
+		options, token, err := s.Service.BeginLogin(c.UserContext(), req.Email)
 		if err != nil {
 			return HandleError(c, passkey.ErrBeginLogin, err.Error())
 		}
@@ -195,30 +195,30 @@ func (s *APIServer) finishLogin() fiber.Handler {
 			})
 		}
 
-		account, token, purpose, err := s.Service.FinishLogin(c.Context(), tmpToken, httpReq, true)
+		account, token, purpose, err := s.Service.FinishLogin(c.UserContext(), tmpToken, httpReq, true)
 		if err != nil {
 			return HandleError(c, err, "Failed to finish login")
 		}
 		if purpose != "" {
-			log.Warn().Str("purpose", purpose).Msg("unexpected non-empty purpose returned from FinishLogin with session save")
+			log.Ctx(c.UserContext()).Warn().Str("purpose", purpose).Msg("unexpected non-empty purpose returned from FinishLogin with session save")
 		}
 
 		// Check if sessions should be removed
 		if auth.GetHeaderSessionsRemove(c) {
 			// Delete all existing sessions except the newly created one
-			if err := s.Service.DeleteSessionsByAccountIDExceptCurrent(c.Context(), account.ID.Hex(), token); err != nil {
+			if err := s.Service.DeleteSessionsByAccountIDExceptCurrent(c.UserContext(), account.ID.Hex(), token); err != nil {
 				return HandleError(c, err, "Failed to remove existing sessions")
 			}
 		} else {
 			// Only check session limit if we're not removing existing sessions
-			count, err := s.Service.CountSessionsByAccountID(c.Context(), account.ID.Hex())
+			count, err := s.Service.CountSessionsByAccountID(c.UserContext(), account.ID.Hex())
 			if err != nil {
 				return HandleError(c, err, "Failed to count sessions")
 			}
 			if count >= s.Config.API.SessionLimit {
 				// Delete the just-created session since we're rejecting the login
-				if err := s.Service.DeleteSession(c.Context(), token); err != nil {
-					log.Err(err).Msg("failed to delete session after limit reached")
+				if err := s.Service.DeleteSession(c.UserContext(), token); err != nil {
+					log.Ctx(c.UserContext()).Err(err).Msg("failed to delete session after limit reached")
 				}
 				return HandleError(c, ErrSessionsLimitReached, ErrSessionsLimitReached.Error())
 			}
@@ -257,13 +257,13 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 		}
 
 		// Get authenticated account
-		account, err := s.Service.GetAccount(c.Context(), accountId)
+		account, err := s.Service.GetAccount(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, "Failed to get account")
 		}
 
 		// Initialize WebAuthn registration ceremony for additional credential
-		options, token, err := s.Service.BeginAddPasskey(c.Context(), account)
+		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), account)
 		if err != nil {
 			return HandleError(c, err, "Failed to begin add passkey")
 		}
@@ -314,7 +314,7 @@ func (s *APIServer) beginReauth() fiber.Handler {
 			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
-		options, token, err := s.Service.BeginReauth(c.Context(), req.Purpose, accountId)
+		options, token, err := s.Service.BeginReauth(c.UserContext(), req.Purpose, accountId)
 		if err != nil {
 			return HandleError(c, err, err.Error())
 		}
@@ -351,7 +351,7 @@ func (s *APIServer) finishReauth() fiber.Handler {
 			return HandleError(c, passkey.ErrFinishLogin, err.Error())
 		}
 
-		reauthToken, err := s.Service.FinishReauth(c.Context(), tmpToken, httpReq)
+		reauthToken, err := s.Service.FinishReauth(c.UserContext(), tmpToken, httpReq)
 		// Finish reauth assertion (authenticates user without creating a session)
 		if err != nil {
 			return HandleError(c, err, "Failed to finish reauth")
@@ -398,7 +398,7 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 			})
 		}
 
-		err = s.Service.FinishAddPasskey(c.Context(), tmpToken, httpReq)
+		err = s.Service.FinishAddPasskey(c.UserContext(), tmpToken, httpReq)
 		if err != nil {
 			return HandleError(c, err, "Failed to finish add passkey")
 		}
@@ -429,7 +429,7 @@ func (s *APIServer) getPasskeys() fiber.Handler {
 		}
 
 		// Get passkeys for account
-		passkeys, err := s.Service.GetPasskeysForAccount(c.Context(), accIDPrimitive)
+		passkeys, err := s.Service.GetPasskeysForAccount(c.UserContext(), accIDPrimitive)
 		if err != nil {
 			return HandleError(c, err, "Failed to get passkeys")
 		}
@@ -470,7 +470,7 @@ func (s *APIServer) deletePasskey() fiber.Handler {
 		}
 
 		// Delete the passkey
-		err = s.Service.DeletePasskeyByID(c.Context(), credIDPrimitive, accIDPrimitive)
+		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive)
 		if err != nil {
 			return HandleError(c, err, "Failed to delete passkey")
 		}

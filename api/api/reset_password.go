@@ -32,7 +32,7 @@ func (s *APIServer) sendResetPasswordEmail() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, ErrInvalidRequestBody.Error(), errMsgs...)
 		}
 
-		if err := s.Service.SendResetPasswordEmail(c.Context(), p.Email); err != nil {
+		if err := s.Service.SendResetPasswordEmail(c.UserContext(), p.Email); err != nil {
 			return HandleError(c, err, account.ErrFailedToResetPassword.Error())
 
 		}
@@ -67,7 +67,7 @@ func (s *APIServer) verifyPasswordReset() fiber.Handler {
 		}
 
 		mfa := auth.GetMfaData(c)
-		if err := s.Service.VerifyPasswordReset(c.Context(), p.Token, p.NewPassword, mfa); err != nil {
+		if err := s.Service.VerifyPasswordReset(c.UserContext(), p.Token, p.NewPassword, mfa); err != nil {
 			return HandleError(c, err, account.ErrFailedToResetPassword.Error())
 		}
 		return c.SendStatus(http.StatusNoContent)

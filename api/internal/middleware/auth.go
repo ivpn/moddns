@@ -16,7 +16,7 @@ func NewAuth(service service.Servicer, cfg *config.APIConfig, filter func(c *fib
 	return func(c *fiber.Ctx) error {
 		sessionToken := c.Cookies(auth.AUTH_COOKIE)
 		if sessionToken != "" {
-			session, ok, err := service.GetSession(c.Context(), sessionToken)
+			session, ok, err := service.GetSession(c.UserContext(), sessionToken)
 			if err != nil {
 				log.Err(err).Msg("Failed to get session")
 				return c.SendStatus(fiber.StatusServiceUnavailable)
@@ -24,6 +24,7 @@ func NewAuth(service service.Servicer, cfg *config.APIConfig, filter func(c *fib
 			if ok {
 				c.Locals(auth.ACCOUNT_ID, session.AccountID)
 				c.Locals(auth.SESSION_TOKEN, sessionToken)
+				WithAccountLogger(c, session.AccountID)
 				return c.Next()
 			}
 		}

@@ -74,6 +74,9 @@ func main() {
 	}()
 
 	log.Logger = log.Output(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr}, sentryWriter))
+	// log.Ctx on contexts without a request logger (cron, startup) falls back
+	// to the global logger instead of zerolog's disabled default.
+	zerolog.DefaultContextLogger = &log.Logger
 
 	storeI, err := store.New(store.DbTypeMongoDb, appConfig.DB)
 	if err != nil {

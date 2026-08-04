@@ -42,13 +42,13 @@ func (s *APIServer) login() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		acc, err := s.Db.GetAccountByEmail(c.Context(), p.Email)
+		acc, err := s.Db.GetAccountByEmail(c.UserContext(), p.Email)
 		if err != nil {
 			if errors.Is(err, dbErrors.ErrAccountNotFound) {
 				// don't give too much details about account missing
 				return c.SendStatus(fiber.StatusUnauthorized)
 			}
-			log.Err(err).Msg("Failed to get account by email")
+			log.Ctx(c.UserContext()).Err(err).Msg("Failed to get account by email")
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
@@ -60,21 +60,21 @@ func (s *APIServer) login() fiber.Handler {
 		}
 
 		mfa := auth.GetMfaData(c)
-		if err := s.Service.MfaCheck(c.Context(), acc, mfa); err != nil {
+		if err := s.Service.MfaCheck(c.UserContext(), acc, mfa); err != nil {
 			return HandleError(c, err, account.ErrTOTPRequired.Error())
 		}
 
 		// Check if sessions should be removed
 		if auth.GetHeaderSessionsRemove(c) {
-			if err := s.Service.DeleteSessionsByAccountID(c.Context(), acc.ID.Hex()); err != nil {
-				log.Err(err).Msg("Failed to remove existing sessions")
+			if err := s.Service.DeleteSessionsByAccountID(c.UserContext(), acc.ID.Hex()); err != nil {
+				log.Ctx(c.UserContext()).Err(err).Msg("Failed to remove existing sessions")
 				return c.SendStatus(fiber.StatusInternalServerError)
 			}
 		} else {
 			// Only check session limit if we're not removing existing sessions
-			count, err := s.Service.CountSessionsByAccountID(c.Context(), acc.ID.Hex())
+			count, err := s.Service.CountSessionsByAccountID(c.UserContext(), acc.ID.Hex())
 			if err != nil {
-				log.Err(err).Msg("Failed to count sessions")
+				log.Ctx(c.UserContext()).Err(err).Msg("Failed to count sessions")
 				return c.SendStatus(fiber.StatusInternalServerError)
 			}
 			if count >= s.Config.API.SessionLimit {
@@ -96,7 +96,7 @@ func (s *APIServer) login() fiber.Handler {
 			})
 		}
 
-		err = s.Service.SaveSession(c.Context(), sessionData, token, acc.ID.Hex(), "", "")
+		err = s.Service.SaveSession(c.UserContext(), sessionData, token, acc.ID.Hex(), "", "")
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{
 				"error": ErrSaveSession,
@@ -134,7 +134,7 @@ func (s *APIServer) logout() fiber.Handler {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		if err := s.Service.DeleteSession(c.Context(), sessionToken); err != nil {
+		if err := s.Service.DeleteSession(c.UserContext(), sessionToken); err != nil {
 			return HandleError(c, err, ErrDeleteSession.Error())
 		}
 
