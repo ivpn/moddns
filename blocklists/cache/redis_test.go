@@ -60,7 +60,7 @@ func TestCreateOrUpdateBlocklist_LargeInputMultipleFlushes(t *testing.T) {
 }
 
 // TestCreateOrUpdateBlocklist_FirstRun covers the path where the target set does
-// not yet exist (RENAMENX hits "no such key", which must be ignored).
+// not yet exist (RENAME creates the live key).
 func TestCreateOrUpdateBlocklist_FirstRun(t *testing.T) {
 	rc, mr := newTestCache(t)
 	ctx := context.Background()
@@ -124,4 +124,56 @@ func TestDeleteBlocklist(t *testing.T) {
 
 	// DEL on a missing key succeeds; a repeated purge must not error.
 	assert.NoError(t, rc.DeleteBlocklist(ctx, "gone"))
+}
+
+// specRef: #F2 — a failed promote must leave the live set untouched.
+// The temp set can vanish between population and swap (Sentinel failover,
+// Redis restart); the swap must then fail without destroying the live list.
+func TestSwapBlocklist_MissingTemp_PreservesLiveList(t *testing.T) {
+	rc, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:live", "keep1.com", "keep2.com").Err())
+	require.False(t, mr.Exists("blocklist:live_temp"))
+
+	err := rc.swapBlocklist(ctx, "blocklist:live_temp", "blocklist:live")
+	assert.Error(t, err, "swap with a missing temp set must fail")
+
+	members, merr := rc.client.SMembers(ctx, "blocklist:live").Result()
+	require.NoError(t, merr)
+	assert.ElementsMatch(t, []string{"keep1.com", "keep2.com"}, members,
+		"live set must survive a failed swap")
+	assert.False(t, mr.Exists("blocklist:live_old"))
+}
+
+// specRef: #F2 — promote atomically overwrites an existing live set and leaves
+// no temp/old residue.
+func TestSwapBlocklist_OverwritesExistingLive(t *testing.T) {
+	rc, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:x", "old.com").Err())
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:x_temp", "new1.com", "new2.com").Err())
+
+	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:x_temp", "blocklist:x"))
+
+	members, err := rc.client.SMembers(ctx, "blocklist:x").Result()
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"new1.com", "new2.com"}, members)
+	assert.False(t, mr.Exists("blocklist:x_temp"))
+	assert.False(t, mr.Exists("blocklist:x_old"))
+}
+
+// specRef: #F2 — an _old key orphaned by an interrupted legacy swap is cleaned
+// up by the next successful swap.
+func TestSwapBlocklist_CleansOrphanedOldKey(t *testing.T) {
+	rc, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y_old", "orphan.com").Err())
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y_temp", "new.com").Err())
+
+	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:y_temp", "blocklist:y"))
+
+	assert.False(t, mr.Exists("blocklist:y_old"), "orphaned _old key must be removed")
 }
