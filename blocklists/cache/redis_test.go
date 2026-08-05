@@ -107,3 +107,21 @@ func TestCreateOrUpdateBlocklist_ClearsStaleTemp(t *testing.T) {
 	assert.NotContains(t, members, "garbage.com")
 	assert.False(t, mr.Exists("blocklist:stale_temp"))
 }
+
+// specRef: #H2 — DeleteBlocklist removes exactly the targeted blocklist:{id}
+// key, leaves other blocklists untouched, and is a no-op for an absent key.
+func TestDeleteBlocklist(t *testing.T) {
+	rc, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, rc.CreateOrUpdateBlocklist(ctx, "gone", []byte("a.com\nb.com")))
+	require.NoError(t, rc.CreateOrUpdateBlocklist(ctx, "kept", []byte("c.com")))
+
+	require.NoError(t, rc.DeleteBlocklist(ctx, "gone"))
+
+	assert.False(t, mr.Exists("blocklist:gone"), "deleted blocklist key must be gone")
+	assert.True(t, mr.Exists("blocklist:kept"), "unrelated blocklist must survive")
+
+	// DEL on a missing key succeeds; a repeated purge must not error.
+	assert.NoError(t, rc.DeleteBlocklist(ctx, "gone"))
+}

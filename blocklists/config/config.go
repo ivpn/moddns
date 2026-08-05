@@ -53,10 +53,18 @@ type UpdaterConfig struct {
 	// between updates before the swap is rejected. e.g. 0.5 rejects an update
 	// whose validated domain count drops more than 50% vs the previous run.
 	ShrinkThreshold float64
+	// MinSources is the minimum number of blocklist sources that must parse
+	// from SourcesDir for startup and stale purging to proceed. Guards against
+	// an empty or partially mounted sources directory being read as "no
+	// sources", which would classify every stored blocklist as stale.
+	MinSources int
 }
 
 // defaultShrinkThreshold is the default value for UpdaterConfig.ShrinkThreshold.
 const defaultShrinkThreshold = 0.5
+
+// defaultMinSources is the default value for UpdaterConfig.MinSources.
+const defaultMinSources = 1
 
 // SentryConfig represents the Sentry configuration
 type SentryConfig struct {
@@ -112,6 +120,7 @@ func New() (*Config, error) {
 			Type:            updaterType,
 			SourcesDir:      os.Getenv("UPDATER_SOURCES_DIR"),
 			ShrinkThreshold: loadShrinkThreshold(),
+			MinSources:      loadMinSources(),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
@@ -180,6 +189,16 @@ func loadShrinkThreshold() float64 {
 	v, err := strconv.ParseFloat(os.Getenv("BLOCKLIST_SHRINK_THRESHOLD"), 64)
 	if err != nil || v < 0 || v > 1 {
 		return defaultShrinkThreshold
+	}
+	return v
+}
+
+// loadMinSources reads UPDATER_MIN_SOURCES (a positive integer). Invalid,
+// missing or non-positive values fall back to defaultMinSources.
+func loadMinSources() int {
+	v, err := strconv.Atoi(os.Getenv("UPDATER_MIN_SOURCES"))
+	if err != nil || v < 1 {
+		return defaultMinSources
 	}
 	return v
 }

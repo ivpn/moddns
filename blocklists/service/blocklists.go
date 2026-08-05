@@ -38,7 +38,23 @@ func (s *Service) ReadSources() ([]model.BlocklistMetadata, error) {
 		log.Err(err).Str("sources_dir", s.Cfg.Updater.SourcesDir).Msg("Error walking the sources directory")
 		return nil, err
 	}
+	// An empty or partially mounted sources directory walks cleanly; treat too
+	// few parsed sources as a fatal misconfiguration rather than an empty set,
+	// which downstream would read as "purge everything" (spec H4).
+	if min := s.minSources(); len(s.Blocklists) < min {
+		return nil, fmt.Errorf("parsed %d blocklist sources from %s, need at least %d — refusing to start",
+			len(s.Blocklists), s.Cfg.Updater.SourcesDir, min)
+	}
 	return s.Blocklists, nil
+}
+
+// minSources returns the configured minimum source count, never below 1 so a
+// zero-value config still refuses to treat an empty source set as valid.
+func (s *Service) minSources() int {
+	if s.Cfg.Updater != nil && s.Cfg.Updater.MinSources > 1 {
+		return s.Cfg.Updater.MinSources
+	}
+	return 1
 }
 
 func (s *Service) visit(path string, info os.FileInfo, err error) error {
@@ -348,6 +364,17 @@ func (s *Service) saveChunk(ctx context.Context, blocklistID string, chunkIndex 
 // present in the current sources. This ensures that removed blocklists don't
 // linger in the database and get served by the API.
 func (s *Service) PurgeStale(sources []model.BlocklistMetadata) {
+	// A suspiciously small source set means the sources were not read
+	// correctly (e.g. empty mount), not that every blocklist was removed.
+	// Purging on it would delete all published blocklists (spec H4).
+	if min := s.minSources(); len(sources) < min {
+		log.Error().
+			Int("sources", len(sources)).
+			Int("min_sources", min).
+			Msg("Refusing to purge stale blocklists: source set below configured minimum")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), processingTimeout)
 	defer cancel()
 

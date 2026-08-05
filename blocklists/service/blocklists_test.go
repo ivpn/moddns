@@ -2,7 +2,10 @@ package service
 
 import (
 	"bufio"
+	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/ivpn/dns/blocklists/internal/extractor"
 	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // fakeMetrics records validation-rejection reasons for assertions.
@@ -134,5 +138,163 @@ func TestStevenBlackEndToEnd(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "ads.example.com" {
 		t.Fatalf("steven_black end-to-end = %v, want [ads.example.com]", got)
+	}
+}
+
+// fakeStore implements db.Db, serving fixed metadata and recording deletions.
+type fakeStore struct {
+	metadata       []model.BlocklistMetadata
+	deletedMeta    []map[string]any
+	deletedContent []map[string]any
+}
+
+func (f *fakeStore) GetClient() *mongo.Client { return nil }
+func (f *fakeStore) Disconnect() error        { return nil }
+func (f *fakeStore) Migrate() error           { return nil }
+func (f *fakeStore) UpsertMetadata(_ context.Context, _ model.BlocklistMetadata) error {
+	return nil
+}
+func (f *fakeStore) UpsertContent(_ context.Context, _ model.BlocklistContent) error { return nil }
+func (f *fakeStore) GetMetadata(_ context.Context, _ map[string]any) ([]model.BlocklistMetadata, error) {
+	return f.metadata, nil
+}
+func (f *fakeStore) GetContent(_ context.Context, _ map[string]any) ([]model.BlocklistContent, error) {
+	return nil, nil
+}
+func (f *fakeStore) Delete(_ context.Context, filter map[string]any) error {
+	f.deletedContent = append(f.deletedContent, filter)
+	return nil
+}
+func (f *fakeStore) DeleteMetadata(_ context.Context, filter map[string]any) error {
+	f.deletedMeta = append(f.deletedMeta, filter)
+	return nil
+}
+
+// fakeCache implements cache.Cache, recording blocklist deletions.
+type fakeCache struct {
+	deleted []string
+}
+
+func (f *fakeCache) CreateOrUpdateBlocklist(_ context.Context, _ string, _ []byte) error {
+	return nil
+}
+func (f *fakeCache) DeleteBlocklist(_ context.Context, blocklistId string) error {
+	f.deleted = append(f.deleted, blocklistId)
+	return nil
+}
+func (f *fakeCache) Ping(_ context.Context) error { return nil }
+
+func metaFor(ids ...string) []model.BlocklistMetadata {
+	out := make([]model.BlocklistMetadata, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, model.BlocklistMetadata{BlocklistID: id})
+	}
+	return out
+}
+
+func newPurgeService(minSources int, stored []model.BlocklistMetadata) (*Service, *fakeStore, *fakeCache) {
+	store := &fakeStore{metadata: stored}
+	cache := &fakeCache{}
+	cfg := config.Config{Updater: &config.UpdaterConfig{MinSources: minSources}}
+	return &Service{Cfg: cfg, Store: store, Cache: cache, Metrics: metrics.NoopUpdates{}}, store, cache
+}
+
+// specRef: #H4 — an empty source set must never classify the whole database as
+// stale; the purge is refused outright.
+func TestPurgeStale_RefusesEmptySources(t *testing.T) {
+	for _, sources := range [][]model.BlocklistMetadata{nil, {}} {
+		s, store, cache := newPurgeService(0, metaFor("blp_a", "blp_b"))
+
+		s.PurgeStale(sources)
+
+		if len(store.deletedMeta) != 0 || len(store.deletedContent) != 0 || len(cache.deleted) != 0 {
+			t.Fatalf("PurgeStale(%v) deleted meta=%v content=%v cache=%v, want nothing",
+				sources, store.deletedMeta, store.deletedContent, cache.deleted)
+		}
+	}
+}
+
+// specRef: #H4 — a source set below the configured minimum is treated as a
+// broken read (partial mount), not as a mass removal.
+func TestPurgeStale_RefusesBelowMinSources(t *testing.T) {
+	s, store, cache := newPurgeService(3, metaFor("blp_a", "blp_b", "blp_c"))
+
+	s.PurgeStale(metaFor("blp_a", "blp_b"))
+
+	if len(store.deletedMeta) != 0 || len(store.deletedContent) != 0 || len(cache.deleted) != 0 {
+		t.Fatalf("PurgeStale below min deleted meta=%v content=%v cache=%v, want nothing",
+			store.deletedMeta, store.deletedContent, cache.deleted)
+	}
+}
+
+// specRef: #H2 — with a healthy source set, IDs absent from sources are still
+// removed from metadata, content and cache.
+func TestPurgeStale_StillPurgesGenuinelyStale(t *testing.T) {
+	s, store, cache := newPurgeService(1, metaFor("blp_keep", "blp_stale"))
+
+	s.PurgeStale(metaFor("blp_keep"))
+
+	if len(store.deletedMeta) != 1 || store.deletedMeta[0]["blocklist_id"] != "blp_stale" {
+		t.Fatalf("deleted metadata = %v, want [blp_stale]", store.deletedMeta)
+	}
+	if len(store.deletedContent) != 1 || store.deletedContent[0]["blocklist_id"] != "blp_stale" {
+		t.Fatalf("deleted content = %v, want [blp_stale]", store.deletedContent)
+	}
+	if len(cache.deleted) != 1 || cache.deleted[0] != "blp_stale" {
+		t.Fatalf("deleted cache = %v, want [blp_stale]", cache.deleted)
+	}
+}
+
+func newReadService(minSources int, dir string) *Service {
+	cfg := config.Config{Updater: &config.UpdaterConfig{SourcesDir: dir, MinSources: minSources}}
+	return &Service{Cfg: cfg, Metrics: metrics.NoopUpdates{}}
+}
+
+func writeSourceFile(t *testing.T, dir string, ids ...string) {
+	t.Helper()
+	entries := make([]string, 0, len(ids))
+	for _, id := range ids {
+		entries = append(entries, `{"blocklist_id":"`+id+`","name":"`+id+`","source_url":"https://example.com/`+id+`","syntax":"domains","schedule":"@hourly"}`)
+	}
+	content := "[" + strings.Join(entries, ",") + "]"
+	if err := os.WriteFile(filepath.Join(dir, "sources.json"), []byte(content), 0o600); err != nil {
+		t.Fatalf("write source fixture: %v", err)
+	}
+}
+
+// specRef: #G1a — an existing but empty sources directory is a fatal
+// misconfiguration: ReadSources must error rather than return an empty set.
+func TestReadSources_EmptyDirErrors(t *testing.T) {
+	s := newReadService(0, t.TempDir())
+
+	sources, err := s.ReadSources()
+	if err == nil {
+		t.Fatalf("ReadSources on empty dir = (%v, nil), want error", sources)
+	}
+}
+
+// specRef: #G1a — fewer parsed sources than UPDATER_MIN_SOURCES is an error.
+func TestReadSources_BelowMinErrors(t *testing.T) {
+	dir := t.TempDir()
+	writeSourceFile(t, dir, "blp_a", "blp_b")
+	s := newReadService(3, dir)
+
+	if _, err := s.ReadSources(); err == nil {
+		t.Fatal("ReadSources below minimum returned nil error, want error")
+	}
+}
+
+// specRef: #G1a — a source set meeting the minimum parses normally.
+func TestReadSources_MeetsMinimum(t *testing.T) {
+	dir := t.TempDir()
+	writeSourceFile(t, dir, "blp_a", "blp_b")
+	s := newReadService(2, dir)
+
+	sources, err := s.ReadSources()
+	if err != nil {
+		t.Fatalf("ReadSources: %v", err)
+	}
+	if len(sources) != 2 {
+		t.Fatalf("ReadSources returned %d sources, want 2", len(sources))
 	}
 }
