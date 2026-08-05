@@ -34,6 +34,7 @@ func TestScrubFieldsRemovesSensitiveKeys(t *testing.T) {
 		"token_hash":         "aGFzaA==",
 		"device_id":          "ff_browser",
 		"client_id":          "ff_browser-prof123",
+		"old_id":             "pa-sess-123",
 	}
 
 	ScrubFields(fields)
