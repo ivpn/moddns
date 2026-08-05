@@ -41,7 +41,7 @@ func (s *APIServer) createProfile() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		prof, err := s.Service.CreateProfile(c.Context(), p.Name, accountId)
+		prof, err := s.Service.CreateProfile(c.UserContext(), p.Name, accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToCreateProfile.Error())
 		}
@@ -51,7 +51,7 @@ func (s *APIServer) createProfile() fiber.Handler {
 			Path:      "/profiles",
 			Value:     prof.ProfileId,
 		}
-		if err = s.Service.UpdateAccount(c.Context(), accountId, []model.AccountUpdate{update}, nil); err != nil {
+		if err = s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}, nil); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
@@ -73,9 +73,9 @@ func (s *APIServer) createProfile() fiber.Handler {
 func (s *APIServer) getProfiles() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		accountId := auth.GetAccountID(c)
-		profiles, err := s.Service.GetProfiles(c.Context(), accountId)
+		profiles, err := s.Service.GetProfiles(c.UserContext(), accountId)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to get profiles data")
+			log.Ctx(c.UserContext()).Error().Err(err).Msg("Failed to get profiles data")
 			return HandleError(c, err, dbErrors.ErrProfileNotFound.Error())
 		}
 
@@ -99,7 +99,7 @@ func (s *APIServer) getProfile() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		accountId := auth.GetAccountID(c)
-		profile, err := s.Service.GetProfile(c.Context(), accountId, profileId)
+		profile, err := s.Service.GetProfile(c.UserContext(), accountId, profileId)
 		if err != nil {
 			return HandleError(c, err, "failed to get profile data")
 		}
@@ -125,8 +125,8 @@ func (s *APIServer) deleteProfile() fiber.Handler {
 		profileId := c.Params("id")
 
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.DeleteProfile(c.Context(), accountId, profileId, false); err != nil {
-			log.Error().Err(err).Msg("Failed to delete profile")
+		if err := s.Service.DeleteProfile(c.UserContext(), accountId, profileId, false); err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg("Failed to delete profile")
 			if errors.Is(err, profile.ErrLastProfileInAccount) {
 				return HandleError(c, err, profile.ErrLastProfileInAccount.Error())
 			}
@@ -138,7 +138,7 @@ func (s *APIServer) deleteProfile() fiber.Handler {
 			Path:      "/profiles",
 			Value:     profileId,
 		}
-		if err := s.Service.UpdateAccount(c.Context(), accountId, []model.AccountUpdate{update}, nil); err != nil {
+		if err := s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}, nil); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
@@ -175,7 +175,7 @@ func (s *APIServer) updateProfile() fiber.Handler {
 
 		// TODO: create our context, do not use fiber one
 		accountId := auth.GetAccountID(c)
-		profile, err := s.Service.UpdateProfile(c.Context(), accountId, profileId, p.Updates)
+		profile, err := s.Service.UpdateProfile(c.UserContext(), accountId, profileId, p.Updates)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToUpdateProfile.Error())
 		}

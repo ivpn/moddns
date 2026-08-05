@@ -59,7 +59,7 @@ func (r *SubscriptionRepository) Upsert(ctx context.Context, subscription model.
 	if err != nil {
 		return err
 	}
-	log.Debug().Str("component", "mongoDB").Interface("result", res).Msg("Upserted subscription")
+	log.Ctx(ctx).Debug().Str("component", "mongoDB").Interface("result", res).Msg("Upserted subscription")
 	return nil
 }
 
@@ -75,7 +75,7 @@ func (r *SubscriptionRepository) ClearLegacyType(ctx context.Context, accountId 
 	update := bson.M{"$set": bson.M{"type": ""}}
 	_, err = r.subscriptionsCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		log.Error().Err(err).Str("account_id", accountId).Msg("Failed to clear legacy subscription type")
+		log.Ctx(ctx).Error().Err(err).Str("account_id", accountId).Msg("Failed to clear legacy subscription type")
 	}
 	return err
 }
@@ -113,7 +113,7 @@ func (r *SubscriptionRepository) MarkSubscriptionRetired(ctx context.Context, su
 		"$unset": bson.M{"token_hash": ""},
 	}
 	if _, err := r.subscriptionsCollection.UpdateOne(ctx, filter, update); err != nil {
-		log.Error().Err(err).Str("subscription_id", subscriptionID.String()).Msg("Failed to mark subscription retired")
+		log.Ctx(ctx).Error().Err(err).Str("subscription_id", subscriptionID.String()).Msg("Failed to mark subscription retired")
 		return err
 	}
 	return nil
@@ -189,7 +189,7 @@ func (r *SubscriptionRepository) DeleteSubscriptionByAccountId(ctx context.Conte
 	}
 	filter := bson.D{{Key: "account_id", Value: objID}}
 	if _, err := r.subscriptionsCollection.DeleteOne(ctx, filter); err != nil {
-		log.Error().Err(err).Msg("Failed to delete subscription for account")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to delete subscription for account")
 		return err
 	}
 	return nil
@@ -298,7 +298,7 @@ func (r *SubscriptionRepository) SetNotified(ctx context.Context, subscriptionID
 	update := bson.M{"$set": bson.M{"notified": value}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
-		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified flag")
+		log.Ctx(ctx).Error().Err(err).Bool("value", value).Msg("Failed to set notified flag")
 	}
 	return err
 }
@@ -313,7 +313,7 @@ func (r *SubscriptionRepository) SetInactiveNotified(ctx context.Context, subscr
 	update := bson.M{"$set": bson.M{"notified_inactive": value}}
 	_, err := r.subscriptionsCollection.UpdateMany(ctx, filter, update)
 	if err != nil {
-		log.Error().Err(err).Bool("value", value).Msg("Failed to set notified_inactive flag")
+		log.Ctx(ctx).Error().Err(err).Bool("value", value).Msg("Failed to set notified_inactive flag")
 	}
 	return err
 }

@@ -89,6 +89,7 @@ func TestFactory_ForRequest(t *testing.T) {
 	}
 }
 
+// specRef: logging-behaviour.md A4
 func TestFactory_ForRequest_DefaultLevel(t *testing.T) {
 	factory := NewFactory(zerolog.WarnLevel)
 

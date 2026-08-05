@@ -8,9 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
 	"github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
 )
 
@@ -37,13 +39,14 @@ func envOrDefault(key, fallback string) string {
 
 // Config represents the application configuration
 type Config struct {
-	Server  *ServerConfig
-	Service *ServiceConfig
-	API     *APIConfig
-	DB      *store.Config
-	Cache   *cache.Config
-	Email   *EmailSenderConfig
-	Sentry  *SentryConfig
+	Server   *ServerConfig
+	Service  *ServiceConfig
+	API      *APIConfig
+	DB       *store.Config
+	Cache    *cache.Config
+	Email    *EmailSenderConfig
+	Sentry   *SentryConfig
+	LogLevel zerolog.Level
 }
 
 // ServiceConfig represents the service configuration
@@ -223,6 +226,8 @@ func New() (*Config, error) {
 		log.Warn().Msg("PREAUTH_URL is not set; ZLA pre-auth session flow will be unavailable")
 	}
 
+	logLevel, _ := logging.ParseLevel(os.Getenv("LOG_LEVEL"))
+
 	return &Config{
 		Server: &ServerConfig{
 			Name:                serverName,
@@ -309,5 +314,6 @@ func New() (*Config, error) {
 			Environment: os.Getenv("SENTRY_ENVIRONMENT"),
 			Release:     os.Getenv("SENTRY_RELEASE"),
 		},
+		LogLevel: logLevel,
 	}, nil
 }

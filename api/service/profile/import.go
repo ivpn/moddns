@@ -371,7 +371,7 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 		if ret, err := model.NewRetention(src.Logs.Retention); err == nil {
 			s.Logs.Retention = ret
 		}
-		// Invalid retention values silently fall back to the default (RetentionOneDay).
+		// Invalid retention values silently fall back to the default (RetentionOneHour).
 	}
 
 	if src.Statistics != nil {
@@ -503,11 +503,7 @@ func (p *ProfileService) validateAndMapRules(
 			))
 			log.Info().
 				Str("event", "import_idn_rule").
-				Str("account_id", accountId).
-				Str("profile_name", profileName).
 				Int("rule_index", i).
-				Str("rule_value_punycode", r.Value).
-				Str("rule_value_decoded", decoded).
 				Msg("imported custom rule contains internationalized domain")
 		}
 
@@ -561,14 +557,14 @@ func capGroups(list []model.CustomRuleGroup, listName, profileName string, warni
 func (p *ProfileService) rollbackImportedProfiles(ctx context.Context, accountId string, profileIds []string) {
 	for _, pid := range profileIds {
 		if err := p.ProfileRepository.DeleteProfileById(ctx, pid); err != nil {
-			log.Warn().
+			log.Ctx(ctx).Warn().
 				Str("account_id", accountId).
 				Str("profile_id", pid).
 				Err(err).
 				Msg("import rollback: failed to delete partially-created profile")
 		}
 		if err := p.Cache.DeleteProfileSettings(ctx, pid); err != nil {
-			log.Warn().
+			log.Ctx(ctx).Warn().
 				Str("account_id", accountId).
 				Str("profile_id", pid).
 				Err(err).

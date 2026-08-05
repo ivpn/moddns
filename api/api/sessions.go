@@ -27,9 +27,9 @@ func (s *APIServer) deleteAllOtherSessions() fiber.Handler {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		err := s.Service.DeleteSessionsByAccountIDExceptCurrent(c.Context(), accountID, currentToken)
+		err := s.Service.DeleteSessionsByAccountIDExceptCurrent(c.UserContext(), accountID, currentToken)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to delete all sessions")
+			log.Ctx(c.UserContext()).Error().Err(err).Msg("Failed to delete all sessions")
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"error": "Failed to delete other sessions",
 			})

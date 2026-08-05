@@ -437,7 +437,11 @@ func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
 }
 
 func (s *Server) dnsCheckHandler(dctx *proxy.DNSContext, profileId string, logger logging.LoggerInterface) (executed bool) {
-	logger.Trace().Str("dctx.question", dctx.Req.Question[0].Name).Str("cfg", s.Config.Server.DnsCheckDomain).Msg("Checking if DNS check handler should be executed")
+	e := logger.Trace().Str("cfg", s.Config.Server.DnsCheckDomain)
+	if logger.Config().LogDomains {
+		e = e.Str("dctx.question", dctx.Req.Question[0].Name)
+	}
+	e.Msg("Checking if DNS check handler should be executed")
 	if strings.Contains(dctx.Req.Question[0].Name, s.Config.Server.DnsCheckDomain) {
 		logger.Trace().Msg("DNS check request received")
 		// Build a proper DNS response based on upstream authoritative reply.

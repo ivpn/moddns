@@ -53,17 +53,17 @@ func (c *RedisCache) Client() *redis.Client {
 func (c *RedisCache) Incr(ctx context.Context, key string, expiration time.Duration) (int64, error) {
 	incrCmd := c.client.Incr(ctx, key)
 	if err := incrCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to increment value")
+		log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to increment value")
 		return 0, err
 	}
 	val := incrCmd.Val()
-	log.Trace().Str("key", key).Int64("value", val).Msg("Cache: incremented value")
+	log.Ctx(ctx).Trace().Str("key", key).Int64("value", val).Msg("Cache: incremented value")
 
 	// Set expiration only when the key is first created (val == 1)
 	if expiration > 0 && val == 1 {
 		expireCmd := c.client.Expire(ctx, key, expiration)
 		if err := expireCmd.Err(); err != nil {
-			log.Err(err).Str("key", key).Msg("Cache: failed to set expiration after increment")
+			log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to set expiration after increment")
 			return val, err
 		}
 	}
@@ -75,10 +75,10 @@ func (c *RedisCache) Incr(ctx context.Context, key string, expiration time.Durat
 func (c *RedisCache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	setCmd := c.client.Set(ctx, key, value, expiration)
 	if err := setCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to set value")
+		log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to set value")
 		return err
 	}
-	log.Trace().Str("key", key).Msg("Cache: set value")
+	log.Ctx(ctx).Trace().Str("key", key).Msg("Cache: set value")
 	return nil
 }
 
@@ -86,11 +86,11 @@ func (c *RedisCache) Set(ctx context.Context, key string, value any, expiration 
 func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 	getCmd := c.client.Get(ctx, key)
 	if err := getCmd.Err(); err != nil {
-		log.Trace().Err(err).Str("key", key).Msg("Cache: failed to get value")
+		log.Ctx(ctx).Trace().Err(err).Str("key", key).Msg("Cache: failed to get value")
 		return "", err
 	}
 	val := getCmd.Val()
-	log.Trace().Str("key", key).Msg("Cache: got value")
+	log.Ctx(ctx).Trace().Str("key", key).Msg("Cache: got value")
 	return val, nil
 }
 
@@ -98,10 +98,10 @@ func (c *RedisCache) Get(ctx context.Context, key string) (string, error) {
 func (c *RedisCache) Del(ctx context.Context, key string) error {
 	delCmd := c.client.Del(ctx, key)
 	if err := delCmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Msg("Cache: failed to delete value")
+		log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to delete value")
 		return err
 	}
-	log.Trace().Str("key", key).Msg("Cache: deleted value")
+	log.Ctx(ctx).Trace().Str("key", key).Msg("Cache: deleted value")
 	return nil
 }
 
@@ -112,10 +112,10 @@ func (c *RedisCache) AddBlocklist(ctx context.Context, blocklistId string, data 
 	lines := strings.Split(string(data), "\n")
 	intCmd := c.client.SAdd(ctx, blocklistName, lines)
 	if err := intCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create blocklist")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create blocklist")
 		return err
 	}
-	log.Info().
+	log.Ctx(ctx).Info().
 		Str("blocklist_key", blocklistName).
 		Msgf("Created blocklist")
 	return nil
@@ -127,7 +127,7 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "blocklists")
 	res := rdp.Del(ctx, settingsBlocklist)
 	if err := res.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to remove existing settings blocklists")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings blocklists")
 		return err
 	}
 	// associate blocklists to selected settings
@@ -135,13 +135,13 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 		// put settings model as blocklist value; this can be replaced
 		blocklistsCmd := rdp.RPush(ctx, settingsBlocklist, blocklistID)
 		if err := blocklistsCmd.Err(); err != nil {
-			log.Err(err).Msg("Cache: failed to create settings blocklist")
+			log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings blocklist")
 			if rollback {
 				rdp.Del(ctx, settingsBlocklist)
 			}
 			return err
 		}
-		log.Info().Str("settings_blocklist_key", settingsBlocklist).
+		log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
 			Msgf("Created/updated profile settings blocklist")
 	}
 
@@ -149,28 +149,28 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	servicesKey := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "services")
 	res = rdp.Del(ctx, servicesKey)
 	if err := res.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to remove existing settings services")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings services")
 		return err
 	}
 	if settings.Privacy != nil {
 		for _, serviceID := range settings.Privacy.Services {
 			cmd := rdp.RPush(ctx, servicesKey, serviceID)
 			if err := cmd.Err(); err != nil {
-				log.Err(err).Msg("Cache: failed to create settings services")
+				log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings services")
 				if rollback {
 					rdp.Del(ctx, servicesKey)
 				}
 				return err
 			}
 		}
-		log.Info().Str("settings_services_key", servicesKey).Msg("Created/updated profile settings services")
+		log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).Msg("Created/updated profile settings services")
 	}
 
 	// add logs settings
 	logsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs")
 	logsCmd := rdp.HSet(ctx, logsSettings, settings.Logs)
 	if err := logsCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create logs settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create logs settings")
 		if rollback {
 			rdp.Del(ctx, logsSettings)
 		}
@@ -186,9 +186,9 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	statsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "statistics")
 	statsCmd := rdp.HSet(ctx, statsSettings, settings.Statistics)
 	if err := statsCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create statistics settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create statistics settings")
 		if rollback {
-			log.Warn().Msg("Cache: rolling back statistics settings")
+			log.Ctx(ctx).Warn().Msg("Cache: rolling back statistics settings")
 			rdp.Del(ctx, statsSettings)
 		}
 		return err
@@ -198,9 +198,9 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "dnssec")
 	securityDNSSECCmd := rdp.HSet(ctx, dnssecSettings, settings.Security.DNSSECSettings)
 	if err := securityDNSSECCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create security DNSSEC settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security DNSSEC settings")
 		if rollback {
-			log.Warn().Msg("Cache: rolling back security DNSSEC settings")
+			log.Ctx(ctx).Warn().Msg("Cache: rolling back security DNSSEC settings")
 			rdp.Del(ctx, dnssecSettings)
 		}
 		return err
@@ -210,9 +210,9 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	rebindingSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection")
 	securityRebindingCmd := rdp.HSet(ctx, rebindingSettings, settings.Security.RebindingProtection)
 	if err := securityRebindingCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create security rebinding protection settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security rebinding protection settings")
 		if rollback {
-			log.Warn().Msg("Cache: rolling back security rebinding protection settings")
+			log.Ctx(ctx).Warn().Msg("Cache: rolling back security rebinding protection settings")
 			rdp.Del(ctx, rebindingSettings)
 		}
 		return err
@@ -222,9 +222,9 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	advancedSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced")
 	advancedCmd := rdp.HSet(ctx, advancedSettings, settings.Advanced)
 	if err := advancedCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create advanced settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create advanced settings")
 		if rollback {
-			log.Warn().Msg("Cache: rolling back advanced settings")
+			log.Ctx(ctx).Warn().Msg("Cache: rolling back advanced settings")
 			rdp.Del(ctx, advancedSettings)
 		}
 		return err
@@ -234,9 +234,9 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	privacySettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "privacy")
 	privacyCmd := rdp.HSet(ctx, privacySettings, settings.Privacy)
 	if err := privacyCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to create privacy settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to create privacy settings")
 		if rollback {
-			log.Warn().Msg("Cache: rolling back privacy settings")
+			log.Ctx(ctx).Warn().Msg("Cache: rolling back privacy settings")
 			rdp.Del(ctx, privacySettings)
 		}
 		return err
@@ -244,11 +244,11 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 
 	_, err := rdp.Exec(ctx)
 	if err != nil {
-		log.Err(err).Msg("Cache: failed to execute pipeline")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to execute pipeline")
 		return err
 	}
 
-	log.Info().Msg("Created/updated profile settings")
+	log.Ctx(ctx).Info().Msg("Created/updated profile settings")
 
 	return nil
 }
@@ -261,10 +261,10 @@ func (c *RedisCache) AppendServicesBlockedToProfileSettings(ctx context.Context,
 	}
 	cmd := c.client.RPush(ctx, key, serviceIds)
 	if err := cmd.Err(); err != nil {
-		log.Err(err).Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: failed to append services blocked")
+		log.Ctx(ctx).Err(err).Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: failed to append services blocked")
 		return err
 	}
-	log.Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: appended services blocked")
+	log.Ctx(ctx).Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: appended services blocked")
 	return nil
 }
 
@@ -277,11 +277,11 @@ func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Contex
 	for _, id := range serviceIds {
 		cmd := c.client.LRem(ctx, key, 0, id)
 		if err := cmd.Err(); err != nil {
-			log.Err(err).Str("key", key).Str("service_id", id).Msg("Cache: failed to remove services blocked")
+			log.Ctx(ctx).Err(err).Str("key", key).Str("service_id", id).Msg("Cache: failed to remove services blocked")
 			return err
 		}
 	}
-	log.Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: removed services blocked")
+	log.Ctx(ctx).Info().Str("key", key).Strs("service_ids", serviceIds).Msg("Cache: removed services blocked")
 	return nil
 }
 
@@ -306,10 +306,10 @@ func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules
 	pipe.SAdd(ctx, customRulesSetName, hashKeys...)
 
 	if _, err := pipe.Exec(ctx); err != nil {
-		log.Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
+		log.Ctx(ctx).Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
 		return err
 	}
-	log.Info().Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: bulk-inserted custom rules")
+	log.Ctx(ctx).Info().Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: bulk-inserted custom rules")
 	return nil
 }
 
@@ -317,15 +317,15 @@ func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRule
 	customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, customRuleId)
 	hashCmd := c.client.Del(ctx, customRuleHash)
 	if err := hashCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to remove profile custom rule hash")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove profile custom rule hash")
 		return err
 	}
-	log.Info().Str("custom_rule_hash", customRuleHash).Msg("Removed profile custom rule hash")
+	log.Ctx(ctx).Info().Str("custom_rule_hash", customRuleHash).Msg("Removed profile custom rule hash")
 
 	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
 	intCmd := c.client.SRem(ctx, customRulesSetName, customRuleHash)
 	if err := intCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to remove profile custom rule from set")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove profile custom rule from set")
 		return err
 	}
 	return nil
@@ -336,42 +336,42 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", profileId, "blocklists")
 	blocklistsCmd := c.client.Del(ctx, settingsBlocklist)
 	if err := blocklistsCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile settings blocklists")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings blocklists")
 		return err
 	}
-	log.Info().Str("settings_blocklist_key", settingsBlocklist).
+	log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
 		Msg("Cache: Deleted profile settings blocklist")
 
 	servicesKey := fmt.Sprintf("settings:%s:%s", profileId, "services")
 	servicesCmd := c.client.Del(ctx, servicesKey)
 	if err := servicesCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile settings services")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings services")
 		return err
 	}
-	log.Info().Str("settings_services_key", servicesKey).
+	log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).
 		Msg("Cache: Deleted profile settings services")
 
 	// delete logs settings
 	logsSettings := fmt.Sprintf("settings:%s:%s", profileId, "logs")
 	logsCmd := c.client.Del(ctx, logsSettings)
 	if err := logsCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile logs settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile logs settings")
 		return err
 	}
-	log.Info().Str("logs_settings_key", logsSettings).Msg("Cache: deleted profile logs settings")
+	log.Ctx(ctx).Info().Str("logs_settings_key", logsSettings).Msg("Cache: deleted profile logs settings")
 
 	// delete privacy settings
 	privacySettings := fmt.Sprintf("settings:%s:%s", profileId, "privacy")
 	privacyCmd := c.client.Del(ctx, privacySettings)
 	if err := privacyCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile privacy settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile privacy settings")
 		return err
 	}
 	// delete advanced settings
 	advancedSettings := fmt.Sprintf("settings:%s:%s", profileId, "advanced")
 	advancedCmd := c.client.Del(ctx, advancedSettings)
 	if err := advancedCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile advanced settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile advanced settings")
 		return err
 	}
 
@@ -379,7 +379,7 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", profileId, "security", "dnssec")
 	dnssecCmd := c.client.Del(ctx, dnssecSettings)
 	if err := dnssecCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile security settings")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile security settings")
 		return err
 	}
 
@@ -388,7 +388,7 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	// get all custom rule hashes
 	customRulesListCmd := c.client.SMembers(ctx, customRulesSetName)
 	if err := customRulesListCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to get profile custom rules")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to get profile custom rules")
 		return err
 	}
 
@@ -396,7 +396,7 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	for _, customRuleHash := range customRulesListCmd.Val() {
 		hashCmd := c.client.Del(ctx, customRuleHash)
 		if err := hashCmd.Err(); err != nil {
-			log.Err(err).Msg("Cache: failed to delete profile custom rule hash")
+			log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile custom rule hash")
 			return err
 		}
 	}
@@ -404,7 +404,7 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 	// remove custom rules set
 	customRulesCmd := c.client.Del(ctx, customRulesSetName)
 	if err := customRulesCmd.Err(); err != nil {
-		log.Err(err).Msg("Cache: failed to delete profile custom rules")
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile custom rules")
 		return err
 	}
 
@@ -420,12 +420,12 @@ func (c *RedisCache) AppendBlocklistsToProfileSettings(ctx context.Context, prof
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", profileId, "blocklists")
 	cmd := c.client.RPush(ctx, settingsBlocklist, blocklistIds)
 	if err := cmd.Err(); err != nil {
-		log.Err(err).
+		log.Ctx(ctx).Err(err).
 			Strs("blocklist_ids", blocklistIds).
 			Msg("Cache: failed to append blocklists to profile settings")
 		return err
 	}
-	log.Info().
+	log.Ctx(ctx).Info().
 		Strs("blocklist_ids", blocklistIds).
 		Msg("Cache: appended blocklists to profile settings")
 	return nil
@@ -441,12 +441,12 @@ func (c *RedisCache) RemoveBlocklistsFromProfileSettings(ctx context.Context, pr
 	for _, blocklistId := range blocklistIds {
 		cmd := c.client.LRem(ctx, settingsBlocklist, 0, blocklistId)
 		if err := cmd.Err(); err != nil {
-			log.Err(err).
+			log.Ctx(ctx).Err(err).
 				Str("blocklist_id", blocklistId).
 				Msg("Cache: failed to remove blocklist from profile settings")
 			return err
 		}
-		log.Info().
+		log.Ctx(ctx).Info().
 			Str("blocklist_id", blocklistId).
 			Msg("Cache: removed blocklist from profile settings")
 	}

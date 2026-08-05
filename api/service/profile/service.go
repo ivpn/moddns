@@ -122,7 +122,7 @@ func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId stri
 	}
 
 	for _, profile := range profiles {
-		log.Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
+		log.Ctx(ctx).Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
 		if profile.Name == name {
 			return nil, ErrProfileNameAlreadyExists
 		}
@@ -191,7 +191,7 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	})
 
 	if err := eg.Wait(); err != nil {
-		log.Err(err).Msg(ErrFailedToDeleteProfile.Error())
+		log.Ctx(ctx).Err(err).Msg(ErrFailedToDeleteProfile.Error())
 		return err
 	}
 
@@ -207,7 +207,7 @@ func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, pro
 
 	limiter := utils.IDLimiter{Cache: p.Cache, Label: "rate_limits", ID: accountId + ":query_logs", Max: queryLogsRateLimitMax, Exp: queryLogsRateLimitWindow}
 	if tickErr := limiter.Tick(); tickErr != nil {
-		log.Err(tickErr).Msg("failed to tick query logs rate limiter")
+		log.Ctx(ctx).Err(tickErr).Msg("failed to tick query logs rate limiter")
 	} else if !limiter.IsAllowed() {
 		return nil, ErrQueryLogsRateLimited
 	}
@@ -272,7 +272,7 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
 		internalValue, err := cast.ToStringMapE(update.Value)
 		if err != nil {
-			log.Trace().Msg("Failed to cast value to string map")
+			log.Ctx(ctx).Trace().Msg("Failed to cast value to string map")
 		} else {
 			update.Value = internalValue["value"]
 		}
@@ -467,7 +467,7 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			Name: newName,
 		})
 		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate profile name")
+			log.Ctx(ctx).Debug().Err(err).Msg("Failed to validate profile name")
 			return ErrProfileNameInvalid
 		}
 
@@ -476,7 +476,7 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			return err
 		}
 		for _, profile := range profiles {
-			log.Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
+			log.Ctx(ctx).Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
 			if profile.Name == newName {
 				return ErrProfileNameAlreadyExists
 			}

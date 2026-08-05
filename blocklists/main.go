@@ -16,6 +16,7 @@ import (
 	"github.com/ivpn/dns/blocklists/service"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/store"
+	"github.com/ivpn/dns/libs/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,30 +39,18 @@ func main() {
 	}
 	zerolog.SetGlobalLevel(appConfig.LogLevel)
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              appConfig.Sentry.DSN,
-		Environment:      appConfig.Sentry.Environment,
-		Release:          appConfig.Sentry.Release,
-		TracesSampleRate: 1.0,
-		AttachStacktrace: true,
-		EnableTracing:    true,
-	}); err != nil {
+	sentryConfig := telemetry.Config{
+		DSN:         appConfig.Sentry.DSN,
+		Environment: appConfig.Sentry.Environment,
+		Release:     appConfig.Sentry.Release,
+	}
+
+	if err := sentry.Init(telemetry.InitOptions(sentryConfig)); err != nil {
 		log.Panic().Err(err).Msg("Failed to initialize Sentry")
 	}
 
 	// Configure Zerolog to use Sentry as a writer
-	sentryWriter, err := sentryzerolog.New(sentryzerolog.Config{
-		ClientOptions: sentry.ClientOptions{
-			Dsn:         appConfig.Sentry.DSN,
-			Environment: appConfig.Sentry.Environment,
-			Release:     appConfig.Sentry.Release,
-		},
-		Options: sentryzerolog.Options{
-			Levels:          []zerolog.Level{zerolog.WarnLevel, zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel},
-			WithBreadcrumbs: true,
-			FlushTimeout:    3 * time.Second,
-		},
-	})
+	sentryWriter, err := sentryzerolog.New(telemetry.LogWriterConfig(sentryConfig))
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sentry writer")
 	}

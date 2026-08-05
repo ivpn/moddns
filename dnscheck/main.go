@@ -8,13 +8,15 @@ import (
 	"github.com/dnscheck/config"
 	"github.com/dnscheck/dns"
 
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logLevel, _ := logging.ParseLevel(os.Getenv("LOG_LEVEL"))
+	zerolog.SetGlobalLevel(logLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 
 	cfg, err := config.New()

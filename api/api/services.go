@@ -64,7 +64,7 @@ func (s *APIServer) enableServices() fiber.Handler {
 			return HandleError(c, ErrInvalidServiceValue, "Service IDs are required")
 		}
 
-		if err := s.Service.EnableServices(c.Context(), accountId, profileId, updates.ServiceIds); err != nil {
+		if err := s.Service.EnableServices(c.UserContext(), accountId, profileId, updates.ServiceIds); err != nil {
 			return HandleError(c, err, "Failed to enable services")
 		}
 		return c.SendStatus(200)
@@ -102,7 +102,7 @@ func (s *APIServer) disableServices() fiber.Handler {
 			return HandleError(c, ErrInvalidServiceValue, "Service IDs are required")
 		}
 
-		if err := s.Service.DisableServices(c.Context(), accountId, profileId, updates.ServiceIds); err != nil {
+		if err := s.Service.DisableServices(c.UserContext(), accountId, profileId, updates.ServiceIds); err != nil {
 			return HandleError(c, err, "Failed to disable services")
 		}
 		return c.SendStatus(200)

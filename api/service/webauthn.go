@@ -243,7 +243,7 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 	defer func() {
 		if err := s.DeleteSession(ctx, tmpToken); err != nil {
 			// best-effort cleanup; log but ignore.
-			log.Err(err).Msg("failed to delete temporary webauthn session")
+			log.Ctx(ctx).Err(err).Msg("failed to delete temporary webauthn session")
 		}
 	}()
 
@@ -361,7 +361,7 @@ func (s *Service) FinishAddPasskey(ctx context.Context, token string, httpReq *h
 	// Delete temporary session (log error if deletion fails)
 	defer func() {
 		if err := s.DeleteSession(ctx, token); err != nil {
-			log.Err(err).Msg("failed to delete add-passkey session")
+			log.Ctx(ctx).Err(err).Msg("failed to delete add-passkey session")
 		}
 	}()
 

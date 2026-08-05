@@ -117,7 +117,7 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 		}
 
 		queryLog := model.QueryLog{
-			Timestamp: time.Now(),
+			Timestamp: time.Now().UTC(),
 			ProfileID: reqCtx.ProfileId,
 			DeviceId:  reqCtx.DeviceId,
 			Status:    string(reqCtx.FilterResult.Status),

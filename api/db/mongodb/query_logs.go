@@ -135,12 +135,12 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 	}
 	duration := time.Since(start)
 	if duration > slowQueryThreshold {
-		log.Warn().
+		log.Ctx(ctx).Warn().
 			Bool("slow", true).
 			Str("retention", string(retention)).
 			Str("status", status).
 			Str("sort", sortBy).
-			Str("search", search).
+			Int("search_len", len(search)).
 			Int("page", page).
 			Int("page_size", pageSize).
 			Int("result_count", len(results)).
@@ -175,10 +175,10 @@ func (r *QueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId str
 		res, err := coll.DeleteMany(ctx, bson.D{
 			primitive.E{Key: "profile_id", Value: profileId},
 		})
-		log.Debug().Str("collection_name", string(retention)).Int64("count", res.DeletedCount).Msg("Deleted query logs")
 		if err != nil {
 			return err
 		}
+		log.Ctx(ctx).Debug().Str("collection_name", string(retention)).Int64("count", res.DeletedCount).Msg("Deleted query logs")
 	}
 
 	return nil

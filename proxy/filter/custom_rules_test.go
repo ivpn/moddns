@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"bytes"
 	"errors"
 	"net"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -524,4 +526,39 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 			mockCache.AssertExpectations(t)
 		})
 	}
+}
+
+// specRef: logging-behaviour.md A3
+func TestFilterCustomRulesDomainNotLoggedWhenGateOff(t *testing.T) {
+	var buf bytes.Buffer
+	orig := log.Logger
+	log.Logger = zerolog.New(&buf)
+	factory := logging.NewFactory(zerolog.DebugLevel)
+	logger := factory.ForRequest(logging.LoggingConfig{
+		Enabled:    true,
+		ProfileID:  "prof-1",
+		LogDomains: false,
+	})
+	log.Logger = orig
+
+	mockCache := new(mocks.Cache)
+	mockCache.On("GetCustomRulesHashes", mock.Anything, "prof-1").
+		Return([]string{"h1"}, nil)
+	mockCache.On("GetCustomRulesHash", mock.Anything, "h1").
+		Return(map[string]string{"action": ACTION_BLOCK, "value": "blocked.example.com"}, nil)
+
+	fm := NewDomainFilter(&proxy.Proxy{}, mockCache, nil)
+	msg := new(dns.Msg)
+	msg.SetQuestion("blocked.example.com.", dns.TypeA)
+	reqCtx := &requestcontext.RequestContext{
+		ProfileId:    "prof-1",
+		Logger:       logger,
+		LoggerConfig: logger.Config(),
+	}
+
+	got, err := fm.filterCustomRules(reqCtx, &proxy.DNSContext{Req: msg})
+
+	assert.NoError(t, err)
+	assert.Equal(t, model.DecisionBlock, got.Decision)
+	assert.NotContains(t, buf.String(), "blocked.example.com")
 }

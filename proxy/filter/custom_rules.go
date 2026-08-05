@@ -122,22 +122,21 @@ func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, 
 		if f.matchDomain(fqdn, hash["value"]) {
 			switch hash["action"] {
 			case ACTION_BLOCK:
-				reqCtx.Logger.Debug().
+				e := reqCtx.Logger.Debug().
 					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
 					Str("protocol", string(dctx.Proto)).
-					Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype]).
-					Str("domain", question).
-					Msg("Domain blocked")
+					Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
+				reqCtx.MaybeDomain(e, "pattern", hash["value"])
+				reqCtx.AddDomain(e, question).Msg("Domain blocked")
 				result.Decision = model.DecisionBlock
 				result.Reasons = append(result.Reasons, REASON_CUSTOM_RULES)
 				return result, nil
 
 			case ACTION_ALLOW:
-				reqCtx.Logger.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
-					Str("pattern", hash["value"]).
-					Msgf("Allowing domain: %s", question)
+				e := reqCtx.Logger.Debug().
+					Str("reason", REASON_CUSTOM_RULES)
+				reqCtx.MaybeDomain(e, "pattern", hash["value"])
+				reqCtx.AddDomain(e, question).Msg("Domain allowed")
 				allowMatched = true
 			}
 		}
@@ -184,7 +183,7 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 		switch {
 		case strings.Contains(syntax, "ip"):
 			for _, ip := range ips {
-				allow, block := f.matchIPRule(ip, hash)
+				allow, block := f.matchIPRule(reqCtx, ip, hash)
 				allowMatched = allowMatched || allow
 				blockMatched = blockMatched || block
 			}
@@ -268,7 +267,7 @@ func (f *IPFilter) matchASNRule(ip net.IP, ruleASN uint, action string) (allow b
 	}
 }
 
-func (f *IPFilter) matchIPRule(ip net.IP, hash map[string]string) (allow bool, block bool) {
+func (f *IPFilter) matchIPRule(reqCtx *requestcontext.RequestContext, ip net.IP, hash map[string]string) (allow bool, block bool) {
 	if ip == nil {
 		return false, false
 	}
@@ -276,18 +275,17 @@ func (f *IPFilter) matchIPRule(ip net.IP, hash map[string]string) (allow bool, b
 		return false, false
 	}
 
+	// Answer IPs are DNS response content — gated like domains.
 	switch hash["action"] {
 	case ACTION_BLOCK:
-		log.Debug().
-			Str("reason", REASON_CUSTOM_RULES).
-			Str("pattern", hash["value"]).
-			Msgf("Blocked IP: %s", ip.String())
+		e := reqCtx.Logger.Debug().Str("reason", REASON_CUSTOM_RULES)
+		reqCtx.MaybeDomain(e, "pattern", hash["value"])
+		reqCtx.MaybeDomain(e, "ip", ip.String()).Msg("Blocked IP")
 		return false, true
 	case ACTION_ALLOW:
-		log.Debug().
-			Str("reason", REASON_CUSTOM_RULES).
-			Str("pattern", hash["value"]).
-			Msgf("Allowing IP: %s", ip.String())
+		e := reqCtx.Logger.Debug().Str("reason", REASON_CUSTOM_RULES)
+		reqCtx.MaybeDomain(e, "pattern", hash["value"])
+		reqCtx.MaybeDomain(e, "ip", ip.String()).Msg("Allowing IP")
 		return true, false
 	default:
 		return false, false

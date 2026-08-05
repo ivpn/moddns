@@ -34,7 +34,7 @@ func NewSubscriptionGuard(provider SubscriptionProvider) fiber.Handler {
 			return c.Next() // unauthenticated route — auth middleware handles this
 		}
 
-		sub, err := provider.GetSubscription(c.Context(), accountID)
+		sub, err := provider.GetSubscription(c.UserContext(), accountID)
 		if err != nil {
 			return c.Next() // no subscription found — allow (pre-ZLA or new accounts)
 		}

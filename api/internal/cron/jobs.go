@@ -20,16 +20,17 @@ import (
 // ("must not exclude any true candidate").
 func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, mailer email.Mailer) {
 	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "notify-expiring-subscriptions").Logger().WithContext(ctx)
 
 	// 1. Re-arm: clear notified=false for any sub no longer in LimitedAccess.
 	if err := rearmLANotified(ctx, subRepo); err != nil {
-		log.Error().Err(err).Msg("Cron: failed to re-arm notified flag")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to re-arm notified flag")
 	}
 
 	// 2. Find candidates (loose pre-filter; cron post-filters via GetStatus()).
 	candidates, err := subRepo.FindExpiredUnnotified(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("Cron: failed to find expired unnotified subscriptions")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to find expired unnotified subscriptions")
 		return
 	}
 
@@ -37,7 +38,7 @@ func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, acco
 		return
 	}
 
-	log.Info().Int("candidates", len(candidates)).Msg("Cron: evaluating expiring-subscription candidates")
+	log.Ctx(ctx).Info().Int("candidates", len(candidates)).Msg("Cron: evaluating expiring-subscription candidates")
 
 	// 3. Strict post-filter via the model; send the email; record IDs to mark notified.
 	notifiedIDs := make([]uuid.UUID, 0, len(candidates))
@@ -45,30 +46,30 @@ func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, acco
 	for _, sub := range candidates {
 		if sub.GetStatus() != model.StatusLimitedAccess {
 			skippedNotLA++
-			log.Debug().Str("subscription_id", sub.ID.String()).Str("status", string(sub.GetStatus())).Msg("Cron: skipping non-LA candidate from expiry notification")
+			log.Ctx(ctx).Debug().Str("subscription_id", sub.ID.String()).Str("status", string(sub.GetStatus())).Msg("Cron: skipping non-LA candidate from expiry notification")
 			continue
 		}
 
 		account, err := accountRepo.GetAccountById(ctx, sub.AccountID.Hex())
 		if err != nil {
-			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for expiry notification")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for expiry notification")
 			continue
 		}
 
 		if err := mailer.SendSubscriptionExpiryEmail(ctx, account.Email); err != nil {
-			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send subscription expiry email")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to send subscription expiry email")
 			continue
 		}
 
 		notifiedIDs = append(notifiedIDs, sub.ID)
 	}
 
-	log.Info().Int("candidates", len(candidates)).Int("skipped_not_la", skippedNotLA).Int("sent", len(notifiedIDs)).Msg("Cron: expiring-subscription notifications complete")
+	log.Ctx(ctx).Info().Int("candidates", len(candidates)).Int("skipped_not_la", skippedNotLA).Int("sent", len(notifiedIDs)).Msg("Cron: expiring-subscription notifications complete")
 
 	// 4. Mark only the actually-emailed subs as notified.
 	if len(notifiedIDs) > 0 {
 		if err := subRepo.SetNotified(ctx, notifiedIDs, true); err != nil {
-			log.Error().Err(err).Msg("Cron: failed to mark subscriptions as notified")
+			log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to mark subscriptions as notified")
 		}
 	}
 }
@@ -84,16 +85,17 @@ func NotifyExpiringSubscriptions(subRepo repository.SubscriptionRepository, acco
 // DeleteRetiredAccounts cron, which performed their DNS cutoff at retirement.
 func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer) {
 	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "notify-inactive-subscriptions").Logger().WithContext(ctx)
 
 	// 1. Re-arm: clear notified_inactive=false for any sub no longer Inactive.
 	if err := rearmInactiveNotified(ctx, subRepo); err != nil {
-		log.Error().Err(err).Msg("Cron: failed to re-arm notified_inactive flag")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to re-arm notified_inactive flag")
 	}
 
 	// 2. Find candidates (loose pre-filter; cron post-filters via GetStatus()).
 	candidates, err := subRepo.FindInactiveUnnotified(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("Cron: failed to find inactive unnotified subscriptions")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to find inactive unnotified subscriptions")
 		return
 	}
 
@@ -101,7 +103,7 @@ func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, acco
 		return
 	}
 
-	log.Info().Int("candidates", len(candidates)).Msg("Cron: evaluating inactive-subscription candidates")
+	log.Ctx(ctx).Info().Int("candidates", len(candidates)).Msg("Cron: evaluating inactive-subscription candidates")
 
 	// 3. Strict post-filter via the model; cut off DNS; send email; record IDs to mark notified.
 	notifiedIDs := make([]uuid.UUID, 0, len(candidates))
@@ -115,24 +117,24 @@ func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, acco
 
 		account, err := accountRepo.GetAccountById(ctx, sub.AccountID.Hex())
 		if err != nil {
-			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for inactive notification")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get account for inactive notification")
 			continue
 		}
 
 		// DNS cutoff: delete Redis profile settings for every profile of the account.
 		profiles, err := profileRepo.GetProfilesByAccountId(ctx, account.ID.Hex())
 		if err != nil {
-			log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get profiles for DNS cutoff")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to get profiles for DNS cutoff")
 			continue
 		}
 		for _, profile := range profiles {
 			if err := profileCache.DeleteProfileSettings(ctx, profile.ProfileId); err != nil {
-				log.Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Cron: failed to delete profile settings from cache (DNS cutoff)")
+				log.Ctx(ctx).Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Cron: failed to delete profile settings from cache (DNS cutoff)")
 			}
 		}
 
 		if err := mailer.SendInactiveEmail(ctx, account.Email); err != nil {
-			log.Error().Err(err).Str("email", account.Email).Msg("Cron: failed to send inactive-account email")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Cron: failed to send inactive-account email")
 			// Leave sub unnotified so the retry happens next tick.
 			continue
 		}
@@ -140,12 +142,12 @@ func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, acco
 		notifiedIDs = append(notifiedIDs, sub.ID)
 	}
 
-	log.Info().Int("candidates", len(candidates)).Int("skipped_not_inactive", skippedNotInactive).Int("sent", len(notifiedIDs)).Msg("Cron: inactive-subscription notifications complete")
+	log.Ctx(ctx).Info().Int("candidates", len(candidates)).Int("skipped_not_inactive", skippedNotInactive).Int("sent", len(notifiedIDs)).Msg("Cron: inactive-subscription notifications complete")
 
 	// 4. Mark only the actually-cut-off-and-emailed subs as notified.
 	if len(notifiedIDs) > 0 {
 		if err := subRepo.SetInactiveNotified(ctx, notifiedIDs, true); err != nil {
-			log.Error().Err(err).Msg("Cron: failed to mark subscriptions as inactive-notified")
+			log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to mark subscriptions as inactive-notified")
 		}
 	}
 }
@@ -157,30 +159,31 @@ func NotifyInactiveSubscriptions(subRepo repository.SubscriptionRepository, acco
 // docs/specs/signup-reset-behaviour.md Phase 3.
 func DeleteRetiredAccounts(subRepo repository.SubscriptionRepository, purger AccountPurger) {
 	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "delete-retired-accounts").Logger().WithContext(ctx)
 
 	cutoff := time.Now().Add(-model.RetiredAccountRetention)
 	subs, err := subRepo.FindScheduledForDeletion(ctx, cutoff)
 	if err != nil {
-		log.Error().Err(err).Msg("Cron: failed to find subscriptions scheduled for deletion")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to find subscriptions scheduled for deletion")
 		return
 	}
 	if len(subs) == 0 {
 		return
 	}
 
-	log.Info().Int("candidates", len(subs)).Msg("Cron: hard-deleting retired accounts")
+	log.Ctx(ctx).Info().Int("candidates", len(subs)).Msg("Cron: hard-deleting retired accounts")
 
 	deleted := 0
 	for _, sub := range subs {
 		accountID := sub.AccountID.Hex()
 		if err := purger.PurgeAccountData(ctx, accountID); err != nil {
-			log.Error().Err(err).Str("account_id", accountID).Msg("Cron: failed to purge retired account")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", accountID).Msg("Cron: failed to purge retired account")
 			continue
 		}
 		deleted++
 	}
 
-	log.Info().Int("candidates", len(subs)).Int("deleted", deleted).Msg("Cron: retired-account deletion complete")
+	log.Ctx(ctx).Info().Int("candidates", len(subs)).Int("deleted", deleted).Msg("Cron: retired-account deletion complete")
 }
 
 // ReportDuplicateTokenHashAccounts is a READ-ONLY diagnostic: it scans for
@@ -192,34 +195,31 @@ func DeleteRetiredAccounts(subRepo repository.SubscriptionRepository, purger Acc
 // docs/specs/signup-reset-behaviour.md.
 func ReportDuplicateTokenHashAccounts(subRepo repository.SubscriptionRepository) {
 	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "report-duplicate-token-hash-accounts").Logger().WithContext(ctx)
 
 	groups, err := subRepo.FindDuplicateTokenHashGroups(ctx)
 	if err != nil {
-		log.Error().Err(err).Msg("Cron: failed to scan for duplicate token_hash accounts")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: failed to scan for duplicate token_hash accounts")
 		return
 	}
 
 	if len(groups) == 0 {
-		log.Info().Int("duplicate_groups", 0).Msg("Cron: signup-reset duplicate report — invariant holds (no duplicates)")
+		log.Ctx(ctx).Info().Int("duplicate_groups", 0).Msg("Cron: signup-reset duplicate report — invariant holds (no duplicates)")
 		return
 	}
 
 	excess := 0
 	for _, g := range groups {
-		ids := make([]string, 0, len(g.AccountIDs))
-		for _, id := range g.AccountIDs {
-			ids = append(ids, id.Hex())
-		}
 		excess += g.Count - 1
-		log.Warn().
+		// Affected token hashes and account IDs are intentionally not logged;
+		// re-run the duplicate-groups aggregation to identify them.
+		log.Ctx(ctx).Warn().
 			Str("event", "signup_reset_duplicate_token_hash").
-			Str("token_hash", g.TokenHash).
 			Int("account_count", g.Count).
-			Strs("account_ids", ids).
 			Msg("Cron: duplicate token_hash — multiple non-retired accounts for one IVPN customer")
 	}
 
-	log.Warn().
+	log.Ctx(ctx).Warn().
 		Str("event", "signup_reset_duplicate_report").
 		Int("duplicate_groups", len(groups)).
 		Int("excess_accounts", excess).

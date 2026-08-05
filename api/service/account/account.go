@@ -104,7 +104,7 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 		if a.CredentialRepository != nil {
 			count, err := a.CredentialRepository.GetCredentialsCount(ctx, acc.ID)
 			if err != nil {
-				log.Debug().Err(err).Str("account_id", acc.ID.Hex()).Msg("Failed to get credential count; assuming unfinished")
+				log.Ctx(ctx).Debug().Err(err).Str("account_id", acc.ID.Hex()).Msg("Failed to get credential count; assuming unfinished")
 				return false
 			}
 			return count > 0
@@ -139,10 +139,10 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 			}
 		}
 
-		log.Debug().Msg("Reusing unfinished account for registration - completing signup")
+		log.Ctx(ctx).Debug().Msg("Reusing unfinished account for registration - completing signup")
 		if password != "" {
 			if err := a.CompleteRegistration(ctx, existingAcc, subscriptionID, sessionID, preauth.TokenHash); err != nil {
-				log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
+				log.Ctx(ctx).Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 				return nil, err
 			}
 		}
@@ -155,10 +155,10 @@ func (a *AccountService) GetUnfinishedSignupOrPostAccount(ctx context.Context, e
 		return nil, regErr
 	}
 
-	log.Debug().Msg("Created new account for registration - before webhook")
+	log.Ctx(ctx).Debug().Msg("Created new account for registration - before webhook")
 	if password != "" {
 		if err := a.CompleteRegistration(ctx, acc, subscriptionID, sessionID, preauth.TokenHash); err != nil {
-			log.Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
+			log.Ctx(ctx).Error().Err(err).Str("subscription_id", subscriptionID).Msg("Failed to complete registration")
 			return nil, err
 		}
 	}
@@ -174,7 +174,7 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 	// Blocking: invalid email syntax / unreachable MX is a legitimate signup
 	// failure; better to surface it than to async-send into the void.
 	if err := a.validateEmailAddress(account.Email); err != nil {
-		log.Warn().Err(err).Str("email", account.Email).Msg("Email address validation failed during registration")
+		log.Ctx(ctx).Warn().Err(err).Msg("Email address validation failed during registration")
 		return err
 	}
 
@@ -182,11 +182,11 @@ func (a *AccountService) CompleteRegistration(ctx context.Context, account *mode
 	// are warn-level because the external IVPN account state is then out of
 	// sync until the user makes another request that re-fires it.
 	if err := a.Http.SignupWebhook(subscriptionID); err != nil {
-		log.Warn().Err(err).Str("subscription_id", subscriptionID).Msg("Signup webhook failed; will be retried on next user action")
+		log.Ctx(ctx).Warn().Err(err).Str("subscription_id", subscriptionID).Msg("Signup webhook failed; will be retried on next user action")
 	}
 
 	if err := a.Cache.RemovePASession(ctx, sessionID); err != nil {
-		log.Debug().Err(err).Str("session_id", sessionID).Msg("Failed to remove PA session cache entry (TTL will eventually evict)")
+		log.Ctx(ctx).Debug().Err(err).Msg("Failed to remove PA session cache entry (TTL will eventually evict)")
 	}
 
 	a.dispatchWelcomeEmail(account, account.Email)
@@ -221,14 +221,12 @@ func (a *AccountService) dispatchWelcomeEmail(acc *model.Account, email string) 
 		if err != nil {
 			log.Warn().Err(err).
 				Str("account_id", acc.ID.Hex()).
-				Str("email", email).
 				Str("category", EmailCategoryWelcome).
 				Msg("Welcome email send failed; signup is unaffected")
 			return
 		}
 		log.Info().
 			Str("account_id", acc.ID.Hex()).
-			Str("email", email).
 			Str("category", EmailCategoryWelcome).
 			Msg("Welcome email sent")
 	}()
@@ -279,23 +277,23 @@ func (a *AccountService) retireSupersededAccounts(ctx context.Context, newAccoun
 
 		// RT5/RT6: unset token_hash + schedule deletion (single update).
 		if err := a.SubscriptionService.RetireSubscription(ctx, old.ID, now); err != nil {
-			log.Error().Err(err).Str("account_id", oldAccountID).Str("subscription_id", old.ID.String()).Msg("Signup-reset: failed to retire superseded subscription")
+			log.Ctx(ctx).Error().Err(err).Str("account_id", oldAccountID).Str("subscription_id", old.ID.String()).Msg("Signup-reset: failed to retire superseded subscription")
 			continue
 		}
 
 		// RT7: DNS cutoff — clear Redis profile settings for every profile.
 		profiles, profErr := a.ProfileService.GetProfiles(ctx, oldAccountID)
 		if profErr != nil {
-			log.Error().Err(profErr).Str("account_id", oldAccountID).Msg("Signup-reset: failed to load profiles for DNS cutoff")
+			log.Ctx(ctx).Error().Err(profErr).Str("account_id", oldAccountID).Msg("Signup-reset: failed to load profiles for DNS cutoff")
 		} else {
 			for _, p := range profiles {
 				if err := a.Cache.DeleteProfileSettings(ctx, p.ProfileId); err != nil {
-					log.Error().Err(err).Str("profile_id", p.ProfileId).Msg("Signup-reset: failed to delete profile settings from cache (DNS cutoff)")
+					log.Ctx(ctx).Error().Err(err).Str("profile_id", p.ProfileId).Msg("Signup-reset: failed to delete profile settings from cache (DNS cutoff)")
 				}
 			}
 		}
 
-		log.Info().Str("retired_account_id", oldAccountID).Str("new_account_id", newAccountID.Hex()).Msg("Signup-reset: superseded account retired and scheduled for deletion")
+		log.Ctx(ctx).Info().Str("retired_account_id", oldAccountID).Str("new_account_id", newAccountID.Hex()).Msg("Signup-reset: superseded account retired and scheduled for deletion")
 	}
 
 	return nil
@@ -338,15 +336,15 @@ func (a *AccountService) SendResetPasswordEmail(ctx context.Context, email strin
 	if err != nil {
 		if errors.Is(err, dbErrors.ErrAccountNotFound) {
 			// Do not reveal whether the account exists.
-			log.Debug().Str("email", email).Msg("Password reset requested for non-existent account")
+			log.Ctx(ctx).Debug().Msg("Password reset requested for non-existent account")
 			return nil
 		}
-		log.Error().Err(err).Str("email", email).Msg("Error retrieving account for password reset")
+		log.Ctx(ctx).Error().Err(err).Msg("Error retrieving account for password reset")
 		return nil
 	}
 
 	if !acc.EmailVerified {
-		log.Info().Str("email", email).Msg("Password reset requested for unverified email")
+		log.Ctx(ctx).Info().Str("account_id", acc.ID.Hex()).Msg("Password reset requested for unverified email")
 		return nil
 	}
 
@@ -370,7 +368,7 @@ func (a *AccountService) SendResetPasswordEmail(ctx context.Context, email strin
 		return a.sendEmailCategory(acc, EmailCategoryPasswordReset, func() error {
 			err := a.Mailer.SendPasswordResetEmail(ctx, email, token.Value)
 			if err != nil {
-				log.Err(err).Msg("Failed to send password reset email")
+				log.Ctx(ctx).Err(err).Msg("Failed to send password reset email")
 			}
 			return err
 		})

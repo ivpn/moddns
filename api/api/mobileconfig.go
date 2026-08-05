@@ -40,7 +40,7 @@ func (s *APIServer) generateMobileConfig() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		_, err := s.Service.GetProfile(c.Context(), accountId, p.ProfileId)
+		_, err := s.Service.GetProfile(c.UserContext(), accountId, p.ProfileId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGenerateMobileConfig.Error())
 		}
@@ -85,7 +85,7 @@ func (s *APIServer) generateMobileConfigShortLink() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		_, err := s.Service.GetProfile(c.Context(), accountId, p.ProfileId)
+		_, err := s.Service.GetProfile(c.UserContext(), accountId, p.ProfileId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGenerateMobileConfig.Error())
 		}

@@ -78,7 +78,10 @@ func (rl *RateLimiter) check(store *gocache.Cache, key string, rps, burst int, l
 			return true
 		}
 		rl.metrics.RecordRejection(layer, proto)
-		rl.sampledLogger.Warn().Str("layer", layer).Str("key", key).Str("proto", proto).Msg("rate limited")
+		// The key is a client IP or profile ID; Warn-level lines feed
+		// telemetry, so log only the dimension. Per-client detail is
+		// available via the rejection metrics and on-host debug logs.
+		rl.sampledLogger.Warn().Str("layer", layer).Str("proto", proto).Msg("rate limited")
 		return false
 	}
 

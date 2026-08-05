@@ -396,8 +396,13 @@ func TestMatchIPRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fm := &IPFilter{}
+			loggerFactory := logging.NewFactory(zerolog.Disabled)
+			reqCtx := &requestcontext.RequestContext{
+				ProfileId: "test-profile",
+				Logger:    loggerFactory.ForProfile("test-profile", true),
+			}
 
-			allow, block := fm.matchIPRule(tt.ip, tt.hash)
+			allow, block := fm.matchIPRule(reqCtx, tt.ip, tt.hash)
 
 			assert.Equal(t, tt.expectAllow, allow, "allow mismatch")
 			assert.Equal(t, tt.expectBlock, block, "block mismatch")

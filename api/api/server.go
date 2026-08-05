@@ -128,6 +128,7 @@ func (s *APIServer) setupMiddlewares() {
 	s.App.Use(middleware.Recover())
 	s.App.Use(compress.New(compress.Config{Level: compress.LevelBestSpeed}))
 	s.App.Use(requestid.New())
+	s.App.Use(middleware.RequestLogger())
 	s.App.Use(logger.New(logger.Config{
 		Next: func(c *fiber.Ctx) bool {
 			return c.Response().StatusCode() == fiber.StatusOK &&
@@ -147,7 +148,7 @@ func (s *APIServer) setupMiddlewares() {
 				LivenessEndpoint:  "/health/live",
 				ReadinessEndpoint: "/health/ready",
 				ReadinessProbe: func(c *fiber.Ctx) bool {
-					ctx, cancel := context.WithTimeout(c.Context(), 2*time.Second)
+					ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
 					defer cancel()
 					return s.Db.GetClient().Ping(ctx, nil) == nil
 				},

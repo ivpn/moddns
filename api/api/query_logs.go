@@ -47,9 +47,9 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		queryLogs, err := s.Service.GetProfileQueryLogs(c.Context(), accountId, profileId, queryParams.Status, queryParams.Timespan, queryParams.DeviceId, queryParams.Search, queryParams.SortBy, queryParams.Page, queryParams.Limit)
+		queryLogs, err := s.Service.GetProfileQueryLogs(c.UserContext(), accountId, profileId, queryParams.Status, queryParams.Timespan, queryParams.DeviceId, queryParams.Search, queryParams.SortBy, queryParams.Page, queryParams.Limit)
 		if err != nil {
-			log.Error().Err(err).Msg(ErrFailedToGetQueryLogs.Error())
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogs.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogs.Error())
 		}
 
@@ -72,15 +72,15 @@ func (s *APIServer) downloadProfileQueryLogs() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		accountId := auth.GetAccountID(c)
-		queryLogs, err := s.Service.DownloadProfileQueryLogs(c.Context(), accountId, profileId, 0, 0)
+		queryLogs, err := s.Service.DownloadProfileQueryLogs(c.UserContext(), accountId, profileId, 0, 0)
 		if err != nil {
-			log.Error().Err(err).Msg(ErrFailedToGetQueryLogs.Error())
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogs.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogs.Error())
 		}
 
 		jsonFile, err := json.Marshal(queryLogs)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to marshal query logs")
+			log.Ctx(c.UserContext()).Error().Err(err).Msg("Failed to marshal query logs")
 			return HandleError(c, err, "Failed to marshal query logs")
 		}
 		reader := bytes.NewReader(jsonFile)
@@ -104,9 +104,9 @@ func (s *APIServer) deleteProfileQueryLogs() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		accountId := auth.GetAccountID(c)
-		err := s.Service.DeleteProfileQueryLogs(c.Context(), accountId, profileId)
+		err := s.Service.DeleteProfileQueryLogs(c.UserContext(), accountId, profileId)
 		if err != nil {
-			log.Error().Err(err).Msg(ErrFailedToDeleteQueryLogs.Error())
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToDeleteQueryLogs.Error())
 			return HandleError(c, err, ErrFailedToDeleteQueryLogs.Error())
 		}
 
