@@ -104,12 +104,11 @@ func (m *Mailer) sendBasic(ctx context.Context, toEmail, subject, plainContent, 
 	to := mail.NewEmail("User", toEmail)
 	message := mail.NewSingleEmail(from, subject, to, plainContent, htmlContent)
 	res, err := m.client.Send(message)
-	log.Debug().Str("sendgrid_response", logging.RedactEmails(res.Body)).Msg("SendGrid: request sent")
 	if err != nil {
 		return err
 	}
 	if res.StatusCode >= 400 {
-		log.Error().Int("status", res.StatusCode).Msg("SendGrid: failed to send basic email")
+		log.Error().Int("status", res.StatusCode).Str("body", logging.RedactEmails(res.Body)).Msg("SendGrid: failed to send basic email")
 		return ErrFailedToSendEmail
 	}
 	log.Info().Str("subject", subject).Msg("SendGrid: basic email sent")
