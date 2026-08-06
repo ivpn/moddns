@@ -91,6 +91,8 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		PerProfileEnabled: serverConfig.RateLimit.PerProfileEnabled,
 		PerProfileRate:    serverConfig.RateLimit.PerProfileRate,
 		PerProfileBurst:   serverConfig.RateLimit.PerProfileBurst,
+		MaxBuckets:        serverConfig.RateLimit.MaxBuckets,
+		IPv6PrefixLen:     serverConfig.RateLimit.IPv6PrefixLen,
 	}, metrics.NewRateLimitMetrics(prometheus.DefaultRegisterer))
 
 	server := &Server{
@@ -185,17 +187,6 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		systemLogger.Warn().Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return errProfileIdNotProvided
 	} else {
-		// Layer 2: per-profile rate limit (after profile extraction, before Redis).
-		if !s.RateLimiter.CheckProfile(profileId, string(dctx.Proto)) {
-			if s.Config.RateLimit.PerProfileResponse == config.RateLimitResponseRefuse {
-				return &proxy.BeforeRequestError{
-					Err:      errRateLimitedProfile,
-					Response: s.refusedResponse(dctx.Req),
-				}
-			}
-			return errRateLimitedProfile
-		}
-
 		// Try in-memory profile settings cache first.
 		var settings *model.ProfileSettings
 		if cached, ok := s.ProfileSettingsCache.Get(profileId); ok {
@@ -220,6 +211,18 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		if settings.PrivacyErr != nil {
 			systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
 			return errProfileIdNotFound
+		}
+
+		// Layer 2: per-profile rate limit. Runs after the existence check so
+		// buckets are only created for profiles that exist.
+		if !s.RateLimiter.CheckProfile(profileId, string(dctx.Proto)) {
+			if s.Config.RateLimit.PerProfileResponse == config.RateLimitResponseRefuse {
+				return &proxy.BeforeRequestError{
+					Err:      errRateLimitedProfile,
+					Response: s.refusedResponse(dctx.Req),
+				}
+			}
+			return errRateLimitedProfile
 		}
 		prvSettings := settings.Privacy
 
