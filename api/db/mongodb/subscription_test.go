@@ -119,7 +119,6 @@ func (s *SubscriptionRepositorySuite) seedSub(tier string, activeUntil, updatedA
 		Tier:             tier,
 		ActiveUntil:      activeUntil,
 		UpdatedAt:        updatedAt,
-		IsActive:         true,
 		Notified:         notified,
 		NotifiedInactive: notifiedPD,
 	}
@@ -276,7 +275,6 @@ func (s *SubscriptionRepositorySuite) TestFindDuplicateTokenHashGroups() {
 			Tier:                "IVPN Tier 2",
 			ActiveUntil:         now.Add(30 * 24 * time.Hour),
 			UpdatedAt:           now,
-			IsActive:            true,
 			TokenHash:           tokenHash,
 			DeletionScheduledAt: deletionScheduled,
 		}

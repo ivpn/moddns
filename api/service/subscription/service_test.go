@@ -49,7 +49,6 @@ func newPreauthServer(t *testing.T, token string) *httptest.Server {
 		preauth := model.Preauth{
 			ID:          "preauth-id-1",
 			TokenHash:   tokenHashStr,
-			IsActive:    true,
 			ActiveUntil: time.Now().Add(24 * time.Hour).UTC(),
 			Tier:        "IVPN Tier 2",
 		}
@@ -214,7 +213,6 @@ func TestUpdateSubscriptionFromPASession_ClearsLegacyType(t *testing.T) {
 		preauth := model.Preauth{
 			ID:          preauthID,
 			TokenHash:   tokenHashStr,
-			IsActive:    true,
 			ActiveUntil: activeUntil,
 			Tier:        "IVPN Tier 2",
 		}

@@ -109,7 +109,6 @@ func (s *SubscriptionService) CreateSubscriptionFromPreauth(ctx context.Context,
 		ID:          uuid.New(),
 		AccountID:   accOID,
 		ActiveUntil: preauth.ActiveUntil,
-		IsActive:    preauth.IsActive,
 		Tier:        preauth.Tier,
 		TokenHash:   preauth.TokenHash,
 		UpdatedAt:   time.Now(),
@@ -195,7 +194,6 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 	}
 
 	sub.ActiveUntil = preauth.ActiveUntil
-	sub.IsActive = preauth.IsActive
 	sub.Tier = preauth.Tier
 	sub.TokenHash = preauth.TokenHash
 	sub.UpdatedAt = time.Now()
