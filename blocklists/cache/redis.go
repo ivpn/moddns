@@ -44,7 +44,6 @@ func NewRedisCache(cfg *cache.Config) (*RedisCache, error) {
 func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error {
 	blocklistName := fmt.Sprintf("blocklist:%s", blocklistId)
 	tempBlocklistName := fmt.Sprintf("%s_temp", blocklistName)
-	oldBlocklistName := fmt.Sprintf("%s_old", blocklistName)
 
 	// Step 1: Populate the temp set with new data, flushing in bounded batches.
 	pipe := c.client.Pipeline()
@@ -84,54 +83,36 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 		}
 	}
 
-	// Step 2: Atomically swap the populated temp set into place. A pipeline is
-	// not a transaction, so this is kept separate from population; the only
-	// atomic unit that matters is each individual RENAME.
-	swap := c.client.Pipeline()
-	// If the original blocklist exists, rename it to _old
-	renameNXCmd := swap.RenameNX(ctx, blocklistName, oldBlocklistName)
-	// Rename temp set to the main blocklist name
-	swap.Rename(ctx, tempBlocklistName, blocklistName)
-	// Step 3: Delete the old set
-	swap.Del(ctx, oldBlocklistName)
-
-	// Commit the swap commands in the pipeline
-	cmds, err := swap.Exec(ctx)
-	if err != nil {
-		// Check if the only error is "ERR no such key" from RENAME or RENAME_NX
-		ignore := false
-		for _, cmd := range cmds {
-			if cmd.Err() != nil {
-				// Only ignore "ERR no such key" from RENAME/RENAME_NX
-				if strings.Contains(cmd.Err().Error(), "no such key") {
-					// If this is the RENAME_NX command, we can ignore it
-					if cmd == renameNXCmd {
-						ignore = true
-						continue
-					}
-				}
-				// If it's any other error, or from another command, do not ignore
-				log.Err(cmd.Err()).Str("component", "cache").Msg("Cache: pipeline command error")
-				return cmd.Err()
-			}
-		}
-		// If all errors were ignorable, treat as success
-		if ignore {
-			log.Debug().
-				Str("component", "cache").
-				Str("blocklist_key", blocklistName).
-				Msg("Created/updated blocklist with atomic swap (ignored 'no such key' error)")
-			return nil
-		}
-		// Otherwise, return the pipeline error
-		log.Err(err).Str("component", "cache").Msg("Cache: pipeline execution failed")
+	// Step 2: Atomically swap the populated temp set into place.
+	if err := c.swapBlocklist(ctx, tempBlocklistName, blocklistName); err != nil {
 		return err
 	}
 
 	log.Debug().
 		Str("component", "cache").
 		Str("blocklist_key", blocklistName).
-		Msgf("Created/updated blocklist with atomic swap using temp and old sets")
+		Msg("Created/updated blocklist with atomic swap")
+	return nil
+}
+
+// swapBlocklist promotes the populated temp set to the live blocklist key.
+// A single RENAME atomically replaces the destination key, so no MULTI/EXEC
+// is needed — and would not help anyway: Redis transactions do not abort on
+// runtime errors, so a multi-step swap could still drop the live set if the
+// temp key is missing (e.g. lost to a Sentinel failover between population
+// and swap). If the temp key is gone the RENAME fails and the live set is
+// left untouched.
+func (c *RedisCache) swapBlocklist(ctx context.Context, tempName, liveName string) error {
+	// Best-effort removal of an _old key orphaned by an interrupted swap of a
+	// previous code version, which staged the live set under this name.
+	if err := c.client.Unlink(ctx, fmt.Sprintf("%s_old", liveName)).Err(); err != nil {
+		log.Debug().Err(err).Str("component", "cache").Msg("Cache: failed to unlink orphaned _old key")
+	}
+
+	if err := c.client.Rename(ctx, tempName, liveName).Err(); err != nil {
+		log.Err(err).Str("component", "cache").Str("blocklist_key", liveName).Msg("Cache: blocklist swap failed")
+		return err
+	}
 	return nil
 }
 
