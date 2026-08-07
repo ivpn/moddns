@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/dislock"
 )
 
 const CacheTypeRedis = "redis"
@@ -15,6 +16,9 @@ type Cache interface {
 	DeleteBlocklist(ctx context.Context, blocklistId string) error
 	// Ping reports whether the cache backend is reachable (used for readiness).
 	Ping(ctx context.Context) error
+	// Locker returns a distributed locker sharing the cache's backend, so
+	// instances writing the same data coordinate through the same store.
+	Locker(prefix string) *dislock.Locker
 }
 
 // NewCache creates a new BlocklistCache instance

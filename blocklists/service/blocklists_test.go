@@ -13,6 +13,7 @@ import (
 	"github.com/ivpn/dns/blocklists/internal/extractor"
 	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
+	"github.com/ivpn/dns/libs/dislock"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -183,6 +184,9 @@ func (f *fakeCache) DeleteBlocklist(_ context.Context, blocklistId string) error
 	return nil
 }
 func (f *fakeCache) Ping(_ context.Context) error { return nil }
+func (f *fakeCache) Locker(_ string) *dislock.Locker {
+	return nil
+}
 
 func metaFor(ids ...string) []model.BlocklistMetadata {
 	out := make([]model.BlocklistMetadata, 0, len(ids))
