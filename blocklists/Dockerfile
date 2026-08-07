@@ -18,9 +18,11 @@ RUN go mod verify
 COPY blocklists/ .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/blocklists .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
 
 FROM scratch AS run
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /app/blocklists /bin/blocklists
+COPY --from=build /app/healthcheck /bin/healthcheck
 ENTRYPOINT ["/bin/blocklists"]
