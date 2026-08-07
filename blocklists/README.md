@@ -30,12 +30,29 @@ sources/**.json  ──ReadSources──►  per-source cron schedule (@hourly)
         │                  BLOCKLIST_SHRINK_THRESHOLD vs the previous run
         ▼
    publish (the SAME validated set to both stores):
-     • Redis  ── temp set built via SADD (5000/chunk), then atomic RENAME swap
+     • Redis  ── per-run staging set built via SADD (5000/chunk, 30m TTL),
+                 then atomic RENAME+PERSIST swap
      • Mongo  ── content chunked at 100k domains/doc + metadata upsert
+                 (stamped with updated_at, the freshness signal below)
 ```
 
 On a rejected/failed update, the previously published Redis and Mongo data are
 left untouched.
+
+### Multi-instance coordination
+
+The service runs on **every DCN node**; all instances share the same Redis
+master and MongoDB. There is no designated primary — every instance runs the
+identical per-source schedules, and per-source distributed locks
+(`blocklists:lock:source:<id>`, `libs/dislock`) pick one winner per tick; the
+losers skip with reason `lock_held`. A freshness backstop skips any source
+published within half its schedule interval (`updated_at`), so startup is a
+catch-up, not a full re-download: on a healthy cluster a restarting instance
+downloads nothing, and after an outage the next instance refreshes exactly
+what went stale. Failover needs no takeover protocol — a dead node simply
+stops winning locks. The stale purge runs under its own lock and refuses to
+delete more than `UPDATER_MAX_STALE_PURGE` lists at once (drift guard). See
+`docs/specs/blocklists-processing-behaviour.md` Sections F, G10–G13, H5–H6.
 
 ## Sources
 
@@ -99,12 +116,19 @@ All metrics are labelled by `source` (the `blocklist_id`).
 | `blocklists_last_success_timestamp_seconds` | Gauge | `source` | Unix time of the last successful update |
 | `blocklists_download_bytes` | Gauge | `source` | Bytes downloaded in the last update |
 | `blocklists_validation_rejected_total` | Counter | `source`, `reason` (`empty`/`shrink`/`scan_error`/`truncated`) | Swaps rejected by the validation gate |
+| `blocklists_refresh_skipped_total` | Counter | `source`, `reason` (`fresh`/`lock_held`) | Refreshes skipped without downloading — the normal steady state on a multi-instance deployment |
+| `blocklists_lock_errors_total` | Counter | `source` | Lock acquisitions failed on a Redis error (not contention); the affected tick is skipped |
 
 **Recommended alerts:**
 
-- *Stale list* — `time() - blocklists_last_success_timestamp_seconds` exceeds a
-  threshold (e.g. a few hours). This is the primary signal for a wedged updater,
-  important because the service is a singleton writer.
+- *Stale list* — `time() - max by (source) (blocklists_last_success_timestamp_seconds)`
+  exceeds a threshold (e.g. a few hours). This is the primary signal for a wedged
+  updater. The `max by (source)` across instances is required: each instance's gauge
+  only advances on the ticks it wins, so a single instance's series going stale is
+  normal, but the cluster-wide maximum going stale means nobody is updating.
+- *Silent lock failures* — `rate(blocklists_lock_errors_total[1h]) > 0` means
+  refreshes are being skipped because the lock cannot be acquired (Redis
+  trouble), which the stale-list alert would otherwise surface only hours later.
 - *Repeated rejections* — `rate(blocklists_validation_rejected_total[1h]) > 0`,
   especially `reason="empty"`/`"shrink"`/`"truncated"`, indicates a bad or
   changed upstream.
@@ -152,6 +176,8 @@ All configuration is via environment variables.
 | `UPDATER_TYPE` | `standard` | updater implementation |
 | `UPDATER_SOURCES_DIR` | — | directory of source JSON files |
 | `BLOCKLIST_SHRINK_THRESHOLD` | `0.5` | max fraction a list may shrink before the swap is rejected (clamped to `[0,1]`) |
+| `UPDATER_MIN_SOURCES` | `1` | minimum parsed sources for startup and stale purging to proceed; set near the real source count so a partial `/sources` mount crash-loops instead of purging |
+| `UPDATER_MAX_STALE_PURGE` | `5` | max stale lists one purge run may delete; larger stale sets are treated as config drift and refused |
 
 **Metrics / observability**
 
