@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	github.com/AfterShip/email-verifier v1.4.0
-	github.com/alicebob/miniredis/v2 v2.37.0
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/fiber v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
