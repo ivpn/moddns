@@ -7,6 +7,7 @@ require (
 	github.com/AdguardTeam/golibs v0.35.2
 	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/getsentry/sentry-go/zerolog v0.31.1
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/ivpn/dns/libs v0.0.0
 	github.com/miekg/dns v1.1.68
 	github.com/oschwald/geoip2-golang v1.13.0

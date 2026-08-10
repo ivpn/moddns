@@ -49,6 +49,16 @@ func BenchmarkCheckIP_ManyIPs(b *testing.B) {
 	}
 }
 
+// BenchmarkCheckProfile_Churn exercises the store-full eviction path with a
+// distinct key per iteration.
+func BenchmarkCheckProfile_Churn(b *testing.B) {
+	rl := benchLimiter()
+	b.ResetTimer()
+	for i := range b.N {
+		rl.CheckProfile(fmt.Sprintf("profile-%d", i), "tls")
+	}
+}
+
 func BenchmarkCheckIP_Parallel(b *testing.B) {
 	rl := benchLimiter()
 	addr := netip.MustParseAddr("192.0.2.1")

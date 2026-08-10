@@ -175,3 +175,57 @@ func TestCheckIP_ManyIPs(t *testing.T) {
 		assert.True(t, rl.CheckIP(addr, "udp"))
 	}
 }
+
+func TestMaxBucketsEvictsOldest(t *testing.T) {
+	rl, _ := newTestLimiter(Config{PerProfileEnabled: true, PerProfileRate: 1, PerProfileBurst: 1, MaxBuckets: 3})
+
+	// prof1's single token is consumed; a second call would be rejected.
+	assert.True(t, rl.CheckProfile("prof1", "udp"))
+
+	// Fill the store past its cap; prof1 is the least recently used entry.
+	assert.True(t, rl.CheckProfile("prof2", "udp"))
+	assert.True(t, rl.CheckProfile("prof3", "udp"))
+	assert.True(t, rl.CheckProfile("prof4", "udp"))
+
+	// prof1 was evicted, so it gets a fresh bucket and passes again.
+	assert.True(t, rl.CheckProfile("prof1", "udp"))
+
+	// prof3 and prof4 are still tracked: their tokens are spent.
+	assert.False(t, rl.CheckProfile("prof3", "udp"))
+	assert.False(t, rl.CheckProfile("prof4", "udp"))
+}
+
+func TestCheckIP_IPv6SamePrefixSharesBucket(t *testing.T) {
+	rl, m := newTestLimiter(Config{PerIPEnabled: true, PerIPRate: 3, PerIPBurst: 3})
+
+	// Three addresses within the same /64 draw from one bucket.
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:1::1"), "udp"))
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:1::2"), "udp"))
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:1:ffff::3"), "udp"))
+	assert.False(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:1::4"), "udp"))
+	assert.Equal(t, 1, m.count("ip", "udp"))
+
+	// A different /64 is unaffected.
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:2::1"), "udp"))
+}
+
+func TestCheckIP_IPv6PrefixLenConfigurable(t *testing.T) {
+	rl, _ := newTestLimiter(Config{PerIPEnabled: true, PerIPRate: 1, PerIPBurst: 1, IPv6PrefixLen: 56})
+
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:100::1"), "udp"))
+	// Same /56, different /64: shares the bucket.
+	assert.False(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:1ff::1"), "udp"))
+	// Different /56: own bucket.
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("2001:db8:1:200::1"), "udp"))
+}
+
+func TestCheckIP_IPv4MappedTreatedAsIPv4(t *testing.T) {
+	rl, _ := newTestLimiter(Config{PerIPEnabled: true, PerIPRate: 1, PerIPBurst: 1})
+
+	// A 4-mapped-6 address shares its bucket with the plain IPv4 form.
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("::ffff:192.0.2.1"), "udp"))
+	assert.False(t, rl.CheckIP(netip.MustParseAddr("192.0.2.1"), "udp"))
+
+	// Other IPv4 addresses keep independent buckets.
+	assert.True(t, rl.CheckIP(netip.MustParseAddr("192.0.2.2"), "udp"))
+}

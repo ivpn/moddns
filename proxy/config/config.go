@@ -71,6 +71,8 @@ type RateLimitConfig struct {
 	PerProfileRate     int
 	PerProfileBurst    int
 	PerProfileResponse string // "drop" or "refuse" (default)
+	MaxBuckets         int    // cap per bucket store
+	IPv6PrefixLen      int    // prefix length IPv6 clients are grouped by
 }
 
 // MetricsConfig holds Prometheus metrics server settings.
@@ -451,6 +453,8 @@ func loadRateLimitConfig() *RateLimitConfig {
 		PerProfileRate:     600,
 		PerProfileBurst:    1000,
 		PerProfileResponse: RateLimitResponseRefuse,
+		MaxBuckets:         100_000,
+		IPv6PrefixLen:      64,
 	}
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RATELIMIT_PER_IP_RESPONSE"))); v == RateLimitResponseDrop || v == RateLimitResponseRefuse {
 		cfg.PerIPResponse = v
@@ -469,6 +473,12 @@ func loadRateLimitConfig() *RateLimitConfig {
 	}
 	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_PROFILE_BURST")); err == nil && v > 0 {
 		cfg.PerProfileBurst = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_MAX_BUCKETS")); err == nil && v > 0 {
+		cfg.MaxBuckets = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_IPV6_PREFIX")); err == nil && v >= 1 && v <= 128 {
+		cfg.IPv6PrefixLen = v
 	}
 	return cfg
 }
