@@ -115,7 +115,7 @@ func (u *StandardUpdater) Setup(source model.BlocklistMetadata, blocklistFunc fu
 
 			log.Info().
 				Str("source", source.Name).
-				Dur("duration", time.Duration(time.Since(start).Milliseconds())).
+				Dur("duration", time.Since(start)).
 				Int("entries", meta.Entries).
 				Msg("Blocklist refresh complete")
 		}),
