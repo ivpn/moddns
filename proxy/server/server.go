@@ -63,6 +63,7 @@ var _ RequestManager = (*Server)(nil)
 var (
 	errProfileIdNotProvided = errors.New("profile_id not provided")
 	errProfileIdNotFound    = errors.New("profile_id not found")
+	errInvalidQuestion      = errors.New("invalid question section")
 	errRateLimitedIP        = errors.New("rate limited by IP")
 	errRateLimitedProfile   = errors.New("rate limited by profile")
 )
@@ -171,6 +172,18 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			}
 		}
 		return errRateLimitedIP
+	}
+
+	// QDCOUNT (RFC 1035 §4.1.1) is a header field not validated against the body,
+	// so a message can unpack cleanly with an empty question section. Exactly one
+	// question is required for opcode QUERY (RFC 9619); QDCOUNT=0 is only valid
+	// for DNS Cookies (RFC 7873 §5.4), which this proxy does not implement.
+	// Answer FORMERR either way.
+	if len(dctx.Req.Question) != 1 {
+		return &proxy.BeforeRequestError{
+			Err:      errInvalidQuestion,
+			Response: s.formErrResponse(dctx.Req),
+		}
 	}
 
 	profileId, deviceId, err := s.clientIDFromDNSContext(dctx)
@@ -544,6 +557,13 @@ func (s *Server) buildDNSCheckResponse(origReq *dns.Msg, upstream *dns.Msg) *dns
 func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetRcode(req, dns.RcodeRefused)
+	return resp
+}
+
+// formErrResponse builds a minimal DNS FORMERR response for the given request.
+func (s *Server) formErrResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeFormatError)
 	return resp
 }
 
