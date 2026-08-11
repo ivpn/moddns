@@ -133,8 +133,9 @@ func TestRequestContextCacheMiss(t *testing.T) {
 	profileIDCache, err := NewBigcache(cacheCfg)
 	require.NoError(t, err)
 
-	// Try to get a non-existent request context
+	// A miss must be a distinguishable error, never (nil, nil): callers
+	// dereference the returned context after an err-only check.
 	retrievedCtx, err := profileIDCache.GetRequestCtx("non-existent-request")
-	assert.NoError(t, err, "Cache miss should not return an error")
+	assert.ErrorIs(t, err, ErrRequestCtxNotFound, "Cache miss should return the sentinel error")
 	assert.Nil(t, retrievedCtx, "Non-existent request context should return nil")
 }

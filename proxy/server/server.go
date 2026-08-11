@@ -338,10 +338,11 @@ func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (
 	return func(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
 		defer sentry.Recover()
 		reqCtx, err := s.InMemoryCache.GetRequestCtx(strconv.FormatUint(dctx.RequestID, 10))
-		if err != nil {
-			// Use system logger if we can't get the request context
-			systemLogger := s.LoggerFactory.ForSystem()
-			systemLogger.Err(err).Msg("Failed to get request context")
+		if err != nil || reqCtx == nil {
+			// Without the context the query cannot be filtered: fail closed.
+			s.LoggerFactory.ForSystem().Err(err).Msg("Failed to get request context")
+			dctx.Res = s.servFailResponse(dctx.Req)
+			return nil
 		}
 
 		// Use the contextual logger from the request context
@@ -426,29 +427,23 @@ func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
 
 		// get DNS request context from cache containing filtering results
 		reqCtx, ctxErr := s.InMemoryCache.GetRequestCtx(strconv.FormatUint(dctx.RequestID, 10) + "_response")
-
-		// Use system logger if we can't get request context, otherwise use contextual logger
-		// TODO: check if necessary
-		var logger logging.LoggerInterface
-		if ctxErr != nil {
-			logger = s.LoggerFactory.ForSystem()
-			logger.Err(ctxErr).Msg("Failed to get request context")
-		} else {
-			logger = reqCtx.Logger
+		if ctxErr != nil || reqCtx == nil {
+			// The resolved answer has not passed IP-phase filtering: fail closed.
+			systemLogger := s.LoggerFactory.ForSystem()
+			systemLogger.Err(ctxErr).Msg("Failed to get request context")
+			if err != nil {
+				systemLogger.Err(err).Msg("DNS resolving error")
+			}
+			dctx.Res = s.servFailResponse(dctx.Req)
+			return
 		}
 
 		if err != nil {
-			logger.Err(err).Msg("DNS resolving error")
-			if ctxErr == nil {
-				reqCtx.UpstreamErr = err
-			}
+			reqCtx.Logger.Err(err).Msg("DNS resolving error")
+			reqCtx.UpstreamErr = err
 		}
 
-		// Only continue if we have a valid request context
-		if ctxErr == nil {
-			s.postResolve(reqCtx, dctx)
-		}
-
+		s.postResolve(reqCtx, dctx)
 	}
 }
 
@@ -557,6 +552,13 @@ func (s *Server) buildDNSCheckResponse(origReq *dns.Msg, upstream *dns.Msg) *dns
 func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetRcode(req, dns.RcodeRefused)
+	return resp
+}
+
+// servFailResponse builds a minimal DNS SERVFAIL response for the given request.
+func (s *Server) servFailResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeServerFailure)
 	return resp
 }
 

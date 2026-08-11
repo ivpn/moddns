@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	// TODO: this value should be similar to DNS query timeout value
-	ProfileIdExpirationTime = 10 * time.Second
+	// Must stay strictly greater than dnsproxy's upstream timeout (defaultTimeout,
+	// 10s): a slow upstream otherwise races the entry's expiry and the response
+	// handler loses its request context.
+	ProfileIdExpirationTime = 15 * time.Second
 	StatsLoggingInterval    = 10 * time.Minute
 )
 
@@ -55,8 +57,7 @@ func (c *ProfileIDCache) GetRequestCtx(requestId string) (*requestcontext.Reques
 	entry, err := c.cache.Get(reqKey)
 	if err != nil {
 		if err == bigcache.ErrEntryNotFound {
-			log.Warn().Msg("in-app memory cache miss")
-			return nil, nil
+			return nil, ErrRequestCtxNotFound
 		}
 		return nil, err
 	}
