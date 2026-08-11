@@ -47,9 +47,13 @@ func scheduleInterval(spec string) time.Duration {
 }
 
 // isFresh reports whether the source's published metadata is newer than
-// freshnessFraction of its schedule interval. Metadata that cannot be read,
-// is absent, or predates the updated_at field counts as stale, so the refresh
-// proceeds and publishing decides.
+// freshnessFraction of its schedule interval AND its live set is still
+// present in the cache. Metadata that cannot be read, is absent, or predates
+// the updated_at field counts as stale, so the refresh proceeds and
+// publishing decides. The cache existence check runs only when a skip is
+// imminent: fresh metadata cannot prove the published set survived (a cache
+// flush or failed restore would otherwise leave the proxy without the list
+// until the next tick, and a repair-by-restart would skip it too).
 func (s *Service) isFresh(ctx context.Context, src model.BlocklistMetadata) bool {
 	existing, err := s.Store.GetMetadata(ctx, map[string]any{"blocklist_id": src.BlocklistID})
 	if err != nil || len(existing) != 1 {
@@ -60,7 +64,11 @@ func (s *Service) isFresh(ctx context.Context, src model.BlocklistMetadata) bool
 		return false
 	}
 	window := time.Duration(freshnessFraction * float64(scheduleInterval(src.Schedule)))
-	return time.Since(updatedAt) < window
+	if time.Since(updatedAt) >= window {
+		return false
+	}
+	exists, err := s.Cache.BlocklistExists(ctx, src.BlocklistID)
+	return err == nil && exists
 }
 
 // RefreshDue processes the source unless it was published recently. It is the

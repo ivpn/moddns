@@ -166,6 +166,15 @@ func (c *RedisCache) discardStaging(ctx context.Context, stagingName string) {
 	}
 }
 
+// BlocklistExists reports whether the live blocklist set is present in Redis.
+func (c *RedisCache) BlocklistExists(ctx context.Context, blocklistId string) (bool, error) {
+	n, err := c.client.Exists(ctx, fmt.Sprintf("blocklist:%s", blocklistId)).Result()
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // Ping reports whether the Redis backend is reachable.
 func (c *RedisCache) Ping(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()

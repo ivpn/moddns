@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -138,6 +139,56 @@ func TestIsFresh_ZeroUpdatedAtIsStale(t *testing.T) {
 	s, _ := newCoordService(metrics.NoopUpdates{}, nil, []model.BlocklistMetadata{{BlocklistID: "blp_z"}})
 	if s.isFresh(context.Background(), coordSource("blp_z", "0 * * * *", "")) {
 		t.Fatal("zero updated_at must be stale")
+	}
+}
+
+// specRef: #G11 — fresh metadata alone is not enough: if the live cache set is
+// gone (flush, failed restore), the source counts as stale so a boot catch-up
+// or tick republishes it instead of leaving the proxy without the list.
+func TestIsFresh_MissingLiveSetIsStale(t *testing.T) {
+	stored := []model.BlocklistMetadata{{BlocklistID: "blp_lost", UpdatedAt: time.Now().UTC().Add(-5 * time.Minute)}}
+	s, _ := newCoordService(metrics.NoopUpdates{}, nil, stored)
+	s.Cache = &fakeCache{missing: map[string]bool{"blp_lost": true}}
+
+	if s.isFresh(context.Background(), coordSource("blp_lost", "0 * * * *", "")) {
+		t.Fatal("missing live set must be stale despite fresh updated_at")
+	}
+}
+
+// specRef: #G11 — fresh metadata with the live set present still skips.
+func TestIsFresh_PresentLiveSetIsFresh(t *testing.T) {
+	stored := []model.BlocklistMetadata{{BlocklistID: "blp_ok", UpdatedAt: time.Now().UTC().Add(-5 * time.Minute)}}
+	s, _ := newCoordService(metrics.NoopUpdates{}, nil, stored)
+
+	if !s.isFresh(context.Background(), coordSource("blp_ok", "0 * * * *", "")) {
+		t.Fatal("fresh updated_at with live set present must be fresh")
+	}
+}
+
+// specRef: #I11 — a failed old-chunk cleanup fails the whole run: updated_at
+// must not be stamped (no metadata upsert), so any instance retries the
+// source at the next tick and the retry's content snapshot heals the
+// duplicate chunks.
+func TestProcessBlocklist_CleanupFailureAbortsRun(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("ads.example.com\ntracker.example.net\n"))
+	}))
+	t.Cleanup(srv.Close)
+
+	stored := []model.BlocklistMetadata{{BlocklistID: "blp_clean", Entries: 2, UpdatedAt: time.Now().UTC().Add(-2 * time.Hour)}}
+	s, store := newCoordService(metrics.NoopUpdates{}, nil, stored)
+	store.content = []model.BlocklistContent{{BlocklistID: "blp_clean", Part: 1}}
+	store.deleteErr = errors.New("mongo unavailable")
+
+	meta, err := s.RefreshDue(coordSource("blp_clean", "0 * * * *", srv.URL))
+	if err == nil {
+		t.Fatal("expected error when old-chunk cleanup fails")
+	}
+	if meta != nil {
+		t.Fatalf("expected nil metadata on failed run, got %+v", meta)
+	}
+	if len(store.upserted) != 0 {
+		t.Fatalf("metadata must not be upserted on failed cleanup, got %v", store.upserted)
 	}
 }
 

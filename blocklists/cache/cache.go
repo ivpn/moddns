@@ -14,6 +14,10 @@ const CacheTypeRedis = "redis"
 type Cache interface {
 	CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error
 	DeleteBlocklist(ctx context.Context, blocklistId string) error
+	// BlocklistExists reports whether the live set for blocklistId is present
+	// in the cache (used by the freshness check: metadata alone cannot prove
+	// the published data survived, e.g. a cache flush).
+	BlocklistExists(ctx context.Context, blocklistId string) (bool, error)
 	// Ping reports whether the cache backend is reachable (used for readiness).
 	Ping(ctx context.Context) error
 	// Locker returns a distributed locker sharing the cache's backend, so

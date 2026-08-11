@@ -49,7 +49,8 @@ losers skip with reason `lock_held`. A freshness backstop skips any source
 published within half its schedule interval (`updated_at`), so startup is a
 catch-up, not a full re-download: on a healthy cluster a restarting instance
 downloads nothing, and after an outage the next instance refreshes exactly
-what went stale. Failover needs no takeover protocol — a dead node simply
+what went stale. Freshness also requires the live `blocklist:<id>` Redis set
+to exist, so a restart still re-heals lost cache data despite fresh metadata. Failover needs no takeover protocol — a dead node simply
 stops winning locks. The stale purge runs under its own lock and refuses to
 delete more than `UPDATER_MAX_STALE_PURGE` lists at once (drift guard). See
 `docs/specs/blocklists-processing-behaviour.md` Sections F, G10–G13, H5–H6.
