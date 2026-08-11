@@ -249,12 +249,11 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	metadata.Type = model.BlocklistTypePublic
 	metadata.UpdatedAt = time.Now().UTC()
 
-	// Update metadata first
-	if err := s.Store.UpsertMetadata(ctx, metadata); err != nil {
-		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to upsert blocklist metadata")
-		return nil, err
-	}
-	// remove old blocklist contents
+	// Remove old blocklist contents before the metadata upsert: updated_at
+	// asserts the refresh fully completed, so a failed cleanup must fail the
+	// run (and be retried at the next tick, whose content snapshot then sees
+	// both copies and heals the duplication). Redis already serves the new
+	// set at this point, which is fine — it is the live medium.
 	if removeOldContents {
 		existingIDs := make([]primitive.ObjectID, 0)
 		for _, existingBlocklist := range existingBlocklists {
@@ -263,7 +262,13 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		fltr := map[string]any{"_id": existingIDs}
 		if err := s.Store.Delete(ctx, fltr); err != nil {
 			log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to delete old blocklist contents")
+			return nil, err
 		}
+	}
+
+	if err := s.Store.UpsertMetadata(ctx, metadata); err != nil {
+		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to upsert blocklist metadata")
+		return nil, err
 	}
 
 	return &metadata, nil
