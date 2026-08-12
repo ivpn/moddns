@@ -119,6 +119,8 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		TLSConfig:            tlsConfig,
 		TrustedProxies:       netutil.SliceSubnetSet(trustedPrefixes),
 		Ratelimit:            0,
+		MaxGoroutines:        serverConfig.Server.MaxGoroutines,
+		RefuseAny:            true,
 	}
 
 	if serverConfig.DNSCache.Enabled {
