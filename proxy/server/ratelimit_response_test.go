@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/netip"
@@ -21,9 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newRateLimitServer builds a minimal Server for testing HandleBefore rate-limit
-// response modes. The rate limiter is configured with rate=1, burst=1 so the
-// second call for the same key is always rejected.
+// newRateLimitServer builds a minimal Server for testing prepareRequest
+// rate-limit response modes. The rate limiter is configured with rate=1,
+// burst=1 so the second call for the same key is always rejected.
 func newRateLimitServer(ipResponse, profileResponse string) *Server {
 	return &Server{
 		Config: &config.Config{
@@ -47,7 +48,8 @@ func newRateLimitServer(ipResponse, profileResponse string) *Server {
 			PerProfileRate:    1,
 			PerProfileBurst:   1,
 		}, nil),
-		Metrics: noopMetrics{},
+		LoggerFactory: logging.NewDefaultFactory(),
+		Metrics:       noopMetrics{},
 	}
 }
 
@@ -61,50 +63,67 @@ func newDNSContext() *proxy.DNSContext {
 	}
 }
 
-func TestHandleBefore_IPRateLimit_Drop(t *testing.T) {
+func TestPrepareRequest_IPRateLimit_Drop(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseDrop, config.RateLimitResponseRefuse)
 
 	// First request passes (consumes the single token).
-	dctx := newDNSContext()
-	err := s.HandleBefore(nil, dctx)
+	_, _, err := s.prepareRequest(context.Background(), nil, newDNSContext())
 	// Fails on profile/clientID extraction — that's fine, we only care about
 	// IP rate-limit not firing yet.
 	require.NotErrorIs(t, err, errRateLimitedIP)
 
-	// Second request from same IP should be dropped (plain error, no BeforeRequestError).
-	dctx2 := newDNSContext()
-	err = s.HandleBefore(nil, dctx2)
-	require.Error(t, err)
-
-	var befErr *proxy.BeforeRequestError
-	assert.False(t, errors.As(err, &befErr), "drop mode should NOT return BeforeRequestError")
-	assert.ErrorIs(t, err, errRateLimitedIP)
+	// Second request from same IP should be dropped: an error, no response.
+	_, errResp, err := s.prepareRequest(context.Background(), nil, newDNSContext())
+	require.ErrorIs(t, err, errRateLimitedIP)
+	assert.Nil(t, errResp, "drop mode must not build a response")
 }
 
-func TestHandleBefore_IPRateLimit_Refuse(t *testing.T) {
+func TestPrepareRequest_IPRateLimit_Refuse(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseRefuse, config.RateLimitResponseRefuse)
 
 	// Consume the single token.
+	_, _, _ = s.prepareRequest(context.Background(), nil, newDNSContext())
+
+	// Second request should get a REFUSED response and no error.
 	dctx := newDNSContext()
-	_ = s.HandleBefore(nil, dctx)
+	_, errResp, err := s.prepareRequest(context.Background(), nil, dctx)
+	require.NoError(t, err)
+	require.NotNil(t, errResp)
+	assert.Equal(t, dns.RcodeRefused, errResp.Rcode)
+	assert.True(t, errResp.Response, "QR flag must be set")
+}
 
-	// Second request should get a REFUSED response.
-	dctx2 := newDNSContext()
-	err := s.HandleBefore(nil, dctx2)
-	require.Error(t, err)
+// ServeDNS must translate a prepareRequest drop into [proxy.ErrDrop] so the
+// vendor proxy sends nothing, while preserving the cause for logging.
+func TestServeDNS_DropReturnsErrDrop(t *testing.T) {
+	s := newRateLimitServer(config.RateLimitResponseDrop, config.RateLimitResponseRefuse)
 
-	var befErr *proxy.BeforeRequestError
-	require.True(t, errors.As(err, &befErr), "refuse mode should return BeforeRequestError")
-	require.NotNil(t, befErr.Response)
-	assert.Equal(t, dns.RcodeRefused, befErr.Response.Rcode)
-	assert.True(t, befErr.Response.Response, "QR flag must be set")
-	assert.ErrorIs(t, err, errRateLimitedIP)
+	_, _, _ = s.prepareRequest(context.Background(), nil, newDNSContext())
+
+	dctx := newDNSContext()
+	err := s.ServeDNS(context.Background(), nil, dctx)
+	require.ErrorIs(t, err, proxy.ErrDrop)
+	require.ErrorIs(t, err, errRateLimitedIP)
+	assert.Nil(t, dctx.Res, "dropped requests must not carry a response")
+}
+
+// ServeDNS must answer refuse-mode rejections itself and report no error.
+func TestServeDNS_RefuseAnswersRefused(t *testing.T) {
+	s := newRateLimitServer(config.RateLimitResponseRefuse, config.RateLimitResponseRefuse)
+
+	_, _, _ = s.prepareRequest(context.Background(), nil, newDNSContext())
+
+	dctx := newDNSContext()
+	err := s.ServeDNS(context.Background(), nil, dctx)
+	require.NoError(t, err)
+	require.NotNil(t, dctx.Res)
+	assert.Equal(t, dns.RcodeRefused, dctx.Res.Rcode)
 }
 
 // newProfileRateLimitServer builds a Server that reaches the per-profile
 // rate-limit layer: per-IP limiting is disabled and the profile limiter is
 // rate=1, burst=1 so the second call for the same profile is rejected.
-func newProfileRateLimitServer(c *mocks.Cache, mem *mocks.MemoryCache) *Server {
+func newProfileRateLimitServer(c *mocks.Cache) *Server {
 	return &Server{
 		Config: &config.Config{
 			Server:   &config.ServerConfig{},
@@ -117,7 +136,6 @@ func newProfileRateLimitServer(c *mocks.Cache, mem *mocks.MemoryCache) *Server {
 			},
 		},
 		Cache:                c,
-		InMemoryCache:        mem,
 		ProfileSettingsCache: gocache.New(time.Minute, time.Minute),
 		LoggerFactory:        logging.NewDefaultFactory(),
 		RateLimiter: ratelimit.New(ratelimit.Config{
@@ -142,25 +160,24 @@ func newDoHDNSContext(profileID string) *proxy.DNSContext {
 	}
 }
 
-func TestHandleBefore_UnknownProfileNeverProfileRateLimited(t *testing.T) {
+func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 	c := mocks.NewCache(t)
 	c.EXPECT().GetProfileSettingsBatch(mock.Anything, "unknownprofile1").
 		Return(&model.ProfileSettings{PrivacyErr: errors.New("no [privacy] settings found for profile")}, nil)
-	s := newProfileRateLimitServer(c, mocks.NewMemoryCache(t))
+	s := newProfileRateLimitServer(c)
 
 	// Far past the burst of 1: every call must fail on existence, and the
 	// profile rate limiter must never fire for a profile that does not exist.
 	for i := range 5 {
-		err := s.HandleBefore(nil, newDoHDNSContext("unknownprofile1"))
+		_, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext("unknownprofile1"))
 		require.ErrorIs(t, err, errProfileIdNotFound, "call %d", i)
 		require.NotErrorIs(t, err, errRateLimitedProfile, "call %d", i)
+		require.Nil(t, errResp, "call %d", i)
 	}
 }
 
-func TestHandleBefore_ValidProfileRateLimit_Refuse(t *testing.T) {
-	mem := mocks.NewMemoryCache(t)
-	mem.EXPECT().SetRequestCtx(mock.Anything, mock.Anything).Return(nil)
-	s := newProfileRateLimitServer(mocks.NewCache(t), mem)
+func TestPrepareRequest_ValidProfileRateLimit_Refuse(t *testing.T) {
+	s := newProfileRateLimitServer(mocks.NewCache(t))
 
 	fetchErr := errors.New("settings unavailable")
 	s.ProfileSettingsCache.Set("validprofile1", &model.ProfileSettings{
@@ -172,16 +189,16 @@ func TestHandleBefore_ValidProfileRateLimit_Refuse(t *testing.T) {
 	}, gocache.DefaultExpiration)
 
 	// First request consumes the single token.
-	require.NoError(t, s.HandleBefore(nil, newDoHDNSContext("validprofile1")))
+	reqCtx, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext("validprofile1"))
+	require.NoError(t, err)
+	require.Nil(t, errResp)
+	require.NotNil(t, reqCtx)
 
 	// Second request must be refused by the profile layer.
-	err := s.HandleBefore(nil, newDoHDNSContext("validprofile1"))
-	require.ErrorIs(t, err, errRateLimitedProfile)
-
-	var befErr *proxy.BeforeRequestError
-	require.True(t, errors.As(err, &befErr))
-	require.NotNil(t, befErr.Response)
-	assert.Equal(t, dns.RcodeRefused, befErr.Response.Rcode)
+	_, errResp, err = s.prepareRequest(context.Background(), nil, newDoHDNSContext("validprofile1"))
+	require.NoError(t, err)
+	require.NotNil(t, errResp)
+	assert.Equal(t, dns.RcodeRefused, errResp.Rcode)
 }
 
 func TestRefusedResponse(t *testing.T) {

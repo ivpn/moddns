@@ -64,7 +64,7 @@ func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
 		DNSCache: &config.DNSCacheConfig{},
 		TLS:      &config.TLSConfig{CertPaths: []string{certPath}, KeyPaths: []string{keyPath}},
 		PlainDNS: &config.PlainDNSConfig{},
-		DoH:      &config.DoHConfig{},
+		DoH:      &config.DoHConfig{ListenAddr: 443},
 		DoT:      &config.DoTConfig{},
 		DoQ:      &config.DoQConfig{},
 	}
@@ -74,4 +74,39 @@ func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
 
 	assert.Equal(t, uint(1234), conf.MaxGoroutines)
 	assert.True(t, conf.RefuseAny)
+	assert.Same(t, s, conf.RequestHandler)
+
+	// DoH must run with request read/write timeouts; without them idle
+	// keep-alive connections would be held open indefinitely.
+	require.NotNil(t, conf.HTTPConfig)
+	require.Len(t, conf.HTTPConfig.ListenAddresses, 1)
+	assert.EqualValues(t, 443, conf.HTTPConfig.ListenAddresses[0].Port())
+	assert.Equal(t, dohTimeout, conf.HTTPConfig.ReadTimeout)
+	assert.Equal(t, dohTimeout, conf.HTTPConfig.WriteTimeout)
+}
+
+func TestNewProxyConfig_NoDoHListener(t *testing.T) {
+	certPath, keyPath := writeSelfSignedCert(t)
+
+	s := &Server{
+		Upstreams: map[string]*proxy.CustomUpstreamConfig{},
+		edeStore:  &dnssec.EDEStore{},
+	}
+	serverConfig := &config.Config{
+		Server: &config.ServerConfig{},
+		Upstream: &config.UpstreamConfig{
+			Upstreams: map[string]string{"test": "127.0.0.1:5399"},
+			Default:   "test",
+		},
+		DNSCache: &config.DNSCacheConfig{},
+		TLS:      &config.TLSConfig{CertPaths: []string{certPath}, KeyPaths: []string{keyPath}},
+		PlainDNS: &config.PlainDNSConfig{},
+		DoH:      &config.DoHConfig{},
+		DoT:      &config.DoTConfig{},
+		DoQ:      &config.DoQConfig{},
+	}
+
+	conf, err := s.newProxyConfig(serverConfig)
+	require.NoError(t, err)
+	assert.Nil(t, conf.HTTPConfig, "no DoH port configured must not enable the DoH server")
 }

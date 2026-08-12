@@ -14,7 +14,6 @@ import (
 	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/proxy/cache"
-	"github.com/ivpn/dns/proxy/cache/memory"
 	"github.com/ivpn/dns/proxy/collector/channel"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/filter"
@@ -34,12 +33,6 @@ const (
 	ProfileIdAdditionalSectionCode = 0xfeed
 )
 
-type RequestManager interface {
-	HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error)
-	RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (err error)
-	ResponseHandler() func(dctx *proxy.DNSContext, err error)
-}
-
 type Server struct {
 	Config    *config.Config
 	Proxy     *proxy.Proxy // service.Interface
@@ -50,7 +43,6 @@ type Server struct {
 	DomainFilter         filter.Filter
 	IPFilter             filter.Filter
 	Cache                cache.Cache
-	InMemoryCache        memory.MemoryCache
 	ProfileSettingsCache *gocache.Cache
 	CollectorChannels    map[string]channel.CollectorChannel
 	LoggerFactory        logging.FactoryInterface
@@ -58,12 +50,11 @@ type Server struct {
 	Metrics              Metrics
 }
 
-var _ RequestManager = (*Server)(nil)
+var _ proxy.Handler = (*Server)(nil)
 
 var (
 	errProfileIdNotProvided = errors.New("profile_id not provided")
 	errProfileIdNotFound    = errors.New("profile_id not found")
-	errInvalidQuestion      = errors.New("invalid question section")
 	errRateLimitedIP        = errors.New("rate limited by IP")
 	errRateLimitedProfile   = errors.New("rate limited by profile")
 )
@@ -72,11 +63,6 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	cache, err := cache.NewCache(serverConfig.Cache, cache.CacheTypeRedis)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create cache")
-	}
-
-	memoryCache, err := memory.NewCache(serverConfig.Cache, memory.CacheTypeBigCache)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create in memory cache")
 	}
 
 	// Initialize logging factory
@@ -99,7 +85,6 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	server := &Server{
 		Config:               serverConfig,
 		Cache:                cache,
-		InMemoryCache:        memoryCache,
 		ProfileSettingsCache: profileSettingsCache,
 		CollectorChannels:    collectorChannels,
 		Upstreams:            make(map[string]*proxy.CustomUpstreamConfig, 0),
@@ -137,8 +122,27 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	return server, nil
 }
 
+// ServeDNS implements [proxy.Handler]; it is the single entry point for every
+// DNS request. The vendor proxy has already validated the question section
+// (exactly one question) and answered ANY queries before calling it.
+func (s *Server) ServeDNS(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
+	defer sentry.Recover()
+
+	reqCtx, errResp, err := s.prepareRequest(ctx, p, dctx)
+	if err != nil {
+		// No response is sent for dropped requests.
+		return fmt.Errorf("%w: %w", proxy.ErrDrop, err)
+	}
+	if errResp != nil {
+		dctx.Res = errResp
+		return nil
+	}
+
+	s.handleRequest(ctx, dctx, reqCtx)
+	return nil
+}
+
 // postResolve runs IP filtering, emits query logs/statistics, and responds.
-// Called from ResponseHandler (cache miss) and RequestHandler (cache hit).
 func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
 	if reqCtx.FilterResult.Status != model.StatusBlocked {
 		ipStart := time.Now()
@@ -158,37 +162,35 @@ func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.
 	go s.EmitStatistics(reqCtx, dctx)
 }
 
-func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
-	defer sentry.Recover()
-
+// prepareRequest runs everything that must precede filtering: rate limits,
+// request validation, profile extraction and settings lookup. It returns
+// exactly one of: a request context to continue with, a DNS response to answer
+// immediately (errResp), or an error meaning the request must be dropped
+// without a response.
+func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSContext) (reqCtx *requestcontext.RequestContext, errResp *dns.Msg, err error) {
 	s.Metrics.RecordQuery(string(dctx.Proto))
 
 	// Layer 1: per-IP rate limit (before any IO or profile extraction).
 	if !s.RateLimiter.CheckIP(dctx.Addr.Addr(), string(dctx.Proto)) {
 		if s.Config.RateLimit.PerIPResponse == config.RateLimitResponseRefuse {
-			return &proxy.BeforeRequestError{
-				Err:      errRateLimitedIP,
-				Response: s.refusedResponse(dctx.Req),
-			}
+			return nil, s.refusedResponse(dctx.Req), nil
 		}
-		return errRateLimitedIP
+		return nil, nil, errRateLimitedIP
 	}
 
 	// QDCOUNT (RFC 1035 §4.1.1) is a header field not validated against the body,
 	// so a message can unpack cleanly with an empty question section. Exactly one
 	// question is required for opcode QUERY (RFC 9619); QDCOUNT=0 is only valid
 	// for DNS Cookies (RFC 7873 §5.4), which this proxy does not implement.
-	// Answer FORMERR either way.
+	// The vendor proxy already answers FORMERR before invoking the handler;
+	// this guard keeps the invariant when the handler is driven directly.
 	if len(dctx.Req.Question) != 1 {
-		return &proxy.BeforeRequestError{
-			Err:      errInvalidQuestion,
-			Response: s.formErrResponse(dctx.Req),
-		}
+		return nil, s.formErrResponse(dctx.Req), nil
 	}
 
 	profileId, deviceId, err := s.clientIDFromDNSContext(dctx)
 	if err != nil {
-		return fmt.Errorf("getting profile_id: %w", err)
+		return nil, nil, fmt.Errorf("getting profile_id: %w", err)
 	}
 
 	// Create a system logger for initial operations (before we know profile settings)
@@ -198,7 +200,7 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 	if profileId == "" {
 		// drop DNS request if profile_id is not provided
 		systemLogger.Warn().Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
-		return errProfileIdNotProvided
+		return nil, nil, errProfileIdNotProvided
 	} else {
 		// Try in-memory profile settings cache first.
 		var settings *model.ProfileSettings
@@ -209,10 +211,10 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			s.Metrics.RecordProfileCacheLookup(false)
 			// Cache miss — fetch from Redis pipeline.
 			var fetchErr error
-			settings, fetchErr = s.Cache.GetProfileSettingsBatch(context.Background(), profileId)
+			settings, fetchErr = s.Cache.GetProfileSettingsBatch(ctx, profileId)
 			if fetchErr != nil {
 				systemLogger.Err(fetchErr).Msg("Failed to fetch profile settings batch")
-				return errProfileIdNotFound
+				return nil, nil, errProfileIdNotFound
 			}
 			// Cache only successful fetches (profile exists).
 			if settings.PrivacyErr == nil {
@@ -223,19 +225,16 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 		// Privacy settings are required — missing means profile doesn't exist.
 		if settings.PrivacyErr != nil {
 			systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
-			return errProfileIdNotFound
+			return nil, nil, errProfileIdNotFound
 		}
 
 		// Layer 2: per-profile rate limit. Runs after the existence check so
 		// buckets are only created for profiles that exist.
 		if !s.RateLimiter.CheckProfile(profileId, string(dctx.Proto)) {
 			if s.Config.RateLimit.PerProfileResponse == config.RateLimitResponseRefuse {
-				return &proxy.BeforeRequestError{
-					Err:      errRateLimitedProfile,
-					Response: s.refusedResponse(dctx.Req),
-				}
+				return nil, s.refusedResponse(dctx.Req), nil
 			}
-			return errRateLimitedProfile
+			return nil, nil, errRateLimitedProfile
 		}
 		prvSettings := settings.Privacy
 
@@ -282,12 +281,12 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 			dnssecEnabled, err = strconv.ParseBool(dnssecSettings["enabled"])
 			if err != nil {
 				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return errProfileIdNotFound
+				return nil, nil, errProfileIdNotFound
 			}
 			sendDoBit, err = strconv.ParseBool(dnssecSettings["send_do_bit"])
 			if err != nil {
 				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return errProfileIdNotFound
+				return nil, nil, errProfileIdNotFound
 			}
 		}
 
@@ -318,77 +317,49 @@ func (s *Server) HandleBefore(p *proxy.Proxy, dctx *proxy.DNSContext) (err error
 
 		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
-		reqCtx := requestcontext.NewRequestContext(context.Background(), p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
+		reqCtx = requestcontext.NewRequestContext(ctx, p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
 		reqCtx.StartTime = time.Now()
 		reqCtx.UpstreamName = upstreamName
-		// TODO: set TTL for this request context - it's unnecessary to keep it in cache for long time since it's read right away in RequestHandler
-		// TODO: investigate other in-memory cache types
-		if err = s.InMemoryCache.SetRequestCtx(strconv.FormatUint(dctx.RequestID, 10), reqCtx); err != nil {
-			reqLogger.Err(err).Msg("Failed to set request context")
-			return err
-		}
 
 		dnssec.ApplyRequestFlags(dctx.Req, dnssecEnabled, sendDoBit)
 	}
 
-	return nil
+	return reqCtx, nil, nil
 }
 
-func (s *Server) RequestHandler() func(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
-	return func(p *proxy.Proxy, dctx *proxy.DNSContext) (err error) {
-		defer sentry.Recover()
-		reqCtx, err := s.InMemoryCache.GetRequestCtx(strconv.FormatUint(dctx.RequestID, 10))
-		if err != nil || reqCtx == nil {
-			// Without the context the query cannot be filtered: fail closed.
-			s.LoggerFactory.ForSystem().Err(err).Msg("Failed to get request context")
-			dctx.Res = s.servFailResponse(dctx.Req)
-			return nil
-		}
+// handleRequest runs domain filtering, resolves via the profile's upstream
+// when the query is not blocked, and finishes with postResolve for both cache
+// hits and misses.
+func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqCtx *requestcontext.RequestContext) {
+	// Use the contextual logger from the request context
+	reqLogger := reqCtx.Logger
 
-		// Use the contextual logger from the request context
-		reqLogger := reqCtx.Logger
-
-		if s.dnsCheckHandler(dctx, reqCtx.ProfileId, reqLogger) {
-			reqLogger.Debug().Msg("DNS check handler executed")
-			return nil
-		}
-
-		// perform filtering actions
-		domainStart := time.Now()
-		if err = s.DomainFilter.Execute(reqCtx, dctx); err != nil {
-			reqLogger.Err(err).Msg("Filtering error")
-		}
-		s.Metrics.RecordDomainFilterDuration(string(dctx.Proto), time.Since(domainStart))
-		if reqCtx.FilterResult.Status == model.StatusBlocked {
-			s.Metrics.RecordBlocked("domain")
-		}
-
-		if err = s.InMemoryCache.SetRequestCtx(strconv.FormatUint(dctx.RequestID, 10)+"_response", reqCtx); err != nil {
-			reqLogger.Err(err).Msg("Failed to set request context")
-			return err
-		}
-
-		if reqCtx.FilterResult.Status == model.StatusProcessed {
-			reqLogger.Trace().Msg("Triggering default resolver")
-			upstreamStart := time.Now()
-			if err := s.Proxy.Resolve(dctx); err != nil {
-				reqCtx.UpstreamErr = err
-				reqLogger.Err(err).Msg("DNS resolving error")
-			}
-			s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
-			// For cache hits, ResponseHandler is skipped by the vendor.
-			// Run IP filtering, emit logs/stats, and respond manually.
-			if addr, ok := cachedUpstreamAddr(dctx); ok {
-				reqLogger.Trace().Str("cached_upstream", addr).Msg("Cache hit — running postResolve")
-				s.postResolve(reqCtx, dctx)
-			}
-		} else if s.Proxy.ResponseHandler != nil {
-			reqLogger.Trace().Msg("Going to response handler")
-			s.Proxy.ResponseHandler(dctx, err)
-		}
-
-		return nil
+	if s.dnsCheckHandler(dctx, reqCtx.ProfileId, reqLogger) {
+		reqLogger.Debug().Msg("DNS check handler executed")
+		return
 	}
+
+	// perform filtering actions
+	domainStart := time.Now()
+	if err := s.DomainFilter.Execute(reqCtx, dctx); err != nil {
+		reqLogger.Err(err).Msg("Filtering error")
+	}
+	s.Metrics.RecordDomainFilterDuration(string(dctx.Proto), time.Since(domainStart))
+	if reqCtx.FilterResult.Status == model.StatusBlocked {
+		s.Metrics.RecordBlocked("domain")
+	}
+
+	if reqCtx.FilterResult.Status == model.StatusProcessed {
+		reqLogger.Trace().Msg("Triggering default resolver")
+		upstreamStart := time.Now()
+		if err := s.Proxy.Resolve(ctx, dctx); err != nil {
+			reqCtx.UpstreamErr = err
+			reqLogger.Err(err).Msg("DNS resolving error")
+		}
+		s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
+	}
+
+	s.postResolve(reqCtx, dctx)
 }
 
 func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
@@ -419,32 +390,6 @@ func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSC
 	}
 
 	dctx.Res = resp
-}
-
-func (s *Server) ResponseHandler() func(dctx *proxy.DNSContext, err error) {
-	return func(dctx *proxy.DNSContext, err error) {
-		defer sentry.Recover()
-
-		// get DNS request context from cache containing filtering results
-		reqCtx, ctxErr := s.InMemoryCache.GetRequestCtx(strconv.FormatUint(dctx.RequestID, 10) + "_response")
-		if ctxErr != nil || reqCtx == nil {
-			// The resolved answer has not passed IP-phase filtering: fail closed.
-			systemLogger := s.LoggerFactory.ForSystem()
-			systemLogger.Err(ctxErr).Msg("Failed to get request context")
-			if err != nil {
-				systemLogger.Err(err).Msg("DNS resolving error")
-			}
-			dctx.Res = s.servFailResponse(dctx.Req)
-			return
-		}
-
-		if err != nil {
-			reqCtx.Logger.Err(err).Msg("DNS resolving error")
-			reqCtx.UpstreamErr = err
-		}
-
-		s.postResolve(reqCtx, dctx)
-	}
 }
 
 func (s *Server) dnsCheckHandler(dctx *proxy.DNSContext, profileId string, logger logging.LoggerInterface) (executed bool) {
@@ -555,32 +500,9 @@ func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
 	return resp
 }
 
-// servFailResponse builds a minimal DNS SERVFAIL response for the given request.
-func (s *Server) servFailResponse(req *dns.Msg) *dns.Msg {
-	resp := new(dns.Msg)
-	resp.SetRcode(req, dns.RcodeServerFailure)
-	return resp
-}
-
 // formErrResponse builds a minimal DNS FORMERR response for the given request.
 func (s *Server) formErrResponse(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetRcode(req, dns.RcodeFormatError)
 	return resp
-}
-
-// cachedUpstreamAddr returns the upstream address and true if the DNS response
-// was served from the vendor cache. It uses QueryStatistics introduced in
-// dnsproxy v0.78.0 (replacing the removed CachedUpstreamAddr field).
-func cachedUpstreamAddr(dctx *proxy.DNSContext) (string, bool) {
-	stats := dctx.QueryStatistics()
-	if stats == nil {
-		return "", false
-	}
-	for _, s := range stats.Main() {
-		if s.IsCached {
-			return s.Address, true
-		}
-	}
-	return "", false
 }

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"errors"
+	"context"
 	"net/netip"
 	"testing"
 
@@ -15,7 +15,7 @@ import (
 )
 
 // newMalformedTestServer builds a minimal Server with rate limiting disabled so
-// HandleBefore reaches the question-section validation.
+// prepareRequest reaches the question-section validation.
 func newMalformedTestServer() *Server {
 	return &Server{
 		Config: &config.Config{
@@ -28,16 +28,13 @@ func newMalformedTestServer() *Server {
 	}
 }
 
-func requireFormErr(t *testing.T, req *dns.Msg, err error) {
+func requireFormErr(t *testing.T, req *dns.Msg, resp *dns.Msg, err error) {
 	t.Helper()
-	require.Error(t, err)
-
-	var befErr *proxy.BeforeRequestError
-	require.True(t, errors.As(err, &befErr), "expected BeforeRequestError, got %v", err)
-	require.NotNil(t, befErr.Response)
-	assert.Equal(t, dns.RcodeFormatError, befErr.Response.Rcode)
-	assert.True(t, befErr.Response.Response, "QR flag must be set")
-	assert.Equal(t, req.Id, befErr.Response.Id, "response ID must match request")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, dns.RcodeFormatError, resp.Rcode)
+	assert.True(t, resp.Response, "QR flag must be set")
+	assert.Equal(t, req.Id, resp.Id, "response ID must match request")
 }
 
 // A DNS message with no question section must be answered with FORMERR before
@@ -45,9 +42,9 @@ func requireFormErr(t *testing.T, req *dns.Msg, err error) {
 //
 // QDCOUNT (RFC 1035 §4.1.1) is a header field and is not validated against the
 // body, so a header-only message declaring QDCOUNT=1 unpacks with no error and
-// a nil Question slice. The vendor's own question-count check (validateRequest)
-// runs only after HandleBefore, so HandleBefore sees the raw message.
-func TestHandleBefore_EmptyQuestionSection(t *testing.T) {
+// a nil Question slice. The vendor proxy answers FORMERR itself before invoking
+// the handler; prepareRequest keeps the same guard for direct invocation.
+func TestPrepareRequest_EmptyQuestionSection(t *testing.T) {
 	// 12-byte header, QDCOUNT=1, everything else zero. Passes the library's
 	// length and accept checks.
 	wire := []byte{
@@ -77,16 +74,16 @@ func TestHandleBefore_EmptyQuestionSection(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			t.Fatalf("HandleBefore panicked on a question-less message: %v", r)
+			t.Fatalf("prepareRequest panicked on a question-less message: %v", r)
 		}
 	}()
 
-	err := s.HandleBefore(nil, dctx)
-	requireFormErr(t, req, err)
+	_, resp, err := s.prepareRequest(context.Background(), nil, dctx)
+	requireFormErr(t, req, resp, err)
 }
 
 // QDCOUNT > 1 in a QUERY-opcode message must get FORMERR (RFC 9619).
-func TestHandleBefore_MultipleQuestions(t *testing.T) {
+func TestPrepareRequest_MultipleQuestions(t *testing.T) {
 	req := new(dns.Msg)
 	req.SetQuestion(dns.Fqdn("example.com"), dns.TypeA)
 	req.Question = append(req.Question, dns.Question{
@@ -100,6 +97,6 @@ func TestHandleBefore_MultipleQuestions(t *testing.T) {
 		Proto: proxy.ProtoUDP,
 	}
 
-	err := s.HandleBefore(nil, dctx)
-	requireFormErr(t, req, err)
+	_, resp, err := s.prepareRequest(context.Background(), nil, dctx)
+	requireFormErr(t, req, resp, err)
 }

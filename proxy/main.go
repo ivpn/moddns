@@ -11,7 +11,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	sentryzerolog "github.com/getsentry/sentry-go/zerolog"
 	"github.com/ivpn/dns/libs/telemetry"
-	"github.com/ivpn/dns/proxy/cache/memory"
 	"github.com/ivpn/dns/proxy/collector"
 	"github.com/ivpn/dns/proxy/collector/channel"
 	"github.com/ivpn/dns/proxy/config"
@@ -96,20 +95,6 @@ func main() {
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to create server")
 	}
-
-	// log in memory cache stats
-	go safelyRun(func() {
-		ticker := time.NewTicker(memory.StatsLoggingInterval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				server.InMemoryCache.Stats()
-			case <-quit:
-				return
-			}
-		}
-	})
 
 	go safelyRun(func() {
 		_ = queryLogsCollector.Collect()
