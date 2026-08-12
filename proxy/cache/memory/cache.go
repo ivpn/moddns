@@ -11,6 +11,10 @@ const (
 	CacheTypeBigCache = "bigcache"
 )
 
+// ErrRequestCtxNotFound is returned by GetRequestCtx when no entry exists for
+// the request id; a nil error never carries a nil context.
+var ErrRequestCtxNotFound = errors.New("request context not found in cache")
+
 // MemoryCache - interface
 type MemoryCache interface {
 	SetRequestCtx(requestId string, reqCtx *requestcontext.RequestContext) error
