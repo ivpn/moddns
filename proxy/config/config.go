@@ -99,6 +99,7 @@ type ServerConfig struct {
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
+	MaxGoroutines           uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
 }
 
 // ServicesConfig configures ASN-based services blocking.
@@ -381,6 +382,7 @@ func New() (*Config, error) {
 			DnsCheckDomain:          dnsCheckDomain,
 			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
 			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
+			MaxGoroutines:           loadMaxGoroutines(),
 		},
 		Services: &ServicesConfig{
 			CatalogPath:        servicesCatalogPath,
@@ -481,6 +483,18 @@ func loadRateLimitConfig() *RateLimitConfig {
 		cfg.IPv6PrefixLen = v
 	}
 	return cfg
+}
+
+// loadMaxGoroutines reads MAX_GOROUTINES, the cap on concurrent
+// request-processing goroutines in the DNS proxy. "0" disables the cap.
+func loadMaxGoroutines() uint {
+	maxGoroutines := uint(10_000)
+	if v := os.Getenv("MAX_GOROUTINES"); v != "" {
+		if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
+			maxGoroutines = uint(parsed)
+		}
+	}
+	return maxGoroutines
 }
 
 func loadMetricsConfig() *MetricsConfig {
