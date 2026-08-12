@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// specRef: proxy-request-admission-behaviour.md #Q9
 func TestLoadMaxGoroutines(t *testing.T) {
 	tests := []struct {
 		name string

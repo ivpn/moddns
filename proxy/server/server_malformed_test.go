@@ -44,6 +44,7 @@ func requireFormErr(t *testing.T, req *dns.Msg, resp *dns.Msg, err error) {
 // body, so a header-only message declaring QDCOUNT=1 unpacks with no error and
 // a nil Question slice. The vendor proxy answers FORMERR itself before invoking
 // the handler; prepareRequest keeps the same guard for direct invocation.
+// specRef: proxy-request-admission-behaviour.md #Q1
 func TestPrepareRequest_EmptyQuestionSection(t *testing.T) {
 	// 12-byte header, QDCOUNT=1, everything else zero. Passes the library's
 	// length and accept checks.
@@ -83,6 +84,7 @@ func TestPrepareRequest_EmptyQuestionSection(t *testing.T) {
 }
 
 // QDCOUNT > 1 in a QUERY-opcode message must get FORMERR (RFC 9619).
+// specRef: proxy-request-admission-behaviour.md #Q1
 func TestPrepareRequest_MultipleQuestions(t *testing.T) {
 	req := new(dns.Msg)
 	req.SetQuestion(dns.Fqdn("example.com"), dns.TypeA)

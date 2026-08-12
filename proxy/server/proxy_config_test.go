@@ -48,6 +48,7 @@ func writeSelfSignedCert(t *testing.T) (certPath, keyPath string) {
 	return certPath, keyPath
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q2 #Q10
 func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
 	certPath, keyPath := writeSelfSignedCert(t)
 
@@ -85,6 +86,7 @@ func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
 	assert.Equal(t, dohTimeout, conf.HTTPConfig.WriteTimeout)
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q10
 func TestNewProxyConfig_NoDoHListener(t *testing.T) {
 	certPath, keyPath := writeSelfSignedCert(t)
 

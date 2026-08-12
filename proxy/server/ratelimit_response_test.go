@@ -63,6 +63,7 @@ func newDNSContext() *proxy.DNSContext {
 	}
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q3
 func TestPrepareRequest_IPRateLimit_Drop(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseDrop, config.RateLimitResponseRefuse)
 
@@ -78,6 +79,7 @@ func TestPrepareRequest_IPRateLimit_Drop(t *testing.T) {
 	assert.Nil(t, errResp, "drop mode must not build a response")
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q4
 func TestPrepareRequest_IPRateLimit_Refuse(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseRefuse, config.RateLimitResponseRefuse)
 
@@ -95,6 +97,7 @@ func TestPrepareRequest_IPRateLimit_Refuse(t *testing.T) {
 
 // ServeDNS must translate a prepareRequest drop into [proxy.ErrDrop] so the
 // vendor proxy sends nothing, while preserving the cause for logging.
+// specRef: proxy-request-admission-behaviour.md #Q3
 func TestServeDNS_DropReturnsErrDrop(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseDrop, config.RateLimitResponseRefuse)
 
@@ -108,6 +111,7 @@ func TestServeDNS_DropReturnsErrDrop(t *testing.T) {
 }
 
 // ServeDNS must answer refuse-mode rejections itself and report no error.
+// specRef: proxy-request-admission-behaviour.md #Q4
 func TestServeDNS_RefuseAnswersRefused(t *testing.T) {
 	s := newRateLimitServer(config.RateLimitResponseRefuse, config.RateLimitResponseRefuse)
 
@@ -123,7 +127,7 @@ func TestServeDNS_RefuseAnswersRefused(t *testing.T) {
 // newProfileRateLimitServer builds a Server that reaches the per-profile
 // rate-limit layer: per-IP limiting is disabled and the profile limiter is
 // rate=1, burst=1 so the second call for the same profile is rejected.
-func newProfileRateLimitServer(c *mocks.Cache) *Server {
+func newProfileRateLimitServer(c *mocks.Cache, profileResponse string) *Server {
 	return &Server{
 		Config: &config.Config{
 			Server:   &config.ServerConfig{},
@@ -132,7 +136,7 @@ func newProfileRateLimitServer(c *mocks.Cache) *Server {
 				PerProfileEnabled:  true,
 				PerProfileRate:     1,
 				PerProfileBurst:    1,
-				PerProfileResponse: config.RateLimitResponseRefuse,
+				PerProfileResponse: profileResponse,
 			},
 		},
 		Cache:                c,
@@ -160,11 +164,12 @@ func newDoHDNSContext(profileID string) *proxy.DNSContext {
 	}
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q6
 func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 	c := mocks.NewCache(t)
 	c.EXPECT().GetProfileSettingsBatch(mock.Anything, "unknownprofile1").
 		Return(&model.ProfileSettings{PrivacyErr: errors.New("no [privacy] settings found for profile")}, nil)
-	s := newProfileRateLimitServer(c)
+	s := newProfileRateLimitServer(c, config.RateLimitResponseRefuse)
 
 	// Far past the burst of 1: every call must fail on existence, and the
 	// profile rate limiter must never fire for a profile that does not exist.
@@ -176,17 +181,23 @@ func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 	}
 }
 
-func TestPrepareRequest_ValidProfileRateLimit_Refuse(t *testing.T) {
-	s := newProfileRateLimitServer(mocks.NewCache(t))
-
+// seedCachedProfile puts a minimal existing profile into the settings cache so
+// prepareRequest reaches the per-profile rate-limit layer without Redis.
+func seedCachedProfile(s *Server, profileID string) {
 	fetchErr := errors.New("settings unavailable")
-	s.ProfileSettingsCache.Set("validprofile1", &model.ProfileSettings{
+	s.ProfileSettingsCache.Set(profileID, &model.ProfileSettings{
 		Privacy:                map[string]string{},
 		LogsErr:                fetchErr,
 		DNSSECErr:              fetchErr,
 		RebindingProtectionErr: fetchErr,
 		AdvancedErr:            fetchErr,
 	}, gocache.DefaultExpiration)
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q7
+func TestPrepareRequest_ValidProfileRateLimit_Refuse(t *testing.T) {
+	s := newProfileRateLimitServer(mocks.NewCache(t), config.RateLimitResponseRefuse)
+	seedCachedProfile(s, "validprofile1")
 
 	// First request consumes the single token.
 	reqCtx, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext("validprofile1"))
@@ -199,6 +210,22 @@ func TestPrepareRequest_ValidProfileRateLimit_Refuse(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, errResp)
 	assert.Equal(t, dns.RcodeRefused, errResp.Rcode)
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q8
+func TestPrepareRequest_ValidProfileRateLimit_Drop(t *testing.T) {
+	s := newProfileRateLimitServer(mocks.NewCache(t), config.RateLimitResponseDrop)
+	seedCachedProfile(s, "validprofile2")
+
+	// First request consumes the single token.
+	_, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext("validprofile2"))
+	require.NoError(t, err)
+	require.Nil(t, errResp)
+
+	// Second request must be dropped without a response.
+	_, errResp, err = s.prepareRequest(context.Background(), nil, newDoHDNSContext("validprofile2"))
+	require.ErrorIs(t, err, errRateLimitedProfile)
+	assert.Nil(t, errResp, "drop mode must not build a response")
 }
 
 func TestRefusedResponse(t *testing.T) {
