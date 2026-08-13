@@ -547,6 +547,26 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     availableDeviceIds={allAvailableDeviceIds}
                 />
 
+                {/* Sibling of Filters and the list section so the parent's gap-6 spaces it
+                    evenly between the two. empty:hidden collapses the slot (and its gaps)
+                    entirely while nothing is staged; the wrapper stays mounted so the live
+                    region exists before the pill text arrives. */}
+                <div aria-live="polite" className="w-full flex justify-center empty:hidden -mb-3">
+                    {pendingLogs.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleShowPending}
+                            data-testid="logs-new-queries-pill"
+                            className="flex items-center gap-1.5 min-h-11 lg:min-h-9 px-4 py-1.5 rounded-full border border-[var(--tailwind-colors-rdns-600)] bg-[var(--shadcn-ui-app-background)] text-sm text-[var(--tailwind-colors-rdns-600)] cursor-pointer transition-colors hover:bg-[var(--tailwind-colors-rdns-600)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] animate-in fade-in slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none"
+                        >
+                            <ArrowUp className="w-4 h-4" aria-hidden />
+                            {pendingOverflow
+                                ? "100+ new queries"
+                                : `${pendingLogs.length} new ${pendingLogs.length === 1 ? "query" : "queries"}`}
+                        </button>
+                    )}
+                </div>
+
                 <div className="flex flex-col items-start gap-3 md:gap-4 relative flex-1 self-stretch w-full grow min-w-0 overflow-x-hidden">
                     <div className="flex flex-col items-start gap-2 relative flex-1 self-stretch w-full grow rounded-md min-w-0 overflow-x-hidden">
                         {!logsEnabled && (
@@ -589,22 +609,6 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                     </div>
                                 )}
                                 <div className={`flex flex-col gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden transition-opacity duration-200 ease-in-out ${isListFading ? 'opacity-0' : 'opacity-100'}`}>
-                                    {/* Wrapper stays mounted so the live region exists before the pill text arrives. */}
-                                    <div aria-live="polite" className="w-full flex justify-center empty:hidden">
-                                        {pendingLogs.length > 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={handleShowPending}
-                                                data-testid="logs-new-queries-pill"
-                                                className="flex items-center gap-1.5 min-h-11 lg:min-h-9 px-4 py-1.5 rounded-full border border-[var(--tailwind-colors-rdns-600)] bg-[var(--shadcn-ui-app-background)] text-sm text-[var(--tailwind-colors-rdns-600)] cursor-pointer transition-colors hover:bg-[var(--tailwind-colors-rdns-600)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] animate-in fade-in slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none"
-                                            >
-                                                <ArrowUp className="w-4 h-4" aria-hidden />
-                                                {pendingOverflow
-                                                    ? "100+ new queries"
-                                                    : `${pendingLogs.length} new ${pendingLogs.length === 1 ? "query" : "queries"}`}
-                                            </button>
-                                        )}
-                                    </div>
                                     {!expandHintDismissed && logs.length > 0 && (
                                         <div
                                             className="md:hidden flex items-start gap-2 rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent bg-transparent dark:bg-[var(--variable-collection-surface)] px-3 py-2 text-xs text-[var(--tailwind-colors-slate-100)]"
