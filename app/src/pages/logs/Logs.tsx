@@ -557,27 +557,40 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     </div>
                 </section>
 
-                <Filters
-                    searchInputValue={searchInputValue}
-                    onSearchInputChange={setSearchInputValue}
-                    onSearchCommit={commitSearch}
-                    onSearchClear={handleSearchClear}
-                    committedSearchValue={committedSearchValue}
-                    onClearFilters={handleClearFilters}
-                    filterValue={filterValue}
-                    onFilterChange={setFilterValue}
-                    sortValue={sortValue}
-                    onSortChange={setSortValue}
-                    onRefresh={handleRefresh}
-                    timespanValue={timespanValue}
-                    onTimespanChange={setTimespanValue}
-                    refreshIntervalKey={refreshIntervalKey}
-                    onRefreshIntervalChange={handleRefreshIntervalChange}
-                    isRefreshing={manualSpinActive || (loading && page === 1)}
-                    deviceIdValue={deviceIdValue}
-                    onDeviceIdChange={setDeviceIdValue}
-                    availableDeviceIds={allAvailableDeviceIds}
-                />
+                {/* Sticky below the app header on both breakpoints. Uses the FULL header
+                    height var — the reduced --app-header-stack subtracts the desktop
+                    content padding and would tuck the bar under the fixed header. z-40
+                    stays below the header/BottomNav (z-50); Select/dropdown popovers
+                    portal to <body>, unaffected. pb-1/-mb-1 mirrors the filter row's own
+                    p-1/-m-1 focus-ring allowance so content cannot peek through at the
+                    bottom edge while scrolled. */}
+                <div
+                    className="sticky z-40 w-full bg-[var(--shadcn-ui-app-background)] pb-1 -mb-1"
+                    style={{ top: 'var(--app-header-stack-full, 64px)' }}
+                    data-testid="logs-sticky-filters"
+                >
+                    <Filters
+                        searchInputValue={searchInputValue}
+                        onSearchInputChange={setSearchInputValue}
+                        onSearchCommit={commitSearch}
+                        onSearchClear={handleSearchClear}
+                        committedSearchValue={committedSearchValue}
+                        onClearFilters={handleClearFilters}
+                        filterValue={filterValue}
+                        onFilterChange={setFilterValue}
+                        sortValue={sortValue}
+                        onSortChange={setSortValue}
+                        onRefresh={handleRefresh}
+                        timespanValue={timespanValue}
+                        onTimespanChange={setTimespanValue}
+                        refreshIntervalKey={refreshIntervalKey}
+                        onRefreshIntervalChange={handleRefreshIntervalChange}
+                        isRefreshing={manualSpinActive || (loading && page === 1)}
+                        deviceIdValue={deviceIdValue}
+                        onDeviceIdChange={setDeviceIdValue}
+                        availableDeviceIds={allAvailableDeviceIds}
+                    />
+                </div>
 
                 {/* Sibling of Filters and the list section so the parent's gap-6 spaces it
                     evenly between the two. empty:hidden collapses the slot (and its gaps)
