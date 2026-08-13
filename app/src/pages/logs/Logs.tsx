@@ -242,6 +242,35 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setCommittedSearchValue(prev => prev === searchInputValue ? prev : searchInputValue);
     }, [searchInputValue]);
 
+    // Debounce-commit: the search applies 500ms after typing stops. Enter still commits
+    // immediately (Filters calls commitSearch directly); its equality guard turns the
+    // trailing debounce into a no-op afterwards.
+    useEffect(() => {
+        const timer = setTimeout(commitSearch, 500);
+        return () => clearTimeout(timer);
+    }, [searchInputValue, commitSearch]);
+
+    // Not routed through commitSearch — it closes over the pre-clear input value.
+    const handleSearchClear = useCallback(() => {
+        setSearchInputValue("");
+        setCommittedSearchValue("");
+    }, []);
+
+    const hasNonDefaultFilters =
+        filterValue !== "all" ||
+        deviceIdValue !== undefined ||
+        sortValue !== "created" ||
+        (timespanValue !== undefined && timespanValue !== "all");
+
+    const handleClearFilters = useCallback(() => {
+        setFilterValue("all");
+        setSortValue("created");
+        setTimespanValue(undefined);
+        setDeviceIdValue(undefined);
+        setSearchInputValue("");
+        setCommittedSearchValue("");
+    }, []);
+
     const toggleCardExpanded = useCallback((identity: string) => {
         setExpandedKeys(prev => {
             const next = new Set(prev);
@@ -532,6 +561,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     searchInputValue={searchInputValue}
                     onSearchInputChange={setSearchInputValue}
                     onSearchCommit={commitSearch}
+                    onSearchClear={handleSearchClear}
+                    committedSearchValue={committedSearchValue}
+                    onClearFilters={handleClearFilters}
                     filterValue={filterValue}
                     onFilterChange={setFilterValue}
                     sortValue={sortValue}
@@ -582,7 +614,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                             <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent" data-testid="logs-empty-state">
                                 <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
                                     <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
-                                        <NoLogs isSearchActive={committedSearchValue.trim().length > 0} />
+                                        <NoLogs
+                                            isSearchActive={committedSearchValue.trim().length > 0}
+                                            hasActiveFilters={hasNonDefaultFilters}
+                                            onClearFilters={handleClearFilters}
+                                        />
                                     </div>
                                 </div>
                             </div>

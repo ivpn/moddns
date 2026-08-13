@@ -65,8 +65,11 @@ vi.mock("@/pages/logs/Filters", () => ({
         onRefresh,
         onRefreshIntervalChange,
         isRefreshing,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean }) => (
-        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))}>
+        onSearchClear,
+        onClearFilters,
+        committedSearchValue,
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean; onSearchClear?: () => void; onClearFilters?: () => void; committedSearchValue?: string }) => (
+        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))} data-committed-search={committedSearchValue ?? ""}>
             <input
                 data-testid="search-input"
                 value={searchInputValue}
@@ -78,6 +81,8 @@ vi.mock("@/pages/logs/Filters", () => ({
             <button data-testid="timespan-all" onClick={() => onTimespanChange?.("all")}>Timespan</button>
             <button data-testid="device-select" onClick={() => onDeviceIdChange?.("device-1")}>Device</button>
             <button data-testid="refresh" onClick={() => onRefresh?.()}>Refresh</button>
+            <button data-testid="search-clear" onClick={() => onSearchClear?.()}>Clear search</button>
+            <button data-testid="clear-filters" onClick={() => onClearFilters?.()}>Clear filters</button>
             <button data-testid="auto-refresh-toggle" onClick={() => onRefreshIntervalChange?.("auto")}>Auto refresh</button>
             <button data-testid="refresh-interval-5s" onClick={() => onRefreshIntervalChange?.("5s")}>5s</button>
             <button data-testid="refresh-interval-off" onClick={() => onRefreshIntervalChange?.("off")}>Off</button>
@@ -583,6 +588,121 @@ describe("QueryLogs", () => {
         fireEvent.click(pill);
         await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(3));
         await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(100));
+    });
+
+    test("search commits 500ms after typing stops, not before", async () => {
+        vi.useFakeTimers();
+        try {
+            queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(2, 0) });
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(600);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+
+            act(() => {
+                fireEvent.change(screen.getByTestId("search-input"), { target: { value: "example" } });
+            });
+            // Just under the debounce window: nothing committed yet.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(450);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+            // Window elapses → one fetch with the search term.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+            expect(queryLogsMock).toHaveBeenLastCalledWith(
+                baseProfile.profile_id, 1, 100, undefined, undefined, undefined, "example", "created"
+            );
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test("typing keeps postponing the debounce; Enter commits immediately", async () => {
+        vi.useFakeTimers();
+        try {
+            queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(2, 0) });
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(600);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+
+            // Two keystrokes 300ms apart: the first debounce window never completes.
+            act(() => {
+                fireEvent.change(screen.getByTestId("search-input"), { target: { value: "exa" } });
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(300);
+            });
+            act(() => {
+                fireEvent.change(screen.getByTestId("search-input"), { target: { value: "example" } });
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(300);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+
+            // Enter (stub's commit button) applies without waiting.
+            act(() => {
+                fireEvent.click(screen.getByTestId("commit-search"));
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+            expect(queryLogsMock).toHaveBeenLastCalledWith(
+                baseProfile.profile_id, 1, 100, undefined, undefined, undefined, "example", "created"
+            );
+            // The trailing debounce is a no-op after the manual commit.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(600);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test("clear search empties both pending and committed values", async () => {
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(2, 0) });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(1));
+
+        fireEvent.change(screen.getByTestId("search-input"), { target: { value: "example" } });
+        fireEvent.click(screen.getByTestId("commit-search"));
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(2));
+
+        fireEvent.click(screen.getByTestId("search-clear"));
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(3));
+        expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id, 1, 100, undefined, undefined, undefined, undefined, "created"
+        );
+        expect((screen.getByTestId("search-input") as HTMLInputElement).value).toBe("");
+    });
+
+    test("clear filters resets every request parameter to defaults", async () => {
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(2, 0) });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(1));
+
+        fireEvent.click(screen.getByTestId("filter-blocked"));
+        fireEvent.click(screen.getByTestId("device-select"));
+        fireEvent.click(screen.getByTestId("sort-domain"));
+        fireEvent.change(screen.getByTestId("search-input"), { target: { value: "foo" } });
+        fireEvent.click(screen.getByTestId("commit-search"));
+        await waitFor(() => expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id, 1, 100, "blocked", undefined, "device-1", "foo", "domain"
+        ));
+
+        fireEvent.click(screen.getByTestId("clear-filters"));
+        await waitFor(() => expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id, 1, 100, undefined, undefined, undefined, undefined, "created"
+        ));
+        expect((screen.getByTestId("search-input") as HTMLInputElement).value).toBe("");
     });
 
     test("shows not active state when logs disabled", async () => {

@@ -39,4 +39,25 @@ describe('NoLogs empty state', () => {
         expect(screen.queryByText(/Set up modDNS on your devices/i)).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /DNS Setup/i })).not.toBeInTheDocument();
     });
+
+    it('renders filters empty state with a Clear filters action instead of the setup CTA', () => {
+        const onClearFilters = vi.fn();
+        render(<NoLogs hasActiveFilters onClearFilters={onClearFilters} />);
+
+        expect(screen.getByText(/No matching logs/i)).toBeInTheDocument();
+        expect(screen.getByText(/No results for the current filters/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /DNS Setup/i })).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByTestId('logs-empty-clear-filters'));
+        expect(onClearFilters).toHaveBeenCalledTimes(1);
+        expect(navigateMock).not.toHaveBeenCalled();
+    });
+
+    it('offers Clear filters for an active search too, keeping the search copy', () => {
+        const onClearFilters = vi.fn();
+        render(<NoLogs isSearchActive onClearFilters={onClearFilters} />);
+
+        expect(screen.getByText(/No logs match your search/i)).toBeInTheDocument();
+        expect(screen.getByTestId('logs-empty-clear-filters')).toBeInTheDocument();
+    });
 });

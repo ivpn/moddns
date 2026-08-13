@@ -6,6 +6,10 @@ import { useNavigate } from "react-router-dom";
 
 interface NoLogsProps {
     isSearchActive?: boolean;
+    /** A non-default status/device/sort/timespan filter is applied. */
+    hasActiveFilters?: boolean;
+    /** Resets every filter and the search; enables the "Clear filters" action. */
+    onClearFilters?: () => void;
 }
 
 interface EmptyStateContent {
@@ -14,7 +18,7 @@ interface EmptyStateContent {
     buttonText?: string;
 }
 
-const emptyStateVariants: Record<"default" | "search", EmptyStateContent> = {
+const emptyStateVariants: Record<"default" | "search" | "filters", EmptyStateContent> = {
     default: {
         title: "No logs to display",
         description: "Set up modDNS on your devices to start analysing queries.",
@@ -24,11 +28,22 @@ const emptyStateVariants: Record<"default" | "search", EmptyStateContent> = {
         title: "No matching logs",
         description: "No logs match your search. Try updating the keywords or filters.",
     },
+    filters: {
+        title: "No matching logs",
+        description: "No results for the current filters — try clearing them.",
+    },
 };
 
-const NoLogs = ({ isSearchActive = false }: NoLogsProps): JSX.Element => {
+const NoLogs = ({ isSearchActive = false, hasActiveFilters = false, onClearFilters }: NoLogsProps): JSX.Element => {
     const navigate = useNavigate();
-    const emptyStateData = isSearchActive ? emptyStateVariants.search : emptyStateVariants.default;
+    // The DNS-setup onboarding CTA is only correct when the list is empty with NOTHING
+    // narrowing it — an empty filtered view means "no matches", not "not set up yet".
+    const isFiltered = isSearchActive || hasActiveFilters;
+    const emptyStateData = isSearchActive
+        ? emptyStateVariants.search
+        : hasActiveFilters
+            ? emptyStateVariants.filters
+            : emptyStateVariants.default;
 
     return (
         <Card className="flex flex-col relative w-full bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden !border-0 !shadow-none !outline-none !ring-0
@@ -53,7 +68,17 @@ const NoLogs = ({ isSearchActive = false }: NoLogsProps): JSX.Element => {
                     </div>
 
                     {/* Action button */}
-                    {!isSearchActive && emptyStateData.buttonText && (
+                    {isFiltered && onClearFilters && (
+                        <Button
+                            variant="cancel"
+                            onClick={onClearFilters}
+                            data-testid="logs-empty-clear-filters"
+                            className="h-9 min-h-11 md:h-auto rounded-md px-6 py-2"
+                        >
+                            <span className="text-sm md:text-xs font-medium whitespace-nowrap">Clear filters</span>
+                        </Button>
+                    )}
+                    {!isFiltered && emptyStateData.buttonText && (
                         <Button
                             className="h-9 min-h-11 md:h-auto bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] rounded-md px-6 py-2 md:px-6 md:py-2 cursor-pointer transition-colors"
                             style={{
