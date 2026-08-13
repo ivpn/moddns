@@ -160,6 +160,48 @@ describe('QueryLogCard whole-card expansion', () => {
         expect(screen.getByTestId('querylog-detail-domain')).toHaveTextContent('Domain logging disabled');
     });
 
+    test('controlled mode renders the expanded prop and reports toggles without flipping itself', () => {
+        const onToggleExpanded = vi.fn();
+        const { rerender } = render(
+            <QueryLogCard log={baseLog} expanded={false} onToggleExpanded={onToggleExpanded} />
+        );
+        const toggle = screen.getByTestId('querylog-card-toggle');
+        fireEvent.click(toggle);
+        expect(onToggleExpanded).toHaveBeenCalledTimes(1);
+        // State is owned by the parent — the card must not expand on its own.
+        expect(screen.getByTestId('querylog-expanded-panel')).toHaveAttribute('data-expanded', 'false');
+
+        rerender(<QueryLogCard log={baseLog} expanded={true} onToggleExpanded={onToggleExpanded} />);
+        expect(screen.getByTestId('querylog-expanded-panel')).toHaveAttribute('data-expanded', 'true');
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    test('controlled mode fires onExpand only when opening', () => {
+        const onExpand = vi.fn();
+        const { rerender } = render(
+            <QueryLogCard log={baseLog} expanded={false} onToggleExpanded={() => {}} onExpand={onExpand} />
+        );
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(onExpand).toHaveBeenCalledTimes(1);
+
+        rerender(
+            <QueryLogCard log={baseLog} expanded={true} onToggleExpanded={() => {}} onExpand={onExpand} />
+        );
+        // Collapsing an open card is not an "expand".
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(onExpand).toHaveBeenCalledTimes(1);
+    });
+
+    test('animateEntry plays the entry animation with a reduced-motion escape', () => {
+        const { container, rerender } = render(<QueryLogCard log={baseLog} animateEntry />);
+        const root = container.firstElementChild as HTMLElement;
+        expect(root.className).toContain('animate-in');
+        expect(root.className).toContain('motion-reduce:animate-none');
+
+        rerender(<QueryLogCard log={baseLog} />);
+        expect((container.firstElementChild as HTMLElement).className).not.toContain('animate-in');
+    });
+
     test('there is no visible chevron indicator', () => {
         render(<QueryLogCard log={baseLog} />);
         expect(screen.queryByTestId('querylog-expand-indicator')).not.toBeInTheDocument();

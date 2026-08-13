@@ -33,7 +33,7 @@ vi.mock("@/pages/logs/QuickRuleSheet", () => ({
 
 vi.mock("@/pages/logs/QueryLogCard", () => ({
     __esModule: true,
-    default: function MockQueryLogCard({ log, onQuickRule, lastLogRef, isLast }: { log: { status: string; dns_request?: { domain: string } }; onQuickRule?: (domain: string, action: string) => void; lastLogRef?: (el: HTMLDivElement) => void; isLast?: boolean }) {
+    default: function MockQueryLogCard({ log, onQuickRule, lastLogRef, isLast, animateEntry }: { log: { status: string; dns_request?: { domain: string } }; onQuickRule?: (domain: string, action: string) => void; lastLogRef?: (el: HTMLDivElement) => void; isLast?: boolean; animateEntry?: boolean }) {
         React.useEffect(() => {
             if (lastLogRef) {
                 const el = document.createElement("div");
@@ -41,7 +41,7 @@ vi.mock("@/pages/logs/QueryLogCard", () => ({
             }
         }, [lastLogRef, isLast]);
         return (
-            <div data-testid="log-card" data-status={log.status}>
+            <div data-testid="log-card" data-status={log.status} data-animate-entry={String(Boolean(animateEntry))}>
                 <button
                     aria-label="Quick custom rule"
                     onClick={() => onQuickRule?.(log.dns_request?.domain, log.status === "blocked" ? "allowlist" : "denylist")}
@@ -63,9 +63,10 @@ vi.mock("@/pages/logs/Filters", () => ({
         onTimespanChange,
         onDeviceIdChange,
         onRefresh,
-        onToggleAutoRefresh,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onToggleAutoRefresh?: () => void }) => (
-        <div>
+        onRefreshIntervalChange,
+        isRefreshing,
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean }) => (
+        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))}>
             <input
                 data-testid="search-input"
                 value={searchInputValue}
@@ -77,7 +78,9 @@ vi.mock("@/pages/logs/Filters", () => ({
             <button data-testid="timespan-all" onClick={() => onTimespanChange?.("all")}>Timespan</button>
             <button data-testid="device-select" onClick={() => onDeviceIdChange?.("device-1")}>Device</button>
             <button data-testid="refresh" onClick={() => onRefresh?.()}>Refresh</button>
-            <button data-testid="auto-refresh-toggle" onClick={() => onToggleAutoRefresh?.()}>Auto refresh</button>
+            <button data-testid="auto-refresh-toggle" onClick={() => onRefreshIntervalChange?.("auto")}>Auto refresh</button>
+            <button data-testid="refresh-interval-5s" onClick={() => onRefreshIntervalChange?.("5s")}>5s</button>
+            <button data-testid="refresh-interval-off" onClick={() => onRefreshIntervalChange?.("off")}>Off</button>
         </div>
     ),
 }));
@@ -149,6 +152,16 @@ const makeLog = (overrides: Record<string, unknown> = {}) => ({
     protocol: "udp",
     ...overrides,
 });
+
+// Distinct domains + timestamps so entries neither consolidate nor collide in the
+// background-tick diff. `offset` keeps batches disjoint across mock responses.
+const distinctLogs = (count: number, offset: number) =>
+    Array.from({ length: count }).map((_, i) =>
+        makeLog({
+            dns_request: { domain: `d${offset + i}.example.com` },
+            timestamp: `2024-01-01T00:${Math.floor((offset + i) / 60).toString().padStart(2, "0")}:${((offset + i) % 60).toString().padStart(2, "0")}Z`,
+        })
+    );
 
 describe("QueryLogs", () => {
     beforeEach(() => {
@@ -264,26 +277,18 @@ describe("QueryLogs", () => {
         await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
     });
 
-    test("keeps cards visible when auto-refresh is toggled and pagination fires during refresh", async () => {
-        // Regression test for the auto-refresh "invisible cards" bug: the list container was
-        // faded to opacity-0 on every page-1 refresh and only restored by a 100ms setTimeout
-        // that the fetch effect's cleanup cancels. An IntersectionObserver page bump inside
+    test("keeps cards visible when a manual refresh and pagination overlap", async () => {
+        // Regression test for the "invisible cards" bug: the list container is faded to
+        // opacity-0 on every page-1 refresh and only restored by a 100ms setTimeout that
+        // the fetch effect's cleanup cancels. An IntersectionObserver page bump inside
         // that window (opacity-0 elements still intersect) left the cards mounted and
         // clickable but permanently invisible.
         vi.useFakeTimers();
         try {
-            const distinctLogs = (count: number, offset: number) =>
-                Array.from({ length: count }).map((_, i) =>
-                    makeLog({
-                        dns_request: { domain: `d${offset + i}.example.com` },
-                        timestamp: `2024-01-01T00:${Math.floor((offset + i) / 60).toString().padStart(2, "0")}:${((offset + i) % 60).toString().padStart(2, "0")}Z`,
-                    })
-                );
-            // Call 1: initial load (page 1, limit 100). Call 2: refresh triggered by the
-            // auto-refresh toggle (page 1, limit 25 → full page, so hasMore recomputes true).
-            // Call 3: the observer-driven page-2 fetch.
+            // Call 1: initial load (page 1, limit 100 → full page, hasMore true).
+            // Call 2: the manual one-shot refresh. Call 3: the observer-driven page-2 fetch.
             queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 0) });
-            queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(25, 100) });
+            queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 200) });
             queryLogsMock.mockResolvedValueOnce({ status: 200, data: [] });
 
             render(<QueryLogs account={account} profiles={[baseProfile]} />);
@@ -295,7 +300,7 @@ describe("QueryLogs", () => {
             expect(screen.getAllByTestId("log-card").length).toBeGreaterThan(0);
 
             act(() => {
-                fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+                fireEvent.click(screen.getByTestId("refresh"));
             });
             // Previous data must stay on screen while the refresh is in flight — no blank flash.
             expect(screen.getAllByTestId("log-card").length).toBeGreaterThan(0);
@@ -312,10 +317,9 @@ describe("QueryLogs", () => {
             act(() => {
                 MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
             });
-            // Let everything settle (stay below the 10s auto-refresh interval). Two advances:
-            // the page-2 fetch resolves during the first; the fade-in timer it schedules is
-            // created in a passive effect flushed at the end of that act block, so a second
-            // advance is needed for it to fire.
+            // Let everything settle. Two advances: the page-2 fetch resolves during the
+            // first; the fade-in timer it schedules is created in a passive effect flushed
+            // at the end of that act block, so a second advance is needed for it to fire.
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(500);
             });
@@ -330,6 +334,255 @@ describe("QueryLogs", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+        // tableRef: query-logs-refresh-behaviour #C1
+    test("manual refresh refetches page 1 with limit 100 and replaces the list", async () => {
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(5, 0) });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(2, 100) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+
+        fireEvent.click(screen.getByTestId("refresh"));
+
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+        expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id,
+            1,
+            100,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            "created"
+        );
+    });
+
+        // tableRef: query-logs-refresh-behaviour #C2 #T4 #P1
+    test("auto-refresh stages new entries behind a pill instead of replacing the list", async () => {
+        const initial = distinctLogs(5, 0);
+        const fresh = distinctLogs(2, 100);
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: initial });
+        // Immediate tick fired by enabling auto-refresh: two new entries above the known head.
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: [...fresh, ...initial] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+        // Let the initial 100ms fade-in release so the opacity assertion below can only
+        // trip on a fade restarted by the tick.
+        await waitFor(() =>
+            expect(screen.getByTestId("logs-scroll-container").querySelector(".opacity-0")).toBeNull()
+        );
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+
+        const pill = await screen.findByTestId("logs-new-queries-pill");
+        expect(pill).toHaveTextContent("2 new queries");
+        // The tick must not have touched the list: same cards, no fade restart.
+        expect(screen.getAllByTestId("log-card")).toHaveLength(5);
+        expect(screen.getByTestId("logs-scroll-container").querySelector(".opacity-0")).toBeNull();
+
+        fireEvent.click(pill);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(7));
+        expect(screen.queryByTestId("logs-new-queries-pill")).toBeNull();
+        // Revealing staged entries is purely client-side — no extra request.
+        expect(queryLogsMock).toHaveBeenCalledTimes(2);
+        // Only the revealed entries play the entry animation — the prepend remounts
+        // every card, so pre-existing rows must not re-animate.
+        const animateFlags = screen.getAllByTestId("log-card").map(card => card.getAttribute("data-animate-entry"));
+        expect(animateFlags).toEqual(["true", "true", "false", "false", "false", "false", "false"]);
+    });
+
+        // tableRef: query-logs-refresh-behaviour #P3
+    test("clears staged entries when a filter changes", async () => {
+        const initial = distinctLogs(5, 0);
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: initial });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: [...distinctLogs(1, 100), ...initial] });
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(3, 200) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+        await screen.findByTestId("logs-new-queries-pill");
+
+        fireEvent.click(screen.getByTestId("filter-blocked"));
+        await waitFor(() => expect(screen.queryByTestId("logs-new-queries-pill")).toBeNull());
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+    });
+
+        // tableRef: query-logs-refresh-behaviour #C1
+    test("manual refresh spins the icon for at least half a second even on instant responses", async () => {
+        vi.useFakeTimers();
+        try {
+            queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(3, 0) });
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(150);
+            });
+            expect(screen.getByTestId("filters")).toHaveAttribute("data-refreshing", "false");
+
+            act(() => {
+                fireEvent.click(screen.getByTestId("refresh"));
+            });
+            // The response resolves in microtasks, yet the spin must hold...
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(250);
+            });
+            expect(screen.getByTestId("filters")).toHaveAttribute("data-refreshing", "true");
+            // ...until the 500ms half-rotation minimum elapses.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(350);
+            });
+            expect(screen.getByTestId("filters")).toHaveAttribute("data-refreshing", "false");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // tableRef: query-logs-refresh-behaviour #C2
+    test("ticks at the selected interval and stops when switched off", async () => {
+        vi.useFakeTimers();
+        const hiddenSpy = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+        try {
+            queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(3, 0) });
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(150);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+
+            // Selecting 5s fires the immediate enable tick (call 2)...
+            act(() => {
+                fireEvent.click(screen.getByTestId("refresh-interval-5s"));
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+
+            // ...then one tick per 5s window.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(5100);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(3);
+
+            // Off stops the loop entirely.
+            act(() => {
+                fireEvent.click(screen.getByTestId("refresh-interval-off"));
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(20000);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(3);
+        } finally {
+            hiddenSpy.mockRestore();
+            vi.useRealTimers();
+        }
+    });
+
+    // tableRef: query-logs-refresh-behaviour #T1
+    test("skips background ticks while the tab is hidden and catches up on return", async () => {
+        vi.useFakeTimers();
+        const hiddenSpy = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+        try {
+            const initial = distinctLogs(5, 0);
+            queryLogsMock.mockResolvedValue({ status: 200, data: initial });
+
+            render(<QueryLogs account={account} profiles={[baseProfile]} />);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(150);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(1);
+
+            // Enable auto-refresh: the immediate tick is call 2.
+            act(() => {
+                fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+            });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+
+            // Hidden tab: interval ticks self-skip without fetching.
+            hiddenSpy.mockReturnValue(true);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(25000);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(2);
+
+            // Back to visible: the visibilitychange handler fires an immediate catch-up tick.
+            hiddenSpy.mockReturnValue(false);
+            await act(async () => {
+                document.dispatchEvent(new Event("visibilitychange"));
+                await vi.advanceTimersByTimeAsync(0);
+            });
+            expect(queryLogsMock).toHaveBeenCalledTimes(3);
+        } finally {
+            hiddenSpy.mockRestore();
+            vi.useRealTimers();
+        }
+    });
+
+        // tableRef: query-logs-refresh-behaviour #T2
+    test("falls back to a full replace on tick when sorted by domain", async () => {
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(5, 0) });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(4, 100) }); // sort-change refetch
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(2, 200) }); // tick fallback replace
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+
+        fireEvent.click(screen.getByTestId("sort-domain"));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(4));
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+        // Non-temporal sort: the tick replaces the list wholesale; nothing is staged.
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+        expect(screen.queryByTestId("logs-new-queries-pill")).toBeNull();
+        expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id,
+            1,
+            100,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            "domain"
+        );
+    });
+
+        // tableRef: query-logs-refresh-behaviour #T3
+    test("applies tick data directly when the list is empty", async () => {
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: [] });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(3, 0) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await screen.findByTestId("logs-empty-state");
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+        expect(screen.queryByTestId("logs-new-queries-pill")).toBeNull();
+    });
+
+        // tableRef: query-logs-refresh-behaviour #T5 #P2
+    test("shows 100+ and reloads when the tick shares nothing with the list", async () => {
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(5, 0) });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 100) }); // full page, no overlap
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 100) }); // reload after pill click
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+        const pill = await screen.findByTestId("logs-new-queries-pill");
+        expect(pill).toHaveTextContent("100+ new queries");
+
+        // A gapped prepend would misorder the list — the pill triggers a full reload instead.
+        fireEvent.click(pill);
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(3));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(100));
     });
 
     test("shows not active state when logs disabled", async () => {
