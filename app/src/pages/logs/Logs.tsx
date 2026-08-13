@@ -12,10 +12,12 @@ import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
 import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
 import { consolidateLogs, toSingletonGroup } from "@/lib/consolidateLogs";
+import { computeNewQueryLogs } from "@/lib/queryLogsDiff";
+import { refreshIntervalMsFor, type RefreshIntervalKey } from "@/lib/consts";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Info, X } from "lucide-react";
+import { ArrowUp, Info, X } from "lucide-react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
@@ -35,7 +37,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
+    // Auto-refresh cadence, selected via the split refresh button's interval menu
+    // ("off" = disabled). Session-only by design — never persisted.
+    const [refreshIntervalKey, setRefreshIntervalKey] = useState<RefreshIntervalKey>("off");
+    const refreshIntervalMs = refreshIntervalMsFor(refreshIntervalKey);
+    const isAutoRefreshing = refreshIntervalMs !== null;
     const [refreshTrigger, setRefreshTrigger] = useState(0); // Add trigger for forced refresh
     // Fade choreography for page-1 loads: true = list held at opacity-0. Starts true so the
     // initial load fades in. Set true by every refresh/filter trigger; cleared ONLY by the
@@ -45,6 +51,22 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [isQuickRuleSheetOpen, setIsQuickRuleSheetOpen] = useState(false);
     const [quickRuleDomain, setQuickRuleDomain] = useState<string | undefined>(undefined);
     const [quickRuleDefaultAction, setQuickRuleDefaultAction] = useState<QuickRuleAction>("denylist");
+
+    // New entries found by the auto-refresh background tick, staged behind the
+    // "N new queries" pill instead of disturbing the list. Recomputed wholesale
+    // against the displayed list on every tick. pendingOverflow: the tick's full
+    // page shared nothing with the list — prepending would leave a gap.
+    const [pendingLogs, setPendingLogs] = useState<ModelQueryLog[]>([]);
+    const [pendingOverflow, setPendingOverflow] = useState(false);
+
+    // Expansion state of cards, lifted here (keyed by group identity, not React key)
+    // so open cards survive the remounts caused by refreshes and pill merges.
+    const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+
+    // Group identities revealed by the last pill click. A prepend remounts EVERY card
+    // (React keys embed the list index), so the entry animation must be scoped to the
+    // groups that are actually new — not everything that remounted.
+    const [freshIdentities, setFreshIdentities] = useState<Set<string>>(new Set());
 
     // Search input (uncommitted while typing) and committed value that triggers requests
     const [searchInputValue, setSearchInputValue] = useState("");
@@ -82,6 +104,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
     const observer = useRef<IntersectionObserver | null>(null);
     const previousProfileIdRef = useRef<string | undefined>(undefined);
+    // Mirror of `logs` for reads inside the background tick, which runs outside the
+    // render cycle (setInterval) and must diff against the list as displayed NOW.
+    const logsRef = useRef<ModelQueryLog[]>([]);
+    const bgFetchInFlight = useRef(false);
     const lastLogRef = useCallback(
         (node: HTMLDivElement | null) => {
             if (loading) return;
@@ -172,13 +198,21 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         }
     }, []);
 
-    // Reset logs, device IDs and page when committed filters change
+    useEffect(() => {
+        logsRef.current = logs;
+    }, [logs]);
+
+    // Reset logs, device IDs, staged entries and page when committed filters change
     useEffect(() => {
         setLogs([]);
         setPage(1);
         setHasMore(true);
         setAllAvailableDeviceIds([]);
         setIsListFading(true);
+        setPendingLogs([]);
+        setPendingOverflow(false);
+        setExpandedKeys(new Set());
+        setFreshIdentities(new Set());
     }, [committedSearchValue, filterValue, sortValue, timespanValue, deviceIdValue]);
 
     // Fade-in: once no fetch is in flight, release the fade after a short delay so the
@@ -196,6 +230,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         if (previousProfileIdRef.current && previousProfileIdRef.current !== currentId) {
             setIsQuickRuleSheetOpen(false);
             setQuickRuleDomain(undefined);
+            setPendingLogs([]);
+            setPendingOverflow(false);
+            setExpandedKeys(new Set());
+            setFreshIdentities(new Set());
         }
         previousProfileIdRef.current = currentId;
     }, [activeProfile?.profile_id]);
@@ -203,6 +241,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const commitSearch = useCallback(() => {
         setCommittedSearchValue(prev => prev === searchInputValue ? prev : searchInputValue);
     }, [searchInputValue]);
+
+    const toggleCardExpanded = useCallback((identity: string) => {
+        setExpandedKeys(prev => {
+            const next = new Set(prev);
+            if (next.has(identity)) next.delete(identity);
+            else next.add(identity);
+            return next;
+        });
+    }, []);
 
     // Fetch logs and then fetch logos for the batch
     useEffect(() => {
@@ -220,7 +267,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             try {
                 // Status is already handled in filters.Status
                 // Use expanded limit on first page to gather more device IDs; subsequent pages respect configured limit
-                const effectiveLimit = (page === 1 && !isAutoRefreshing) ? 100 : filters.Limit;
+                const effectiveLimit = page === 1 ? 100 : filters.Limit;
                 const searchParam = committedSearchValue || undefined;
                 const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
                     activeProfile.profile_id,
@@ -286,48 +333,137 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         return () => {
             cancelled = true;
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- committedSearchValue, isAutoRefreshing, and sortValue are consumed via the `filters` object and `refreshTrigger`; adding them directly would cause redundant re-fetches since the filters object already captures their derived values
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- committedSearchValue and sortValue are consumed via the `filters` object and `refreshTrigger`; adding them directly would cause redundant re-fetches since the filters object already captures their derived values
     }, [page, filters.Limit, filters.Status, filters.Timespan.Value, filters.Search, filters.Sort, activeProfile, refreshTrigger, deviceIdValue]);
 
-    // Auto-refresh effect
-    useEffect(() => {
-        let interval: NodeJS.Timeout | null = null;
+    // Spin the refresh icon for at least a half rotation (500ms) per manual refresh —
+    // tied to `loading` alone, a fast response ends the spin after a couple of frames
+    // and the click appears to do nothing.
+    const [manualSpinActive, setManualSpinActive] = useState(false);
+    const manualSpinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => () => {
+        if (manualSpinTimer.current) clearTimeout(manualSpinTimer.current);
+    }, []);
 
-        if (isAutoRefreshing && activeProfile?.profile_id) {
-            interval = setInterval(() => {
-                // Force refresh by incrementing trigger and resetting to first page.
-                // The current list stays on screen until the page-1 response replaces it
-                // wholesale — clearing it here would blank (or, with the old fade logic,
-                // permanently hide) the cards on every tick.
-                setPage(1);
-                setIsListFading(true);
-                setRefreshTrigger(prev => prev + 1);
-            }, 10000); // 10 seconds
-        }
-
-        return () => {
-            if (interval) {
-                clearInterval(interval);
-            }
-        };
-    }, [isAutoRefreshing, activeProfile?.profile_id]);
-
-    // Handle auto-refresh toggle
-    const handleToggleAutoRefresh = () => {
-        setIsAutoRefreshing(prev => !prev);
-        if (!isAutoRefreshing) {
-            // When starting auto-refresh, immediately refresh once
-            setPage(1);
-            setIsListFading(true);
-            setRefreshTrigger(prev => prev + 1);
-        }
-    };
-
-    // Handle manual refresh
+    // Handle manual (one-shot) refresh: page-1 replace, discarding staged entries.
     const handleRefresh = () => {
         setPage(1);
         setIsListFading(true);
+        setPendingLogs([]);
+        setPendingOverflow(false);
+        setFreshIdentities(new Set());
         setRefreshTrigger(prev => prev + 1);
+        setManualSpinActive(true);
+        if (manualSpinTimer.current) clearTimeout(manualSpinTimer.current);
+        manualSpinTimer.current = setTimeout(() => setManualSpinActive(false), 500);
+    };
+
+    const logsEnabled =
+        activeProfile?.settings?.logs.enabled !== false; // default to true if undefined
+
+    // Auto-refresh background tick: fetch page 1 and diff it against the displayed
+    // list; genuinely new entries wait behind the "N new queries" pill instead of
+    // replacing the list (which reset scroll position and collapsed open cards).
+    const runBackgroundTick = async () => {
+        const profileId = activeProfile?.profile_id;
+        if (document.hidden || !profileId || !logsEnabled) return;
+        if (loading || bgFetchInFlight.current) return;
+        if (sortValue !== "created") {
+            // Non-temporal sorts have no meaningful prepend point — fall back to the
+            // wholesale page-1 replace.
+            handleRefresh();
+            return;
+        }
+        bgFetchInFlight.current = true;
+        try {
+            const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
+                profileId,
+                1,
+                100,
+                filters.Status,
+                filters.Timespan.Value,
+                deviceIdValue || undefined,
+                committedSearchValue || undefined,
+                sortValue
+            );
+            if (response.status !== 200) return;
+            const fetched = response.data || [];
+            if (logsRef.current.length === 0) {
+                // Nothing on screen to preserve — apply directly, a pill over an
+                // empty state helps no one.
+                setLogs(fetched);
+                setHasMore(fetched.length === 100);
+                setPendingLogs([]);
+                setPendingOverflow(false);
+                return;
+            }
+            const { newLogs, overlapFound } = computeNewQueryLogs(fetched, logsRef.current);
+            setPendingLogs(newLogs);
+            setPendingOverflow(!overlapFound && fetched.length === 100);
+        } catch {
+            // Background ticks fail silently — the next tick retries; foreground
+            // fetches own user-visible error reporting.
+        } finally {
+            bgFetchInFlight.current = false;
+        }
+    };
+    // Latest-closure ref so the interval (bound once per auto-refresh session) always
+    // calls a tick that sees current filters/logs without restarting the timer.
+    const tickRef = useRef(runBackgroundTick);
+    useEffect(() => {
+        tickRef.current = runBackgroundTick;
+    });
+
+    // Auto-refresh loop at the selected cadence: paused while the tab is hidden (the
+    // tick self-skips), with an immediate catch-up tick on return to a visible tab.
+    useEffect(() => {
+        if (refreshIntervalMs === null || !activeProfile?.profile_id) return;
+        const interval = setInterval(() => {
+            void tickRef.current();
+        }, refreshIntervalMs);
+        const onVisibilityChange = () => {
+            if (!document.hidden) void tickRef.current();
+        };
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
+        };
+    }, [refreshIntervalMs, activeProfile?.profile_id]);
+
+    // Interval menu selection
+    const handleRefreshIntervalChange = (key: RefreshIntervalKey) => {
+        const wasOn = isAutoRefreshing;
+        setRefreshIntervalKey(key);
+        if (refreshIntervalMsFor(key) === null) {
+            setPendingLogs([]);
+            setPendingOverflow(false);
+        } else if (!wasOn) {
+            // Immediate feedback without disturbing the current list; interval-to-
+            // interval changes just retime the loop.
+            void tickRef.current();
+        }
+    };
+
+    // Reveal staged entries: prepend them above the current list. When the tick found
+    // a full page with no overlap, prepending would leave a gap — reload instead.
+    const handleShowPending = () => {
+        if (pendingOverflow) {
+            handleRefresh();
+            return;
+        }
+        const previous = logsRef.current;
+        const merged = [...pendingLogs, ...previous];
+        const previousIdentities = new Set(consolidateLogs(previous).map(group => group.identity));
+        setFreshIdentities(
+            new Set(
+                consolidateLogs(merged)
+                    .map(group => group.identity)
+                    .filter(identity => !previousIdentities.has(identity))
+            )
+        );
+        setLogs(merged);
+        setPendingLogs([]);
     };
 
     // --- Pull-to-refresh (mobile only) ---
@@ -368,19 +504,14 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         if (pullDistance > PULL_THRESHOLD && !isRefreshing && !loading) {
             setIsRefreshing(true);
             setPullDistance(0);
-            // Trigger the existing refresh mechanism (keeps current rows until new data lands)
-            setPage(1);
-            setIsListFading(true);
-            setRefreshTrigger(prev => prev + 1);
+            // Same one-shot path as the refresh button (also clears staged pill entries)
+            handleRefresh();
             // Reset refreshing indicator after a short delay
             setTimeout(() => setIsRefreshing(false), 1200);
         } else {
             setPullDistance(0);
         }
     }, [pullDistance, isRefreshing, loading, isMobile]);
-
-    const logsEnabled =
-        activeProfile?.settings?.logs.enabled !== false; // default to true if undefined
 
     return (
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible bg-[var(--shadcn-ui-app-background)]">
@@ -408,8 +539,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     onRefresh={handleRefresh}
                     timespanValue={timespanValue}
                     onTimespanChange={setTimespanValue}
-                    isAutoRefreshing={isAutoRefreshing}
-                    onToggleAutoRefresh={handleToggleAutoRefresh}
+                    refreshIntervalKey={refreshIntervalKey}
+                    onRefreshIntervalChange={handleRefreshIntervalChange}
+                    isRefreshing={manualSpinActive || (loading && page === 1)}
                     deviceIdValue={deviceIdValue}
                     onDeviceIdChange={setDeviceIdValue}
                     availableDeviceIds={allAvailableDeviceIds}
@@ -457,6 +589,22 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                     </div>
                                 )}
                                 <div className={`flex flex-col gap-1.5 md:gap-2 px-1.5 md:px-2 py-1.5 md:py-2 min-h-full bg-[var(--shadcn-ui-app-background)] overflow-x-hidden transition-opacity duration-200 ease-in-out ${isListFading ? 'opacity-0' : 'opacity-100'}`}>
+                                    {/* Wrapper stays mounted so the live region exists before the pill text arrives. */}
+                                    <div aria-live="polite" className="w-full flex justify-center empty:hidden">
+                                        {pendingLogs.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={handleShowPending}
+                                                data-testid="logs-new-queries-pill"
+                                                className="flex items-center gap-1.5 min-h-11 lg:min-h-9 px-4 py-1.5 rounded-full border border-[var(--tailwind-colors-rdns-600)] bg-[var(--shadcn-ui-app-background)] text-sm text-[var(--tailwind-colors-rdns-600)] cursor-pointer transition-colors hover:bg-[var(--tailwind-colors-rdns-600)]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] animate-in fade-in slide-in-from-top-1 duration-300 ease-out motion-reduce:animate-none"
+                                            >
+                                                <ArrowUp className="w-4 h-4" aria-hidden />
+                                                {pendingOverflow
+                                                    ? "100+ new queries"
+                                                    : `${pendingLogs.length} new ${pendingLogs.length === 1 ? "query" : "queries"}`}
+                                            </button>
+                                        )}
+                                    </div>
                                     {!expandHintDismissed && logs.length > 0 && (
                                         <div
                                             className="md:hidden flex items-start gap-2 rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent bg-transparent dark:bg-[var(--variable-collection-surface)] px-3 py-2 text-xs text-[var(--tailwind-colors-slate-100)]"
@@ -489,6 +637,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                                 blocklistNames={blocklistNames}
                                                 serviceNames={serviceNames}
                                                 onExpand={dismissExpandHint}
+                                                expanded={expandedKeys.has(group.identity)}
+                                                onToggleExpanded={() => toggleCardExpanded(group.identity)}
+                                                animateEntry={freshIdentities.has(group.identity)}
                                             />
                                         );
                                     })}
