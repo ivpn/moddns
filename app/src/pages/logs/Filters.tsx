@@ -1,5 +1,5 @@
 import { type JSX } from "react";
-import { Search, ListFilter, ArrowDownAZ, RefreshCw, Monitor, Clock, ChevronDown } from "lucide-react";
+import { Search, ListFilter, ArrowDownAZ, RefreshCw, Monitor, Clock, ChevronDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,10 @@ interface FiltersProps {
     searchInputValue: string; // current text in the search input
     onSearchInputChange: (value: string) => void; // updates uncontrolled typing state
     onSearchCommit: () => void; // commit the current input value to trigger request
+    onSearchClear: () => void; // empty the input AND the committed value
+    /** Last committed search — drives the clear-filters chip, never the uncommitted typing. */
+    committedSearchValue: string;
+    onClearFilters: () => void;
     filterValue: string;
     onFilterChange: (value: string) => void;
     sortValue: string;
@@ -41,6 +45,48 @@ interface FiltersProps {
     onDeviceIdChange: (value: string | undefined) => void;
     availableDeviceIds: string[];
 }
+
+// Shared search input (rendered in the mobile row and the desktop row). Commits on
+// Enter or after the owner's debounce — there is deliberately no commit-on-blur (the
+// old behavior committed on blur only below 1024px, measured at event time, which made
+// desktop and mobile behave differently for no discernible reason).
+const LogsSearchInput = ({
+    value,
+    onChange,
+    onCommit,
+    onClear,
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    onCommit: () => void;
+    onClear: () => void;
+}): JSX.Element => (
+    <div className="relative flex-1 grow min-w-0">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tailwind-colors-slate-400)] pointer-events-none flex items-center">
+            <Search className="h-4 w-4" />
+        </div>
+        <Input
+            type="text"
+            placeholder="Search domain or its part"
+            aria-label="Search domain or its part"
+            className="h-11 lg:h-9 min-h-0 pl-11 pr-11 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] rounded-[var(--primitives-radius-radius-md)] text-sm text-[var(--tailwind-colors-slate-400)] font-text-sm-leading-5-normal placeholder:text-[var(--tailwind-colors-slate-400)]"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { onCommit(); e.currentTarget.blur(); } }}
+        />
+        {value.length > 0 && (
+            <button
+                type="button"
+                aria-label="Clear search"
+                data-testid="logs-search-clear"
+                onClick={onClear}
+                className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-11 h-11 lg:w-9 lg:h-9 text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)] cursor-pointer"
+            >
+                <X className="w-4 h-4" />
+            </button>
+        )}
+    </div>
+);
 
 // Grafana-style split refresh control, rendered in the mobile search row and at the end
 // of the desktop filter row. Left half: one-shot refresh (never touches the loop). Right
@@ -124,6 +170,9 @@ const Filters = ({
     searchInputValue,
     onSearchInputChange,
     onSearchCommit,
+    onSearchClear,
+    committedSearchValue,
+    onClearFilters,
     filterValue,
     onFilterChange,
     sortValue,
@@ -137,27 +186,37 @@ const Filters = ({
     deviceIdValue,
     onDeviceIdChange,
     availableDeviceIds,
-}: FiltersProps): JSX.Element => (
+}: FiltersProps): JSX.Element => {
+    // Below `md` the Select values are hidden, so the accent border/icon is the ONLY
+    // signal that a filter narrows the list.
+    const statusActive = filterValue !== "all";
+    const deviceActive = deviceIdValue !== undefined;
+    const sortActive = sortValue !== "created";
+    const timespanActive = timespanValue !== undefined && timespanValue !== "all";
+    const searchCommitted = committedSearchValue.trim().length > 0;
+    const anyActive = statusActive || deviceActive || sortActive || timespanActive || searchCommitted;
+    // The base SelectTrigger's focus-visible ring + border-ring fires on Radix's
+    // programmatic refocus after picking an option, painting a gray outline over the
+    // accent border — suppress it and keep the border tracking the active state.
+    // Active accent matches the query-log cards' hover/open outline (full rdns-600 on
+    // light, /40 on dark) so the two surfaces share one visual language.
+    const triggerBorder = (active: boolean) =>
+        active
+            ? "border-[var(--tailwind-colors-rdns-600)] dark:border-[var(--tailwind-colors-rdns-600)]/40 focus-visible:border-[var(--tailwind-colors-rdns-600)] dark:focus-visible:border-[var(--tailwind-colors-rdns-600)]/40 focus-visible:ring-0"
+            : "border-[var(--tailwind-colors-slate-600)] focus-visible:border-[var(--tailwind-colors-slate-600)] focus-visible:ring-0";
+    const iconTint = (active: boolean) => (active ? "text-[var(--tailwind-colors-rdns-600)]" : "");
+    return (
     <>
         {/* Tablet layout adjustment: two-row layout persists through md (tablets). Desktop (>=lg) collapses to one row. */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-2.5 relative self-stretch w-full min-w-0">
             {/* Row 1: search + refresh (mobile). Desktop: all inline revert -> wrap both rows into one flex row via md:hidden/md:flex patterns */}
             <div className="flex items-start gap-2.5 w-full min-w-0 lg:flex-1 lg:grow lg:hidden">
-                <div className="relative flex-1 grow min-w-0">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tailwind-colors-slate-400)] pointer-events-none flex items-center">
-                        <Search className="h-4 w-4" />
-                    </div>
-                    <Input
-                        type="text"
-                        placeholder="Search domain or its part"
-                        aria-label="Search domain or its part"
-                        className="h-11 lg:h-9 min-h-0 pl-11 pr-3 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] rounded-[var(--primitives-radius-radius-md)] text-sm text-[var(--tailwind-colors-slate-400)] font-text-sm-leading-5-normal placeholder:text-[var(--tailwind-colors-slate-500)]"
-                        value={searchInputValue}
-                        onChange={e => onSearchInputChange(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { onSearchCommit(); e.currentTarget.blur(); } }}
-                        onBlur={() => { if (window.innerWidth < 1024) onSearchCommit(); }}
-                    />
-                </div>
+                <LogsSearchInput
+                    value={searchInputValue}
+                    onChange={onSearchInputChange}
+                    onCommit={onSearchCommit}
+                    onClear={onSearchClear}
+                />
                 <RefreshControls
                     onRefresh={onRefresh}
                     isRefreshing={isRefreshing}
@@ -171,27 +230,20 @@ const Filters = ({
                 controls inside the overflow-x-auto clip box without shifting layout. */}
             <div className="flex lg:flex-nowrap items-start w-full min-w-0 lg:flex-1 lg:grow overflow-x-auto no-scrollbar flex-nowrap gap-1.5 lg:gap-2.5 p-1 -m-1">
                 {/* Desktop search (hidden on mobile) */}
-                <div className="relative flex-1 grow min-w-0 hidden lg:block">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--tailwind-colors-slate-400)] pointer-events-none flex items-center">
-                        <Search className="h-4 w-4" />
-                    </div>
-                    <Input
-                        type="text"
-                        placeholder="Search domain or its part"
-                        aria-label="Search domain or its part"
-                        className="h-11 lg:h-9 min-h-0 pl-11 pr-3 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] rounded-[var(--primitives-radius-radius-md)] text-sm text-[var(--tailwind-colors-slate-400)] font-text-sm-leading-5-normal placeholder:text-[var(--tailwind-colors-slate-400)]"
+                <div className="hidden lg:flex flex-1 grow min-w-0">
+                    <LogsSearchInput
                         value={searchInputValue}
-                        onChange={e => onSearchInputChange(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') { onSearchCommit(); e.currentTarget.blur(); } }}
-                        onBlur={() => { if (window.innerWidth < 1024) onSearchCommit(); }}
+                        onChange={onSearchInputChange}
+                        onCommit={onSearchCommit}
+                        onClear={onSearchClear}
                     />
                 </div>
 
                 {/* Query filter */}
                 <Select value={filterValue} onValueChange={onFilterChange}>
-                    <SelectTrigger className="w-28 md:w-32 px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]">
+                    <SelectTrigger aria-label="Filter by status" className={`w-28 md:w-32 px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] ${triggerBorder(statusActive)}`}>
                         <div className="flex items-center gap-0.5 md:gap-1">
-                            <ListFilter className="w-4 h-4" />
+                            <ListFilter className={`w-4 h-4 ${iconTint(statusActive)}`} />
                             <span className="hidden md:inline"><SelectValue placeholder="All queries" /></span>
                         </div>
                     </SelectTrigger>
@@ -207,9 +259,9 @@ const Filters = ({
                     value={deviceIdValue ?? "all"}
                     onValueChange={val => onDeviceIdChange(val === "all" ? undefined : val)}
                 >
-                    <SelectTrigger className="px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] w-36 md:w-40">
+                    <SelectTrigger aria-label="Filter by device" className={`px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] ${triggerBorder(deviceActive)} w-36 md:w-40`}>
                         <div className="flex items-center gap-0.5 md:gap-1">
-                            <Monitor className="w-4 h-4" />
+                            <Monitor className={`w-4 h-4 ${iconTint(deviceActive)}`} />
                             <span className="hidden md:inline"><SelectValue placeholder="All devices" /></span>
                         </div>
                     </SelectTrigger>
@@ -225,9 +277,9 @@ const Filters = ({
 
                 {/* Sort filter */}
                 <Select value={sortValue} onValueChange={onSortChange}>
-                    <SelectTrigger className="px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]">
+                    <SelectTrigger aria-label="Sort logs" className={`px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] ${triggerBorder(sortActive)}`}>
                         <div className="flex items-center gap-0.5 md:gap-1">
-                            <ArrowDownAZ className="w-4 h-4" />
+                            <ArrowDownAZ className={`w-4 h-4 ${iconTint(sortActive)}`} />
                             <span className="hidden md:inline"><SelectValue placeholder="Created" /></span>
                         </div>
                     </SelectTrigger>
@@ -243,9 +295,9 @@ const Filters = ({
                     value={timespanValue ?? "all"}
                     onValueChange={val => onTimespanChange(val === "all" ? undefined : val)}
                 >
-                    <SelectTrigger className="px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] w-28 md:w-32">
+                    <SelectTrigger aria-label="Filter by timespan" className={`px-1.5 md:px-2 py-1.5 !bg-[var(--shadcn-ui-app-background)] ${triggerBorder(timespanActive)} w-28 md:w-32`}>
                         <div className="flex items-center gap-0.5 md:gap-1">
-                            <Clock className="w-4 h-4" />
+                            <Clock className={`w-4 h-4 ${iconTint(timespanActive)}`} />
                             <span className="hidden md:inline"><SelectValue placeholder="Timespan" /></span>
                         </div>
                     </SelectTrigger>
@@ -259,6 +311,22 @@ const Filters = ({
                     </SelectContent>
                 </Select>
 
+                {/* Clear-all chip: appears once anything narrows the list (a non-default
+                    select OR a committed search — never uncommitted typing). */}
+                {anyActive && (
+                    <Button
+                        variant="ghost"
+                        onClick={onClearFilters}
+                        aria-label="Clear all filters"
+                        title="Clear all filters"
+                        data-testid="logs-clear-filters"
+                        className="h-11 lg:h-9 min-h-0 shrink-0 px-2 gap-1 text-sm text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)]"
+                    >
+                        <X className="w-4 h-4" />
+                        <span className="hidden md:inline">Clear</span>
+                    </Button>
+                )}
+
                 {/* Desktop refresh controls (hidden on mobile second row) */}
                 <div className="hidden lg:flex items-start">
                     <RefreshControls
@@ -271,6 +339,7 @@ const Filters = ({
             </div>
         </div>
     </>
-);
+    );
+};
 
 export default Filters;
