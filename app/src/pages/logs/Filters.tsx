@@ -1,7 +1,18 @@
 import { type JSX } from "react";
-import { Search, ListFilter, ArrowDownAZ, RefreshCw, Monitor, Clock } from "lucide-react";
+import { Search, ListFilter, ArrowDownAZ, RefreshCw, Monitor, Clock, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    QUERY_LOGS_REFRESH_INTERVALS,
+    type RefreshIntervalKey,
+} from "@/lib/consts";
 import {
     Select,
     SelectContent,
@@ -21,12 +32,97 @@ interface FiltersProps {
     onRefresh: () => void;
     timespanValue: string | undefined;
     onTimespanChange: (value: string | undefined) => void;
-    isAutoRefreshing?: boolean;
-    onToggleAutoRefresh?: () => void;
+    /** Selected auto-refresh cadence ("off" = disabled). */
+    refreshIntervalKey: RefreshIntervalKey;
+    onRefreshIntervalChange: (key: RefreshIntervalKey) => void;
+    /** True while a manual (one-shot) refresh is in flight — spins the refresh icon. */
+    isRefreshing?: boolean;
     deviceIdValue: string | undefined;
     onDeviceIdChange: (value: string | undefined) => void;
     availableDeviceIds: string[];
 }
+
+// Grafana-style split refresh control, rendered in the mobile search row and at the end
+// of the desktop filter row. Left half: one-shot refresh (never touches the loop). Right
+// half: auto-refresh interval menu; while an interval is active its compact label shows
+// on the button and the refresh icon spins continuously (the "live" cue).
+const RefreshControls = ({
+    onRefresh,
+    isRefreshing,
+    refreshIntervalKey,
+    onRefreshIntervalChange,
+}: {
+    onRefresh: () => void;
+    isRefreshing: boolean;
+    refreshIntervalKey: RefreshIntervalKey;
+    onRefreshIntervalChange: (key: RefreshIntervalKey) => void;
+}): JSX.Element => {
+    const activeOption = QUERY_LOGS_REFRESH_INTERVALS.find(option => option.key === refreshIntervalKey);
+    const isAutoRefreshing = (activeOption?.ms ?? null) !== null;
+    return (
+        // `group` scopes the hover cue: pointing at either half tints the whole split
+        // button's border, so it reads as one control. Border-only — the `!bg` override
+        // (needed to sit flush on the page background) suppresses the outline variant's
+        // hover background, and a louder cue would compete with the filter accents.
+        <div className="flex items-stretch shrink-0 group">
+            <Button
+                variant="outline"
+                size="icon"
+                className="w-11 h-11 lg:h-9 lg:w-9 min-h-0 shrink-0 rounded-r-none border-r-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] transition-colors group-hover:border-[var(--tailwind-colors-rdns-600)]/50"
+                onClick={onRefresh}
+                aria-label="Refresh query logs"
+                title="Refresh"
+                data-testid="logs-refresh-button"
+            >
+                {/* Fast spin only while a fetch is actually in flight; a calm 3s rotation
+                    is the persistent live-mode cue. Reduced motion falls back to the
+                    interval label as the only cue. */}
+                <RefreshCw
+                    className={`w-4 h-4 text-[var(--tailwind-colors-rdns-600)] motion-reduce:animate-none ${
+                        isRefreshing ? "animate-spin" : isAutoRefreshing ? "animate-[spin_3s_linear_infinite]" : ""
+                    }`}
+                />
+            </Button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="outline"
+                        className="h-11 sm:h-11 lg:h-9 min-h-0 shrink-0 rounded-l-none px-1.5 lg:px-1.5 gap-0.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] transition-colors group-hover:border-[var(--tailwind-colors-rdns-600)]/50"
+                        aria-label="Auto-refresh interval"
+                        title="Auto-refresh interval"
+                        data-testid="logs-refresh-interval-trigger"
+                    >
+                        {isAutoRefreshing && (
+                            <span className="text-xs text-[var(--tailwind-colors-rdns-600)]" data-testid="logs-refresh-interval-label">
+                                {activeOption?.buttonLabel}
+                            </span>
+                        )}
+                        <ChevronDown className={`w-3.5 h-3.5 ${isAutoRefreshing ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--tailwind-colors-slate-400)]"}`} />
+                    </Button>
+                </DropdownMenuTrigger>
+                {/* align="start": open down-right so the menu doesn't drop over the
+                    quick-rule column at the right edge of the cards below. Radix
+                    collision handling still flips it where the viewport is too narrow. */}
+                <DropdownMenuContent align="start">
+                    <DropdownMenuRadioGroup
+                        value={refreshIntervalKey}
+                        onValueChange={value => onRefreshIntervalChange(value as RefreshIntervalKey)}
+                    >
+                        {QUERY_LOGS_REFRESH_INTERVALS.map(option => (
+                            <DropdownMenuRadioItem
+                                key={option.key}
+                                value={option.key}
+                                data-testid={`logs-refresh-interval-${option.key}`}
+                            >
+                                {option.label}
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+};
 
 const Filters = ({
     searchInputValue,
@@ -39,8 +135,9 @@ const Filters = ({
     onRefresh,
     timespanValue,
     onTimespanChange,
-    isAutoRefreshing = false,
-    onToggleAutoRefresh,
+    refreshIntervalKey,
+    onRefreshIntervalChange,
+    isRefreshing = false,
     deviceIdValue,
     onDeviceIdChange,
     availableDeviceIds,
@@ -65,15 +162,12 @@ const Filters = ({
                         onBlur={() => { if (window.innerWidth < 1024) onSearchCommit(); }}
                     />
                 </div>
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className={`w-11 h-11 lg:h-9 min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] ${isAutoRefreshing ? 'bg-[var(--tailwind-colors-rdns-600)]' : ''}`}
-                    onClick={onToggleAutoRefresh || onRefresh}
-                    title={isAutoRefreshing ? "Stop auto-refresh" : "Start auto-refresh"}
-                >
-                    <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'text-[var(--tailwind-colors-rdns-600)] animate-spin' : 'text-[var(--tailwind-colors-rdns-600)]'}`} />
-                </Button>
+                <RefreshControls
+                    onRefresh={onRefresh}
+                    isRefreshing={isRefreshing}
+                    refreshIntervalKey={refreshIntervalKey}
+                    onRefreshIntervalChange={onRefreshIntervalChange}
+                />
             </div>
 
             {/* Row 2 (mobile: single horizontal scroll line) / Full single row (desktop).
@@ -169,17 +263,14 @@ const Filters = ({
                     </SelectContent>
                 </Select>
 
-                {/* Desktop refresh button (hidden on mobile second row) */}
-                <div className="hidden lg:block">
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        className={`w-11 h-11 lg:h-9 min-h-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] ${isAutoRefreshing ? 'bg-[var(--tailwind-colors-rdns-600)]' : ''}`}
-                        onClick={onToggleAutoRefresh || onRefresh}
-                        title={isAutoRefreshing ? "Stop auto-refresh" : "Start auto-refresh"}
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isAutoRefreshing ? 'text-[var(--tailwind-colors-rdns-600)] animate-spin' : 'text-[var(--tailwind-colors-rdns-600)]'}`} />
-                    </Button>
+                {/* Desktop refresh controls (hidden on mobile second row) */}
+                <div className="hidden lg:flex items-start">
+                    <RefreshControls
+                        onRefresh={onRefresh}
+                        isRefreshing={isRefreshing}
+                        refreshIntervalKey={refreshIntervalKey}
+                        onRefreshIntervalChange={onRefreshIntervalChange}
+                    />
                 </div>
             </div>
         </div>
