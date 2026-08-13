@@ -60,15 +60,11 @@ const RefreshControls = ({
     const activeOption = QUERY_LOGS_REFRESH_INTERVALS.find(option => option.key === refreshIntervalKey);
     const isAutoRefreshing = (activeOption?.ms ?? null) !== null;
     return (
-        // `group` scopes the hover cue: pointing at either half tints the whole split
-        // button's border, so it reads as one control. Border-only — the `!bg` override
-        // (needed to sit flush on the page background) suppresses the outline variant's
-        // hover background, and a louder cue would compete with the filter accents.
-        <div className="flex items-stretch shrink-0 group">
+        <div className="flex items-stretch shrink-0">
             <Button
                 variant="outline"
                 size="icon"
-                className="w-11 h-11 lg:h-9 lg:w-9 min-h-0 shrink-0 rounded-r-none border-r-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] transition-colors group-hover:border-[var(--tailwind-colors-rdns-600)]/50"
+                className="w-11 h-11 lg:h-9 lg:w-9 min-h-0 shrink-0 rounded-r-none border-r-0 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]"
                 onClick={onRefresh}
                 aria-label="Refresh query logs"
                 title="Refresh"
@@ -87,7 +83,7 @@ const RefreshControls = ({
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="outline"
-                        className="h-11 sm:h-11 lg:h-9 min-h-0 shrink-0 rounded-l-none px-1.5 lg:px-1.5 gap-0.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] transition-colors group-hover:border-[var(--tailwind-colors-rdns-600)]/50"
+                        className="h-11 sm:h-11 lg:h-9 min-h-0 shrink-0 rounded-l-none px-1.5 lg:px-1.5 gap-0.5 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]"
                         aria-label="Auto-refresh interval"
                         title="Auto-refresh interval"
                         data-testid="logs-refresh-interval-trigger"
