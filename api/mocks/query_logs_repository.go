@@ -95,6 +95,80 @@ func (_c *QueryLogsRepository_DeleteQueryLogs_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// GetQueryLogDevices provides a mock function for the type QueryLogsRepository
+func (_mock *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
+	ret := _mock.Called(ctx, profileId, retention)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQueryLogDevices")
+	}
+
+	var r0 []model.QueryLogDevice
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention) ([]model.QueryLogDevice, error)); ok {
+		return returnFunc(ctx, profileId, retention)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention) []model.QueryLogDevice); ok {
+		r0 = returnFunc(ctx, profileId, retention)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogDevice)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention) error); ok {
+		r1 = returnFunc(ctx, profileId, retention)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsRepository_GetQueryLogDevices_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQueryLogDevices'
+type QueryLogsRepository_GetQueryLogDevices_Call struct {
+	*mock.Call
+}
+
+// GetQueryLogDevices is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+func (_e *QueryLogsRepository_Expecter) GetQueryLogDevices(ctx interface{}, profileId interface{}, retention interface{}) *QueryLogsRepository_GetQueryLogDevices_Call {
+	return &QueryLogsRepository_GetQueryLogDevices_Call{Call: _e.mock.On("GetQueryLogDevices", ctx, profileId, retention)}
+}
+
+func (_c *QueryLogsRepository_GetQueryLogDevices_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention)) *QueryLogsRepository_GetQueryLogDevices_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsRepository_GetQueryLogDevices_Call) Return(queryLogDevices []model.QueryLogDevice, err error) *QueryLogsRepository_GetQueryLogDevices_Call {
+	_c.Call.Return(queryLogDevices, err)
+	return _c
+}
+
+func (_c *QueryLogsRepository_GetQueryLogDevices_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error)) *QueryLogsRepository_GetQueryLogDevices_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetQueryLogs provides a mock function for the type QueryLogsRepository
 func (_mock *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error) {
 	ret := _mock.Called(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)
