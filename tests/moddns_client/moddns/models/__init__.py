@@ -55,6 +55,7 @@ from moddns.models.model_profile import ModelProfile
 from moddns.models.model_profile_settings import ModelProfileSettings
 from moddns.models.model_profile_update import ModelProfileUpdate
 from moddns.models.model_query_log import ModelQueryLog
+from moddns.models.model_query_log_device import ModelQueryLogDevice
 from moddns.models.model_rebinding_protection import ModelRebindingProtection
 from moddns.models.model_retention import ModelRetention
 from moddns.models.model_security import ModelSecurity
