@@ -1288,6 +1288,25 @@ export interface ModelQueryLog {
 /**
  * 
  * @export
+ * @interface ModelQueryLogDevice
+ */
+export interface ModelQueryLogDevice {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogDevice
+     */
+    'device_id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogDevice
+     */
+    'last_seen'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ModelRebindingProtection
  */
 export interface ModelRebindingProtection {
@@ -6454,6 +6473,40 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
+         * List distinct device IDs seen in the profile\'s query logs (current retention window), each with its last-seen timestamp, sorted by device ID
+         * @summary Get profile query log devices
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsDevicesGet: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdLogsDevicesGet', 'id', id)
+            const localVarPath = `/api/v1/profiles/{id}/logs/devices`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Download profile query logs
          * @summary Download profile query logs
          * @param {string} id Profile ID
@@ -6580,6 +6633,19 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * List distinct device IDs seen in the profile\'s query logs (current retention window), each with its last-seen timestamp, sorted by device ID
+         * @summary Get profile query log devices
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdLogsDevicesGet(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelQueryLogDevice>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdLogsDevicesGet(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['QueryLogsApi.apiV1ProfilesIdLogsDevicesGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Download profile query logs
          * @summary Download profile query logs
          * @param {string} id Profile ID
@@ -6633,6 +6699,16 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
             return localVarFp.apiV1ProfilesIdLogsDelete(id, options).then((request) => request(axios, basePath));
         },
         /**
+         * List distinct device IDs seen in the profile\'s query logs (current retention window), each with its last-seen timestamp, sorted by device ID
+         * @summary Get profile query log devices
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsDevicesGet(id: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelQueryLogDevice>> {
+            return localVarFp.apiV1ProfilesIdLogsDevicesGet(id, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Download profile query logs
          * @summary Download profile query logs
          * @param {string} id Profile ID
@@ -6679,6 +6755,18 @@ export class QueryLogsApi extends BaseAPI {
      */
     public apiV1ProfilesIdLogsDelete(id: string, options?: RawAxiosRequestConfig) {
         return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsDelete(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * List distinct device IDs seen in the profile\'s query logs (current retention window), each with its last-seen timestamp, sorted by device ID
+     * @summary Get profile query log devices
+     * @param {string} id Profile ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof QueryLogsApi
+     */
+    public apiV1ProfilesIdLogsDevicesGet(id: string, options?: RawAxiosRequestConfig) {
+        return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsDevicesGet(id, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
