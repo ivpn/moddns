@@ -68,8 +68,9 @@ vi.mock("@/pages/logs/Filters", () => ({
         onSearchClear,
         onClearFilters,
         committedSearchValue,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean; onSearchClear?: () => void; onClearFilters?: () => void; committedSearchValue?: string }) => (
-        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))} data-committed-search={committedSearchValue ?? ""}>
+        lastUpdatedAt,
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean; onSearchClear?: () => void; onClearFilters?: () => void; committedSearchValue?: string; lastUpdatedAt?: number | null }) => (
+        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))} data-committed-search={committedSearchValue ?? ""} data-last-updated={String(lastUpdatedAt ?? null)}>
             <input
                 data-testid="search-input"
                 value={searchInputValue}
@@ -703,6 +704,63 @@ describe("QueryLogs", () => {
             baseProfile.profile_id, 1, 100, undefined, undefined, undefined, undefined, "created"
         ));
         expect((screen.getByTestId("search-input") as HTMLInputElement).value).toBe("");
+    });
+
+        // tableRef: query-logs-refresh-behaviour #L1
+    test("end-of-logs marker appears only when the list is exhausted", async () => {
+        // Short page (5 < limit) → hasMore false → marker.
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(5, 0) });
+        const { unmount } = render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getByTestId("logs-end-marker")).toBeInTheDocument());
+        unmount();
+
+        // Full page (100 = limit) → hasMore true → no marker.
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(100, 0) });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(100));
+        expect(screen.queryByTestId("logs-end-marker")).toBeNull();
+    });
+
+        // tableRef: query-logs-refresh-behaviour #L2
+    test("fetch failure renders the inline error card without a toast; Try again recovers", async () => {
+        const { toast } = await import("sonner");
+        queryLogsMock.mockRejectedValueOnce({ response: { status: 500 } });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(3, 0) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        const card = await screen.findByTestId("logs-error");
+        expect(card).toHaveTextContent("Server error occurred while loading logs.");
+        expect(toast.error).not.toHaveBeenCalled();
+        // The empty-state onboarding card must not compete with the error.
+        expect(screen.queryByTestId("logs-empty-state")).toBeNull();
+
+        fireEvent.click(screen.getByTestId("logs-error-retry"));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+        expect(screen.queryByTestId("logs-error")).toBeNull();
+    });
+
+        // tableRef: query-logs-refresh-behaviour #L2 #T6
+    test("403 stays fully silent: no error card, no toast", async () => {
+        const { toast } = await import("sonner");
+        queryLogsMock.mockRejectedValue({ response: { status: 403 } });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByTestId("logs-error")).toBeNull());
+        expect(toast.error).not.toHaveBeenCalled();
+    });
+
+        // tableRef: query-logs-refresh-behaviour #L3
+    test("page description stays static; freshness flows to the filter bar after the first load", async () => {
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(3, 0) });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        // Before the load: no freshness yet.
+        expect(screen.getByTestId("filters")).toHaveAttribute("data-last-updated", "null");
+        expect(screen.getByText(/Monitor and analyze DNS queries/)).toBeInTheDocument();
+
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+        // The description is untouched by data loads; Filters received a timestamp.
+        expect(screen.getByText(/Monitor and analyze DNS queries/)).toBeInTheDocument();
+        expect(screen.getByTestId("filters").getAttribute("data-last-updated")).not.toBe("null");
     });
 
     test("shows not active state when logs disabled", async () => {
