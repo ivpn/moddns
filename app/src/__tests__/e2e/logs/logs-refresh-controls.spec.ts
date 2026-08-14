@@ -56,6 +56,11 @@ test.describe('Logs refresh controls', () => {
         const refresh = visibleControl(page, 'logs-refresh-button');
         await expect(refresh).toHaveAccessibleName('Refresh query logs');
 
+        // Desktop-only freshness label appears beside the controls after the first load.
+        if (test.info().project.name === 'chromium-desktop') {
+            await expect(page.getByTestId('logs-freshness')).toHaveText(/Updated (just now|\d+s ago)/);
+        }
+
         await refresh.click();
         await expect.poll(logsCalls).toBe(initialCalls + 1);
 
@@ -83,6 +88,17 @@ test.describe('Logs refresh controls', () => {
         const intervalTrigger = visibleControl(page, 'logs-refresh-interval-trigger');
         await expect(intervalTrigger).toHaveAccessibleName('Auto-refresh interval');
 
+        // Desktop: freshness sits on its own line ABOVE the controls, so the button
+        // widening in live mode must not move it (the old inline placement jittered).
+        const isDesktop = test.info().project.name === 'chromium-desktop';
+        let freshnessBefore: { x: number; y: number } | null = null;
+        if (isDesktop) {
+            const box = await page.getByTestId('logs-freshness').boundingBox();
+            const triggerBox = await intervalTrigger.boundingBox();
+            expect(box && triggerBox && box.y + box.height <= triggerBox.y + 1).toBe(true);
+            freshnessBefore = box && { x: box.x, y: box.y };
+        }
+
         // The menu offers the full interval set.
         await intervalTrigger.click();
         for (const key of ['off', 'auto', '5s', '10s', '15s', '30s', '60s']) {
@@ -101,6 +117,11 @@ test.describe('Logs refresh controls', () => {
 
         // Live cues: compact label on the split button + continuously spinning icon.
         await expect(visibleControl(page, 'logs-refresh-interval-label')).toHaveText('Auto');
+        if (isDesktop && freshnessBefore) {
+            const after = (await page.getByTestId('logs-freshness').boundingBox())!;
+            expect(Math.abs(after.x - freshnessBefore.x)).toBeLessThanOrEqual(1);
+            expect(Math.abs(after.y - freshnessBefore.y)).toBeLessThanOrEqual(1);
+        }
         await expect(visibleControl(page, 'logs-refresh-button').locator('svg')).toHaveClass(/animate-\[spin_3s_linear_infinite\]/);
 
         // The immediate tick stages the new entry — the list itself must not change.

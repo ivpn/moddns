@@ -75,6 +75,17 @@ describe('Filters', () => {
         expect(baseProps.onSearchClear).toHaveBeenCalled();
     });
 
+    it('freshness label renders only after a first load, with the "Updated" idiom', () => {
+        const { rerender } = render(<Filters {...baseProps} />);
+        expect(screen.queryByTestId('logs-freshness')).not.toBeInTheDocument();
+
+        rerender(<Filters {...baseProps} lastUpdatedAt={Date.now() - 42_000} />);
+        expect(screen.getByTestId('logs-freshness')).toHaveTextContent(/^Updated 42s ago$/);
+
+        rerender(<Filters {...baseProps} lastUpdatedAt={Date.now() - 3_000} />);
+        expect(screen.getByTestId('logs-freshness')).toHaveTextContent(/^Updated just now$/);
+    });
+
     it('search commits on Enter, and blur alone does not commit', () => {
         render(<Filters {...baseProps} searchInputValue="abc" />);
         const inputs = screen.getAllByLabelText('Search domain or its part');
