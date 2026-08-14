@@ -11,7 +11,7 @@ test.describe('Logs mobile layout', () => {
       customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }],
       extraRoutes: async (p) => {
         // Provide a deterministic set of logs with long domain to challenge layout
-        await p.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+        await p.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
           const now = new Date().toISOString();
             const items = Array.from({ length: 3 }).map((_, i) => ({
               profile_id: 'prof1',
@@ -120,7 +120,7 @@ test.describe('Logs mobile layout', () => {
         dns_request: { domain: 'timed-out-query.example-longdomainforlayout-validation.test', query_type: 'A' }
       }
     ];
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
     });
 
@@ -218,7 +218,7 @@ test.describe('Logs mobile layout', () => {
         reasons: ['blocklist: some-blocklist-id']
       }
     ];
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
     });
 
@@ -254,7 +254,7 @@ test.describe('Logs mobile layout', () => {
       { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'a.example.test' } },
       { profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns', device_id: 'd2', client_ip: '10.0.0.2', dns_request: { domain: 'b.example.test' } }
     ];
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
     });
 
@@ -289,7 +289,7 @@ test.describe('Logs mobile layout', () => {
       { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'dup.example.test', query_type: 'AAAA', response_code: 'NOERROR' } },
       { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'd1', client_ip: '10.0.0.1', dns_request: { domain: 'other.example.test', query_type: 'A', response_code: 'NOERROR' } }
     ];
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
     });
 
@@ -327,7 +327,7 @@ test.describe('Logs mobile layout', () => {
       { profile_id: 'prof1', timestamp: now, status: 'blocked', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.1', dns_request: { domain: 'a-very-long-subdomain-name.example-reallylongdomainforlayout-validation.test', query_type: 'A', response_code: 'NOERROR', dnssec: true } },
       { profile_id: 'prof1', timestamp: now, status: 'processed', protocol: 'dns', device_id: 'device-tablet', client_ip: '10.0.0.2', dns_request: { domain: 'short.example.test', query_type: 'A', response_code: 'NOERROR' } }
     ];
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(items) });
     });
 

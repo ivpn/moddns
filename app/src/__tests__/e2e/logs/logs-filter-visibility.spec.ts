@@ -18,7 +18,7 @@ const ACCENT = /border-\[var\(--tailwind-colors-rdns-600\)\]/;
 // requests return no rows so the filtered empty state renders.
 async function setupLogsPage(page: Page) {
     await registerMocks(page, { authenticated: true, customProfiles: [profile] });
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
         const url = new URL(route.request().url());
         const body = url.searchParams.get('status') === 'blocked' ? [] : rows;
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
