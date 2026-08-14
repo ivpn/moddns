@@ -41,6 +41,7 @@ var (
 	ErrFailedToGetSubscription    = errors.New("failed to get subscription data")
 	ErrFailedToUpdateSubscription = errors.New("failed to update subscription")
 	ErrFailedToGetQueryLogs       = errors.New("failed to get profile query logs")
+	ErrFailedToGetQueryLogDevices = errors.New("failed to get profile query log devices")
 	ErrFailedToGetStatistics      = errors.New("failed to get profile statistics")
 	ErrFailedToDeleteQueryLogs    = errors.New("failed to delete profile query logs")
 	ErrFailedToGetAccount         = errors.New("failed to get account data")

@@ -1891,6 +1891,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/profiles/{id}/logs/devices": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "List distinct device IDs seen in the profile's query logs (current retention window), each with its last-seen timestamp, sorted by device ID",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile query log devices",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.QueryLogDevice"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/logs/download": {
             "get": {
                 "security": [
@@ -3813,6 +3868,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.QueryLogDevice": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "last_seen": {
                     "type": "string"
                 }
             }

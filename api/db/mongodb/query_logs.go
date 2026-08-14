@@ -151,6 +151,53 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 	return results, nil
 }
 
+// GetQueryLogDevices returns the distinct non-empty device IDs present in the
+// profile's query logs (current retention collection, whole window — the TTL
+// already bounds it), each with its most recent timestamp, sorted by device ID.
+// Aggregation, not Collection.Distinct(): the distinct command is unsupported
+// on time-series collections.
+func (r *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
+	start := time.Now()
+	coll := r.getCollObject(retention)
+
+	pipeline := mongo.Pipeline{
+		bson.D{primitive.E{Key: "$match", Value: bson.D{
+			primitive.E{Key: "profile_id", Value: profileId},
+			// $nin (not $ne "") also excludes docs where the field is missing.
+			primitive.E{Key: "device_id", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
+		}}},
+		bson.D{primitive.E{Key: "$group", Value: bson.D{
+			primitive.E{Key: "_id", Value: "$device_id"},
+			primitive.E{Key: "last_seen", Value: bson.D{{Key: "$max", Value: "$timestamp"}}},
+		}}},
+		bson.D{primitive.E{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
+		// Safety valve against pathological device counts; ids are ≤36 chars.
+		bson.D{primitive.E{Key: "$limit", Value: 500}},
+	}
+
+	cursor, err := coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]model.QueryLogDevice, 0)
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	duration := time.Since(start)
+	if duration > slowQueryThreshold {
+		// Counts/durations only — device IDs are sensitive log keys.
+		log.Ctx(ctx).Warn().
+			Bool("slow", true).
+			Str("retention", string(retention)).
+			Int("result_count", len(results)).
+			Dur("duration", duration).
+			Msg("Query log devices fetch took too long")
+	}
+
+	return results, nil
+}
+
 func buildSortSpec(sortBy string) bson.D {
 	switch sortBy {
 	case "domain":

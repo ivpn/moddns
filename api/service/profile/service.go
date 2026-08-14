@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -38,6 +39,11 @@ type ServicesCatalogReader interface {
 // Account-based rate limiting for query logs retrieval.
 const queryLogsRateLimitMax = 120
 const queryLogsRateLimitWindow = time.Minute
+
+// Cache-aside for the distinct-device aggregation (unindexable full-window
+// bucket unpack — see api-endpoint-behaviour #J5).
+const queryLogDevicesCachePrefix = "query_log_devices:"
+const queryLogDevicesCacheTTL = 10 * time.Minute
 
 type ProfileService struct {
 	ProfileRepository repository.ProfileRepository
@@ -215,6 +221,39 @@ func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, pro
 	return p.QueryLogsService.GetProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, status, timespan, deviceId, search, sortBy, page, limit)
 }
 
+// GetProfileQueryLogDevices returns the distinct device IDs seen in the
+// profile's query logs (current retention window). Cache-aside with a short
+// TTL: the aggregation must unpack every bucket of the profile's window
+// (device_id is a measurement field — no index can serve the $group), which
+// costs ~1.4s at 1M docs. Staleness is masked client-side: the frontend
+// unions this list with device ids observed in fetched rows.
+func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountId, profileId string) ([]model.QueryLogDevice, error) {
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheKey := queryLogDevicesCachePrefix + profileId
+	if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
+		var cached []model.QueryLogDevice
+		if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
+			return cached, nil
+		}
+	}
+
+	devices, err := p.QueryLogsService.GetProfileQueryLogDevices(ctx, profileId, profile.Settings.Logs.Retention)
+	if err != nil {
+		return nil, err
+	}
+	if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
+		if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
+			log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
+		}
+	}
+
+	return devices, nil
+}
+
 // DownloadProfileQueryLogs returns all existing profile DNS query logs
 func (p *ProfileService) DownloadProfileQueryLogs(ctx context.Context, accountId, profileId string, page, limit int) ([]model.QueryLog, error) {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
@@ -258,7 +297,17 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 		return err
 	}
 
-	return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+	if err := p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId); err != nil {
+		return err
+	}
+
+	// Deleting logs deletes the device list's source — drop the cached copy so
+	// it cannot outlive the data (best-effort; TTL bounds a miss).
+	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
+		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
+	}
+
+	return nil
 }
 
 // UpdateProfile updates profile data
