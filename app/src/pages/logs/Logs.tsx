@@ -80,8 +80,20 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [timespanValue, setTimespanValue] = useState<string | undefined>(undefined);
     const [deviceIdValue, setDeviceIdValue] = useState<string | undefined>(undefined);
 
-    // Maintain a separate list of all available device IDs (not filtered by current selection)
-    const [allAvailableDeviceIds, setAllAvailableDeviceIds] = useState<string[]>([]);
+    // Device filter sources: the server-authoritative distinct-device list
+    // (GET /profiles/{id}/logs/devices — complete within the retention window)
+    // plus device IDs observed in fetched rows this session (covers a brand-new
+    // device querying mid-session before the next server fetch).
+    const [serverDeviceIds, setServerDeviceIds] = useState<string[]>([]);
+    const [observedDeviceIds, setObservedDeviceIds] = useState<string[]>([]);
+    const [deviceListRefreshTick, setDeviceListRefreshTick] = useState(0);
+    // Union, with the current selection always renderable even if it vanished
+    // from both sources (e.g. its rows expired mid-session).
+    const availableDeviceIds = useMemo(() => {
+        const merged = new Set([...serverDeviceIds, ...observedDeviceIds]);
+        if (deviceIdValue) merged.add(deviceIdValue);
+        return Array.from(merged).sort();
+    }, [serverDeviceIds, observedDeviceIds, deviceIdValue]);
 
     // id→name catalogs for enriching query-log reasons (blocklist/service ids). Loaded once on
     // mount; failures degrade gracefully to raw ids and must never block logs from rendering.
@@ -206,12 +218,14 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         logsRef.current = logs;
     }, [logs]);
 
-    // Reset logs, device IDs, staged entries and page when committed filters change
+    // Reset logs, staged entries and page when committed filters change. The device
+    // list is deliberately NOT reset here: the server list is the authoritative floor
+    // and the union only grows within a profile session — wiping it on (device)
+    // selection collapsed the dropdown to the selected device.
     useEffect(() => {
         setLogs([]);
         setPage(1);
         setHasMore(true);
-        setAllAvailableDeviceIds([]);
         setIsListFading(true);
         setPendingLogs([]);
         setPendingOverflow(false);
@@ -239,9 +253,37 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             setPendingOverflow(false);
             setExpandedKeys(new Set());
             setFreshIdentities(new Set());
+            // Old profile's devices must never bleed into the new one while the
+            // device-list fetch is in flight.
+            setServerDeviceIds([]);
+            setObservedDeviceIds([]);
         }
         previousProfileIdRef.current = currentId;
     }, [activeProfile?.profile_id]);
+
+    // Server device list: complete within the retention window, refreshed on mount,
+    // profile change, and every one-shot refresh. Best-effort like the catalog load —
+    // on failure keep the previous list and let the dropdown degrade to observed ids.
+    useEffect(() => {
+        const profileId = activeProfile?.profile_id;
+        if (!profileId) return;
+        let cancelled = false;
+        const loadDevices = async () => {
+            try {
+                const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet(profileId);
+                if (cancelled || response.status !== 200) return;
+                setServerDeviceIds(
+                    (response.data || [])
+                        .map(device => device.device_id)
+                        .filter((id): id is string => Boolean(id))
+                );
+            } catch {
+                // Silent degrade — the union falls back to row-observed ids.
+            }
+        };
+        loadDevices();
+        return () => { cancelled = true; };
+    }, [activeProfile?.profile_id, deviceListRefreshTick]);
 
     const commitSearch = useCallback(() => {
         setCommittedSearchValue(prev => prev === searchInputValue ? prev : searchInputValue);
@@ -300,7 +342,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
             try {
                 // Status is already handled in filters.Status
-                // Use expanded limit on first page to gather more device IDs; subsequent pages respect configured limit
+                // Bigger first page fills the viewport and defers the first pagination
+                // fetch; subsequent pages respect the configured limit.
                 const effectiveLimit = page === 1 ? 100 : filters.Limit;
                 const searchParam = committedSearchValue || undefined;
                 const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
@@ -323,8 +366,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     setLogs(prev => (page === 1 ? newLogs : [...prev, ...newLogs]));
                     setHasMore(newLogs.length === effectiveLimit);
 
-                    // Accumulate unique device IDs progressively
-                    setAllAvailableDeviceIds(prev => {
+                    // Merge device IDs observed in rows (union with the server list)
+                    setObservedDeviceIds(prev => {
                         const merged = new Set(prev);
                         response.data.forEach(log => {
                             if (log.device_id) merged.add(log.device_id);
@@ -391,6 +434,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setPendingOverflow(false);
         setFreshIdentities(new Set());
         setRefreshTrigger(prev => prev + 1);
+        // Refresh the server device list alongside the one-shot reload.
+        setDeviceListRefreshTick(prev => prev + 1);
         setManualSpinActive(true);
         if (manualSpinTimer.current) clearTimeout(manualSpinTimer.current);
         manualSpinTimer.current = setTimeout(() => setManualSpinActive(false), 500);
@@ -598,7 +643,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                         lastUpdatedAt={lastUpdatedAt}
                         deviceIdValue={deviceIdValue}
                         onDeviceIdChange={setDeviceIdValue}
-                        availableDeviceIds={allAvailableDeviceIds}
+                        availableDeviceIds={availableDeviceIds}
                     />
                 </div>
 
