@@ -245,9 +245,14 @@ func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountI
 	if err != nil {
 		return nil, err
 	}
-	if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
-		if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
-			log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
+	// Never cache an empty list: a fresh profile queried before the collector's
+	// first flush would otherwise pin "no devices" for the whole TTL. Empty-window
+	// aggregations are cheap — there are no buckets to unpack.
+	if len(devices) > 0 {
+		if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
+			if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
+				log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
+			}
 		}
 	}
 
