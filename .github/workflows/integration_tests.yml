@@ -3,8 +3,9 @@ name: Smoke / backend E2E tests
 on:
   push:
     branches: ["main", "develop", "release/*"]
+  # No base-branch filter on pull_request: stacked PRs target feature branches
+  # and must run the suite too.
   pull_request:
-    branches: ["main", "develop", "release/*"]
 
 permissions: read-all
 
