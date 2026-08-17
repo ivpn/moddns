@@ -136,12 +136,6 @@ gen_ts_client: ## Generates the typescript client from swagger spec.
 	rm -rf app/src/api/client/ || true
 	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
 
-build_tests_image: ## Builds the smoke / backend E2E tests image.
-	docker build -f tests/Dockerfile -t dns_tests:latest .
-
-dev_tests: ## Starts the development tests docker container.
-	docker run --network host -it --rm -v ${CWD}:/app -w /app dns_tests:latest
-
 ### BUILD DEV IMAGES
 image?=api
 build_image_dev:

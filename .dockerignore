@@ -8,6 +8,9 @@ app/
 # Bootstrap data (DB init, GeoIP, services catalog)
 bootstrap/
 
+# Development TLS certificates and keys
+certs/
+
 # CI/CD and tooling config
 .github/
 .releaserc
