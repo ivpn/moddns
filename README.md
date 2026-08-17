@@ -102,7 +102,7 @@ Note that the DNS proxy terminates TLS for the encrypted DNS transports itself; 
 - Docker & Docker Compose
 - Make (for the provided automation scripts)
 - Node.js 22+ and npm (for the React application)
-- Go 1.25.8+ (toolchain version pinned in the `go.mod` files)
+- Go 1.26.5+ for `proxy/`, Go 1.25.8+ for the other Go modules (toolchain versions pinned in the `go.mod` files)
 - Python 3.11 (for the backend E2E tests)
 - mkcert (optional, for trusted local TLS certificates)
 
