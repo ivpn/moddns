@@ -2214,6 +2214,25 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogDevices", mock.Anything, mock.Anything, mock.Anything)
 	})
 
+	suite.Run("empty result is returned but never cached", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
+		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return([]model.QueryLogDevice{}, nil)
+
+		devices, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
+		suite.NoError(err)
+		suite.Empty(devices)
+		// Caching [] would pin "no devices" for the TTL on fresh profiles whose
+		// first rows are still in the collector batch.
+		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
 	suite.Run("aggregation error is not cached", func() {
 		suite.mockProfileRepo.ExpectedCalls = nil
 		suite.mockQueryLogsRepo.ExpectedCalls = nil
