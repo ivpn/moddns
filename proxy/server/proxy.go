@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/AdguardTeam/dnsproxy/upstream"
@@ -17,6 +18,10 @@ import (
 
 const (
 	ProxyTypeAdguard = "adguard"
+
+	// dohTimeout bounds DoH request reads and response writes; it matches the
+	// 10s deadline the vendor applies to every other transport.
+	dohTimeout = 10 * time.Second
 )
 
 var _ service.Interface = (*proxy.Proxy)(nil)
@@ -113,14 +118,11 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 				defaultResolver,
 			},
 		},
-		BeforeRequestHandler: s,
-		RequestHandler:       s.RequestHandler(),
-		ResponseHandler:      s.ResponseHandler(),
-		TLSConfig:            tlsConfig,
-		TrustedProxies:       netutil.SliceSubnetSet(trustedPrefixes),
-		Ratelimit:            0,
-		MaxGoroutines:        serverConfig.Server.MaxGoroutines,
-		RefuseAny:            true,
+		RequestHandler: s,
+		TLSConfig:      tlsConfig,
+		TrustedProxies: netutil.SliceSubnetSet(trustedPrefixes),
+		MaxGoroutines:  serverConfig.Server.MaxGoroutines,
+		RefuseAny:      true,
 	}
 
 	if serverConfig.DNSCache.Enabled {
@@ -138,7 +140,20 @@ func (s *Server) newProxyConfig(serverConfig *config.Config) (*proxy.Config, err
 		conf.TCPListenAddr = []*net.TCPAddr{{Port: serverConfig.PlainDNS.TCPListenAddr}}
 	}
 	if serverConfig.DoH.ListenAddr != 0 {
-		conf.HTTPSListenAddr = []*net.TCPAddr{{Port: serverConfig.DoH.ListenAddr}}
+		dohPort := serverConfig.DoH.ListenAddr
+		if dohPort < 0 || dohPort > 65535 {
+			return nil, fmt.Errorf("invalid DoH listen port %d", dohPort)
+		}
+		conf.HTTPConfig = &proxy.HTTPConfig{
+			ListenAddresses: []netip.AddrPort{
+				netip.AddrPortFrom(netip.IPv6Unspecified(), uint16(dohPort)),
+			},
+			// ReadTimeout also becomes the http.Server's ReadHeaderTimeout and,
+			// via net/http's fallback, its IdleTimeout — idle keep-alive
+			// connections are closed after this long.
+			ReadTimeout:  dohTimeout,
+			WriteTimeout: dohTimeout,
+		}
 	}
 	if serverConfig.DoQ.ListenAddr != 0 {
 		conf.QUICListenAddr = []*net.UDPAddr{{Port: serverConfig.DoQ.ListenAddr}}

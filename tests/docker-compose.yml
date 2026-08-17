@@ -38,8 +38,8 @@ services:
       - sdns
       - knot
     ports:
-      - "53000:53/udp" # PLAIN DNS
-      - "53000:53/tcp" # PLAIN DNS
+      # Plain DNS is deliberately not published — the product only exposes
+      # encrypted transports (DoH/DoT/DoQ).
       - "443:443" # HTTPS
       - "853:853/tcp" # TLS
       - "853:853/udp" # QUIC

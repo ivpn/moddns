@@ -13,8 +13,6 @@ services:
       - recursor_sdns
       - recursor_knot
     ports:
-      - "53000:53/udp" # PLAIN DNS
-      - "53000:53/tcp" # PLAIN DNS
       - "443:443" # HTTPS
       - "853:853/tcp" # TLS
       - "853:853/udp" # QUIC
