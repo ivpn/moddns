@@ -69,7 +69,7 @@ DEV_CA_FILENAME = "moddns_dev_development_CA.crt"
 
 
 def _dev_ca_path() -> str:
-    """Locate the development CA bundle (see certs/README.md).
+    """Locate the development CA bundle (see dev/certs/README.md).
 
     DoT/DoQ via dns.query.tls/quic uses Python's system trust store (NOT certifi),
     so we must pass the CA path explicitly — relying on the CI workflow's certifi
@@ -78,7 +78,7 @@ def _dev_ca_path() -> str:
     Resolution order:
       1. MODDNS_TEST_CA_PATH env var (explicit override / escape hatch).
       2. IVPN_CERT_PATH env var (already set by .github/workflows/integration_tests.yml).
-      3. Walk up from this file to find <repo>/certs/<DEV_CA_FILENAME>.
+      3. Walk up from this file to find <repo>/dev/certs/<DEV_CA_FILENAME>.
          Works identically on dev machines and CI runners — only the repo root path
          differs.
     """
@@ -94,12 +94,12 @@ def _dev_ca_path() -> str:
 
     here = Path(__file__).resolve()
     for parent in here.parents:
-        candidate = parent / "certs" / DEV_CA_FILENAME
+        candidate = parent / "dev" / "certs" / DEV_CA_FILENAME
         if candidate.is_file():
             return str(candidate)
 
     raise RuntimeError(
-        f"Development CA not found. Expected <repo>/certs/{DEV_CA_FILENAME}; "
+        f"Development CA not found. Expected <repo>/dev/certs/{DEV_CA_FILENAME}; "
         "override via MODDNS_TEST_CA_PATH or IVPN_CERT_PATH env."
     )
 

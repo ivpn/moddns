@@ -117,7 +117,7 @@ cp proxy/.env.sample proxy/.env
 cp dnscheck/.env.sample dnscheck/.env
 
 # 2. MaxMind GeoLite2 databases (mounted by the proxy and dnscheck)
-#    Place them under bootstrap/GeoLite2-ASN/ and bootstrap/GeoLite2-City/
+#    Place them under dev/bootstrap/GeoLite2-ASN/ and dev/bootstrap/GeoLite2-City/
 ```
 
 Then:
@@ -127,7 +127,7 @@ make up          # Build and start every service stack
 make down        # Stop and remove containers
 ```
 
-Certificates for local HTTPS access live in `certs/`. You can either generate them with `mkcert` or import the bundled CA into your OS trust store.
+Certificates for local HTTPS access live in `dev/certs/`. You can either generate them with `mkcert` or import the bundled CA into your OS trust store.
 
 ## Repository Layout
 
@@ -140,8 +140,8 @@ Certificates for local HTTPS access live in `certs/`. You can either generate th
 | `libs/`   | Shared Go libraries (logging, cache, store)
 | `proxy/`  | DNS proxy implementation
 | `tests/`  | Integration and regression suites (pytest + testcontainers)
-| `bootstrap/`, `compose.*.yml` | Docker-compose orchestration and bootstrap assets
-| `certs/`  | Development TLS certificates and local CA
+| `dev/bootstrap/`, `compose.*.yml` | Docker-compose orchestration and bootstrap assets
+| `dev/certs/`  | Development TLS certificates and local CA
 | `scripts/` | Helper scripts
 | `.github/` | CI workflows (GitHub Actions), lint configs, issue/PR templates
 

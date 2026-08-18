@@ -5,11 +5,8 @@
 # Frontend app (not needed for Go service builds)
 app/
 
-# Bootstrap data (DB init, GeoIP, services catalog)
-bootstrap/
-
-# Development TLS certificates and keys
-certs/
+# Development-only assets (bootstrap data, TLS certificates and keys)
+dev/
 
 # CI/CD and tooling config
 .github/

@@ -1,5 +1,5 @@
 # Services catalog for backend E2E tests.
-# Copied from bootstrap/services/catalog.yml — keep in sync.
+# Copied from dev/bootstrap/services/catalog.yml — keep in sync.
 #
 # Test infrastructure:
 #   - svctest-google.com → 8.8.8.8 (AS15169, Google) via testhosts.txt

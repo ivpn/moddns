@@ -29,7 +29,7 @@ This document captures the practical steps needed to spin up the full stack loca
 1. Create or reuse a local Certificate Authority (CA).
 2. Trust that CA in your OS (e.g., `/usr/local/share/ca-certificates/` on Ubuntu, Keychain Access on macOS).
 3. Generate a wildcard certificate and sign it with your CA.
-4. Convert the resulting `.crt` + `.key` into `.pem` files and place them in `certs/`.
+4. Convert the resulting `.crt` + `.key` into `.pem` files and place them in `dev/certs/`.
 
 ### Detailed steps (mkcert)
 
@@ -40,9 +40,9 @@ This document captures the practical steps needed to spin up the full stack loca
 mkcert automatically installs its root CA into the system trust store, so browsers accept `https://moddns.dev` when the dev proxy serves it locally.
 
 > [!NOTE]
-> The certificates committed under `certs/` (`moddns.dev+4.pem` / `moddns.dev+4-key.pem`, signed by
+> The certificates committed under `dev/certs/` (`moddns.dev+4.pem` / `moddns.dev+4-key.pem`, signed by
 > `moddns_dev_development_CA.crt`) are what the backend E2E tests use. mkcert is only needed if you want a
-> CA your **browser** trusts automatically for local dev. See `certs/README.md` for the regeneration recipe.
+> CA your **browser** trusts automatically for local dev. See `dev/certs/README.md` for the regeneration recipe.
 
 ## Local DNS overrides with dnsmasq
 
@@ -81,7 +81,7 @@ Helpful `/etc/hosts` entries (in addition to dnsmasq):
     https://moddns.dev:443/dns-query/<profile-id>
     ```
 
-2. Import `certs/moddns_dev_development_CA.crt` (or the CA generated via mkcert) into the browser's trust store:
+2. Import `dev/certs/moddns_dev_development_CA.crt` (or the CA generated via mkcert) into the browser's trust store:
     - Chrome/Edge: Settings → Privacy and Security → Security → Manage certificates → Authorities
     - Firefox: Settings → Privacy & Security → Certificates → View Certificates → Authorities
 
@@ -94,7 +94,7 @@ The API serves announcements by fetching a single Markdown file over HTTP from
 content branch). To exercise the feature locally without that branch, serve the
 bundled dev fixture with any static file server.
 
-A ready-made fixture lives at `bootstrap/announcements/announcements.md`. It
+A ready-made fixture lives at `dev/bootstrap/announcements/announcements.md`. It
 covers every category (`news`, `feature`, `maintenance`, `incident`, `security`,
 `policy`) and severity (`info`, `warning`, `critical`), plus one expired and one
 future entry to confirm the API hides them.
@@ -141,7 +141,7 @@ future entry to confirm the API hides them.
 > [!NOTE]
 > If you run the API **on the host** instead of in the `dnsapi` container, skip
 > `make announcements` and serve the fixture directly with
-> `cd bootstrap/announcements && python3 -m http.server 8099`, using
+> `cd dev/bootstrap/announcements && python3 -m http.server 8099`, using
 > `ANNOUNCEMENTS_URL=http://localhost:8099/announcements.md`.
 
 ## Troubleshooting
