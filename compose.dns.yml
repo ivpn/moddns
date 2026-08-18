@@ -18,8 +18,8 @@ services:
       - "853:853/udp" # QUIC
       - "9153:9153"   # METRICS
     volumes:
-      - ./certs:/certs
-      - ./bootstrap/services:/opt/services:ro
-      - ./bootstrap/GeoLite2-ASN/:/opt/geo:ro
+      - ./dev/certs:/certs
+      - ./dev/bootstrap/services:/opt/services:ro
+      - ./dev/bootstrap/GeoLite2-ASN/:/opt/geo:ro
     env_file:
       - ./proxy/.env

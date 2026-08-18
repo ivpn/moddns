@@ -4,7 +4,7 @@ This directory contains certificates necessary for local development and testing
 
 1. `private_key.pem` and `certificate.pem` are used in API unit tests and backend E2E tests (mobileconfig generation).
 2. `moddns.dev+4.pem` and `moddns.dev+4-key.pem` are the TLS server cert/key (SANs: `moddns.dev`, `*.moddns.dev`, `localhost`, `127.0.0.1`, `::1`) used for local development and in backend E2E tests. The proxy serves them for DoH/DoT/DoQ on `moddns.dev`.
-3. `moddns_dev_development_CA.crt` is the root CA that signed the cert above. It is trusted by the backend E2E test client (both locally via `tests/Dockerfile` and in the GitHub workflow) so `https://moddns.dev` validates.
+3. `moddns_dev_development_CA.crt` is the root CA that signed the cert above. It is trusted by the backend E2E test client (via `tests/libs/dns_lib.py` and the GitHub workflow) so `https://moddns.dev` validates.
 
 #### Regenerating on expiry
 
@@ -28,7 +28,7 @@ openssl x509 -req -in /tmp/leaf.csr -CA moddns_dev_development_CA.crt \
   -days 3650 -sha256 -extfile /tmp/leaf-ext.cnf
 ```
 
-If the CA filename changes, update `tests/Dockerfile`, `.github/workflows/integration_tests.yml` and
+If the CA filename changes, update `.github/workflows/integration_tests.yml` and
 `DEV_CA_FILENAME` in `tests/libs/dns_lib.py`.
 
 If the leaf cert's SANs change, the dev domain must change with them: `SERVER_DNS_DOMAIN` in

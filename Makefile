@@ -85,9 +85,9 @@ announcements: ## Serves the Announcements dev fixture on the dns network as htt
 	@NET=$$(docker inspect -f '{{range $$k,$$v := .NetworkSettings.Networks}}{{$$k}}{{end}}' dnsapi 2>/dev/null); \
 		if [ -z "$$NET" ]; then echo "dnsapi container not found — start the stack first (make up / make up_dev)."; exit 1; fi; \
 		docker rm -f announcements-dev >/dev/null 2>&1 || true; \
-		echo "Serving bootstrap/announcements/ on network $$NET as http://announcements-dev/announcements.md  (Ctrl-C to stop)"; \
+		echo "Serving dev/bootstrap/announcements/ on network $$NET as http://announcements-dev/announcements.md  (Ctrl-C to stop)"; \
 		echo "api/.env must have ANNOUNCEMENTS_URL=http://announcements-dev/announcements.md and ANNOUNCEMENTS_RELOAD=10s; recreate dnsapi once after setting them (env is read at container start)."; \
-		docker run --rm --name announcements-dev --network "$$NET" -v "$$(pwd)/bootstrap/announcements:/usr/share/nginx/html:ro" nginx:alpine
+		docker run --rm --name announcements-dev --network "$$NET" -v "$$(pwd)/dev/bootstrap/announcements:/usr/share/nginx/html:ro" nginx:alpine
 
 IMAGE?=dnsapi
 build_api_image: ## Builds the DNS REST API image.
@@ -135,12 +135,6 @@ gen_python_client: ## Generates the python client from swagger spec (renamed to 
 gen_ts_client: ## Generates the typescript client from swagger spec.
 	rm -rf app/src/api/client/ || true
 	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
-
-build_tests_image: ## Builds the smoke / backend E2E tests image.
-	docker build -f tests/Dockerfile -t dns_tests:latest .
-
-dev_tests: ## Starts the development tests docker container.
-	docker run --network host -it --rm -v ${CWD}:/app -w /app dns_tests:latest
 
 ### BUILD DEV IMAGES
 image?=api

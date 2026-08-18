@@ -5,7 +5,7 @@
 1. Add locally generated root certificate to the browser
 
 - Search for Certificates --> View Certificates --> Authorities --> Import
-- location of root cert in repo: `certs/moddns_dev_development_CA.crt`
+- location of root cert in repo: `dev/certs/moddns_dev_development_CA.crt`
 
 2. Set DNS settings for your browser
 

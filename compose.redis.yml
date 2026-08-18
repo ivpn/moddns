@@ -10,7 +10,7 @@ services:
     ports:
       - '6379:6379'
     volumes:
-      - ./bootstrap/redis/master/redis.conf:/redis.conf
+      - ./dev/bootstrap/redis/master/redis.conf:/redis.conf
       - cache:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -27,7 +27,7 @@ services:
       dnsnetwork:
         ipv4_address: 10.5.0.11
     volumes:
-      - ./bootstrap/redis/replica/replica.conf:/redis.conf
+      - ./dev/bootstrap/redis/replica/replica.conf:/redis.conf
       - ./data/replica_1:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-p", "6380", "ping"]
@@ -44,7 +44,7 @@ services:
       dnsnetwork:
         ipv4_address: 10.5.0.20
     volumes:
-      - ./bootstrap/redis/replica/replica-dns.conf:/redis.conf
+      - ./dev/bootstrap/redis/replica/replica-dns.conf:/redis.conf
       - ./data/replica_2:/data
     depends_on:
       - cache
@@ -63,7 +63,7 @@ services:
       dnsnetwork:
         ipv4_address: 10.5.0.21
     volumes:
-      - ./bootstrap/redis/sentinel/sentinel.conf:/redis.conf
+      - ./dev/bootstrap/redis/sentinel/sentinel.conf:/redis.conf
     depends_on:
       - cache
       - redis_replica

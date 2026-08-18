@@ -44,7 +44,7 @@ services:
       - "853:853/tcp" # TLS
       - "853:853/udp" # QUIC
     volumes:
-      - ../certs:/certs
+      - ../dev/certs:/certs
       - ./bootstrap/services:/opt/services:ro
       - ./bootstrap/geolite/:/opt/geo:ro
     env_file:
