@@ -146,7 +146,7 @@ const PreferencesDialog = ({
             <DialogContent className="dialog-shell w-full max-w-[calc(100vw-2rem)] sm:max-w-[680px] lg:max-w-[860px] border-[var(--tailwind-colors-slate-600)] p-0 overflow-hidden [&_[data-slot=dialog-close]_svg]:text-[var(--tailwind-colors-rdns-600)]">
                 <DialogHeader className="p-6 pb-4">
                     <DialogTitle className="text-lg font-semibold text-[var(--tailwind-colors-slate-50)] tracking-[-0.45px] leading-[18px] font-['Roboto_Flex-SemiBold',Helvetica]">
-                        Preferences
+                        Blocklists preferences
                     </DialogTitle>
                 </DialogHeader>
                 <DialogBody className="pt-0 pb-6 px-6">

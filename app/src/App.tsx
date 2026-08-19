@@ -468,7 +468,7 @@ function ProtectedLayout() {
     return <Navigate to="/home" replace />;
   }
 
-  const showDialogTrigger = location.pathname === '/blocklists' || location.pathname === '/query-logs' || location.pathname === '/custom-rules';
+  const showDialogTrigger = location.pathname === '/blocklists';
   const showProfileDropdown = location.pathname !== '/home' && location.pathname !== '/account-preferences';
   const showLogoutButton = location.pathname === '/account-preferences';
 
