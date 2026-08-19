@@ -31,6 +31,10 @@ func (s *stubQueryLogsRepository) GetQueryLogs(ctx context.Context, profileId st
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
+	return nil, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil
@@ -279,6 +283,46 @@ func (s *QueryLogsServiceSuite) TestDownloadProfileQueryLogs() {
 		s.Equal(s.profileID, l.ProfileID)
 	}
 	s.True(foundOld, "expected old.example.com present in download set")
+}
+
+// TestGetProfileQueryLogDevices verifies the distinct-device aggregation:
+// sorted distinct ids, empty/missing device_id excluded, cross-profile
+// isolation, last_seen = the device's newest timestamp, and whole-window
+// scope (no timespan floor — the -25h "laptop" doc still counts).
+// tableRef: api-endpoint-behaviour #J5
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogDevices() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+
+	// Extra docs local to this test (SetupTest reseeds per test, so the shared
+	// seed's count assertions elsewhere stay untouched): empty and missing
+	// device_id must be excluded from the device list.
+	now := time.Now()
+	_, err := s.collMap[retention].InsertMany(ctx, []any{
+		bson.D{{Key: "timestamp", Value: now.Add(-4 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: ""}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "nodevice.example.com"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.8"}, {Key: "protocol", Value: "udp"}},
+		bson.D{{Key: "timestamp", Value: now.Add(-5 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "legacy.example.com"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.9"}, {Key: "protocol", Value: "udp"}},
+	})
+	s.Require().NoError(err)
+
+	devices, err := s.service.GetProfileQueryLogDevices(ctx, s.profileID, retention)
+	s.Require().NoError(err)
+
+	ids := make([]string, 0, len(devices))
+	for _, d := range devices {
+		ids = append(ids, d.DeviceId)
+	}
+	// Sorted ascending; "laptop" present despite its newest doc being -2h and
+	// oldest -25h (whole retention window, no timespan floor); no "" or
+	// missing-field entries; other-profile's devices excluded.
+	s.Equal([]string{"laptop", "phone", "tablet"}, ids)
+
+	// last_seen carries the newest timestamp per device.
+	for _, d := range devices {
+		if d.DeviceId == "laptop" {
+			s.WithinDuration(time.Now().Add(-2*time.Hour), d.LastSeen, time.Minute, "laptop last_seen should be its newest doc")
+		}
+		s.False(d.LastSeen.IsZero(), "last_seen must be set")
+	}
 }
 
 // TestDeleteProfileQueryLogs ensures removal from all retention collections.

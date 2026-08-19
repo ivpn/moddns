@@ -58,6 +58,32 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 	return handler
 }
 
+// @Summary Get profile query log devices
+// @Description List distinct device IDs seen in the profile's query logs (current retention window), each with its last-seen timestamp, sorted by device ID
+// @Tags QueryLogs
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Success 200 {object} []model.QueryLogDevice
+// @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/logs/devices [get]
+func (s *APIServer) getProfileQueryLogDevices() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		profileId := c.Params("id")
+		accountId := auth.GetAccountID(c)
+		devices, err := s.Service.GetProfileQueryLogDevices(c.UserContext(), accountId, profileId)
+		if err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogDevices.Error())
+			return HandleError(c, err, ErrFailedToGetQueryLogDevices.Error())
+		}
+
+		return c.Status(200).JSON(devices)
+	}
+	return handler
+}
+
 // @Summary Download profile query logs
 // @Description Download profile query logs
 // @Tags QueryLogs
