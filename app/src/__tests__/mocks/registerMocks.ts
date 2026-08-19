@@ -91,6 +91,14 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
     }, JSON.stringify(profiles));
   }
 
+  // Benign default for the query-log device list so every consumer gets an empty
+  // dropdown seed. Specs needing specific devices register their own route AFTER
+  // registerMocks (wins by reverse-registration order). Logs routes in specs must
+  // stay anchored (`/logs(\?|$)/`) so they never swallow this endpoint.
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/devices/i, (r: Route) => r.fulfill({
+    status: 200, contentType: 'application/json', body: '[]',
+  }));
+
   // Optional additional route registrations from caller
   if (extraRoutes) {
     await extraRoutes(page);

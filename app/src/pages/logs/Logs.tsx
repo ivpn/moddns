@@ -3,8 +3,6 @@ import type { AxiosError } from "axios";
 
 interface NetworkError extends AxiosError { code?: string; }
 
-import { toast } from "sonner";
-
 import type { ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
 import Filters from "./Filters";
 import NoLogs from "./NoLogs";
@@ -16,6 +14,7 @@ import { computeNewQueryLogs } from "@/lib/queryLogsDiff";
 import { refreshIntervalMsFor, type RefreshIntervalKey } from "@/lib/consts";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUp, Info, X } from "lucide-react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
@@ -29,6 +28,7 @@ interface QueryLogsProps {
     account: ModelAccount;
     profiles: ModelProfile[];
 }
+
 
 const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const { isRestricted } = useSubscriptionGuard();
@@ -68,6 +68,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     // groups that are actually new — not everything that remounted.
     const [freshIdentities, setFreshIdentities] = useState<Set<string>>(new Set());
 
+    // Timestamp of the last successful contact with the logs endpoint (fetch or
+    // background tick) — drives the live "Last updated … ago" status line.
+    const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+
     // Search input (uncommitted while typing) and committed value that triggers requests
     const [searchInputValue, setSearchInputValue] = useState("");
     const [committedSearchValue, setCommittedSearchValue] = useState("");
@@ -76,8 +80,20 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [timespanValue, setTimespanValue] = useState<string | undefined>(undefined);
     const [deviceIdValue, setDeviceIdValue] = useState<string | undefined>(undefined);
 
-    // Maintain a separate list of all available device IDs (not filtered by current selection)
-    const [allAvailableDeviceIds, setAllAvailableDeviceIds] = useState<string[]>([]);
+    // Device filter sources: the server-authoritative distinct-device list
+    // (GET /profiles/{id}/logs/devices — complete within the retention window)
+    // plus device IDs observed in fetched rows this session (covers a brand-new
+    // device querying mid-session before the next server fetch).
+    const [serverDeviceIds, setServerDeviceIds] = useState<string[]>([]);
+    const [observedDeviceIds, setObservedDeviceIds] = useState<string[]>([]);
+    const [deviceListRefreshTick, setDeviceListRefreshTick] = useState(0);
+    // Union, with the current selection always renderable even if it vanished
+    // from both sources (e.g. its rows expired mid-session).
+    const availableDeviceIds = useMemo(() => {
+        const merged = new Set([...serverDeviceIds, ...observedDeviceIds]);
+        if (deviceIdValue) merged.add(deviceIdValue);
+        return Array.from(merged).sort();
+    }, [serverDeviceIds, observedDeviceIds, deviceIdValue]);
 
     // id→name catalogs for enriching query-log reasons (blocklist/service ids). Loaded once on
     // mount; failures degrade gracefully to raw ids and must never block logs from rendering.
@@ -202,17 +218,20 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         logsRef.current = logs;
     }, [logs]);
 
-    // Reset logs, device IDs, staged entries and page when committed filters change
+    // Reset logs, staged entries and page when committed filters change. The device
+    // list is deliberately NOT reset here: the server list is the authoritative floor
+    // and the union only grows within a profile session — wiping it on (device)
+    // selection collapsed the dropdown to the selected device.
     useEffect(() => {
         setLogs([]);
         setPage(1);
         setHasMore(true);
-        setAllAvailableDeviceIds([]);
         setIsListFading(true);
         setPendingLogs([]);
         setPendingOverflow(false);
         setExpandedKeys(new Set());
         setFreshIdentities(new Set());
+        setError(null);
     }, [committedSearchValue, filterValue, sortValue, timespanValue, deviceIdValue]);
 
     // Fade-in: once no fetch is in flight, release the fade after a short delay so the
@@ -234,9 +253,37 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             setPendingOverflow(false);
             setExpandedKeys(new Set());
             setFreshIdentities(new Set());
+            // Old profile's devices must never bleed into the new one while the
+            // device-list fetch is in flight.
+            setServerDeviceIds([]);
+            setObservedDeviceIds([]);
         }
         previousProfileIdRef.current = currentId;
     }, [activeProfile?.profile_id]);
+
+    // Server device list: complete within the retention window, refreshed on mount,
+    // profile change, and every one-shot refresh. Best-effort like the catalog load —
+    // on failure keep the previous list and let the dropdown degrade to observed ids.
+    useEffect(() => {
+        const profileId = activeProfile?.profile_id;
+        if (!profileId) return;
+        let cancelled = false;
+        const loadDevices = async () => {
+            try {
+                const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet(profileId);
+                if (cancelled || response.status !== 200) return;
+                setServerDeviceIds(
+                    (response.data || [])
+                        .map(device => device.device_id)
+                        .filter((id): id is string => Boolean(id))
+                );
+            } catch {
+                // Silent degrade — the union falls back to row-observed ids.
+            }
+        };
+        loadDevices();
+        return () => { cancelled = true; };
+    }, [activeProfile?.profile_id, deviceListRefreshTick]);
 
     const commitSearch = useCallback(() => {
         setCommittedSearchValue(prev => prev === searchInputValue ? prev : searchInputValue);
@@ -295,7 +342,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
             try {
                 // Status is already handled in filters.Status
-                // Use expanded limit on first page to gather more device IDs; subsequent pages respect configured limit
+                // Bigger first page fills the viewport and defers the first pagination
+                // fetch; subsequent pages respect the configured limit.
                 const effectiveLimit = page === 1 ? 100 : filters.Limit;
                 const searchParam = committedSearchValue || undefined;
                 const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
@@ -318,14 +366,16 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     setLogs(prev => (page === 1 ? newLogs : [...prev, ...newLogs]));
                     setHasMore(newLogs.length === effectiveLimit);
 
-                    // Accumulate unique device IDs progressively
-                    setAllAvailableDeviceIds(prev => {
+                    // Merge device IDs observed in rows (union with the server list)
+                    setObservedDeviceIds(prev => {
                         const merged = new Set(prev);
                         response.data.forEach(log => {
                             if (log.device_id) merged.add(log.device_id);
                         });
                         return Array.from(merged).sort();
                     });
+
+                    setLastUpdatedAt(Date.now());
                 } else {
                     setHasMore(false);
                 }
@@ -338,7 +388,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 if (status === 403) {
                     // Account is cut off (inactive / pending_delete): logs are not
                     // entitled in these states. AccountCutoffGuard redirects to
-                    // /account-preferences, so surface no toast here — matching how
+                    // /account-preferences, so surface nothing here — matching how
                     // the other restricted pages behave during cut-off.
                     setHasMore(false);
                     return;
@@ -352,7 +402,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     errorMessage = "Network error. Please check your connection.";
                 }
 
-                toast.error(errorMessage);
+                // The inline error card (with its Try-again action) is the surface for
+                // fetch failures — a toast on top of it would double the noise.
+                setError(errorMessage);
                 setHasMore(false);
             } finally {
                 if (!cancelled) setLoading(false);
@@ -382,6 +434,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setPendingOverflow(false);
         setFreshIdentities(new Set());
         setRefreshTrigger(prev => prev + 1);
+        // Refresh the server device list alongside the one-shot reload.
+        setDeviceListRefreshTick(prev => prev + 1);
         setManualSpinActive(true);
         if (manualSpinTimer.current) clearTimeout(manualSpinTimer.current);
         manualSpinTimer.current = setTimeout(() => setManualSpinActive(false), 500);
@@ -416,6 +470,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 sortValue
             );
             if (response.status !== 200) return;
+            // A tick that found nothing new still confirms freshness.
+            setLastUpdatedAt(Date.now());
             const fetched = response.data || [];
             if (logsRef.current.length === 0) {
                 // Nothing on screen to preserve — apply directly, a pill over an
@@ -550,11 +606,9 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             <div className="flex flex-col items-start gap-6 relative flex-1 self-stretch grow w-full">
                 {/* Page Description */}
                 <section className="w-full">
-                    <div className="flex flex-col gap-1">
-                        <p className="text-[var(--tailwind-colors-slate-200)] text-sm md:text-base leading-5 md:leading-10">
-                            Monitor and analyze DNS queries in real-time. View blocked and processed requests for your active profile.
-                        </p>
-                    </div>
+                    <p className="text-[var(--tailwind-colors-slate-200)] text-sm md:text-base leading-5 md:leading-6">
+                        Monitor and analyze DNS queries in real-time. View blocked and processed requests for your active profile.
+                    </p>
                 </section>
 
                 {/* Sticky below the app header on both breakpoints. Uses the FULL header
@@ -586,9 +640,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                         refreshIntervalKey={refreshIntervalKey}
                         onRefreshIntervalChange={handleRefreshIntervalChange}
                         isRefreshing={manualSpinActive || (loading && page === 1)}
+                        lastUpdatedAt={lastUpdatedAt}
                         deviceIdValue={deviceIdValue}
                         onDeviceIdChange={setDeviceIdValue}
-                        availableDeviceIds={allAvailableDeviceIds}
+                        availableDeviceIds={availableDeviceIds}
                     />
                 </div>
 
@@ -623,7 +678,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                 </div>
                             </div>
                         )}
-                        {logsEnabled && logs.length === 0 && !loading && (
+                        {logsEnabled && logs.length === 0 && !loading && !error && (
                             <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent" data-testid="logs-empty-state">
                                 <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
                                     <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
@@ -711,9 +766,27 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                             ))}
                                         </div>
                                     )}
-                                    {error && (
-                                        <div className="w-full text-center py-4 text-[var(--tailwind-colors-red-500)]">
-                                            {error}
+                                    {error && !loading && (
+                                        <div
+                                            className="flex flex-col items-center gap-3 w-full px-3 py-6 bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-[var(--primitives-radius-radius-md)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent"
+                                            data-testid="logs-error"
+                                        >
+                                            <span className="text-sm text-center text-[var(--tailwind-colors-red-500)]">{error}</span>
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleRefresh}
+                                                data-testid="logs-error-retry"
+                                                className="min-h-11 lg:min-h-9 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]"
+                                            >
+                                                Try again
+                                            </Button>
+                                        </div>
+                                    )}
+                                    {/* Quiet end-of-list marker: without it the skeletons just stop
+                                        and a finished list is indistinguishable from a stalled one. */}
+                                    {!hasMore && !loading && !error && logs.length > 0 && (
+                                        <div className="w-full text-center py-3 text-xs text-[var(--tailwind-colors-slate-400)]" data-testid="logs-end-marker">
+                                            End of logs
                                         </div>
                                     )}
                                 </div>

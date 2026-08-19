@@ -1,4 +1,4 @@
-import { type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { Search, ListFilter, ArrowDownAZ, RefreshCw, Monitor, Clock, ChevronDown, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,46 @@ interface FiltersProps {
     onRefreshIntervalChange: (key: RefreshIntervalKey) => void;
     /** True while a manual (one-shot) refresh is in flight — spins the refresh icon. */
     isRefreshing?: boolean;
+    /** Last successful contact with the logs endpoint; null before the first load. */
+    lastUpdatedAt?: number | null;
     deviceIdValue: string | undefined;
     onDeviceIdChange: (value: string | undefined) => void;
     availableDeviceIds: string[];
 }
+
+// Compact relative age for a bar that refreshes in seconds — date-fns'
+// formatDistanceToNow bottoms out at "less than a minute", too vague here.
+const formatAge = (ms: number): string => {
+    const seconds = Math.max(0, Math.floor(ms / 1000));
+    if (seconds < 10) return "just now";
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+};
+
+// Freshness label beside the refresh controls. Lives in the sticky bar because that is
+// the page's only persistent chrome — freshness matters most when the reader is deep in
+// the list with auto-refresh off, exactly when the page description has scrolled away.
+// A growing age is also the only user-visible signal when silent background ticks stop
+// landing. Isolated so only this label re-renders on the 10s age tick. Deliberately NOT
+// an aria-live region — announcing every tick would chatter at screen-reader users.
+const FreshnessLabel = ({ lastUpdatedAt }: { lastUpdatedAt: number }): JSX.Element => {
+    const [, forceTick] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => forceTick(t => t + 1), 10000);
+        return () => clearInterval(interval);
+    }, []);
+    return (
+        <span
+            className="whitespace-nowrap shrink-0 text-xs leading-4 text-[var(--tailwind-colors-slate-200)]"
+            data-testid="logs-freshness"
+        >
+            Updated {formatAge(Date.now() - lastUpdatedAt)}
+        </span>
+    );
+};
 
 // Shared search input (rendered in the mobile row and the desktop row). Commits on
 // Enter or after the owner's debounce — there is deliberately no commit-on-blur (the
@@ -183,6 +219,7 @@ const Filters = ({
     refreshIntervalKey,
     onRefreshIntervalChange,
     isRefreshing = false,
+    lastUpdatedAt = null,
     deviceIdValue,
     onDeviceIdChange,
     availableDeviceIds,
@@ -207,6 +244,14 @@ const Filters = ({
     const iconTint = (active: boolean) => (active ? "text-[var(--tailwind-colors-rdns-600)]" : "");
     return (
     <>
+        {/* Freshness line above the controls row, right-aligned over the refresh button.
+            Deliberately NOT inline with the row: the split button widens when an interval
+            is active and the search input flexes, so an inline label would jitter. The
+            height is reserved from the start (desktop) so the label's appearance after
+            the first load shifts nothing. */}
+        <div className="hidden lg:flex justify-end h-4 mb-1 self-stretch w-full">
+            {lastUpdatedAt !== null && <FreshnessLabel lastUpdatedAt={lastUpdatedAt} />}
+        </div>
         {/* Tablet layout adjustment: two-row layout persists through md (tablets). Desktop (>=lg) collapses to one row. */}
         <div className="flex flex-col lg:flex-row lg:items-start gap-2.5 relative self-stretch w-full min-w-0">
             {/* Row 1: search + refresh (mobile). Desktop: all inline revert -> wrap both rows into one flex row via md:hidden/md:flex patterns */}
