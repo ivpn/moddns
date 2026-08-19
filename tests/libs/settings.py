@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     MOCK_PREAUTH_URL: str = "http://localhost:8080"
+    # Must match API_PSK in config/api.env — the PSK middleware fails closed
+    # when the secret is unset, so an empty value no longer passes.
+    API_PSK: str = "e2e-test-psk"
 
 
 @lru_cache()
