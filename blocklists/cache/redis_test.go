@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -90,13 +92,15 @@ func TestCreateOrUpdateBlocklist_ReplacesExisting(t *testing.T) {
 	assert.False(t, mr.Exists("blocklist:swap_old"))
 }
 
-// TestCreateOrUpdateBlocklist_ClearsStaleTemp ensures a temp set left behind by a
-// previously crashed run is discarded rather than merged into the new set.
+// TestCreateOrUpdateBlocklist_ClearsStaleTemp ensures a fixed-name _temp set
+// left behind by a crashed run of a previous code version is discarded rather
+// than merged into the new set (current staging keys are per-run and
+// TTL-bound, so the legacy name can only be an orphan).
 func TestCreateOrUpdateBlocklist_ClearsStaleTemp(t *testing.T) {
 	rc, mr := newTestCache(t)
 	ctx := context.Background()
 
-	// Simulate a crashed prior run that left a partial temp set.
+	// Simulate a crashed prior run of the legacy code that left a partial temp set.
 	require.NoError(t, rc.client.SAdd(ctx, "blocklist:stale_temp", "garbage.com").Err())
 
 	require.NoError(t, rc.CreateOrUpdateBlocklist(ctx, "stale", []byte("real.com")))
@@ -134,9 +138,9 @@ func TestSwapBlocklist_MissingTemp_PreservesLiveList(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, rc.client.SAdd(ctx, "blocklist:live", "keep1.com", "keep2.com").Err())
-	require.False(t, mr.Exists("blocklist:live_temp"))
+	require.False(t, mr.Exists("blocklist:live:tmp:gone"))
 
-	err := rc.swapBlocklist(ctx, "blocklist:live_temp", "blocklist:live")
+	err := rc.swapBlocklist(ctx, "blocklist:live:tmp:gone", "blocklist:live")
 	assert.Error(t, err, "swap with a missing temp set must fail")
 
 	members, merr := rc.client.SMembers(ctx, "blocklist:live").Result()
@@ -153,14 +157,14 @@ func TestSwapBlocklist_OverwritesExistingLive(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, rc.client.SAdd(ctx, "blocklist:x", "old.com").Err())
-	require.NoError(t, rc.client.SAdd(ctx, "blocklist:x_temp", "new1.com", "new2.com").Err())
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:x:tmp:run1", "new1.com", "new2.com").Err())
 
-	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:x_temp", "blocklist:x"))
+	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:x:tmp:run1", "blocklist:x"))
 
 	members, err := rc.client.SMembers(ctx, "blocklist:x").Result()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"new1.com", "new2.com"}, members)
-	assert.False(t, mr.Exists("blocklist:x_temp"))
+	assert.False(t, mr.Exists("blocklist:x:tmp:run1"))
 	assert.False(t, mr.Exists("blocklist:x_old"))
 }
 
@@ -171,9 +175,89 @@ func TestSwapBlocklist_CleansOrphanedOldKey(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y_old", "orphan.com").Err())
-	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y_temp", "new.com").Err())
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y_temp", "legacy-orphan.com").Err())
+	require.NoError(t, rc.client.SAdd(ctx, "blocklist:y:tmp:run1", "new.com").Err())
 
-	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:y_temp", "blocklist:y"))
+	require.NoError(t, rc.swapBlocklist(ctx, "blocklist:y:tmp:run1", "blocklist:y"))
 
 	assert.False(t, mr.Exists("blocklist:y_old"), "orphaned _old key must be removed")
+	assert.False(t, mr.Exists("blocklist:y_temp"), "orphaned legacy _temp key must be removed")
+}
+
+// makePrefixedDomains builds n newline-separated domains with a distinguishing
+// prefix so concurrent-writer tests can tell whose set won the swap.
+func makePrefixedDomains(prefix string, n int) []byte {
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			b.WriteByte('\n')
+		}
+		fmt.Fprintf(&b, "%s%d.example.com", prefix, i)
+	}
+	return []byte(b.String())
+}
+
+// specRef: #F3 — two writers racing on the same blocklist must each stage into
+// their own per-run key: whichever swap lands last wins with a COMPLETE set,
+// never an interleaved or truncated one. Both inputs span multiple pipeline
+// flushes so the two populations genuinely interleave in time.
+func TestCreateOrUpdateBlocklist_ConcurrentWritersDoNotCorrupt(t *testing.T) {
+	rc, _ := newTestCache(t)
+	ctx := context.Background()
+
+	// 260k entries => 52 SADD commands => more than one pipeline flush each.
+	const n = 260_000
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	for idx, prefix := range []string{"a", "b"} {
+		wg.Add(1)
+		go func(idx int, prefix string) {
+			defer wg.Done()
+			errs[idx] = rc.CreateOrUpdateBlocklist(ctx, "race", makePrefixedDomains(prefix, n))
+		}(idx, prefix)
+	}
+	wg.Wait()
+	require.NoError(t, errs[0])
+	require.NoError(t, errs[1])
+
+	card, err := rc.client.SCard(ctx, "blocklist:race").Result()
+	require.NoError(t, err)
+	assert.Equal(t, int64(n), card, "live set must be exactly one writer's complete set")
+
+	// The set must belong entirely to one writer: probe first and last member
+	// of each candidate set.
+	aFirst := rc.client.SIsMember(ctx, "blocklist:race", "a0.example.com").Val()
+	aLast := rc.client.SIsMember(ctx, "blocklist:race", fmt.Sprintf("a%d.example.com", n-1)).Val()
+	bFirst := rc.client.SIsMember(ctx, "blocklist:race", "b0.example.com").Val()
+	bLast := rc.client.SIsMember(ctx, "blocklist:race", fmt.Sprintf("b%d.example.com", n-1)).Val()
+	assert.True(t, (aFirst && aLast && !bFirst && !bLast) || (bFirst && bLast && !aFirst && !aLast),
+		"live set mixes writers: aFirst=%v aLast=%v bFirst=%v bLast=%v", aFirst, aLast, bFirst, bLast)
+}
+
+// specRef: #F1 — the staging key is created with a bounded lifetime so an
+// interrupted run cannot orphan it forever.
+func TestPopulateStaging_SetsBoundedTTL(t *testing.T) {
+	rc, _ := newTestCache(t)
+	ctx := context.Background()
+
+	staging := "blocklist:ttltest:tmp:fixed"
+	require.NoError(t, rc.populateStaging(ctx, staging, []byte("a.com\nb.com")))
+
+	ttl, err := rc.client.TTL(ctx, staging).Result()
+	require.NoError(t, err)
+	assert.Greater(t, ttl, time.Duration(0), "staging key must carry a TTL")
+	assert.LessOrEqual(t, ttl, stagingTTL)
+}
+
+// specRef: #F2 — the promoted live key must never expire: the swap script
+// clears the staging TTL that RENAME would otherwise carry over.
+func TestCreateOrUpdateBlocklist_LiveKeyHasNoTTL(t *testing.T) {
+	rc, _ := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, rc.CreateOrUpdateBlocklist(ctx, "persist", []byte("a.com\nb.com")))
+
+	ttl, err := rc.client.TTL(ctx, "blocklist:persist").Result()
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(-1), ttl, "live key must be persistent (TTL -1)")
 }

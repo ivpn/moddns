@@ -13,6 +13,7 @@ import (
 	"github.com/ivpn/dns/blocklists/internal/extractor"
 	"github.com/ivpn/dns/blocklists/internal/metrics"
 	"github.com/ivpn/dns/blocklists/model"
+	"github.com/ivpn/dns/libs/dislock"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -141,17 +142,22 @@ func TestStevenBlackEndToEnd(t *testing.T) {
 	}
 }
 
-// fakeStore implements db.Db, serving fixed metadata and recording deletions.
+// fakeStore implements db.Db, serving fixed metadata/content and recording
+// upserts and deletions. deleteErr, when set, fails every content Delete.
 type fakeStore struct {
 	metadata       []model.BlocklistMetadata
+	content        []model.BlocklistContent
 	deletedMeta    []map[string]any
 	deletedContent []map[string]any
+	upserted       []model.BlocklistMetadata
+	deleteErr      error
 }
 
 func (f *fakeStore) GetClient() *mongo.Client { return nil }
 func (f *fakeStore) Disconnect() error        { return nil }
 func (f *fakeStore) Migrate() error           { return nil }
-func (f *fakeStore) UpsertMetadata(_ context.Context, _ model.BlocklistMetadata) error {
+func (f *fakeStore) UpsertMetadata(_ context.Context, m model.BlocklistMetadata) error {
+	f.upserted = append(f.upserted, m)
 	return nil
 }
 func (f *fakeStore) UpsertContent(_ context.Context, _ model.BlocklistContent) error { return nil }
@@ -159,9 +165,12 @@ func (f *fakeStore) GetMetadata(_ context.Context, _ map[string]any) ([]model.Bl
 	return f.metadata, nil
 }
 func (f *fakeStore) GetContent(_ context.Context, _ map[string]any) ([]model.BlocklistContent, error) {
-	return nil, nil
+	return f.content, nil
 }
 func (f *fakeStore) Delete(_ context.Context, filter map[string]any) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
 	f.deletedContent = append(f.deletedContent, filter)
 	return nil
 }
@@ -170,9 +179,11 @@ func (f *fakeStore) DeleteMetadata(_ context.Context, filter map[string]any) err
 	return nil
 }
 
-// fakeCache implements cache.Cache, recording blocklist deletions.
+// fakeCache implements cache.Cache, recording blocklist deletions. Live sets
+// are treated as present unless listed in missing.
 type fakeCache struct {
 	deleted []string
+	missing map[string]bool
 }
 
 func (f *fakeCache) CreateOrUpdateBlocklist(_ context.Context, _ string, _ []byte) error {
@@ -182,7 +193,13 @@ func (f *fakeCache) DeleteBlocklist(_ context.Context, blocklistId string) error
 	f.deleted = append(f.deleted, blocklistId)
 	return nil
 }
+func (f *fakeCache) BlocklistExists(_ context.Context, blocklistId string) (bool, error) {
+	return !f.missing[blocklistId], nil
+}
 func (f *fakeCache) Ping(_ context.Context) error { return nil }
+func (f *fakeCache) Locker(_ string) *dislock.Locker {
+	return nil
+}
 
 func metaFor(ids ...string) []model.BlocklistMetadata {
 	out := make([]model.BlocklistMetadata, 0, len(ids))

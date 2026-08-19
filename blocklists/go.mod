@@ -6,6 +6,8 @@ require (
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1
+	github.com/go-co-op/gocron/v2 v2.20.0
+	github.com/google/uuid v1.6.0
 	github.com/ivpn/dns/libs v0.0.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.7.3
@@ -20,9 +22,9 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/golang-migrate/migrate/v4 v4.18.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

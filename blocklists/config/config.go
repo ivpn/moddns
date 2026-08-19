@@ -58,6 +58,11 @@ type UpdaterConfig struct {
 	// an empty or partially mounted sources directory being read as "no
 	// sources", which would classify every stored blocklist as stale.
 	MinSources int
+	// MaxStalePurge is the largest number of stale blocklists PurgeStale may
+	// delete in one run. A larger count means the source set diverged from the
+	// database far beyond any routine removal (e.g. config drift between
+	// instances) and the purge is refused.
+	MaxStalePurge int
 }
 
 // defaultShrinkThreshold is the default value for UpdaterConfig.ShrinkThreshold.
@@ -65,6 +70,9 @@ const defaultShrinkThreshold = 0.5
 
 // defaultMinSources is the default value for UpdaterConfig.MinSources.
 const defaultMinSources = 1
+
+// defaultMaxStalePurge is the default value for UpdaterConfig.MaxStalePurge.
+const defaultMaxStalePurge = 5
 
 // SentryConfig represents the Sentry configuration
 type SentryConfig struct {
@@ -121,6 +129,7 @@ func New() (*Config, error) {
 			SourcesDir:      os.Getenv("UPDATER_SOURCES_DIR"),
 			ShrinkThreshold: loadShrinkThreshold(),
 			MinSources:      loadMinSources(),
+			MaxStalePurge:   loadMaxStalePurge(),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
@@ -199,6 +208,16 @@ func loadMinSources() int {
 	v, err := strconv.Atoi(os.Getenv("UPDATER_MIN_SOURCES"))
 	if err != nil || v < 1 {
 		return defaultMinSources
+	}
+	return v
+}
+
+// loadMaxStalePurge reads UPDATER_MAX_STALE_PURGE (a positive integer).
+// Invalid, missing or non-positive values fall back to defaultMaxStalePurge.
+func loadMaxStalePurge() int {
+	v, err := strconv.Atoi(os.Getenv("UPDATER_MAX_STALE_PURGE"))
+	if err != nil || v < 1 {
+		return defaultMaxStalePurge
 	}
 	return v
 }
