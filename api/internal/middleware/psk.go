@@ -26,7 +26,8 @@ func NewPSK(cfg config.APIConfig) fiber.Handler {
 
 	return func(c *fiber.Ctx) error {
 		token := GetToken(c)
-		if subtle.ConstantTimeCompare([]byte(token), []byte(cfg.PSK)) != 1 {
+		// ConstantTimeCompare("", "") == 1, so an unset PSK must fail closed.
+		if cfg.PSK == "" || subtle.ConstantTimeCompare([]byte(token), []byte(cfg.PSK)) != 1 {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
