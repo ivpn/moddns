@@ -44,6 +44,10 @@ func (q *QueryLogsService) DownloadProfileQueryLogs(ctx context.Context, profile
 	return logs, nil
 }
 
+func (q *QueryLogsService) GetProfileQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
+	return q.QueryLogsRepository.GetQueryLogDevices(ctx, profileId, retention)
+}
+
 func (q *QueryLogsService) DeleteProfileQueryLogs(ctx context.Context, profileId string) error {
 	return q.QueryLogsRepository.DeleteQueryLogs(ctx, profileId)
 }

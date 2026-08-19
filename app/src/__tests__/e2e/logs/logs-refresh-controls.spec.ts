@@ -25,7 +25,7 @@ const logItem = (i: number, domain: string) => ({
 async function setupLogsPage(page: Page, respond: () => object[]) {
     await registerMocks(page, { authenticated: true, customProfiles: [profile] });
     let calls = 0;
-    await page.route(/\/api\/v1\/profiles\/prof1\/logs/i, route => {
+    await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
         calls++;
         route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(respond()) });
     });

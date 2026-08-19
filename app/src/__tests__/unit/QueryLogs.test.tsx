@@ -5,8 +5,9 @@ import QueryLogs from "@/pages/logs/Logs";
 import { useAppStore } from "@/store/general";
 
 // Hoisted mocks for vi.mock
-const { queryLogsMock, profilesGetMock } = vi.hoisted(() => ({
+const { queryLogsMock, queryLogsDevicesMock, profilesGetMock } = vi.hoisted(() => ({
     queryLogsMock: vi.fn(),
+    queryLogsDevicesMock: vi.fn(),
     profilesGetMock: vi.fn(),
 }));
 
@@ -16,6 +17,7 @@ vi.mock("@/api/api", () => ({
         Client: {
             queryLogsApi: {
                 apiV1ProfilesIdLogsGet: queryLogsMock,
+                apiV1ProfilesIdLogsDevicesGet: queryLogsDevicesMock,
             },
             profilesApi: {
                 apiV1ProfilesIdGet: profilesGetMock,
@@ -69,8 +71,9 @@ vi.mock("@/pages/logs/Filters", () => ({
         onClearFilters,
         committedSearchValue,
         lastUpdatedAt,
-    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean; onSearchClear?: () => void; onClearFilters?: () => void; committedSearchValue?: string; lastUpdatedAt?: number | null }) => (
-        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))} data-committed-search={committedSearchValue ?? ""} data-last-updated={String(lastUpdatedAt ?? null)}>
+        availableDeviceIds,
+    }: { searchInputValue: string; onSearchInputChange?: (v: string) => void; onSearchCommit?: () => void; onFilterChange?: (v: string) => void; onSortChange?: (v: string) => void; onTimespanChange?: (v: string) => void; onDeviceIdChange?: (v: string) => void; onRefresh?: () => void; onRefreshIntervalChange?: (v: string) => void; isRefreshing?: boolean; onSearchClear?: () => void; onClearFilters?: () => void; committedSearchValue?: string; lastUpdatedAt?: number | null; availableDeviceIds?: string[] }) => (
+        <div data-testid="filters" data-refreshing={String(Boolean(isRefreshing))} data-committed-search={committedSearchValue ?? ""} data-last-updated={String(lastUpdatedAt ?? null)} data-available-devices={(availableDeviceIds ?? []).join(",")}>
             <input
                 data-testid="search-input"
                 value={searchInputValue}
@@ -173,6 +176,8 @@ describe("QueryLogs", () => {
     beforeEach(() => {
         vi.useRealTimers();
         queryLogsMock.mockReset();
+        queryLogsDevicesMock.mockReset();
+        queryLogsDevicesMock.mockResolvedValue({ status: 200, data: [] });
         profilesGetMock.mockReset();
         useAppStore.setState({ activeProfile: baseProfile });
         MockIntersectionObserver.lastInstance = null;
@@ -761,6 +766,79 @@ describe("QueryLogs", () => {
         // The description is untouched by data loads; Filters received a timestamp.
         expect(screen.getByText(/Monitor and analyze DNS queries/)).toBeInTheDocument();
         expect(screen.getByTestId("filters").getAttribute("data-last-updated")).not.toBe("null");
+    });
+
+    // tableRef: query-logs-refresh-behaviour #D1
+    test("device dropdown is the union of the server list and row-observed ids", async () => {
+        queryLogsDevicesMock.mockResolvedValue({
+            status: 200,
+            data: [
+                { device_id: "phone", last_seen: "2024-01-01T00:00:00Z" },
+                { device_id: "tablet", last_seen: "2024-01-01T00:00:00Z" },
+            ],
+        });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [makeLog({ device_id: "laptop" })] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() =>
+            expect(screen.getByTestId("filters").getAttribute("data-available-devices")).toBe("laptop,phone,tablet")
+        );
+        expect(queryLogsDevicesMock).toHaveBeenCalledWith(baseProfile.profile_id);
+    });
+
+    // tableRef: query-logs-refresh-behaviour #D4
+    test("selecting a device narrows the logs but never shrinks the device list", async () => {
+        queryLogsDevicesMock.mockResolvedValue({
+            status: 200,
+            data: [
+                { device_id: "device-1", last_seen: "2024-01-01T00:00:00Z" },
+                { device_id: "phone", last_seen: "2024-01-01T00:00:00Z" },
+            ],
+        });
+        queryLogsMock.mockResolvedValue({ status: 200, data: [makeLog({ device_id: "device-1" })] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() =>
+            expect(screen.getByTestId("filters").getAttribute("data-available-devices")).toBe("device-1,phone")
+        );
+
+        fireEvent.click(screen.getByTestId("device-select"));
+        await waitFor(() => expect(queryLogsMock).toHaveBeenLastCalledWith(
+            baseProfile.profile_id, 1, 100, undefined, undefined, "device-1", undefined, "created"
+        ));
+        // The regression this feature fixes: the dropdown used to collapse to the
+        // selected device because the list was wiped on every filter change.
+        expect(screen.getByTestId("filters").getAttribute("data-available-devices")).toBe("device-1,phone");
+    });
+
+    // tableRef: query-logs-refresh-behaviour #D3
+    test("device-list fetch failure degrades silently to row-observed ids", async () => {
+        queryLogsDevicesMock.mockRejectedValue(new Error("boom"));
+        queryLogsMock.mockResolvedValue({ status: 200, data: [makeLog({ device_id: "laptop" })] });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() =>
+            expect(screen.getByTestId("filters").getAttribute("data-available-devices")).toBe("laptop")
+        );
+        expect(screen.queryByTestId("logs-error")).toBeNull();
+    });
+
+    // tableRef: query-logs-refresh-behaviour #D2
+    test("manual refresh refetches the server device list; profile switch reloads it", async () => {
+        queryLogsDevicesMock.mockResolvedValue({ status: 200, data: [] });
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(2, 0) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(queryLogsDevicesMock).toHaveBeenCalledTimes(1));
+
+        fireEvent.click(screen.getByTestId("refresh"));
+        await waitFor(() => expect(queryLogsDevicesMock).toHaveBeenCalledTimes(2));
+
+        const otherProfile = { ...baseProfile, profile_id: "profile-2", id: "profile-2" };
+        act(() => {
+            useAppStore.setState({ activeProfile: otherProfile });
+        });
+        await waitFor(() => expect(queryLogsDevicesMock).toHaveBeenLastCalledWith("profile-2"));
     });
 
     test("shows not active state when logs disabled", async () => {
