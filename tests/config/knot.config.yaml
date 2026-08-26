@@ -29,6 +29,19 @@ local-data:
     rebinding-allow-rule.com: [192.168.0.20]
     router.local: [192.168.0.30]
 
+  ## CNAME uncloaking fixtures (test_cname_uncloaking.py). CNAMEs cannot be
+  ## expressed in the sdns hosts file, so these are knot-only — the E2E stack's
+  ## default recursor (DNS_UPSTREAMS_DEFAULT=knot) serves them.
+  records: |
+    cloaked.cnametest.com. 300 IN CNAME cnametracker-blocked.com.
+    cnametracker-blocked.com. 300 IN A 104.18.74.231
+    cloaked-multihop.cnametest.com. 300 IN CNAME hop.cnamechain.com.
+    hop.cnamechain.com. 300 IN CNAME cnametracker-blocked.com.
+    cloaked-clean.cnametest.com. 300 IN CNAME cnameclean.com.
+    cnameclean.com. 300 IN A 104.18.74.233
+    cloaked-sub.cnametest.com. 300 IN CNAME tracker.cnamepark.com.
+    tracker.cnamepark.com. 300 IN A 104.18.74.234
+
 ## Deliberately-unresolvable test zone (query-log outcome C3, "No answer"):
 ## forwarded to a blackholed TEST-NET-1 address, so any query under
 ## broken.test times out at the proxy (outcome `timeout`) or SERVFAILs once

@@ -97,6 +97,38 @@ describe('formatReasons', () => {
         ]);
     });
 
+    it('folds cname_uncloaking into the blocklist chip as a (CNAME) qualifier', () => {
+        // tableRef: logs-reason-display-behaviour #15
+        expect(
+            formatReasons(['blocklist: x', 'cname_uncloaking'], blocklistNames, serviceNames)
+        ).toEqual([{ kind: 'blocklist', label: 'Blocklist: Blocklist X (CNAME)' }]);
+    });
+
+    it('folds cname_uncloaking into the custom rule chip when paired with custom_rules', () => {
+        // tableRef: logs-reason-display-behaviour #16
+        expect(
+            formatReasons(['custom_rules', 'cname_uncloaking'], blocklistNames, serviceNames)
+        ).toEqual([{ kind: 'custom_rule', label: 'Custom rule (CNAME)' }]);
+    });
+
+    it('combines subdomain and CNAME qualifiers on one blocklist chip', () => {
+        // tableRef: logs-reason-display-behaviour #17
+        expect(
+            formatReasons(
+                ['blocklist: x', 'blocklists_subdomains_rule', 'cname_uncloaking'],
+                blocklistNames,
+                serviceNames
+            )
+        ).toEqual([{ kind: 'blocklist', label: 'Blocklist: Blocklist X (subdomain, CNAME)' }]);
+    });
+
+    it('attaches an orphan cname_uncloaking to a generic Blocklist chip', () => {
+        // tableRef: logs-reason-display-behaviour #E4
+        expect(formatReasons(['cname_uncloaking'], blocklistNames, serviceNames)).toEqual([
+            { kind: 'blocklist', label: 'Blocklist (CNAME)' },
+        ]);
+    });
+
     it('maps dnssec_failed to a "DNSSEC validation failed" chip, shown first', () => {
         // tableRef: logs-reason-display-behaviour #13
         expect(formatReasons(['dnssec_failed'])).toEqual([

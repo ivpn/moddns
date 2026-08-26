@@ -7,6 +7,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
+	"github.com/ivpn/dns/proxy/cache"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
@@ -16,6 +17,61 @@ const (
 	SUBDOMAINS_RULE   = "blocklists_subdomains_rule"
 	REASON_BLOCKLISTS = "blocklists"
 )
+
+// blocklistMatch describes which blocklist matched a domain and whether the
+// match came from the parent-domain walk rather than an exact entry.
+type blocklistMatch struct {
+	blocklistID string
+	viaParent   bool
+}
+
+// matchDomainAgainstBlocklists checks fqdn (lowercase, no trailing dot; RFC
+// 4343 comparison is case-insensitive and blocklist members are stored
+// lowercased) against the given subscribed blocklists: exact membership first,
+// then the parent-domain walk when the profile's subdomains rule is set to
+// block. Lists are checked in subscription order and the first hit wins.
+// Returns nil when nothing matches. Shared between the domain phase (QNAME)
+// and the IP phase (CNAME targets).
+func matchDomainAgainstBlocklists(ctx context.Context, c cache.Cache, reqCtx *requestcontext.RequestContext, blocklists []string, fqdn string) (*blocklistMatch, error) {
+	for _, blocklistId := range blocklists {
+		// check exact match first
+		blocklisted, err := c.GetBlocklistEntry(ctx, blocklistId, fqdn)
+		if err != nil {
+			return nil, err
+		}
+		if blocklisted {
+			return &blocklistMatch{blocklistID: blocklistId}, nil
+		}
+
+		if reqCtx.PrivacySettings[SUBDOMAINS_RULE] == RULE_BLOCK {
+			// iterate over all parent domains, excluding the TLD and the full
+			// FQDN (already covered by the exact-match check above)
+			parts := strings.Split(fqdn, ".")
+			var candidate string
+			for i := len(parts) - 2; i >= 1; i-- {
+				// Build candidate incrementally by prepending current part
+				if i == len(parts)-2 {
+					candidate = parts[i] + "." + parts[i+1]
+				} else {
+					candidate = parts[i] + "." + candidate
+				}
+
+				// now, check if candidate domain is part of any blocklist entry
+				blocklisted, err = c.GetBlocklistEntry(ctx, blocklistId, candidate)
+				if err != nil {
+					return nil, err
+				}
+				e := reqCtx.Logger.Trace().Bool("blocklisted", blocklisted).Str("blocklist", blocklistId)
+				reqCtx.MaybeDomain(e, "candidate", candidate).Msg("Candidate domain")
+
+				if blocklisted {
+					return &blocklistMatch{blocklistID: blocklistId, viaParent: true}, nil
+				}
+			}
+		}
+	}
+	return nil, nil
+}
 
 func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
@@ -34,61 +90,32 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 	fqdn = strings.ToLower(fqdn)
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
-	for _, blocklistId := range blocklists {
 
-		// check exact match first
-		blocklisted, err := f.Cache.GetBlocklistEntry(context.Background(), blocklistId, fqdn)
-		if err != nil {
-			return nil, err
-		}
+	match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, blocklists, fqdn)
+	if err != nil {
+		return nil, err
+	}
+	if match == nil {
+		return result, nil
+	}
 
-		if blocklisted {
-			e := reqCtx.Logger.Debug().
-				Str("reasons", "blocklists").
-				Str("protocol", string(dctx.Proto)).
-				Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
-			reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
-			reqCtx.AddDomain(e, question).Msg("Domain blocked")
-			result.Decision = model.DecisionBlock
-			result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)
-			return result, nil
-		}
+	reasons := "blocklists"
+	msg := "Domain blocked"
+	if match.viaParent {
+		reasons = fmt.Sprintf("%s,%s", REASON_BLOCKLISTS, SUBDOMAINS_RULE)
+		msg = "Subdomain blocked"
+	}
+	e := reqCtx.Logger.Debug().
+		Str("reasons", reasons).
+		Str("protocol", string(dctx.Proto)).
+		Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
+	reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
+	reqCtx.AddDomain(e, question).Msg(msg)
 
-		if reqCtx.PrivacySettings[SUBDOMAINS_RULE] == RULE_BLOCK {
-			// iterate over all parent domains, excluding the TLD and the full
-			// FQDN (already covered by the exact-match check above)
-			parts := strings.Split(fqdn, ".")
-			var candidate string
-			for i := len(parts) - 2; i >= 1; i-- {
-				// Build candidate incrementally by prepending current part
-				if i == len(parts)-2 {
-					candidate = parts[i] + "." + parts[i+1]
-				} else {
-					candidate = parts[i] + "." + candidate
-				}
-
-				// now, check if candidate domain is part of any blocklist entry
-				blocklisted, err = f.Cache.GetBlocklistEntry(context.Background(), blocklistId, candidate)
-				if err != nil {
-					return nil, err
-				}
-				e := reqCtx.Logger.Trace().Bool("blocklisted", blocklisted).Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype]).Str("blocklist", blocklistId)
-				reqCtx.MaybeDomain(e, "candidate", candidate).Msg("Candidate domain")
-
-				if blocklisted {
-					e := reqCtx.Logger.Debug().
-						Str("reasons", fmt.Sprintf("%s,%s", REASON_BLOCKLISTS, SUBDOMAINS_RULE)).
-						Str("protocol", string(dctx.Proto)).
-						Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
-					reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
-					reqCtx.AddDomain(e, question).Msg("Subdomain blocked")
-					result.Decision = model.DecisionBlock
-					result.Reasons = append(result.Reasons, "blocklist: "+blocklistId)
-					result.Reasons = append(result.Reasons, SUBDOMAINS_RULE)
-					return result, nil
-				}
-			}
-		}
+	result.Decision = model.DecisionBlock
+	result.Reasons = append(result.Reasons, "blocklist: "+match.blocklistID)
+	if match.viaParent {
+		result.Reasons = append(result.Reasons, SUBDOMAINS_RULE)
 	}
 	return result, nil
 }
