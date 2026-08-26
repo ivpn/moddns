@@ -63,4 +63,25 @@ test.describe('Logs sticky filter bar', () => {
         );
         expect(docOverflow).toBeLessThanOrEqual(1);
     });
+
+    test('the bar stays pinned across repeated scrolls and same-size resize events', async ({ page }) => {
+        // Mobile URL-bar collapse/expand fires window resize on every scroll direction
+        // change; a same-value rewrite of the header-stack var repositioned every
+        // var-consuming sticky element a frame late (visible as flicker while
+        // scrolling). The var is only written when the measured height changes.
+        await setupLogsPage(page);
+        const sticky = page.getByTestId('logs-sticky-filters');
+        const expectedTop = await page.evaluate(() =>
+            parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-stack-full')) || 64
+        );
+
+        for (const y of [600, 1400, 800, 2000, 1000]) {
+            await page.evaluate(v => {
+                window.scrollTo(0, v);
+                window.dispatchEvent(new Event('resize'));
+            }, y);
+            const box = (await sticky.boundingBox())!;
+            expect(Math.abs(box.y - expectedTop)).toBeLessThanOrEqual(2);
+        }
+    });
 });

@@ -105,7 +105,10 @@ const LogsSearchInput = ({
             type="text"
             placeholder="Search domain or its part"
             aria-label="Search domain or its part"
-            className="h-11 lg:h-9 min-h-0 pl-11 pr-11 py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] rounded-[var(--primitives-radius-radius-md)] text-sm text-[var(--tailwind-colors-slate-400)] font-text-sm-leading-5-normal placeholder:text-[var(--tailwind-colors-slate-400)]"
+            // The clear-button gutter (pr-11) is reserved only while the button exists;
+            // the placeholder shows only when it doesn't, so on narrow phones it gets
+            // that width back (and ellipsizes below ~370px instead of hard-clipping).
+            className={`h-11 lg:h-9 min-h-0 pl-11 ${value.length > 0 ? 'pr-11' : 'pr-3'} py-2 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)] rounded-[var(--primitives-radius-radius-md)] text-sm text-[var(--tailwind-colors-slate-400)] font-text-sm-leading-5-normal placeholder:text-[var(--tailwind-colors-slate-400)] placeholder:text-ellipsis`}
             value={value}
             onChange={e => onChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { onCommit(); e.currentTarget.blur(); } }}

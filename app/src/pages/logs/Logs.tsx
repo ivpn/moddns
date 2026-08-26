@@ -126,14 +126,17 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const bgFetchInFlight = useRef(false);
     const lastLogRef = useCallback(
         (node: HTMLDivElement | null) => {
-            if (loading) return;
+            // Disconnect before any bail-out: a stale observer surviving into a fetch
+            // can bump the page again, and the superseded fetch's response is dropped
+            // by the effect cleanup — silently skipping a page of data.
             if (observer.current) observer.current.disconnect();
+            if (loading || !node) return;
             observer.current = new window.IntersectionObserver(entries => {
                 if (entries[0].isIntersecting && hasMore) {
                     setPage(prev => prev + 1);
                 }
             });
-            if (node) observer.current.observe(node);
+            observer.current.observe(node);
         },
         [loading, hasMore]
     );
@@ -441,6 +444,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         manualSpinTimer.current = setTimeout(() => setManualSpinActive(false), 500);
     };
 
+    // User-initiated one-shot refresh (C1/P2/L2): land at the top of the replaced
+    // list. Instant, never smooth — a smooth scroll would sweep the pagination
+    // sentinel through the viewport and chain page fetches. The background tick's
+    // T2 fallback keeps calling handleRefresh directly: a timer must never scroll.
+    const handleManualRefresh = () => {
+        window.scrollTo(0, 0);
+        handleRefresh();
+    };
+
     const logsEnabled =
         activeProfile?.settings?.logs.enabled !== false; // default to true if undefined
 
@@ -531,10 +543,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     };
 
     // Reveal staged entries: prepend them above the current list. When the tick found
-    // a full page with no overlap, prepending would leave a gap — reload instead.
+    // a full page with no overlap, prepending would leave a gap — reload instead,
+    // landing at the top where the revealed entries are.
     const handleShowPending = () => {
         if (pendingOverflow) {
-            handleRefresh();
+            handleManualRefresh();
             return;
         }
         const previous = logsRef.current;
@@ -617,9 +630,11 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     stays below the header/BottomNav (z-50); Select/dropdown popovers
                     portal to <body>, unaffected. pb-1/-mb-1 mirrors the filter row's own
                     p-1/-m-1 focus-ring allowance so content cannot peek through at the
-                    bottom edge while scrolled. */}
+                    bottom edge while scrolled. transform-gpu promotes the pinned bar to
+                    its own compositor layer — WebKit repaints sticky elements late during
+                    momentum scroll otherwise (visible as flicker on iOS). */}
                 <div
-                    className="sticky z-40 w-full bg-[var(--shadcn-ui-app-background)] pb-1 -mb-1"
+                    className="sticky z-40 w-full bg-[var(--shadcn-ui-app-background)] pb-1 -mb-1 transform-gpu"
                     style={{ top: 'var(--app-header-stack-full, 64px)' }}
                     data-testid="logs-sticky-filters"
                 >
@@ -634,7 +649,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                         onFilterChange={setFilterValue}
                         sortValue={sortValue}
                         onSortChange={setSortValue}
-                        onRefresh={handleRefresh}
+                        onRefresh={handleManualRefresh}
                         timespanValue={timespanValue}
                         onTimespanChange={setTimespanValue}
                         refreshIntervalKey={refreshIntervalKey}
@@ -774,7 +789,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                             <span className="text-sm text-center text-[var(--tailwind-colors-red-500)]">{error}</span>
                                             <Button
                                                 variant="outline"
-                                                onClick={handleRefresh}
+                                                onClick={handleManualRefresh}
                                                 data-testid="logs-error-retry"
                                                 className="min-h-11 lg:min-h-9 !bg-[var(--shadcn-ui-app-background)] border-[var(--tailwind-colors-slate-600)]"
                                             >

@@ -74,6 +74,61 @@ test.describe('Logs refresh controls', () => {
         expect(logsCalls()).toBe(initialCalls + 1);
     });
 
+    test('refresh from the bottom returns to the top without chaining page fetches', async ({ page }) => {
+        // Refreshing while scrolled deep used to leave scrollY clamped mid-list: the
+        // 100-row page-1 replace shrank the document, the pagination sentinel re-entered
+        // the viewport and page fetches chained — visible as the list flickering in and
+        // out. The one-shot refresh lands at the top before the replace.
+        await registerMocks(page, { authenticated: true, customProfiles: [profile] });
+        const pagesRequested: number[] = [];
+        const row = (i: number) => ({
+            profile_id: 'prof1',
+            timestamp: `2026-08-12T10:${Math.floor(i / 60).toString().padStart(2, '0')}:${(i % 60).toString().padStart(2, '0')}Z`,
+            status: 'processed',
+            protocol: 'dns',
+            device_id: `device-${i}`,
+            client_ip: `10.0.0.${i % 250}`,
+            dns_request: { domain: `row-${i}.example.test`, query_type: 'A' },
+        });
+        await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
+            const url = new URL(route.request().url());
+            const pageNum = parseInt(url.searchParams.get('page') || '1', 10);
+            pagesRequested.push(pageNum);
+            const count = pageNum === 1 ? 100 : 25;
+            const offset = pageNum === 1 ? 0 : 100 + (pageNum - 2) * 25;
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(Array.from({ length: count }).map((_, i) => row(offset + i))),
+            });
+        });
+        await page.goto('/query-logs');
+        await expect(page.getByTestId('querylog-card-toggle')).toHaveCount(100);
+
+        // Park at the bottom; the sentinel pulls exactly one more page in.
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await expect.poll(() => pagesRequested.some(p => p > 1)).toBe(true);
+        await expect(page.getByTestId('querylog-card-toggle')).toHaveCount(125);
+        expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
+
+        const beforeClick = pagesRequested.length;
+        await visibleControl(page, 'logs-refresh-button').click();
+
+        // Back at the top with the list replaced by page 1 — and no follow-on fetches.
+        await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+        await expect.poll(() => pagesRequested.length).toBe(beforeClick + 1);
+        await expect(page.getByTestId('querylog-card-toggle')).toHaveCount(100);
+        await page.waitForTimeout(800);
+        expect(pagesRequested.slice(beforeClick)).toEqual([1]);
+        // The list's fade wrapper must have settled back to visible. (Scoped to the
+        // wrapper: cards legitimately keep opacity-0 spacer badges on desktop.)
+        expect(
+            await page.getByTestId('logs-scroll-container').evaluate(
+                el => el.querySelector(':scope > .transition-opacity')?.classList.contains('opacity-0') ?? true
+            )
+        ).toBe(false);
+    });
+
     test('interval menu enables live mode and stages new entries behind the pill', async ({ page }) => {
         const initial = [logItem(1, 'one.example.test'), logItem(2, 'two.example.test')];
         const fresh = logItem(0, 'fresh.example.test');

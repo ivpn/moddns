@@ -123,6 +123,7 @@ vi.mock("sonner", () => ({
 
 class MockIntersectionObserver {
     callback: IntersectionObserverCallback;
+    disconnected = false;
     static lastInstance: MockIntersectionObserver | null = null;
     constructor(callback: IntersectionObserverCallback) {
         this.callback = callback;
@@ -130,8 +131,12 @@ class MockIntersectionObserver {
     }
     observe() { }
     unobserve() { }
-    disconnect() { }
+    disconnect() {
+        this.disconnected = true;
+    }
     trigger(entries: IntersectionObserverEntry[]) {
+        // Real observers never fire after disconnect().
+        if (this.disconnected) return;
         this.callback(entries, this as unknown as IntersectionObserver);
     }
 }
@@ -142,6 +147,9 @@ declare global {
 }
 
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof globalThis.IntersectionObserver;
+
+// jsdom's scrollTo throws "Not implemented"; the spy silences it and records calls.
+const scrollToSpy = vi.spyOn(window, "scrollTo").mockImplementation(() => { });
 
 const baseProfile = {
     profile_id: "profile-1",
@@ -181,6 +189,7 @@ describe("QueryLogs", () => {
         profilesGetMock.mockReset();
         useAppStore.setState({ activeProfile: baseProfile });
         MockIntersectionObserver.lastInstance = null;
+        scrollToSpy.mockClear();
     });
 
     afterEach(() => {
@@ -397,8 +406,10 @@ describe("QueryLogs", () => {
         fireEvent.click(pill);
         await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(7));
         expect(screen.queryByTestId("logs-new-queries-pill")).toBeNull();
-        // Revealing staged entries is purely client-side — no extra request.
+        // Revealing staged entries is purely client-side — no extra request, and the
+        // reader's scroll position is preserved.
         expect(queryLogsMock).toHaveBeenCalledTimes(2);
+        expect(scrollToSpy).not.toHaveBeenCalled();
         // Only the revealed entries play the entry animation — the prepend remounts
         // every card, so pre-existing rows must not re-animate.
         const animateFlags = screen.getAllByTestId("log-card").map(card => card.getAttribute("data-animate-entry"));
@@ -590,10 +601,92 @@ describe("QueryLogs", () => {
         const pill = await screen.findByTestId("logs-new-queries-pill");
         expect(pill).toHaveTextContent("100+ new queries");
 
-        // A gapped prepend would misorder the list — the pill triggers a full reload instead.
+        // A gapped prepend would misorder the list — the pill triggers a full reload
+        // instead, landing at the top where the revealed entries are.
         fireEvent.click(pill);
+        expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
         await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(3));
         await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(100));
+    });
+
+        // tableRef: query-logs-refresh-behaviour #C1
+    test("manual refresh scrolls the window back to the top", async () => {
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(3, 0) });
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+        expect(scrollToSpy).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByTestId("refresh"));
+        // Instant, never smooth: a smooth scroll would sweep the pagination sentinel
+        // through the viewport and chain page fetches.
+        expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+    });
+
+        // tableRef: query-logs-refresh-behaviour #T2
+    test("background-tick fallback under a non-created sort never scrolls the window", async () => {
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(5, 0) });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(4, 100) }); // sort-change refetch
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(2, 200) }); // tick fallback replace
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(5));
+
+        fireEvent.click(screen.getByTestId("sort-domain"));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(4));
+
+        fireEvent.click(screen.getByTestId("auto-refresh-toggle"));
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(2));
+        // The wholesale replace fires on a timer, not a user action — yanking scroll
+        // every tick would make the page unreadable under domain/client_ip sort.
+        expect(scrollToSpy).not.toHaveBeenCalled();
+    });
+
+        // tableRef: query-logs-refresh-behaviour #L2
+    test("error-card Try again scrolls the window back to the top", async () => {
+        queryLogsMock.mockRejectedValueOnce({ response: { status: 500 } });
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(3, 0) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await screen.findByTestId("logs-error");
+
+        fireEvent.click(screen.getByTestId("logs-error-retry"));
+        expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(3));
+    });
+
+    // Spec "Known accepted properties": the infinite-scroll observer is disconnected
+    // while any fetch is in flight — an intersection during loading can never advance
+    // the page (a stale observer used to double-increment and the superseded fetch's
+    // response was silently dropped).
+    test("sentinel intersection during an in-flight page fetch cannot skip a page", async () => {
+        let resolvePage2: (() => void) | undefined;
+        queryLogsMock.mockResolvedValueOnce({ status: 200, data: distinctLogs(100, 0) });
+        queryLogsMock.mockImplementationOnce(
+            () => new Promise(res => {
+                resolvePage2 = () => res({ status: 200, data: distinctLogs(25, 100) });
+            })
+        );
+        queryLogsMock.mockResolvedValue({ status: 200, data: distinctLogs(10, 200) });
+
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(100));
+        const sentinelObserver = MockIntersectionObserver.lastInstance;
+
+        act(() => {
+            sentinelObserver?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+        });
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(2)); // page 2 in flight
+
+        // A second intersection while page 2 is loading must be inert.
+        act(() => {
+            sentinelObserver?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+        });
+
+        await act(async () => {
+            resolvePage2?.();
+        });
+        await waitFor(() => expect(screen.getAllByTestId("log-card")).toHaveLength(125));
+        expect(queryLogsMock).toHaveBeenCalledTimes(2);
     });
 
     test("search commits 500ms after typing stops, not before", async () => {

@@ -75,6 +75,23 @@ describe('Filters', () => {
         expect(baseProps.onSearchClear).toHaveBeenCalled();
     });
 
+    it('reserves the clear-button gutter only while text is present; placeholder may ellipsize', () => {
+        // On narrow phones the placeholder needs the clear-button gutter's width, and
+        // the clear button only exists once the placeholder is hidden — the right
+        // padding can swap without moving the (left-anchored) caret or text.
+        const { rerender } = render(<Filters {...baseProps} />);
+        for (const input of screen.getAllByLabelText('Search domain or its part')) {
+            expect(input.className).toContain('pr-3');
+            expect(input.className).not.toContain('pr-11');
+            expect(input.className).toContain('placeholder:text-ellipsis');
+        }
+
+        rerender(<Filters {...baseProps} searchInputValue="abc" />);
+        for (const input of screen.getAllByLabelText('Search domain or its part')) {
+            expect(input.className).toContain('pr-11');
+        }
+    });
+
     it('freshness label renders only after a first load, with the "Updated" idiom', () => {
         const { rerender } = render(<Filters {...baseProps} />);
         expect(screen.queryByTestId('logs-freshness')).not.toBeInTheDocument();
