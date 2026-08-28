@@ -554,8 +554,8 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 	acc.Email = emailUpd.NewEmail
 	acc.EmailVerified = false
 	filtered := make([]model.Token, 0, len(acc.Tokens))
-	for _, t := range acc.Tokens { // remove any previous email verification tokens
-		if t.Type != EmailCategoryVerificationOTP {
+	for _, t := range acc.Tokens {
+		if t.Type != EmailCategoryVerificationOTP && t.Type != auth.TokenTypePasswordReset {
 			filtered = append(filtered, t)
 		}
 	}
