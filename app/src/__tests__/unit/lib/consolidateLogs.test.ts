@@ -161,4 +161,18 @@ describe('consolidateLogs', () => {
         expect(g.queryTypes).toEqual(['A']);
         expect(g.representative.dns_request?.domain).toBe('a.com');
     });
+
+    it('identity is stable when entries are prepended above the group, key is not', () => {
+        const existing = [
+            log({ domain: 'stable.com', query_type: 'A', timestamp: '2026-06-15T10:00:00.000Z' }),
+        ];
+        const prepended = [
+            log({ domain: 'newer.com', query_type: 'A', timestamp: '2026-06-15T10:00:05.000Z' }),
+            ...existing,
+        ];
+        const before = consolidateLogs(existing)[0];
+        const after = consolidateLogs(prepended)[1];
+        expect(after.identity).toBe(before.identity);
+        expect(after.key).not.toBe(before.key);
+    });
 });

@@ -14,12 +14,18 @@ export function useHeaderStackHeight(
 
   useLayoutEffect(() => {
     const root = document.documentElement;
+    let lastTotal = -1;
 
     function update() {
       const total = refs.reduce((acc, r) => acc + (r.current?.getBoundingClientRect().height || 0), 0);
-  const adjusted = Math.max(0, total - reducePx);
-  root.style.setProperty('--app-header-stack-full', total + 'px');
-  root.style.setProperty('--app-header-stack', adjusted + 'px');
+      // Skip same-value writes: mobile URL-bar collapse/expand fires window resize
+      // on every scroll direction change, and each setProperty invalidates root
+      // style — repositioning var-consuming sticky elements a frame late (flicker).
+      if (total === lastTotal) return;
+      lastTotal = total;
+      const adjusted = Math.max(0, total - reducePx);
+      root.style.setProperty('--app-header-stack-full', total + 'px');
+      root.style.setProperty('--app-header-stack', adjusted + 'px');
     }
 
     // Initial measure

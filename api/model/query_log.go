@@ -47,3 +47,12 @@ type DNSRequest struct {
 	ResponseCode string `json:"response_code" bson:"response_code"`
 	DNSSEC       bool   `json:"dnssec" bson:"dnssec"`
 }
+
+// QueryLogDevice is one distinct device seen in a profile's query logs within
+// the current retention window. DeviceId is the user-authored device name from
+// the DNS stamp / DoH path (libs/deviceid, max 36 chars). The bson "_id" tag
+// decodes the $group aggregation output directly.
+type QueryLogDevice struct {
+	DeviceId string    `json:"device_id" bson:"_id"`
+	LastSeen time.Time `json:"last_seen" bson:"last_seen"`
+}
