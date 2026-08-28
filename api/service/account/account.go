@@ -509,6 +509,9 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 	if err := json.Unmarshal(b, &emailUpd); err != nil {
 		return ErrInvalidEmailUpdatePayload
 	}
+	// Canonicalize before validation so a whitespace-padded or mixed-case
+	// address passes the "email" tag and is stored in its normalized form.
+	emailUpd.NewEmail = validator.NormalizeEmail(emailUpd.NewEmail)
 	// Run validator tag checks if validator is available (API layer normally guarantees this)
 	if a.Validate != nil {
 		if err = a.Validate.Struct(emailUpd); err != nil {
@@ -531,7 +534,9 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 	if emailUpd.NewEmail == "" {
 		return ErrInvalidNewEmail
 	}
-	// Check if new email is same as current email
+	// Check if new email is same as current email. NewEmail is normalized
+	// above; EqualFold additionally tolerates a legacy stored email that
+	// predates the lowercase backfill (migration 025).
 	if strings.EqualFold(emailUpd.NewEmail, acc.Email) {
 		return ErrSameEmailAddress
 	}

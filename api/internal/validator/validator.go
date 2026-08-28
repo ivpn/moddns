@@ -299,3 +299,14 @@ func IsSafeName(s string) bool {
 func NormalizeName(s string) string {
 	return norm.NFC.String(strings.TrimSpace(s))
 }
+
+// NormalizeEmail returns the canonical storage form of an email address:
+// surrounding whitespace trimmed, whole address lowercased. RFC 5321 §2.4
+// allows case-sensitive local parts, but no mainstream provider honors that;
+// addresses are treated case-insensitively throughout. Apply at the storage
+// boundary and on every email lookup key. Deliberately no NFC: migration 025
+// backfills stored emails with Mongo $toLower, and both must produce
+// identical bytes.
+func NormalizeEmail(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
