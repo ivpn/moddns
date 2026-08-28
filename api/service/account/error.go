@@ -55,6 +55,7 @@ var (
 	ErrInvalidCurrentPassword = reauth.ErrInvalidPassword
 	ErrInvalidNewEmail        = NewServiceAccountError("invalid new email")
 	ErrSameEmailAddress       = NewServiceAccountError("new email address is the same as the current one")
+	ErrEmailAlreadyInUse      = NewServiceAccountError("Unable to complete your request. Please try a different email address.")
 
 	// Reauth sentinels are re-exported from internal/reauth so the unified
 	// helper and every legacy call site refer to the same error values. These

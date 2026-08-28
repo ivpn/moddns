@@ -540,6 +540,16 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 	if strings.EqualFold(emailUpd.NewEmail, acc.Email) {
 		return ErrSameEmailAddress
 	}
+
+	existing, err := a.AccountRepository.GetAccountByEmail(ctx, emailUpd.NewEmail)
+	switch {
+	case err == nil && existing.ID != acc.ID:
+		return ErrEmailAlreadyInUse
+	case err == nil:
+		return ErrSameEmailAddress
+	case !errors.Is(err, dbErrors.ErrAccountNotFound):
+		return err
+	}
 	// Reset verification state and tokens
 	acc.Email = emailUpd.NewEmail
 	acc.EmailVerified = false
