@@ -6,6 +6,20 @@ See README.md on this branch for the full format and publishing guide.
 -->
 
 ---
+id: 2026-08-cname-uncloaking-logs-filters
+category: feature
+severity: info
+title: CNAME uncloaking, query logs filters
+published_at: 2026-08-31
+link: https://github.com/ivpn/moddns/releases/tag/v0.3.0
+---
+Updates in modDNS:
+
+- [CNAME uncloaking](https://github.com/ivpn/moddns/pull/208): every CNAME target in a response is now checked against your blocklists and custom rules, not just the domain you queried. This catches trackers that hide behind a first-party subdomain. It is on by default.
+- [Query logs improvements](https://github.com/ivpn/moddns/pull/243): filter by device, refresh on demand or set an auto-refresh interval, and see when new queries arrive. The filter bar now stays in view while you scroll.
+- New profiles now default to one hour of query log retention instead of one day. Query logs remain off by default. Existing profiles keep their current setting, which you can change in [Settings](https://moddns.net/settings).
+
+---
 id: 2026-07-query-logs-dnscrypt-stamps-rebinding
 category: feature
 severity: info
