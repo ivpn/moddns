@@ -93,7 +93,6 @@ def create_temp_subscription(
         json={
             "id": preauth_id,
             "token_hash": token_hash,
-            "is_active": True,
             "active_until": active_until,
             "tier": tier,
         },

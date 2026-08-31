@@ -116,7 +116,6 @@ func (s *MigrateSuite) seedDoc(ctx context.Context, subtype byte, tier string) u
 		{Key: "_id", Value: primitive.Binary{Subtype: subtype, Data: id[:]}},
 		{Key: "account_id", Value: primitive.NewObjectID()},
 		{Key: "active_until", Value: time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Millisecond)},
-		{Key: "is_active", Value: true},
 		{Key: "tier", Value: tier},
 		{Key: "token_hash", Value: "hash-" + tier},
 		{Key: "updated_at", Value: time.Now().UTC().Truncate(time.Millisecond)},
@@ -191,7 +190,6 @@ func (s *MigrateSuite) TestMigrateResumesAfterPartialInsert() {
 	base := bson.D{
 		{Key: "account_id", Value: accountID},
 		{Key: "active_until", Value: time.Now().Add(24 * time.Hour).UTC().Truncate(time.Millisecond)},
-		{Key: "is_active", Value: true},
 		{Key: "tier", Value: "Tier 2"},
 	}
 
@@ -274,7 +272,7 @@ func (s *MigrateSuite) snapshotByUUID(ctx context.Context, coll *mongo.Collectio
 
 func (s *MigrateSuite) assertFieldsPreserved(before, after bson.Raw) {
 	s.T().Helper()
-	preservedKeys := []string{"account_id", "active_until", "is_active", "tier", "token_hash", "updated_at", "notified", "limits"}
+	preservedKeys := []string{"account_id", "active_until", "tier", "token_hash", "updated_at", "notified", "limits"}
 	for _, key := range preservedKeys {
 		beforeVal := before.Lookup(key)
 		afterVal := after.Lookup(key)
