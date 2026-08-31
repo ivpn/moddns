@@ -13,15 +13,13 @@ services:
       - recursor_sdns
       - recursor_knot
     ports:
-      - "53000:53/udp" # PLAIN DNS
-      - "53000:53/tcp" # PLAIN DNS
       - "443:443" # HTTPS
       - "853:853/tcp" # TLS
       - "853:853/udp" # QUIC
       - "9153:9153"   # METRICS
     volumes:
-      - ./certs:/certs
-      - ./bootstrap/services:/opt/services:ro
-      - ./bootstrap/GeoLite2-ASN/:/opt/geo:ro
+      - ./dev/certs:/certs
+      - ./dev/bootstrap/services:/opt/services:ro
+      - ./dev/bootstrap/GeoLite2-ASN/:/opt/geo:ro
     env_file:
       - ./proxy/.env

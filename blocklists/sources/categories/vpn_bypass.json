@@ -3,7 +3,7 @@
     "blocklist_id": "hagezi_doh_vpn_proxy_bypass",
     "name": "Hagezi DoH/VPN/Proxy Bypass",
     "description": "Blocks DNS-over-HTTPS providers, VPN services, and proxy/bypass tools to prevent DNS filter circumvention.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/doh-vpn-proxy-bypass-onlydomains.txt",
+    "source_url": "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/doh-vpn-proxy-bypass-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "category",

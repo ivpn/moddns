@@ -37,7 +37,7 @@ func (s *APIServer) getBlocklists() fiber.Handler {
 		filter := make(map[string]any)
 		defaultBlocklist := c.Query("default")
 		if defaultBlocklist != "" {
-			log.Debug().Msgf("query param - default: %s", defaultBlocklist)
+			log.Ctx(c.UserContext()).Debug().Msgf("query param - default: %s", defaultBlocklist)
 			boolDefault, err := strconv.ParseBool(defaultBlocklist)
 			if err != nil {
 				return HandleError(c, err, "Invalid request path param: default")
@@ -45,9 +45,9 @@ func (s *APIServer) getBlocklists() fiber.Handler {
 			filter["default"] = boolDefault
 		}
 
-		blocklists, err := s.Service.GetBlocklist(c.Context(), filter, queryParams.SortBy)
+		blocklists, err := s.Service.GetBlocklist(c.UserContext(), filter, queryParams.SortBy)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed to get blocklists")
+			log.Ctx(c.UserContext()).Error().Err(err).Msg("Failed to get blocklists")
 			return c.Status(500).JSON(fiber.Map{
 				"error": "Failed to get blocklists",
 			})
@@ -89,7 +89,7 @@ func (s *APIServer) enableBlocklists() fiber.Handler {
 			return HandleError(c, ErrInvalidBlocklistValue, "Blocklist IDs are required")
 		}
 
-		if err := s.Service.EnableBlocklists(c.Context(), accountId, profileId, updates.BlocklistIds); err != nil {
+		if err := s.Service.EnableBlocklists(c.UserContext(), accountId, profileId, updates.BlocklistIds); err != nil {
 			return HandleError(c, err, "Failed to enable blocklists")
 		}
 
@@ -129,7 +129,7 @@ func (s *APIServer) disableBlocklists() fiber.Handler {
 			return HandleError(c, ErrInvalidBlocklistValue, "Blocklist IDs are required")
 		}
 
-		if err := s.Service.DisableBlocklists(c.Context(), accountId, profileId, updates.BlocklistIds); err != nil {
+		if err := s.Service.DisableBlocklists(c.UserContext(), accountId, profileId, updates.BlocklistIds); err != nil {
 			return HandleError(c, err, "Failed to disable blocklists")
 		}
 

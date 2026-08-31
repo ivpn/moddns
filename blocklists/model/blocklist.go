@@ -22,15 +22,19 @@ type BlocklistMetadata struct {
 	Homepage     string             `json:"homepage"`
 	SourceUrl    string             `json:"source_url" bson:"source_url"`
 	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
-	Version      string             `json:"version"`
-	Tags         []string           `json:"tags"`
-	Type         string             `json:"type"` // ownership: currently always "public" (platform-provided)
-	Kind         string             `json:"kind" bson:"kind"`           // general, category, security
-	Category     string             `json:"category" bson:"category"`   // category key (only when kind=category)
-	Intensity    []string           `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
-	Default      bool               `json:"default"`                    // default blocklist is enabled when profile is created
-	Syntax       string             `json:"syntax"`
-	Schedule     string             `json:"schedule"`
+	// UpdatedAt is when this service last published the list (Redis + Mongo).
+	// Unlike LastModified (the upstream's own header date) it is our publish
+	// timestamp, used by peer instances to skip refreshing a fresh source.
+	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
+	Version   string    `json:"version"`
+	Tags      []string  `json:"tags"`
+	Type      string    `json:"type"`                       // ownership: currently always "public" (platform-provided)
+	Kind      string    `json:"kind" bson:"kind"`           // general, category, security
+	Category  string    `json:"category" bson:"category"`   // category key (only when kind=category)
+	Intensity []string  `json:"intensity" bson:"intensity"` // basic, comprehensive, restrictive
+	Default   bool      `json:"default"`                    // default blocklist is enabled when profile is created
+	Syntax    string    `json:"syntax"`
+	Schedule  string    `json:"schedule"`
 }
 
 // BlocklistContent contains the actual blocklist data

@@ -27,13 +27,13 @@ func (a *AccountService) TotpEnable(ctx context.Context, accountId string) (*mod
 		return nil, err
 	}
 
-	log.Trace().Msg("TOTP key created")
+	log.Ctx(ctx).Trace().Msg("TOTP key created")
 
 	if err = a.Cache.SetTOTPSecret(ctx, accountId, key.Secret(), a.ServiceCfg.OTPExpirationTime); err != nil {
 		return nil, err
 	}
 
-	log.Info().Msg("TOTP setup initiated")
+	log.Ctx(ctx).Info().Msg("TOTP setup initiated")
 
 	return &model.TOTPNew{
 		Secret:  key.Secret(),
@@ -54,13 +54,13 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		return nil, err
 	}
 	if acc.MFA.TOTP.Enabled {
-		log.Warn().Msg("TOTP already enabled")
+		log.Ctx(ctx).Warn().Msg("TOTP already enabled")
 		return nil, ErrTOTPAlreadyConfigured
 	}
 
 	valid := totp.Validate(otp, secret)
 	if !valid {
-		log.Info().Msg("Invalid TOTP code")
+		log.Ctx(ctx).Info().Msg("Invalid TOTP code")
 
 		// Rate limiting for TOTP confirmation attempts to prevent brute-force
 		idLimiter := utils.IDLimiter{
@@ -74,14 +74,14 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		// Increment failed attempt counter
 		err = idLimiter.Tick()
 		if err != nil {
-			log.Err(err).Msg("error ticking ID limiter for TOTP confirm")
+			log.Ctx(ctx).Err(err).Msg("error ticking ID limiter for TOTP confirm")
 			return nil, err
 		}
 
 		// Check if rate limit exceeded
 		if !idLimiter.IsAllowed() {
-			log.Error().Msg("TOTP confirmation: too many failed attempts")
-			log.Warn().Msg("TOTP confirmation rate limit exceeded")
+			log.Ctx(ctx).Error().Msg("TOTP confirmation: too many failed attempts")
+			log.Ctx(ctx).Warn().Msg("TOTP confirmation rate limit exceeded")
 			return nil, ErrIncorrectOTP
 		}
 
@@ -101,7 +101,7 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		return nil, err
 	}
 
-	log.Info().Msg("TOTP enabled successfully, backup codes generated")
+	log.Ctx(ctx).Info().Msg("TOTP enabled successfully, backup codes generated")
 
 	return &model.TOTPBackup{
 		BackupCodes: acc.MFA.TOTP.BackupCodes,
@@ -123,7 +123,7 @@ func (a *AccountService) TotpDisable(ctx context.Context, accountId, otp string)
 		return nil, err
 	}
 
-	log.Info().Msg("TOTP disabled successfully")
+	log.Ctx(ctx).Info().Msg("TOTP disabled successfully")
 
 	return acc, nil
 }
@@ -136,12 +136,12 @@ func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp, action 
 	switch action {
 	case "login":
 		if !acc.MFA.TOTP.Enabled {
-			log.Warn().Msg("TOTP is not configured")
+			log.Ctx(ctx).Warn().Msg("TOTP is not configured")
 			return nil, ErrTOTPNotConfigured
 		}
 	case "disable":
 		if !acc.MFA.TOTP.Enabled {
-			log.Warn().Msg("TOTP already disabled")
+			log.Ctx(ctx).Warn().Msg("TOTP already disabled")
 			return nil, ErrTOTPAlreadyDisabled
 		}
 	default:
@@ -151,16 +151,16 @@ func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp, action 
 	var backupErr error
 	valid := totp.Validate(otp, acc.MFA.TOTP.Secret)
 	if !valid {
-		log.Debug().Msgf("2FA %s: invalid TOTP code", action)
+		log.Ctx(ctx).Debug().Msgf("2FA %s: invalid TOTP code", action)
 		valid, backupErr = a.verifyTotpBackup(acc, otp, action)
 		if valid {
 			// update the account in case backup code was used
 			_, err = a.AccountRepository.UpdateAccount(ctx, acc)
 			if err != nil {
-				log.Err(err).Msg("error updating account after TOTP backup code use")
+				log.Ctx(ctx).Err(err).Msg("error updating account after TOTP backup code use")
 				return nil, err
 			}
-			log.Info().Msg("TOTP backup code consumed successfully")
+			log.Ctx(ctx).Info().Msg("TOTP backup code consumed successfully")
 			return acc, backupErr
 		}
 	}
@@ -179,14 +179,14 @@ func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp, action 
 		// Increment failed attempt counter
 		err = idLimiter.Tick()
 		if err != nil {
-			log.Err(err).Msg("error ticking ID limiter")
+			log.Ctx(ctx).Err(err).Msg("error ticking ID limiter")
 			return nil, err
 		}
 
 		// Check if rate limit exceeded
 		if !idLimiter.IsAllowed() {
-			log.Error().Msg("error verifying TOTP: too many failed attempts")
-			log.Warn().Msg("TOTP verification rate limit exceeded")
+			log.Ctx(ctx).Error().Msg("error verifying TOTP: too many failed attempts")
+			log.Ctx(ctx).Warn().Msg("TOTP verification rate limit exceeded")
 			return nil, ErrInvalidTOTPCode
 		}
 
@@ -197,7 +197,7 @@ func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp, action 
 		return nil, ErrInvalidTOTPCode
 	}
 
-	log.Trace().Msg("2FA verification successful")
+	log.Ctx(ctx).Trace().Msg("2FA verification successful")
 	return acc, nil
 }
 

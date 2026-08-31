@@ -41,6 +41,7 @@ var (
 	ErrFailedToGetSubscription    = errors.New("failed to get subscription data")
 	ErrFailedToUpdateSubscription = errors.New("failed to update subscription")
 	ErrFailedToGetQueryLogs       = errors.New("failed to get profile query logs")
+	ErrFailedToGetQueryLogDevices = errors.New("failed to get profile query log devices")
 	ErrFailedToGetStatistics      = errors.New("failed to get profile statistics")
 	ErrFailedToDeleteQueryLogs    = errors.New("failed to delete profile query logs")
 	ErrFailedToGetAccount         = errors.New("failed to get account data")
@@ -132,7 +133,7 @@ func friendlyJSONType(goType string) string {
 }
 
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {
-	log.Error().Err(err).Msg(errMsg)
+	log.Ctx(c.UserContext()).Error().Err(err).Msg(errMsg)
 	resp := new(ErrResponse)
 
 	if len(details) > 0 {
@@ -167,7 +168,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	{
 		var profileErr *profile.ProfileError
 		if errors.As(err, &profileErr) {
-			log.Debug().Str("code", profileErr.Code).Msg(err.Error())
+			log.Ctx(c.UserContext()).Debug().Str("code", profileErr.Code).Msg(err.Error())
 			resp.Error = err.Error()
 			return c.Status(400).JSON(resp)
 		}

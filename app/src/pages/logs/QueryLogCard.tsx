@@ -28,9 +28,18 @@ interface QueryLogCardProps {
     serviceNames?: Record<string, string>;
     /** Called the first time this row is expanded (used to dismiss the one-time mobile hint). */
     onExpand?: () => void;
+    /**
+     * Controlled expansion: when defined, the card renders this state and reports toggles
+     * via `onToggleExpanded` instead of holding its own — lets the owner keep cards open
+     * across list updates that remount them. Undefined → uncontrolled (internal state).
+     */
+    expanded?: boolean;
+    onToggleExpanded?: () => void;
+    /** Play the entry animation on mount (used for entries revealed by the new-queries pill). */
+    animateEntry?: boolean;
 }
 
-const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRestricted, blocklistNames, serviceNames, onExpand }: QueryLogCardProps): JSX.Element | null => {
+const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRestricted, blocklistNames, serviceNames, onExpand, expanded: expandedProp, onToggleExpanded, animateEntry }: QueryLogCardProps): JSX.Element | null => {
     // Consolidation: count>1 means this card stands in for a run of adjacent duplicate queries.
     const count = group?.count ?? 1;
     const isConsolidated = count > 1;
@@ -99,13 +108,15 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
         ? group!.members.flatMap((m) => m.reasons ?? [])
         : (log.reasons ?? []);
     const hasReasons = reasons.length > 0;
-    const [expanded, setExpanded] = useState(false);
+    const [internalExpanded, setInternalExpanded] = useState(false);
+    const isControlled = expandedProp !== undefined;
+    const expanded = isControlled ? expandedProp : internalExpanded;
     const panelId = useId();
-    const toggleExpanded = () => setExpanded(v => {
-        const next = !v;
-        if (next) onExpand?.();
-        return next;
-    });
+    const toggleExpanded = () => {
+        if (!expanded) onExpand?.();
+        if (isControlled) onToggleExpanded?.();
+        else setInternalExpanded(v => !v);
+    };
 
     // Device ID: backend allows up to 36 chars; truncate only for mobile (<=768px)
     const { isMobile } = useScreenDetector();
@@ -251,7 +262,8 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                 // intensity per theme) — the only boundary feedback touch users ever get.
                 expanded && "border-[var(--tailwind-colors-rdns-600)] dark:border-[var(--tailwind-colors-rdns-600)]/40",
                 // Press/active feedback (works on touch where there is no hover) — subtle tint on tap.
-                "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]"
+                "active:bg-[var(--shadcn-ui-app-accent)] dark:active:bg-[var(--shadcn-ui-app-accent)]",
+                animateEntry && "animate-in fade-in slide-in-from-top-2 duration-500 ease-out motion-reduce:animate-none"
             )}
         >
             {/* Whole-card expand/collapse trigger: a real button (native keyboard/focus/aria).

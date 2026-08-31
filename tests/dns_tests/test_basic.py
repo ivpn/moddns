@@ -20,6 +20,8 @@ class TestBasic:
         """
         Verify that missing profile_id in the DNS DoH request raises an
         exception (connection is dropped, user does not get any response).
+
+        Behaviour table #Q5 / #Q6 (proxy-request-admission-behaviour.md).
         """
         with pytest.raises(ShortHeader):
             await _dns.send_doh_request(profile_id, "example.com", "A")

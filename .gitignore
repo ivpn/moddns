@@ -13,3 +13,7 @@ tests/docker_logs
 .qodo
 .nginx-validate.*
 /docs/
+/dev/bootstrap/GeoLite2-ASN/
+/dev/bootstrap/GeoLite2-City/
+/dev/bootstrap/monitoring/
+/scripts/

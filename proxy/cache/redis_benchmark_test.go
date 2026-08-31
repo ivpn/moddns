@@ -26,7 +26,7 @@ type benchEnv struct {
 	cleanup func()
 }
 
-// seedTestData populates Redis with profile settings matching what HandleBefore reads.
+// seedTestData populates Redis with profile settings matching what prepareRequest reads.
 // Connects directly to Redis (bypassing toxiproxy) for fast, latency-free seeding.
 func seedTestData(ctx context.Context, t testing.TB, redisAddr string) {
 	rdb := goredis.NewClient(&goredis.Options{Addr: redisAddr})
@@ -52,7 +52,7 @@ func seedTestData(ctx context.Context, t testing.TB, redisAddr string) {
 	require.NoError(t, err)
 }
 
-// getSettingsSequential mimics the old HandleBefore code path:
+// getSettingsSequential mimics the old sequential settings-fetch code path:
 // 4 sequential Redis round-trips for profile settings.
 func getSettingsSequential(ctx context.Context, c *RedisCache, profileId string) *model.ProfileSettings {
 	result := &model.ProfileSettings{}

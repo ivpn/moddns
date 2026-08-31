@@ -89,6 +89,9 @@ func (r *QueryLogsRepository) InsertBatch(ctx context.Context, batch []model.Eve
 			oneWeekdocs = append(oneWeekdocs, queryLogEvent.QueryLog)
 		case model.RetentionOneMonth:
 			oneMonthdocs = append(oneMonthdocs, queryLogEvent.QueryLog)
+		default:
+			// Entry content is deliberately not logged.
+			log.Warn().Str("retention", string(queryLogEvent.Metadata.Retention)).Msg("Dropping query log entry with unknown retention")
 		}
 	}
 

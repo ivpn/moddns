@@ -9,6 +9,7 @@ import (
 	"github.com/ivpn/dns/blocklists/internal/downloader"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
 	"github.com/rs/zerolog"
 )
@@ -52,10 +53,26 @@ type UpdaterConfig struct {
 	// between updates before the swap is rejected. e.g. 0.5 rejects an update
 	// whose validated domain count drops more than 50% vs the previous run.
 	ShrinkThreshold float64
+	// MinSources is the minimum number of blocklist sources that must parse
+	// from SourcesDir for startup and stale purging to proceed. Guards against
+	// an empty or partially mounted sources directory being read as "no
+	// sources", which would classify every stored blocklist as stale.
+	MinSources int
+	// MaxStalePurge is the largest number of stale blocklists PurgeStale may
+	// delete in one run. A larger count means the source set diverged from the
+	// database far beyond any routine removal (e.g. config drift between
+	// instances) and the purge is refused.
+	MaxStalePurge int
 }
 
 // defaultShrinkThreshold is the default value for UpdaterConfig.ShrinkThreshold.
 const defaultShrinkThreshold = 0.5
+
+// defaultMinSources is the default value for UpdaterConfig.MinSources.
+const defaultMinSources = 1
+
+// defaultMaxStalePurge is the default value for UpdaterConfig.MaxStalePurge.
+const defaultMaxStalePurge = 5
 
 // SentryConfig represents the Sentry configuration
 type SentryConfig struct {
@@ -72,6 +89,8 @@ func New() (*Config, error) {
 	}
 
 	cacheAddrs := strings.Split(os.Getenv("CACHE_ADDRESSES"), ",")
+
+	logLevel, _ := logging.ParseLevel(os.Getenv("LOG_LEVEL"))
 
 	return &Config{
 		Server: &ServerConfig{
@@ -109,6 +128,8 @@ func New() (*Config, error) {
 			Type:            updaterType,
 			SourcesDir:      os.Getenv("UPDATER_SOURCES_DIR"),
 			ShrinkThreshold: loadShrinkThreshold(),
+			MinSources:      loadMinSources(),
+			MaxStalePurge:   loadMaxStalePurge(),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),
@@ -117,30 +138,8 @@ func New() (*Config, error) {
 		},
 		Metrics:  loadMetricsConfig(),
 		Download: loadDownloadConfig(),
-		LogLevel: parseLogLevel(os.Getenv("LOG_LEVEL")),
+		LogLevel: logLevel,
 	}, nil
-}
-
-// parseLogLevel maps the LOG_LEVEL env value to a zerolog level. Unknown or empty
-// values default to info, keeping a normal run's output to the startup summary
-// and errors. Mirrors proxy/utils/log.go's ParseZerologLevel.
-func parseLogLevel(s string) zerolog.Level {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "trace":
-		return zerolog.TraceLevel
-	case "debug":
-		return zerolog.DebugLevel
-	case "info":
-		return zerolog.InfoLevel
-	case "warn", "warning":
-		return zerolog.WarnLevel
-	case "error":
-		return zerolog.ErrorLevel
-	case "disabled":
-		return zerolog.Disabled
-	default:
-		return zerolog.InfoLevel
-	}
 }
 
 // loadDownloadConfig reads the gentle-downloader tuning knobs from the
@@ -199,6 +198,26 @@ func loadShrinkThreshold() float64 {
 	v, err := strconv.ParseFloat(os.Getenv("BLOCKLIST_SHRINK_THRESHOLD"), 64)
 	if err != nil || v < 0 || v > 1 {
 		return defaultShrinkThreshold
+	}
+	return v
+}
+
+// loadMinSources reads UPDATER_MIN_SOURCES (a positive integer). Invalid,
+// missing or non-positive values fall back to defaultMinSources.
+func loadMinSources() int {
+	v, err := strconv.Atoi(os.Getenv("UPDATER_MIN_SOURCES"))
+	if err != nil || v < 1 {
+		return defaultMinSources
+	}
+	return v
+}
+
+// loadMaxStalePurge reads UPDATER_MAX_STALE_PURGE (a positive integer).
+// Invalid, missing or non-positive values fall back to defaultMaxStalePurge.
+func loadMaxStalePurge() int {
+	v, err := strconv.Atoi(os.Getenv("UPDATER_MAX_STALE_PURGE"))
+	if err != nil || v < 1 {
+		return defaultMaxStalePurge
 	}
 	return v
 }

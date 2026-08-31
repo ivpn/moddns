@@ -38,7 +38,7 @@ func (s *APIServer) createProfileCustomRule() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.CreateCustomRule(c.Context(), accountId, profileId, p.Action, p.Value); err != nil {
+		if err := s.Service.CreateCustomRule(c.UserContext(), accountId, profileId, p.Action, p.Value); err != nil {
 			return HandleError(c, err, ErrFailedToCreateCustomRule.Error())
 		}
 
@@ -74,7 +74,7 @@ func (s *APIServer) createProfileCustomRulesBatch() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		result, err := s.Service.CreateCustomRulesBulk(c.Context(), accountId, profileId, p.Action, p.Values)
+		result, err := s.Service.CreateCustomRulesBulk(c.UserContext(), accountId, profileId, p.Action, p.Values)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToCreateCustomRule.Error())
 		}
@@ -136,7 +136,7 @@ func (s *APIServer) updateProfileCustomRule() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		rule, err := s.Service.UpdateCustomRule(c.Context(), accountId, profileId, customRuleId, profile.CustomRulePatch{
+		rule, err := s.Service.UpdateCustomRule(c.UserContext(), accountId, profileId, customRuleId, profile.CustomRulePatch{
 			Action: p.Action,
 			Value:  p.Value,
 			Note:   p.Note,
@@ -180,7 +180,7 @@ func (s *APIServer) reorderProfileCustomRules() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.ReorderCustomRules(c.Context(), accountId, profileId, p.Order); err != nil {
+		if err := s.Service.ReorderCustomRules(c.UserContext(), accountId, profileId, p.Order); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateCustomRule.Error())
 		}
 
@@ -217,7 +217,7 @@ func (s *APIServer) reorderProfileCustomRuleGroups() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.ReorderCustomRuleGroups(c.Context(), accountId, profileId, p.Action, p.Order); err != nil {
+		if err := s.Service.ReorderCustomRuleGroups(c.UserContext(), accountId, profileId, p.Action, p.Order); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateCustomRule.Error())
 		}
 
@@ -275,7 +275,7 @@ func (s *APIServer) updateProfileCustomRuleGroups() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.ApplyCustomRuleGroupOps(c.Context(), accountId, profileId, ops); err != nil {
+		if err := s.Service.ApplyCustomRuleGroupOps(c.UserContext(), accountId, profileId, ops); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateCustomRule.Error())
 		}
 
@@ -302,8 +302,8 @@ func (s *APIServer) deleteProfileCustomRule() fiber.Handler {
 		customRuleId := c.Params("custom_rule_id")
 		accountId := auth.GetAccountID(c)
 
-		if err := s.Service.DeleteCustomRule(c.Context(), accountId, profileId, customRuleId); err != nil {
-			log.Error().Err(err).Msg(ErrFailedToDeleteCustomRule.Error())
+		if err := s.Service.DeleteCustomRule(c.UserContext(), accountId, profileId, customRuleId); err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToDeleteCustomRule.Error())
 			return HandleError(c, err, ErrFailedToDeleteCustomRule.Error())
 		}
 

@@ -109,7 +109,6 @@ func (s *SubscriptionService) CreateSubscriptionFromPreauth(ctx context.Context,
 		ID:          uuid.New(),
 		AccountID:   accOID,
 		ActiveUntil: preauth.ActiveUntil,
-		IsActive:    preauth.IsActive,
 		Tier:        preauth.Tier,
 		TokenHash:   preauth.TokenHash,
 		UpdatedAt:   time.Now(),
@@ -130,7 +129,7 @@ func (s *SubscriptionService) AddPASession(ctx context.Context, session *model.P
 func (s *SubscriptionService) RotatePASessionID(ctx context.Context, oldID string) (string, error) {
 	paSession, err := s.Cache.GetPASession(ctx, oldID)
 	if err != nil {
-		log.Debug().Err(err).Str("old_id", oldID).Msg("Failed to get PA session for rotation")
+		log.Ctx(ctx).Debug().Err(err).Str("old_id", oldID).Msg("Failed to get PA session for rotation")
 		return "", ErrPASessionNotFound
 	}
 
@@ -146,7 +145,7 @@ func (s *SubscriptionService) RotatePASessionID(ctx context.Context, oldID strin
 	}
 
 	if err := s.Cache.RemovePASession(ctx, oldID); err != nil {
-		log.Debug().Err(err).Str("old_id", oldID).Msg("Failed to delete old PA session after rotation")
+		log.Ctx(ctx).Debug().Err(err).Str("old_id", oldID).Msg("Failed to delete old PA session after rotation")
 	}
 
 	return newID, nil
@@ -156,13 +155,13 @@ func (s *SubscriptionService) RotatePASessionID(ctx context.Context, oldID strin
 func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, sessionID string) (*model.Preauth, error) {
 	paSession, err := s.Cache.GetPASession(ctx, sessionID)
 	if err != nil {
-		log.Warn().Err(err).Str("session_id", sessionID).Msg("ValidateAndGetPreauth: PASession not found in cache")
+		log.Ctx(ctx).Warn().Err(err).Msg("ValidateAndGetPreauth: PASession not found in cache")
 		return nil, ErrPASessionNotFound
 	}
 
 	preauth, err := s.Http.GetPreauth(paSession.PreauthID)
 	if err != nil {
-		log.Warn().Err(err).Str("preauth_id", paSession.PreauthID).Msg("ValidateAndGetPreauth: preauth service call failed")
+		log.Ctx(ctx).Warn().Err(err).Msg("ValidateAndGetPreauth: preauth service call failed")
 		return nil, ErrPANotFound
 	}
 
@@ -170,12 +169,7 @@ func (s *SubscriptionService) ValidateAndGetPreauth(ctx context.Context, session
 	tokenHashStr := base64.StdEncoding.EncodeToString(tokenHash[:])
 
 	if subtle.ConstantTimeCompare([]byte(tokenHashStr), []byte(preauth.TokenHash)) != 1 {
-		log.Warn().
-			Str("session_id", sessionID).
-			Str("preauth_id", paSession.PreauthID).
-			Str("computed_hash", tokenHashStr).
-			Str("preauth_hash", preauth.TokenHash).
-			Msg("ValidateAndGetPreauth: token hash mismatch")
+		log.Ctx(ctx).Warn().Msg("ValidateAndGetPreauth: token hash mismatch")
 		return nil, ErrTokenHashMismatch
 	}
 
@@ -200,13 +194,12 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 	}
 
 	sub.ActiveUntil = preauth.ActiveUntil
-	sub.IsActive = preauth.IsActive
 	sub.Tier = preauth.Tier
 	sub.TokenHash = preauth.TokenHash
 	sub.UpdatedAt = time.Now()
 
 	if err := s.SubscriptionRepository.Upsert(ctx, *sub); err != nil {
-		log.Error().Err(err).Msg("Failed to update subscription from PASession")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to update subscription from PASession")
 		return err
 	}
 
@@ -214,7 +207,7 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 	// rendering for this account. Best-effort: a failure here must not roll
 	// back the successful sync — the banner remains visible until next resync.
 	if err := s.SubscriptionRepository.ClearLegacyType(ctx, sub.AccountID.Hex()); err != nil {
-		log.Error().Err(err).Str("account_id", sub.AccountID.Hex()).Msg("Failed to clear legacy subscription type after resync")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to clear legacy subscription type after resync")
 	}
 
 	// Re-populate Redis profile settings for the account's profiles.
@@ -223,7 +216,7 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 
 	if subID != "" {
 		if err := s.Http.SignupWebhook(subID); err != nil {
-			log.Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
+			log.Ctx(ctx).Error().Err(err).Str("sub_id", subID).Msg("Failed to send signup webhook after subscription update")
 			return err
 		}
 	}
@@ -236,7 +229,7 @@ func (s *SubscriptionService) UpdateSubscriptionFromPASession(ctx context.Contex
 func (s *SubscriptionService) repopulateProfileCache(ctx context.Context, accountID string) {
 	profiles, err := s.ProfileRepository.GetProfilesByAccountId(ctx, accountID)
 	if err != nil {
-		log.Error().Err(err).Str("account_id", accountID).Msg("Failed to load profiles for cache repopulation")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to load profiles for cache repopulation")
 		return
 	}
 
@@ -245,7 +238,7 @@ func (s *SubscriptionService) repopulateProfileCache(ctx context.Context, accoun
 			continue
 		}
 		if err := s.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
-			log.Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Failed to repopulate profile settings in cache")
+			log.Ctx(ctx).Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Failed to repopulate profile settings in cache")
 		}
 	}
 }

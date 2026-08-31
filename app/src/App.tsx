@@ -468,7 +468,7 @@ function ProtectedLayout() {
     return <Navigate to="/home" replace />;
   }
 
-  const showDialogTrigger = location.pathname === '/blocklists' || location.pathname === '/query-logs' || location.pathname === '/custom-rules';
+  const showDialogTrigger = location.pathname === '/blocklists';
   const showProfileDropdown = location.pathname !== '/home' && location.pathname !== '/account-preferences';
   const showLogoutButton = location.pathname === '/account-preferences';
 
@@ -585,7 +585,10 @@ function ProtectedLayout() {
           // (same bug class as the old header wrapper transition, #121).
           // Mobile top offset comes from the sticky in-flow header; flex-1
           // (BaseLayout is flex-col) replaces the old measured minHeight.
-          className={`bg-[var(--shadcn-ui-app-background)] w-full overflow-x-hidden box-border ${isDesktop ? 'transition-all duration-200' : 'flex-1'}`}
+          // overflow-x-clip, NOT -hidden: `hidden` computes overflow-y:auto and turns
+          // this into a scroll container, which silently breaks position:sticky in
+          // every page below (e.g. the logs sticky filter bar).
+          className={`bg-[var(--shadcn-ui-app-background)] w-full overflow-x-clip box-border ${isDesktop ? 'transition-all duration-200' : 'flex-1'}`}
           style={isDesktop ? {
             paddingTop: 'var(--app-header-stack, 64px)',
             marginLeft: `${sidebarWidth + shellOffset}px`,

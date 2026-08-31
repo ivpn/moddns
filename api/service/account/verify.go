@@ -68,7 +68,7 @@ func (a *AccountService) RequestEmailVerificationOTP(ctx context.Context, accoun
 	}
 
 	if err := a.Mailer.SendEmailVerificationOTP(ctx, acc.Email, otp); err != nil {
-		log.Err(err).Msg("Failed to send email verification OTP")
+		log.Ctx(ctx).Err(err).Msg("Failed to send email verification OTP")
 		return ErrSendOTP
 	}
 
@@ -129,11 +129,11 @@ func (a *AccountService) VerifyEmailOTP(ctx context.Context, accountId, otp stri
 func (a *AccountService) VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error {
 	acc, err := a.AccountRepository.GetAccountByToken(ctx, tokenValue, auth.TokenTypePasswordReset)
 	if err != nil {
-		log.Warn().Err(err).Msg("error getting account by token")
+		log.Ctx(ctx).Warn().Err(err).Msg("error getting account by token")
 		return ErrInvalidVerificationToken
 	}
 	if !acc.EmailVerified {
-		log.Warn().Str("email", acc.Email).Msg("Email not verified")
+		log.Ctx(ctx).Warn().Str("account_id", acc.ID.Hex()).Msg("Email not verified")
 	}
 	if err := a.MfaCheck(ctx, acc, mfa); err != nil {
 		return err

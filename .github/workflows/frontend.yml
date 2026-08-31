@@ -12,8 +12,8 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/frontend.yml'
+  # No base-branch filter: stacked PRs target feature branches and must run too.
   pull_request:
-    branches: ["main", "develop", "release/*"]
     paths:
       - 'app/**'
       - '.github/workflows/frontend.yml'

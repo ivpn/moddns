@@ -1,9 +1,11 @@
 // Package metrics provides Prometheus instrumentation for the blocklists
 // updater, mirroring the pattern used by the proxy service
-// (proxy/internal/metrics). The service is a singleton writer to the shared
-// Redis/Mongo data the proxy reads on the DNS hot path, so update failures must
-// be observable: the blocklists_last_success_timestamp_seconds gauge in
-// particular lets an alert fire when a source goes stale.
+// (proxy/internal/metrics). The service writes the shared Redis/Mongo data the
+// proxy reads on the DNS hot path, so update failures must be observable: the
+// blocklists_last_success_timestamp_seconds gauge in particular lets an alert
+// fire when a source goes stale. With multiple coordinated instances, each
+// gauge is per-process and only the tick winner advances it — staleness alerts
+// must aggregate max by (source) across instances.
 package metrics
 
 import (
@@ -24,6 +26,16 @@ const (
 	ReasonShrink    = "shrink"
 	ReasonScanError = "scan_error"
 	ReasonTruncated = "truncated"
+)
+
+// Reason label values for blocklists_refresh_skipped_total.
+const (
+	// SkipReasonFresh: the source was refreshed recently (typically by a peer
+	// instance), so no download was needed.
+	SkipReasonFresh = "fresh"
+	// SkipReasonLockHeld: another instance holds the source's lock and is
+	// refreshing it right now.
+	SkipReasonLockHeld = "lock_held"
 )
 
 // Updates is the instrumentation surface for the blocklist update pipeline.
@@ -52,6 +64,14 @@ type Updates interface {
 	// for a source. A rising rate signals a source server under strain or
 	// throttling our requests.
 	RecordRetry(source string)
+	// RecordRefreshSkipped counts a refresh that ended without downloading,
+	// by source and reason (fresh|lock_held). High rates are normal on a
+	// multi-instance deployment — they show coordination working.
+	RecordRefreshSkipped(source, reason string)
+	// RecordLockError counts lock acquisitions that failed on a Redis error
+	// (not contention). The affected tick is skipped, so a rising rate means
+	// refreshes are silently not happening.
+	RecordLockError(source string)
 }
 
 // NoopUpdates is a no-op Updates implementation used when metrics are disabled.
@@ -65,6 +85,8 @@ func (NoopUpdates) SetLastSuccess(string, time.Time)        {}
 func (NoopUpdates) RecordDownloadBytes(string, int64)       {}
 func (NoopUpdates) RecordValidationRejected(string, string) {}
 func (NoopUpdates) RecordRetry(string)                      {}
+func (NoopUpdates) RecordRefreshSkipped(string, string)     {}
+func (NoopUpdates) RecordLockError(string)                  {}
 
 // PromUpdates implements Updates using Prometheus collectors.
 type PromUpdates struct {
@@ -76,6 +98,8 @@ type PromUpdates struct {
 	downloadBytes     *prometheus.GaugeVec
 	validationRejects *prometheus.CounterVec
 	downloadRetries   *prometheus.CounterVec
+	refreshSkips      *prometheus.CounterVec
+	lockErrors        *prometheus.CounterVec
 }
 
 // NewPromUpdates creates and registers all blocklist update collectors.
@@ -114,6 +138,14 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 			Name: "blocklists_download_retries_total",
 			Help: "Total number of blocklist download retries (transient network error, 429 or 5xx) by source.",
 		}, []string{"source"}),
+		refreshSkips: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "blocklists_refresh_skipped_total",
+			Help: "Total number of refreshes skipped without downloading, by source and reason (fresh: recently refreshed, typically by a peer instance; lock_held: another instance is refreshing right now).",
+		}, []string{"source", "reason"}),
+		lockErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "blocklists_lock_errors_total",
+			Help: "Total number of distributed-lock acquisitions failed on a Redis error (not contention), by source. The affected refresh is skipped.",
+		}, []string{"source"}),
 	}
 	reg.MustRegister(
 		m.updates,
@@ -124,6 +156,8 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 		m.downloadBytes,
 		m.validationRejects,
 		m.downloadRetries,
+		m.refreshSkips,
+		m.lockErrors,
 	)
 	return m
 }
@@ -158,4 +192,12 @@ func (m *PromUpdates) RecordValidationRejected(source, reason string) {
 
 func (m *PromUpdates) RecordRetry(source string) {
 	m.downloadRetries.WithLabelValues(source).Inc()
+}
+
+func (m *PromUpdates) RecordRefreshSkipped(source, reason string) {
+	m.refreshSkips.WithLabelValues(source, reason).Inc()
+}
+
+func (m *PromUpdates) RecordLockError(source string) {
+	m.lockErrors.WithLabelValues(source).Inc()
 }

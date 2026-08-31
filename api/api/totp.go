@@ -20,7 +20,7 @@ import (
 func (s *APIServer) TotpEnable() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		accountId := auth.GetAccountID(c)
-		totp, err := s.Service.TotpEnable(c.Context(), accountId)
+		totp, err := s.Service.TotpEnable(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToEnable2FA.Error())
 		}
@@ -52,7 +52,7 @@ func (s *APIServer) confirm2FA() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 		accountId := auth.GetAccountID(c)
-		backup, err := s.Service.TotpConfirm(c.Context(), accountId, p.OTP)
+		backup, err := s.Service.TotpConfirm(c.UserContext(), accountId, p.OTP)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToConfirm2FA.Error())
 		}
@@ -83,7 +83,7 @@ func (s *APIServer) disable2FA() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 		accountId := auth.GetAccountID(c)
-		acc, err := s.Service.TotpDisable(c.Context(), accountId, p.OTP)
+		acc, err := s.Service.TotpDisable(c.UserContext(), accountId, p.OTP)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToDisable2FA.Error())
 		}

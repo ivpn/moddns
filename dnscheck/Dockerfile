@@ -7,6 +7,9 @@ WORKDIR /app
 COPY dnscheck/go.mod .
 COPY dnscheck/go.sum .
 
+# Copy the DNS libs
+COPY ../libs/ /libs
+
 # Cache the downloaded dependency in the layer
 RUN go mod download
 

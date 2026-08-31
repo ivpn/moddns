@@ -41,7 +41,7 @@ func (s *APIServer) addPASession() fiber.Handler {
 			PreauthID: req.PreauthID,
 		}
 
-		if err := s.Service.AddPASession(c.Context(), session); err != nil {
+		if err := s.Service.AddPASession(c.UserContext(), session); err != nil {
 			return HandleError(c, err, "failed to add pre-auth session")
 		}
 
@@ -74,7 +74,7 @@ func (s *APIServer) rotatePASession() fiber.Handler {
 			return c.Status(400).JSON(fiber.Map{"error": "This signup link has expired."})
 		}
 
-		if newID, err := s.Service.RotatePASessionID(c.Context(), req.SessionID); err == nil {
+		if newID, err := s.Service.RotatePASessionID(c.UserContext(), req.SessionID); err == nil {
 			setPASessionCookie(c, newID)
 			return c.SendStatus(fiber.StatusOK)
 		}
@@ -84,7 +84,7 @@ func (s *APIServer) rotatePASession() fiber.Handler {
 		// existing pa_session cookie still points to a valid cache entry, the
 		// caller can continue with what they have — no rotate needed.
 		if existing := c.Cookies(PASessionCookie); existing != "" {
-			if _, err := s.Service.ValidateAndGetPreauth(c.Context(), existing); err == nil {
+			if _, err := s.Service.ValidateAndGetPreauth(c.UserContext(), existing); err == nil {
 				return c.SendStatus(fiber.StatusOK)
 			}
 		}

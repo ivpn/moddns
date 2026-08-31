@@ -3,7 +3,7 @@
     "blocklist_id": "hagezi_nsfw",
     "name": "Hagezi NSFW",
     "description": "Blocks adult and NSFW content domains.",
-    "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/nsfw-onlydomains.txt",
+    "source_url": "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/nsfw-onlydomains.txt",
     "homepage": "https://github.com/hagezi/dns-blocklists",
     "syntax": "domains",
     "kind": "category",

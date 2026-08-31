@@ -3,7 +3,7 @@
         "blocklist_id": "hagezi_threat_intelligence_feeds_full",
         "name": "Hagezi Threat Intelligence Feeds Full",
         "description": "A blocklist for blocking malware, cryptojacking, scam, spam and phishing. Blocks domains known to spread malware, launch phishing attacks and host command-and-control servers.",
-        "source_url": "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif-onlydomains.txt",
+        "source_url": "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/tif-onlydomains.txt",
         "homepage": "https://github.com/hagezi/dns-blocklists",
         "syntax": "domains",
         "tags": ["balanced"],

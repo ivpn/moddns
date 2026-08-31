@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -38,6 +39,11 @@ type ServicesCatalogReader interface {
 // Account-based rate limiting for query logs retrieval.
 const queryLogsRateLimitMax = 120
 const queryLogsRateLimitWindow = time.Minute
+
+// Cache-aside for the distinct-device aggregation (unindexable full-window
+// bucket unpack — see api-endpoint-behaviour #J5).
+const queryLogDevicesCachePrefix = "query_log_devices:"
+const queryLogDevicesCacheTTL = 10 * time.Minute
 
 type ProfileService struct {
 	ProfileRepository repository.ProfileRepository
@@ -122,7 +128,7 @@ func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId stri
 	}
 
 	for _, profile := range profiles {
-		log.Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
+		log.Ctx(ctx).Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
 		if profile.Name == name {
 			return nil, ErrProfileNameAlreadyExists
 		}
@@ -191,7 +197,7 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	})
 
 	if err := eg.Wait(); err != nil {
-		log.Err(err).Msg(ErrFailedToDeleteProfile.Error())
+		log.Ctx(ctx).Err(err).Msg(ErrFailedToDeleteProfile.Error())
 		return err
 	}
 
@@ -207,12 +213,50 @@ func (p *ProfileService) GetProfileQueryLogs(ctx context.Context, accountId, pro
 
 	limiter := utils.IDLimiter{Cache: p.Cache, Label: "rate_limits", ID: accountId + ":query_logs", Max: queryLogsRateLimitMax, Exp: queryLogsRateLimitWindow}
 	if tickErr := limiter.Tick(); tickErr != nil {
-		log.Err(tickErr).Msg("failed to tick query logs rate limiter")
+		log.Ctx(ctx).Err(tickErr).Msg("failed to tick query logs rate limiter")
 	} else if !limiter.IsAllowed() {
 		return nil, ErrQueryLogsRateLimited
 	}
 
 	return p.QueryLogsService.GetProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, status, timespan, deviceId, search, sortBy, page, limit)
+}
+
+// GetProfileQueryLogDevices returns the distinct device IDs seen in the
+// profile's query logs (current retention window). Cache-aside with a short
+// TTL: the aggregation must unpack every bucket of the profile's window
+// (device_id is a measurement field — no index can serve the $group), which
+// costs ~1.4s at 1M docs. Staleness is masked client-side: the frontend
+// unions this list with device ids observed in fetched rows.
+func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountId, profileId string) ([]model.QueryLogDevice, error) {
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	if err != nil {
+		return nil, err
+	}
+
+	cacheKey := queryLogDevicesCachePrefix + profileId
+	if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
+		var cached []model.QueryLogDevice
+		if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
+			return cached, nil
+		}
+	}
+
+	devices, err := p.QueryLogsService.GetProfileQueryLogDevices(ctx, profileId, profile.Settings.Logs.Retention)
+	if err != nil {
+		return nil, err
+	}
+	// Never cache an empty list: a fresh profile queried before the collector's
+	// first flush would otherwise pin "no devices" for the whole TTL. Empty-window
+	// aggregations are cheap — there are no buckets to unpack.
+	if len(devices) > 0 {
+		if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
+			if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
+				log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
+			}
+		}
+	}
+
+	return devices, nil
 }
 
 // DownloadProfileQueryLogs returns all existing profile DNS query logs
@@ -258,7 +302,17 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 		return err
 	}
 
-	return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+	if err := p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId); err != nil {
+		return err
+	}
+
+	// Deleting logs deletes the device list's source — drop the cached copy so
+	// it cannot outlive the data (best-effort; TTL bounds a miss).
+	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
+		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
+	}
+
+	return nil
 }
 
 // UpdateProfile updates profile data
@@ -272,7 +326,7 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
 		internalValue, err := cast.ToStringMapE(update.Value)
 		if err != nil {
-			log.Trace().Msg("Failed to cast value to string map")
+			log.Ctx(ctx).Trace().Msg("Failed to cast value to string map")
 		} else {
 			update.Value = internalValue["value"]
 		}
@@ -467,7 +521,7 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			Name: newName,
 		})
 		if err != nil {
-			log.Debug().Err(err).Msg("Failed to validate profile name")
+			log.Ctx(ctx).Debug().Err(err).Msg("Failed to validate profile name")
 			return ErrProfileNameInvalid
 		}
 
@@ -476,7 +530,7 @@ func (p *ProfileService) handleProfileNameUpdate(ctx context.Context, profile *m
 			return err
 		}
 		for _, profile := range profiles {
-			log.Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
+			log.Ctx(ctx).Trace().Str("profile_name", profile.Name).Msg("Checking for duplicate profile names")
 			if profile.Name == newName {
 				return ErrProfileNameAlreadyExists
 			}

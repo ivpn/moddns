@@ -38,7 +38,36 @@ func (s *Service) ReadSources() ([]model.BlocklistMetadata, error) {
 		log.Err(err).Str("sources_dir", s.Cfg.Updater.SourcesDir).Msg("Error walking the sources directory")
 		return nil, err
 	}
+	// An empty or partially mounted sources directory walks cleanly; treat too
+	// few parsed sources as a fatal misconfiguration rather than an empty set,
+	// which downstream would read as "purge everything" (spec H4).
+	if min := s.minSources(); len(s.Blocklists) < min {
+		return nil, fmt.Errorf("parsed %d blocklist sources from %s, need at least %d — refusing to start",
+			len(s.Blocklists), s.Cfg.Updater.SourcesDir, min)
+	}
 	return s.Blocklists, nil
+}
+
+// minSources returns the configured minimum source count, never below 1 so a
+// zero-value config still refuses to treat an empty source set as valid.
+func (s *Service) minSources() int {
+	if s.Cfg.Updater != nil && s.Cfg.Updater.MinSources > 1 {
+		return s.Cfg.Updater.MinSources
+	}
+	return 1
+}
+
+// defaultMaxStalePurge caps a purge run when the config carries no explicit
+// limit (zero value), mirroring config.defaultMaxStalePurge.
+const defaultMaxStalePurge = 5
+
+// maxStalePurge returns the configured purge cap, falling back to a safe
+// default so a zero-value config can never mass-delete.
+func (s *Service) maxStalePurge() int {
+	if s.Cfg.Updater != nil && s.Cfg.Updater.MaxStalePurge >= 1 {
+		return s.Cfg.Updater.MaxStalePurge
+	}
+	return defaultMaxStalePurge
 }
 
 func (s *Service) visit(path string, info os.FileInfo, err error) error {
@@ -64,9 +93,12 @@ func (s *Service) visit(path string, info os.FileInfo, err error) error {
 
 func (s *Service) Setup(sources []model.BlocklistMetadata) error {
 	for _, src := range sources {
-		// Create a closure that captures the current value of source
+		// Create a closure that captures the current value of source. The
+		// updater's distributed locker already holds the source lock when this
+		// runs; RefreshDue adds the freshness backstop for ticks a peer just
+		// completed.
 		blocklistFunc := func() (*model.BlocklistMetadata, error) {
-			return s.ProcessBlocklist(src)
+			return s.RefreshDue(src)
 		}
 		if err := s.Updater.Setup(src, blocklistFunc); err != nil {
 			log.Err(err).Str("source", src.Name).Msg("Failed to setup updater")
@@ -74,31 +106,6 @@ func (s *Service) Setup(sources []model.BlocklistMetadata) error {
 		}
 	}
 	return nil
-}
-
-// Trigger is called to launch the processing of all blocklists. It emits a
-// single summary log at the end (succeeded/failed/total) so a startup refresh
-// can be assessed at a glance, naming any sources that failed.
-func (s *Service) Trigger(sources []model.BlocklistMetadata) {
-	var failedSources []string
-	for _, src := range sources {
-		_, err := s.ProcessBlocklist(src)
-		if err != nil {
-			failedSources = append(failedSources, src.Name)
-			log.Err(err).Str("source", src.Name).Msg("Failed to process blocklist")
-			continue
-		}
-	}
-
-	event := log.Info()
-	if len(failedSources) > 0 {
-		event = log.Warn().Strs("failed_sources", failedSources)
-	}
-	event.
-		Int("succeeded", len(sources)-len(failedSources)).
-		Int("failed", len(failedSources)).
-		Int("total", len(sources)).
-		Msg("Blocklist startup refresh complete")
 }
 
 // ProcessBlocklist downloads, validates and publishes a single blocklist,
@@ -240,13 +247,13 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	metadata.Version = version
 	metadata.Entries = totalDomains
 	metadata.Type = model.BlocklistTypePublic
+	metadata.UpdatedAt = time.Now().UTC()
 
-	// Update metadata first
-	if err := s.Store.UpsertMetadata(ctx, metadata); err != nil {
-		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to upsert blocklist metadata")
-		return nil, err
-	}
-	// remove old blocklist contents
+	// Remove old blocklist contents before the metadata upsert: updated_at
+	// asserts the refresh fully completed, so a failed cleanup must fail the
+	// run (and be retried at the next tick, whose content snapshot then sees
+	// both copies and heals the duplication). Redis already serves the new
+	// set at this point, which is fine — it is the live medium.
 	if removeOldContents {
 		existingIDs := make([]primitive.ObjectID, 0)
 		for _, existingBlocklist := range existingBlocklists {
@@ -255,7 +262,13 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		fltr := map[string]any{"_id": existingIDs}
 		if err := s.Store.Delete(ctx, fltr); err != nil {
 			log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to delete old blocklist contents")
+			return nil, err
 		}
+	}
+
+	if err := s.Store.UpsertMetadata(ctx, metadata); err != nil {
+		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to upsert blocklist metadata")
+		return nil, err
 	}
 
 	return &metadata, nil
@@ -348,6 +361,17 @@ func (s *Service) saveChunk(ctx context.Context, blocklistID string, chunkIndex 
 // present in the current sources. This ensures that removed blocklists don't
 // linger in the database and get served by the API.
 func (s *Service) PurgeStale(sources []model.BlocklistMetadata) {
+	// A suspiciously small source set means the sources were not read
+	// correctly (e.g. empty mount), not that every blocklist was removed.
+	// Purging on it would delete all published blocklists (spec H4).
+	if min := s.minSources(); len(sources) < min {
+		log.Error().
+			Int("sources", len(sources)).
+			Int("min_sources", min).
+			Msg("Refusing to purge stale blocklists: source set below configured minimum")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), processingTimeout)
 	defer cancel()
 
@@ -376,6 +400,19 @@ func (s *Service) PurgeStale(sources []model.BlocklistMetadata) {
 
 	if len(staleIDs) == 0 {
 		log.Debug().Msg("No stale blocklists to purge")
+		return
+	}
+
+	// Routine source removals retire a handful of lists at most. A larger
+	// stale set means this instance's source directory diverged from what the
+	// cluster published (e.g. mid-rollout config drift between nodes), and
+	// purging on it would delete lists peers still serve.
+	if max := s.maxStalePurge(); len(staleIDs) > max {
+		log.Error().
+			Strs("blocklist_ids", staleIDs).
+			Int("stale", len(staleIDs)).
+			Int("max_stale_purge", max).
+			Msg("Refusing to purge stale blocklists: stale count exceeds configured maximum")
 		return
 	}
 

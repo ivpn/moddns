@@ -116,7 +116,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                         <div className="w-full sm:w-auto md:flex-shrink-0">
                             <ToggleGroup
                                 options={logsSettings[3]?.options || []}
-                                value={logsSettings[3]?.value || "1d"}
+                                value={logsSettings[3]?.value || "1h"}
                                 onChange={value => handleLogsChange(3, value)}
                                 variant="outline"
                                 className="!w-full flex flex-wrap md:flex-nowrap gap-1 sm:!w-auto"

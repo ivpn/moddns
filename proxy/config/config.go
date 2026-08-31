@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Server              *ServerConfig
 	Services            *ServicesConfig
+	Filtering           *FilteringConfig
 	Cache               *cache.Config
 	DNSCache            *DNSCacheConfig
 	CollectorQueryLogs  CollectorConfig
@@ -71,6 +72,8 @@ type RateLimitConfig struct {
 	PerProfileRate     int
 	PerProfileBurst    int
 	PerProfileResponse string // "drop" or "refuse" (default)
+	MaxBuckets         int    // cap per bucket store
+	IPv6PrefixLen      int    // prefix length IPv6 clients are grouped by
 }
 
 // MetricsConfig holds Prometheus metrics server settings.
@@ -97,6 +100,7 @@ type ServerConfig struct {
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
+	MaxGoroutines           uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
 }
 
 // ServicesConfig configures ASN-based services blocking.
@@ -104,6 +108,12 @@ type ServicesConfig struct {
 	CatalogPath        string
 	CatalogReloadEvery time.Duration
 	GeoIPASNDBPath     string
+}
+
+// FilteringConfig holds global filter master switches. These are operator-level
+// incident-response knobs, never exposed per-profile.
+type FilteringConfig struct {
+	CNAMEUncloakingEnabled bool // CNAME_UNCLOAKING_ENABLED (default true; only an explicit "false"/"0" disables)
 }
 
 // UpstreamConfig represents the upstream configuration
@@ -379,11 +389,15 @@ func New() (*Config, error) {
 			DnsCheckDomain:          dnsCheckDomain,
 			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
 			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
+			MaxGoroutines:           loadMaxGoroutines(),
 		},
 		Services: &ServicesConfig{
 			CatalogPath:        servicesCatalogPath,
 			CatalogReloadEvery: servicesCatalogReloadEvery,
 			GeoIPASNDBPath:     geoIPASNDBPath,
+		},
+		Filtering: &FilteringConfig{
+			CNAMEUncloakingEnabled: getEnvBoolDefault("CNAME_UNCLOAKING_ENABLED", true),
 		},
 		DNSCache:           dnsCacheCfg,
 		Rebinding:          rebindingCfg,
@@ -451,6 +465,8 @@ func loadRateLimitConfig() *RateLimitConfig {
 		PerProfileRate:     600,
 		PerProfileBurst:    1000,
 		PerProfileResponse: RateLimitResponseRefuse,
+		MaxBuckets:         100_000,
+		IPv6PrefixLen:      64,
 	}
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RATELIMIT_PER_IP_RESPONSE"))); v == RateLimitResponseDrop || v == RateLimitResponseRefuse {
 		cfg.PerIPResponse = v
@@ -470,7 +486,25 @@ func loadRateLimitConfig() *RateLimitConfig {
 	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_PER_PROFILE_BURST")); err == nil && v > 0 {
 		cfg.PerProfileBurst = v
 	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_MAX_BUCKETS")); err == nil && v > 0 {
+		cfg.MaxBuckets = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("RATELIMIT_IPV6_PREFIX")); err == nil && v >= 1 && v <= 128 {
+		cfg.IPv6PrefixLen = v
+	}
 	return cfg
+}
+
+// loadMaxGoroutines reads MAX_GOROUTINES, the cap on concurrent
+// request-processing goroutines in the DNS proxy. "0" disables the cap.
+func loadMaxGoroutines() uint {
+	maxGoroutines := uint(10_000)
+	if v := os.Getenv("MAX_GOROUTINES"); v != "" {
+		if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
+			maxGoroutines = uint(parsed)
+		}
+	}
+	return maxGoroutines
 }
 
 func loadMetricsConfig() *MetricsConfig {

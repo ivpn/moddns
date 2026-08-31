@@ -93,7 +93,6 @@ def create_temp_subscription(
         json={
             "id": preauth_id,
             "token_hash": token_hash,
-            "is_active": True,
             "active_until": active_until,
             "tier": tier,
         },
@@ -101,7 +100,7 @@ def create_temp_subscription(
 
     # 2. Add PASession via API (PSK-protected endpoint)
     api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
-    psk = ""  # empty PSK works if no PSK is set in API .env
+    psk = config.API_PSK
 
     with client.ApiClient(api_conf) as api_client:
         pa_api = PASessionApi(api_client)

@@ -63,6 +63,7 @@ func TestAddClientIP_ClientIPLoggingEnabled(t *testing.T) {
 	}
 }
 
+// specRef: logging-behaviour.md A3
 func TestAddClientIP_ClientIPLoggingDisabled(t *testing.T) {
 	logger, buf := testLogger(true, false)
 	cfg := logger.Config()
@@ -77,6 +78,7 @@ func TestAddClientIP_ClientIPLoggingDisabled(t *testing.T) {
 	}
 }
 
+// specRef: logging-behaviour.md A3
 func TestAddDomain_DomainLoggingDisabled(t *testing.T) {
 	logger, buf := testLogger(true, false)
 	rc := NewRequestContext(context.Background(), &proxy.Proxy{}, "pid", "did",

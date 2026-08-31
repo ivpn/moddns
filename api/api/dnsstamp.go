@@ -39,11 +39,11 @@ func (s *APIServer) generateDNSStamps() fiber.Handler {
 
 		// Ownership check — identical pattern to mobileconfig.go.
 		accountId := auth.GetAccountID(c)
-		if _, err := s.Service.GetProfile(c.Context(), accountId, p.ProfileId); err != nil {
+		if _, err := s.Service.GetProfile(c.UserContext(), accountId, p.ProfileId); err != nil {
 			return HandleError(c, err, ErrFailedToGenerateDNSStamp.Error())
 		}
 
-		resp, err := s.Service.GenerateStamps(c.Context(), *p)
+		resp, err := s.Service.GenerateStamps(c.UserContext(), *p)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGenerateDNSStamp.Error())
 		}

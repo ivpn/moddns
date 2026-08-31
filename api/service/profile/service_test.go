@@ -2133,6 +2133,7 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 			// Reset mock expectations for each test case
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockQueryLogsRepo.ExpectedCalls = nil
+			suite.mockCache.ExpectedCalls = nil
 
 			if tt.repoError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoError)
@@ -2144,6 +2145,8 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(tt.deleteError)
 					} else {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
+						// Deleting logs invalidates the cached device list (best-effort).
+						suite.mockCache.On("Del", context.Background(), "query_log_devices:"+tt.profileID).Return(nil)
 					}
 				}
 			}
@@ -2160,6 +2163,104 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 			}
 		})
 	}
+}
+
+// TestGetProfileQueryLogDevices verifies the cache-aside around the distinct-
+// device aggregation: miss → repo + cache write; hit → no repo call; repo
+// error → no cache write. tableRef: api-endpoint-behaviour #J5
+func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
+	ctx := context.Background()
+	owned := &model.Profile{
+		ProfileId: "profile123",
+		AccountId: "account123",
+		Name:      "Test Profile",
+		Settings:  &model.ProfileSettings{Logs: &model.LogsSettings{Retention: model.RetentionOneWeek}},
+	}
+	cacheKey := "query_log_devices:profile123"
+	repoDevices := []model.QueryLogDevice{{DeviceId: "laptop"}, {DeviceId: "phone"}}
+
+	suite.Run("cache miss aggregates and stores", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
+		// Retention must be forwarded from the profile settings.
+		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return(repoDevices, nil)
+		suite.mockCache.On("Set", ctx, cacheKey, mock.Anything, mock.AnythingOfType("time.Duration")).Return(nil)
+
+		devices, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
+		suite.NoError(err)
+		suite.Equal(repoDevices, devices)
+	})
+
+	suite.Run("cache hit skips the aggregation", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cacheKey).Return(`[{"device_id":"laptop","last_seen":"0001-01-01T00:00:00Z"}]`, nil)
+
+		devices, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
+		suite.NoError(err)
+		suite.Len(devices, 1)
+		suite.Equal("laptop", devices[0].DeviceId)
+		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogDevices", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	suite.Run("empty result is returned but never cached", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
+		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return([]model.QueryLogDevice{}, nil)
+
+		devices, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
+		suite.NoError(err)
+		suite.Empty(devices)
+		// Caching [] would pin "no devices" for the TTL on fresh profiles whose
+		// first rows are still in the collector batch.
+		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	suite.Run("aggregation error is not cached", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
+		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return(nil, errors.New("aggregation failed"))
+
+		_, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
+		suite.Error(err)
+		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	suite.Run("foreign profile is not found", func() {
+		suite.mockProfileRepo.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.ExpectedCalls = nil
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockQueryLogsRepo.Calls = nil
+		suite.mockCache.Calls = nil
+
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+
+		_, err := suite.service.GetProfileQueryLogDevices(ctx, "other-account", "profile123")
+		suite.Error(err)
+	})
 }
 
 // TestCreateCustomRulesBulkAutoPrepend verifies the auto-prepend "*." logic

@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// specRef: logging-behaviour.md A2
 func TestNewContextLogger_Enabled(t *testing.T) {
 	config := LoggingConfig{
 		Enabled:   true,
@@ -125,6 +126,7 @@ func TestContextLogger_Level(t *testing.T) {
 	}
 }
 
+// specRef: logging-behaviour.md A1
 func TestContextLogger_DisabledOutput(t *testing.T) {
 	// Test that disabled logger produces no output at all
 	disabledLogger := NewDisabledLogger()

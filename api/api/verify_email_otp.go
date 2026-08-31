@@ -21,7 +21,7 @@ func (s *APIServer) requestEmailVerificationOTP() fiber.Handler {
 		if accountId == "" {
 			return HandleError(c, ErrUnauthorized, ErrUnauthorized.Error())
 		}
-		if err := s.Service.RequestEmailVerificationOTP(c.Context(), accountId); err != nil {
+		if err := s.Service.RequestEmailVerificationOTP(c.UserContext(), accountId); err != nil {
 			return HandleError(c, err, "failed to request email verification otp")
 		}
 		return c.SendStatus(http.StatusNoContent)
@@ -59,7 +59,7 @@ func (s *APIServer) verifyEmailOTP() fiber.Handler {
 		if errMsgs := s.Validator.ValidateRequest(c, body, "invalid email verification otp"); len(errMsgs) > 0 {
 			return HandleError(c, ErrInvalidRequestBody, ErrInvalidRequestBody.Error(), errMsgs...)
 		}
-		if err := s.Service.VerifyEmailOTP(c.Context(), accountId, body.OTP); err != nil {
+		if err := s.Service.VerifyEmailOTP(c.UserContext(), accountId, body.OTP); err != nil {
 			return HandleError(c, err, "failed to verify email otp")
 		}
 		return c.SendStatus(http.StatusNoContent)

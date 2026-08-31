@@ -336,8 +336,8 @@ func TestGenerateMobileConfig_Security(t *testing.T) {
 					FrontendDomain: "frontend.com",
 				},
 				Service: &config.ServiceConfig{
-					MobileConfigCertPath:       "../../../certs/certificate.pem",
-					MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+					MobileConfigCertPath:       "../../../dev/certs/certificate.pem",
+					MobileConfigPrivateKeyPath: "../../../dev/certs/private_key.pem",
 				},
 			}
 			shortener := urlshort.NewURLShortener()
@@ -381,8 +381,8 @@ func TestGenerateMobileConfig_StoresPayloadInCache(t *testing.T) {
 			FrontendDomain: "frontend.com",
 		},
 		Service: &config.ServiceConfig{
-			MobileConfigCertPath:       "../../../certs/certificate.pem",
-			MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+			MobileConfigCertPath:       "../../../dev/certs/certificate.pem",
+			MobileConfigPrivateKeyPath: "../../../dev/certs/private_key.pem",
 		},
 	}
 	mockCache := mocks.NewCachecache(t)
@@ -426,8 +426,8 @@ func TestGenerateMobileConfig_WifiNetworkSlicesNilBehavior(t *testing.T) {
 			FrontendDomain: "frontend.com",
 		},
 		Service: &config.ServiceConfig{
-			MobileConfigCertPath:       "../../../certs/certificate.pem",
-			MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+			MobileConfigCertPath:       "../../../dev/certs/certificate.pem",
+			MobileConfigPrivateKeyPath: "../../../dev/certs/private_key.pem",
 		},
 	}
 	shortener := urlshort.NewURLShortener()
@@ -466,8 +466,8 @@ func TestGenerateMobileConfig_DeviceID(t *testing.T) {
 			FrontendDomain: "frontend.com",
 		},
 		Service: &config.ServiceConfig{
-			MobileConfigCertPath:       "../../../certs/certificate.pem",
-			MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+			MobileConfigCertPath:       "../../../dev/certs/certificate.pem",
+			MobileConfigPrivateKeyPath: "../../../dev/certs/private_key.pem",
 		},
 	}
 	shortener := urlshort.NewURLShortener()
@@ -597,8 +597,8 @@ func TestGenerateMobileConfig_NoLinkSkipsCache(t *testing.T) {
 			FrontendDomain: "frontend.com",
 		},
 		Service: &config.ServiceConfig{
-			MobileConfigCertPath:       "../../../certs/certificate.pem",
-			MobileConfigPrivateKeyPath: "../../../certs/private_key.pem",
+			MobileConfigCertPath:       "../../../dev/certs/certificate.pem",
+			MobileConfigPrivateKeyPath: "../../../dev/certs/private_key.pem",
 		},
 	}
 	mockCache := mocks.NewCachecache(t)

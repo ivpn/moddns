@@ -44,7 +44,7 @@ func (s *APIServer) registerAccount() fiber.Handler {
 		}
 
 		sessionID := c.Cookies(PASessionCookie)
-		_, err := s.Service.GetUnfinishedSignupOrPostAccount(c.Context(), p.Email, p.Password, p.SubID, sessionID)
+		_, err := s.Service.GetUnfinishedSignupOrPostAccount(c.UserContext(), p.Email, p.Password, p.SubID, sessionID)
 		if err != nil {
 			// Map specific service errors to unified user-facing failure
 			if _, ok := err.(*account.ServiceAccountError); ok && err == account.ErrUnableToCreateAccount {
@@ -77,7 +77,7 @@ func (s *APIServer) getAccount() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		accountId := auth.GetAccountID(c)
 
-		account, err := s.Service.GetAccount(c.Context(), accountId)
+		account, err := s.Service.GetAccount(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetAccount.Error())
 		}
@@ -114,7 +114,7 @@ func (s *APIServer) updateAccount() fiber.Handler {
 
 		mfa := auth.GetMfaData(c)
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.UpdateAccount(c.Context(), accountId, updates.Updates, mfa); err != nil {
+		if err := s.Service.UpdateAccount(c.UserContext(), accountId, updates.Updates, mfa); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
@@ -150,7 +150,7 @@ func (s *APIServer) deleteAccount() fiber.Handler {
 		}
 
 		mfa := auth.GetMfaData(c)
-		err := s.Service.DeleteAccount(c.Context(), accountId, *payload, mfa)
+		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload, mfa)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToDeleteAccount.Error())
 		}
@@ -175,7 +175,7 @@ func (s *APIServer) generateDeletionCode() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		accountId := auth.GetAccountID(c)
 
-		response, err := s.Service.GenerateDeletionCode(c.Context(), accountId)
+		response, err := s.Service.GenerateDeletionCode(c.UserContext(), accountId)
 		if err != nil {
 			return HandleError(c, err, "Failed to generate deletion code")
 		}

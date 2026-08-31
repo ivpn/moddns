@@ -5,7 +5,7 @@ and the API service fetches them via GET /<id>.
 
 Endpoints:
   POST /entry  - Create preauth entry (called by test setup)
-    Body: {"id": "...", "token_hash": "...", "is_active": true, "active_until": "...", "tier": "..."}
+    Body: {"id": "...", "token_hash": "...", "active_until": "...", "tier": "..."}
     Returns: 201
 
   GET /<id>    - Get preauth entry (called by API during registration)

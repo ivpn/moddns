@@ -419,7 +419,7 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			}
 
 			dnsProxy := &proxy.Proxy{}
-			ipFilter := NewIPFilter(dnsProxy, mockCache, staticCatalog{cat: tt.catalog}, tt.asnLookup, nil)
+			ipFilter := NewIPFilter(dnsProxy, mockCache, staticCatalog{cat: tt.catalog}, tt.asnLookup, nil, nil)
 			reqCtx := newTestReqCtx(t, tt.profileID)
 
 			err := ipFilter.Execute(reqCtx, tt.dnsCtx)

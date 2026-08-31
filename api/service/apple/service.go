@@ -106,7 +106,7 @@ func (a *AppleService) GenerateMobileConfig(ctx context.Context, req requests.Mo
 	// Validate and sanitize inputs first
 	validatedReq, err := a.validate(req)
 	if err != nil {
-		log.Warn().Err(err).Msg("Validation failed for mobileconfig request")
+		log.Ctx(ctx).Warn().Err(err).Msg("Validation failed for mobileconfig request")
 		return nil, "", err
 	}
 
@@ -160,7 +160,7 @@ func (a *AppleService) GenerateMobileConfig(ctx context.Context, req requests.Mo
 		}
 
 		link = fmt.Sprintf("%s/short/%s", a.FrontendDomain, urlToken)
-		log.Info().Str("link", link).Msg("Generated short link for mobileconfig")
+		log.Ctx(ctx).Info().Msg("Generated short link for mobileconfig")
 	}
 	return data, link, nil
 }

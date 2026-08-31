@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"sync"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/cache"
@@ -18,23 +19,27 @@ type IPFilter struct {
 	ServicesCatalog ServicesCatalogGetter
 	ASNLookup       ASNLookup
 	RebindingConfig *config.RebindingConfig
-	// patternCache   sync.Map
-	FilteringFuncs []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
+	FilteringConfig *config.FilteringConfig
+	patternCache    sync.Map
+	FilteringFuncs  []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 }
 
-// NewIPFilter creates a new IPFilter instance
-func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog ServicesCatalogGetter, asnLookup ASNLookup, rebindingConfig *config.RebindingConfig) *IPFilter {
+// NewIPFilter creates a new IPFilter instance. A nil filteringConfig means all
+// master switches take their defaults (CNAME uncloaking enabled).
+func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog ServicesCatalogGetter, asnLookup ASNLookup, rebindingConfig *config.RebindingConfig, filteringConfig *config.FilteringConfig) *IPFilter {
 	fltrManager := &IPFilter{
 		Cache:           cache,
 		Proxy:           dnsProxy,
 		ServicesCatalog: servicesCatalog,
 		ASNLookup:       asnLookup,
 		RebindingConfig: rebindingConfig,
+		FilteringConfig: filteringConfig,
 	}
 	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
 		fltrManager.filterServices,
 		fltrManager.filterRebinding,
 		fltrManager.filterCustomRules,
+		fltrManager.filterCNAME,
 	}
 	return fltrManager
 }

@@ -31,7 +31,7 @@ func (s *APIServer) getStatistics() fiber.Handler {
 		}
 
 		accountId := auth.GetAccountID(c)
-		stats, err := s.Service.GetStatistics(c.Context(), accountId, profileId, queryParams.Timespan)
+		stats, err := s.Service.GetStatistics(c.UserContext(), accountId, profileId, queryParams.Timespan)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToGetStatistics.Error())
 		}

@@ -16,6 +16,7 @@ import (
 	"github.com/ivpn/dns/blocklists/service"
 	"github.com/ivpn/dns/blocklists/updater"
 	"github.com/ivpn/dns/libs/store"
+	"github.com/ivpn/dns/libs/telemetry"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -38,30 +39,18 @@ func main() {
 	}
 	zerolog.SetGlobalLevel(appConfig.LogLevel)
 
-	if err := sentry.Init(sentry.ClientOptions{
-		Dsn:              appConfig.Sentry.DSN,
-		Environment:      appConfig.Sentry.Environment,
-		Release:          appConfig.Sentry.Release,
-		TracesSampleRate: 1.0,
-		AttachStacktrace: true,
-		EnableTracing:    true,
-	}); err != nil {
+	sentryConfig := telemetry.Config{
+		DSN:         appConfig.Sentry.DSN,
+		Environment: appConfig.Sentry.Environment,
+		Release:     appConfig.Sentry.Release,
+	}
+
+	if err := sentry.Init(telemetry.InitOptions(sentryConfig)); err != nil {
 		log.Panic().Err(err).Msg("Failed to initialize Sentry")
 	}
 
 	// Configure Zerolog to use Sentry as a writer
-	sentryWriter, err := sentryzerolog.New(sentryzerolog.Config{
-		ClientOptions: sentry.ClientOptions{
-			Dsn:         appConfig.Sentry.DSN,
-			Environment: appConfig.Sentry.Environment,
-			Release:     appConfig.Sentry.Release,
-		},
-		Options: sentryzerolog.Options{
-			Levels:          []zerolog.Level{zerolog.WarnLevel, zerolog.ErrorLevel, zerolog.FatalLevel, zerolog.PanicLevel},
-			WithBreadcrumbs: true,
-			FlushTimeout:    3 * time.Second,
-		},
-	})
+	sentryWriter, err := sentryzerolog.New(telemetry.LogWriterConfig(sentryConfig))
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sentry writer")
 	}
@@ -69,9 +58,10 @@ func main() {
 
 	log.Logger = log.Output(zerolog.MultiLevelWriter(zerolog.ConsoleWriter{Out: os.Stderr}, sentryWriter))
 
-	updater, err := updater.New(appConfig.Updater.Type)
-	if err != nil {
-		log.Panic().Err(err).Msg("failed to create updater")
+	// Tag every log line with this instance's name so multi-node logs show
+	// which DCN node did (or skipped) the work.
+	if appConfig.Server.Name != "" {
+		log.Logger = log.Logger.With().Str("instance", appConfig.Server.Name).Logger()
 	}
 
 	storeI, err := store.New(store.DbTypeMongoDb, appConfig.DB)
@@ -87,6 +77,10 @@ func main() {
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to create cache")
 	}
+
+	// All instances write the same Redis master, so its locker is the
+	// coordination point: one winner per source per tick, one purger.
+	locker := cache.Locker(updater.LockKeyPrefix)
 
 	// Build metrics: Prometheus collectors when the metrics server is enabled,
 	// otherwise a no-op implementation so instrumentation is always safe.
@@ -107,7 +101,12 @@ func main() {
 		})
 	}
 
-	service := service.New(*appConfig, db, cache, updater, mtr)
+	updater, err := updater.New(appConfig.Updater.Type, updater.NewDistributedLocker(locker, mtr))
+	if err != nil {
+		log.Panic().Err(err).Msg("failed to create updater")
+	}
+
+	service := service.New(*appConfig, db, cache, updater, mtr, locker)
 	sources, err := service.ReadSources()
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to read sources")
@@ -116,8 +115,8 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to setup service")
 	}
 
-	service.Trigger(sources)
-	service.PurgeStale(sources)
+	service.CatchUp(sources)
+	service.PurgeStaleCoordinated(sources)
 
 	updater.Start()
 	defer updater.Stop()

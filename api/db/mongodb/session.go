@@ -51,29 +51,29 @@ func NewSessionRepository(ctx context.Context, client *mongo.Client, dbName stri
 		if name, ok := index["name"].(string); ok && name == TTLIndexNameAscending {
 			expireAfterSeconds, ok := index["expireAfterSeconds"].(int32)
 			if !ok {
-				log.Warn().Msg("Failed to parse expireAfterSeconds")
+				log.Ctx(ctx).Warn().Msg("Failed to parse expireAfterSeconds")
 				continue
 			}
 
 			if expireAfterSeconds != int32(sessionTTL.Seconds()) {
 				indexFound = true
-				log.Info().Msg("Found existing TTL index, dropping it to update TTL value")
+				log.Ctx(ctx).Info().Msg("Found existing TTL index, dropping it to update TTL value")
 				_, err := repo.sessionsColl.Indexes().DropOne(ctx, TTLIndexNameAscending)
 				if err != nil {
 					return SessionRepository{}, errors.Wrap(err, "failed to drop existing TTL index")
 				}
 				break
 			} else {
-				log.Info().Str("collection", collectionName).Msg("TTL index already exists with up to date expiration time")
+				log.Ctx(ctx).Info().Str("collection", collectionName).Msg("TTL index already exists with up to date expiration time")
 				return repo, nil // Skip recreation
 			}
 		}
 	}
 
 	if indexFound {
-		log.Info().Dur("ttl", sessionTTL).Msg("Creating new TTL index with updated expiration")
+		log.Ctx(ctx).Info().Dur("ttl", sessionTTL).Msg("Creating new TTL index with updated expiration")
 	} else {
-		log.Info().Dur("ttl", sessionTTL).Msg("Creating TTL index for sessions")
+		log.Ctx(ctx).Info().Dur("ttl", sessionTTL).Msg("Creating TTL index for sessions")
 	}
 
 	// Create or recreate TTL index with the new expiration time
@@ -105,13 +105,13 @@ func (r *SessionRepository) GetSession(ctx context.Context, token string) (model
 		if err == mongo.ErrNoDocuments {
 			return model.Session{}, false, nil
 		}
-		log.Error().Err(err).Msg("Failed to get session")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to get session")
 		return model.Session{}, false, errors.Wrap(err, "failed to get session")
 	}
 
 	err = session.UnmarshalSessionData()
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to deserialize session data")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to deserialize session data")
 		return model.Session{}, false, errors.Wrap(err, "failed to deserialize session data")
 	}
 
@@ -123,7 +123,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 	// Serialize the webauthn session data to JSON
 	dataBytes, err := json.Marshal(sessionData)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to serialize session data")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to serialize session data")
 		return errors.Wrap(err, "failed to serialize session data")
 	}
 
@@ -143,7 +143,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 
 	_, err = r.sessionsColl.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to save session")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to save session")
 		return errors.Wrap(err, "failed to save session")
 	}
 
@@ -154,7 +154,7 @@ func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauth
 func (r *SessionRepository) DeleteSession(ctx context.Context, token string) error {
 	_, err := r.sessionsColl.DeleteOne(ctx, bson.M{"token": token})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to delete session")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to delete session")
 		return errors.Wrap(err, "failed to delete session")
 	}
 	return nil
@@ -164,7 +164,7 @@ func (r *SessionRepository) DeleteSession(ctx context.Context, token string) err
 func (r *SessionRepository) DeleteSessionsByAccountID(ctx context.Context, accID string) error {
 	_, err := r.sessionsColl.DeleteMany(ctx, bson.M{"account_id": accID})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to delete sessions for account")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to delete sessions for account")
 		return errors.Wrap(err, "failed to delete sessions for account")
 	}
 	return nil
@@ -187,7 +187,7 @@ func (r *SessionRepository) DeleteSessionsByAccountIDExceptCurrent(ctx context.C
 func (r *SessionRepository) CountSessionsByAccountID(ctx context.Context, accID string) (int64, error) {
 	count, err := r.sessionsColl.CountDocuments(ctx, bson.M{"account_id": accID})
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to count sessions for account")
+		log.Ctx(ctx).Error().Err(err).Msg("Failed to count sessions for account")
 		return 0, errors.Wrap(err, "failed to count sessions for account")
 	}
 	return count, nil

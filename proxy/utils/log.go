@@ -2,6 +2,7 @@ package utils
 
 import (
 	adlog "github.com/AdguardTeam/golibs/log"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -21,27 +22,12 @@ func ParseAdGuardLogLevel(levelStr string) adlog.Level {
 	}
 }
 
-// ParseZerologLevel converts a string log level to zerolog.Level
+// ParseZerologLevel converts a string log level to zerolog.Level via the
+// shared libs/logging parser, warning on unrecognized non-empty values.
 func ParseZerologLevel(levelStr string) zerolog.Level {
-	switch levelStr {
-	case "trace":
-		return zerolog.TraceLevel
-	case "debug":
-		return zerolog.DebugLevel
-	case "info":
-		return zerolog.InfoLevel
-	case "warn", "warning":
-		return zerolog.WarnLevel
-	case "error":
-		return zerolog.ErrorLevel
-	case "fatal":
-		return zerolog.FatalLevel
-	case "panic":
-		return zerolog.PanicLevel
-	case "disabled":
-		return zerolog.Disabled
-	default:
+	level, ok := logging.ParseLevel(levelStr)
+	if !ok && levelStr != "" {
 		log.Warn().Str("level", levelStr).Msg("Invalid zerolog log level, defaulting to INFO")
-		return zerolog.InfoLevel
 	}
+	return level
 }

@@ -51,7 +51,7 @@ func (s *Service) GetCredentials(ctx context.Context, accountID primitive.Object
 func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
 	count, err := s.Store.GetCredentialsCount(ctx, accountID)
 	if err != nil {
-		log.Err(err).Msg("error saving credential")
+		log.Ctx(ctx).Err(err).Msg("error saving credential")
 		return ErrSaveCredential
 	}
 

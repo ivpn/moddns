@@ -145,7 +145,6 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 		preauth := model.Preauth{
 			ID:          preauthID,
 			TokenHash:   tokenHashStr,
-			IsActive:    true,
 			ActiveUntil: activeUntil,
 			Tier:        "pro",
 		}

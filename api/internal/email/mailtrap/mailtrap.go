@@ -11,6 +11,7 @@ import (
 
 	emailverifier "github.com/AfterShip/email-verifier"
 	"github.com/ivpn/dns/api/internal/email/content"
+	"github.com/ivpn/dns/libs/logging"
 	"github.com/rs/zerolog/log"
 )
 
@@ -59,10 +60,10 @@ func (m *Mailtrap) SendWelcomeEmail(ctx context.Context, sendTo, _ string) error
 		Html:     c.Html,
 		Category: WelcomeEmail,
 	}
-	if err := m.sendEmail(ctx, sendTo, req); err != nil {
+	if err := m.sendEmail(ctx, req); err != nil {
 		return err
 	}
-	log.Info().Str("email", sendTo).Msg("Welcome email sent successfully")
+	log.Info().Msg("Welcome email sent successfully")
 	return nil
 }
 
@@ -77,10 +78,10 @@ func (m *Mailtrap) SendPasswordResetEmail(ctx context.Context, sendTo, passwordR
 		Html:     c.Html,
 		Category: PasswordReset,
 	}
-	if err := m.sendEmail(ctx, sendTo, req); err != nil {
+	if err := m.sendEmail(ctx, req); err != nil {
 		return err
 	}
-	log.Info().Str("email", sendTo).Msg("Password reset email sent successfully")
+	log.Info().Msg("Password reset email sent successfully")
 	return nil
 }
 
@@ -94,10 +95,10 @@ func (m *Mailtrap) SendEmailVerificationOTP(ctx context.Context, sendTo, otp str
 		Text:    c.Plain,
 		Html:    c.Html,
 	}
-	if err := m.sendEmail(ctx, sendTo, req); err != nil {
+	if err := m.sendEmail(ctx, req); err != nil {
 		return err
 	}
-	log.Info().Str("email", sendTo).Msg("Email verification OTP sent successfully")
+	log.Info().Msg("Email verification OTP sent successfully")
 	return nil
 }
 
@@ -111,7 +112,7 @@ func (m *Mailtrap) SendSubscriptionExpiryEmail(ctx context.Context, sendTo strin
 		Text:    c.Plain,
 		Html:    c.Html,
 	}
-	return m.sendEmail(ctx, sendTo, req)
+	return m.sendEmail(ctx, req)
 }
 
 // SendInactiveEmail notifies the user their account has become inactive.
@@ -124,27 +125,27 @@ func (m *Mailtrap) SendInactiveEmail(ctx context.Context, sendTo string) error {
 		Text:    c.Plain,
 		Html:    c.Html,
 	}
-	return m.sendEmail(ctx, sendTo, req)
+	return m.sendEmail(ctx, req)
 }
 
 // Verify checks if email provided is valid
 func (m *Mailtrap) Verify(email string) error {
 	initVerRes, err := m.verifier.Verify(email)
 	if err != nil {
-		fmt.Println("verify email address failed, error is: ", err)
+		log.Err(err).Msg("verify email address failed")
 		return err
 	}
 	if !initVerRes.Syntax.Valid {
-		log.Debug().Str("email", email).Msg("email address syntax is invalid")
+		log.Debug().Msg("email address syntax is invalid")
 		if initVerRes.Suggestion != "" {
-			log.Debug().Str("email", email).Str("suggested_domain", initVerRes.Suggestion).Msg("suggested domain")
+			log.Debug().Str("suggested_domain", initVerRes.Suggestion).Msg("suggested domain")
 		}
 		return err
 	}
 
 	if initVerRes.Disposable {
 		// TODO: decide whether disposable emails should be allowed
-		log.Debug().Str("email", email).Msg(ErrEmailIsDisposable)
+		log.Debug().Msg(ErrEmailIsDisposable)
 		return err
 	}
 
@@ -153,16 +154,16 @@ func (m *Mailtrap) Verify(email string) error {
 	return nil
 }
 
-func (m *Mailtrap) sendEmail(ctx context.Context, email string, sendEmailReq SendEmailRequest) error {
+func (m *Mailtrap) sendEmail(ctx context.Context, sendEmailReq SendEmailRequest) error {
 	payload, err := json.Marshal(sendEmailReq)
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Failed to marshal email")
+		log.Err(err).Msg("Failed to marshal email")
 		return err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.sendEndpoint, bytes.NewReader(payload))
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Failed to create request")
+		log.Err(err).Msg("Failed to create request")
 		return err
 	}
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", m.authToken))
@@ -170,14 +171,14 @@ func (m *Mailtrap) sendEmail(ctx context.Context, email string, sendEmailReq Sen
 
 	res, err := m.httpClient.Do(req) //nolint:gosec // G704 - URL is internally configured
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Failed to send http request")
+		log.Err(err).Msg("Failed to send http request")
 		return err
 	}
 	defer res.Body.Close()
 
 	responseBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		log.Err(err).Str("email", email).Msg("Failed to read response body")
+		log.Err(err).Msg("Failed to read response body")
 		return err
 	}
 
@@ -187,22 +188,26 @@ func (m *Mailtrap) sendEmail(ctx context.Context, email string, sendEmailReq Sen
 	case http.StatusBadRequest:
 		var errRes SendEmailErrors
 		if err = json.Unmarshal(responseBody, &errRes); err != nil {
-			log.Err(err).Str("email", email).Msg("Failed to unmarshal error response body")
+			log.Err(err).Msg("Failed to unmarshal error response body")
 			return err
 		}
-		log.Error().Err(err).Str("email", email).Strs("errors", errRes.Errors).Msg(ErrFailedToSendEmail)
+		// Provider validation errors can embed the recipient address.
+		redacted := make([]string, len(errRes.Errors))
+		for i, e := range errRes.Errors {
+			redacted[i] = logging.RedactEmails(e)
+		}
+		log.Error().Strs("errors", redacted).Msg(ErrFailedToSendEmail)
 		return errors.New(ErrFailedToSendEmail)
 	default:
-		err = errors.New(string(responseBody))
-		log.Err(err).Str("email", email).Msg("Unknown send email error")
+		err = errors.New(logging.RedactEmails(string(responseBody)))
+		log.Err(err).Msg("Unknown send email error")
 		return err
 	}
 
 	var response SendEmailResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		log.Err(err).Str("email", email).Msg("Failed to unmarshal response body")
+		log.Err(err).Msg("Failed to unmarshal response body")
 		return err
 	}
-	log.Debug().Str("response body", string(responseBody))
 	return nil
 }

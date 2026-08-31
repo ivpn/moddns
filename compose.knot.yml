@@ -7,7 +7,7 @@ services:
         ipv4_address: 10.5.0.6
     container_name: knot
     volumes:
-      - ./bootstrap/recursor/knot.config.yaml:/etc/knot-resolver/config.yaml:ro
+      - ./dev/bootstrap/recursor/knot.config.yaml:/etc/knot-resolver/config.yaml:ro
     # RAM-backed cache (like sdns's in-RAM cache; Knot recommends tmpfs).
     # Size must exceed cache.size-max (256M) — Knot preallocates the file.
     tmpfs:

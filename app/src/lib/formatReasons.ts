@@ -40,6 +40,7 @@ export function formatReasons(
     let hasDefault = false;
     let hasDnssecFailed = false;
     let hasRebinding = false;
+    let hasCname = false;
 
     for (const reason of reasons) {
         if (reason === 'dnssec_failed') {
@@ -70,12 +71,25 @@ export function formatReasons(
             hasCustomRule = true;
         } else if (reason === 'default_rule') {
             hasDefault = true;
+        } else if (reason === 'cname_uncloaking') {
+            hasCname = true;
         }
         // Unknown tokens are ignored.
     }
 
     const chips: FormattedReason[] = [];
-    const subdomainSuffix = hasSubdomain ? ' (subdomain)' : '';
+
+    // The CNAME qualifier folds into the chip of its paired reason (blocklist
+    // preferred, else custom rule), combined with the subdomain qualifier when
+    // both apply: "(subdomain, CNAME)".
+    const blocklistSignal = blocklistIds.length > 0 || hasGenericBlocklist || hasSubdomain;
+    const cnameOnBlocklist = hasCname && (blocklistSignal || !hasCustomRule);
+    const blocklistQualifiers = [
+        ...(hasSubdomain ? ['subdomain'] : []),
+        ...(cnameOnBlocklist ? ['CNAME'] : []),
+    ];
+    const subdomainSuffix = blocklistQualifiers.length > 0 ? ` (${blocklistQualifiers.join(', ')})` : '';
+    const customRuleSuffix = hasCname && !cnameOnBlocklist ? ' (CNAME)' : '';
 
     // DNSSEC validation failure — shown first; explains an otherwise-opaque SERVFAIL.
     if (hasDnssecFailed) {
@@ -89,8 +103,9 @@ export function formatReasons(
             const name = blocklistNames?.[id] ?? id;
             chips.push({ kind: 'blocklist', label: `Blocklist: ${name}${subdomainSuffix}` });
         }
-    } else if (hasGenericBlocklist || hasSubdomain) {
-        // Generic blocklist, or an orphan subdomain rule with nothing to attach to.
+    } else if (hasGenericBlocklist || hasSubdomain || (hasCname && cnameOnBlocklist)) {
+        // Generic blocklist, or an orphan subdomain/CNAME qualifier with
+        // nothing to attach to (spec E1 / E4).
         chips.push({ kind: 'blocklist', label: `Blocklist${subdomainSuffix}` });
     }
 
@@ -111,7 +126,7 @@ export function formatReasons(
     }
 
     if (hasCustomRule) {
-        chips.push({ kind: 'custom_rule', label: 'Custom rule' });
+        chips.push({ kind: 'custom_rule', label: `Custom rule${customRuleSuffix}` });
     }
 
     if (hasDefault) {

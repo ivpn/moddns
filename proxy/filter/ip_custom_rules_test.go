@@ -252,7 +252,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 					Return(rule, nil).Maybe()
 			}
 
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId: tt.profileID,
@@ -311,7 +311,7 @@ func TestIPFilterCustomRules_CacheErrors(t *testing.T) {
 			mockCache := new(mocks.Cache)
 			tt.setupMock(mockCache)
 
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil)
+			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId: "test-profile",
@@ -396,8 +396,13 @@ func TestMatchIPRule(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fm := &IPFilter{}
+			loggerFactory := logging.NewFactory(zerolog.Disabled)
+			reqCtx := &requestcontext.RequestContext{
+				ProfileId: "test-profile",
+				Logger:    loggerFactory.ForProfile("test-profile", true),
+			}
 
-			allow, block := fm.matchIPRule(tt.ip, tt.hash)
+			allow, block := fm.matchIPRule(reqCtx, tt.ip, tt.hash)
 
 			assert.Equal(t, tt.expectAllow, allow, "allow mismatch")
 			assert.Equal(t, tt.expectBlock, block, "block mismatch")
