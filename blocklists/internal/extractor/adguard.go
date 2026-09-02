@@ -20,6 +20,7 @@ const (
 	// Rule prefixes and special characters
 	exceptionPrefix   = "@@"
 	modifierSeparator = "$"
+	badfilterModifier = "badfilter"
 )
 
 var (
@@ -38,6 +39,7 @@ func NewAdguardExtractor() *AdguardExtractor {
 // Convert transforms AdGuard format rules into a simple domain list
 func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 	domains := make([]string, 0)
+	disabled := make(map[string]struct{})
 	scanner := bufio.NewScanner(bytes.NewReader(blocklistBytes))
 
 	for scanner.Scan() {
@@ -45,6 +47,20 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 
 		// Skip comments and empty lines
 		if isCommentOrEmpty(line) {
+			continue
+		}
+
+		// A $badfilter rule disables the rule matching its remaining text
+		// instead of adding one
+		// (https://adguard-dns.io/kb/general/dns-filtering-syntax/#badfilter).
+		// On an exception rule it disables the exception, which is skipped
+		// anyway, so only block-rule badfilters collect targets.
+		if hasBadfilter(line) {
+			if !strings.HasPrefix(line, exceptionPrefix) {
+				if domain := processRule(line); domain != "" {
+					disabled[domain] = struct{}{}
+				}
+			}
 			continue
 		}
 
@@ -56,6 +72,16 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error scanning blocklist: %w", err)
+	}
+
+	if len(disabled) > 0 {
+		kept := domains[:0]
+		for _, d := range domains {
+			if _, ok := disabled[d]; !ok {
+				kept = append(kept, d)
+			}
+		}
+		domains = kept
 	}
 
 	return []byte(strings.Join(domains, "\n")), nil
@@ -119,6 +145,21 @@ func processRule(rule string) string {
 	}
 
 	return ""
+}
+
+// hasBadfilter reports whether the rule carries the $badfilter modifier
+// (alone or comma-separated with others).
+func hasBadfilter(rule string) bool {
+	_, modifiers, found := strings.Cut(rule, modifierSeparator)
+	if !found {
+		return false
+	}
+	for _, m := range strings.Split(modifiers, ",") {
+		if m == badfilterModifier {
+			return true
+		}
+	}
+	return false
 }
 
 // isCommentOrEmpty checks if a line is either empty or a comment

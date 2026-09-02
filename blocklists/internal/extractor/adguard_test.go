@@ -62,6 +62,59 @@ also-not-a-domain`,
 			want: "example.com",
 		},
 		{
+			// specRef: #D2a — a $badfilter rule disables a rule; it is never
+			// emitted as a block itself.
+			name:  "badfilter rule alone",
+			input: `||example.com^$badfilter`,
+			want:  "",
+		},
+		{
+			// specRef: #D2b — a $badfilter rule removes its target from the
+			// output, regardless of line order.
+			name: "badfilter removes matching block rule",
+			input: `||example.com^
+||tracker.org^
+||example.com^$badfilter`,
+			want: "tracker.org",
+		},
+		{
+			// specRef: #D2b — order-independent: badfilter before the block.
+			name: "badfilter before matching block rule",
+			input: `||example.com^$badfilter
+||example.com^
+||tracker.org^`,
+			want: "tracker.org",
+		},
+		{
+			// specRef: #D2b — bare-domain badfilter form.
+			name: "bare domain badfilter",
+			input: `wykop.pl$badfilter
+||tracker.org^`,
+			want: "tracker.org",
+		},
+		{
+			// specRef: #D2b — badfilter among comma-separated modifiers.
+			name: "badfilter combined with another modifier",
+			input: `||example.com^$important,badfilter
+||example.com^`,
+			want: "",
+		},
+		{
+			// specRef: #D2c — badfilter on an exception disables the
+			// exception, not the block rule for the same domain.
+			name: "badfilter on exception does not disable block",
+			input: `@@||example.com^$badfilter
+||example.com^`,
+			want: "example.com",
+		},
+		{
+			// specRef: #D2 — a non-badfilter modifier containing the word is
+			// not badfilter; the rule still blocks.
+			name: "modifier value containing badfilter text",
+			input: `||example.com^$dnstype=badfilter`,
+			want: "example.com",
+		},
+		{
 			name:    "empty input",
 			input:   "",
 			want:    "",
