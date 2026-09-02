@@ -48,11 +48,48 @@ example.org`,
 			want: "example.com\nexample.org",
 		},
 		{
+			// specRef: #D2 — $important keeps the block; #D2d — any other
+			// modifier drops the rule instead of widening it into an
+			// unconditional block.
 			name: "with modifiers",
 			input: `example.com$important
 example.org^$third-party
 ||example.net^`,
-			want: "example.com\nexample.org\nexample.net",
+			want: "example.com\nexample.net",
+		},
+		{
+			// specRef: #D2d — a conditioned rule ($dnstype scopes it to one
+			// query type) must not compile to an unconditional block.
+			name:  "dnstype modifier drops the rule",
+			input: `||example.com^$dnstype=AAAA`,
+			want:  "",
+		},
+		{
+			// specRef: #D2d — fail open on modifiers that do not exist yet.
+			name:  "unknown future modifier drops the rule",
+			input: `||example.com^$frobnicate=1`,
+			want:  "",
+		},
+		{
+			// specRef: #D2e — wildcard patterns are unsupported.
+			name: "wildcard pattern skipped",
+			input: `||ads*.example.com^
+||example.net^`,
+			want: "example.net",
+		},
+		{
+			// specRef: #D2f — a hostname-prefix rule must not leak the literal
+			// token as a domain.
+			name: "hostname prefix rule skipped",
+			input: `|load.gtm.
+||example.net^`,
+			want: "example.net",
+		},
+		{
+			// specRef: #D5 — regex rules fail validation and are dropped.
+			name:  "regex rule skipped",
+			input: `/^ad[0-9]+\.example\.com$/`,
+			want:  "",
 		},
 		{
 			name: "invalid domains",
@@ -108,11 +145,12 @@ also-not-a-domain`,
 			want: "example.com",
 		},
 		{
-			// specRef: #D2 — a non-badfilter modifier containing the word is
-			// not badfilter; the rule still blocks.
-			name: "modifier value containing badfilter text",
+			// specRef: #D2d — a modifier value containing "badfilter" is not
+			// $badfilter; the rule is dropped as an unsupported modifier, not
+			// treated as a disable directive.
+			name:  "modifier value containing badfilter text",
 			input: `||example.com^$dnstype=badfilter`,
-			want: "example.com",
+			want:  "",
 		},
 		{
 			name:    "empty input",
@@ -126,7 +164,7 @@ also-not-a-domain`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := extractor.Convert([]byte(tt.input))
+			got, _, err := extractor.Convert([]byte(tt.input))
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -135,6 +173,34 @@ also-not-a-domain`,
 			assert.Equal(t, tt.want, string(got))
 		})
 	}
+}
+
+// specRef: #D2a #D2d #D2e #D2f — per-reason skip counts reported alongside the
+// converted output, published as blocklists_rules_skipped{source,reason}.
+func TestAdguardExtractor_ConvertStats(t *testing.T) {
+	input := `! comment
+||blocked.com^
+@@||allowed.com^
+||disabled.com^
+||disabled.com^$badfilter
+||typed.com^$dnstype=AAAA
+||ads*.example.com^
+|load.gtm.
+/^regex$/
+not a domain line
+||important.com^$important`
+
+	got, stats, err := NewAdguardExtractor().Convert([]byte(input))
+	assert.NoError(t, err)
+	assert.Equal(t, "blocked.com\nimportant.com", string(got))
+	assert.Equal(t, ConversionStats{
+		SkippedExceptions: 1,
+		SkippedBadfilter:  2, // the $badfilter rule and the target it disabled
+		SkippedModifiers:  1,
+		SkippedWildcards:  1,
+		SkippedPrefixes:   1,
+		SkippedInvalid:    2, // regex rule + non-domain line
+	}, stats)
 }
 
 func TestAdguardExtractor_ExtractMetadata(t *testing.T) {

@@ -37,9 +37,9 @@ func NewStevenBlackExtractor() *StevenBlackExtractor {
 }
 
 // Convert transforms Steven Black hosts file format into a simple domain list
-func (e *StevenBlackExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
+func (e *StevenBlackExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
 	if len(blocklistBytes) == 0 {
-		return []byte{}, nil
+		return []byte{}, ConversionStats{}, nil
 	}
 
 	domains := make([]string, 0)
@@ -75,10 +75,10 @@ func (e *StevenBlackExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error scanning hosts file: %w", err)
+		return nil, ConversionStats{}, fmt.Errorf("error scanning hosts file: %w", err)
 	}
 
-	return []byte(strings.Join(domains, "\n")), nil
+	return []byte(strings.Join(domains, "\n")), ConversionStats{}, nil
 }
 
 // ExtractMetadata extracts metadata from the Steven Black hosts file including:

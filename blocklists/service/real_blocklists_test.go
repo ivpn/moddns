@@ -119,7 +119,7 @@ func TestRealBlocklists(t *testing.T) {
 				t.Errorf("%s: expected a non-zero Last-Modified from the header block", fx.extractor)
 			}
 
-			converted, err := extr.Convert(raw)
+			converted, _, err := extr.Convert(raw)
 			if err != nil {
 				t.Fatalf("Convert: %v", err)
 			}

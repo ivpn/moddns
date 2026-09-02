@@ -129,7 +129,7 @@ func TestStevenBlackEndToEnd(t *testing.T) {
 		t.Fatalf("NewExtractor: %v", err)
 	}
 	hosts := "# Title: test\n0.0.0.0 Ads.Example.COM\n0.0.0.0 0.0.0.0\n127.0.0.1 skip.example.org\n"
-	converted, err := extr.Convert([]byte(hosts))
+	converted, _, err := extr.Convert([]byte(hosts))
 	if err != nil {
 		t.Fatalf("Convert: %v", err)
 	}

@@ -22,6 +22,7 @@ func TestPromUpdates_RecordsAllSeries(t *testing.T) {
 	m.SetLastSuccess(source, time.Unix(1700000000, 0))
 	m.RecordDownloadBytes(source, 4096)
 	m.RecordValidationRejected(source, ReasonShrink)
+	m.SetRulesSkipped(source, SkipRuleModifier, 7)
 
 	if got := testutil.ToFloat64(m.updates.WithLabelValues(source, StatusSuccess)); got != 1 {
 		t.Errorf("update_total{success} = %v, want 1", got)
@@ -43,6 +44,9 @@ func TestPromUpdates_RecordsAllSeries(t *testing.T) {
 	}
 	if got := testutil.ToFloat64(m.validationRejects.WithLabelValues(source, ReasonShrink)); got != 1 {
 		t.Errorf("validation_rejected{shrink} = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(m.rulesSkipped.WithLabelValues(source, SkipRuleModifier)); got != 7 {
+		t.Errorf("rules_skipped{modifier} = %v, want 7", got)
 	}
 }
 

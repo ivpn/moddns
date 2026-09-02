@@ -163,7 +163,7 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		return nil, err
 	}
 
-	domainsBytes, err := extr.Convert(blocklistBytes)
+	domainsBytes, convStats, err := extr.Convert(blocklistBytes)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to convert blocklist")
 		return nil, err
@@ -215,6 +215,21 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	}
 
 	s.Metrics.SetDomainsExtracted(metadata.BlocklistID, totalDomains)
+	// Published every refresh, zeros included, so each series reflects the
+	// last successful conversion rather than holding a stale spike.
+	for _, rs := range []struct {
+		reason string
+		n      int
+	}{
+		{metrics.SkipRuleException, convStats.SkippedExceptions},
+		{metrics.SkipRuleBadfilter, convStats.SkippedBadfilter},
+		{metrics.SkipRuleModifier, convStats.SkippedModifiers},
+		{metrics.SkipRuleWildcard, convStats.SkippedWildcards},
+		{metrics.SkipRulePrefix, convStats.SkippedPrefixes},
+		{metrics.SkipRuleInvalid, convStats.SkippedInvalid},
+	} {
+		s.Metrics.SetRulesSkipped(metadata.BlocklistID, rs.reason, rs.n)
+	}
 	if numEntries > 0 {
 		// Source's own count (header or self-counted) — a divergence signal
 		// against the published count above.

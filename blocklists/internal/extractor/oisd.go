@@ -32,11 +32,11 @@ func NewOISDExtractor() *OISDExtractor {
 
 // Convert processes the blocklist bytes and returns them unchanged
 // as OISD format is already in the desired format
-func (e *OISDExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
+func (e *OISDExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
 	if len(blocklistBytes) == 0 {
-		return []byte{}, nil
+		return []byte{}, ConversionStats{}, nil
 	}
-	return blocklistBytes, nil
+	return blocklistBytes, ConversionStats{}, nil
 }
 
 // ExtractMetadata extracts metadata from the blocklist including:

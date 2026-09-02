@@ -16,10 +16,22 @@ const (
 	TypeStevenBlack = "steven_black"
 )
 
+// ConversionStats counts the input rules Convert dropped, by reason. Formats
+// without unsupported syntax (plain domain lists, hosts files) report the zero
+// value; only the AdGuard extractor currently distinguishes reasons.
+type ConversionStats struct {
+	SkippedExceptions int // @@ exception rules
+	SkippedBadfilter  int // $badfilter rules plus the block targets they disabled
+	SkippedModifiers  int // rules carrying a modifier outside the supported set
+	SkippedWildcards  int // patterns containing '*'
+	SkippedPrefixes   int // '|host.' hostname-prefix patterns
+	SkippedInvalid    int // remaining rules failing domain validation
+}
+
 type Extractor interface {
 	ExtractMetadata(blocklistBytes []byte) (time.Time, string, int, error)
 	ProcessLine(line string) (string, error)
-	Convert(blocklistBytes []byte) ([]byte, error)
+	Convert(blocklistBytes []byte) ([]byte, ConversionStats, error)
 }
 
 // NewExtractor creates a new Extractor instance based on the blocklist ID
