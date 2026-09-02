@@ -21,6 +21,9 @@ const (
 	exceptionPrefix   = "@@"
 	modifierSeparator = "$"
 	badfilterModifier = "badfilter"
+	importantModifier = "important"
+	regexDelimiter    = "/"
+	wildcard          = "*"
 )
 
 var (
@@ -36,10 +39,14 @@ func NewAdguardExtractor() *AdguardExtractor {
 	return &AdguardExtractor{}
 }
 
-// Convert transforms AdGuard format rules into a simple domain list
-func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
+// Convert transforms AdGuard format rules into a simple domain list. Rules
+// whose syntax the extractor does not understand are dropped rather than
+// widened into unconditional blocks (fail open), counted per reason in the
+// returned stats.
+func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
 	domains := make([]string, 0)
 	disabled := make(map[string]struct{})
+	var stats ConversionStats
 	scanner := bufio.NewScanner(bytes.NewReader(blocklistBytes))
 
 	for scanner.Scan() {
@@ -50,41 +57,80 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, error) {
 			continue
 		}
 
+		// Exception rules are the list's built-in allowlist; skipped for now.
+		// This also covers @@…$badfilter, which disables the exception itself.
+		if strings.HasPrefix(line, exceptionPrefix) {
+			stats.SkippedExceptions++
+			continue
+		}
+
+		// Regex rules can contain '$' in the expression, so they must be
+		// recognized before modifier parsing.
+		if strings.HasPrefix(line, regexDelimiter) {
+			stats.SkippedInvalid++
+			continue
+		}
+
+		pattern, modifiers := splitModifiers(line)
+
 		// A $badfilter rule disables the rule matching its remaining text
 		// instead of adding one
 		// (https://adguard-dns.io/kb/general/dns-filtering-syntax/#badfilter).
-		// On an exception rule it disables the exception, which is skipped
-		// anyway, so only block-rule badfilters collect targets.
-		if hasBadfilter(line) {
-			if !strings.HasPrefix(line, exceptionPrefix) {
-				if domain := processRule(line); domain != "" {
-					disabled[domain] = struct{}{}
-				}
+		if hasModifier(modifiers, badfilterModifier) {
+			stats.SkippedBadfilter++
+			if domain := processRule(line); domain != "" {
+				disabled[domain] = struct{}{}
 			}
+			continue
+		}
+
+		// $important only strengthens a block at DNS level, so the block is
+		// kept. Every other modifier conditions, scopes or rewrites the rule
+		// ($dnstype, $client, $dnsrewrite, …) — keeping the bare pattern
+		// would over-block, so the rule is dropped instead.
+		if hasUnsupportedModifier(modifiers) {
+			stats.SkippedModifiers++
+			continue
+		}
+
+		if strings.Contains(pattern, wildcard) {
+			stats.SkippedWildcards++
+			continue
+		}
+
+		// A single-pipe pattern ending with a dot (`|load.gtm.`) matches
+		// hostnames *starting with* the token; extracting it would emit the
+		// literal token as a bogus domain.
+		if isPrefixRule(pattern) {
+			stats.SkippedPrefixes++
 			continue
 		}
 
 		// Process the line to extract the domain
 		if domain := processRule(line); domain != "" {
 			domains = append(domains, domain)
+		} else {
+			stats.SkippedInvalid++
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error scanning blocklist: %w", err)
+		return nil, ConversionStats{}, fmt.Errorf("error scanning blocklist: %w", err)
 	}
 
 	if len(disabled) > 0 {
 		kept := domains[:0]
 		for _, d := range domains {
-			if _, ok := disabled[d]; !ok {
-				kept = append(kept, d)
+			if _, ok := disabled[d]; ok {
+				stats.SkippedBadfilter++
+				continue
 			}
+			kept = append(kept, d)
 		}
 		domains = kept
 	}
 
-	return []byte(strings.Join(domains, "\n")), nil
+	return []byte(strings.Join(domains, "\n")), stats, nil
 }
 
 // ExtractMetadata extracts metadata from the blocklist including last modified time,
@@ -147,19 +193,43 @@ func processRule(rule string) string {
 	return ""
 }
 
-// hasBadfilter reports whether the rule carries the $badfilter modifier
-// (alone or comma-separated with others).
-func hasBadfilter(rule string) bool {
-	_, modifiers, found := strings.Cut(rule, modifierSeparator)
+// splitModifiers splits a rule at the first '$' into its pattern and its
+// comma-separated modifier list (nil when the rule has none).
+func splitModifiers(rule string) (string, []string) {
+	pattern, modifiers, found := strings.Cut(rule, modifierSeparator)
 	if !found {
-		return false
+		return pattern, nil
 	}
-	for _, m := range strings.Split(modifiers, ",") {
-		if m == badfilterModifier {
+	return pattern, strings.Split(modifiers, ",")
+}
+
+func hasModifier(modifiers []string, name string) bool {
+	for _, m := range modifiers {
+		if m == name {
 			return true
 		}
 	}
 	return false
+}
+
+// hasUnsupportedModifier reports whether the rule carries any modifier other
+// than the bare $important (the only one that leaves a DNS-level block a
+// block).
+func hasUnsupportedModifier(modifiers []string) bool {
+	for _, m := range modifiers {
+		if m != importantModifier {
+			return true
+		}
+	}
+	return false
+}
+
+// isPrefixRule reports whether the pattern is a single-pipe hostname-prefix
+// match: anchored to the name start and ending with a dot, e.g. `|load.gtm.`.
+func isPrefixRule(pattern string) bool {
+	return strings.HasPrefix(pattern, "|") &&
+		!strings.HasPrefix(pattern, "||") &&
+		strings.HasSuffix(pattern, ".")
 }
 
 // isCommentOrEmpty checks if a line is either empty or a comment

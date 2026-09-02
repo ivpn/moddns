@@ -95,7 +95,7 @@ another-valid.example.org`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := extractor.Convert([]byte(tt.input))
+			got, _, err := extractor.Convert([]byte(tt.input))
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
