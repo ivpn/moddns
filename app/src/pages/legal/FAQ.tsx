@@ -7,6 +7,7 @@ import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
 import AuthFooter from "@/components/auth/AuthFooter";
+import { parseDnsServerLocations, firstAddress } from "@/lib/dnsServerLocations";
 
 interface FAQItemProps {
     question: string;
@@ -99,7 +100,10 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'June 1, 2026';
+const FAQ_LAST_UPDATED = 'September 3, 2026';
+
+const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
+const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
 
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
@@ -276,34 +280,50 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
-    const dnsDomain = (import.meta as ImportMeta).env.VITE_DNS_SERVER_DOMAIN || 'dns.moddns.net';
-    const locationsRaw: string = (import.meta as ImportMeta).env.VITE_DNS_SERVER_LOCATIONS || '';
-    const serverLocations = locationsRaw
-        .split(',')
-        .map(entry => entry.trim())
-        .filter(Boolean)
-        .map(entry => {
-            const [prefix, city] = entry.split(':');
-            return { hostname: `${prefix}.${dnsDomain}`, city: city || prefix };
-        });
+    const dnsEnv = (import.meta as ImportMeta).env;
+    const dnsDomain = dnsEnv.VITE_DNS_SERVER_DOMAIN || 'dns.moddns.net';
+    const serverLocations = parseDnsServerLocations(dnsEnv.VITE_DNS_SERVER_LOCATIONS, dnsDomain);
+    const anycastRow = {
+        city: 'Anycast (default)',
+        hostname: dnsDomain,
+        ipv4: firstAddress(dnsEnv.VITE_DNS_SERVER_IP_ADDRESSES),
+        ipv6: firstAddress(dnsEnv.VITE_DNS_SERVER_IPV6_ADDRESSES),
+    };
+    const serverRows = [anycastRow, ...serverLocations];
+    const showIpv6Column = serverRows.some(row => row.ipv6);
 
     const canIChooseServer = (
         <div className="space-y-2">
             <p>By default, modDNS uses anycast routing to automatically direct your queries to the nearest server. In most cases, this gives you the lowest latency and automatic failover without any configuration.</p>
-            <p>Each server location also has a location-specific hostname that can be used directly if you want to pin your queries to a specific node, if necessary.</p>
+            <p>Each server location also has a location-specific hostname and its own IP addresses that can be used directly if you want to pin your queries to a specific server. This can help if queries are slow or time out with the default anycast setup, for example when you connect through a VPN server in another region and anycast routes you to a distant location.</p>
             <p>Note: if you opt to use a specific endpoint directly, in case of maintenance of the server resolutions will stop. Unless you have a very good reason to pick this option, we recommend going with the default anycast setup.</p>
             {serverLocations.length > 0 && (
-                <div>
+                <div className="space-y-2">
                     <p>Currently available locations:</p>
-                    <ul className="list-disc pl-5 space-y-1">
-                        {serverLocations.map(loc => (
-                            <li key={loc.hostname}>
-                                <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">{loc.hostname}</code> — {loc.city}
-                            </li>
-                        ))}
-                    </ul>
-                    <br />
-                    <p>To use a location-specific endpoint, prepend your Profile ID to the server hostname. For example, if your Profile ID is <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123</code> and you want to use the {serverLocations[0]?.city} server, configure your DNS-over-TLS/QUIC hostname as <code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">abc123.{serverLocations[0]?.hostname}</code>.</p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse text-sm">
+                            <thead>
+                                <tr>
+                                    <th className={TABLE_CELL_CLASS}>Location</th>
+                                    <th className={TABLE_CELL_CLASS}>Hostname</th>
+                                    <th className={TABLE_CELL_CLASS}>IPv4</th>
+                                    {showIpv6Column && <th className={TABLE_CELL_CLASS}>IPv6</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {serverRows.map(row => (
+                                    <tr key={row.hostname}>
+                                        <td className={`${TABLE_CELL_CLASS} whitespace-nowrap`}>{row.city}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.hostname}</td>
+                                        <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv4 ?? '—'}</td>
+                                        {showIpv6Column && <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv6 ?? '—'}</td>}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p>To use a location-specific endpoint, prepend your Profile ID to the server hostname. For example, if your Profile ID is <code className={CODE_CLASS}>abc123</code> and you want to use the {serverLocations[0]?.city} server, configure your DNS-over-TLS/QUIC hostname as <code className={CODE_CLASS}>abc123.{serverLocations[0]?.hostname}</code>.</p>
+                    <p>Some clients (Apple configuration profiles, routers, systemd-resolved, stubby) also ask for the server's IP address alongside the hostname. In that case use the IPv4 or IPv6 address listed for the <strong>same location</strong>. If you enter the anycast address there, your queries are still routed by anycast regardless of the hostname.</p>
                 </div>
             )}
             <p>Your filtering settings, blocklists, and custom rules are synchronized across all servers, so your experience is identical regardless of which server handles your query.</p>
