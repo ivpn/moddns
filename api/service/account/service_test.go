@@ -830,6 +830,14 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 				} else {
 					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil)
 
+					// Email-change duplicate pre-check: address is free
+					for _, update := range tt.updates {
+						if update.Path == "/email" {
+							suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), mock.AnythingOfType("string")).Return(nil, dbErrors.ErrAccountNotFound).Maybe()
+							break
+						}
+					}
+
 					if tt.expectedErr == account.ErrInvalidTOTPCode && tt.account != nil {
 						key := "totp_fails:" + tt.account.ID.Hex()
 						suite.mockCache.On("Incr", mock.Anything, key, suite.serviceConfig.IdLimiterExpiration).Return(int64(1), nil)
@@ -2665,6 +2673,14 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 				} else {
 					// First GetAccountById for the main update
 					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil).Once()
+
+					// Email-change duplicate pre-check: address is free
+					for _, update := range tt.updates {
+						if update.Path == "/email" {
+							suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), mock.AnythingOfType("string")).Return(nil, dbErrors.ErrAccountNotFound).Maybe()
+							break
+						}
+					}
 
 					// Setup mocks for MFA verification if account has TOTP enabled
 					if tt.account.MFA.TOTP.Enabled && tt.mfa != nil && tt.mfa.OTP != "" {

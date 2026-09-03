@@ -7,6 +7,7 @@ import (
 
 	validatorv10 "github.com/go-playground/validator/v10"
 	"github.com/ivpn/dns/api/config"
+	dbErrors "github.com/ivpn/dns/api/db/errors"
 	webhookClient "github.com/ivpn/dns/api/internal/client"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
@@ -65,6 +66,8 @@ func (suite *ReauthTokenSuite) TestEmailChangeWithReauthToken() {
 
 	// Mock GetAccountById
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
+	// Duplicate pre-check finds no existing account for the new address
+	suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), "new@example.com").Return(nil, dbErrors.ErrAccountNotFound)
 	// Expect persistence on success path
 	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
 
@@ -83,6 +86,8 @@ func (suite *ReauthTokenSuite) TestEmailChangeNormalizesNewEmail() {
 	acc.Tokens = []model.Token{tok}
 
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
+	// Duplicate pre-check runs on the normalized address
+	suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), "new.address@example.com").Return(nil, dbErrors.ErrAccountNotFound)
 	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": " New.Address@Example.COM ", "reauth_token": tok.Value}}}
@@ -105,6 +110,26 @@ func (suite *ReauthTokenSuite) TestEmailChangeSameEmailDifferentCase() {
 	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrSameEmailAddress)
+}
+
+// specRef: api-endpoint-behaviour.md B3, B7
+func (suite *ReauthTokenSuite) TestEmailChangeToAddressAlreadyInUse() {
+	acc := suite.newAccount("user@example.com")
+	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
+	tok := model.Token{Type: "reauth_email_change", Value: "token-dup", ExpiresAt: time.Now().Add(2 * time.Minute)}
+	acc.Tokens = []model.Token{tok}
+
+	other := suite.newAccount("taken@example.com")
+
+	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
+	suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), "taken@example.com").Return(other, nil)
+	// No UpdateAccount call expected: the duplicate is rejected before persistence.
+
+	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "taken@example.com", "reauth_token": tok.Value}}}
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	suite.Require().Error(err)
+	suite.ErrorIs(err, account.ErrEmailAlreadyInUse)
+	suite.Equal("user@example.com", acc.Email, "email must remain unchanged on duplicate rejection")
 }
 
 func (suite *ReauthTokenSuite) TestEmailChangeWithExpiredReauthToken() {
