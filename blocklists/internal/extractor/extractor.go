@@ -28,10 +28,20 @@ type ConversionStats struct {
 	SkippedInvalid    int // remaining rules failing domain validation
 }
 
+// ConversionResult carries the non-domain outputs of Convert.
+type ConversionResult struct {
+	// Exceptions are the domains the list's own @@ rules unblock (its
+	// built-in allowlist); published as a companion set the proxy consults
+	// before blocking a match from the same list. Empty for formats without
+	// exception syntax.
+	Exceptions []string
+	Stats      ConversionStats
+}
+
 type Extractor interface {
 	ExtractMetadata(blocklistBytes []byte) (time.Time, string, int, error)
 	ProcessLine(line string) (string, error)
-	Convert(blocklistBytes []byte) ([]byte, ConversionStats, error)
+	Convert(blocklistBytes []byte) ([]byte, ConversionResult, error)
 }
 
 // NewExtractor creates a new Extractor instance based on the blocklist ID

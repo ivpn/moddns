@@ -32,11 +32,11 @@ func NewHageziExtractor() *HageziExtractor {
 
 // Convert processes the blocklist bytes and returns them unchanged
 // as Hagezi format is already in the desired format
-func (e *HageziExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
+func (e *HageziExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionResult, error) {
 	if len(blocklistBytes) == 0 {
-		return []byte{}, ConversionStats{}, nil
+		return []byte{}, ConversionResult{}, nil
 	}
-	return blocklistBytes, ConversionStats{}, nil
+	return blocklistBytes, ConversionResult{}, nil
 }
 
 // ExtractMetadata extracts metadata from the blocklist including:

@@ -64,6 +64,10 @@ type Updates interface {
 	// Compared against SetDomainsExtracted it is a divergence signal (a large
 	// drop hints at a partial download or many malformed/duplicate lines).
 	SetDeclaredEntries(source string, n int)
+	// SetExceptionsExtracted records the number of exception domains published
+	// to the source's companion exception set in the last update (0 = the
+	// source has none and no exception key exists).
+	SetExceptionsExtracted(source string, n int)
 	// SetRulesSkipped records how many input rules the last published
 	// conversion dropped for a source, by reason
 	// (exception|badfilter|modifier|wildcard|prefix|invalid). The extractor
@@ -99,6 +103,7 @@ func (NoopUpdates) RecordUpdate(string, string)             {}
 func (NoopUpdates) RecordDuration(string, time.Duration)    {}
 func (NoopUpdates) SetDomainsExtracted(string, int)         {}
 func (NoopUpdates) SetDeclaredEntries(string, int)          {}
+func (NoopUpdates) SetExceptionsExtracted(string, int)      {}
 func (NoopUpdates) SetRulesSkipped(string, string, int)     {}
 func (NoopUpdates) SetLastSuccess(string, time.Time)        {}
 func (NoopUpdates) RecordDownloadBytes(string, int64)       {}
@@ -114,6 +119,7 @@ type PromUpdates struct {
 	domainsExtracted  *prometheus.GaugeVec
 	declaredEntries   *prometheus.GaugeVec
 	rulesSkipped      *prometheus.GaugeVec
+	exceptionsCount   *prometheus.GaugeVec
 	lastSuccess       *prometheus.GaugeVec
 	downloadBytes     *prometheus.GaugeVec
 	validationRejects *prometheus.CounterVec
@@ -141,6 +147,10 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 		declaredEntries: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "blocklists_source_declared_entries",
 			Help: "Entry count reported by the source (header value, or non-comment line count when no header is present) in the last update by source.",
+		}, []string{"source"}),
+		exceptionsCount: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "blocklists_exceptions_extracted",
+			Help: "Number of exception domains published to the source's companion exception set in the last update.",
 		}, []string{"source"}),
 		rulesSkipped: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "blocklists_rules_skipped",
@@ -177,6 +187,7 @@ func NewPromUpdates(reg prometheus.Registerer) *PromUpdates {
 		m.domainsExtracted,
 		m.declaredEntries,
 		m.rulesSkipped,
+		m.exceptionsCount,
 		m.lastSuccess,
 		m.downloadBytes,
 		m.validationRejects,
@@ -201,6 +212,10 @@ func (m *PromUpdates) SetDomainsExtracted(source string, n int) {
 
 func (m *PromUpdates) SetDeclaredEntries(source string, n int) {
 	m.declaredEntries.WithLabelValues(source).Set(float64(n))
+}
+
+func (m *PromUpdates) SetExceptionsExtracted(source string, n int) {
+	m.exceptionsCount.WithLabelValues(source).Set(float64(n))
 }
 
 func (m *PromUpdates) SetRulesSkipped(source, reason string, n int) {

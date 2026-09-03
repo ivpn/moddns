@@ -34,9 +34,9 @@ func NewDomainsExtractor() *DomainsExtractor {
 // actually in hosts format (`0.0.0.0 domain`), so a leading IP field is
 // stripped. Comments and blank lines are dropped; the shared NormalizeDomain +
 // ValidDomain gate downstream does the final cleaning/validation.
-func (e *DomainsExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
+func (e *DomainsExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionResult, error) {
 	if len(blocklistBytes) == 0 {
-		return []byte{}, ConversionStats{}, nil
+		return []byte{}, ConversionResult{}, nil
 	}
 
 	out := make([]string, 0)
@@ -47,9 +47,9 @@ func (e *DomainsExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionSta
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, ConversionStats{}, err
+		return nil, ConversionResult{}, err
 	}
-	return []byte(strings.Join(out, "\n")), ConversionStats{}, nil
+	return []byte(strings.Join(out, "\n")), ConversionResult{}, nil
 }
 
 // stripHostsIP returns the domain candidate from a plain-list or hosts-format

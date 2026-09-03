@@ -355,3 +355,38 @@ func TestPurgeStale_AllowsPurgeAtMax(t *testing.T) {
 		t.Fatalf("deleted cache = %v, want 2 entries", cache.deleted)
 	}
 }
+
+// specRef: #G11 — when the stored metadata records exception entries, a lost
+// exception key makes the source stale even with the main set present: a live
+// main set without its exception set would reintroduce the false positives
+// the exceptions prevent.
+func TestIsFresh_MissingExceptionSetIsStale(t *testing.T) {
+	stored := []model.BlocklistMetadata{{BlocklistID: "adg", UpdatedAt: time.Now().UTC().Add(-5 * time.Minute), ExceptionEntries: 10}}
+	s, _ := newCoordService(metrics.NoopUpdates{}, nil, stored)
+	s.Cache = &fakeCache{missingExceptions: map[string]bool{"adg": true}}
+
+	if s.isFresh(context.Background(), coordSource("adg", "0 * * * *", "")) {
+		t.Fatal("missing exception set must be stale when exception_entries > 0")
+	}
+}
+
+// specRef: #G11 — exception key present alongside the main set stays fresh.
+func TestIsFresh_PresentExceptionSetIsFresh(t *testing.T) {
+	stored := []model.BlocklistMetadata{{BlocklistID: "adg", UpdatedAt: time.Now().UTC().Add(-5 * time.Minute), ExceptionEntries: 10}}
+	s, _ := newCoordService(metrics.NoopUpdates{}, nil, stored)
+
+	if !s.isFresh(context.Background(), coordSource("adg", "0 * * * *", "")) {
+		t.Fatal("fresh metadata with both sets present must be fresh")
+	}
+}
+
+// specRef: #G11 — sources without exceptions never require the companion key.
+func TestIsFresh_NoExceptionsExpectedIgnoresKey(t *testing.T) {
+	stored := []model.BlocklistMetadata{{BlocklistID: "blp_x", UpdatedAt: time.Now().UTC().Add(-5 * time.Minute)}}
+	s, _ := newCoordService(metrics.NoopUpdates{}, nil, stored)
+	s.Cache = &fakeCache{missingExceptions: map[string]bool{"blp_x": true}}
+
+	if !s.isFresh(context.Background(), coordSource("blp_x", "0 * * * *", "")) {
+		t.Fatal("source without exception entries must not require the exception key")
+	}
+}
