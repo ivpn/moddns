@@ -13,11 +13,18 @@ const CacheTypeRedis = "redis"
 // Cache is an interface for caching functionalities
 type Cache interface {
 	CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error
+	// CreateOrUpdateBlocklistExceptions publishes the list's companion
+	// exception set with the same stage-and-swap flow as the main set; empty
+	// data removes the key (the list has no exceptions).
+	CreateOrUpdateBlocklistExceptions(ctx context.Context, blocklistId string, data []byte) error
 	DeleteBlocklist(ctx context.Context, blocklistId string) error
 	// BlocklistExists reports whether the live set for blocklistId is present
 	// in the cache (used by the freshness check: metadata alone cannot prove
 	// the published data survived, e.g. a cache flush).
 	BlocklistExists(ctx context.Context, blocklistId string) (bool, error)
+	// BlocklistExceptionsExist reports whether the live exception set for
+	// blocklistId is present (freshness backstop, alongside BlocklistExists).
+	BlocklistExceptionsExist(ctx context.Context, blocklistId string) (bool, error)
 	// Ping reports whether the cache backend is reachable (used for readiness).
 	Ping(ctx context.Context) error
 	// Locker returns a distributed locker sharing the cache's backend, so

@@ -190,17 +190,114 @@ func TestAdguardExtractor_ConvertStats(t *testing.T) {
 not a domain line
 ||important.com^$important`
 
-	got, stats, err := NewAdguardExtractor().Convert([]byte(input))
+	got, res, err := NewAdguardExtractor().Convert([]byte(input))
 	assert.NoError(t, err)
 	assert.Equal(t, "blocked.com\nimportant.com", string(got))
+	// specRef: #D3 — the parseable exception is extracted, not skipped.
+	assert.Equal(t, []string{"allowed.com"}, res.Exceptions)
 	assert.Equal(t, ConversionStats{
-		SkippedExceptions: 1,
-		SkippedBadfilter:  2, // the $badfilter rule and the target it disabled
-		SkippedModifiers:  1,
-		SkippedWildcards:  1,
-		SkippedPrefixes:   1,
-		SkippedInvalid:    2, // regex rule + non-domain line
-	}, stats)
+		SkippedBadfilter: 2, // the $badfilter rule and the target it disabled
+		SkippedModifiers: 1,
+		SkippedWildcards: 1,
+		SkippedPrefixes:  1,
+		SkippedInvalid:   2, // regex rule + non-domain line
+	}, res.Stats)
+}
+
+// specRef: #D3 #D3a — @@ rules become the source's companion exception set;
+// unpublishable ones are counted as `exception`.
+func TestAdguardExtractor_ConvertExceptions(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		wantDomains    string
+		wantExceptions []string
+		wantSkipped    int
+	}{
+		{
+			// specRef: #D3 — the canonical pair: block plus same-list unblock.
+			name: "double-pipe exception extracted",
+			input: `||blocked.com^
+@@||cdn.blocked.com^`,
+			wantDomains:    "blocked.com",
+			wantExceptions: []string{"cdn.blocked.com"},
+		},
+		{
+			// specRef: #D3 — single-pipe anchored form.
+			name:           "single-pipe exception extracted",
+			input:          `@@|cdn.example.com^|`,
+			wantDomains:    "",
+			wantExceptions: []string{"cdn.example.com"},
+		},
+		{
+			// specRef: #D3 — bare-domain form.
+			name:           "bare exception extracted",
+			input:          `@@exception.com`,
+			wantDomains:    "",
+			wantExceptions: []string{"exception.com"},
+		},
+		{
+			// specRef: #D3 — $important on an exception is tolerated and
+			// treated as a plain exception.
+			name:           "important exception treated as plain",
+			input:          `@@||cdn.example.com^$important`,
+			wantDomains:    "",
+			wantExceptions: []string{"cdn.example.com"},
+		},
+		{
+			// specRef: #D3a — wildcard exceptions cannot be published.
+			name:        "wildcard exception skipped",
+			input:       `@@||cdn-*.example.com^`,
+			wantDomains: "",
+			wantSkipped: 1,
+		},
+		{
+			// specRef: #D3a — exceptions with unsupported modifiers dropped.
+			name:        "modified exception skipped",
+			input:       `@@||cdn.example.com^$dnstype=AAAA`,
+			wantDomains: "",
+			wantSkipped: 1,
+		},
+		{
+			// specRef: #D3a #D2c — $badfilter disables the exception itself;
+			// the block for the same domain is unaffected.
+			name: "badfilter exception dropped and block kept",
+			input: `@@||example.com^$badfilter
+||example.com^`,
+			wantDomains: "example.com",
+			wantSkipped: 1,
+		},
+		{
+			// specRef: #D3a — regex exceptions cannot be published.
+			name:        "regex exception skipped",
+			input:       `@@/^ads\./`,
+			wantDomains: "",
+			wantSkipped: 1,
+		},
+		{
+			// specRef: #D3a — invalid exception domains are dropped.
+			name:        "invalid exception skipped",
+			input:       `@@not a domain`,
+			wantDomains: "",
+			wantSkipped: 1,
+		},
+	}
+
+	extractor := NewAdguardExtractor()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, res, err := extractor.Convert([]byte(tt.input))
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantDomains, string(got))
+			if tt.wantExceptions == nil {
+				assert.Empty(t, res.Exceptions)
+			} else {
+				assert.Equal(t, tt.wantExceptions, res.Exceptions)
+			}
+			assert.Equal(t, tt.wantSkipped, res.Stats.SkippedExceptions)
+		})
+	}
 }
 
 func TestAdguardExtractor_ExtractMetadata(t *testing.T) {

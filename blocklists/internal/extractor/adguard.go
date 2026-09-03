@@ -43,8 +43,9 @@ func NewAdguardExtractor() *AdguardExtractor {
 // whose syntax the extractor does not understand are dropped rather than
 // widened into unconditional blocks (fail open), counted per reason in the
 // returned stats.
-func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionStats, error) {
+func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionResult, error) {
 	domains := make([]string, 0)
+	exceptions := make([]string, 0)
 	disabled := make(map[string]struct{})
 	var stats ConversionStats
 	scanner := bufio.NewScanner(bytes.NewReader(blocklistBytes))
@@ -57,10 +58,16 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionSta
 			continue
 		}
 
-		// Exception rules are the list's built-in allowlist; skipped for now.
-		// This also covers @@…$badfilter, which disables the exception itself.
+		// Exception rules are the list's built-in allowlist
+		// (https://adguard-dns.io/kb/general/dns-filtering-syntax/): extracted
+		// into the companion exception set the proxy consults before blocking
+		// a same-list match. Unpublishable ones are counted, not widened.
 		if strings.HasPrefix(line, exceptionPrefix) {
-			stats.SkippedExceptions++
+			if domain := processException(strings.TrimPrefix(line, exceptionPrefix)); domain != "" {
+				exceptions = append(exceptions, domain)
+			} else {
+				stats.SkippedExceptions++
+			}
 			continue
 		}
 
@@ -115,7 +122,7 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionSta
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, ConversionStats{}, fmt.Errorf("error scanning blocklist: %w", err)
+		return nil, ConversionResult{}, fmt.Errorf("error scanning blocklist: %w", err)
 	}
 
 	if len(disabled) > 0 {
@@ -130,7 +137,32 @@ func (e *AdguardExtractor) Convert(blocklistBytes []byte) ([]byte, ConversionSta
 		domains = kept
 	}
 
-	return []byte(strings.Join(domains, "\n")), stats, nil
+	return []byte(strings.Join(domains, "\n")), ConversionResult{Exceptions: exceptions, Stats: stats}, nil
+}
+
+// processException extracts the domain from an @@ rule body (the rule with
+// its "@@" prefix removed), applying the same syntax policy as block rules.
+// A $badfilter modifier disables the exception itself, and $important on an
+// exception is tolerated as a plain exception (it only matters against
+// $important blocks, which the compiled format cannot distinguish). Returns
+// "" when the exception cannot be published.
+func processException(body string) string {
+	if strings.HasPrefix(body, regexDelimiter) {
+		return ""
+	}
+	pattern, modifiers := splitModifiers(body)
+	if hasModifier(modifiers, badfilterModifier) || hasUnsupportedModifier(modifiers) {
+		return ""
+	}
+	if strings.Contains(pattern, wildcard) || isPrefixRule(pattern) {
+		return ""
+	}
+	pattern = strings.ReplaceAll(pattern, "^", "")
+	pattern = strings.ReplaceAll(pattern, "|", "")
+	if d := NormalizeDomain(pattern); ValidDomain(d) {
+		return d
+	}
+	return ""
 }
 
 // ExtractMetadata extracts metadata from the blocklist including last modified time,
