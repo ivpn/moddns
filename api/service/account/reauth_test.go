@@ -75,6 +75,38 @@ func (suite *ReauthTokenSuite) TestEmailChangeWithReauthToken() {
 	suite.Contains(acc.Email, "new@example.com")
 }
 
+// specRef: api-endpoint-behaviour.md B3, B6
+func (suite *ReauthTokenSuite) TestEmailChangeNormalizesNewEmail() {
+	acc := suite.newAccount("user@example.com")
+	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
+	tok := model.Token{Type: "reauth_email_change", Value: "token-norm", ExpiresAt: time.Now().Add(2 * time.Minute)}
+	acc.Tokens = []model.Token{tok}
+
+	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
+	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
+
+	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": " New.Address@Example.COM ", "reauth_token": tok.Value}}}
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	suite.Require().NoError(err)
+
+	suite.Equal("new.address@example.com", acc.Email, "stored email must be canonical lowercase")
+}
+
+// specRef: api-endpoint-behaviour.md B3
+func (suite *ReauthTokenSuite) TestEmailChangeSameEmailDifferentCase() {
+	acc := suite.newAccount("user@example.com")
+	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
+	tok := model.Token{Type: "reauth_email_change", Value: "token-same", ExpiresAt: time.Now().Add(2 * time.Minute)}
+	acc.Tokens = []model.Token{tok}
+
+	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
+
+	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "USER@Example.com", "reauth_token": tok.Value}}}
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	suite.Require().Error(err)
+	suite.ErrorIs(err, account.ErrSameEmailAddress)
+}
+
 func (suite *ReauthTokenSuite) TestEmailChangeWithExpiredReauthToken() {
 	acc := suite.newAccount("user@example.com")
 	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
