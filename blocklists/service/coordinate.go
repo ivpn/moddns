@@ -68,7 +68,16 @@ func (s *Service) isFresh(ctx context.Context, src model.BlocklistMetadata) bool
 		return false
 	}
 	exists, err := s.Cache.BlocklistExists(ctx, src.BlocklistID)
-	return err == nil && exists
+	if err != nil || !exists {
+		return false
+	}
+	// A live main set without its expected exception set would reintroduce
+	// the false positives the exceptions prevent, so it counts as lost too.
+	if existing[0].ExceptionEntries > 0 {
+		exists, err = s.Cache.BlocklistExceptionsExist(ctx, src.BlocklistID)
+		return err == nil && exists
+	}
+	return true
 }
 
 // RefreshDue processes the source unless it was published recently. It is the

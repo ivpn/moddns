@@ -143,6 +143,78 @@ func (_c *Cache_GetBlocklistEntry_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// GetBlocklistExceptionEntry provides a mock function for the type Cache
+func (_mock *Cache) GetBlocklistExceptionEntry(ctx context.Context, blocklistId string, domain string) (bool, error) {
+	ret := _mock.Called(ctx, blocklistId, domain)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBlocklistExceptionEntry")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return returnFunc(ctx, blocklistId, domain)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = returnFunc(ctx, blocklistId, domain)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, blocklistId, domain)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Cache_GetBlocklistExceptionEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBlocklistExceptionEntry'
+type Cache_GetBlocklistExceptionEntry_Call struct {
+	*mock.Call
+}
+
+// GetBlocklistExceptionEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - blocklistId string
+//   - domain string
+func (_e *Cache_Expecter) GetBlocklistExceptionEntry(ctx interface{}, blocklistId interface{}, domain interface{}) *Cache_GetBlocklistExceptionEntry_Call {
+	return &Cache_GetBlocklistExceptionEntry_Call{Call: _e.mock.On("GetBlocklistExceptionEntry", ctx, blocklistId, domain)}
+}
+
+func (_c *Cache_GetBlocklistExceptionEntry_Call) Run(run func(ctx context.Context, blocklistId string, domain string)) *Cache_GetBlocklistExceptionEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Cache_GetBlocklistExceptionEntry_Call) Return(b bool, err error) *Cache_GetBlocklistExceptionEntry_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Cache_GetBlocklistExceptionEntry_Call) RunAndReturn(run func(ctx context.Context, blocklistId string, domain string) (bool, error)) *Cache_GetBlocklistExceptionEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCustomRulesHash provides a mock function for the type Cache
 func (_mock *Cache) GetCustomRulesHash(ctx context.Context, hashId string) (map[string]string, error) {
 	ret := _mock.Called(ctx, hashId)

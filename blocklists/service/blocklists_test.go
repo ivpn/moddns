@@ -129,7 +129,7 @@ func TestStevenBlackEndToEnd(t *testing.T) {
 		t.Fatalf("NewExtractor: %v", err)
 	}
 	hosts := "# Title: test\n0.0.0.0 Ads.Example.COM\n0.0.0.0 0.0.0.0\n127.0.0.1 skip.example.org\n"
-	converted, err := extr.Convert([]byte(hosts))
+	converted, _, err := extr.Convert([]byte(hosts))
 	if err != nil {
 		t.Fatalf("Convert: %v", err)
 	}
@@ -179,15 +179,28 @@ func (f *fakeStore) DeleteMetadata(_ context.Context, filter map[string]any) err
 	return nil
 }
 
-// fakeCache implements cache.Cache, recording blocklist deletions. Live sets
-// are treated as present unless listed in missing.
+// fakeCache implements cache.Cache, recording blocklist deletions and
+// exception publishes. Live sets are treated as present unless listed in
+// missing; exception sets unless listed in missingExceptions.
 type fakeCache struct {
-	deleted []string
-	missing map[string]bool
+	deleted           []string
+	missing           map[string]bool
+	missingExceptions map[string]bool
+	exceptionsPut     map[string]string // blocklistID -> last published data
 }
 
 func (f *fakeCache) CreateOrUpdateBlocklist(_ context.Context, _ string, _ []byte) error {
 	return nil
+}
+func (f *fakeCache) CreateOrUpdateBlocklistExceptions(_ context.Context, blocklistId string, data []byte) error {
+	if f.exceptionsPut == nil {
+		f.exceptionsPut = make(map[string]string)
+	}
+	f.exceptionsPut[blocklistId] = string(data)
+	return nil
+}
+func (f *fakeCache) BlocklistExceptionsExist(_ context.Context, blocklistId string) (bool, error) {
+	return !f.missingExceptions[blocklistId], nil
 }
 func (f *fakeCache) DeleteBlocklist(_ context.Context, blocklistId string) error {
 	f.deleted = append(f.deleted, blocklistId)

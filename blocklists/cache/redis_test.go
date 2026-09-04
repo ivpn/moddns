@@ -261,3 +261,60 @@ func TestCreateOrUpdateBlocklist_LiveKeyHasNoTTL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, time.Duration(-1), ttl, "live key must be persistent (TTL -1)")
 }
+
+// specRef: #F4 — the exception set is published to the companion key with the
+// same stage-and-swap flow.
+func TestCreateOrUpdateBlocklistExceptions_Publishes(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	err := c.CreateOrUpdateBlocklistExceptions(ctx, "adguard_dns_filter", []byte("cdn.example.com\nsbs.demdex.net"))
+	require.NoError(t, err)
+
+	members, err := mr.SMembers("blocklist:adguard_dns_filter:exceptions")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"cdn.example.com", "sbs.demdex.net"}, members)
+	// The live key must not expire (staging TTL cleared by the swap).
+	assert.Equal(t, time.Duration(0), mr.TTL("blocklist:adguard_dns_filter:exceptions"))
+}
+
+// specRef: #F4 — empty data removes the key: a missing exception set means
+// "no exceptions" to the proxy.
+func TestCreateOrUpdateBlocklistExceptions_EmptyDeletesKey(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, c.CreateOrUpdateBlocklistExceptions(ctx, "bl1", []byte("old.example.com")))
+	require.NoError(t, c.CreateOrUpdateBlocklistExceptions(ctx, "bl1", []byte("")))
+
+	assert.False(t, mr.Exists("blocklist:bl1:exceptions"))
+}
+
+// specRef: #G11 — the freshness backstop can check the exception key's
+// existence separately from the main set's.
+func TestBlocklistExceptionsExist(t *testing.T) {
+	c, _ := newTestCache(t)
+	ctx := context.Background()
+
+	exists, err := c.BlocklistExceptionsExist(ctx, "bl1")
+	require.NoError(t, err)
+	assert.False(t, exists)
+
+	require.NoError(t, c.CreateOrUpdateBlocklistExceptions(ctx, "bl1", []byte("a.example.com")))
+	exists, err = c.BlocklistExceptionsExist(ctx, "bl1")
+	require.NoError(t, err)
+	assert.True(t, exists)
+}
+
+// specRef: #F4 — deleting a blocklist removes its exception set too.
+func TestDeleteBlocklist_RemovesExceptions(t *testing.T) {
+	c, mr := newTestCache(t)
+	ctx := context.Background()
+
+	require.NoError(t, c.CreateOrUpdateBlocklist(ctx, "bl1", []byte("blocked.example.com")))
+	require.NoError(t, c.CreateOrUpdateBlocklistExceptions(ctx, "bl1", []byte("a.example.com")))
+	require.NoError(t, c.DeleteBlocklist(ctx, "bl1"))
+
+	assert.False(t, mr.Exists("blocklist:bl1"))
+	assert.False(t, mr.Exists("blocklist:bl1:exceptions"))
+}
