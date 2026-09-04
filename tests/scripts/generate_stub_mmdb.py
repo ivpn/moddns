@@ -18,10 +18,29 @@ The 150.171.0.0/16 range is also announced by AS8075.
 
 Usage:
     python scripts/generate_stub_mmdb.py
+        Writes the backend E2E stubs to bootstrap/geolite/ (both files carry
+        the ASN payload; the "City" file is a copy so mounts never fail).
+
+    python scripts/generate_stub_mmdb.py --out-dir ../dnscheck/internal/maxmind/testdata --city-typed
+        Writes the dnscheck unit-test fixtures. --city-typed makes the City
+        file a real GeoLite2-City database so a wrong-type file can be tested.
 """
+
+import argparse
+import os
 
 from netaddr import IPSet
 from mmdb_writer import MMDBWriter
+
+parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+parser.add_argument("--out-dir", default="bootstrap/geolite", help="directory to write the .mmdb files into")
+parser.add_argument(
+    "--city-typed",
+    action="store_true",
+    help="write GeoLite2-City.mmdb with database_type GeoLite2-City instead of copying the ASN stub",
+)
+args = parser.parse_args()
+os.makedirs(args.out_dir, exist_ok=True)
 
 writer = MMDBWriter(
     ip_version=4,
@@ -52,10 +71,22 @@ writer.insert_network(
     {"autonomous_system_number": 8075, "autonomous_system_organization": "MICROSOFT-CORP-MSN-AS-BLOCK"},
 )
 
-out_asn = "bootstrap/geolite/GeoLite2-ASN.mmdb"
+out_asn = os.path.join(args.out_dir, "GeoLite2-ASN.mmdb")
 writer.to_db_file(out_asn)
 print(f"Wrote {out_asn}")
 
-out_city = "bootstrap/geolite/GeoLite2-City.mmdb"
-writer.to_db_file(out_city)
+out_city = os.path.join(args.out_dir, "GeoLite2-City.mmdb")
+if args.city_typed:
+    city_writer = MMDBWriter(
+        ip_version=4,
+        database_type="GeoLite2-City",
+        description={"en": "Stub GeoLite2-City for unit tests"},
+    )
+    city_writer.insert_network(
+        IPSet(["8.8.8.8/32"]),
+        {"country": {"iso_code": "US", "names": {"en": "United States"}}},
+    )
+    city_writer.to_db_file(out_city)
+else:
+    writer.to_db_file(out_city)
 print(f"Wrote {out_city}")

@@ -2,13 +2,14 @@ package dns
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/dnscheck/cache"
+	"github.com/dnscheck/internal/maxmind"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 )
@@ -77,22 +78,18 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 
 			record := DNSLogRecord{}
 
-			udp := strings.HasPrefix(w.RemoteAddr().Network(), "udp")
-			var extractionMode string
-			if udp {
-				extractionMode = "udp"
-			} else {
-				extractionMode = "tcp"
-			}
-			IPAddress, _, err := h.extractIPAddressAndHostname(w, extractionMode)
+			IPAddress, err := clientIP(w.RemoteAddr())
 			if err != nil {
-				log.Warn().Err(err).Msgf("Error resolving address %s %s, defaulting to hostname None", w.RemoteAddr().Network(), w.RemoteAddr().String())
+				log.Warn().Err(err).Str("remote", w.RemoteAddr().String()).Msg("Cannot determine client IP address")
 				return
 			}
 
+			// A failed lookup degrades to "no ASN information"; the IP-range check
+			// below still decides the status and the answer is still written.
 			lookupData, err := h.srv.GeoLookup.GetGeoLookup(IPAddress)
-			if err != nil {
-				log.Error().Err(err).Msgf("Error getting GeoLookup for %s", IPAddress)
+			if err != nil || lookupData == nil {
+				log.Error().Err(err).Msg("GeoIP lookup failed, continuing without ASN")
+				lookupData = &maxmind.GeoLookup{IPAddress: IPAddress}
 			}
 
 			record.IPAddress = IPAddress
@@ -224,33 +221,17 @@ func (h *Handler) createSOA() []dns.RR {
 	}
 }
 
-func (h *Handler) extractIPAddressAndHostname(w dns.ResponseWriter, extractionMode string) (IPAddress string, hostname string, err error) {
-	switch extractionMode {
-	case "udp":
-		addr, err := net.ResolveUDPAddr(w.RemoteAddr().Network(), w.RemoteAddr().String())
-		if err != nil {
-			return "", "", err
-		}
-		IPAddress = addr.IP.String()
-		hostnames, err := net.LookupAddr(IPAddress)
-		if err == nil && len(hostnames) > 0 {
-			hostname = hostnames[0]
-		}
-	case "tcp":
-		addr, err := net.ResolveTCPAddr(w.RemoteAddr().Network(), w.RemoteAddr().String())
-		if err != nil {
-			return "", "", err
-		}
-		IPAddress = addr.IP.String()
-		hostnames, err := net.LookupAddr(IPAddress)
-		if err == nil && len(hostnames) > 0 {
-			hostname = hostnames[0]
-		}
+// clientIP returns the transport-level source address of the query. It is read
+// straight from the socket address and never resolved.
+func clientIP(addr net.Addr) (string, error) {
+	switch a := addr.(type) {
+	case *net.UDPAddr:
+		return a.IP.String(), nil
+	case *net.TCPAddr:
+		return a.IP.String(), nil
 	default:
-		return "", "", errors.New("invalid extraction mode")
+		return "", fmt.Errorf("unsupported remote address type %T", addr)
 	}
-
-	return IPAddress, hostname, nil
 }
 
 func FindStringSubmatchMap(rs string, s string) map[string]string {
