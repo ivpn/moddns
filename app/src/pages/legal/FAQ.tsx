@@ -31,9 +31,18 @@ function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FA
     }, [globalToggleSignal, globalToggleState, lastSignal]);
 
     useEffect(() => {
-        if (contentRef.current) {
-            setHeight(isExpanded ? `${contentRef.current.scrollHeight}px` : '0px');
-        }
+        const el = contentRef.current;
+        if (!el) return;
+        // Measure the inner content, not the wrapper: the wrapper's scrollHeight
+        // never drops below its own explicit height, so it cannot shrink.
+        const inner = (el.firstElementChild as HTMLElement | null) ?? el;
+        setHeight(isExpanded ? `${inner.offsetHeight}px` : '0px');
+        if (!isExpanded || typeof ResizeObserver === 'undefined') return;
+        // The answer reflows when the viewport crosses a breakpoint; keep the
+        // clipped wrapper in step with the content's real height while open.
+        const observer = new ResizeObserver(() => setHeight(`${inner.offsetHeight}px`));
+        observer.observe(inner);
+        return () => observer.disconnect();
     }, [isExpanded]);
 
     const handleToggle = () => {
@@ -104,6 +113,8 @@ const FAQ_LAST_UPDATED = 'September 3, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
+const TERM_CLASS = "text-xs uppercase tracking-wide text-[var(--shadcn-ui-app-muted-foreground)]";
+const VALUE_CLASS = "min-w-0 break-all font-mono select-all";
 
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
@@ -300,7 +311,32 @@ export default function FAQ(): JSX.Element {
             {serverLocations.length > 0 && (
                 <div className="space-y-2">
                     <p>Currently available locations:</p>
-                    <div className="overflow-x-auto">
+                    <ul className="lg:hidden space-y-2">
+                        {serverRows.map(row => (
+                            <li key={row.hostname} className="rounded-md border border-[var(--shadcn-ui-app-border)] p-3 text-sm">
+                                <p className="font-medium">{row.city}</p>
+                                <dl className="mt-2 space-y-1.5">
+                                    <div>
+                                        <dt className={TERM_CLASS}>Hostname</dt>
+                                        <dd className={VALUE_CLASS}>{row.hostname}</dd>
+                                    </div>
+                                    {row.ipv4 && (
+                                        <div>
+                                            <dt className={TERM_CLASS}>IPv4</dt>
+                                            <dd className={VALUE_CLASS}>{row.ipv4}</dd>
+                                        </div>
+                                    )}
+                                    {row.ipv6 && (
+                                        <div>
+                                            <dt className={TERM_CLASS}>IPv6</dt>
+                                            <dd className={VALUE_CLASS}>{row.ipv6}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full border-collapse text-sm">
                             <thead>
                                 <tr>
