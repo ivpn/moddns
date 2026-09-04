@@ -39,21 +39,15 @@ type CacheConfig struct {
 	HMACKey string
 }
 
-// GeoLookupConfig represents access to MaxMind GeoIP database
+// GeoLookupConfig represents access to the MaxMind GeoIP ASN database
 type GeoLookupConfig struct {
-	DBFile    string
 	DBASNFile string
 }
 
 // IsValid check whether config section is valid
 func (cfg *GeoLookupConfig) IsValid() error {
-	if cfg.DBFile == "" {
-		return errors.New("[GeoIP] DBFile is required")
-
-	}
 	if cfg.DBASNFile == "" {
-		return errors.New("[GeoIP] DBISP is required")
-
+		return errors.New("GEOIP_DB_ASN_FILE environment variable is required")
 	}
 	return nil
 }
@@ -77,6 +71,13 @@ func New() (*Config, error) {
 		return nil, errors.New("CACHE_HMAC_KEY environment variable is required")
 	}
 
+	geoLookup := &GeoLookupConfig{
+		DBASNFile: os.Getenv("GEOIP_DB_ASN_FILE"),
+	}
+	if err := geoLookup.IsValid(); err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Server: &AuthoritativeDNSServerConfig{
 			Domain:    os.Getenv("DNS_AUTH_SERVER_DOMAIN"),
@@ -92,9 +93,6 @@ func New() (*Config, error) {
 			TTL:     ttl,
 			HMACKey: cacheHMACKey,
 		},
-		GeoLookupConfig: &GeoLookupConfig{
-			DBFile:    os.Getenv("GEOIP_DB_FILE"),
-			DBASNFile: os.Getenv("GEOIP_DB_ASN_FILE"),
-		},
+		GeoLookupConfig: geoLookup,
 	}, nil
 }
