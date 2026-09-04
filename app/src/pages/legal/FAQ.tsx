@@ -2,7 +2,8 @@ import React, { type JSX, useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Clipboard } from "lucide-react";
+import { toast } from "sonner";
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
@@ -113,8 +114,51 @@ const FAQ_LAST_UPDATED = 'September 3, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
-const TERM_CLASS = "text-xs uppercase tracking-wide text-[var(--shadcn-ui-app-muted-foreground)]";
-const VALUE_CLASS = "min-w-0 break-all font-mono select-all";
+const TERM_CLASS = "block text-xs uppercase tracking-wide text-[var(--shadcn-ui-app-muted-foreground)]";
+const VALUE_CLASS = "block min-w-0 break-all font-mono";
+
+interface CopyRowProps {
+    label: string;
+    value: string;
+}
+
+/** Tap-to-copy label/value row for the narrow-screen server cards (mirrors the setup page rows). */
+function CopyRow({ label, value }: CopyRowProps) {
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!copied) return;
+        const timer = setTimeout(() => setCopied(false), 1600);
+        return () => clearTimeout(timer);
+    }, [copied]);
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            toast.success(`${label} copied to clipboard`);
+        } catch {
+            toast.error('Copy failed');
+        }
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            className="block w-full min-h-10 rounded-md px-2 py-1 -mx-2 text-left active:bg-[var(--shadcn-ui-app-muted)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+            <span className="sr-only">Copy </span>
+            <span className="flex items-center justify-between gap-3">
+                <span className={TERM_CLASS}>{label}</span>
+                {copied
+                    ? <Check className="h-4 w-4 shrink-0 text-[var(--tailwind-colors-rdns-600)]" aria-hidden="true" />
+                    : <Clipboard className="h-4 w-4 shrink-0 text-[var(--tailwind-colors-rdns-600)]" aria-hidden="true" />}
+            </span>
+            <span className={VALUE_CLASS}>{value}</span>
+        </button>
+    );
+}
 
 export default function FAQ(): JSX.Element {
     const navigate = useNavigate();
@@ -315,24 +359,11 @@ export default function FAQ(): JSX.Element {
                         {serverRows.map(row => (
                             <li key={row.hostname} className="rounded-md border border-[var(--shadcn-ui-app-border)] p-3 text-sm">
                                 <p className="font-medium">{row.city}</p>
-                                <dl className="mt-2 space-y-1.5">
-                                    <div>
-                                        <dt className={TERM_CLASS}>Hostname</dt>
-                                        <dd className={VALUE_CLASS}>{row.hostname}</dd>
-                                    </div>
-                                    {row.ipv4 && (
-                                        <div>
-                                            <dt className={TERM_CLASS}>IPv4</dt>
-                                            <dd className={VALUE_CLASS}>{row.ipv4}</dd>
-                                        </div>
-                                    )}
-                                    {row.ipv6 && (
-                                        <div>
-                                            <dt className={TERM_CLASS}>IPv6</dt>
-                                            <dd className={VALUE_CLASS}>{row.ipv6}</dd>
-                                        </div>
-                                    )}
-                                </dl>
+                                <div className="mt-1 space-y-0.5">
+                                    <CopyRow label="Hostname" value={row.hostname} />
+                                    {row.ipv4 && <CopyRow label="IPv4" value={row.ipv4} />}
+                                    {row.ipv6 && <CopyRow label="IPv6" value={row.ipv6} />}
+                                </div>
                             </li>
                         ))}
                     </ul>
