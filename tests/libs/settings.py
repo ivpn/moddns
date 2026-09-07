@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     Defaults match the port mappings in ``tests/docker-compose.yml``.
     """
     DNS_API_ADDR: str = "http://localhost:3000"
+    # dnscheck HTTP API; the probe hostname goes in the Host header because the
+    # public check zone resolves to production, not to the test stack.
+    DNSCHECK_API_ADDR: str = "http://localhost:30080"
     DOH_ENDPOINT: str = "https://moddns.dev/dns-query/"
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
