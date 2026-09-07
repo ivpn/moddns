@@ -30,17 +30,41 @@ type AuthoritativeDNSServerConfig struct {
 	ASN       uint
 	// IPRanges are the CIDR blocks our resolvers query from; at least one is
 	// required. PoPs sit in unrelated address blocks, so this is a list.
-	IPRanges []*net.IPNet
+	IPRanges []IPRange
+}
+
+// IPRange is one trusted source block. Label is operator-facing only (the PoP
+// name) and plays no part in matching.
+type IPRange struct {
+	Label string
+	Net   *net.IPNet
+}
+
+// String renders "label net" or just "net" when unlabelled.
+func (r IPRange) String() string {
+	if r.Label == "" {
+		return r.Net.String()
+	}
+	return r.Label + " " + r.Net.String()
 }
 
 // ContainsIP reports whether ip falls inside any configured range.
 func (c *AuthoritativeDNSServerConfig) ContainsIP(ip net.IP) bool {
 	for _, r := range c.IPRanges {
-		if r.Contains(ip) {
+		if r.Net.Contains(ip) {
 			return true
 		}
 	}
 	return false
+}
+
+// IPRangesString lists the configured ranges for the startup log.
+func (c *AuthoritativeDNSServerConfig) IPRangesString() string {
+	parts := make([]string, 0, len(c.IPRanges))
+	for _, r := range c.IPRanges {
+		parts = append(parts, r.String())
+	}
+	return strings.Join(parts, ", ")
 }
 
 // APIConfig represents the API configuration
@@ -125,23 +149,32 @@ func New() (*Config, error) {
 	}, nil
 }
 
-// parseIPRanges parses a comma-separated list of CIDR blocks. Every entry must
-// parse and at least one is required.
-func parseIPRanges(raw string) ([]*net.IPNet, error) {
-	var ranges []*net.IPNet
+// parseIPRanges parses a comma-separated list of CIDR blocks, each optionally
+// prefixed with a label ("tor1=198.51.100.7/32"), the key=value,key=value
+// convention used by e.g. docker --label. Every entry must parse and at least
+// one is required.
+func parseIPRanges(raw string) ([]IPRange, error) {
+	var ranges []IPRange
 	for _, part := range strings.Split(raw, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
 		}
-		_, n, err := net.ParseCIDR(part)
-		if err != nil {
-			return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE entries must be CIDR notation (e.g. 10.5.0.0/16 or 198.51.100.7/32), got %q", part)
+		label, cidr := "", part
+		if i := strings.Index(part, "="); i >= 0 {
+			label, cidr = strings.TrimSpace(part[:i]), strings.TrimSpace(part[i+1:])
+			if label == "" {
+				return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE entry %q has an empty label before '='", part)
+			}
 		}
-		ranges = append(ranges, n)
+		_, n, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE entries must be [label=]CIDR (e.g. 10.5.0.0/16 or tor1=198.51.100.7/32), got %q", part)
+		}
+		ranges = append(ranges, IPRange{Label: label, Net: n})
 	}
 	if len(ranges) == 0 {
-		return nil, errors.New("DNS_AUTH_SERVER_IP_RANGE environment variable is required (comma-separated CIDR list)")
+		return nil, errors.New("DNS_AUTH_SERVER_IP_RANGE environment variable is required (comma-separated [label=]CIDR list)")
 	}
 	return ranges, nil
 }

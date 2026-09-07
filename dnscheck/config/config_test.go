@@ -36,8 +36,8 @@ func TestNewParsesIPRangeAsCIDR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(cfg.Server.IPRanges) != 1 || cfg.Server.IPRanges[0].String() != "10.5.0.0/16" {
-		t.Errorf("IPRanges = %v, want [10.5.0.0/16]", cfg.Server.IPRanges)
+	if len(cfg.Server.IPRanges) != 1 || cfg.Server.IPRanges[0].Net.String() != "10.5.0.0/16" || cfg.Server.IPRanges[0].Label != "" {
+		t.Errorf("IPRanges = %v, want one unlabelled 10.5.0.0/16", cfg.Server.IPRanges)
 	}
 
 	// PoPs live in unrelated blocks, so a comma-separated list is accepted;
@@ -61,6 +61,26 @@ func TestNewParsesIPRangeAsCIDR(t *testing.T) {
 	t.Setenv("DNS_AUTH_SERVER_IP_RANGE", "198.51.100.7/32,10.5.")
 	if _, err := New(); err == nil {
 		t.Fatal("expected an error when one list entry is not CIDR")
+	}
+
+	// Entries may carry an operator-facing label; it never affects matching.
+	t.Setenv("DNS_AUTH_SERVER_IP_RANGE", "tor1=198.51.100.7/32, lab = 203.0.113.0/24,192.0.2.0/24")
+	cfg, err = New()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := cfg.Server.IPRangesString(); got != "tor1 198.51.100.7/32, lab 203.0.113.0/24, 192.0.2.0/24" {
+		t.Errorf("IPRangesString() = %q", got)
+	}
+	if !cfg.Server.ContainsIP(net.ParseIP("198.51.100.7")) || !cfg.Server.ContainsIP(net.ParseIP("192.0.2.9")) {
+		t.Errorf("labelled and unlabelled entries must both match: %v", cfg.Server.IPRanges)
+	}
+
+	for _, bad := range []string{"=198.51.100.7/32", "tor1=", "tor1=10.5."} {
+		t.Setenv("DNS_AUTH_SERVER_IP_RANGE", bad)
+		if _, err := New(); err == nil {
+			t.Errorf("expected an error for DNS_AUTH_SERVER_IP_RANGE=%q", bad)
+		}
 	}
 
 	// The range is what makes a query "ours"; without it every check would

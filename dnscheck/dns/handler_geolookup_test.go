@@ -70,7 +70,10 @@ func newTestHandler(t *testing.T, geo GeoLookuper, cache *memCache) *Handler {
 				Domain:    testDomain,
 				IPAddress: "192.0.2.1",
 				ASN:       testOurASN,
-				IPRanges:  []*net.IPNet{mustCIDR(t, "198.51.100.0/24"), mustCIDR(t, "192.0.2.77/32")},
+				IPRanges: []config.IPRange{
+					{Label: "lab", Net: mustCIDR(t, "198.51.100.0/24")},
+					{Net: mustCIDR(t, "192.0.2.77/32")},
+				},
 			},
 			Cache: &config.CacheConfig{HMACKey: "test-key"},
 		},
