@@ -1,0 +1,13 @@
+[
+  {
+    "update": "accounts",
+    "updates": [
+      {
+        "q": { "__migration_025_never_matches__": true },
+        "u": { "$set": { "__noop__": true } },
+        "multi": false
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

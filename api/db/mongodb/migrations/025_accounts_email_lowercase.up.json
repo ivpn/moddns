@@ -1,0 +1,15 @@
+[
+  {
+    "update": "accounts",
+    "updates": [
+      {
+        "q": { "$expr": { "$ne": ["$email", { "$toLower": "$email" }] } },
+        "u": [
+          { "$set": { "email": { "$toLower": "$email" } } }
+        ],
+        "multi": true
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

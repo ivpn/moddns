@@ -19,8 +19,13 @@ interface ChangeEmailDialogProps {
     onChanged: () => void; // callback after successful change
 }
 
+// Canonical comparison form, mirroring backend email normalization.
+const normalizeEmail = (s: string) => s.trim().toLowerCase();
+
 export default function ChangeEmailDialog({ open, onOpenChange, account, onChanged }: ChangeEmailDialogProps) {
+    const [step, setStep] = useState<'details' | 'confirm'>('details');
     const [newEmail, setNewEmail] = useState('');
+    const [confirmEmail, setConfirmEmail] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
     const [reauthToken, setReauthToken] = useState<string | null>(null);
     const [reauthStatus, setReauthStatus] = useState<'idle' | 'in-progress' | 'verified' | 'error'>('idle');
@@ -53,12 +58,40 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
     }
     useEffect(() => {
         if (!open) {
+            setStep('details');
             setOtp('');
+            setConfirmEmail('');
             setCurrentPassword('');
             setReauthToken(null);
             setReauthStatus('idle');
         }
     }, [open]);
+
+    const emailsMatch = confirmEmail !== '' && normalizeEmail(confirmEmail) === normalizeEmail(newEmail);
+    const showMismatch = confirmEmail !== '' && !emailsMatch;
+
+    // Validate step-1 input and advance to the confirm step; the PATCH only
+    // happens from the confirm step in handleSubmit.
+    const handleContinue = () => {
+        if (!account) return;
+        if (!newEmail.includes('@')) {
+            toast.error('Please enter a valid email.');
+            return;
+        }
+        if (method === 'password' && !currentPassword) {
+            toast.error('Current password is required.');
+            return;
+        }
+        if (method === 'passkey' && !reauthToken) {
+            toast.error('Passkey verification is required.');
+            return;
+        }
+        if (showOtp && !otp) {
+            toast.error('2FA code is required.');
+            return;
+        }
+        setStep('confirm');
+    };
 
     const beginPasskeyReauth = async () => {
         if (!account) return;
@@ -79,24 +112,11 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
         }
     };
 
-    // Handle email change with optional 2FA
+    // Handle email change with optional 2FA; reachable only from the confirm step.
     const handleSubmit = async () => {
         if (!account) return;
-        if (!newEmail.includes('@')) {
-            toast.error('Please enter a valid email.');
-            return;
-        }
-        if (method === 'password' && !currentPassword) {
-            toast.error('Current password is required.');
-            return;
-        }
-        if (method === 'passkey' && !reauthToken) {
-            toast.error('Passkey verification is required.');
-            return;
-        }
-        // OTP required only for password method
-        if (showOtp && !otp) {
-            toast.error('2FA code is required.');
+        if (!emailsMatch) {
+            toast.error('Email addresses do not match.');
             return;
         }
 
@@ -142,8 +162,10 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
     const handleOpenChange = (next: boolean) => {
         if (!next) {
             // Reset state when closing
+            setStep('details');
             setOtp('');
             setNewEmail('');
+            setConfirmEmail('');
             setCurrentPassword('');
             setReauthToken(null);
             setReauthStatus('idle');
@@ -165,10 +187,11 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                         Change email
                     </DialogTitle>
                     <DialogDescription className="text-sm font-normal text-[var(--tailwind-colors-slate-400)] font-['Roboto_Flex-Regular',Helvetica] leading-5">
-                        Enter your new email address below.
+                        {step === 'details' ? 'Enter your new email address below.' : 'Re-enter your new email address to confirm it.'}
                     </DialogDescription>
                 </DialogHeader>
 
+                {step === 'details' && (
                 <div className="flex flex-col gap-4 px-6 pb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="inline-flex text-[11px] rounded-md bg-[var(--tailwind-colors-slate-800)] p-1 shadow-sm w-full sm:w-auto">
@@ -209,7 +232,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">New email</label>
-                        <Input value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="new@example.com" autoFocus className="border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-50)] h-10" />
+                        <Input value={newEmail} onChange={e => { setNewEmail(e.target.value); setConfirmEmail(''); }} placeholder="new@example.com" autoFocus className="border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-50)] h-10" />
                     </div>
                     {method === 'password' && (
                         <div className="space-y-2">
@@ -257,7 +280,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                                 onChange={e => setOtp(e.target.value)}
                                 onKeyDown={e => {
                                     if (e.key === 'Enter') {
-                                        handleSubmit();
+                                        handleContinue();
                                     }
                                 }}
                                 className="border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-50)] h-10"
@@ -267,32 +290,73 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                     )}
                     <p className="text-xs text-[var(--tailwind-colors-slate-400)]">After changing your email it will be unverified until you complete the new verification OTP process.</p>
                 </div>
+                )}
+
+                {step === 'confirm' && (
+                <div className="flex flex-col gap-4 px-6 pb-4">
+                    <div className="space-y-2">
+                        <label className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">Confirm new email</label>
+                        <Input
+                            data-testid="input-confirm-email"
+                            value={confirmEmail}
+                            onChange={e => setConfirmEmail(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter' && emailsMatch && !submitting) {
+                                    handleSubmit();
+                                }
+                            }}
+                            placeholder="Re-enter your new email"
+                            autoFocus
+                            className="border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-50)] h-10"
+                        />
+                        {showMismatch && (
+                            <p data-testid="confirm-email-mismatch" className="text-xs text-[var(--tailwind-colors-red-400)]">
+                                Email addresses do not match.
+                            </p>
+                        )}
+                    </div>
+                    <p
+                        data-testid="confirm-email-warning"
+                        className="text-xs leading-5 text-[var(--tailwind-colors-amber-400,#fbbf24)] rounded-md border border-[#fbbf24]/30 bg-[#fbbf24]/10 p-3"
+                    >
+                        Make sure this address is real and you can receive mail at it. If it has a typo or doesn't
+                        exist, verification and password reset emails will never reach you — and you could lose
+                        access to your account.
+                    </p>
+                </div>
+                )}
 
                 <DialogActions>
                     <Button
                         variant="cancel"
                         size="lg"
                         className="flex-1 min-w-32 font-medium"
-                        onClick={() => handleOpenChange(false)}
+                        onClick={() => step === 'confirm' ? setStep('details') : handleOpenChange(false)}
                         disabled={submitting}
                     >
-                        Cancel
+                        {step === 'confirm' ? 'Back' : 'Cancel'}
                     </Button>
-                    <Button
-                        variant="default"
-                        size="lg"
-                        className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
-                        onClick={handleSubmit}
-                        disabled={submitting || (method === 'passkey' && reauthStatus !== 'verified') || (showOtp && !otp)}
-                    >
-                        {submitting
-                            ? 'Updating...'
-                            : method === 'passkey'
-                                ? (reauthStatus === 'verified'
-                                    ? (showOtp ? 'Update email' : 'Update email')
-                                    : 'Verify passkey first')
-                                : 'Update email'}
-                    </Button>
+                    {step === 'details' ? (
+                        <Button
+                            variant="default"
+                            size="lg"
+                            className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
+                            onClick={handleContinue}
+                            disabled={submitting || (method === 'passkey' && reauthStatus !== 'verified') || (showOtp && !otp)}
+                        >
+                            {method === 'passkey' && reauthStatus !== 'verified' ? 'Verify passkey first' : 'Continue'}
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="default"
+                            size="lg"
+                            className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
+                            onClick={handleSubmit}
+                            disabled={submitting || !emailsMatch}
+                        >
+                            {submitting ? 'Updating...' : 'Update email'}
+                        </Button>
+                    )}
                 </DialogActions>
             </DialogContent>
         </Dialog>

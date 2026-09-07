@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,7 +33,7 @@ func NewAccountRepository(client *mongo.Client, dbName, collectionName string) A
 
 // Create adds a new account to the accounts collection
 func (r *AccountRepository) CreateAccount(ctx context.Context, email, passwordPlain, accountId, profileId string) (*model.Account, error) {
-	acc, err := model.NewAccount(email, passwordPlain, accountId, profileId)
+	acc, err := model.NewAccount(validator.NormalizeEmail(email), passwordPlain, accountId, profileId)
 	if err != nil {
 		return nil, err
 	}
@@ -87,10 +88,12 @@ func (r *AccountRepository) GetAccountById(ctx context.Context, accountId string
 
 }
 
-// GetAccountByEmail gets account data based on given email address
+// GetAccountByEmail gets account data based on given email address.
+// The lookup key is normalized to the canonical stored form, so any
+// casing/whitespace variant of the address matches.
 func (r *AccountRepository) GetAccountByEmail(ctx context.Context, email string) (*model.Account, error) {
-	// TODO: create email index
-	filterBson := bson.D{primitive.E{Key: "email", Value: email}}
+	// Unique index "email" created by migration 013.
+	filterBson := bson.D{primitive.E{Key: "email", Value: validator.NormalizeEmail(email)}}
 
 	var account model.Account
 	if err := r.accountsCollection.FindOne(ctx, filterBson).Decode(&account); err != nil {

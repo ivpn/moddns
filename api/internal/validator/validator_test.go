@@ -39,7 +39,7 @@ func TestValidatePassword(t *testing.T) {
 		// characters must not let a short password pass, nor wrongly reject a
 		// password whose byte length exceeds 64 but whose rune length does not.
 		{"multibyte short rejected (7 chars, 19 bytes)", "Aa1!😀😀😀", false},
-		{"multibyte 12 chars accepted (>12 bytes)", "Aa1!" + strings.Repeat("😀", 8), true}, // 12 chars, 36 bytes
+		{"multibyte 12 chars accepted (>12 bytes)", "Aa1!" + strings.Repeat("😀", 8), true},  // 12 chars, 36 bytes
 		{"multibyte 64 chars accepted (>64 bytes)", "Aa1!" + strings.Repeat("é", 60), true}, // 64 chars, 124 bytes
 		{"multibyte 65 chars rejected", "Aa1!" + strings.Repeat("é", 61), false},            // 65 chars
 		{"empty", "", false},
@@ -236,6 +236,32 @@ func Test_NormalizeName(t *testing.T) {
 			got := NormalizeName(tt.in)
 			if got != tt.want {
 				t.Errorf("NormalizeName(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_NormalizeEmail(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"lowercases", "User@Example.COM", "user@example.com"},
+		{"trims surrounding whitespace", "  user@example.com  ", "user@example.com"},
+		{"trims and lowercases", " User@Example.COM ", "user@example.com"},
+		{"already canonical unchanged", "user@example.com", "user@example.com"},
+		{"empty stays empty", "", ""},
+		{"whitespace-only collapses to empty", "   ", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := NormalizeEmail(tt.in)
+			if got != tt.want {
+				t.Errorf("NormalizeEmail(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+			if again := NormalizeEmail(got); again != got {
+				t.Errorf("NormalizeEmail not idempotent: %q -> %q", got, again)
 			}
 		})
 	}

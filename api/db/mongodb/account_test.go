@@ -244,6 +244,35 @@ func (s *AccountRepositorySuite) TestGetByEmailAndToken() {
 	s.Equal(acc.ID, gotByToken.ID, "token lookup mismatch")
 }
 
+// TestEmailCaseInsensitiveRoundTrip validates that emails are stored in
+// canonical lowercase form and that lookups tolerate any casing/whitespace.
+// specRef: api-endpoint-behaviour.md A1, B6, C1
+func (s *AccountRepositorySuite) TestEmailCaseInsensitiveRoundTrip() {
+	if s.client == nil {
+		s.T().Skip("client unavailable")
+	}
+	ctx := context.Background()
+
+	accountID := primitive.NewObjectID().Hex()
+	acc, err := s.repo.CreateAccount(ctx, " Mixed.Case@Example.COM ", "secret", accountID, "profile-case")
+	s.Require().NoError(err, "CreateAccount")
+	s.Equal("mixed.case@example.com", acc.Email, "stored email must be canonical lowercase")
+
+	fetched, err := s.repo.GetAccountById(ctx, accountID)
+	s.Require().NoError(err, "GetAccountById")
+	s.Equal("mixed.case@example.com", fetched.Email, "persisted email must be canonical lowercase")
+
+	for _, variant := range []string{
+		"mixed.case@example.com",
+		"MIXED.CASE@EXAMPLE.COM",
+		" Mixed.Case@Example.COM ",
+	} {
+		got, err := s.repo.GetAccountByEmail(ctx, variant)
+		s.Require().NoError(err, "GetAccountByEmail(%q)", variant)
+		s.Equal(acc.ID, got.ID, "lookup by %q must find the account", variant)
+	}
+}
+
 // Entry point.
 func TestAccountRepositorySuite(t *testing.T) {
 	suite.Run(t, new(AccountRepositorySuite))
