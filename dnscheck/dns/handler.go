@@ -32,7 +32,6 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Error().Interface("panic", rec).
-				Str("remote", w.RemoteAddr().String()).
 				Msg("Recovered from panic while serving DNS request")
 		}
 	}()
@@ -41,8 +40,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// body, so a message can declare a question yet carry none. That unpacks
 	// without error, leaving Question empty here.
 	if len(r.Question) == 0 {
-		log.Debug().Str("remote", w.RemoteAddr().String()).
-			Msg("Rejecting DNS request with no question section")
+		log.Debug().Msg("Rejecting DNS request with no question section")
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeFormatError)
 		if err := w.WriteMsg(m); err != nil {
@@ -51,7 +49,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	log.Debug().Str("protocol", w.RemoteAddr().Network()).Str("qtype", dns.Type(r.Question[0].Qtype).String()).Msgf("Received DNS request: %s", r.Question[0].Name)
+	log.Debug().Str("protocol", w.RemoteAddr().Network()).Str("qtype", dns.Type(r.Question[0].Qtype).String()).Msg("Received DNS request")
 
 	msg := dns.Msg{}
 	msg.SetReply(r)
@@ -72,35 +70,32 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			if !matched {
-				log.Warn().Str("subdomain", subdomain).Msg("Unidentified subdomain")
+				log.Warn().Msg("Unidentified subdomain")
 				return
 			}
 
 			record := DNSLogRecord{}
 
-			IPAddress, err := clientIP(w.RemoteAddr())
+			clientAddr, err := clientIP(w.RemoteAddr())
 			if err != nil {
-				log.Warn().Err(err).Str("remote", w.RemoteAddr().String()).Msg("Cannot determine client IP address")
+				log.Warn().Err(err).Msg("Cannot determine client IP address")
 				return
 			}
 
 			// A failed lookup degrades to "no ASN information"; the IP-range check
 			// below still decides the status and the answer is still written.
-			lookupData, err := h.srv.GeoLookup.GetGeoLookup(IPAddress)
+			lookupData, err := h.srv.GeoLookup.GetGeoLookup(clientAddr.String())
 			if err != nil || lookupData == nil {
 				log.Error().Err(err).Msg("GeoIP lookup failed, continuing without ASN")
-				lookupData = &maxmind.GeoLookup{IPAddress: IPAddress}
+				lookupData = &maxmind.GeoLookup{}
 			}
 
-			record.IPAddress = IPAddress
-			record.ASN = lookupData.ASN
-			record.ASNOrganization = lookupData.ASNOrganization
-
 			// decide whether IP address or ASN is from modDNS
-			log.Trace().Bool("isOurIPRange", strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange)).
-				Bool("isOurASN", lookupData.ASN == h.srv.Config.Server.ASN).
+			isOurIPRange := h.srv.Config.Server.IPRange.Contains(clientAddr)
+			isOurASN := lookupData.ASN != 0 && lookupData.ASN == h.srv.Config.Server.ASN
+			log.Trace().Bool("isOurIPRange", isOurIPRange).Bool("isOurASN", isOurASN).
 				Msg("Checking if IP address or ASN is from our range")
-			if strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange) || lookupData.ASN == h.srv.Config.Server.ASN {
+			if isOurIPRange || isOurASN {
 				profileId := h.extractConfiguredProfileId(r)
 				record.Status = StatusConfigured
 				record.ProfileId = profileId
@@ -114,9 +109,9 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 			cacheKey := cache.HMACKey(h.srv.Config.Cache.HMACKey, subdomain)
 			if err = h.srv.Cache.SaveQueryData(cacheKey, recordBytes); err != nil {
-				log.Error().Err(err).Str("ID", subdomain).Msg("Failed to save record")
+				log.Error().Err(err).Msg("Failed to save record")
 			}
-			log.Debug().Str("ID", subdomain).Msg("Record saved")
+			log.Debug().Msg("Record saved")
 		}
 
 		msg.Answer = append(msg.Answer, &dns.A{
@@ -223,14 +218,14 @@ func (h *Handler) createSOA() []dns.RR {
 
 // clientIP returns the transport-level source address of the query. It is read
 // straight from the socket address and never resolved.
-func clientIP(addr net.Addr) (string, error) {
+func clientIP(addr net.Addr) (net.IP, error) {
 	switch a := addr.(type) {
 	case *net.UDPAddr:
-		return a.IP.String(), nil
+		return a.IP, nil
 	case *net.TCPAddr:
-		return a.IP.String(), nil
+		return a.IP, nil
 	default:
-		return "", fmt.Errorf("unsupported remote address type %T", addr)
+		return nil, fmt.Errorf("unsupported remote address type %T", addr)
 	}
 }
 

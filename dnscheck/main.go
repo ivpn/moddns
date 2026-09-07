@@ -24,7 +24,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to read app configuration")
 	}
 
-	cache, err := cache.New(cache.CacheTypeBigCache)
+	cache, err := cache.New(cache.CacheTypeBigCache, cfg.Cache.TTL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create cache")
 	}

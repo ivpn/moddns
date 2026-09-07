@@ -5,12 +5,11 @@ const (
 	StatusUnconfigured = "unconfigured"
 )
 
+// DNSLogRecord is what the DNS side stores for the HTTP side to read. The
+// client IP and ASN only ever feed the status decision and are not kept.
 type DNSLogRecord struct {
-	Status          string `json:"status"`
-	ProfileId       string `json:"profile_id"`
-	IPAddress       string `json:"ip_address"`
-	ASN             uint   `json:"asn"`
-	ASNOrganization string `json:"asn_organization"`
+	Status    string `json:"status"`
+	ProfileId string `json:"profile_id"`
 }
 
 // DNSCheckResponse is the minimal HTTP response payload.

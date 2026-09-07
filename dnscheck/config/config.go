@@ -2,10 +2,17 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"time"
 )
+
+// DefaultCacheTTL bounds how long a check record stays in memory. The frontend
+// reads it within milliseconds of the DNS query, so this only needs to cover
+// resolver retries.
+const DefaultCacheTTL = 15 * time.Second
 
 // Config represents the application configuration
 type Config struct {
@@ -20,7 +27,8 @@ type AuthoritativeDNSServerConfig struct {
 	Domain    string
 	IPAddress string
 	ASN       uint
-	IPRange   string
+	// IPRange is the CIDR block our resolvers query from; required.
+	IPRange *net.IPNet
 }
 
 // APIConfig represents the API configuration
@@ -54,10 +62,22 @@ func (cfg *GeoLookupConfig) IsValid() error {
 
 // New creates a new Config instance
 func New() (*Config, error) {
-	cacheTTL := os.Getenv("CACHE_TTL")
-	ttl, err := time.ParseDuration(cacheTTL)
+	ttl := DefaultCacheTTL
+	if raw := os.Getenv("CACHE_TTL"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("CACHE_TTL must be a positive duration, got %q", raw)
+		}
+		ttl = parsed
+	}
+
+	rawRange := os.Getenv("DNS_AUTH_SERVER_IP_RANGE")
+	if rawRange == "" {
+		return nil, errors.New("DNS_AUTH_SERVER_IP_RANGE environment variable is required")
+	}
+	_, ipRange, err := net.ParseCIDR(rawRange)
 	if err != nil {
-		ttl = 1 * time.Minute
+		return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE must be CIDR notation (e.g. 10.5.0.0/16), got %q", rawRange)
 	}
 
 	asn := os.Getenv("DNS_AUTH_SERVER_ASN")
@@ -83,7 +103,7 @@ func New() (*Config, error) {
 			Domain:    os.Getenv("DNS_AUTH_SERVER_DOMAIN"),
 			IPAddress: os.Getenv("DNS_AUTH_SERVER_IP_ADDRESS"),
 			ASN:       uint(asnUint),
-			IPRange:   os.Getenv("DNS_AUTH_SERVER_IP_RANGE"),
+			IPRange:   ipRange,
 		},
 		API: &APIConfig{
 			Port:           os.Getenv("API_PORT"),

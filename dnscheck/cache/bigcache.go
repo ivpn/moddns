@@ -7,16 +7,14 @@ import (
 	"github.com/allegro/bigcache/v3"
 )
 
-const expirationTime = 1 * time.Minute
-
 type BigCache struct {
 	cache *bigcache.BigCache
 }
 
-// NewBigcache creates a new BigCache instance
-func NewBigcache() (*BigCache, error) {
+// NewBigcache creates a new BigCache instance with the given entry lifetime.
+func NewBigcache(ttl time.Duration) (*BigCache, error) {
 	queriesCache := &BigCache{}
-	cache, err := bigcache.New(context.Background(), bigcache.DefaultConfig(expirationTime))
+	cache, err := bigcache.New(context.Background(), bigcache.DefaultConfig(ttl))
 	if err != nil {
 		return nil, err
 	}

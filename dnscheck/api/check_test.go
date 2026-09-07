@@ -1,16 +1,20 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/dnscheck/cache"
 	"github.com/dnscheck/config"
 	"github.com/dnscheck/dns"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type memCache struct {
@@ -42,10 +46,15 @@ const (
 )
 
 func newTestServer(c *memCache) *APIServer {
+	return newTestServerWithAccessLog(c, io.Discard)
+}
+
+func newTestServerWithAccessLog(c *memCache, accessLog io.Writer) *APIServer {
 	s := NewServer(&config.Config{
 		API:   &config.APIConfig{ApiAllowOrigin: "*"},
 		Cache: &config.CacheConfig{HMACKey: testHMACKey},
 	}, c)
+	s.AccessLog = accessLog
 	s.RegisterRoutes()
 	return s
 }
@@ -97,10 +106,7 @@ func TestDnsCheckReturnsDisconnectedWhenNoRecord(t *testing.T) {
 // specRef: dnscheck-behaviour.md #A3, #A4
 func TestDnsCheckReturnsNarrowRecordOnceOnly(t *testing.T) {
 	c := &memCache{}
-	rec, _ := json.Marshal(dns.DNSLogRecord{
-		Status: dns.StatusConfigured, ProfileId: "profile1",
-		IPAddress: "203.0.113.5", ASN: 64512, ASNOrganization: "OURS",
-	})
+	rec, _ := json.Marshal(dns.DNSLogRecord{Status: dns.StatusConfigured, ProfileId: "profile1"})
 	if err := c.SaveQueryData(cache.HMACKey(testHMACKey, testSubdomain), rec); err != nil {
 		t.Fatal(err)
 	}
@@ -117,13 +123,51 @@ func TestDnsCheckReturnsNarrowRecordOnceOnly(t *testing.T) {
 	if got["status"] != dns.StatusConfigured || got["profile_id"] != "profile1" {
 		t.Errorf("body = %s", body)
 	}
-	for _, leaked := range []string{"ip_address", "asn", "asn_organization"} {
-		if _, ok := got[leaked]; ok {
-			t.Errorf("response leaks %q: %s", leaked, body)
-		}
+	if len(got) != 2 {
+		t.Errorf("response must carry exactly status and profile_id: %s", body)
 	}
 
 	if resp, _ := get(t, s, testHost); resp.StatusCode != http.StatusNotFound {
 		t.Errorf("second read status = %d, want 404 (delete-on-read)", resp.StatusCode)
+	}
+}
+
+// The Host header (probe ID + profile ID) and the client address must not be
+// logged by the handler or the access-log middleware.
+//
+// specRef: dnscheck-behaviour.md #A5
+func TestDnsCheckLogsCarryNoClientIdentifiers(t *testing.T) {
+	var buf bytes.Buffer
+	prev := log.Logger
+	prevLevel := zerolog.GlobalLevel()
+	log.Logger = zerolog.New(&buf)
+	zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	t.Cleanup(func() { log.Logger = prev; zerolog.SetGlobalLevel(prevLevel) })
+
+	c := &memCache{}
+	rec, _ := json.Marshal(dns.DNSLogRecord{Status: dns.StatusConfigured, ProfileId: "profile1"})
+	_ = c.SaveQueryData(cache.HMACKey(testHMACKey, testSubdomain), rec)
+	// The access log shares the buffer so the middleware format is covered too.
+	s := newTestServerWithAccessLog(c, &buf)
+
+	for _, host := range []string{testHost, testHost, "short.check.example.test", "localhost"} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = host
+		req.RemoteAddr = "203.0.113.5:40000"
+		resp, err := s.App.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "GET") {
+		t.Fatalf("expected access-log lines in output, got:\n%s", out)
+	}
+	for _, secret := range []string{"203.0.113.5", testSubdomain, "profile1", "check.example.test"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("log output contains %q:\n%s", secret, out)
+		}
 	}
 }
