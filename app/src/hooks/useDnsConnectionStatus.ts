@@ -35,9 +35,10 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
       setError('');
       const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
       const nanoid = customAlphabet(alphabet, 12);
-      const randID = nanoid();
-      const profileId = activeProfile?.profile_id || '';
-      const subdomain = `${randID}-${profileId}`;
+      // The probe name is pure randomness. The profile ID is reported back by
+      // the proxy (EDNS0), never sent in the hostname, where it would be visible
+      // to the resolver chain and in the TLS SNI.
+      const subdomain = nanoid();
       const dnsCheckDomain = import.meta.env.VITE_DNS_CHECK_DOMAIN || 'test.moddns.net';
       const url = `https://${subdomain}.${dnsCheckDomain}/`;
       const response = await axios.get(url);
@@ -71,7 +72,6 @@ export function useDnsConnectionStatus(pollMs: number = 5000, options?: { enable
     executeDnsCheck();
     intervalRef.current = setInterval(() => executeDnsCheck(), pollMs);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProfile?.profile_id, enabled, pollMs]);
 
   const getCurrentProfileName = () => {

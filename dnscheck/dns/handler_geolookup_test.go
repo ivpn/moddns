@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"os"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ import (
 
 const (
 	testDomain    = "check.example.test"
-	testSubdomain = "abcdefghijkl-profile1"
+	testSubdomain = "abcdefghijkl"
 	testOurASN    = 64512
 )
 
@@ -53,6 +54,13 @@ func (w *tcpCaptureWriter) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.IPv4(203, 0, 113, 5), Port: 40000}
 }
 func (w *tcpCaptureWriter) Network() string { return "tcp" }
+
+// Handler logs are noise in test output; the log-hygiene test re-enables them
+// on its own buffer.
+func TestMain(m *testing.M) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	os.Exit(m.Run())
+}
 
 func mustCIDR(t *testing.T, s string) *net.IPNet {
 	t.Helper()
@@ -292,6 +300,32 @@ func TestServeDNSLogsCarryNoClientIdentifiers(t *testing.T) {
 	for _, secret := range []string{"203.0.113.5", testSubdomain, "profile1", "short-profile1"} {
 		if strings.Contains(out, secret) {
 			t.Errorf("log output contains %q:\n%s", secret, out)
+		}
+	}
+}
+
+// specRef: dnscheck-behaviour.md #D3
+func TestServeDNSProbeLabelFormat(t *testing.T) {
+	cases := []struct {
+		label string
+		saved bool
+	}{
+		{"abcdefghijkl", true},          // current frontend: bare nanoid
+		{"ABCdef123456", true},          // mixed alphabet
+		{"abcdefghijkl-profile1", true}, // previous frontend bundle: tolerated
+		{"abcdefghijk", false},          // 11 chars
+		{"abcdefghijklm", false},        // 13 chars
+		{"abcdefghijkl-", false},        // dangling separator
+		{"abcdefghij_l", false},         // non-alphanumeric
+	}
+	for _, tc := range cases {
+		cache := &memCache{}
+		h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{}}, cache)
+		req := new(dns.Msg)
+		req.SetQuestion(tc.label+"."+testDomain+".", dns.TypeA)
+		h.ServeDNS(&captureWriter{}, req)
+		if got := len(cache.saved) == 1; got != tc.saved {
+			t.Errorf("label %q: record saved = %v, want %v", tc.label, got, tc.saved)
 		}
 	}
 }

@@ -41,7 +41,7 @@ func (c *memCache) DeleteQueryData(key string) error { delete(c.saved, key); ret
 
 const (
 	testHMACKey   = "test-key"
-	testSubdomain = "abcdefghijkl-profile1"
+	testSubdomain = "abcdefghijkl"
 	testHost      = testSubdomain + ".check.example.test"
 )
 
@@ -82,9 +82,27 @@ func TestDnsCheckRejectsHostWithoutSubdomain(t *testing.T) {
 
 // specRef: dnscheck-behaviour.md #A1
 func TestDnsCheckRejectsMalformedSubdomain(t *testing.T) {
-	resp, _ := get(t, newTestServer(&memCache{}), "short.check.example.test")
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", resp.StatusCode)
+	for _, label := range []string{"short", "abcdefghijklm", "abcdefghijkl-", "abcdefghij_l"} {
+		resp, _ := get(t, newTestServer(&memCache{}), label+".check.example.test")
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("label %q: status = %d, want 400", label, resp.StatusCode)
+		}
+	}
+}
+
+// The previous frontend bundle appended "-<profile id>"; it keeps working until
+// every client has picked up the new bundle.
+//
+// specRef: dnscheck-behaviour.md #A1
+func TestDnsCheckToleratesLegacySuffix(t *testing.T) {
+	c := &memCache{}
+	rec, _ := json.Marshal(dns.DNSLogRecord{Status: dns.StatusConfigured, ProfileId: "profile1"})
+	legacy := testSubdomain + "-profile1"
+	_ = c.SaveQueryData(cache.HMACKey(testHMACKey, legacy), rec)
+
+	resp, _ := get(t, newTestServer(c), legacy+".check.example.test")
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200 for a legacy-format label", resp.StatusCode)
 	}
 }
 

@@ -15,12 +15,15 @@ import (
 )
 
 const (
-	// SubdomainRegexPattern validates the expected dnscheck subdomain format:
-	// 12 alphanumeric chars (nanoid), a dash, then the profile ID.
-	SubdomainRegexPattern          = `^[a-zA-Z0-9]{12}-[a-zA-Z0-9-]+$`
+	// SubdomainRegexPattern validates the dnscheck probe label: 12 alphanumeric
+	// chars (nanoid). A "-suffix" is tolerated for clients still running the
+	// previous frontend bundle, which appended the profile ID.
+	SubdomainRegexPattern          = `^[a-zA-Z0-9]{12}(-[a-zA-Z0-9-]+)?$`
 	ProfileIdAdditionalSectionCode = 0xfeed
 	TTL                            = 300
 )
+
+var subdomainRegex = regexp.MustCompile(SubdomainRegexPattern)
 
 type Handler struct {
 	srv *DNSServer
@@ -62,14 +65,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if strings.Contains(domain, h.srv.Config.Server.Domain) {
 			subdomain := strings.Split(domain, ".")[0]
 
-			// Regex to identify the subdomain with the first part being exactly 12 characters
-			matched, err := regexp.MatchString(SubdomainRegexPattern, subdomain)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to compile regex")
-				return
-			}
-
-			if !matched {
+			if !subdomainRegex.MatchString(subdomain) {
 				log.Warn().Msg("Unidentified subdomain")
 				return
 			}
