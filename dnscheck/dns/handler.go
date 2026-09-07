@@ -91,7 +91,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 
 			// decide whether IP address or ASN is from modDNS
-			isOurIPRange := h.srv.Config.Server.IPRange.Contains(clientAddr)
+			isOurIPRange := h.srv.Config.Server.ContainsIP(clientAddr)
 			isOurASN := lookupData.ASN != 0 && lookupData.ASN == h.srv.Config.Server.ASN
 			log.Trace().Bool("isOurIPRange", isOurIPRange).Bool("isOurASN", isOurASN).
 				Msg("Checking if IP address or ASN is from our range")

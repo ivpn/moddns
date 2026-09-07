@@ -70,7 +70,7 @@ func newTestHandler(t *testing.T, geo GeoLookuper, cache *memCache) *Handler {
 				Domain:    testDomain,
 				IPAddress: "192.0.2.1",
 				ASN:       testOurASN,
-				IPRange:   mustCIDR(t, "198.51.100.0/24"),
+				IPRanges:  []*net.IPNet{mustCIDR(t, "198.51.100.0/24"), mustCIDR(t, "192.0.2.77/32")},
 			},
 			Cache: &config.CacheConfig{HMACKey: "test-key"},
 		},
@@ -158,6 +158,26 @@ type rangeCaptureWriter struct{ captureWriter }
 
 func (w *rangeCaptureWriter) RemoteAddr() net.Addr {
 	return &net.UDPAddr{IP: net.IPv4(198, 51, 100, 7), Port: 40000}
+}
+
+// Any configured range qualifies, including a single-address /32.
+//
+// specRef: dnscheck-behaviour.md #D7
+func TestServeDNSMatchesAnyConfiguredRange(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{}}, cache)
+
+	h.ServeDNS(&singleAddrCaptureWriter{}, checkQuery())
+
+	if rec := savedRecord(t, cache); rec.Status != StatusConfigured {
+		t.Errorf("status = %q, want %q for a client matching the second range", rec.Status, StatusConfigured)
+	}
+}
+
+type singleAddrCaptureWriter struct{ captureWriter }
+
+func (w *singleAddrCaptureWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(192, 0, 2, 77), Port: 40000}
 }
 
 // A CIDR range must not match by string prefix: 198.51.100.0/24 is not

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -35,8 +36,31 @@ func TestNewParsesIPRangeAsCIDR(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Server.IPRange == nil || cfg.Server.IPRange.String() != "10.5.0.0/16" {
-		t.Errorf("IPRange = %v, want 10.5.0.0/16", cfg.Server.IPRange)
+	if len(cfg.Server.IPRanges) != 1 || cfg.Server.IPRanges[0].String() != "10.5.0.0/16" {
+		t.Errorf("IPRanges = %v, want [10.5.0.0/16]", cfg.Server.IPRanges)
+	}
+
+	// PoPs live in unrelated blocks, so a comma-separated list is accepted;
+	// whitespace and a trailing comma are tolerated.
+	t.Setenv("DNS_AUTH_SERVER_IP_RANGE", "198.51.100.7/32, 203.0.113.0/24,")
+	cfg, err = New()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(cfg.Server.IPRanges) != 2 {
+		t.Fatalf("IPRanges = %v, want two entries", cfg.Server.IPRanges)
+	}
+	if !cfg.Server.ContainsIP(net.ParseIP("198.51.100.7")) || !cfg.Server.ContainsIP(net.ParseIP("203.0.113.9")) {
+		t.Errorf("ContainsIP does not cover both configured ranges: %v", cfg.Server.IPRanges)
+	}
+	if cfg.Server.ContainsIP(net.ParseIP("198.51.100.8")) {
+		t.Errorf("/32 entry must match a single address only")
+	}
+
+	// One bad entry fails the whole list.
+	t.Setenv("DNS_AUTH_SERVER_IP_RANGE", "198.51.100.7/32,10.5.")
+	if _, err := New(); err == nil {
+		t.Fatal("expected an error when one list entry is not CIDR")
 	}
 
 	// The range is what makes a query "ours"; without it every check would

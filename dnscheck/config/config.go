@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,8 +28,19 @@ type AuthoritativeDNSServerConfig struct {
 	Domain    string
 	IPAddress string
 	ASN       uint
-	// IPRange is the CIDR block our resolvers query from; required.
-	IPRange *net.IPNet
+	// IPRanges are the CIDR blocks our resolvers query from; at least one is
+	// required. PoPs sit in unrelated address blocks, so this is a list.
+	IPRanges []*net.IPNet
+}
+
+// ContainsIP reports whether ip falls inside any configured range.
+func (c *AuthoritativeDNSServerConfig) ContainsIP(ip net.IP) bool {
+	for _, r := range c.IPRanges {
+		if r.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // APIConfig represents the API configuration
@@ -71,13 +83,9 @@ func New() (*Config, error) {
 		ttl = parsed
 	}
 
-	rawRange := os.Getenv("DNS_AUTH_SERVER_IP_RANGE")
-	if rawRange == "" {
-		return nil, errors.New("DNS_AUTH_SERVER_IP_RANGE environment variable is required")
-	}
-	_, ipRange, err := net.ParseCIDR(rawRange)
+	ipRanges, err := parseIPRanges(os.Getenv("DNS_AUTH_SERVER_IP_RANGE"))
 	if err != nil {
-		return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE must be CIDR notation (e.g. 10.5.0.0/16), got %q", rawRange)
+		return nil, err
 	}
 
 	asn := os.Getenv("DNS_AUTH_SERVER_ASN")
@@ -103,7 +111,7 @@ func New() (*Config, error) {
 			Domain:    os.Getenv("DNS_AUTH_SERVER_DOMAIN"),
 			IPAddress: os.Getenv("DNS_AUTH_SERVER_IP_ADDRESS"),
 			ASN:       uint(asnUint),
-			IPRange:   ipRange,
+			IPRanges:  ipRanges,
 		},
 		API: &APIConfig{
 			Port:           os.Getenv("API_PORT"),
@@ -115,4 +123,25 @@ func New() (*Config, error) {
 		},
 		GeoLookupConfig: geoLookup,
 	}, nil
+}
+
+// parseIPRanges parses a comma-separated list of CIDR blocks. Every entry must
+// parse and at least one is required.
+func parseIPRanges(raw string) ([]*net.IPNet, error) {
+	var ranges []*net.IPNet
+	for _, part := range strings.Split(raw, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		_, n, err := net.ParseCIDR(part)
+		if err != nil {
+			return nil, fmt.Errorf("DNS_AUTH_SERVER_IP_RANGE entries must be CIDR notation (e.g. 10.5.0.0/16 or 198.51.100.7/32), got %q", part)
+		}
+		ranges = append(ranges, n)
+	}
+	if len(ranges) == 0 {
+		return nil, errors.New("DNS_AUTH_SERVER_IP_RANGE environment variable is required (comma-separated CIDR list)")
+	}
+	return ranges, nil
 }
