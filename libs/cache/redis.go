@@ -50,6 +50,12 @@ func NewDirectClient(cfg *Config) (*redis.Client, error) {
 		Username: cfg.Username,
 		Password: cfg.Password,
 	}
+	if cfg.CommandTimeout > 0 {
+		options.DialTimeout = cfg.CommandTimeout
+		options.ReadTimeout = cfg.CommandTimeout
+		options.WriteTimeout = cfg.CommandTimeout
+		options.MaxRetries = 1
+	}
 
 	return redis.NewClient(options), nil
 }
@@ -65,6 +71,12 @@ func NewFailoverClient(cfg *Config) (*redis.Client, error) {
 		SentinelUsername: cfg.FailoverUsername,
 		SentinelPassword: cfg.FailoverPassword,
 		DB:               0,
+	}
+	if cfg.CommandTimeout > 0 {
+		options.DialTimeout = cfg.CommandTimeout
+		options.ReadTimeout = cfg.CommandTimeout
+		options.WriteTimeout = cfg.CommandTimeout
+		options.MaxRetries = 1
 	}
 
 	if cfg.TLSEnabled {
@@ -87,7 +99,7 @@ func NewFailoverClient(cfg *Config) (*redis.Client, error) {
 		options.TLSConfig = &tls.Config{
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
-			InsecureSkipVerify: cfg.TLSInsecureSkipVerify, // Only for testing, use false in production
+			InsecureSkipVerify: cfg.TLSInsecureSkipVerify, //nolint:gosec // operator opt-in for dev/test only; false in production
 		}
 	}
 	return redis.NewFailoverClient(options), nil
