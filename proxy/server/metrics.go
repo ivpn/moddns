@@ -7,7 +7,9 @@ import "time"
 // telemetry library.
 type Metrics interface {
 	RecordQuery(proto string)
-	RecordProfileCacheLookup(hit bool)
+	// RecordProfileCacheLookup counts one settings lookup by outcome:
+	// hit, miss (fetched), stale (last-known-good served) or unavailable.
+	RecordProfileCacheLookup(status string)
 	RecordQueryDuration(proto string, d time.Duration)
 	RecordDomainFilterDuration(proto string, d time.Duration)
 	RecordIPFilterDuration(proto string, d time.Duration)
@@ -21,7 +23,7 @@ type Metrics interface {
 type noopMetrics struct{}
 
 func (noopMetrics) RecordQuery(string)                               {}
-func (noopMetrics) RecordProfileCacheLookup(bool)                    {}
+func (noopMetrics) RecordProfileCacheLookup(string)                  {}
 func (noopMetrics) RecordQueryDuration(string, time.Duration)        {}
 func (noopMetrics) RecordDomainFilterDuration(string, time.Duration) {}
 func (noopMetrics) RecordIPFilterDuration(string, time.Duration)     {}

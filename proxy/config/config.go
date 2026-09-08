@@ -100,7 +100,10 @@ type ServerConfig struct {
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
-	MaxGoroutines           uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
+	// ProfileSettingsCacheSize bounds the in-process settings cache (LRU); entries
+	// past the TTL stay until evicted and serve as last-known-good. PROFILE_SETTINGS_CACHE_SIZE.
+	ProfileSettingsCacheSize int
+	MaxGoroutines            uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
 }
 
 // ServicesConfig configures ASN-based services blocking.
@@ -357,6 +360,7 @@ func New() (*Config, error) {
 		}
 		profileSettingsCacheTTL = parsed
 	}
+	profileSettingsCacheSize := loadProfileSettingsCacheSize()
 
 	// Get AdGuard log level (default to "info" if not set or invalid)
 	adguardLogLevel := strings.ToLower(os.Getenv("LOG_LEVEL_ADGUARD"))
@@ -385,11 +389,12 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Names:                   parseCSV(os.Getenv("SERVER_NAME")),
-			DnsCheckDomain:          dnsCheckDomain,
-			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
-			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
-			MaxGoroutines:           loadMaxGoroutines(),
+			Names:                    parseCSV(os.Getenv("SERVER_NAME")),
+			DnsCheckDomain:           dnsCheckDomain,
+			DnsCheckPort:             os.Getenv("DNS_CHECK_PORT"),
+			ProfileSettingsCacheTTL:  profileSettingsCacheTTL,
+			ProfileSettingsCacheSize: profileSettingsCacheSize,
+			MaxGoroutines:            loadMaxGoroutines(),
 		},
 		Services: &ServicesConfig{
 			CatalogPath:        servicesCatalogPath,
@@ -513,4 +518,20 @@ func loadMetricsConfig() *MetricsConfig {
 		cfg.Port = v
 	}
 	return cfg
+}
+
+const defaultProfileSettingsCacheSize = 100_000
+
+// loadProfileSettingsCacheSize reads PROFILE_SETTINGS_CACHE_SIZE; a missing,
+// non-numeric or non-positive value keeps the default.
+func loadProfileSettingsCacheSize() int {
+	v := os.Getenv("PROFILE_SETTINGS_CACHE_SIZE")
+	if v == "" {
+		return defaultProfileSettingsCacheSize
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return defaultProfileSettingsCacheSize
+	}
+	return n
 }

@@ -26,3 +26,24 @@ func TestLoadMaxGoroutines(t *testing.T) {
 		})
 	}
 }
+
+// specRef: proxy-request-admission-behaviour.md #Q13
+func TestLoadProfileSettingsCacheSize(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+		want int
+	}{
+		{name: "default when unset", env: "", want: 100_000},
+		{name: "override", env: "5000", want: 5000},
+		{name: "zero keeps default", env: "0", want: 100_000},
+		{name: "negative keeps default", env: "-1", want: 100_000},
+		{name: "non-numeric keeps default", env: "lots", want: 100_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PROFILE_SETTINGS_CACHE_SIZE", tt.env)
+			assert.Equal(t, tt.want, loadProfileSettingsCacheSize())
+		})
+	}
+}

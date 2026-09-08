@@ -8,8 +8,8 @@ import (
 
 	toxiclient "github.com/Shopify/toxiproxy/v2/client"
 	libscache "github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/model"
-	gocache "github.com/patrickmn/go-cache"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -222,8 +222,9 @@ func BenchmarkGetProfileSettings(b *testing.B) {
 				require.NoError(b, err)
 				require.Nil(b, ps.PrivacyErr)
 
-				localCache := gocache.New(30*time.Second, time.Minute)
-				localCache.Set(benchProfileID, ps, gocache.DefaultExpiration)
+				localCache, err := settingscache.New(30*time.Second, 1024)
+				require.NoError(b, err)
+				localCache.Put(benchProfileID, ps)
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {

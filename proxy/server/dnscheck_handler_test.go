@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/miekg/dns"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,9 +100,7 @@ func TestBuildDNSCheckResponse(t *testing.T) {
 			req.Extra = append(req.Extra, opt)
 
 			upstream := c.setupUpstream(req)
-			server := &Server{
-				ProfileSettingsCache: gocache.New(gocache.NoExpiration, 0),
-			}
+			server := &Server{}
 			resp := server.buildDNSCheckResponse(req, upstream)
 			c.assert(t, req, upstream, resp)
 		})

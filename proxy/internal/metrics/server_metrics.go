@@ -27,7 +27,7 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		}, []string{"proto"}),
 		profileCacheLookups: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "proxy_dns_profile_settings_cache_total",
-			Help: "Profile settings cache lookups by status.",
+			Help: "Profile settings lookups by outcome: hit, miss, stale (last-known-good served), unavailable.",
 		}, []string{"status"}),
 		queryDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "proxy_dns_query_duration_seconds",
@@ -75,11 +75,7 @@ func (m *ServerMetrics) RecordQuery(proto string) {
 	m.queries.WithLabelValues(proto).Inc()
 }
 
-func (m *ServerMetrics) RecordProfileCacheLookup(hit bool) {
-	status := "miss"
-	if hit {
-		status = "hit"
-	}
+func (m *ServerMetrics) RecordProfileCacheLookup(status string) {
 	m.profileCacheLookups.WithLabelValues(status).Inc()
 }
 

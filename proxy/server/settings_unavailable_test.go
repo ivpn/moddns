@@ -14,6 +14,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/cache"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/miekg/dns"
@@ -22,14 +23,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// recordingMetrics implements Metrics and records stage-error pairs.
+// recordingMetrics implements Metrics and records stage-error pairs and
+// settings-cache lookup outcomes.
 type recordingMetrics struct {
-	mu          sync.Mutex
-	stageErrors [][2]string
+	mu           sync.Mutex
+	stageErrors  [][2]string
+	cacheLookups []string
 }
 
-func (m *recordingMetrics) RecordQuery(string)                               {}
-func (m *recordingMetrics) RecordProfileCacheLookup(bool)                    {}
+func (m *recordingMetrics) RecordQuery(string) {}
+func (m *recordingMetrics) RecordProfileCacheLookup(status string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cacheLookups = append(m.cacheLookups, status)
+}
 func (m *recordingMetrics) RecordQueryDuration(string, time.Duration)        {}
 func (m *recordingMetrics) RecordDomainFilterDuration(string, time.Duration) {}
 func (m *recordingMetrics) RecordIPFilterDuration(string, time.Duration)     {}
@@ -39,6 +46,12 @@ func (m *recordingMetrics) RecordFilterStageError(phase, stage string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.stageErrors = append(m.stageErrors, [2]string{phase, stage})
+}
+
+func (m *recordingMetrics) lookups() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]string(nil), m.cacheLookups...)
 }
 
 func (m *recordingMetrics) pairs() [][2]string {
@@ -108,16 +121,18 @@ func TestPrepareRequest_PrivacyNotFound_Drops(t *testing.T) {
 // specRef: proxy-request-admission-behaviour.md #Q12
 func TestPrepareRequest_SettingsBatchError_NotCached(t *testing.T) {
 	const profileID = "storeerrprofile3"
-	c := mocks.NewCache(t)
-	c.EXPECT().GetProfileSettingsBatch(mock.Anything, profileID).
+	f := newStaleFixture(t)
+	f.cache.EXPECT().GetProfileSettingsBatch(mock.Anything, profileID).
 		Return(nil, errors.New("redis pipeline failed")).Twice()
-	s, _ := newSettingsServer(c)
 
+	// Each probe (one per breaker interval) fetches again: nothing from a failed
+	// fetch is cached, so the second call still reaches the store and still fails.
 	for i := range 2 {
-		_, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext(profileID))
+		_, errResp, err := f.s.prepareRequest(context.Background(), nil, newDoHDNSContext(profileID))
 		require.NoError(t, err, "call %d", i)
 		require.NotNil(t, errResp, "call %d", i)
 		assert.Equal(t, dns.RcodeServerFailure, errResp.Rcode, "call %d", i)
+		f.advance(settingscache.DefaultProbeInterval)
 	}
 }
 

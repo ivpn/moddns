@@ -21,10 +21,10 @@ import (
 	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 )
@@ -43,7 +43,7 @@ type Server struct {
 	DomainFilter         filter.Filter
 	IPFilter             filter.Filter
 	Cache                cache.Cache
-	ProfileSettingsCache *gocache.Cache
+	ProfileSettingsCache *settingscache.Cache
 	CollectorChannels    map[string]channel.CollectorChannel
 	LoggerFactory        logging.FactoryInterface
 	RateLimiter          *ratelimit.RateLimiter
@@ -57,12 +57,21 @@ var (
 	errProfileIdNotFound    = errors.New("profile_id not found")
 	errRateLimitedIP        = errors.New("rate limited by IP")
 	errRateLimitedProfile   = errors.New("rate limited by profile")
+	errStoreProbePending    = errors.New("settings store marked unavailable, probe not due")
 )
 
 // Labels for proxy_dns_filter_stage_errors_total raised before filtering starts.
 const (
 	phaseAdmission       = "admission"
 	stageProfileSettings = "profile_settings"
+)
+
+// Status labels for proxy_dns_profile_settings_cache_total.
+const (
+	cacheLookupHit         = "hit"
+	cacheLookupMiss        = "miss"
+	cacheLookupStale       = "stale"
+	cacheLookupUnavailable = "unavailable"
 )
 
 func NewServer(serverConfig *config.Config, collectorChannels map[string]channel.CollectorChannel) (*Server, error) {
@@ -74,8 +83,12 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	// Initialize logging factory
 	loggerFactory := logging.NewDefaultFactory()
 
-	// In-memory profile settings cache to avoid Redis round-trips for warm profiles.
-	profileSettingsCache := gocache.New(serverConfig.Server.ProfileSettingsCacheTTL, 2*serverConfig.Server.ProfileSettingsCacheTTL)
+	// In-process profile settings: fresh entries skip Redis, stale entries are
+	// last-known-good for when Redis is unreachable.
+	profileSettingsCache, err := settingscache.New(serverConfig.Server.ProfileSettingsCacheTTL, serverConfig.Server.ProfileSettingsCacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("profile settings cache: %w", err)
+	}
 
 	rl := ratelimit.New(ratelimit.Config{
 		PerIPEnabled:      serverConfig.RateLimit.PerIPEnabled,
@@ -214,46 +227,9 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 		systemLogger.Warn().Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return nil, nil, errProfileIdNotProvided
 	} else {
-		// Try in-memory profile settings cache first.
-		var settings *model.ProfileSettings
-		if cached, ok := s.ProfileSettingsCache.Get(profileId); ok {
-			s.Metrics.RecordProfileCacheLookup(true)
-			settings = cached.(*model.ProfileSettings)
-		} else {
-			s.Metrics.RecordProfileCacheLookup(false)
-			// Cache miss — fetch from Redis pipeline.
-			var fetchErr error
-			settings, fetchErr = s.Cache.GetProfileSettingsBatch(ctx, profileId)
-			if fetchErr != nil {
-				// Store unreachable: a server-side fault, answered SERVFAIL rather
-				// than dropped like a nonexistent profile (spec Q12 vs Q6).
-				s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
-				systemLogger.Err(fetchErr).Msg("Failed to fetch profile settings batch")
-				return nil, s.servFailResponse(dctx.Req), nil
-			}
-			// Cache only successful fetches (profile exists).
-			if settings.PrivacyErr == nil {
-				s.ProfileSettingsCache.Set(profileId, settings, gocache.DefaultExpiration)
-			}
-		}
-
-		// Privacy settings are required. Only an empty hash means the profile
-		// does not exist; any other read error is a store failure.
-		if settings.PrivacyErr != nil {
-			if errors.Is(settings.PrivacyErr, cache.ErrSettingsNotFound) {
-				systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
-				return nil, nil, errProfileIdNotFound
-			}
-			s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
-			systemLogger.Err(settings.PrivacyErr).Msg("Failed to read profile privacy settings")
-			return nil, s.servFailResponse(dctx.Req), nil
-		}
-		// The remaining groups may legitimately be absent (defaults apply), but
-		// a read failure on any of them means the filter inputs are incomplete.
-		if err := settings.StoreError(); err != nil {
-			s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
-			systemLogger.Err(err).Msg("Failed to read profile settings")
-			return nil, s.servFailResponse(dctx.Req), nil
+		settings, errResp, err := s.loadProfileSettings(ctx, dctx.Req, profileId, systemLogger)
+		if err != nil || errResp != nil {
+			return nil, errResp, err
 		}
 
 		// Layer 2: per-profile rate limit. Runs after the existence check so
@@ -348,6 +324,67 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 	}
 
 	return reqCtx, nil, nil
+}
+
+// loadProfileSettings returns the settings to serve the query with, applying
+// spec rows Q6 and Q12–Q14 of proxy-request-admission-behaviour.md. Exactly one
+// of the results is set: settings to continue with, a SERVFAIL response, or
+// errProfileIdNotFound meaning drop.
+func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileId string, logger logging.LoggerInterface) (*model.ProfileSettings, *dns.Msg, error) {
+	cached, state := s.ProfileSettingsCache.Get(profileId)
+	if state == settingscache.Fresh {
+		s.Metrics.RecordProfileCacheLookup(cacheLookupHit)
+		return cached, nil, nil
+	}
+
+	// While the store is known to be failing, only one probe per interval
+	// reaches it; everyone else is served from the cache or refused at once.
+	if !s.ProfileSettingsCache.FetchAllowed() {
+		return s.settingsUnavailable(req, cached, state, logger, errStoreProbePending)
+	}
+
+	fetched, fetchErr := s.Cache.GetProfileSettingsBatch(ctx, profileId)
+	if fetchErr != nil {
+		s.ProfileSettingsCache.StoreFailed()
+		return s.settingsUnavailable(req, cached, state, logger, fetchErr)
+	}
+	s.ProfileSettingsCache.StoreRecovered()
+
+	// Privacy settings are required. Only an empty hash means the profile does
+	// not exist; any other read error is a store failure.
+	if fetched.PrivacyErr != nil {
+		if errors.Is(fetched.PrivacyErr, cache.ErrSettingsNotFound) {
+			// The store answered: the profile is gone, and so is any stale copy.
+			s.ProfileSettingsCache.Evict(profileId)
+			s.Metrics.RecordProfileCacheLookup(cacheLookupMiss)
+			logger.Debug().Err(fetched.PrivacyErr).Msg(errProfileIdNotFound.Error())
+			return nil, nil, errProfileIdNotFound
+		}
+		return s.settingsUnavailable(req, cached, state, logger, fetched.PrivacyErr)
+	}
+	// The remaining groups may legitimately be absent (defaults apply), but a
+	// read failure on any of them means the filter inputs are incomplete.
+	if err := fetched.StoreError(); err != nil {
+		return s.settingsUnavailable(req, cached, state, logger, err)
+	}
+
+	s.ProfileSettingsCache.Put(profileId, fetched)
+	s.Metrics.RecordProfileCacheLookup(cacheLookupMiss)
+	return fetched, nil, nil
+}
+
+// settingsUnavailable resolves a failed fetch: last-known-good settings when
+// a stale entry exists (Q13), otherwise SERVFAIL (Q12).
+func (s *Server) settingsUnavailable(req *dns.Msg, cached *model.ProfileSettings, state settingscache.State, logger logging.LoggerInterface, cause error) (*model.ProfileSettings, *dns.Msg, error) {
+	if state == settingscache.Stale {
+		s.Metrics.RecordProfileCacheLookup(cacheLookupStale)
+		logger.Warn().Err(cause).Msg("Settings store unavailable, serving last-known-good profile settings")
+		return cached, nil, nil
+	}
+	s.Metrics.RecordProfileCacheLookup(cacheLookupUnavailable)
+	s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
+	logger.Err(cause).Msg("Failed to fetch profile settings")
+	return nil, s.servFailResponse(req), nil
 }
 
 // handleRequest runs domain filtering, resolves via the profile's upstream
