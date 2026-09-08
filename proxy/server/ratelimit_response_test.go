@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/libs/logging"
+	"github.com/ivpn/dns/proxy/cache"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
 	"github.com/ivpn/dns/proxy/mocks"
@@ -168,7 +170,7 @@ func newDoHDNSContext(profileID string) *proxy.DNSContext {
 func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 	c := mocks.NewCache(t)
 	c.EXPECT().GetProfileSettingsBatch(mock.Anything, "unknownprofile1").
-		Return(&model.ProfileSettings{PrivacyErr: errors.New("no [privacy] settings found for profile")}, nil)
+		Return(&model.ProfileSettings{PrivacyErr: fmt.Errorf("%w: [privacy]", cache.ErrSettingsNotFound)}, nil)
 	s := newProfileRateLimitServer(c, config.RateLimitResponseRefuse)
 
 	// Far past the burst of 1: every call must fail on existence, and the

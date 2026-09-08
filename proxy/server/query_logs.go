@@ -18,25 +18,31 @@ import (
 // Resolution-outcome tokens stored in QueryLog.Outcome.
 // Decision table: docs/specs/query-log-outcomes-behaviour.md (rows O1-O10).
 const (
-	OutcomeResolved       = "resolved"          // O1: NOERROR with answer records
-	OutcomeNoData         = "nodata"            // O2: NOERROR, empty answer
-	OutcomeNXDomain       = "nxdomain"          // O3
-	OutcomeBlocked        = "blocked"           // O4
-	OutcomeServfailDNSSEC = "servfail_dnssec"   // O5
-	OutcomeServfailUpstrm = "servfail_upstream" // O6
-	OutcomeTimeout        = "timeout"           // O7
-	OutcomeNetworkError   = "network_error"     // O8
-	OutcomeRefused        = "refused"           // O9
+	OutcomeResolved       = "resolved"           // O1: NOERROR with answer records
+	OutcomeNoData         = "nodata"             // O2: NOERROR, empty answer
+	OutcomeNXDomain       = "nxdomain"           // O3
+	OutcomeBlocked        = "blocked"            // O4
+	OutcomeServfailDNSSEC = "servfail_dnssec"    // O5
+	OutcomeServfailUpstrm = "servfail_upstream"  // O6
+	OutcomeTimeout        = "timeout"            // O7
+	OutcomeNetworkError   = "network_error"      // O8
+	OutcomeRefused        = "refused"            // O9
+	OutcomeUnavailable    = "filter_unavailable" // O11: settings store failed, SERVFAIL synthesized
 )
 
 // classifyOutcome maps a completed request to a resolution-outcome token.
-// Precedence (spec rows O1-O10): blocked first, then transport errors captured
+// Precedence (spec rows O1-O11): blocked, then unavailable, then transport errors captured
 // from the vendor resolve call, then rcode-based outcomes, then answer content.
 // Returns "" (unknown) only for the defensive nil-response-without-error case.
 func classifyOutcome(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext, dnssecFailed bool) string {
 	// O4 — a filter block always wins: the synthesized response is deliberate.
 	if reqCtx.FilterResult.Status == model.StatusBlocked {
 		return OutcomeBlocked
+	}
+	// O11 — a settings-store failure withheld the answer; the SERVFAIL is ours,
+	// not the recursor's, so it must not read as an upstream failure.
+	if reqCtx.FilterResult.Status == model.StatusUnavailable {
+		return OutcomeUnavailable
 	}
 
 	// O7 / O8 — the vendor resolve call failed; the client-visible SERVFAIL was

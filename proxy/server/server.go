@@ -59,6 +59,12 @@ var (
 	errRateLimitedProfile   = errors.New("rate limited by profile")
 )
 
+// Labels for proxy_dns_filter_stage_errors_total raised before filtering starts.
+const (
+	phaseAdmission       = "admission"
+	stageProfileSettings = "profile_settings"
+)
+
 func NewServer(serverConfig *config.Config, collectorChannels map[string]channel.CollectorChannel) (*Server, error) {
 	cache, err := cache.NewCache(serverConfig.Cache, cache.CacheTypeRedis)
 	if err != nil {
@@ -114,8 +120,12 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	}
 	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
 
-	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
-	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding, serverConfig.Filtering)
+	domainFilter := filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
+	domainFilter.Metrics = server.Metrics
+	ipFilter := filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding, serverConfig.Filtering)
+	ipFilter.Metrics = server.Metrics
+	server.DomainFilter = domainFilter
+	server.IPFilter = ipFilter
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength
@@ -144,7 +154,9 @@ func (s *Server) ServeDNS(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSCo
 
 // postResolve runs IP filtering, emits query logs/statistics, and responds.
 func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
-	if reqCtx.FilterResult.Status != model.StatusBlocked {
+	// Only a Processed domain phase has an answer to inspect; Blocked and
+	// Unavailable results are final.
+	if reqCtx.FilterResult.Status == model.StatusProcessed {
 		ipStart := time.Now()
 		if err := s.IPFilter.Execute(reqCtx, dctx); err != nil {
 			reqCtx.Logger.Err(err).Msg("IP Filtering error")
@@ -213,8 +225,11 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			var fetchErr error
 			settings, fetchErr = s.Cache.GetProfileSettingsBatch(ctx, profileId)
 			if fetchErr != nil {
+				// Store unreachable: a server-side fault, answered SERVFAIL rather
+				// than dropped like a nonexistent profile (spec Q12 vs Q6).
+				s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
 				systemLogger.Err(fetchErr).Msg("Failed to fetch profile settings batch")
-				return nil, nil, errProfileIdNotFound
+				return nil, s.servFailResponse(dctx.Req), nil
 			}
 			// Cache only successful fetches (profile exists).
 			if settings.PrivacyErr == nil {
@@ -222,10 +237,16 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			}
 		}
 
-		// Privacy settings are required — missing means profile doesn't exist.
+		// Privacy settings are required. Only an empty hash means the profile
+		// does not exist; any other read error is a store failure.
 		if settings.PrivacyErr != nil {
-			systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
-			return nil, nil, errProfileIdNotFound
+			if errors.Is(settings.PrivacyErr, cache.ErrSettingsNotFound) {
+				systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
+				return nil, nil, errProfileIdNotFound
+			}
+			s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
+			systemLogger.Err(settings.PrivacyErr).Msg("Failed to read profile privacy settings")
+			return nil, s.servFailResponse(dctx.Req), nil
 		}
 
 		// Layer 2: per-profile rate limit. Runs after the existence check so
@@ -349,6 +370,7 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 		s.Metrics.RecordBlocked("domain")
 	}
 
+	// Blocked and Unavailable both skip resolution; respond() synthesizes the answer.
 	if reqCtx.FilterResult.Status == model.StatusProcessed {
 		reqLogger.Trace().Msg("Triggering default resolver")
 		upstreamStart := time.Now()
@@ -363,7 +385,13 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 }
 
 func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
-	if reqCtx.FilterResult.Status != model.StatusBlocked {
+	switch reqCtx.FilterResult.Status {
+	case model.StatusUnavailable:
+		// An answer that could not be checked against the profile is withheld.
+		dctx.Res = s.servFailResponse(dctx.Req)
+		return
+	case model.StatusBlocked:
+	default:
 		return
 	}
 
@@ -497,6 +525,13 @@ func (s *Server) buildDNSCheckResponse(origReq *dns.Msg, upstream *dns.Msg) *dns
 func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetRcode(req, dns.RcodeRefused)
+	return resp
+}
+
+// servFailResponse builds a minimal DNS SERVFAIL response for the given request.
+func (s *Server) servFailResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeServerFailure)
 	return resp
 }
 

@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -106,7 +105,7 @@ func (c *RedisCache) getProfileSettings(ctx context.Context, profileId string, s
 		// Profile ID goes in a structured (Sentry-denylisted) field, never in
 		// the message or error text.
 		log.Warn().Str("profile_id", profileId).Msgf("No %s settings found for profile", settingsName)
-		return nil, fmt.Errorf("no %s settings found for profile", settingsName)
+		return nil, fmt.Errorf("%w: %s", ErrSettingsNotFound, settingsName)
 	}
 	return cmd.Val(), nil
 }
@@ -183,7 +182,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	case privacyCmd.Err() != nil:
 		result.PrivacyErr = privacyCmd.Err()
 	case len(privacyCmd.Val()) == 0:
-		result.PrivacyErr = errors.New("no [privacy] settings found for profile")
+		result.PrivacyErr = fmt.Errorf("%w: [privacy]", ErrSettingsNotFound)
 	default:
 		result.Privacy = privacyCmd.Val()
 	}
@@ -193,7 +192,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	case logsCmd.Err() != nil:
 		result.LogsErr = logsCmd.Err()
 	case len(logsCmd.Val()) == 0:
-		result.LogsErr = errors.New("no [logs] settings found for profile")
+		result.LogsErr = fmt.Errorf("%w: [logs]", ErrSettingsNotFound)
 	default:
 		result.Logs = logsCmd.Val()
 	}
@@ -203,7 +202,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	case dnssecCmd.Err() != nil:
 		result.DNSSECErr = dnssecCmd.Err()
 	case len(dnssecCmd.Val()) == 0:
-		result.DNSSECErr = errors.New("no [security dnssec] settings found for profile")
+		result.DNSSECErr = fmt.Errorf("%w: [security dnssec]", ErrSettingsNotFound)
 	default:
 		result.DNSSEC = dnssecCmd.Val()
 	}
@@ -213,7 +212,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	case rebindingCmd.Err() != nil:
 		result.RebindingProtectionErr = rebindingCmd.Err()
 	case len(rebindingCmd.Val()) == 0:
-		result.RebindingProtectionErr = errors.New("no [security rebinding_protection] settings found for profile")
+		result.RebindingProtectionErr = fmt.Errorf("%w: [security rebinding_protection]", ErrSettingsNotFound)
 	default:
 		result.RebindingProtection = rebindingCmd.Val()
 	}
@@ -223,7 +222,7 @@ func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId stri
 	case advancedCmd.Err() != nil:
 		result.AdvancedErr = advancedCmd.Err()
 	case len(advancedCmd.Val()) == 0:
-		result.AdvancedErr = errors.New("no [advanced] settings found for profile")
+		result.AdvancedErr = fmt.Errorf("%w: [advanced]", ErrSettingsNotFound)
 	default:
 		result.Advanced = advancedCmd.Val()
 	}

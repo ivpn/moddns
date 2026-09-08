@@ -10,6 +10,12 @@ import (
 
 const CacheTypeRedis = "redis"
 
+// ErrSettingsNotFound marks a settings hash that Redis answered for but that is
+// empty, i.e. the profile (or that settings group) does not exist. Every other
+// error from the cache is an infrastructure error and must not be read as
+// "profile not found".
+var ErrSettingsNotFound = errors.New("settings not found")
+
 // Cache is an interface for caching functionalities
 type Cache interface {
 	GetProfileBlocklists(ctx context.Context, profileId string) ([]string, error)

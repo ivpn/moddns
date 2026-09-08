@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"sync"
@@ -318,5 +319,103 @@ func TestPostResolve_CacheHit_EmitsQueryLog(t *testing.T) {
 		assert.Equal(t, model.RetentionOneDay, evt.Metadata.Retention)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for query log event")
+	}
+}
+
+// specRef: proxy-filtering-behaviour.md #I4
+// specRef: proxy-filtering-behaviour.md #I1
+func TestPostResolve_Unavailable_SkipsIPFilterAnswersServfail(t *testing.T) {
+	ipFilter := mocks.NewFilter(t)
+	cacheMock := mocks.NewCache(t)
+	statsCh := mocks.NewCollectorChannel(t)
+	var wg sync.WaitGroup
+	setupStatsBackground(cacheMock, statsCh, &wg)
+
+	s := newPostResolveServer(t, ipFilter, cacheMock, map[string]channel.CollectorChannel{
+		model.TYPE_STATISTICS: statsCh,
+	})
+
+	// Domain phase ended in Unavailable: no upstream answer exists (Res nil),
+	// and the IP filter has no expectation — a call fails the test.
+	reqCtx := newPostResolveReqCtx(model.StatusUnavailable, nil)
+	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
+	dctx.Res = nil
+
+	s.postResolve(reqCtx, dctx)
+	require.True(t, awaitWG(&wg, time.Second), "background goroutines did not finish")
+
+	ipFilter.AssertNotCalled(t, "Execute")
+	require.NotNil(t, dctx.Res, "the client must receive an answer, not silence")
+	assert.Equal(t, dns.RcodeServerFailure, dctx.Res.Rcode)
+	assert.True(t, dctx.Res.Response)
+	assert.Equal(t, dctx.Req.Id, dctx.Res.Id)
+	assert.Empty(t, dctx.Res.Answer)
+}
+
+// specRef: proxy-filtering-behaviour.md #I4
+func TestPostResolve_IPFilterUnavailable_DiscardsAnswer(t *testing.T) {
+	ipFilter := mocks.NewFilter(t)
+	cacheMock := mocks.NewCache(t)
+	statsCh := mocks.NewCollectorChannel(t)
+	var wg sync.WaitGroup
+	setupStatsBackground(cacheMock, statsCh, &wg)
+
+	s := newPostResolveServer(t, ipFilter, cacheMock, map[string]channel.CollectorChannel{
+		model.TYPE_STATISTICS: statsCh,
+	})
+
+	reqCtx := newPostResolveReqCtx(model.StatusProcessed, nil)
+	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
+	rr, err := dns.NewRR("example.com. 300 IN A 93.184.216.34")
+	require.NoError(t, err)
+	dctx.Res.Answer = []dns.RR{rr}
+
+	ipFilter.On("Execute", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		rCtx := args.Get(0).(*requestcontext.RequestContext)
+		rCtx.FilterResult.Status = model.StatusUnavailable
+	}).Return(errors.New("dial tcp: i/o timeout"))
+
+	s.postResolve(reqCtx, dctx)
+	require.True(t, awaitWG(&wg, time.Second))
+
+	require.NotNil(t, dctx.Res)
+	assert.Equal(t, dns.RcodeServerFailure, dctx.Res.Rcode, "an unverifiable answer is never handed to the client")
+	assert.Empty(t, dctx.Res.Answer)
+}
+
+// specRef: query-log-outcomes-behaviour.md #O11
+func TestPostResolve_Unavailable_StatsCountTotalNotBlocked(t *testing.T) {
+	ipFilter := mocks.NewFilter(t)
+	cacheMock := mocks.NewCache(t)
+	statsCh := mocks.NewCollectorChannel(t)
+
+	s := newPostResolveServer(t, ipFilter, cacheMock, map[string]channel.CollectorChannel{
+		model.TYPE_STATISTICS: statsCh,
+	})
+
+	reqCtx := newPostResolveReqCtx(model.StatusUnavailable, nil)
+	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
+	dctx.Res = nil
+
+	cacheMock.On("GetProfileStatisticsSettings", mock.Anything, testPostResolveProfileID).
+		Return(map[string]string{"enabled": "false"}, nil).Maybe()
+
+	received := make(chan model.EventStatistics, 1)
+	statsCh.On("Send", mock.MatchedBy(func(data any) bool {
+		if evt, ok := data.(model.EventStatistics); ok {
+			received <- evt
+			return true
+		}
+		return false
+	})).Return(nil).Once()
+
+	s.postResolve(reqCtx, dctx)
+
+	select {
+	case evt := <-received:
+		assert.Equal(t, 1, evt.Statistics.Queries.Total)
+		assert.Equal(t, 0, evt.Statistics.Queries.Blocked, "unavailable is not a block")
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for statistics event")
 	}
 }

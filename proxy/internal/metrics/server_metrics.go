@@ -15,6 +15,7 @@ type ServerMetrics struct {
 	ipFilterDuration     *prometheus.HistogramVec
 	upstreamDuration     *prometheus.HistogramVec
 	blocked              *prometheus.CounterVec
+	filterStageErrors    *prometheus.CounterVec
 }
 
 // NewServerMetrics creates and registers all server-level Prometheus collectors.
@@ -52,6 +53,10 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 			Name: "proxy_dns_blocked_total",
 			Help: "Total blocked DNS queries by filter phase.",
 		}, []string{"phase"}),
+		filterStageErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_dns_filter_stage_errors_total",
+			Help: "Settings-store read failures by pipeline phase and stage; each one answers SERVFAIL.",
+		}, []string{"phase", "stage"}),
 	}
 	reg.MustRegister(
 		m.queries,
@@ -61,6 +66,7 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		m.ipFilterDuration,
 		m.upstreamDuration,
 		m.blocked,
+		m.filterStageErrors,
 	)
 	return m
 }
@@ -95,4 +101,8 @@ func (m *ServerMetrics) RecordUpstreamDuration(upstream string, d time.Duration)
 
 func (m *ServerMetrics) RecordBlocked(phase string) {
 	m.blocked.WithLabelValues(phase).Inc()
+}
+
+func (m *ServerMetrics) RecordFilterStageError(phase, stage string) {
+	m.filterStageErrors.WithLabelValues(phase, stage).Inc()
 }

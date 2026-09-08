@@ -35,18 +35,19 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 		return result, nil
 	}
 
+	// A missing list is an empty LRANGE, not an error; an error is a store failure.
 	blockedServices, err := f.Cache.GetProfileServicesBlocked(context.Background(), reqCtx.ProfileId)
 	if err != nil {
-		// Missing key should be non-fatal; treat as disabled.
-		return result, nil
+		return nil, err
 	}
 	if len(blockedServices) == 0 {
 		return result, nil
 	}
 
+	// The catalog is a local file, not the settings store: failing to load it
+	// leaves the stage inert instead of failing the query.
 	cat, err := f.ServicesCatalog.Get()
 	if err != nil || cat == nil {
-		// Catalog load failure should not break DNS.
 		return result, nil
 	}
 

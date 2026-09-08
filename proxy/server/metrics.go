@@ -13,6 +13,9 @@ type Metrics interface {
 	RecordIPFilterDuration(proto string, d time.Duration)
 	RecordUpstreamDuration(upstream string, d time.Duration)
 	RecordBlocked(phase string)
+	// RecordFilterStageError counts one failed settings-store read. phase is
+	// "admission", "domain" or "ip"; stage names the reader that failed.
+	RecordFilterStageError(phase, stage string)
 }
 
 type noopMetrics struct{}
@@ -24,3 +27,4 @@ func (noopMetrics) RecordDomainFilterDuration(string, time.Duration) {}
 func (noopMetrics) RecordIPFilterDuration(string, time.Duration)     {}
 func (noopMetrics) RecordUpstreamDuration(string, time.Duration)     {}
 func (noopMetrics) RecordBlocked(string)                             {}
+func (noopMetrics) RecordFilterStageError(string, string)            {}

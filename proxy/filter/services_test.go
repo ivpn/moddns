@@ -134,6 +134,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 		asnLookup      ASNLookup
 		blockedIDs     []string
 		cacheErr       error
+		wantErr        bool
 		dnsCtx         *proxy.DNSContext
 		wantDecision   model.Decision
 		wantReasons    []string
@@ -171,13 +172,14 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			wantDecision:   model.DecisionNone,
 		},
 		{
-			name:           "cache error treated as disabled",
+			// specRef: proxy-filtering-behaviour.md #I6
+			name:           "services list read error is a stage error",
 			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
 			asnLookup:      staticASNLookup{asn: asn},
 			blockedIDs:     nil,
 			cacheErr:       errors.New("cache error"),
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
-			wantDecision:   model.DecisionNone,
+			wantErr:        true,
 		},
 		{
 			name:           "no blocked services",
@@ -333,6 +335,12 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 
 			reqCtx := newTestReqCtx(t, profileID)
 			got, err := ipFilter.filterServices(reqCtx, tt.dnsCtx)
+			if tt.wantErr {
+				assert.ErrorIs(t, err, tt.cacheErr)
+				assert.Nil(t, got)
+				mockCache.AssertExpectations(t)
+				return
+			}
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, TierServices, got.Tier)
