@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -97,8 +96,10 @@ func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *prox
 		return result, nil
 	}
 
+	ctx, cancel := storeContext()
+	defer cancel()
 	for _, target := range targets {
-		match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, reqCtx.Blocklists, target)
+		match, err := matchDomainAgainstBlocklists(ctx, f.Cache, reqCtx, reqCtx.Blocklists, target)
 		if err != nil {
 			return nil, err
 		}

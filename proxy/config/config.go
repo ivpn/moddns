@@ -409,6 +409,7 @@ func New() (*Config, error) {
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,
 		Cache: &cache.Config{
+			CommandTimeout:        loadCacheCommandTimeout(),
 			Address:               os.Getenv("CACHE_ADDRESS"),
 			FailoverAddresses:     cacheAddrs,
 			Username:              os.Getenv("CACHE_USERNAME"),
@@ -534,4 +535,22 @@ func loadProfileSettingsCacheSize() int {
 		return defaultProfileSettingsCacheSize
 	}
 	return n
+}
+
+// defaultCacheCommandTimeout suits a PoP-local replica: one dial, read or
+// write may take at most this long, with a single retry.
+const defaultCacheCommandTimeout = time.Second
+
+// loadCacheCommandTimeout reads CACHE_COMMAND_TIMEOUT (Go duration). Unset or
+// invalid keeps the default; "0" hands control back to the go-redis defaults.
+func loadCacheCommandTimeout() time.Duration {
+	v := os.Getenv("CACHE_COMMAND_TIMEOUT")
+	if v == "" {
+		return defaultCacheCommandTimeout
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		return defaultCacheCommandTimeout
+	}
+	return d
 }

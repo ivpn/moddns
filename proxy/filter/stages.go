@@ -1,9 +1,11 @@
 package filter
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/model"
@@ -21,6 +23,16 @@ const (
 	StageRebinding      = "rebinding"
 	StageCNAME          = "cname"
 )
+
+// StoreDeadline bounds the live settings-store reads of one filter phase
+// (blocklist membership, which fans out per list and per label). Together
+// with the per-command timeout it caps how long a dead store can hold a query.
+const StoreDeadline = 2 * time.Second
+
+// storeContext returns the context for one phase's live store reads.
+func storeContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), StoreDeadline)
+}
 
 // StageErrorRecorder receives one call per failed filter stage. A nil recorder
 // disables metrics without disabling the failure handling.

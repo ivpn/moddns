@@ -343,7 +343,9 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 		return s.settingsUnavailable(req, cached, state, logger, errStoreProbePending)
 	}
 
-	fetched, fetchErr := s.Cache.GetProfileSettingsBatch(ctx, profileId)
+	fetchCtx, cancel := context.WithTimeout(ctx, filter.StoreDeadline)
+	defer cancel()
+	fetched, fetchErr := s.Cache.GetProfileSettingsBatch(fetchCtx, profileId)
 	if fetchErr != nil {
 		s.ProfileSettingsCache.StoreFailed()
 		return s.settingsUnavailable(req, cached, state, logger, fetchErr)

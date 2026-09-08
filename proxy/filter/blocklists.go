@@ -87,7 +87,9 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
 
-	match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, reqCtx.Blocklists, fqdn)
+	ctx, cancel := storeContext()
+	defer cancel()
+	match, err := matchDomainAgainstBlocklists(ctx, f.Cache, reqCtx, reqCtx.Blocklists, fqdn)
 	if err != nil {
 		return nil, err
 	}
