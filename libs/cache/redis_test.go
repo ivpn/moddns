@@ -18,6 +18,7 @@ func TestNewDirectClient_CommandTimeoutApplied(t *testing.T) {
 	assert.Equal(t, 750*time.Millisecond, opts.ReadTimeout)
 	assert.Equal(t, 750*time.Millisecond, opts.WriteTimeout)
 	assert.Equal(t, 1, opts.MaxRetries)
+	assert.True(t, opts.ContextTimeoutEnabled)
 }
 
 func TestNewDirectClient_ZeroTimeoutKeepsClientDefaults(t *testing.T) {
@@ -31,6 +32,7 @@ func TestNewDirectClient_ZeroTimeoutKeepsClientDefaults(t *testing.T) {
 	assert.Equal(t, 3*time.Second, opts.ReadTimeout)
 	assert.Equal(t, 3*time.Second, opts.WriteTimeout)
 	assert.Equal(t, 3, opts.MaxRetries)
+	assert.False(t, opts.ContextTimeoutEnabled)
 }
 
 func TestNewFailoverClient_CommandTimeoutApplied(t *testing.T) {
@@ -43,4 +45,5 @@ func TestNewFailoverClient_CommandTimeoutApplied(t *testing.T) {
 	assert.Equal(t, 400*time.Millisecond, opts.ReadTimeout)
 	assert.Equal(t, 400*time.Millisecond, opts.WriteTimeout)
 	assert.Equal(t, 1, opts.MaxRetries)
+	assert.True(t, opts.ContextTimeoutEnabled)
 }
