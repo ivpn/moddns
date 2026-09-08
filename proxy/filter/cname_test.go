@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -321,7 +322,7 @@ func TestFilterCNAME(t *testing.T) {
 				dnsCtx.Res = tt.response
 			}
 
-			result, err := f.filterCNAME(reqCtx, dnsCtx)
+			result, err := f.filterCNAME(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, tt.wantDecision, result.Decision, "tableRef %s", tt.tableRef)
@@ -387,7 +388,7 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			req.SetQuestion("metrics.shop.example.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: res}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status, "tableRef %s", tt.tableRef)
 			for _, r := range tt.wantContains {

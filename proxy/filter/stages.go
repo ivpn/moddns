@@ -24,14 +24,15 @@ const (
 	StageCNAME          = "cname"
 )
 
-// StoreDeadline bounds the live settings-store reads of one filter phase
-// (blocklist membership, which fans out per list and per label). Together
-// with the per-command timeout it caps how long a dead store can hold a query.
-const StoreDeadline = 2 * time.Second
+// StoreDeadline bounds the live settings-store reads of one pipeline step
+// (admission batch, domain phase, IP phase), each derived from the request
+// context so a client hang-up cancels the work. Three steps keep the worst
+// case under the 5s most stub resolvers wait before giving up.
+const StoreDeadline = time.Second
 
 // storeContext returns the context for one phase's live store reads.
-func storeContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), StoreDeadline)
+func storeContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, StoreDeadline)
 }
 
 // StageErrorRecorder receives one call per failed filter stage. A nil recorder
@@ -40,7 +41,7 @@ type StageErrorRecorder interface {
 	RecordFilterStageError(phase, stage string)
 }
 
-type stageFunc func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
+type stageFunc func(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
 
 type stage struct {
 	name string
@@ -52,7 +53,10 @@ type stage struct {
 // contributes no result; every such failure is recorded and the joined error is
 // returned, which the caller must treat as StatusUnavailable rather than
 // aggregate the partial results (spec: proxy-filtering-behaviour.md Section I).
-func runStages(phase string, stages []stage, metrics StageErrorRecorder, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) error {
+func runStages(ctx context.Context, phase string, stages []stage, metrics StageErrorRecorder, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) error {
+	ctx, cancel := storeContext(ctx)
+	defer cancel()
+
 	type outcome struct {
 		res *model.StageResult
 		err error
@@ -64,7 +68,7 @@ func runStages(phase string, stages []stage, metrics StageErrorRecorder, reqCtx 
 	for i, st := range stages {
 		go func(i int, st stage) {
 			defer wg.Done()
-			res, err := st.run(reqCtx, dctx)
+			res, err := st.run(ctx, reqCtx, dctx)
 			outcomes[i] = outcome{res: res, err: err}
 		}(i, st)
 	}
@@ -77,7 +81,7 @@ func runStages(phase string, stages []stage, metrics StageErrorRecorder, reqCtx 
 			if metrics != nil {
 				metrics.RecordFilterStageError(phase, st.name)
 			}
-			reqCtx.Logger.Warn().Err(out.err).Str("filter_type", phase).Str("stage", st.name).Msg("Filter stage failed")
+			reqCtx.Logger.Debug().Err(out.err).Str("filter_type", phase).Str("stage", st.name).Msg("Filter stage failed")
 			errs = append(errs, fmt.Errorf("%s/%s: %w", phase, st.name, out.err))
 			continue
 		}

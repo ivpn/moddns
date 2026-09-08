@@ -10,6 +10,7 @@ package filter
 // the domain-phase blocklists stage and the IP-phase CNAME stage.
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -114,7 +115,7 @@ func TestDomainFilterExecute_StageError_Unavailable(t *testing.T) {
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
-	err := f.Execute(reqCtx, stageErrDomainDctx("example.com"))
+	err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("example.com"))
 
 	require.Error(t, err, "Execute must surface the stage error")
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status)
@@ -134,7 +135,7 @@ func TestDomainFilterExecute_StageError_WinsOverBlock(t *testing.T) {
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 	reqCtx.CustomRules = []map[string]string{{"action": ACTION_BLOCK, "value": "ads.example.com"}}
-	err := f.Execute(reqCtx, stageErrDomainDctx("ads.example.com"))
+	err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("ads.example.com"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "a stage error must not be downgraded to the partial Block")
@@ -152,7 +153,7 @@ func TestDomainFilterExecute_StageError_WinsOverAllow(t *testing.T) {
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 	reqCtx.CustomRules = []map[string]string{{"action": ACTION_ALLOW, "value": "ok.example.com"}}
-	err := f.Execute(reqCtx, stageErrDomainDctx("ok.example.com"))
+	err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("ok.example.com"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "a stage error must not be downgraded to the partial Allow")
@@ -174,7 +175,7 @@ func TestIPFilterExecute_StageError_DiscardsUpstreamAnswer(t *testing.T) {
 	reqCtx.PartialFilteringResults = []model.StageResult{{Decision: model.DecisionNone, Tier: TierBlocklists}}
 	reqCtx.FilterResult = model.FilterResult{Status: model.StatusProcessed}
 
-	err := f.Execute(reqCtx, stageErrCNAMEDctx("metrics.shop.example"))
+	err := f.Execute(context.Background(), reqCtx, stageErrCNAMEDctx("metrics.shop.example"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "IP-phase store error must not fall through to Processed")
@@ -195,7 +196,7 @@ func TestExecute_NoErrors_NoMatches_Processed(t *testing.T) {
 		f.Metrics = rec
 		reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 
-		err := f.Execute(reqCtx, stageErrDomainDctx("example.com"))
+		err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 	})
@@ -206,7 +207,7 @@ func TestExecute_NoErrors_NoMatches_Processed(t *testing.T) {
 		f.Metrics = rec
 		reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 
-		err := f.Execute(reqCtx, dnsCtxWithAAnswer(t, "93.184.216.34"))
+		err := f.Execute(context.Background(), reqCtx, dnsCtxWithAAnswer(t, "93.184.216.34"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 	})
@@ -226,7 +227,7 @@ func TestIPFilterExecute_CatalogUnavailable_Inert(t *testing.T) {
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 	reqCtx.BlockedServices = []string{"google"}
-	err := f.Execute(reqCtx, dnsCtxWithAAnswer(t, "8.8.8.8"))
+	err := f.Execute(context.Background(), reqCtx, dnsCtxWithAAnswer(t, "8.8.8.8"))
 
 	require.NoError(t, err, "a local catalog load failure is not a store error")
 	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
@@ -241,7 +242,7 @@ func TestDomainFilterExecute_StageError_NilRecorder(t *testing.T) {
 	f := NewDomainFilter(nil, failingMembershipCache(), nil)
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 
-	require.NotPanics(t, func() { _ = f.Execute(reqCtx, stageErrDomainDctx("example.com")) })
+	require.NotPanics(t, func() { _ = f.Execute(context.Background(), reqCtx, stageErrDomainDctx("example.com")) })
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status)
 }
 
@@ -261,7 +262,7 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 	}
 
 	t.Run("stage direct", func(t *testing.T) {
-		res, err := f.applyDefaultRule(noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK}), stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionBlock, res.Decision)
 		assert.Equal(t, TierDefaultRule, res.Tier)
@@ -269,14 +270,14 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 	})
 
 	t.Run("stage direct allow", func(t *testing.T) {
-		res, err := f.applyDefaultRule(noBlocklists(map[string]string{DEFAULT_RULE: RULE_ALLOW}), stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{DEFAULT_RULE: RULE_ALLOW}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionNone, res.Decision)
 	})
 
 	t.Run("through Execute", func(t *testing.T) {
 		reqCtx := noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK})
-		err := f.Execute(reqCtx, stageErrDomainDctx("anything.example.com"))
+		err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 		assert.Contains(t, reqCtx.FilterResult.Reasons, DEFAULT_RULE)
@@ -315,12 +316,12 @@ func TestFilterPath_OnlyBlocklistMembershipHitsStore(t *testing.T) {
 
 	// Domain phase: QNAME plus parent-walk candidates, each against both lists.
 	dctx := stageErrDomainDctx("www.shop.example.com")
-	require.NoError(t, domainFilter.Execute(reqCtx, dctx))
+	require.NoError(t, domainFilter.Execute(context.Background(), reqCtx, dctx))
 	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 
 	// IP phase with a CNAME hop: only the target's membership is looked up.
 	dctx.Res = buildCNAMEChainResponse("www.shop.example.com", dns.TypeA, []string{"edge.cdn.example"}, answerIP)
-	require.NoError(t, ipFilter.Execute(reqCtx, dctx))
+	require.NoError(t, ipFilter.Execute(context.Background(), reqCtx, dctx))
 	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
 
 	for _, call := range mockCache.Calls {

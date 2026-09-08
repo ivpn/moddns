@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"sync"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -47,8 +48,8 @@ func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog Servi
 // Execute performs all stages of filtering DNS responses. Any stage failure
 // yields StatusUnavailable even though an upstream answer exists: an answer
 // that could not be checked is not returned.
-func (f *IPFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
-	err = runStages(FilterTypeIP, f.stages, f.Metrics, reqCtx, dctx)
+func (f *IPFilter) Execute(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
+	err = runStages(ctx, FilterTypeIP, f.stages, f.Metrics, reqCtx, dctx)
 
 	var finalFltrRes model.FilterResult
 	if err != nil {

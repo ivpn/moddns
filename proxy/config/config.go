@@ -20,8 +20,11 @@ const (
 
 // Defaults for the profile settings cache and the Redis client.
 const (
-	defaultProfileSettingsCacheTTL  = 30 * time.Second
-	defaultProfileSettingsCacheSize = 100_000
+	defaultProfileSettingsCacheTTL = 30 * time.Second
+	// defaultProfileSettingsCacheSize counts profiles, not bytes: stale entries are
+	// kept until evicted, and an entry holds the profile's custom rules, so a
+	// profile at the 10k-rule ceiling is a few MB while a typical one is a few KB.
+	defaultProfileSettingsCacheSize = 20_000
 	// defaultCacheCommandTimeout suits a PoP-local replica: one dial, read or
 	// write may take at most this long, with a single retry.
 	defaultCacheCommandTimeout = time.Second
@@ -111,8 +114,9 @@ type ServerConfig struct {
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
-	// ProfileSettingsCacheSize bounds the in-process settings cache (LRU); entries
-	// past the TTL stay until evicted and serve as last-known-good. PROFILE_SETTINGS_CACHE_SIZE.
+	// ProfileSettingsCacheSize bounds the in-process settings cache (LRU, in
+	// profiles); entries past the TTL stay until evicted and serve as
+	// last-known-good. PROFILE_SETTINGS_CACHE_SIZE.
 	ProfileSettingsCacheSize int
 	MaxGoroutines            uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
 }

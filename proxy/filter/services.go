@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -23,7 +24,7 @@ type ASNLookup interface {
 	ASN(ip net.IP) (uint, error)
 }
 
-func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterServices(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierServices}

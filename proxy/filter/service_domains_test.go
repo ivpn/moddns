@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -124,7 +125,7 @@ func TestFilterServiceDomains(t *testing.T) {
 			msg.SetQuestion(tt.domain, dns.TypeA)
 			dctx := &proxy.DNSContext{Req: msg}
 
-			result, err := fm.filterServiceDomains(reqCtx, dctx)
+			result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedDecision, result.Decision)
 			assert.Equal(t, TierServices, result.Tier)
@@ -146,7 +147,7 @@ func TestFilterServiceDomains_NilCatalog(t *testing.T) {
 	msg.SetQuestion("microsoft.com.", dns.TypeA)
 	dctx := &proxy.DNSContext{Req: msg}
 
-	result, err := fm.filterServiceDomains(reqCtx, dctx)
+	result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 	require.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, result.Decision)
 }
@@ -162,7 +163,7 @@ func TestFilterServiceDomains_CatalogError(t *testing.T) {
 	msg.SetQuestion("microsoft.com.", dns.TypeA)
 	dctx := &proxy.DNSContext{Req: msg}
 
-	result, err := fm.filterServiceDomains(reqCtx, dctx)
+	result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 	require.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, result.Decision)
 }

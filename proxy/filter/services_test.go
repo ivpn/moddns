@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -327,7 +328,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.BlockedServices = tt.blockedIDs
-			got, err := ipFilter.filterServices(reqCtx, tt.dnsCtx)
+			got, err := ipFilter.filterServices(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, TierServices, got.Tier)
@@ -408,7 +409,7 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			reqCtx.BlockedServices = tt.blockedIDs
 			reqCtx.CustomRules = orderedRules(tt.customHashes, tt.customRules)
 
-			err := ipFilter.Execute(reqCtx, tt.dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status)
 			for _, s := range tt.wantContains {

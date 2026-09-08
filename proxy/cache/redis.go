@@ -205,7 +205,8 @@ func (c *RedisCache) getCustomRules(ctx context.Context, ruleIDs []string) ([]ma
 	for i, cmd := range cmds {
 		rule, err := cmd.Result()
 		if err != nil {
-			return nil, fmt.Errorf("custom rule %s: %w", ruleIDs[i], err)
+			// The rule key embeds the profile ID; it stays out of the error text.
+			return nil, fmt.Errorf("custom rule hash %d of %d: %w", i+1, len(ruleIDs), err)
 		}
 		if len(rule) == 0 {
 			continue
@@ -222,9 +223,10 @@ func (c *RedisCache) getCustomRules(ctx context.Context, ruleIDs []string) ([]ma
 // type, never by comparing per-command errors.
 func execPipeline(ctx context.Context, pipe redis.Pipeliner, cmds []redis.Cmder) error {
 	_, err := pipe.Exec(ctx)
-	if err == nil || err == redis.Nil {
+	if err == nil {
 		return nil
 	}
+	// redis.Nil is itself a reply error and lands in the per-command branch.
 	var replyErr redis.Error
 	if !errors.As(err, &replyErr) {
 		return fmt.Errorf("redis pipeline failed: %w", err)

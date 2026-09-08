@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -182,7 +183,7 @@ func TestFilterBlocklists(t *testing.T) {
 				Req: msg,
 			}
 
-			result, err := fm.filterBlocklists(reqCtx, dnsCtx)
+			result, err := fm.filterBlocklists(context.Background(), reqCtx, dnsCtx)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return

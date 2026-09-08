@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -120,7 +121,7 @@ func TestFilterBlocklistsIsCaseInsensitive(t *testing.T) {
 				Logger:          loggerFactory.ForProfile("profile1", true),
 			}
 
-			result, err := fm.filterBlocklists(reqCtx, &proxy.DNSContext{Req: msg})
+			result, err := fm.filterBlocklists(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
@@ -201,7 +202,7 @@ func TestServiceDomainMatchingIsCaseInsensitive(t *testing.T) {
 
 			reqCtx := newTestReqCtx(t, "test-profile")
 			reqCtx.BlockedServices = []string{"microsoft"}
-			result, err := fm.filterServiceDomains(reqCtx, &proxy.DNSContext{Req: msg})
+			result, err := fm.filterServiceDomains(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expect, result.Decision,

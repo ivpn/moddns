@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -49,7 +50,7 @@ func BenchmarkFilterCNAME_EarlyExit(b *testing.B) {
 
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		result, err := f.filterCNAME(reqCtx, dnsCtx)
+		result, err := f.filterCNAME(context.Background(), reqCtx, dnsCtx)
 		if err != nil || result == nil {
 			b.Fatal("unexpected filterCNAME result")
 		}

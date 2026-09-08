@@ -37,10 +37,9 @@ type staleFixture struct {
 
 func newStaleFixture(t *testing.T) *staleFixture {
 	t.Helper()
-	sc, err := settingscache.New(staleTTL, 16)
-	require.NoError(t, err)
 	f := &staleFixture{cache: mocks.NewCache(t), metrics: &recordingMetrics{}, now: time.Unix(1_700_000_000, 0)}
-	sc.SetClock(func() time.Time { return f.now })
+	sc, err := settingscache.NewWithClock(staleTTL, 16, func() time.Time { return f.now })
+	require.NoError(t, err)
 	f.s = &Server{
 		Config: &config.Config{
 			Server:    &config.ServerConfig{},

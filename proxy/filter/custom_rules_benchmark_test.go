@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -71,7 +72,7 @@ func BenchmarkFilterCustomRules(b *testing.B) {
 			// Reset timer and run benchmark
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				result, err := filterManager.filterCustomRules(reqCtx, dnsCtx)
+				result, err := filterManager.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 				require.NoError(b, err)
 				require.NotNil(b, result)
 			}

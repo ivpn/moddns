@@ -48,6 +48,11 @@ type Cache struct {
 // New creates a cache holding at most size entries. ttl <= 0 disables
 // expiry (every entry stays Fresh), matching PROFILE_SETTINGS_CACHE_TTL=0.
 func New(ttl time.Duration, size int) (*Cache, error) {
+	return NewWithClock(ttl, size, time.Now)
+}
+
+// NewWithClock is New with an explicit time source, for tests that age entries.
+func NewWithClock(ttl time.Duration, size int, now func() time.Time) (*Cache, error) {
 	entries, err := lru.New[string, *entry](size)
 	if err != nil {
 		return nil, err
@@ -56,13 +61,8 @@ func New(ttl time.Duration, size int) (*Cache, error) {
 		ttl:           ttl,
 		probeInterval: DefaultProbeInterval,
 		entries:       entries,
-		now:           time.Now,
+		now:           now,
 	}, nil
-}
-
-// SetClock replaces the time source; for tests that need to age entries.
-func (c *Cache) SetClock(now func() time.Time) {
-	c.now = now
 }
 
 // Get returns the cached settings for id and how current they are. The
@@ -108,12 +108,15 @@ func (c *Cache) FetchAllowed() bool {
 	return c.retryAt.CompareAndSwap(retryAt, now+int64(c.probeInterval))
 }
 
-// StoreFailed marks the store unreachable after a connection-level error.
-func (c *Cache) StoreFailed() {
-	c.retryAt.Store(c.now().UnixNano() + int64(c.probeInterval))
+// StoreFailed marks the store unreachable after a connection-level error. It
+// reports true on the transition from healthy to failed, so callers can log
+// the outage once instead of once per query.
+func (c *Cache) StoreFailed() (transition bool) {
+	return c.retryAt.Swap(c.now().UnixNano()+int64(c.probeInterval)) == 0
 }
 
-// StoreRecovered clears the failure mark after a successful fetch.
-func (c *Cache) StoreRecovered() {
-	c.retryAt.Store(0)
+// StoreRecovered clears the failure mark after a successful fetch and reports
+// true when the store had been marked failed.
+func (c *Cache) StoreRecovered() (transition bool) {
+	return c.retryAt.Swap(0) != 0
 }

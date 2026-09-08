@@ -152,13 +152,13 @@ func (s *Server) ServeDNS(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSCo
 }
 
 // postResolve runs IP filtering, emits query logs/statistics, and responds.
-func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
+func (s *Server) postResolve(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
 	// Only a Processed domain phase has an answer to inspect; Blocked and
 	// Unavailable results are final.
 	if reqCtx.FilterResult.Status == model.StatusProcessed {
 		ipStart := time.Now()
-		if err := s.IPFilter.Execute(reqCtx, dctx); err != nil {
-			reqCtx.Logger.Err(err).Msg("IP Filtering error")
+		if err := s.IPFilter.Execute(ctx, reqCtx, dctx); err != nil {
+			reqCtx.Logger.Debug().Err(err).Msg("IP filtering unavailable")
 		}
 		s.Metrics.RecordIPFilterDuration(string(dctx.Proto), time.Since(ipStart))
 		if reqCtx.FilterResult.Status == model.StatusBlocked {
@@ -261,21 +261,21 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			LogClientIPs: logClientIPs,
 		})
 
-		// DNSSEC settings: default to enabled if unavailable.
+		// DNSSEC settings: default to enabled if absent. A hash that exists but
+		// does not parse is our data being wrong, not the client's: SERVFAIL (Q12).
 		dnssecSettings := settings.DNSSEC
 		var dnssecEnabled, sendDoBit = true, true
 		if settings.DNSSECErr != nil {
 			reqLogger.Debug().Msg("DNSSEC settings not found, using default values")
 		} else {
 			dnssecEnabled, err = strconv.ParseBool(dnssecSettings["enabled"])
-			if err != nil {
-				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return nil, nil, errProfileIdNotFound
+			if err == nil {
+				sendDoBit, err = strconv.ParseBool(dnssecSettings["send_do_bit"])
 			}
-			sendDoBit, err = strconv.ParseBool(dnssecSettings["send_do_bit"])
 			if err != nil {
-				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return nil, nil, errProfileIdNotFound
+				s.Metrics.RecordFilterStageError(metrics.PhaseAdmission, metrics.StageProfileSettings)
+				reqLogger.Err(err).Msg("Malformed DNSSEC settings, answering SERVFAIL")
+				return nil, s.servFailResponse(dctx.Req), nil
 			}
 		}
 
@@ -333,10 +333,16 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 	defer cancel()
 	fetched, fetchErr := s.Cache.GetProfileSettingsBatch(fetchCtx, profileId)
 	if fetchErr != nil {
-		s.ProfileSettingsCache.StoreFailed()
+		// The outage is logged on its transitions only; per-query effects are
+		// visible through the cache and stage-error metrics.
+		if s.ProfileSettingsCache.StoreFailed() {
+			logger.Error().Err(fetchErr).Msg("Settings store unreachable, serving last-known-good settings where cached")
+		}
 		return s.settingsUnavailable(req, cached, state, logger, fetchErr)
 	}
-	s.ProfileSettingsCache.StoreRecovered()
+	if s.ProfileSettingsCache.StoreRecovered() {
+		logger.Info().Msg("Settings store reachable again")
+	}
 
 	// Privacy settings are required. Only an empty hash means the profile does
 	// not exist; any other read error is a store failure.
@@ -366,12 +372,12 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 func (s *Server) settingsUnavailable(req *dns.Msg, cached *model.ProfileSettings, state settingscache.State, logger logging.LoggerInterface, cause error) (*model.ProfileSettings, *dns.Msg, error) {
 	if state == settingscache.Stale {
 		s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupStale)
-		logger.Warn().Err(cause).Msg("Settings store unavailable, serving last-known-good profile settings")
+		logger.Debug().Err(cause).Msg("Serving last-known-good profile settings")
 		return cached, nil, nil
 	}
 	s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupUnavailable)
 	s.Metrics.RecordFilterStageError(metrics.PhaseAdmission, metrics.StageProfileSettings)
-	logger.Err(cause).Msg("Failed to fetch profile settings")
+	logger.Debug().Err(cause).Msg("Profile settings unavailable, answering SERVFAIL")
 	return nil, s.servFailResponse(req), nil
 }
 
@@ -389,8 +395,9 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 
 	// perform filtering actions
 	domainStart := time.Now()
-	if err := s.DomainFilter.Execute(reqCtx, dctx); err != nil {
-		reqLogger.Err(err).Msg("Filtering error")
+	if err := s.DomainFilter.Execute(ctx, reqCtx, dctx); err != nil {
+		// Per-stage failures are counted in proxy_dns_filter_stage_errors_total.
+		reqLogger.Debug().Err(err).Msg("Domain filtering unavailable")
 	}
 	s.Metrics.RecordDomainFilterDuration(string(dctx.Proto), time.Since(domainStart))
 	if reqCtx.FilterResult.Status == model.StatusBlocked {
@@ -408,17 +415,16 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 		s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
 	}
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(ctx, reqCtx, dctx)
 }
 
 func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
-	switch reqCtx.FilterResult.Status {
-	case model.StatusUnavailable:
+	if reqCtx.FilterResult.Status == model.StatusUnavailable {
 		// An answer that could not be checked against the profile is withheld.
 		dctx.Res = s.servFailResponse(dctx.Req)
 		return
-	case model.StatusBlocked:
-	default:
+	}
+	if reqCtx.FilterResult.Status != model.StatusBlocked {
 		return
 	}
 

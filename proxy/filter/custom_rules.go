@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"regexp"
 	"strconv"
@@ -106,7 +107,7 @@ func matchDomainPattern(patternCache *sync.Map, domain, pattern string) bool {
 }
 
 // filterCustomRules checks if the domain is allowed or blocked by custom rules; method is executed before the DNS request is sent.
-func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *DomainFilter) filterCustomRules(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	question := dctx.Req.Question[0].Name
@@ -149,7 +150,7 @@ func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, 
 }
 
 // filterCustomRules checks if the IP address is allowed or blocked by custom rules; method is executed after the DNS request is sent.
-func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterCustomRules(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierCustomRules}

@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -49,7 +50,7 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
 	testLogger := loggerFactory.ForProfile(profileID, true)
 	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, CustomRules: customRules, Logger: testLogger}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)
@@ -86,7 +87,7 @@ func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
 	testLogger := loggerFactory.ForProfile(profileID, true)
 	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, CustomRules: customRules, Logger: testLogger}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)

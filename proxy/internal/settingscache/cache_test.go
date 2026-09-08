@@ -11,10 +11,9 @@ import (
 
 func newTestCache(t *testing.T, ttl time.Duration) (*Cache, *time.Time) {
 	t.Helper()
-	c, err := New(ttl, 8)
-	require.NoError(t, err)
 	now := time.Unix(1_700_000_000, 0)
-	c.SetClock(func() time.Time { return now })
+	c, err := NewWithClock(ttl, 8, func() time.Time { return now })
+	require.NoError(t, err)
 	return c, &now
 }
 
@@ -96,7 +95,8 @@ func TestBreaker_OneProbePerInterval(t *testing.T) {
 	assert.True(t, c.FetchAllowed(), "healthy store: every fetch allowed")
 	assert.True(t, c.FetchAllowed())
 
-	c.StoreFailed()
+	assert.True(t, c.StoreFailed(), "first failure is the healthy→failed transition")
+	assert.False(t, c.StoreFailed(), "repeated failures are not transitions")
 	assert.False(t, c.FetchAllowed(), "just failed: no fetch until the probe interval passes")
 
 	*now = now.Add(DefaultProbeInterval - time.Millisecond)
@@ -109,7 +109,8 @@ func TestBreaker_OneProbePerInterval(t *testing.T) {
 	*now = now.Add(DefaultProbeInterval)
 	assert.True(t, c.FetchAllowed(), "probe re-arms once per interval while failing")
 
-	c.StoreRecovered()
+	assert.True(t, c.StoreRecovered(), "recovery after a failure is a transition")
+	assert.False(t, c.StoreRecovered(), "recovery while healthy is not")
 	assert.True(t, c.FetchAllowed())
 	assert.True(t, c.FetchAllowed(), "recovered: no gating")
 }

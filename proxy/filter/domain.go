@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"strings"
 	"sync"
 
@@ -42,8 +43,8 @@ func NewDomainFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog S
 // Execute performs all stages of filtering DNS requests. Any stage failure
 // yields StatusUnavailable: the partial results of the other stages are kept
 // for logging but never aggregated into a decision.
-func (f *DomainFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
-	err = runStages(FilterTypeDomain, f.stages, f.Metrics, reqCtx, dctx)
+func (f *DomainFilter) Execute(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
+	err = runStages(ctx, FilterTypeDomain, f.stages, f.Metrics, reqCtx, dctx)
 
 	var finalFltrRes model.FilterResult
 	if err != nil {
@@ -64,7 +65,7 @@ func (f *DomainFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *prox
 // that ASN-based blocking misses when services use third-party CDNs.
 // Subdomain matching is always on: listing "microsoft.com" also blocks
 // "www.microsoft.com", "login.microsoft.com", etc.
-func (f *DomainFilter) filterServiceDomains(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *DomainFilter) filterServiceDomains(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierServices}

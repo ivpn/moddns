@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -133,14 +134,14 @@ func TestPostResolve_IPFilterDispatch(t *testing.T) {
 			dctx := newPostResolveDNSContext("example.com", dns.TypeA)
 
 			if tt.expectIPFilter {
-				ipFilter.On("Execute", reqCtx, dctx).Return(nil)
+				ipFilter.On("Execute", mock.Anything, reqCtx, dctx).Return(nil)
 			}
 
-			s.postResolve(reqCtx, dctx)
+			s.postResolve(context.Background(), reqCtx, dctx)
 			require.True(t, awaitWG(&wg, time.Second), "background goroutines did not finish")
 
 			if tt.expectIPFilter {
-				ipFilter.AssertCalled(t, "Execute", reqCtx, dctx)
+				ipFilter.AssertCalled(t, "Execute", mock.Anything, reqCtx, dctx)
 			} else {
 				ipFilter.AssertNotCalled(t, "Execute")
 			}
@@ -205,16 +206,16 @@ func TestPostResolve_ResponseContent(t *testing.T) {
 			dctx.Res.Answer = []dns.RR{rr}
 
 			if tt.ipFilterBlocks {
-				ipFilter.On("Execute", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-					rCtx := args.Get(0).(*requestcontext.RequestContext)
+				ipFilter.On("Execute", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+					rCtx := args.Get(1).(*requestcontext.RequestContext)
 					rCtx.FilterResult.Status = model.StatusBlocked
 					rCtx.FilterResult.Reasons = []string{"ip_blocked"}
 				}).Return(nil)
 			} else {
-				ipFilter.On("Execute", mock.Anything, mock.Anything).Return(nil)
+				ipFilter.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			}
 
-			s.postResolve(reqCtx, dctx)
+			s.postResolve(context.Background(), reqCtx, dctx)
 			require.True(t, awaitWG(&wg, time.Second))
 
 			if tt.wantIP == "NODATA" {
@@ -245,7 +246,7 @@ func TestPostResolve_CacheHit_EmitsStats(t *testing.T) {
 	reqCtx := newPostResolveReqCtx(model.StatusProcessed, nil)
 	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
 
-	ipFilter.On("Execute", mock.Anything, mock.Anything).Return(nil)
+	ipFilter.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	received := make(chan model.EventStatistics, 1)
 	statsCh.On("Send", mock.MatchedBy(func(data any) bool {
@@ -256,7 +257,7 @@ func TestPostResolve_CacheHit_EmitsStats(t *testing.T) {
 		return false
 	})).Return(nil).Once()
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(context.Background(), reqCtx, dctx)
 
 	select {
 	case evt := <-received:
@@ -289,7 +290,7 @@ func TestPostResolve_CacheHit_EmitsQueryLog(t *testing.T) {
 	reqCtx := newPostResolveReqCtx(model.StatusProcessed, logsSettings)
 	dctx := newPostResolveDNSContext("logged.example.com", dns.TypeA)
 
-	ipFilter.On("Execute", mock.Anything, mock.Anything).Return(nil)
+	ipFilter.On("Execute", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	statsCh.On("Send", mock.Anything).Return(nil).Maybe()
 
 	received := make(chan model.EventQueryLog, 1)
@@ -301,7 +302,7 @@ func TestPostResolve_CacheHit_EmitsQueryLog(t *testing.T) {
 		return false
 	})).Return(nil).Once()
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(context.Background(), reqCtx, dctx)
 
 	select {
 	case evt := <-received:
@@ -336,7 +337,7 @@ func TestPostResolve_Unavailable_SkipsIPFilterAnswersServfail(t *testing.T) {
 	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
 	dctx.Res = nil
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(context.Background(), reqCtx, dctx)
 	require.True(t, awaitWG(&wg, time.Second), "background goroutines did not finish")
 
 	ipFilter.AssertNotCalled(t, "Execute")
@@ -365,12 +366,12 @@ func TestPostResolve_IPFilterUnavailable_DiscardsAnswer(t *testing.T) {
 	require.NoError(t, err)
 	dctx.Res.Answer = []dns.RR{rr}
 
-	ipFilter.On("Execute", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		rCtx := args.Get(0).(*requestcontext.RequestContext)
+	ipFilter.On("Execute", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		rCtx := args.Get(1).(*requestcontext.RequestContext)
 		rCtx.FilterResult.Status = model.StatusUnavailable
 	}).Return(errors.New("dial tcp: i/o timeout"))
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(context.Background(), reqCtx, dctx)
 	require.True(t, awaitWG(&wg, time.Second))
 
 	require.NotNil(t, dctx.Res)
@@ -401,7 +402,7 @@ func TestPostResolve_Unavailable_StatsCountTotalNotBlocked(t *testing.T) {
 		return false
 	})).Return(nil).Once()
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(context.Background(), reqCtx, dctx)
 
 	select {
 	case evt := <-received:

@@ -2,6 +2,7 @@ package filter
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -132,7 +133,7 @@ func TestFilterCustomRules(t *testing.T) {
 			}
 
 			// Call the function
-			got, err := fm.filterCustomRules(reqCtx, dnsCtx)
+			got, err := fm.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 			// Assert results
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -499,7 +500,7 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 			}
 
 			ipFilter := &IPFilter{Cache: mockCache, ASNLookup: asnLookup}
-			got, err := ipFilter.filterCustomRules(reqCtx, tt.dnsCtx)
+			got, err := ipFilter.filterCustomRules(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, TierCustomRules, got.Tier)
@@ -536,7 +537,7 @@ func TestFilterCustomRulesDomainNotLoggedWhenGateOff(t *testing.T) {
 		LoggerConfig: logger.Config(),
 	}
 
-	got, err := fm.filterCustomRules(reqCtx, &proxy.DNSContext{Req: msg})
+	got, err := fm.filterCustomRules(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionBlock, got.Decision)

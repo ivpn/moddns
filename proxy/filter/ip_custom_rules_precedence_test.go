@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -52,7 +53,7 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_IP(t *testing.T) {
 	testLogger := loggerFactory.ForProfile(profileID, true)
 	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, CustomRules: customRules, Logger: testLogger}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
 	// When both allow and block custom rules match within a single response, block wins.

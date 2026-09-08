@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -50,7 +51,7 @@ func extractCNAMETargets(answers []dns.RR, qname string) []string {
 // custom Block (T200) > blocklist Block (T100). Custom rules are therefore
 // always evaluated, while blocklist lookups are skipped once a custom rule
 // has decided.
-func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
@@ -96,8 +97,6 @@ func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *prox
 		return result, nil
 	}
 
-	ctx, cancel := storeContext()
-	defer cancel()
 	for _, target := range targets {
 		match, err := matchDomainAgainstBlocklists(ctx, f.Cache, reqCtx, reqCtx.Blocklists, target)
 		if err != nil {

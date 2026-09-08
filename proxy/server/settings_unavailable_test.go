@@ -170,6 +170,7 @@ func TestServFailResponse_Shape(t *testing.T) {
 }
 
 // specRef: proxy-request-admission-behaviour.md #Q12
+// specRef: proxy-filtering-behaviour.md #I6
 func TestPrepareRequest_FilterInputReadError_Servfail(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -249,4 +250,30 @@ func TestPrepareRequest_AbsentOptionalGroups_Proceeds(t *testing.T) {
 	assert.Equal(t, rules, reqCtx.CustomRules)
 	assert.Nil(t, reqCtx.StatisticsSettings)
 	assert.Equal(t, "default", reqCtx.UpstreamName)
+}
+
+// A DNSSEC hash that exists but does not parse is malformed server-side data:
+// answered SERVFAIL and counted, never dropped as a missing profile.
+// specRef: proxy-request-admission-behaviour.md #Q12
+func TestPrepareRequest_MalformedDNSSECSettings_Servfail(t *testing.T) {
+	const profileID = "baddnssecprofile"
+	absent := fmt.Errorf("%w: [absent]", cache.ErrSettingsNotFound)
+	c := mocks.NewCache(t)
+	c.EXPECT().GetProfileSettingsBatch(mock.Anything, profileID).Return(&model.ProfileSettings{
+		Privacy:                map[string]string{},
+		DNSSEC:                 map[string]string{"enabled": "yes please", "send_do_bit": "1"},
+		LogsErr:                absent,
+		RebindingProtectionErr: absent,
+		AdvancedErr:            absent,
+		StatisticsErr:          absent,
+	}, nil)
+	s, m := newSettingsServer(c)
+
+	reqCtx, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext(profileID))
+
+	require.NoError(t, err, "malformed settings are not a drop")
+	require.Nil(t, reqCtx)
+	require.NotNil(t, errResp)
+	assert.Equal(t, dns.RcodeServerFailure, errResp.Rcode)
+	assert.Equal(t, [][2]string{{"admission", "profile_settings"}}, m.pairs())
 }

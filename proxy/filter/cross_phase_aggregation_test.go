@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"testing"
@@ -349,7 +350,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 				reqCtx.PartialFilteringResults, tt.domainResults...,
 			)
 
-			err := ipFilter.Execute(reqCtx, tt.dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status,
 				"table %s: expected status %s", tt.tableRef, tt.wantStatus)
@@ -407,7 +408,7 @@ func TestIPFilter_RebindingCrossPhase(t *testing.T) {
 			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
 			reqCtx.PartialFilteringResults = append(reqCtx.PartialFilteringResults, tt.domainResults...)
 
-			err := ipFilter.Execute(reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status,
 				"table %s: expected status %s", tt.tableRef, tt.wantStatus)
@@ -469,7 +470,7 @@ func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 			req.SetQuestion("blocked.example.com.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: nil}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
 			// With unified aggregation, domain-phase Block results propagate
@@ -573,7 +574,7 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 			req.SetQuestion("blocked.example.com.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: nil}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
 			// With unified aggregation, domain-phase Block propagates. IP allow
@@ -610,7 +611,7 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 	reqCtx.PartialFilteringResults = []model.StageResult{domainAllowResult()}
 
 	dnsCtx := dnsCtxWithAAnswer(t, answerIP)
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
 	// Domain (1) + services (1) + rebinding (1) + custom rules (1) + cname (1)
@@ -646,7 +647,7 @@ func TestIPFilter_NilResponse_SubFiltersReturnNone(t *testing.T) {
 		ServicesCatalog: staticCatalog{cat: googleCatalogWithASN(15169)},
 		ASNLookup:       staticASNLookup{asn: 15169},
 	}
-	svcResult, err := svcFilter.filterServices(reqCtx, dnsCtx)
+	svcResult, err := svcFilter.filterServices(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, svcResult.Decision, "filterServices must return None for nil Res")
 
@@ -655,7 +656,7 @@ func TestIPFilter_NilResponse_SubFiltersReturnNone(t *testing.T) {
 		Cache:     mockCache,
 		ASNLookup: staticASNLookup{asn: 15169},
 	}
-	crResult, err := crFilter.filterCustomRules(reqCtx, dnsCtx)
+	crResult, err := crFilter.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, crResult.Decision, "filterCustomRules must return None for nil Res")
 }
@@ -690,7 +691,7 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 	addr := netip.MustParseAddrPort("10.0.0.1:12345")
 	dnsCtx := &proxy.DNSContext{Req: req, Res: res, Addr: addr}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
 	// Domain allow (T200) overrides IP block (T200) — allow always wins.

@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
 	"github.com/ivpn/dns/proxy/model"
@@ -13,7 +14,7 @@ const (
 	DEFAULT_RULE = "default_rule"
 )
 
-func (f *DomainFilter) applyDefaultRule(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *DomainFilter) applyDefaultRule(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	// Privacy settings already travel on the request context; no store read.

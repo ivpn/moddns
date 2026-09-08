@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -257,7 +258,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 				Res: tt.response,
 			}
 
-			got, err := fm.filterCustomRules(reqCtx, dctx)
+			got, err := fm.filterCustomRules(context.Background(), reqCtx, dctx)
 
 			if tt.wantErr {
 				assert.Error(t, err)
