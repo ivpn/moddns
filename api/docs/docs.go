@@ -1790,6 +1790,12 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "enum": [
+                            "all",
+                            "blocked",
+                            "processed",
+                            "unavailable"
+                        ],
                         "type": "string",
                         "default": "\"all\"",
                         "description": "specify status for query",

@@ -11,6 +11,9 @@ const (
 	STATUS_ALL       = "all"
 	STATUS_BLOCKED   = "blocked"
 	STATUS_PROCESSED = "processed"
+	// STATUS_UNAVAILABLE marks queries the proxy answered SERVFAIL because its
+	// settings store was unreachable (query-log-outcomes-behaviour.md O11).
+	STATUS_UNAVAILABLE = "unavailable"
 )
 
 type QueryLogsService struct {
