@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"net"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -35,11 +34,7 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 		return result, nil
 	}
 
-	// A missing list is an empty LRANGE, not an error; an error is a store failure.
-	blockedServices, err := f.Cache.GetProfileServicesBlocked(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
+	blockedServices := reqCtx.BlockedServices
 	if len(blockedServices) == 0 {
 		return result, nil
 	}

@@ -10,29 +10,20 @@ import (
 
 const CacheTypeRedis = "redis"
 
-// ErrSettingsNotFound marks a settings hash that Redis answered for but that is
-// empty, i.e. the profile (or that settings group) does not exist. Every other
-// error from the cache is an infrastructure error and must not be read as
-// "profile not found".
-var ErrSettingsNotFound = errors.New("settings not found")
+// ErrSettingsNotFound is model.ErrSettingsNotFound, re-exported for callers
+// that only know the cache.
+var ErrSettingsNotFound = model.ErrSettingsNotFound
 
-// Cache is an interface for caching functionalities
+// Cache is the proxy's read-only view of the settings store. Per-profile
+// inputs come from one GetProfileSettingsBatch call and travel on the request
+// context; GetBlocklistEntry is the only per-query lookup.
 type Cache interface {
-	GetProfileBlocklists(ctx context.Context, profileId string) ([]string, error)
-	GetProfileServicesBlocked(ctx context.Context, profileId string) ([]string, error)
-	GetProfileLogsSettings(ctx context.Context, profileId string) (map[string]string, error)
-	GetProfileDNSSECSettings(ctx context.Context, profileId string) (map[string]string, error)
-	GetProfileAdvancedSettings(ctx context.Context, profileId string) (map[string]string, error)
-	GetProfileStatisticsSettings(ctx context.Context, profileId string) (map[string]string, error)
-	GetProfilePrivacySettings(ctx context.Context, profileId string) (map[string]string, error)
-	GetBlocklistEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
-	GetCustomRulesHashes(ctx context.Context, profileId string) ([]string, error)
-	GetCustomRulesHash(ctx context.Context, hashId string) (map[string]string, error)
-
-	// GetProfileSettingsBatch fetches privacy, logs, DNSSEC, and advanced
-	// settings for a profile in a single Redis pipeline round-trip.
-	// The returned ProfileSettings contains per-key results and errors.
+	// GetProfileSettingsBatch fetches every per-profile input in one batch.
+	// It returns an error only when the store is unreachable; per-key
+	// outcomes are reported on the returned ProfileSettings.
 	GetProfileSettingsBatch(ctx context.Context, profileId string) (*model.ProfileSettings, error)
+	// GetBlocklistEntry reports whether fqdn is a member of the blocklist set.
+	GetBlocklistEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
 
 	// Close shuts down the cache and releases resources.
 	Close()

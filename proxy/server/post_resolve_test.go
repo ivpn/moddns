@@ -75,11 +75,10 @@ func awaitWG(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-// setupStatsBackground mocks the async EmitStatistics path (cache lookup + Send)
-// and wires wg.Done into the Send call so callers can synchronise.
-func setupStatsBackground(cacheMock *mocks.Cache, statsCh *mocks.CollectorChannel, wg *sync.WaitGroup) {
-	cacheMock.On("GetProfileStatisticsSettings", mock.Anything, testPostResolveProfileID).
-		Return(map[string]string{"enabled": "false"}, nil).Maybe()
+// setupStatsBackground mocks the async EmitStatistics path (Send) and wires
+// wg.Done into the Send call so callers can synchronise. Statistics settings
+// travel on the request context, so no cache expectation is needed.
+func setupStatsBackground(_ *mocks.Cache, statsCh *mocks.CollectorChannel, wg *sync.WaitGroup) {
 	wg.Add(1)
 	statsCh.On("Send", mock.Anything).Run(func(_ mock.Arguments) { wg.Done() }).Return(nil).Once()
 }
@@ -247,8 +246,6 @@ func TestPostResolve_CacheHit_EmitsStats(t *testing.T) {
 	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
 
 	ipFilter.On("Execute", mock.Anything, mock.Anything).Return(nil)
-	cacheMock.On("GetProfileStatisticsSettings", mock.Anything, testPostResolveProfileID).
-		Return(map[string]string{"enabled": "false"}, nil)
 
 	received := make(chan model.EventStatistics, 1)
 	statsCh.On("Send", mock.MatchedBy(func(data any) bool {
@@ -293,8 +290,6 @@ func TestPostResolve_CacheHit_EmitsQueryLog(t *testing.T) {
 	dctx := newPostResolveDNSContext("logged.example.com", dns.TypeA)
 
 	ipFilter.On("Execute", mock.Anything, mock.Anything).Return(nil)
-	cacheMock.On("GetProfileStatisticsSettings", mock.Anything, testPostResolveProfileID).
-		Return(map[string]string{"enabled": "false"}, nil).Maybe()
 	statsCh.On("Send", mock.Anything).Return(nil).Maybe()
 
 	received := make(chan model.EventQueryLog, 1)
@@ -396,9 +391,6 @@ func TestPostResolve_Unavailable_StatsCountTotalNotBlocked(t *testing.T) {
 	reqCtx := newPostResolveReqCtx(model.StatusUnavailable, nil)
 	dctx := newPostResolveDNSContext("example.com", dns.TypeA)
 	dctx.Res = nil
-
-	cacheMock.On("GetProfileStatisticsSettings", mock.Anything, testPostResolveProfileID).
-		Return(map[string]string{"enabled": "false"}, nil).Maybe()
 
 	received := make(chan model.EventStatistics, 1)
 	statsCh.On("Send", mock.MatchedBy(func(data any) bool {

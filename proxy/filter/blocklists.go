@@ -75,10 +75,6 @@ func matchDomainAgainstBlocklists(ctx context.Context, c cache.Cache, reqCtx *re
 
 func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
-	blocklists, err := f.Cache.GetProfileBlocklists(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
 
 	question := dctx.Req.Question[0].Name // answer only first question - google dns does the same
 
@@ -91,7 +87,7 @@ func (f *DomainFilter) filterBlocklists(reqCtx *requestcontext.RequestContext, d
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
 
-	match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, blocklists, fqdn)
+	match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, reqCtx.Blocklists, fqdn)
 	if err != nil {
 		return nil, err
 	}

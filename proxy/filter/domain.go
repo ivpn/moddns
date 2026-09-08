@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"strings"
 	"sync"
 
@@ -73,10 +72,7 @@ func (f *DomainFilter) filterServiceDomains(reqCtx *requestcontext.RequestContex
 		return result, nil
 	}
 
-	blockedServices, err := f.Cache.GetProfileServicesBlocked(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
+	blockedServices := reqCtx.BlockedServices
 	if len(blockedServices) == 0 {
 		return result, nil
 	}

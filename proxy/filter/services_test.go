@@ -14,7 +14,6 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 type staticCatalog struct{ cat *servicescatalog.Catalog }
@@ -52,6 +51,18 @@ func newTestReqCtx(t *testing.T, profileID string) *requestcontext.RequestContex
 	loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 	testLogger := loggerFactory.ForProfile(profileID, true)
 	return &requestcontext.RequestContext{ProfileId: profileID, Logger: testLogger}
+}
+
+// orderedRules builds the request-context rule list the settings batch would
+// carry: the rule hashes named by ids, in that order.
+func orderedRules(ids []string, rules map[string]map[string]string) []map[string]string {
+	out := make([]map[string]string, 0, len(ids))
+	for _, id := range ids {
+		if r, ok := rules[id]; ok {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 func dnsCtxWithAAnswer(t *testing.T, ipStr string) *proxy.DNSContext {
@@ -133,8 +144,6 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 		servicesGetter ServicesCatalogGetter
 		asnLookup      ASNLookup
 		blockedIDs     []string
-		cacheErr       error
-		wantErr        bool
 		dnsCtx         *proxy.DNSContext
 		wantDecision   model.Decision
 		wantReasons    []string
@@ -170,16 +179,6 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:     []string{"google"},
 			dnsCtx:         &proxy.DNSContext{Req: new(dns.Msg), Res: nil},
 			wantDecision:   model.DecisionNone,
-		},
-		{
-			// specRef: proxy-filtering-behaviour.md #I6
-			name:           "services list read error is a stage error",
-			servicesGetter: staticCatalog{cat: googleCatalogWithASN(asn)},
-			asnLookup:      staticASNLookup{asn: asn},
-			blockedIDs:     nil,
-			cacheErr:       errors.New("cache error"),
-			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
-			wantErr:        true,
 		},
 		{
 			name:           "no blocked services",
@@ -316,15 +315,8 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			shouldCallCache := tt.servicesGetter != nil && tt.asnLookup != nil && tt.dnsCtx != nil && tt.dnsCtx.Res != nil
-			if shouldCallCache {
-				if tt.cacheErr != nil {
-					mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).Return(nil, tt.cacheErr)
-				} else {
-					mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).Return(tt.blockedIDs, nil)
-				}
-			}
+			// The stage has no store dependency: a strict mock fails on any call.
+			mockCache := mocks.NewCache(t)
 
 			ipFilter := &IPFilter{
 				Cache:           mockCache,
@@ -334,25 +326,14 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			}
 
 			reqCtx := newTestReqCtx(t, profileID)
+			reqCtx.BlockedServices = tt.blockedIDs
 			got, err := ipFilter.filterServices(reqCtx, tt.dnsCtx)
-			if tt.wantErr {
-				assert.ErrorIs(t, err, tt.cacheErr)
-				assert.Nil(t, got)
-				mockCache.AssertExpectations(t)
-				return
-			}
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, TierServices, got.Tier)
 			assert.Equal(t, tt.wantDecision, got.Decision)
 			for _, r := range tt.wantReasons {
 				assert.Contains(t, got.Reasons, r)
-			}
-
-			if shouldCallCache {
-				mockCache.AssertExpectations(t)
-			} else {
-				mockCache.AssertNotCalled(t, "GetProfileServicesBlocked", mock.Anything, mock.Anything)
 			}
 		})
 	}
@@ -419,16 +400,13 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, tt.profileID).Return(tt.blockedIDs, nil)
-			mockCache.On("GetCustomRulesHashes", mock.Anything, tt.profileID).Return(tt.customHashes, nil)
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).Return(rule, nil)
-			}
+			mockCache := mocks.NewCache(t)
 
 			dnsProxy := &proxy.Proxy{}
 			ipFilter := NewIPFilter(dnsProxy, mockCache, staticCatalog{cat: tt.catalog}, tt.asnLookup, nil, nil)
 			reqCtx := newTestReqCtx(t, tt.profileID)
+			reqCtx.BlockedServices = tt.blockedIDs
+			reqCtx.CustomRules = orderedRules(tt.customHashes, tt.customRules)
 
 			err := ipFilter.Execute(reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
@@ -439,8 +417,6 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			for _, s := range tt.wantNotContains {
 				assert.NotContains(t, reqCtx.FilterResult.Reasons, s)
 			}
-
-			mockCache.AssertExpectations(t)
 		})
 	}
 }

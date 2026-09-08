@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ivpn/dns/libs/logging"
+	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -68,11 +69,7 @@ func TestStrictNoLogging_RequestContext_LoggerIntegration(t *testing.T) {
 		nil,
 		"profile-no-logs",
 		"", // deviceId
-		map[string]string{},
-		map[string]string{"enabled": "false"},
-		map[string]string{},
-		map[string]string{},
-		map[string]string{},
+		&model.ProfileSettings{Logs: map[string]string{"enabled": "false"}},
 		disabledLogger,
 	)
 
@@ -87,11 +84,7 @@ func TestStrictNoLogging_RequestContext_LoggerIntegration(t *testing.T) {
 		nil,
 		"profile-with-logs",
 		"", // deviceId
-		map[string]string{},
-		map[string]string{"enabled": "true"},
-		map[string]string{},
-		map[string]string{},
-		map[string]string{},
+		&model.ProfileSettings{Logs: map[string]string{"enabled": "true"}},
 		enabledLogger,
 	)
 

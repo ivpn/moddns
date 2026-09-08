@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -186,13 +185,14 @@ func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 // seedCachedProfile puts a minimal existing profile into the settings cache so
 // prepareRequest reaches the per-profile rate-limit layer without Redis.
 func seedCachedProfile(s *Server, profileID string) {
-	fetchErr := errors.New("settings unavailable")
+	// Absent settings groups (defaults apply), not store failures.
+	absent := fmt.Errorf("%w: [seed]", cache.ErrSettingsNotFound)
 	s.ProfileSettingsCache.Set(profileID, &model.ProfileSettings{
 		Privacy:                map[string]string{},
-		LogsErr:                fetchErr,
-		DNSSECErr:              fetchErr,
-		RebindingProtectionErr: fetchErr,
-		AdvancedErr:            fetchErr,
+		LogsErr:                absent,
+		DNSSECErr:              absent,
+		RebindingProtectionErr: absent,
+		AdvancedErr:            absent,
 	}, gocache.DefaultExpiration)
 }
 

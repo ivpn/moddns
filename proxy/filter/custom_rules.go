@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"context"
 	"net"
 	"regexp"
 	"strconv"
@@ -109,10 +108,6 @@ func matchDomainPattern(patternCache *sync.Map, domain, pattern string) bool {
 // filterCustomRules checks if the domain is allowed or blocked by custom rules; method is executed before the DNS request is sent.
 func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
-	customRuleHashes, err := f.Cache.GetCustomRulesHashes(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
 
 	question := dctx.Req.Question[0].Name
 	fqdn, _ := strings.CutSuffix(question, ".")
@@ -120,12 +115,7 @@ func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierCustomRules}
 	allowMatched := false
 
-	for _, customRuleHash := range customRuleHashes {
-		hash, err := f.Cache.GetCustomRulesHash(context.Background(), customRuleHash)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, hash := range reqCtx.CustomRules {
 		if f.matchDomain(fqdn, hash["value"]) {
 			switch hash["action"] {
 			case ACTION_BLOCK:
@@ -162,11 +152,6 @@ func (f *DomainFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, 
 func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
-	customRuleHashes, err := f.Cache.GetCustomRulesHashes(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
-
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierCustomRules}
 	allowMatched := false
 	blockMatched := false
@@ -176,14 +161,10 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 	}
 
 	ips := extractIPsFromAnswer(dctx.Res.Answer)
-	for _, customRuleHash := range customRuleHashes {
-		hash, err := f.Cache.GetCustomRulesHash(context.Background(), customRuleHash)
-		if err != nil {
-			return nil, err
-		}
+	for _, hash := range reqCtx.CustomRules {
 		syntax, ok := hash["syntax"]
 		if !ok || syntax == "" {
-			log.Debug().Str("hash", customRuleHash).Msg("Old custom rule detected, syntax is empty")
+			log.Debug().Msg("Old custom rule detected, syntax is empty")
 			continue
 		}
 
@@ -200,7 +181,7 @@ func (f *IPFilter) filterCustomRules(reqCtx *requestcontext.RequestContext, dctx
 			}
 			ruleASN, ok := parseCustomRuleASN(hash["value"])
 			if !ok {
-				log.Debug().Str("hash", customRuleHash).Str("value", hash["value"]).Msg("Invalid ASN custom rule value")
+				log.Debug().Str("value", hash["value"]).Msg("Invalid ASN custom rule value")
 				continue
 			}
 			for _, ip := range ips {

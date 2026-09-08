@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/cache"
 	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/ivpn/dns/proxy/model"
@@ -151,4 +152,86 @@ func TestServFailResponse_Shape(t *testing.T) {
 	assert.True(t, resp.Response)
 	assert.Equal(t, uint16(0xBEEF), resp.Id)
 	assert.Empty(t, resp.Answer)
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q12
+func TestPrepareRequest_FilterInputReadError_Servfail(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings *model.ProfileSettings
+	}{
+		{
+			name: "blocklists list unreadable",
+			settings: &model.ProfileSettings{
+				Privacy:       map[string]string{"default_rule": "allow"},
+				BlocklistsErr: errors.New("i/o timeout"),
+			},
+		},
+		{
+			name: "custom rules unreadable",
+			settings: &model.ProfileSettings{
+				Privacy:        map[string]string{"default_rule": "allow"},
+				CustomRulesErr: errors.New("i/o timeout"),
+			},
+		},
+		{
+			name: "services list unreadable",
+			settings: &model.ProfileSettings{
+				Privacy:     map[string]string{"default_rule": "allow"},
+				ServicesErr: errors.New("connection reset by peer"),
+			},
+		},
+	}
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profileID := fmt.Sprintf("inputerrprofile%d", i)
+			c := mocks.NewCache(t)
+			c.EXPECT().GetProfileSettingsBatch(mock.Anything, profileID).Return(tt.settings, nil)
+			s, m := newSettingsServer(c)
+
+			reqCtx, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext(profileID))
+
+			require.NoError(t, err, "incomplete filter inputs are a store failure, not a drop")
+			require.Nil(t, reqCtx)
+			require.NotNil(t, errResp)
+			assert.Equal(t, dns.RcodeServerFailure, errResp.Rcode)
+			assert.Equal(t, [][2]string{{"admission", "profile_settings"}}, m.pairs())
+		})
+	}
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q12
+// Absent optional groups are not store failures: defaults apply and the
+// request proceeds with the batch's filter inputs on the request context.
+func TestPrepareRequest_AbsentOptionalGroups_Proceeds(t *testing.T) {
+	const profileID = "absentgroupsprofile1"
+	absent := func(name string) error { return fmt.Errorf("%w: [%s]", cache.ErrSettingsNotFound, name) }
+	rules := []map[string]string{{"value": "ads.example", "action": "block", "syntax": "domain"}}
+	settings := &model.ProfileSettings{
+		Privacy:                map[string]string{"default_rule": "allow"},
+		LogsErr:                absent("logs"),
+		DNSSECErr:              absent("security dnssec"),
+		AdvancedErr:            absent("advanced"),
+		RebindingProtectionErr: absent("security rebinding_protection"),
+		StatisticsErr:          absent("statistics"),
+		Blocklists:             []string{"bl1", "bl2"},
+		Services:               []string{"google"},
+		CustomRules:            rules,
+	}
+	c := mocks.NewCache(t)
+	c.EXPECT().GetProfileSettingsBatch(mock.Anything, profileID).Return(settings, nil)
+	s, m := newSettingsServer(c)
+	s.Upstreams = map[string]*proxy.CustomUpstreamConfig{"default": {}}
+
+	reqCtx, errResp, err := s.prepareRequest(context.Background(), nil, newDoHDNSContext(profileID))
+
+	require.NoError(t, err)
+	require.Nil(t, errResp)
+	require.NotNil(t, reqCtx)
+	assert.Empty(t, m.pairs(), "absent groups are not store errors")
+	assert.Equal(t, []string{"bl1", "bl2"}, reqCtx.Blocklists)
+	assert.Equal(t, []string{"google"}, reqCtx.BlockedServices)
+	assert.Equal(t, rules, reqCtx.CustomRules)
+	assert.Nil(t, reqCtx.StatisticsSettings)
+	assert.Equal(t, "default", reqCtx.UpstreamName)
 }

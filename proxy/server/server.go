@@ -248,6 +248,13 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			systemLogger.Err(settings.PrivacyErr).Msg("Failed to read profile privacy settings")
 			return nil, s.servFailResponse(dctx.Req), nil
 		}
+		// The remaining groups may legitimately be absent (defaults apply), but
+		// a read failure on any of them means the filter inputs are incomplete.
+		if err := settings.StoreError(); err != nil {
+			s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
+			systemLogger.Err(err).Msg("Failed to read profile settings")
+			return nil, s.servFailResponse(dctx.Req), nil
+		}
 
 		// Layer 2: per-profile rate limit. Runs after the existence check so
 		// buckets are only created for profiles that exist.
@@ -257,7 +264,6 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			}
 			return nil, nil, errRateLimitedProfile
 		}
-		prvSettings := settings.Privacy
 
 		// Logs settings: default to enabled if unavailable.
 		logsSettings := settings.Logs
@@ -311,10 +317,6 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			}
 		}
 
-		// Rebinding protection (security): missing hash = empty map = opt-in OFF.
-		// Raw map is threaded through; the IP-phase filter reads the "enabled" key.
-		rebindingProtectionSettings := settings.RebindingProtection
-
 		// Advanced settings: default upstream if unavailable.
 		advancedSettings := settings.Advanced
 		upstreamName := s.Config.Upstream.Default
@@ -338,7 +340,7 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 
 		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
-		reqCtx = requestcontext.NewRequestContext(ctx, p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
+		reqCtx = requestcontext.NewRequestContext(ctx, p, profileId, deviceId, settings, reqLogger)
 		reqCtx.StartTime = time.Now()
 		reqCtx.UpstreamName = upstreamName
 

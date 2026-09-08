@@ -10,6 +10,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/libs/logging"
+	"github.com/ivpn/dns/proxy/model"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -34,11 +35,7 @@ func testLogger(enabled bool, logDomains bool) (logging.LoggerInterface, *bytes.
 func TestAddDomain_DomainLoggingEnabled(t *testing.T) {
 	logger, buf := testLogger(true, true)
 	rc := NewRequestContext(context.Background(), &proxy.Proxy{}, "pid", "did",
-		map[string]string{},
-		map[string]string{"log_domains": "true", "enabled": "true"},
-		map[string]string{},
-		map[string]string{},
-		map[string]string{},
+		&model.ProfileSettings{Logs: map[string]string{"log_domains": "true", "enabled": "true"}},
 		logger,
 	)
 	ev := rc.Logger.Info()
@@ -82,11 +79,7 @@ func TestAddClientIP_ClientIPLoggingDisabled(t *testing.T) {
 func TestAddDomain_DomainLoggingDisabled(t *testing.T) {
 	logger, buf := testLogger(true, false)
 	rc := NewRequestContext(context.Background(), &proxy.Proxy{}, "pid", "did",
-		map[string]string{},
-		map[string]string{"log_domains": "false", "enabled": "true"},
-		map[string]string{},
-		map[string]string{},
-		map[string]string{},
+		&model.ProfileSettings{Logs: map[string]string{"log_domains": "false", "enabled": "true"}},
 		logger,
 	)
 	ev := rc.Logger.Info()
@@ -100,11 +93,7 @@ func TestAddDomain_DomainLoggingDisabled(t *testing.T) {
 func TestMaybeDomain_DomainLoggingEnabled(t *testing.T) {
 	logger, buf := testLogger(true, true)
 	rc := NewRequestContext(context.Background(), &proxy.Proxy{}, "pid", "did",
-		map[string]string{},
-		map[string]string{"log_domains": "true", "enabled": "true"},
-		map[string]string{},
-		map[string]string{},
-		map[string]string{},
+		&model.ProfileSettings{Logs: map[string]string{"log_domains": "true", "enabled": "true"}},
 		logger,
 	)
 	ev := rc.Logger.Info()

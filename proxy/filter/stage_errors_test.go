@@ -3,6 +3,11 @@ package filter
 // Tests for the settings-store error policy in DomainFilter.Execute and
 // IPFilter.Execute: a failing stage yields StatusUnavailable instead of an
 // accidental fail-open. Rows: docs/specs/proxy-filtering-behaviour.md Section I.
+//
+// Per-profile inputs (blocklist subscriptions, custom rules, blocked services,
+// privacy settings) travel on the request context, so the only stage read that
+// can fail is the live blocklist membership lookup (GetBlocklistEntry), used by
+// the domain-phase blocklists stage and the IP-phase CNAME stage.
 
 import (
 	"errors"
@@ -51,11 +56,14 @@ func (r *stageErrorRecorder) count() int {
 	return len(r.pairs)
 }
 
+const stageErrBlocklistID = "bl-stage-err"
+
 func stageErrReqCtx(t *testing.T, profileID string, privacy map[string]string) *requestcontext.RequestContext {
 	t.Helper()
 	logger := logging.NewFactory(zerolog.DebugLevel).ForProfile(profileID, true)
 	return &requestcontext.RequestContext{
 		ProfileId:       profileID,
+		Blocklists:      []string{stageErrBlocklistID},
 		PrivacySettings: privacy,
 		Logger:          logger,
 	}
@@ -65,6 +73,23 @@ func stageErrDomainDctx(qname string) *proxy.DNSContext {
 	msg := new(dns.Msg)
 	msg.SetQuestion(dns.Fqdn(qname), dns.TypeA)
 	return &proxy.DNSContext{Req: msg}
+}
+
+// stageErrCNAMEDctx builds a resolved answer with a CNAME hop so the IP-phase
+// CNAME stage performs a live blocklist lookup on the target.
+func stageErrCNAMEDctx(qname string) *proxy.DNSContext {
+	res := buildCNAMEChainResponse(qname, dns.TypeA, []string{"tracker.evil.net"}, "93.184.216.34")
+	req := new(dns.Msg)
+	req.SetQuestion(dns.Fqdn(qname), dns.TypeA)
+	return &proxy.DNSContext{Req: req, Res: res}
+}
+
+// failingMembershipCache returns a mock whose blocklist membership lookup fails.
+func failingMembershipCache() *mocks.Cache {
+	mockCache := new(mocks.Cache)
+	mockCache.On("GetBlocklistEntry", mock.Anything, stageErrBlocklistID, mock.Anything).
+		Return(false, errStore).Maybe()
+	return mockCache
 }
 
 // hasDecision reports whether any partial result carries the given decision at
@@ -84,12 +109,8 @@ var errStore = errors.New("dial tcp 10.0.0.6:6379: i/o timeout")
 // specRef: proxy-filtering-behaviour.md #I8
 func TestDomainFilterExecute_StageError_Unavailable(t *testing.T) {
 	const profileID = "stage-error-i1"
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileBlocklists", mock.Anything, profileID).Return(nil, errStore).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-
 	rec := &stageErrorRecorder{}
-	f := NewDomainFilter(nil, mockCache, nil)
+	f := NewDomainFilter(nil, failingMembershipCache(), nil)
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
@@ -98,7 +119,7 @@ func TestDomainFilterExecute_StageError_Unavailable(t *testing.T) {
 	require.Error(t, err, "Execute must surface the stage error")
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status)
 	assert.Nil(t, reqCtx.FilterResult.Reasons, "an unavailable result carries no reasons")
-	assert.True(t, rec.has(FilterTypeDomain, "blocklists"), "recorder pairs: %v", rec.pairs)
+	assert.True(t, rec.has(FilterTypeDomain, StageBlocklists), "recorder pairs: %v", rec.pairs)
 	assert.Equal(t, 1, rec.count(), "only the erroring stage is recorded")
 	// Successful stages still report their (None) results for logging.
 	assert.True(t, hasDecision(reqCtx.PartialFilteringResults, model.DecisionNone, TierCustomRules))
@@ -107,58 +128,45 @@ func TestDomainFilterExecute_StageError_Unavailable(t *testing.T) {
 // specRef: proxy-filtering-behaviour.md #I2
 func TestDomainFilterExecute_StageError_WinsOverBlock(t *testing.T) {
 	const profileID = "stage-error-i2"
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileBlocklists", mock.Anything, profileID).Return(nil, errStore).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{"rule-block"}, nil).Maybe()
-	mockCache.On("GetCustomRulesHash", mock.Anything, "rule-block").
-		Return(map[string]string{"action": ACTION_BLOCK, "value": "ads.example.com"}, nil).Maybe()
-
 	rec := &stageErrorRecorder{}
-	f := NewDomainFilter(nil, mockCache, nil)
+	f := NewDomainFilter(nil, failingMembershipCache(), nil)
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
+	reqCtx.CustomRules = []map[string]string{{"action": ACTION_BLOCK, "value": "ads.example.com"}}
 	err := f.Execute(reqCtx, stageErrDomainDctx("ads.example.com"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "a stage error must not be downgraded to the partial Block")
 	assert.True(t, hasDecision(reqCtx.PartialFilteringResults, model.DecisionBlock, TierCustomRules),
 		"the successful custom-rules Block is still recorded as a partial result")
-	assert.True(t, rec.has(FilterTypeDomain, "blocklists"))
+	assert.True(t, rec.has(FilterTypeDomain, StageBlocklists))
 }
 
 // specRef: proxy-filtering-behaviour.md #I3
 func TestDomainFilterExecute_StageError_WinsOverAllow(t *testing.T) {
 	const profileID = "stage-error-i3"
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileBlocklists", mock.Anything, profileID).Return(nil, errStore).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{"rule-allow"}, nil).Maybe()
-	mockCache.On("GetCustomRulesHash", mock.Anything, "rule-allow").
-		Return(map[string]string{"action": ACTION_ALLOW, "value": "ok.example.com"}, nil).Maybe()
-
 	rec := &stageErrorRecorder{}
-	f := NewDomainFilter(nil, mockCache, nil)
+	f := NewDomainFilter(nil, failingMembershipCache(), nil)
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
+	reqCtx.CustomRules = []map[string]string{{"action": ACTION_ALLOW, "value": "ok.example.com"}}
 	err := f.Execute(reqCtx, stageErrDomainDctx("ok.example.com"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "a stage error must not be downgraded to the partial Allow")
 	assert.True(t, hasDecision(reqCtx.PartialFilteringResults, model.DecisionAllow, TierCustomRules))
-	assert.True(t, rec.has(FilterTypeDomain, "blocklists"))
+	assert.True(t, rec.has(FilterTypeDomain, StageBlocklists))
 }
 
 // specRef: proxy-filtering-behaviour.md #I4
 // specRef: proxy-filtering-behaviour.md #I8
 func TestIPFilterExecute_StageError_DiscardsUpstreamAnswer(t *testing.T) {
 	const profileID = "stage-error-i4"
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return(nil, errStore).Maybe()
-
 	rec := &stageErrorRecorder{}
 	// nil catalog/ASN lookup: filterServices is inert; nil rebinding config: inert.
-	f := NewIPFilter(nil, mockCache, nil, nil, nil, nil)
+	f := NewIPFilter(nil, failingMembershipCache(), nil, nil, nil, nil)
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
@@ -166,11 +174,11 @@ func TestIPFilterExecute_StageError_DiscardsUpstreamAnswer(t *testing.T) {
 	reqCtx.PartialFilteringResults = []model.StageResult{{Decision: model.DecisionNone, Tier: TierBlocklists}}
 	reqCtx.FilterResult = model.FilterResult{Status: model.StatusProcessed}
 
-	err := f.Execute(reqCtx, dnsCtxWithAAnswer(t, "93.184.216.34"))
+	err := f.Execute(reqCtx, stageErrCNAMEDctx("metrics.shop.example"))
 
 	require.Error(t, err)
 	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status, "IP-phase store error must not fall through to Processed")
-	assert.True(t, rec.has(FilterTypeIP, "custom_rules"), "recorder pairs: %v", rec.pairs)
+	assert.True(t, rec.has(FilterTypeIP, StageCNAME), "recorder pairs: %v", rec.pairs)
 	assert.Equal(t, 1, rec.count())
 }
 
@@ -180,9 +188,8 @@ func TestExecute_NoErrors_NoMatches_Processed(t *testing.T) {
 	rec := &stageErrorRecorder{}
 
 	t.Run("domain phase", func(t *testing.T) {
-		mockCache := new(mocks.Cache)
-		mockCache.On("GetProfileBlocklists", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-		mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
+		mockCache := mocks.NewCache(t)
+		mockCache.EXPECT().GetBlocklistEntry(mock.Anything, stageErrBlocklistID, mock.Anything).Return(false, nil).Maybe()
 
 		f := NewDomainFilter(nil, mockCache, nil)
 		f.Metrics = rec
@@ -194,10 +201,8 @@ func TestExecute_NoErrors_NoMatches_Processed(t *testing.T) {
 	})
 
 	t.Run("ip phase", func(t *testing.T) {
-		mockCache := new(mocks.Cache)
-		mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-
-		f := NewIPFilter(nil, mockCache, nil, nil, nil, nil)
+		// No CNAME in the answer: the IP phase never touches the store.
+		f := NewIPFilter(nil, mocks.NewCache(t), nil, nil, nil, nil)
 		f.Metrics = rec
 		reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 
@@ -209,44 +214,18 @@ func TestExecute_NoErrors_NoMatches_Processed(t *testing.T) {
 	assert.Equal(t, 0, rec.count(), "no stage error must be recorded when nothing failed")
 }
 
-// specRef: proxy-filtering-behaviour.md #I6
-// specRef: proxy-filtering-behaviour.md #I8
-func TestIPFilterExecute_ServicesListError_Unavailable(t *testing.T) {
-	const (
-		profileID = "stage-error-i6"
-		asn       = uint(15169)
-	)
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).Return(nil, errStore).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-
-	rec := &stageErrorRecorder{}
-	f := NewIPFilter(nil, mockCache, staticCatalog{cat: googleCatalogWithASN(asn)}, staticASNLookup{asn: asn}, nil, nil)
-	f.Metrics = rec
-
-	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
-	err := f.Execute(reqCtx, dnsCtxWithAAnswer(t, "8.8.8.8"))
-
-	require.Error(t, err, "a services-list read error is a settings-store error, not a disabled feature")
-	assert.Equal(t, model.StatusUnavailable, reqCtx.FilterResult.Status)
-	assert.True(t, rec.has(FilterTypeIP, "services"), "recorder pairs: %v", rec.pairs)
-}
-
 // specRef: proxy-filtering-behaviour.md #I7
 func TestIPFilterExecute_CatalogUnavailable_Inert(t *testing.T) {
 	const (
 		profileID = "stage-error-i7"
 		asn       = uint(15169)
 	)
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).Return([]string{"google"}, nil).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-
 	rec := &stageErrorRecorder{}
-	f := NewIPFilter(nil, mockCache, staticCatalogErr{err: errors.New("catalog load")}, staticASNLookup{asn: asn}, nil, nil)
+	f := NewIPFilter(nil, mocks.NewCache(t), staticCatalogErr{err: errors.New("catalog load")}, staticASNLookup{asn: asn}, nil, nil)
 	f.Metrics = rec
 
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
+	reqCtx.BlockedServices = []string{"google"}
 	err := f.Execute(reqCtx, dnsCtxWithAAnswer(t, "8.8.8.8"))
 
 	require.NoError(t, err, "a local catalog load failure is not a store error")
@@ -259,11 +238,7 @@ func TestIPFilterExecute_CatalogUnavailable_Inert(t *testing.T) {
 // specRef: proxy-filtering-behaviour.md #I1
 func TestDomainFilterExecute_StageError_NilRecorder(t *testing.T) {
 	const profileID = "stage-error-nil-recorder"
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileBlocklists", mock.Anything, profileID).Return(nil, errStore).Maybe()
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return([]string{}, nil).Maybe()
-
-	f := NewDomainFilter(nil, mockCache, nil)
+	f := NewDomainFilter(nil, failingMembershipCache(), nil)
 	reqCtx := stageErrReqCtx(t, profileID, map[string]string{})
 
 	require.NotPanics(t, func() { _ = f.Execute(reqCtx, stageErrDomainDctx("example.com")) })
@@ -271,20 +246,22 @@ func TestDomainFilterExecute_StageError_NilRecorder(t *testing.T) {
 }
 
 // applyDefaultRule reads the privacy settings already carried by the request
-// context; a strict mock with no GetProfilePrivacySettings expectation fails
-// the test if the stage reaches for Redis.
+// context; a strict mock with no expectations fails the test if the stage
+// reaches for the store.
 // specRef: proxy-filtering-behaviour.md #I5
 func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 	const profileID = "default-rule-no-redis"
-	mockCache := mocks.NewCache(t)
-	mockCache.EXPECT().GetProfileBlocklists(mock.Anything, profileID).Return([]string{}, nil).Maybe()
-	mockCache.EXPECT().GetCustomRulesHashes(mock.Anything, profileID).Return([]string{}, nil).Maybe()
+	f := NewDomainFilter(nil, mocks.NewCache(t), nil)
 
-	f := NewDomainFilter(nil, mockCache, nil)
+	// No blocklist subscriptions, so the blocklists stage makes no lookups either.
+	noBlocklists := func(privacy map[string]string) *requestcontext.RequestContext {
+		reqCtx := stageErrReqCtx(t, profileID, privacy)
+		reqCtx.Blocklists = nil
+		return reqCtx
+	}
 
 	t.Run("stage direct", func(t *testing.T) {
-		reqCtx := stageErrReqCtx(t, profileID, map[string]string{DEFAULT_RULE: RULE_BLOCK})
-		res, err := f.applyDefaultRule(reqCtx, stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionBlock, res.Decision)
 		assert.Equal(t, TierDefaultRule, res.Tier)
@@ -292,17 +269,62 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 	})
 
 	t.Run("stage direct allow", func(t *testing.T) {
-		reqCtx := stageErrReqCtx(t, profileID, map[string]string{DEFAULT_RULE: RULE_ALLOW})
-		res, err := f.applyDefaultRule(reqCtx, stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(noBlocklists(map[string]string{DEFAULT_RULE: RULE_ALLOW}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionNone, res.Decision)
 	})
 
 	t.Run("through Execute", func(t *testing.T) {
-		reqCtx := stageErrReqCtx(t, profileID, map[string]string{DEFAULT_RULE: RULE_BLOCK})
+		reqCtx := noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK})
 		err := f.Execute(reqCtx, stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 		assert.Contains(t, reqCtx.FilterResult.Reasons, DEFAULT_RULE)
 	})
+}
+
+// The whole filter path — both phases, every stage armed — reaches the store
+// only for blocklist membership. Every other per-profile input comes from the
+// settings batch on the request context (Section I note). A strict mockery
+// mock fails the test on any call without an expectation.
+// specRef: proxy-filtering-behaviour.md #I8
+func TestFilterPath_OnlyBlocklistMembershipHitsStore(t *testing.T) {
+	const (
+		profileID = "store-boundary"
+		asn       = uint(15169)
+		answerIP  = "93.184.216.34"
+	)
+	blocklists := []string{"bl1", "bl2"}
+
+	mockCache := mocks.NewCache(t)
+	for _, bl := range blocklists {
+		mockCache.EXPECT().GetBlocklistEntry(mock.Anything, bl, mock.Anything).Return(false, nil)
+	}
+
+	domainFilter := NewDomainFilter(nil, mockCache, staticCatalog{cat: googleCatalogWithASN(asn)})
+	ipFilter := NewIPFilter(nil, mockCache, staticCatalog{cat: googleCatalogWithASN(asn)}, staticASNLookup{asn: asn + 1}, nil, nil)
+
+	reqCtx := stageErrReqCtx(t, profileID, map[string]string{SUBDOMAINS_RULE: RULE_BLOCK})
+	reqCtx.Blocklists = blocklists
+	reqCtx.BlockedServices = []string{"google"}
+	reqCtx.CustomRules = []map[string]string{
+		{"action": ACTION_BLOCK, "value": "ads.other.example", "syntax": "domain"},
+		{"action": ACTION_ALLOW, "value": "10.9.8.7", "syntax": "ip4_addr"},
+		{"action": ACTION_ALLOW, "value": "AS64496", "syntax": "asn"},
+	}
+
+	// Domain phase: QNAME plus parent-walk candidates, each against both lists.
+	dctx := stageErrDomainDctx("www.shop.example.com")
+	require.NoError(t, domainFilter.Execute(reqCtx, dctx))
+	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
+
+	// IP phase with a CNAME hop: only the target's membership is looked up.
+	dctx.Res = buildCNAMEChainResponse("www.shop.example.com", dns.TypeA, []string{"edge.cdn.example"}, answerIP)
+	require.NoError(t, ipFilter.Execute(reqCtx, dctx))
+	assert.Equal(t, model.StatusProcessed, reqCtx.FilterResult.Status)
+
+	for _, call := range mockCache.Calls {
+		assert.Equal(t, "GetBlocklistEntry", call.Method, "only blocklist membership may reach the store")
+	}
+	assert.NotEmpty(t, mockCache.Calls, "the membership lookup itself must still be live")
 }
