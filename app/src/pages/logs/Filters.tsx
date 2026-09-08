@@ -299,6 +299,7 @@ const Filters = ({
                         <SelectItem value="all">All queries</SelectItem>
                         <SelectItem value="blocked">Blocked</SelectItem>
                         <SelectItem value="processed">Processed</SelectItem>
+                        <SelectItem value="unavailable">Unavailable</SelectItem>
                     </SelectContent>
                 </Select>
 

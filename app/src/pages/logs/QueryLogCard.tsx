@@ -50,6 +50,10 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     const quickRuleAvailable = Boolean(normalizedDomain);
     const isBlocked = log.status === "blocked";
     const isProcessed = log.status === "processed";
+    // Answered SERVFAIL by the proxy because its settings store was unreachable
+    // (spec: query-log-outcomes-behaviour.md O11/C4). Nothing was blocked, so the
+    // row keeps the neutral processed affordances.
+    const isUnavailable = log.status === "unavailable";
     // Collapsed status indicator (spec: query-log-outcomes-behaviour.md C3): the
     // slot shows the red "Blocked" pill OR the amber "No answer" text micro-label
     // (any member unanswered — outcome is not in the consolidation signature) OR
@@ -69,7 +73,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     };
     const quickRuleButtonClasses = isBlocked
         ? "bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-slate-900)] hover:!text-[var(--tailwind-colors-rdns-600)]"
-        : isProcessed
+        : isProcessed || isUnavailable
             ? "bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-100)] hover:!bg-[var(--tailwind-colors-red-600)] hover:!text-[var(--tailwind-colors-slate-50)]"
             : "bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-slate-900)] hover:!text-[var(--tailwind-colors-rdns-600)]";
     // Quick-rule is the ONLY control excluded from the whole-card expand overlay; its wrapper

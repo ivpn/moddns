@@ -574,3 +574,39 @@ describe('QueryLogCard quick rule button', () => {
         expect(onQuickRule).not.toHaveBeenCalled();
     });
 });
+
+// specRef: query-log-outcomes-behaviour.md #C4
+describe('QueryLogCard unavailable status (settings store unreachable)', () => {
+    beforeEach(() => {
+        (window as unknown as { innerWidth: number }).innerWidth = 1280;
+        stubDesktopMatchMedia(true);
+    });
+
+    const unavailableLog: ModelQueryLog = {
+        profile_id: 'p5',
+        timestamp: new Date().toISOString(),
+        status: 'unavailable',
+        outcome: 'filter_unavailable',
+        protocol: 'dns',
+        device_id: 'desktop-device',
+        client_ip: '10.0.0.5',
+        dns_request: { domain: 'unavailable.example.com.', query_type: 'A', response_code: 'SERVFAIL' }
+    };
+
+    test('never shows the Blocked pill and reports No answer', () => {
+        render(<QueryLogCard log={unavailableLog} />);
+        const indicator = screen.getByTestId('querylog-status-indicator');
+        expect(indicator).not.toHaveAttribute('data-state', 'blocked');
+        expect(indicator).toHaveTextContent(/no answer/i);
+    });
+
+    test('quick rule keeps the processed affordance and defaults to denylist', () => {
+        const onQuickRule = vi.fn();
+        render(<QueryLogCard log={unavailableLog} onQuickRule={onQuickRule} />);
+        const button = screen.getByTestId('logs-quick-rule-button');
+        expect(button.className).toContain('slate-800');
+        expect(button.className).not.toContain('rdns-600');
+        fireEvent.click(button);
+        expect(onQuickRule).toHaveBeenCalledWith('unavailable.example.com', 'denylist');
+    });
+});
