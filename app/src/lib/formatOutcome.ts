@@ -1,7 +1,7 @@
 // formatOutcome — map the proxy-computed resolution-outcome token to a
 // human-readable label for the query-log UI.
 //
-// Source of truth: docs/specs/query-log-outcomes-behaviour.md (rows O1-O10,
+// Source of truth: docs/specs/query-log-outcomes-behaviour.md (rows O1-O11,
 // Queries-display row C1). If the mapping changes, update that spec and
 // formatOutcome.test.ts with matching
 // `tableRef: query-log-outcomes-behaviour <row>` annotations.
@@ -23,11 +23,13 @@ const OUTCOME_LABELS: Record<string, string> = {
     timeout: 'Upstream timeout',                  // O7
     network_error: 'Upstream unreachable',        // O8
     refused: 'Refused',                           // O9
+    filter_unavailable: 'Filtering unavailable',  // O11
 };
 
 // Failure-class tokens get the red tint on pair chips.
 const FAILURE_OUTCOMES = new Set([
     'blocked', 'servfail_dnssec', 'servfail_upstream', 'timeout', 'network_error', 'refused',
+    'filter_unavailable',
 ]);
 
 // O10 legacy fallback: entries written before the outcome field existed only
@@ -90,7 +92,7 @@ export function outcomePairs(members: ModelQueryLog[]): OutcomePair[] {
 // than FAILURE_OUTCOMES: `blocked` is owned by the red Blocked pill and
 // `servfail_dnssec` by the red DNSSEC text label already on the collapsed row.
 const UNANSWERED_OUTCOMES = new Set([
-    'servfail_upstream', 'timeout', 'network_error', 'refused',
+    'servfail_upstream', 'timeout', 'network_error', 'refused', 'filter_unavailable',
 ]);
 
 // O10 legacy entries carry only an rcode; these two mean the query went

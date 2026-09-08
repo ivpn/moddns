@@ -21,6 +21,12 @@ describe('formatOutcome', () => {
         expect(formatOutcome('refused')).toBe('Refused');
     });
 
+    it('labels a filtering-unavailable SERVFAIL distinctly from upstream failures', () => {
+        // tableRef: query-log-outcomes-behaviour O11 — the proxy synthesized the
+        // SERVFAIL itself because a filter stage could not read the settings store.
+        expect(formatOutcome('filter_unavailable')).toBe('Filtering unavailable');
+    });
+
     it('falls back to a response-code derived label for legacy entries', () => {
         // tableRef: query-log-outcomes-behaviour O10
         expect(formatOutcome(undefined, 'NOERROR')).toBe('Resolved');
@@ -83,6 +89,13 @@ describe('outcomePairs', () => {
         ]);
     });
 
+    it('renders filter_unavailable as a failure-class chip', () => {
+        // tableRef: query-log-outcomes-behaviour C1, O11
+        expect(outcomePairs([member('A', 'filter_unavailable')])).toEqual([
+            { queryType: 'A', label: 'Filtering unavailable', failure: true },
+        ]);
+    });
+
     it('falls back per member for legacy entries without outcome', () => {
         // tableRef: query-log-outcomes-behaviour C1, O10
         const r = outcomePairs([
@@ -112,7 +125,8 @@ describe('outcomePairs', () => {
 describe('hasUnansweredMember', () => {
     it('flags each unanswered outcome token', () => {
         // tableRef: query-log-outcomes-behaviour C3 — collapsed-card chip trigger set
-        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused']) {
+        // (O11 filter_unavailable is a synthesized SERVFAIL — unanswered too)
+        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused', 'filter_unavailable']) {
             expect(hasUnansweredMember([member('A', outcome)])).toBe(true);
         }
     });
