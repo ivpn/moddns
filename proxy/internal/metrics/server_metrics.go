@@ -6,6 +6,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// Label values for proxy_dns_filter_stage_errors_total raised before filtering
+// starts; the filter phases and stage names are owned by the filter package.
+const (
+	PhaseAdmission       = "admission"
+	StageProfileSettings = "profile_settings"
+)
+
+// Status label values for proxy_dns_profile_settings_cache_total.
+const (
+	CacheLookupHit         = "hit"
+	CacheLookupMiss        = "miss"
+	CacheLookupStale       = "stale"
+	CacheLookupUnavailable = "unavailable"
+)
+
 // ServerMetrics implements server.Metrics using Prometheus collectors.
 type ServerMetrics struct {
 	queries              *prometheus.CounterVec

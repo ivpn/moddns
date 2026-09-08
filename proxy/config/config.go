@@ -11,6 +11,22 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 )
 
+// Response modes for the rate-limit layers (RATELIMIT_PER_IP_RESPONSE,
+// RATELIMIT_PER_PROFILE_RESPONSE).
+const (
+	RateLimitResponseDrop   = "drop"
+	RateLimitResponseRefuse = "refuse"
+)
+
+// Defaults for the profile settings cache and the Redis client.
+const (
+	defaultProfileSettingsCacheTTL  = 30 * time.Second
+	defaultProfileSettingsCacheSize = 100_000
+	// defaultCacheCommandTimeout suits a PoP-local replica: one dial, read or
+	// write may take at most this long, with a single retry.
+	defaultCacheCommandTimeout = time.Second
+)
+
 // Config represents the application configuration
 type Config struct {
 	Server              *ServerConfig
@@ -57,11 +73,6 @@ type DNSCacheConfig struct {
 }
 
 // Rate limit response modes.
-const (
-	RateLimitResponseDrop   = "drop"
-	RateLimitResponseRefuse = "refuse"
-)
-
 // RateLimitConfig holds rate limiter settings.
 type RateLimitConfig struct {
 	PerIPEnabled       bool
@@ -351,8 +362,8 @@ func New() (*Config, error) {
 
 	dnsCacheCfg := loadDNSCacheConfig()
 	rebindingCfg := loadRebindingConfig()
-	// Profile settings in-memory cache TTL (default 30s, "0" disables expiration)
-	profileSettingsCacheTTL := 30 * time.Second
+	// Profile settings in-memory cache TTL ("0" disables expiration)
+	profileSettingsCacheTTL := defaultProfileSettingsCacheTTL
 	if v := os.Getenv("PROFILE_SETTINGS_CACHE_TTL"); v != "" {
 		parsed, err := time.ParseDuration(v)
 		if err != nil {
@@ -521,8 +532,6 @@ func loadMetricsConfig() *MetricsConfig {
 	return cfg
 }
 
-const defaultProfileSettingsCacheSize = 100_000
-
 // loadProfileSettingsCacheSize reads PROFILE_SETTINGS_CACHE_SIZE; a missing,
 // non-numeric or non-positive value keeps the default.
 func loadProfileSettingsCacheSize() int {
@@ -536,10 +545,6 @@ func loadProfileSettingsCacheSize() int {
 	}
 	return n
 }
-
-// defaultCacheCommandTimeout suits a PoP-local replica: one dial, read or
-// write may take at most this long, with a single retry.
-const defaultCacheCommandTimeout = time.Second
 
 // loadCacheCommandTimeout reads CACHE_COMMAND_TIMEOUT (Go duration). Unset or
 // invalid keeps the default; "0" hands control back to the go-redis defaults.

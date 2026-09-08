@@ -60,20 +60,6 @@ var (
 	errStoreProbePending    = errors.New("settings store marked unavailable, probe not due")
 )
 
-// Labels for proxy_dns_filter_stage_errors_total raised before filtering starts.
-const (
-	phaseAdmission       = "admission"
-	stageProfileSettings = "profile_settings"
-)
-
-// Status labels for proxy_dns_profile_settings_cache_total.
-const (
-	cacheLookupHit         = "hit"
-	cacheLookupMiss        = "miss"
-	cacheLookupStale       = "stale"
-	cacheLookupUnavailable = "unavailable"
-)
-
 func NewServer(serverConfig *config.Config, collectorChannels map[string]channel.CollectorChannel) (*Server, error) {
 	cache, err := cache.NewCache(serverConfig.Cache, cache.CacheTypeRedis)
 	if err != nil {
@@ -333,7 +319,7 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileId string, logger logging.LoggerInterface) (*model.ProfileSettings, *dns.Msg, error) {
 	cached, state := s.ProfileSettingsCache.Get(profileId)
 	if state == settingscache.Fresh {
-		s.Metrics.RecordProfileCacheLookup(cacheLookupHit)
+		s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupHit)
 		return cached, nil, nil
 	}
 
@@ -358,7 +344,7 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 		if errors.Is(fetched.PrivacyErr, cache.ErrSettingsNotFound) {
 			// The store answered: the profile is gone, and so is any stale copy.
 			s.ProfileSettingsCache.Evict(profileId)
-			s.Metrics.RecordProfileCacheLookup(cacheLookupMiss)
+			s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupMiss)
 			logger.Debug().Err(fetched.PrivacyErr).Msg(errProfileIdNotFound.Error())
 			return nil, nil, errProfileIdNotFound
 		}
@@ -371,7 +357,7 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 	}
 
 	s.ProfileSettingsCache.Put(profileId, fetched)
-	s.Metrics.RecordProfileCacheLookup(cacheLookupMiss)
+	s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupMiss)
 	return fetched, nil, nil
 }
 
@@ -379,12 +365,12 @@ func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileI
 // a stale entry exists (Q13), otherwise SERVFAIL (Q12).
 func (s *Server) settingsUnavailable(req *dns.Msg, cached *model.ProfileSettings, state settingscache.State, logger logging.LoggerInterface, cause error) (*model.ProfileSettings, *dns.Msg, error) {
 	if state == settingscache.Stale {
-		s.Metrics.RecordProfileCacheLookup(cacheLookupStale)
+		s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupStale)
 		logger.Warn().Err(cause).Msg("Settings store unavailable, serving last-known-good profile settings")
 		return cached, nil, nil
 	}
-	s.Metrics.RecordProfileCacheLookup(cacheLookupUnavailable)
-	s.Metrics.RecordFilterStageError(phaseAdmission, stageProfileSettings)
+	s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupUnavailable)
+	s.Metrics.RecordFilterStageError(metrics.PhaseAdmission, metrics.StageProfileSettings)
 	logger.Err(cause).Msg("Failed to fetch profile settings")
 	return nil, s.servFailResponse(req), nil
 }
