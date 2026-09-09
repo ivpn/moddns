@@ -4,7 +4,6 @@ import type { ModelProfile } from "@/api/client/api";
 import { ModelProfileUpdateOperationEnum, ModelProfileUpdatePathEnum } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
-import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { toast } from "sonner";
 import DeleteProfileDialog from "@/pages/settings/DeleteProfileDialog";
 import QueryLogsSection from "./QueryLogsSection";
@@ -385,7 +384,6 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
 
     return (
         <>
-        <LimitedAccessBanner />
         <div className="flex flex-col items-start gap-4 w-full overflow-x-hidden max-w-full">
             {/* BLOCKLISTS + CUSTOM RULES — mutations blocked in LA */}
             <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>
