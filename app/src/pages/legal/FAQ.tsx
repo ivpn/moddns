@@ -9,6 +9,7 @@ import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
 import AuthFooter from "@/components/auth/AuthFooter";
 import { parseDnsServerLocations, firstAddress } from "@/lib/dnsServerLocations";
+import { LINKS } from "@/pages/landing/links";
 
 interface FAQItemProps {
     question: string;
@@ -397,6 +398,13 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    const howToGetModDNS = (
+        <div className="space-y-2">
+            <p>modDNS is included in the IVPN Plus and IVPN Pro Suite plans. There is no standalone modDNS subscription, and it is not part of the IVPN Standard plan. See <a href={LINKS.pricing} target="_blank" rel="noopener noreferrer" className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)]">ivpn.net/pricing</a> for current plans.</p>
+            <p>Once you have an eligible IVPN plan, start modDNS from your IVPN account area. IVPN sends you to a one-time signup link where you create your modDNS login with an email and password or a passkey. Your modDNS access then follows your IVPN subscription automatically.</p>
+        </div>
+    );
+
     const qnameMinimisation = (
         <div className="space-y-2">
             <p>Yes. When a resolver looks up a name, it walks the DNS hierarchy from the root servers down. Without QNAME minimisation it repeats the full name (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">mail.example.com</code>) to every server on that path, so the root and top-level-domain servers learn which hosts you visit. With QNAME minimisation (RFC 9156) each server is asked only for the part it is responsible for.</p>
@@ -520,6 +528,10 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="What is modDNS?"
                     answer="modDNS is a privacy-focused DNS service that helps protect privacy and improve security by blocking ads, trackers, and malicious domains. It supports modern DNS protocols including DNS-over-HTTPS (DoH), DNS-over-TLS (DoT), and DNS-over-QUIC (DoQ)."
+                />
+                <FAQItem
+                    question="How do I get modDNS? Do I need a subscription?"
+                    answer={howToGetModDNS}
                 />
                 <FAQItem
                     question="What DNS protocols do you support?"
