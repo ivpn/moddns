@@ -71,10 +71,16 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 
 	// In-process profile settings: fresh entries skip Redis, stale entries are
 	// last-known-good for when Redis is unreachable.
-	profileSettingsCache, err := settingscache.New(serverConfig.Server.ProfileSettingsCacheTTL, serverConfig.Server.ProfileSettingsCacheSize)
+	cacheMetrics := metrics.NewSettingsCacheMetrics(prometheus.DefaultRegisterer)
+	profileSettingsCache, err := settingscache.New(
+		serverConfig.Server.ProfileSettingsCacheTTL,
+		serverConfig.Server.ProfileSettingsCacheSize,
+		settingscache.WithEvictionHook(cacheMetrics.RecordEviction),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("profile settings cache: %w", err)
 	}
+	metrics.ObserveSettingsCache(prometheus.DefaultRegisterer, profileSettingsCache)
 
 	rl := ratelimit.New(ratelimit.Config{
 		PerIPEnabled:      serverConfig.RateLimit.PerIPEnabled,

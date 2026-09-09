@@ -12,7 +12,7 @@ import (
 func newTestCache(t *testing.T, ttl time.Duration) (*Cache, *time.Time) {
 	t.Helper()
 	now := time.Unix(1_700_000_000, 0)
-	c, err := NewWithClock(ttl, 8, func() time.Time { return now })
+	c, err := New(ttl, 8, WithClock(func() time.Time { return now }))
 	require.NoError(t, err)
 	return c, &now
 }
@@ -113,4 +113,63 @@ func TestBreaker_OneProbePerInterval(t *testing.T) {
 	assert.False(t, c.StoreRecovered(), "recovery while healthy is not")
 	assert.True(t, c.FetchAllowed())
 	assert.True(t, c.FetchAllowed(), "recovered: no gating")
+}
+
+func TestBytesAccounting(t *testing.T) {
+	var reasons []string
+	c, err := New(time.Minute, 2, WithEvictionHook(func(r string) { reasons = append(reasons, r) }))
+	require.NoError(t, err)
+	assert.Zero(t, c.Bytes())
+
+	small := settings("allow")
+	c.Put("a", small)
+	sizeA := c.Bytes()
+	assert.Greater(t, sizeA, int64(entryOverhead), "an entry costs more than its fixed overhead")
+
+	heavy := &model.ProfileSettings{Privacy: map[string]string{"default_rule": "block"}}
+	for i := 0; i < 100; i++ {
+		heavy.CustomRules = append(heavy.CustomRules, map[string]string{"value": "*.tracker.example", "action": "block", "syntax": "domain"})
+	}
+	c.Put("b", heavy)
+	sizeB := c.Bytes() - sizeA
+	assert.Greater(t, sizeB, 100*int64(mapOverhead), "rules dominate a heavy entry")
+
+	// Replacing in place swaps the old size for the new one.
+	c.Put("a", heavy)
+	assert.Equal(t, 2*sizeB, c.Bytes())
+	assert.Empty(t, reasons, "in-place replacement is not an eviction")
+
+	// Capacity eviction removes the least recently used entry and reports it.
+	c.Put("c", small)
+	assert.Equal(t, 2, c.Len())
+	assert.Equal(t, sizeB+sizeA, c.Bytes())
+	assert.Equal(t, []string{EvictionReasonSize}, reasons)
+
+	// Explicit eviction reports "deleted"; evicting an unknown key is a no-op.
+	c.Evict("c")
+	c.Evict("missing")
+	assert.Equal(t, sizeB, c.Bytes())
+	assert.Equal(t, []string{EvictionReasonSize, EvictionReasonDeleted}, reasons)
+
+	c.Evict("a")
+	assert.Zero(t, c.Bytes())
+	assert.Zero(t, c.Len())
+}
+
+func TestStoreAvailable(t *testing.T) {
+	c, now := newTestCache(t, time.Minute)
+	assert.True(t, c.StoreAvailable())
+	c.StoreFailed()
+	assert.False(t, c.StoreAvailable())
+	*now = now.Add(2 * DefaultProbeInterval)
+	assert.False(t, c.StoreAvailable(), "a due probe does not mean the store is back")
+	c.StoreRecovered()
+	assert.True(t, c.StoreAvailable())
+}
+
+func TestEstimateBytes_Shapes(t *testing.T) {
+	assert.Equal(t, int64(entryOverhead), estimateBytes(nil))
+	assert.Equal(t, int64(entryOverhead), estimateBytes(&model.ProfileSettings{}))
+	one := estimateBytes(&model.ProfileSettings{Privacy: map[string]string{"k": "vv"}})
+	assert.Equal(t, int64(entryOverhead+mapOverhead+kvOverhead+3), one)
 }
