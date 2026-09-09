@@ -397,6 +397,20 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    const qnameMinimisation = (
+        <div className="space-y-2">
+            <p>Yes. When a resolver looks up a name, it walks the DNS hierarchy from the root servers down. Without QNAME minimisation it repeats the full name (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">mail.example.com</code>) to every server on that path, so the root and top-level-domain servers learn which hosts you visit. With QNAME minimisation (RFC 9156) each server is asked only for the part it is responsible for.</p>
+            <p>All modDNS resolvers minimise query names. You can confirm it from any device that uses your profile by running <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dig TXT qnamemintest.internet.nl</code>: the answer contains <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">HOORAY</code> only when the resolver actually minimised the query on the wire.</p>
+        </div>
+    );
+
+    const ednsClientSubnet = (
+        <div className="space-y-2">
+            <p>No. EDNS Client Subnet (ECS, RFC 7871) is a mechanism by which a resolver attaches part of your IP address to the queries it sends to authoritative DNS servers, mainly so that content delivery networks can pick a server near you. It also reveals your approximate network location to every authoritative server involved in a lookup.</p>
+            <p>modDNS does not use ECS. Your address is never attached to upstream queries, and if your device adds an ECS option to its own queries it is discarded before the lookup leaves our resolver. Authoritative servers only see the address of the modDNS server location that handled your query. There is no setting to turn ECS on.</p>
+        </div>
+    );
+
     const whatIsDNSSEC = (
         <div className="space-y-2">
             <p>DNSSEC stands for Domain Name System Security Extensions. It's a security protocol that adds digital signatures to DNS records to ensure their authenticity and integrity. This helps prevent DNS spoofing attacks, where malicious actors could redirect users to fake websites.</p>
@@ -508,6 +522,13 @@ export default function FAQ(): JSX.Element {
                     answer="modDNS is a privacy-focused DNS service that helps protect privacy and improve security by blocking ads, trackers, and malicious domains. It supports modern DNS protocols including DNS-over-HTTPS (DoH), DNS-over-TLS (DoT), and DNS-over-QUIC (DoQ)."
                 />
                 <FAQItem
+                    question="What DNS protocols do you support?"
+                    answer={supportedProtocols}
+                />
+            </FAQSection>
+
+            <FAQSection title="Privacy" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
+                <FAQItem
                     question="How does modDNS protect my privacy?"
                     answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs (default: off) so you can monitor what's being blocked."
                 />
@@ -518,8 +539,12 @@ export default function FAQ(): JSX.Element {
                     }
                 />
                 <FAQItem
-                    question="What DNS protocols do you support?"
-                    answer={supportedProtocols}
+                    question="Does modDNS use QNAME minimisation?"
+                    answer={qnameMinimisation}
+                />
+                <FAQItem
+                    question="Does modDNS send my IP address to other DNS servers (EDNS Client Subnet)?"
+                    answer={ednsClientSubnet}
                 />
             </FAQSection>
 
