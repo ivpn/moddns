@@ -21,6 +21,7 @@ func settings(rule string) *model.ProfileSettings {
 	return &model.ProfileSettings{Privacy: map[string]string{"default_rule": rule}}
 }
 
+// specRef: proxy-request-admission-behaviour.md #S1 #S2 #S3 #S6
 func TestGet_MissFreshStale(t *testing.T) {
 	c, now := newTestCache(t, 30*time.Second)
 
@@ -49,6 +50,7 @@ func TestGet_MissFreshStale(t *testing.T) {
 	assert.NotNil(t, got)
 }
 
+// specRef: proxy-request-admission-behaviour.md #S5
 func TestGet_ZeroTTLNeverExpires(t *testing.T) {
 	c, now := newTestCache(t, 0)
 	c.Put("p1", settings("block"))
@@ -57,6 +59,7 @@ func TestGet_ZeroTTLNeverExpires(t *testing.T) {
 	assert.Equal(t, Fresh, state)
 }
 
+// specRef: proxy-request-admission-behaviour.md #S2
 func TestPut_RefreshResetsAge(t *testing.T) {
 	c, now := newTestCache(t, 30*time.Second)
 	c.Put("p1", settings("allow"))
@@ -70,6 +73,7 @@ func TestPut_RefreshResetsAge(t *testing.T) {
 	assert.Equal(t, "block", got.Privacy["default_rule"])
 }
 
+// specRef: proxy-request-admission-behaviour.md #S8
 func TestEvict(t *testing.T) {
 	c, _ := newTestCache(t, 30*time.Second)
 	c.Put("p1", settings("allow"))
@@ -79,6 +83,7 @@ func TestEvict(t *testing.T) {
 	assert.Equal(t, 0, c.Len())
 }
 
+// specRef: proxy-request-admission-behaviour.md #S7
 func TestSizeBound(t *testing.T) {
 	c, err := New(time.Minute, 2)
 	require.NoError(t, err)
@@ -90,6 +95,7 @@ func TestSizeBound(t *testing.T) {
 	assert.Equal(t, Miss, state, "least recently used entry is evicted")
 }
 
+// specRef: proxy-request-admission-behaviour.md #S9
 func TestBreaker_OneProbePerInterval(t *testing.T) {
 	c, now := newTestCache(t, 30*time.Second)
 	assert.True(t, c.FetchAllowed(), "healthy store: every fetch allowed")
@@ -115,6 +121,7 @@ func TestBreaker_OneProbePerInterval(t *testing.T) {
 	assert.True(t, c.FetchAllowed(), "recovered: no gating")
 }
 
+// specRef: proxy-request-admission-behaviour.md #S7 #S8 #S11
 func TestBytesAccounting(t *testing.T) {
 	var reasons []string
 	c, err := New(time.Minute, 2, WithEvictionHook(func(r string) { reasons = append(reasons, r) }))
@@ -156,6 +163,7 @@ func TestBytesAccounting(t *testing.T) {
 	assert.Zero(t, c.Len())
 }
 
+// specRef: proxy-request-admission-behaviour.md #S9
 func TestStoreAvailable(t *testing.T) {
 	c, now := newTestCache(t, time.Minute)
 	assert.True(t, c.StoreAvailable())
@@ -167,6 +175,7 @@ func TestStoreAvailable(t *testing.T) {
 	assert.True(t, c.StoreAvailable())
 }
 
+// specRef: proxy-request-admission-behaviour.md #S11
 func TestEstimateBytes_Shapes(t *testing.T) {
 	assert.Equal(t, int64(entryOverhead), estimateBytes(nil))
 	assert.Equal(t, int64(entryOverhead), estimateBytes(&model.ProfileSettings{}))

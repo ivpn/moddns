@@ -39,6 +39,7 @@ func startRedis(t *testing.T) (*RedisCache, *goredis.Client) {
 	return &RedisCache{dual: libscache.NewSingleClient(rdb)}, rdb
 }
 
+// specRef: proxy-request-admission-behaviour.md #S10
 func TestGetProfileSettingsBatch_PopulatesListsAndRules(t *testing.T) {
 	c, rdb := startRedis(t)
 	ctx := context.Background()
@@ -87,6 +88,7 @@ func TestGetProfileSettingsBatch_PopulatesListsAndRules(t *testing.T) {
 	assert.Equal(t, map[string]string{"ads.example": "block", "cdn.example": "allow"}, values)
 }
 
+// specRef: proxy-request-admission-behaviour.md #S10
 func TestGetProfileSettingsBatch_UnknownProfile(t *testing.T) {
 	c, _ := startRedis(t)
 	ctx := context.Background()
@@ -104,6 +106,7 @@ func TestGetProfileSettingsBatch_UnknownProfile(t *testing.T) {
 	assert.NoError(t, got.CustomRulesErr)
 }
 
+// specRef: proxy-request-admission-behaviour.md #S10
 func TestGetProfileSettingsBatch_NoRules(t *testing.T) {
 	c, rdb := startRedis(t)
 	ctx := context.Background()
@@ -117,6 +120,7 @@ func TestGetProfileSettingsBatch_NoRules(t *testing.T) {
 	assert.Empty(t, got.CustomRules, "no second pipeline is needed for a profile without rules")
 }
 
+// specRef: proxy-request-admission-behaviour.md #S10 #S4
 func TestGetProfileSettingsBatch_StoreUnreachable(t *testing.T) {
 	// A closed port on loopback refuses immediately; no container needed.
 	rdb := goredis.NewClient(&goredis.Options{

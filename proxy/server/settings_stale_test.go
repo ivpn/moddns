@@ -72,7 +72,7 @@ func goodSettings(rule string) *model.ProfileSettings {
 
 var errStoreDown = errors.New("redis pipeline failed: dial tcp: connection refused")
 
-// specRef: proxy-request-admission-behaviour.md #Q13
+// specRef: proxy-request-admission-behaviour.md #Q13 #S3 #S9
 func TestPrepareRequest_StaleServedWhenStoreFails(t *testing.T) {
 	const profileID = "staleprofile001"
 	f := newStaleFixture(t)
@@ -103,7 +103,7 @@ func TestPrepareRequest_StaleServedWhenStoreFails(t *testing.T) {
 	require.Nil(t, errResp)
 }
 
-// specRef: proxy-request-admission-behaviour.md #Q12
+// specRef: proxy-request-admission-behaviour.md #Q12 #S4 #S9
 func TestPrepareRequest_BreakerOpenNoStaleEntry_Servfail(t *testing.T) {
 	const known, unknown = "knownprofile001", "coldprofile00001"
 	f := newStaleFixture(t)
@@ -123,7 +123,7 @@ func TestPrepareRequest_BreakerOpenNoStaleEntry_Servfail(t *testing.T) {
 	require.Contains(t, f.metrics.lookups(), "unavailable")
 }
 
-// specRef: proxy-request-admission-behaviour.md #Q13
+// specRef: proxy-request-admission-behaviour.md #Q13 #S9
 func TestPrepareRequest_BreakerProbesOncePerInterval(t *testing.T) {
 	const profileID = "probeprofile0001"
 	f := newStaleFixture(t)
@@ -151,7 +151,7 @@ func TestPrepareRequest_BreakerProbesOncePerInterval(t *testing.T) {
 	require.Nil(t, errResp)
 }
 
-// specRef: proxy-request-admission-behaviour.md #Q14
+// specRef: proxy-request-admission-behaviour.md #Q14 #S8
 func TestPrepareRequest_DeletedProfileEvictsStaleEntry(t *testing.T) {
 	const profileID = "deletedprofile01"
 	f := newStaleFixture(t)
@@ -177,7 +177,7 @@ func TestPrepareRequest_DeletedProfileEvictsStaleEntry(t *testing.T) {
 	require.Empty(t, f.metrics.pairs())
 }
 
-// specRef: proxy-request-admission-behaviour.md #Q13
+// specRef: proxy-request-admission-behaviour.md #Q13 #S1 #S2
 func TestPrepareRequest_FreshEntryNeverFetches(t *testing.T) {
 	const profileID = "freshprofile0001"
 	f := newStaleFixture(t)
