@@ -408,7 +408,7 @@ export default function FAQ(): JSX.Element {
     const qnameMinimisation = (
         <div className="space-y-2">
             <p>Yes. When a resolver looks up a name, it walks the DNS hierarchy from the root servers down. Without QNAME minimisation it repeats the full name (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">mail.example.com</code>) to every server on that path, so the root and top-level-domain servers learn which hosts you visit. With QNAME minimisation (RFC 9156) each server is asked only for the part it is responsible for.</p>
-            <p>All modDNS resolvers minimise query names. You can confirm it from any device that uses your profile by running <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dig TXT qnamemintest.internet.nl</code>: the answer contains <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">HOORAY</code> only when the resolver actually minimised the query on the wire.</p>
+            <p>modDNS applies this on every resolver location and for every profile. It is always on and there is no setting that disables it.</p>
         </div>
     );
 
