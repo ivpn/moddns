@@ -1,0 +1,370 @@
+package dns
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"net"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/dnscheck/config"
+	"github.com/dnscheck/internal/maxmind"
+	"github.com/miekg/dns"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
+
+const (
+	testDomain    = "check.example.test"
+	testSubdomain = "abcdefghijkl"
+	testOurASN    = 64512
+)
+
+type fakeGeoLookup struct {
+	result  *maxmind.GeoLookup
+	err     error
+	askedIP string
+}
+
+func (f *fakeGeoLookup) GetGeoLookup(ip string) (*maxmind.GeoLookup, error) {
+	f.askedIP = ip
+	return f.result, f.err
+}
+
+type memCache struct {
+	saved map[string][]byte
+}
+
+func (c *memCache) SaveQueryData(key string, value []byte) error {
+	if c.saved == nil {
+		c.saved = map[string][]byte{}
+	}
+	c.saved[key] = value
+	return nil
+}
+func (c *memCache) GetQueryData(key string) ([]byte, error) { return c.saved[key], nil }
+func (c *memCache) DeleteQueryData(key string) error        { delete(c.saved, key); return nil }
+
+// tcpCaptureWriter reports a TCP remote address so both transports are covered.
+type tcpCaptureWriter struct{ captureWriter }
+
+func (w *tcpCaptureWriter) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(203, 0, 113, 5), Port: 40000}
+}
+func (w *tcpCaptureWriter) Network() string { return "tcp" }
+
+// Handler logs are noise in test output; the log-hygiene test re-enables them
+// on its own buffer.
+func TestMain(m *testing.M) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
+	os.Exit(m.Run())
+}
+
+func mustCIDR(t *testing.T, s string) *net.IPNet {
+	t.Helper()
+	_, n, err := net.ParseCIDR(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func newTestHandler(t *testing.T, geo GeoLookuper, cache *memCache) *Handler {
+	return &Handler{srv: &DNSServer{
+		Config: &config.Config{
+			Server: &config.AuthoritativeDNSServerConfig{
+				Domain:    testDomain,
+				IPAddress: "192.0.2.1",
+				ASN:       testOurASN,
+				IPRanges: []config.IPRange{
+					{Label: "lab", Net: mustCIDR(t, "198.51.100.0/24")},
+					{Net: mustCIDR(t, "192.0.2.77/32")},
+				},
+			},
+			Cache: &config.CacheConfig{HMACKey: "test-key"},
+		},
+		Cache:     cache,
+		GeoLookup: geo,
+	}}
+}
+
+func checkQuery() *dns.Msg {
+	req := new(dns.Msg)
+	req.SetQuestion(testSubdomain+"."+testDomain+".", dns.TypeA)
+	return req
+}
+
+func savedRecord(t *testing.T, c *memCache) DNSLogRecord {
+	t.Helper()
+	if len(c.saved) != 1 {
+		t.Fatalf("expected exactly one saved record, got %d", len(c.saved))
+	}
+	var rec DNSLogRecord
+	for _, raw := range c.saved {
+		if err := json.Unmarshal(raw, &rec); err != nil {
+			t.Fatalf("saved record is not JSON: %v", err)
+		}
+		// Data minimisation: the stored record must hold nothing beyond what the
+		// HTTP side returns.
+		var keys map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &keys); err != nil {
+			t.Fatal(err)
+		}
+		for k := range keys {
+			if k != "status" && k != "profile_id" {
+				t.Errorf("stored record carries unexpected field %q: %s", k, raw)
+			}
+		}
+	}
+	return rec
+}
+
+// A failing GeoIP lookup must degrade to "no ASN information", not crash or go
+// silent: the A answer is still written and the record is saved with status
+// derived from the IP range alone.
+//
+// specRef: dnscheck-behaviour.md #D6
+func TestServeDNSDegradesWhenGeoLookupFails(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{err: errors.New("lookup failed")}, cache)
+	w := &captureWriter{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("ServeDNS panicked on a failed GeoIP lookup: %v", r)
+		}
+	}()
+
+	h.ServeDNS(w, checkQuery())
+
+	if w.msg == nil || len(w.msg.Answer) != 1 {
+		t.Fatalf("expected an A answer despite the lookup failure, got %+v", w.msg)
+	}
+	rec := savedRecord(t, cache)
+	if rec.Status != StatusUnconfigured {
+		t.Errorf("status = %q, want %q", rec.Status, StatusUnconfigured)
+	}
+}
+
+// With no ASN information the IP-range check alone can still mark the query
+// as ours.
+//
+// specRef: dnscheck-behaviour.md #D6, #D7
+func TestServeDNSFallsBackToIPRangeWhenGeoLookupFails(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{err: errors.New("lookup failed")}, cache)
+	w := &rangeCaptureWriter{}
+
+	h.ServeDNS(w, checkQuery())
+
+	if rec := savedRecord(t, cache); rec.Status != StatusConfigured {
+		t.Errorf("status = %q, want %q for an in-range client", rec.Status, StatusConfigured)
+	}
+}
+
+// rangeCaptureWriter reports a client inside DNS_AUTH_SERVER_IP_RANGE.
+type rangeCaptureWriter struct{ captureWriter }
+
+func (w *rangeCaptureWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(198, 51, 100, 7), Port: 40000}
+}
+
+// Any configured range qualifies, including a single-address /32.
+//
+// specRef: dnscheck-behaviour.md #D7
+func TestServeDNSMatchesAnyConfiguredRange(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{}}, cache)
+
+	h.ServeDNS(&singleAddrCaptureWriter{}, checkQuery())
+
+	if rec := savedRecord(t, cache); rec.Status != StatusConfigured {
+		t.Errorf("status = %q, want %q for a client matching the second range", rec.Status, StatusConfigured)
+	}
+}
+
+type singleAddrCaptureWriter struct{ captureWriter }
+
+func (w *singleAddrCaptureWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(192, 0, 2, 77), Port: 40000}
+}
+
+// A CIDR range must not match by string prefix: 198.51.100.0/24 is not
+// 198.51.10.x.
+//
+// specRef: dnscheck-behaviour.md #D7
+func TestServeDNSIPRangeIsCIDRNotStringPrefix(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{}}, cache)
+	w := &nearMissCaptureWriter{}
+
+	h.ServeDNS(w, checkQuery())
+
+	if rec := savedRecord(t, cache); rec.Status != StatusUnconfigured {
+		t.Errorf("status = %q, want %q for an out-of-range client", rec.Status, StatusUnconfigured)
+	}
+}
+
+type nearMissCaptureWriter struct{ captureWriter }
+
+func (w *nearMissCaptureWriter) RemoteAddr() net.Addr {
+	return &net.UDPAddr{IP: net.IPv4(198, 51, 10, 7), Port: 40000}
+}
+
+// specRef: dnscheck-behaviour.md #D7
+func TestServeDNSMarksConfiguredWhenASNMatches(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{
+		IPAddress: "203.0.113.5", ASN: testOurASN, ASNOrganization: "OURS",
+	}}, cache)
+
+	req := checkQuery()
+	opt := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	opt.Option = append(opt.Option, &dns.EDNS0_LOCAL{Code: ProfileIdAdditionalSectionCode, Data: []byte("profile1")})
+	req.Extra = append(req.Extra, opt)
+
+	h.ServeDNS(&captureWriter{}, req)
+
+	rec := savedRecord(t, cache)
+	if rec.Status != StatusConfigured {
+		t.Errorf("status = %q, want %q", rec.Status, StatusConfigured)
+	}
+	if rec.ProfileId != "profile1" {
+		t.Errorf("profile_id = %q, want profile1", rec.ProfileId)
+	}
+}
+
+// specRef: dnscheck-behaviour.md #D8
+func TestServeDNSMarksUnconfiguredWhenNeitherASNNorRangeMatch(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{
+		IPAddress: "203.0.113.5", ASN: 15169, ASNOrganization: "GOOGLE",
+	}}, cache)
+
+	h.ServeDNS(&captureWriter{}, checkQuery())
+
+	if rec := savedRecord(t, cache); rec.Status != StatusUnconfigured {
+		t.Errorf("status = %q, want %q", rec.Status, StatusUnconfigured)
+	}
+}
+
+// The remote address is taken from the transport as-is; it is never resolved.
+//
+// specRef: dnscheck-behaviour.md #D4
+func TestServeDNSExtractsClientIPOverTCP(t *testing.T) {
+	cache := &memCache{}
+	geo := &fakeGeoLookup{result: &maxmind.GeoLookup{}}
+	h := newTestHandler(t, geo, cache)
+
+	h.ServeDNS(&tcpCaptureWriter{}, checkQuery())
+
+	savedRecord(t, cache)
+	if geo.askedIP != "203.0.113.5" {
+		t.Errorf("looked up %q, want the TCP socket address 203.0.113.5", geo.askedIP)
+	}
+}
+
+// Nothing that identifies the client or the probe may reach the logs, at any
+// level: not the source address, the query name, the subdomain, or the profile
+// ID.
+//
+// specRef: dnscheck-behaviour.md #D9
+func TestServeDNSLogsCarryNoClientIdentifiers(t *testing.T) {
+	var buf bytes.Buffer
+	prev := log.Logger
+	prevLevel := zerolog.GlobalLevel()
+	log.Logger = zerolog.New(&buf)
+	zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	t.Cleanup(func() { log.Logger = prev; zerolog.SetGlobalLevel(prevLevel) })
+
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{err: errors.New("lookup failed")}, cache)
+	req := checkQuery()
+	opt := &dns.OPT{Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT}}
+	opt.Option = append(opt.Option, &dns.EDNS0_LOCAL{Code: ProfileIdAdditionalSectionCode, Data: []byte("profile1")})
+	req.Extra = append(req.Extra, opt)
+	h.ServeDNS(&captureWriter{}, req)
+
+	// Also drive the malformed-subdomain and no-question paths.
+	bad := new(dns.Msg)
+	bad.SetQuestion("short-profile1."+testDomain+".", dns.TypeA)
+	h.ServeDNS(&captureWriter{}, bad)
+	h.ServeDNS(&captureWriter{}, new(dns.Msg))
+
+	out := buf.String()
+	if out == "" {
+		t.Fatal("expected some log output at trace level")
+	}
+	for _, secret := range []string{"203.0.113.5", testSubdomain, "profile1", "short-profile1"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("log output contains %q:\n%s", secret, out)
+		}
+	}
+}
+
+// specRef: dnscheck-behaviour.md #D3
+func TestServeDNSProbeLabelFormat(t *testing.T) {
+	cases := []struct {
+		label string
+		saved bool
+	}{
+		{"abcdefghijkl", true},          // current frontend: bare nanoid
+		{"ABCdef123456", true},          // mixed alphabet
+		{"abcdefghijkl-profile1", true}, // previous frontend bundle: tolerated
+		{"abcdefghijk", false},          // 11 chars
+		{"abcdefghijklm", false},        // 13 chars
+		{"abcdefghijkl-", false},        // dangling separator
+		{"abcdefghij_l", false},         // non-alphanumeric
+	}
+	for _, tc := range cases {
+		cache := &memCache{}
+		h := newTestHandler(t, &fakeGeoLookup{result: &maxmind.GeoLookup{}}, cache)
+		req := new(dns.Msg)
+		req.SetQuestion(tc.label+"."+testDomain+".", dns.TypeA)
+		h.ServeDNS(&captureWriter{}, req)
+		if got := len(cache.saved) == 1; got != tc.saved {
+			t.Errorf("label %q: record saved = %v, want %v", tc.label, got, tc.saved)
+		}
+	}
+}
+
+// A queries outside the check domain get the authoritative A answer and leave no
+// trace: no lookup, no cache entry.
+//
+// specRef: dnscheck-behaviour.md #D2
+func TestServeDNSAnswersForeignDomainWithoutRecord(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{err: errors.New("must not be called")}, cache)
+	w := &captureWriter{}
+
+	req := new(dns.Msg)
+	req.SetQuestion("www.other.example.", dns.TypeA)
+	h.ServeDNS(w, req)
+
+	if w.msg == nil || len(w.msg.Answer) != 1 {
+		t.Fatalf("expected an A answer, got %+v", w.msg)
+	}
+	if len(cache.saved) != 0 {
+		t.Errorf("expected no saved record, got %d", len(cache.saved))
+	}
+}
+
+// specRef: dnscheck-behaviour.md #D3
+func TestServeDNSIgnoresMalformedSubdomain(t *testing.T) {
+	cache := &memCache{}
+	h := newTestHandler(t, &fakeGeoLookup{err: errors.New("must not be called")}, cache)
+	w := &captureWriter{}
+
+	req := new(dns.Msg)
+	req.SetQuestion("short-profile1."+testDomain+".", dns.TypeA)
+	h.ServeDNS(w, req)
+
+	if len(cache.saved) != 0 {
+		t.Errorf("expected no saved record for a malformed subdomain, got %d", len(cache.saved))
+	}
+	if w.msg != nil {
+		t.Errorf("expected no response for a malformed subdomain, got %+v", w.msg)
+	}
+}
