@@ -11,7 +11,7 @@ type QueryLogsQueryParams struct {
 	Page     int    `json:"page" validate:"required,numeric,min=1"`
 	Limit    int    `json:"limit" validate:"required,oneof=10 25 50 100"`
 	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
-	Status   string `json:"status" validate:"omitempty,oneof=all blocked processed unavailable"`
+	Status   string `json:"status" validate:"omitempty,oneof=all blocked processed unavailable unanswered"`
 	DeviceId string `json:"device_id" validate:"omitempty"`
 	Search   string `json:"search" validate:"omitempty,max=256"`
 	SortBy   string `json:"sort_by" validate:"oneof=created domain client_ip"`

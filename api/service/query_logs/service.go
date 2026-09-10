@@ -7,15 +7,6 @@ import (
 	"github.com/ivpn/dns/api/model"
 )
 
-const (
-	STATUS_ALL       = "all"
-	STATUS_BLOCKED   = "blocked"
-	STATUS_PROCESSED = "processed"
-	// STATUS_UNAVAILABLE marks queries the proxy answered SERVFAIL because its
-	// settings store was unreachable (query-log-outcomes-behaviour.md O11).
-	STATUS_UNAVAILABLE = "unavailable"
-)
-
 type QueryLogsService struct {
 	QueryLogsRepository repository.QueryLogsRepository
 }
@@ -40,7 +31,7 @@ func (q *QueryLogsService) GetProfileQueryLogs(ctx context.Context, profileId st
 }
 
 func (q *QueryLogsService) DownloadProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, page, limit int) ([]model.QueryLog, error) {
-	logs, err := q.QueryLogsRepository.GetQueryLogs(ctx, profileId, retention, STATUS_ALL, 0, "", "", "created", page, limit)
+	logs, err := q.QueryLogsRepository.GetQueryLogs(ctx, profileId, retention, model.QueryLogStatusAll, 0, "", "", "created", page, limit)
 	if err != nil {
 		return nil, err
 	}

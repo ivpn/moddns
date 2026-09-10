@@ -79,6 +79,20 @@ func (s *QueryLogsAPIShortSuite) TestGetLogsUnavailableStatusAccepted() {
 	assert.Len(s.T(), out, 1)
 }
 
+// tableRef: query-log-outcomes-behaviour.md #C5
+func (s *QueryLogsAPIShortSuite) TestGetLogsUnansweredStatusAccepted() {
+	logs := []model.QueryLog{{ProfileID: qlProfile, Status: "processed", Outcome: "timeout", Timestamp: time.Now(), DNSRequest: model.DNSRequest{Domain: "example.com"}}}
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "unanswered", "LAST_1_HOUR", "", "", "created", 1, 25).Return(logs, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=unanswered&timespan=LAST_1_HOUR", nil)
+	s.auth(req)
+	resp, err := s.server().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+	var out []model.QueryLog
+	require.NoError(s.T(), json.NewDecoder(resp.Body).Decode(&out))
+	assert.Len(s.T(), out, 1)
+}
+
 func (s *QueryLogsAPIShortSuite) TestGetLogsUnknownStatusRejected() {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=dropped&timespan=LAST_1_HOUR", nil)
 	s.auth(req)

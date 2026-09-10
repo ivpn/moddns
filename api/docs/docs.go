@@ -1794,7 +1794,8 @@ const docTemplate = `{
                             "all",
                             "blocked",
                             "processed",
-                            "unavailable"
+                            "unavailable",
+                            "unanswered"
                         ],
                         "type": "string",
                         "default": "\"all\"",
