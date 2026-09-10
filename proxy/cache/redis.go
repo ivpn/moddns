@@ -121,6 +121,18 @@ func (c *RedisCache) GetBlocklistEntry(ctx context.Context, blocklistId string, 
 	return cmd.Val(), nil
 }
 
+// GetBlocklistExceptionEntry checks if a domain is present in the blocklist's
+// companion exception set. SISMEMBER on a missing key returns false, which is
+// exactly the "no exceptions" semantics for lists without a published set.
+func (c *RedisCache) GetBlocklistExceptionEntry(ctx context.Context, blocklistId string, fqdn string) (bool, error) {
+	exceptionsKey := "blocklist:" + blocklistId + ":exceptions"
+	cmd := c.client().SIsMember(ctx, exceptionsKey, fqdn)
+	if err := cmd.Err(); err != nil {
+		return false, err
+	}
+	return cmd.Val(), nil
+}
+
 // GetCustomRulesHashes gets list of custom rules set names
 func (c *RedisCache) GetCustomRulesHashes(ctx context.Context, profileId string) ([]string, error) {
 	customRulesSetKey := fmt.Sprintf("settings:%s:custom_rules", profileId)

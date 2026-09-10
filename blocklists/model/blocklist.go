@@ -10,18 +10,26 @@ import (
 
 const (
 	BlocklistTypePublic = "public"
+
+	// ContentKindExceptions marks a BlocklistContent document holding the
+	// list's own exception domains (@@ rules) rather than block domains.
+	ContentKindExceptions = "exceptions"
 )
 
 // BlocklistMetadata is a blocklist model
 type BlocklistMetadata struct {
-	ID           primitive.ObjectID `json:"id" bson:"_id"`
-	BlocklistID  string             `json:"blocklist_id" bson:"blocklist_id" binding:"required"`
-	Name         string             `json:"name" binding:"required"`        // conventional blocklist name, displayed to the user
-	Description  string             `json:"description" binding:"required"` // displayed to the user
-	Entries      int                `json:"entries"`
-	Homepage     string             `json:"homepage"`
-	SourceUrl    string             `json:"source_url" bson:"source_url"`
-	LastModified time.Time          `json:"last_modified" bson:"last_modified"`
+	ID          primitive.ObjectID `json:"id" bson:"_id"`
+	BlocklistID string             `json:"blocklist_id" bson:"blocklist_id" binding:"required"`
+	Name        string             `json:"name" binding:"required"`        // conventional blocklist name, displayed to the user
+	Description string             `json:"description" binding:"required"` // displayed to the user
+	Entries     int                `json:"entries"`
+	// ExceptionEntries is the number of exception domains published alongside
+	// the block set; 0 means no companion exception set is expected to exist
+	// (drives the freshness backstop's EXISTS check).
+	ExceptionEntries int       `json:"exception_entries" bson:"exception_entries"`
+	Homepage         string    `json:"homepage"`
+	SourceUrl        string    `json:"source_url" bson:"source_url"`
+	LastModified     time.Time `json:"last_modified" bson:"last_modified"`
 	// UpdatedAt is when this service last published the list (Redis + Mongo).
 	// Unlike LastModified (the upstream's own header date) it is our publish
 	// timestamp, used by peer instances to skip refreshing a fresh source.
@@ -42,6 +50,7 @@ type BlocklistContent struct {
 	ID          primitive.ObjectID `json:"id" bson:"_id"`
 	BlocklistID string             `json:"blocklist_id" bson:"blocklist_id"`
 	Part        int                `json:"part" bson:"part"`
+	Kind        string             `json:"kind,omitempty" bson:"kind,omitempty"` // "" = block domains, "exceptions" = exception domains
 	Data        []byte             `json:"-" bson:"data"`
 }
 

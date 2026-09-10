@@ -20,6 +20,10 @@ type Cache interface {
 	GetProfileStatisticsSettings(ctx context.Context, profileId string) (map[string]string, error)
 	GetProfilePrivacySettings(ctx context.Context, profileId string) (map[string]string, error)
 	GetBlocklistEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
+	// GetBlocklistExceptionEntry checks if a domain is present in the
+	// blocklist's companion exception set — the domains the list's own
+	// authors unblock. A missing set means no exceptions.
+	GetBlocklistExceptionEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
 	GetCustomRulesHashes(ctx context.Context, profileId string) ([]string, error)
 	GetCustomRulesHash(ctx context.Context, hashId string) (map[string]string, error)
 

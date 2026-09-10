@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -181,6 +182,11 @@ func TestFilterBlocklists(t *testing.T) {
 				}
 			}
 
+			// No case in this table publishes exceptions; the consult on the
+			// would-block path must see an absent set (specRef: #X5).
+			mockCache.On("GetBlocklistExceptionEntry", mock.Anything, mock.Anything, mock.Anything).
+				Return(false, nil).Maybe()
+
 			dnsProxy := &proxy.Proxy{}
 			fm := NewDomainFilter(dnsProxy, mockCache, nil)
 
@@ -217,6 +223,147 @@ func TestFilterBlocklists(t *testing.T) {
 				assert.Nil(t, result.Reasons)
 			}
 			mockCache.AssertExpectations(t)
+		})
+	}
+}
+
+// TestFilterBlocklists_Exceptions covers the list-level exception consult:
+// a match from list L is withdrawn when L's own exception set covers the
+// query name, without creating an Allow and without weakening other lists.
+func TestFilterBlocklists_Exceptions(t *testing.T) {
+	const (
+		listL = "adguard_dns_filter"
+		listM = "hagezi_pro"
+	)
+
+	tests := []struct {
+		name            string
+		questionDomain  string
+		blocklists      []string
+		blockEntries    map[string]map[string]bool // list -> domain -> blocked
+		exceptions      map[string]map[string]bool // list -> domain -> excepted
+		privacySettings map[string]string
+		exceptionErr    error
+		expectBlocked   bool
+		expectReasons   []string
+		expectErr       bool
+	}{
+		{
+			// specRef: #X1 — the list's own unblock withdraws the exact match.
+			name:           "exact match suppressed by same-list exception",
+			questionDomain: "data.orders.costco.com",
+			blocklists:     []string{listL},
+			blockEntries:   map[string]map[string]bool{listL: {"data.orders.costco.com": true}},
+			exceptions:     map[string]map[string]bool{listL: {"data.orders.costco.com": true}},
+			expectBlocked:  false,
+		},
+		{
+			// specRef: #X2 — exception on the query name suppresses a
+			// parent-walk hit under blocklists_subdomains_rule = block.
+			name:            "parent-walk match suppressed by exception on query name",
+			questionDomain:  "sbs.demdex.net",
+			blocklists:      []string{listL},
+			blockEntries:    map[string]map[string]bool{listL: {"demdex.net": true}},
+			exceptions:      map[string]map[string]bool{listL: {"sbs.demdex.net": true}},
+			privacySettings: map[string]string{SUBDOMAINS_RULE: RULE_BLOCK},
+			expectBlocked:   false,
+		},
+		{
+			// specRef: #X3 — the exception walk covers subdomains of the
+			// excepted name regardless of the subdomains rule.
+			name:           "exact match suppressed by exception on parent",
+			questionDomain: "x.sbs.demdex.net",
+			blocklists:     []string{listL},
+			blockEntries:   map[string]map[string]bool{listL: {"x.sbs.demdex.net": true}},
+			exceptions:     map[string]map[string]bool{listL: {"sbs.demdex.net": true}},
+			expectBlocked:  false,
+		},
+		{
+			// specRef: #X4 — per-source scoping: L's exception cannot weaken
+			// M; scanning continues and M's block stands.
+			name:           "exception scoped to its list, other list still blocks",
+			questionDomain: "tracker.example.com",
+			blocklists:     []string{listL, listM},
+			blockEntries: map[string]map[string]bool{
+				listL: {"tracker.example.com": true},
+				listM: {"tracker.example.com": true},
+			},
+			exceptions:    map[string]map[string]bool{listL: {"tracker.example.com": true}},
+			expectBlocked: true,
+			expectReasons: []string{"blocklist: " + listM},
+		},
+		{
+			// specRef: #X5 — no exception set published: unchanged blocking.
+			name:           "no exceptions published, block stands",
+			questionDomain: "blocked.example.com",
+			blocklists:     []string{listL},
+			blockEntries:   map[string]map[string]bool{listL: {"blocked.example.com": true}},
+			expectBlocked:  true,
+			expectReasons:  []string{"blocklist: " + listL},
+		},
+		{
+			// specRef: #X6 — exception lookup errors propagate like block
+			// lookup errors.
+			name:           "exception lookup error propagates",
+			questionDomain: "blocked.example.com",
+			blocklists:     []string{listL},
+			blockEntries:   map[string]map[string]bool{listL: {"blocked.example.com": true}},
+			exceptionErr:   errors.New("exception lookup error"),
+			expectErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCache := new(mocks.Cache)
+			mockCache.On("GetProfileBlocklists", mock.Anything, "profileX").
+				Return(tt.blocklists, nil)
+			for _, blID := range tt.blocklists {
+				entries := tt.blockEntries[blID]
+				mockCache.On("GetBlocklistEntry", mock.Anything, blID, mock.MatchedBy(func(string) bool { return true })).
+					Return(func(_ context.Context, blocklistId, domain string) (bool, error) {
+						return entries[domain], nil
+					})
+				excepted := tt.exceptions[blID]
+				if tt.exceptionErr != nil {
+					mockCache.On("GetBlocklistExceptionEntry", mock.Anything, blID, mock.Anything).
+						Return(false, tt.exceptionErr)
+				} else {
+					mockCache.On("GetBlocklistExceptionEntry", mock.Anything, blID, mock.Anything).
+						Return(func(_ context.Context, blocklistId, domain string) (bool, error) {
+							return excepted[domain], nil
+						}).Maybe()
+				}
+			}
+
+			fm := NewDomainFilter(&proxy.Proxy{}, mockCache, nil)
+
+			msg := new(dns.Msg)
+			msg.SetQuestion(tt.questionDomain+".", dns.TypeA)
+			loggerFactory := logging.NewFactory(zerolog.DebugLevel)
+			reqCtx := &requestcontext.RequestContext{
+				ProfileId:       "profileX",
+				PrivacySettings: tt.privacySettings,
+				Logger:          loggerFactory.ForProfile("profileX", true),
+			}
+			dnsCtx := &proxy.DNSContext{Req: msg}
+
+			result, err := fm.filterBlocklists(reqCtx, dnsCtx)
+			if tt.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+			if tt.expectBlocked {
+				assert.Equal(t, model.DecisionBlock, result.Decision)
+				assert.Equal(t, tt.expectReasons, result.Reasons)
+			} else {
+				// A suppressed match must leave the decision at None — an
+				// exception never produces an Allow.
+				assert.Equal(t, model.DecisionNone, result.Decision)
+				assert.Empty(t, result.Reasons)
+			}
 		})
 	}
 }

@@ -88,3 +88,21 @@ func TestSubdomainCandidatesEquivalence(t *testing.T) {
 		}
 	}
 }
+
+// BenchmarkExceptionWalkCandidates isolates the string construction of the
+// exception walk (full FQDN plus every parent down to two labels), which runs
+// only on the would-block path; the Redis SISMEMBER per candidate dominates
+// in production, exactly as with the block walk above.
+func BenchmarkExceptionWalkCandidates(b *testing.B) {
+	for _, tc := range subdomainBenchDomains {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				parts := strings.Split(tc.fqdn, ".")
+				for j := 0; j <= len(parts)-2; j++ {
+					benchCandidateSink = strings.Join(parts[j:], ".")
+				}
+			}
+		})
+	}
+}

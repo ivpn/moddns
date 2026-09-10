@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -69,8 +70,29 @@ func (c *RedisCache) Locker(prefix string) *dislock.Locker {
 // writers (peer instances racing on the same source) can therefore never
 // interleave on one staging set — and promoted with an atomic swap.
 func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId string, data []byte) error {
-	blocklistName := fmt.Sprintf("blocklist:%s", blocklistId)
-	stagingName := fmt.Sprintf("%s:tmp:%s", blocklistName, uuid.NewString())
+	return c.createOrUpdateSet(ctx, fmt.Sprintf("blocklist:%s", blocklistId), data)
+}
+
+// CreateOrUpdateBlocklistExceptions publishes the list's companion exception
+// set under blocklist:{id}:exceptions with the same stage-and-swap flow.
+// Empty data removes the key: a missing exception set means "no exceptions"
+// to the proxy, so absence is the correct representation, not an empty set
+// (SADD of nothing cannot create one anyway).
+func (c *RedisCache) CreateOrUpdateBlocklistExceptions(ctx context.Context, blocklistId string, data []byte) error {
+	key := exceptionsKey(blocklistId)
+	if len(bytes.TrimSpace(data)) == 0 {
+		if err := c.client.Unlink(ctx, key).Err(); err != nil {
+			return err
+		}
+		return nil
+	}
+	return c.createOrUpdateSet(ctx, key, data)
+}
+
+// createOrUpdateSet stages data into a per-run key and atomically promotes it
+// to liveName, replacing any existing set.
+func (c *RedisCache) createOrUpdateSet(ctx context.Context, liveName string, data []byte) error {
+	stagingName := fmt.Sprintf("%s:tmp:%s", liveName, uuid.NewString())
 
 	// Step 1: Populate the staging set with new data.
 	if err := c.populateStaging(ctx, stagingName, data); err != nil {
@@ -79,16 +101,20 @@ func (c *RedisCache) CreateOrUpdateBlocklist(ctx context.Context, blocklistId st
 	}
 
 	// Step 2: Atomically swap the populated staging set into place.
-	if err := c.swapBlocklist(ctx, stagingName, blocklistName); err != nil {
+	if err := c.swapBlocklist(ctx, stagingName, liveName); err != nil {
 		c.discardStaging(ctx, stagingName)
 		return err
 	}
 
 	log.Debug().
 		Str("component", "cache").
-		Str("blocklist_key", blocklistName).
+		Str("blocklist_key", liveName).
 		Msg("Created/updated blocklist with atomic swap")
 	return nil
+}
+
+func exceptionsKey(blocklistId string) string {
+	return fmt.Sprintf("blocklist:%s:exceptions", blocklistId)
 }
 
 // populateStaging fills the staging set, flushing in bounded batches, and
@@ -168,7 +194,16 @@ func (c *RedisCache) discardStaging(ctx context.Context, stagingName string) {
 
 // BlocklistExists reports whether the live blocklist set is present in Redis.
 func (c *RedisCache) BlocklistExists(ctx context.Context, blocklistId string) (bool, error) {
-	n, err := c.client.Exists(ctx, fmt.Sprintf("blocklist:%s", blocklistId)).Result()
+	return c.keyExists(ctx, fmt.Sprintf("blocklist:%s", blocklistId))
+}
+
+// BlocklistExceptionsExist reports whether the live exception set is present.
+func (c *RedisCache) BlocklistExceptionsExist(ctx context.Context, blocklistId string) (bool, error) {
+	return c.keyExists(ctx, exceptionsKey(blocklistId))
+}
+
+func (c *RedisCache) keyExists(ctx context.Context, key string) (bool, error) {
+	n, err := c.client.Exists(ctx, key).Result()
 	if err != nil {
 		return false, err
 	}
@@ -180,10 +215,11 @@ func (c *RedisCache) Ping(ctx context.Context) error {
 	return c.client.Ping(ctx).Err()
 }
 
-// DeleteBlocklist removes a blocklist set from the cache
+// DeleteBlocklist removes a blocklist set and its companion exception set
+// from the cache
 func (c *RedisCache) DeleteBlocklist(ctx context.Context, blocklistId string) error {
 	key := fmt.Sprintf("blocklist:%s", blocklistId)
-	if err := c.client.Del(ctx, key).Err(); err != nil {
+	if err := c.client.Del(ctx, key, exceptionsKey(blocklistId)).Err(); err != nil {
 		return err
 	}
 	log.Debug().Str("component", "cache").Str("blocklist_key", key).Msg("Deleted blocklist from cache")

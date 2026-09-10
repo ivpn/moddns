@@ -108,6 +108,9 @@ func TestFilterBlocklistsIsCaseInsensitive(t *testing.T) {
 			}
 			mockCache.On("GetBlocklistEntry", mock.Anything, blocklistID, mock.Anything).
 				Return(false, nil)
+			// No exceptions published in these cases (specRef: #X5).
+			mockCache.On("GetBlocklistExceptionEntry", mock.Anything, mock.Anything, mock.Anything).
+				Return(false, nil).Maybe()
 
 			fm := NewDomainFilter(&proxy.Proxy{}, mockCache, nil)
 
