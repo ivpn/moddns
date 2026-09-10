@@ -278,7 +278,7 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
 const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
     {
         key: 'mikrotik',
-        label: 'Mikrotik Router OS',
+        label: 'Mikrotik RouterOS',
         content: (
             <div className="flex flex-col gap-6">
                 <StepBlock number={1} text={<span>Access the device’s command-line interface, and enter the following commands:</span>} />
