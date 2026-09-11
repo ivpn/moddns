@@ -2,6 +2,7 @@ package filter
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net"
 	"testing"
@@ -15,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestFilterCustomRules(t *testing.T) {
@@ -108,19 +108,9 @@ func TestFilterCustomRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock cache
-			mockCache := new(mocks.Cache)
+			// The stage has no store dependency: a strict mock fails on any call.
+			mockCache := mocks.NewCache(t)
 
-			// Setup mock expectations
-			mockCache.On("GetCustomRulesHashes", mock.Anything, tt.profileID).
-				Return(tt.customRuleHashes, nil)
-
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).
-					Return(rule, nil).Maybe()
-			}
-
-			// Create filter manager with mock cache
 			dnsProxy := &proxy.Proxy{}
 			fm := NewDomainFilter(dnsProxy, mockCache, nil)
 
@@ -134,15 +124,16 @@ func TestFilterCustomRules(t *testing.T) {
 
 			// Create request context
 			reqCtx := &requestcontext.RequestContext{
-				ProfileId: tt.profileID,
-				Logger:    testLogger,
+				ProfileId:   tt.profileID,
+				CustomRules: orderedRules(tt.customRuleHashes, tt.customRules),
+				Logger:      testLogger,
 			}
 			dnsCtx := &proxy.DNSContext{
 				Req: msg,
 			}
 
 			// Call the function
-			got, err := fm.filterCustomRules(reqCtx, dnsCtx)
+			got, err := fm.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 			// Assert results
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -152,9 +143,6 @@ func TestFilterCustomRules(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, tt.expectedFltrResult, got)
-
-			// Verify all mock expectations were met
-			mockCache.AssertExpectations(t)
 		})
 	}
 }
@@ -496,15 +484,15 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return(tt.customRuleHashes, nil)
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).Return(rule, nil).Maybe()
-			}
+			mockCache := mocks.NewCache(t)
 
 			loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 			testLogger := loggerFactory.ForProfile(profileID, true)
-			reqCtx := &requestcontext.RequestContext{ProfileId: profileID, Logger: testLogger}
+			reqCtx := &requestcontext.RequestContext{
+				ProfileId:   profileID,
+				CustomRules: orderedRules(tt.customRuleHashes, tt.customRules),
+				Logger:      testLogger,
+			}
 
 			var asnLookup ASNLookup
 			if tt.setupASNLookup != nil {
@@ -512,7 +500,7 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 			}
 
 			ipFilter := &IPFilter{Cache: mockCache, ASNLookup: asnLookup}
-			got, err := ipFilter.filterCustomRules(reqCtx, tt.dnsCtx)
+			got, err := ipFilter.filterCustomRules(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, TierCustomRules, got.Tier)
@@ -522,8 +510,6 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 			} else {
 				assert.NotContains(t, got.Reasons, REASON_CUSTOM_RULES)
 			}
-
-			mockCache.AssertExpectations(t)
 		})
 	}
 }
@@ -541,22 +527,17 @@ func TestFilterCustomRulesDomainNotLoggedWhenGateOff(t *testing.T) {
 	})
 	log.Logger = orig
 
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetCustomRulesHashes", mock.Anything, "prof-1").
-		Return([]string{"h1"}, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "h1").
-		Return(map[string]string{"action": ACTION_BLOCK, "value": "blocked.example.com"}, nil)
-
-	fm := NewDomainFilter(&proxy.Proxy{}, mockCache, nil)
+	fm := NewDomainFilter(&proxy.Proxy{}, mocks.NewCache(t), nil)
 	msg := new(dns.Msg)
 	msg.SetQuestion("blocked.example.com.", dns.TypeA)
 	reqCtx := &requestcontext.RequestContext{
 		ProfileId:    "prof-1",
+		CustomRules:  []map[string]string{{"action": ACTION_BLOCK, "value": "blocked.example.com"}},
 		Logger:       logger,
 		LoggerConfig: logger.Config(),
 	}
 
-	got, err := fm.filterCustomRules(reqCtx, &proxy.DNSContext{Req: msg})
+	got, err := fm.filterCustomRules(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionBlock, got.Decision)

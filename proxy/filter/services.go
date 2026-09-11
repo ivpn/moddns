@@ -24,7 +24,7 @@ type ASNLookup interface {
 	ASN(ip net.IP) (uint, error)
 }
 
-func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterServices(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierServices}
@@ -35,18 +35,15 @@ func (f *IPFilter) filterServices(reqCtx *requestcontext.RequestContext, dctx *p
 		return result, nil
 	}
 
-	blockedServices, err := f.Cache.GetProfileServicesBlocked(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		// Missing key should be non-fatal; treat as disabled.
-		return result, nil
-	}
+	blockedServices := reqCtx.BlockedServices
 	if len(blockedServices) == 0 {
 		return result, nil
 	}
 
+	// The catalog is a local file, not the settings store: failing to load it
+	// leaves the stage inert instead of failing the query.
 	cat, err := f.ServicesCatalog.Get()
 	if err != nil || cat == nil {
-		// Catalog load failure should not break DNS.
 		return result, nil
 	}
 

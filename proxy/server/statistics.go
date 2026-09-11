@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"strconv"
 	"time"
 
@@ -18,14 +17,8 @@ func (s *Server) EmitStatistics(reqCtx *requestcontext.RequestContext, dctx *pro
 	// Use the contextual logger from the request context
 	logger := reqCtx.Logger
 
-	statsSettings, err := s.Cache.GetProfileStatisticsSettings(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		logger.Err(err).Msg("Error getting profile statistics settings")
-	}
-	statsEnabled, err := strconv.ParseBool(statsSettings["enabled"])
-	if err != nil {
-		logger.Err(err).Msg("Error parsing profile logs settings")
-	}
+	// Optional statistics are opt-in; an absent or unparsable setting is off.
+	statsEnabled, _ := strconv.ParseBool(reqCtx.StatisticsSettings["enabled"])
 	if statsEnabled {
 		logger.Trace().Msg("Sending optional statistics")
 		// TODO: Emit optional statistics, not implemented yet
@@ -48,7 +41,7 @@ func (s *Server) EmitStatistics(reqCtx *requestcontext.RequestContext, dctx *pro
 		stats.Queries.DNSSEC = 1
 	}
 
-	if err = s.CollectorChannels[model.TYPE_STATISTICS].Send(
+	if err := s.CollectorChannels[model.TYPE_STATISTICS].Send(
 		model.EventStatistics{
 			Statistics: stats,
 		},

@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"net/netip"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 // domainAllowResult returns a domain-phase Allow StageResult at TierCustomRules.
@@ -336,34 +336,21 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-
-			// Services cache setup
-			if len(tt.blockedServiceIDs) > 0 {
-				mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-					Return(tt.blockedServiceIDs, nil)
-			} else {
-				mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-					Return([]string{}, nil)
-			}
-
-			// Custom rules cache setup
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-				Return(tt.customHashes, nil)
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).
-					Return(rule, nil).Maybe()
-			}
+			// Per-profile inputs travel on the request context; the strict mock
+			// fails if any stage reaches for the store.
+			mockCache := mocks.NewCache(t)
 
 			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
+			reqCtx.BlockedServices = tt.blockedServiceIDs
+			reqCtx.CustomRules = orderedRules(tt.customHashes, tt.customRules)
 			// Pre-populate with domain-phase results to simulate the real pipeline.
 			reqCtx.PartialFilteringResults = append(
 				reqCtx.PartialFilteringResults, tt.domainResults...,
 			)
 
-			err := ipFilter.Execute(reqCtx, tt.dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, tt.dnsCtx)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status,
 				"table %s: expected status %s", tt.tableRef, tt.wantStatus)
@@ -383,8 +370,6 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 				assert.Contains(t, reqCtx.PartialFilteringResults, dr,
 					"table %s: domain result should remain in PartialFilteringResults", tt.tableRef)
 			}
-
-			mockCache.AssertExpectations(t)
 		})
 	}
 }
@@ -417,19 +402,13 @@ func TestIPFilter_RebindingCrossPhase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-				Return([]string{}, nil).Maybe()
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-				Return([]string{}, nil).Maybe()
-
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, defaultRebindingConfig(), nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mocks.NewCache(t), nil, nil, defaultRebindingConfig(), nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
 			reqCtx.PartialFilteringResults = append(reqCtx.PartialFilteringResults, tt.domainResults...)
 
-			err := ipFilter.Execute(reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtxWithAAnswer(t, "192.168.1.1"))
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status,
 				"table %s: expected status %s", tt.tableRef, tt.wantStatus)
@@ -476,13 +455,7 @@ func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-				Return([]string{}, nil).Maybe()
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-				Return([]string{}, nil).Maybe()
-
-			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
+			ipFilter := NewIPFilter(&proxy.Proxy{}, mocks.NewCache(t), nil, nil, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.PartialFilteringResults = append(
@@ -497,7 +470,7 @@ func TestIPFilter_NilResponse_PreservesDomainBlock(t *testing.T) {
 			req.SetQuestion("blocked.example.com.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: nil}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
 			// With unified aggregation, domain-phase Block results propagate
@@ -584,19 +557,13 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-				Return(tt.blockedServiceIDs, nil).Maybe()
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-				Return(tt.customHashes, nil)
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).
-					Return(rule, nil).Maybe()
-			}
+			mockCache := mocks.NewCache(t)
 
 			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, tt.catalog, tt.asnLookup, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
+			reqCtx.BlockedServices = tt.blockedServiceIDs
+			reqCtx.CustomRules = orderedRules(tt.customHashes, tt.customRules)
 			reqCtx.PartialFilteringResults = append(
 				reqCtx.PartialFilteringResults, tt.domainResults...,
 			)
@@ -607,15 +574,13 @@ func TestIPFilter_NilResponse_IPAllowInert(t *testing.T) {
 			req.SetQuestion("blocked.example.com.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: nil}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 
 			// With unified aggregation, domain-phase Block propagates. IP allow
 			// rules are inert (nil Res, can't match IPs), so domain Block wins.
 			assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status,
 				"table %s: domain block preserved — IP allow inert with nil Res", tt.tableRef)
-
-			mockCache.AssertExpectations(t)
 		})
 	}
 }
@@ -630,17 +595,7 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 		answerIP  = "1.1.1.1"
 	)
 
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-		Return([]string{"google"}, nil)
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-		Return([]string{"h_block_ip"}, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "h_block_ip").
-		Return(map[string]string{
-			"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr",
-		}, nil)
-
-	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache,
+	ipFilter := NewIPFilter(&proxy.Proxy{}, mocks.NewCache(t),
 		staticCatalog{cat: googleCatalogWithASN(asn)},
 		staticASNLookup{asn: asn},
 		nil,
@@ -648,11 +603,15 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 	)
 
 	reqCtx := newTestReqCtx(t, profileID)
+	reqCtx.BlockedServices = []string{"google"}
+	reqCtx.CustomRules = []map[string]string{
+		{"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
+	}
 	// Start with one domain-phase result.
 	reqCtx.PartialFilteringResults = []model.StageResult{domainAllowResult()}
 
 	dnsCtx := dnsCtxWithAAnswer(t, answerIP)
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
 	// Domain (1) + services (1) + rebinding (1) + custom rules (1) + cname (1)
@@ -671,20 +630,16 @@ func TestIPFilter_CrossPhaseAggregation_PartialResultsGrow(t *testing.T) {
 func TestIPFilter_NilResponse_SubFiltersReturnNone(t *testing.T) {
 	const profileID = "nil-res-subfilters"
 
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-		Return([]string{"h1"}, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "h1").
-		Return(map[string]string{
-			"action": ACTION_BLOCK, "value": "1.1.1.1", "syntax": "ip4_addr",
-		}, nil)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-		Return([]string{"google"}, nil)
+	mockCache := mocks.NewCache(t)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
 	dnsCtx := &proxy.DNSContext{Req: req, Res: nil}
 	reqCtx := newTestReqCtx(t, profileID)
+	reqCtx.BlockedServices = []string{"google"}
+	reqCtx.CustomRules = []map[string]string{
+		{"action": ACTION_BLOCK, "value": "1.1.1.1", "syntax": "ip4_addr"},
+	}
 
 	// filterServices with nil Res
 	svcFilter := &IPFilter{
@@ -692,7 +647,7 @@ func TestIPFilter_NilResponse_SubFiltersReturnNone(t *testing.T) {
 		ServicesCatalog: staticCatalog{cat: googleCatalogWithASN(15169)},
 		ASNLookup:       staticASNLookup{asn: 15169},
 	}
-	svcResult, err := svcFilter.filterServices(reqCtx, dnsCtx)
+	svcResult, err := svcFilter.filterServices(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, svcResult.Decision, "filterServices must return None for nil Res")
 
@@ -701,7 +656,7 @@ func TestIPFilter_NilResponse_SubFiltersReturnNone(t *testing.T) {
 		Cache:     mockCache,
 		ASNLookup: staticASNLookup{asn: 15169},
 	}
-	crResult, err := crFilter.filterCustomRules(reqCtx, dnsCtx)
+	crResult, err := crFilter.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, crResult.Decision, "filterCustomRules must return None for nil Res")
 }
@@ -714,19 +669,12 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 		answerIP  = "1.1.1.1"
 	)
 
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-		Return([]string{}, nil)
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-		Return([]string{"h_block_ip"}, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "h_block_ip").
-		Return(map[string]string{
-			"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr",
-		}, nil)
-
-	ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
+	ipFilter := NewIPFilter(&proxy.Proxy{}, mocks.NewCache(t), nil, nil, nil, nil)
 
 	reqCtx := newTestReqCtx(t, profileID)
+	reqCtx.CustomRules = []map[string]string{
+		{"action": ACTION_BLOCK, "value": answerIP, "syntax": "ip4_addr"},
+	}
 	reqCtx.PartialFilteringResults = []model.StageResult{domainAllowResult()}
 
 	req := new(dns.Msg)
@@ -743,7 +691,7 @@ func TestIPFilter_DnsCtxWithAddr(t *testing.T) {
 	addr := netip.MustParseAddrPort("10.0.0.1:12345")
 	dnsCtx := &proxy.DNSContext{Req: req, Res: res, Addr: addr}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 
 	// Domain allow (T200) overrides IP block (T200) — allow always wins.

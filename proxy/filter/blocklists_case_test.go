@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -96,8 +97,6 @@ func TestFilterBlocklistsIsCaseInsensitive(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileBlocklists", mock.Anything, "profile1").
-				Return([]string{blocklistID}, nil)
 
 			// Model Redis SISMEMBER: exact byte match on the stored (lowercase)
 			// members, everything else is a miss. Specific expectations are
@@ -117,11 +116,12 @@ func TestFilterBlocklistsIsCaseInsensitive(t *testing.T) {
 			loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId:       "profile1",
+				Blocklists:      []string{blocklistID},
 				PrivacySettings: tt.privacySettings,
 				Logger:          loggerFactory.ForProfile("profile1", true),
 			}
 
-			result, err := fm.filterBlocklists(reqCtx, &proxy.DNSContext{Req: msg})
+			result, err := fm.filterBlocklists(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
@@ -195,17 +195,14 @@ func TestServiceDomainMatchingIsCaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.qname, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, "test-profile").
-				Return([]string{"microsoft"}, nil)
-
-			fm := &DomainFilter{Cache: mockCache, ServicesCatalog: staticCatalog{cat: catalog}}
+			fm := &DomainFilter{Cache: mocks.NewCache(t), ServicesCatalog: staticCatalog{cat: catalog}}
 
 			msg := new(dns.Msg)
 			msg.SetQuestion(tt.qname, dns.TypeA)
 
-			result, err := fm.filterServiceDomains(newTestReqCtx(t, "test-profile"),
-				&proxy.DNSContext{Req: msg})
+			reqCtx := newTestReqCtx(t, "test-profile")
+			reqCtx.BlockedServices = []string{"microsoft"}
+			result, err := fm.filterServiceDomains(context.Background(), reqCtx, &proxy.DNSContext{Req: msg})
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expect, result.Decision,

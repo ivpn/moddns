@@ -19,7 +19,7 @@ import (
 // @Param id path string true "Profile ID"
 // @Param        page    query     int  false  "specify page number" default(1)
 // @Param        limit    query     int  false  "specify logs limit by page" default(100)
-// @Param        status    query     string  false  "specify status for query" default("all")
+// @Param        status    query     string  false  "specify status for query" Enums(all,blocked,processed,unanswered) default("all")
 // @Param        timespan    query     string  false  "specify timespan for query" default("LAST_1_HOUR")
 // @Param        device_id    query     string  false  "specify device ID for filtering"
 // @Param        search    query     string  false  "substring (case-insensitive) match against stored domain; free-form (short inputs may scan more)"
@@ -36,7 +36,7 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 			Page:     c.QueryInt("page", 1),
 			Limit:    c.QueryInt("limit", 25),
 			Timespan: c.Query("timespan", model.LAST_1_HOUR),
-			Status:   c.Query("status", "all"),
+			Status:   c.Query("status", model.QueryLogStatusAll),
 			DeviceId: c.Query("device_id", ""),
 			Search:   c.Query("search", ""),
 			SortBy:   c.Query("sort_by", "created"),

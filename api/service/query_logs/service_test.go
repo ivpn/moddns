@@ -191,6 +191,13 @@ func (s *QueryLogsServiceSuite) seedQueryLogs(ctx context.Context) {
 		bson.D{{Key: "timestamp", Value: now.Add(-3 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "phone"}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "sub.example.com"}, {Key: "query_type", Value: "AAAA"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: true}}}, {Key: "client_ip", Value: "1.2.3.5"}, {Key: "protocol", Value: "udp"}},
 		bson.D{{Key: "timestamp", Value: now.Add(-25 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "blocked"}, {Key: "reasons", Value: bson.A{"tracker"}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "old.example.com"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.6"}, {Key: "protocol", Value: "udp"}}, // outside 1d timespan
 		bson.D{{Key: "timestamp", Value: now.Add(-1 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "tablet"}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "example.org"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NXDOMAIN"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.7"}, {Key: "protocol", Value: "udp"}},
+		// specRef: query-log-outcomes-behaviour.md #O11 — answered SERVFAIL by the proxy, neither blocked nor processed
+		bson.D{{Key: "timestamp", Value: now.Add(-4 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "unavailable"}, {Key: "reasons", Value: bson.A{}}, {Key: "outcome", Value: "filter_unavailable"}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "unavailable.example.net"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "SERVFAIL"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.8"}, {Key: "protocol", Value: "udp"}},
+		// "No answer" class (C5): the timeout row matches; the DNSSEC verdict and
+		// the outcome-less REFUSED row stand in for rows the filter must NOT match.
+		bson.D{{Key: "timestamp", Value: now.Add(-5 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "outcome", Value: "timeout"}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "timeout.unanswered.test"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "SERVFAIL"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.8"}, {Key: "protocol", Value: "udp"}},
+		bson.D{{Key: "timestamp", Value: now.Add(-6 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{"dnssec_failed"}}, {Key: "outcome", Value: "servfail_dnssec"}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "dnssec.unanswered.test"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "SERVFAIL"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.8"}, {Key: "protocol", Value: "udp"}},
+		bson.D{{Key: "timestamp", Value: now.Add(-7 * time.Hour)}, {Key: "profile_id", Value: s.profileID}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "processed"}, {Key: "reasons", Value: bson.A{}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "legacy.unanswered.test"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "REFUSED"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "1.2.3.8"}, {Key: "protocol", Value: "udp"}},
 		// Another profile for isolation
 		bson.D{{Key: "timestamp", Value: now.Add(-2 * time.Hour)}, {Key: "profile_id", Value: "other-profile"}, {Key: "device_id", Value: "laptop"}, {Key: "status", Value: "blocked"}, {Key: "reasons", Value: bson.A{"malware"}}, {Key: "dns_request", Value: bson.D{{Key: "domain", Value: "example.com"}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}}, {Key: "client_ip", Value: "9.9.9.9"}, {Key: "protocol", Value: "udp"}},
 	}
@@ -218,7 +225,11 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogs() {
 		{"blocked search example within 1d", "blocked", "LAST_1_DAY", "", "example", "created", 0, 0, 1, "example"},
 		// Only sub.example.com matches processed status; example.com is blocked. Expect 1 result.
 		{"processed search com within 1d", "processed", "LAST_1_DAY", "", "com", "created", 0, 0, 1, "com"},
-		{"all no search within 1d", "all", "LAST_1_DAY", "", "", "created", 0, 0, 3, ""}, // excludes old.chatgpt.com outside 1d
+		{"all no search within 1d", "all", "LAST_1_DAY", "", "", "created", 0, 0, 7, ""}, // excludes old.example.com outside 1d
+		// tableRef: query-log-outcomes-behaviour.md #C5 — outcome-based class (C3 set); DNSSEC verdicts and rows without an outcome are not matched
+		{"unanswered selects every no-answer outcome", "unanswered", "LAST_1_DAY", "", "", "created", 0, 0, 2, ""},
+		{"unanswered excludes resolved and blocked rows", "unanswered", "LAST_1_DAY", "", "example.com", "created", 0, 0, 0, ""},
+		{"unanswered combines with device filter", "unanswered", "LAST_1_DAY", "tablet", "", "created", 0, 0, 0, ""},
 		{"device filtered processed", "processed", "LAST_1_DAY", "tablet", "", "created", 0, 0, 1, "example.org"},
 		{"pagination first page size 1", "processed", "LAST_1_DAY", "", "com", "created", 1, 1, 1, "com"},
 		{"search miss returns empty", "blocked", "LAST_1_DAY", "", "nomatch", "created", 0, 0, 0, ""},
@@ -245,23 +256,23 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogsSorting() {
 	s.Run("domain ascending", func() {
 		logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, "all", "LAST_7_DAYS", "", "", "domain", 0, 0)
 		s.Require().NoError(err)
-		s.Equal(4, len(logs))
+		s.Equal(8, len(logs))
 		domains := []string{}
 		for _, l := range logs {
 			domains = append(domains, l.DNSRequest.Domain)
 		}
-		s.Equal([]string{"example.com", "example.org", "old.example.com", "sub.example.com"}, domains)
+		s.Equal([]string{"dnssec.unanswered.test", "example.com", "example.org", "legacy.unanswered.test", "old.example.com", "sub.example.com", "timeout.unanswered.test", "unavailable.example.net"}, domains)
 	})
 
 	s.Run("client ip ascending", func() {
 		logs, err := s.service.GetProfileQueryLogs(ctx, s.profileID, retention, "all", "LAST_7_DAYS", "", "", "client_ip", 0, 0)
 		s.Require().NoError(err)
-		s.Equal(4, len(logs))
+		s.Equal(8, len(logs))
 		ips := []string{}
 		for _, l := range logs {
 			ips = append(ips, l.ClientIP)
 		}
-		s.Equal([]string{"1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7"}, ips)
+		s.Equal([]string{"1.2.3.4", "1.2.3.5", "1.2.3.6", "1.2.3.7", "1.2.3.8", "1.2.3.8", "1.2.3.8", "1.2.3.8"}, ips)
 	})
 }
 
@@ -272,8 +283,8 @@ func (s *QueryLogsServiceSuite) TestDownloadProfileQueryLogs() {
 
 	logs, err := s.service.DownloadProfileQueryLogs(ctx, s.profileID, retention, 0, 0)
 	s.Require().NoError(err)
-	// Should include the document outside 1d window (old.chatgpt.com) but not other profile's logs.
-	s.Equal(4, len(logs), "download should return all 4 logs for profile")
+	// Should include the document outside 1d window (old.example.com) but not other profile's logs.
+	s.Equal(8, len(logs), "download should return all 8 logs for profile")
 	foundOld := false
 	for _, l := range logs {
 		if l.DNSRequest.Domain == "old.example.com" {

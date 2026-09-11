@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -108,18 +109,8 @@ func TestFilterBlocklists(t *testing.T) {
 			expectErr:       false,
 		},
 		{
-			name:             "Cache error on GetProfileBlocklists",
-			profileID:        "profile6",
-			questionDomain:   "foo.com",
-			blocklists:       nil,
-			blocklistEntries: map[string]map[string]bool{},
-			privacySettings:  map[string]string{},
-			expectBlocked:    false,
-			expectReasons:    nil,
-			expectErr:        true,
-			cacheErr:         errors.New("cache error"),
-		},
-		{
+			// The subscription list travels on the request context; the only
+			// store read left in the stage is the membership lookup.
 			name:           "Cache error on GetBlocklistEntry",
 			profileID:      "profile7",
 			questionDomain: "foo.com",
@@ -138,15 +129,6 @@ func TestFilterBlocklists(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCache := new(mocks.Cache)
-
-			// Setup GetProfileBlocklists
-			if tt.cacheErr != nil && (tt.name == "Cache error on GetProfileBlocklists") {
-				mockCache.On("GetProfileBlocklists", mock.Anything, tt.profileID).
-					Return(nil, tt.cacheErr)
-			} else {
-				mockCache.On("GetProfileBlocklists", mock.Anything, tt.profileID).
-					Return(tt.blocklists, nil)
-			}
 
 			if tt.name == "Multiple blocklists - first blocks" {
 				entries := tt.blocklistEntries[blocklistID1]
@@ -193,6 +175,7 @@ func TestFilterBlocklists(t *testing.T) {
 
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId:       tt.profileID,
+				Blocklists:      tt.blocklists,
 				PrivacySettings: tt.privacySettings,
 				Logger:          testLogger,
 			}
@@ -200,7 +183,7 @@ func TestFilterBlocklists(t *testing.T) {
 				Req: msg,
 			}
 
-			result, err := fm.filterBlocklists(reqCtx, dnsCtx)
+			result, err := fm.filterBlocklists(context.Background(), reqCtx, dnsCtx)
 			if tt.expectErr {
 				assert.Error(t, err)
 				return

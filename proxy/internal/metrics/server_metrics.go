@@ -6,6 +6,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// Label values for proxy_dns_filter_stage_errors_total raised before filtering
+// starts; the filter phases and stage names are owned by the filter package.
+const (
+	PhaseAdmission       = "admission"
+	StageProfileSettings = "profile_settings"
+)
+
+// Status label values for proxy_dns_profile_settings_cache_total.
+const (
+	CacheLookupHit         = "hit"
+	CacheLookupMiss        = "miss"
+	CacheLookupStale       = "stale"
+	CacheLookupUnavailable = "unavailable"
+)
+
 // ServerMetrics implements server.Metrics using Prometheus collectors.
 type ServerMetrics struct {
 	queries              *prometheus.CounterVec
@@ -15,6 +30,7 @@ type ServerMetrics struct {
 	ipFilterDuration     *prometheus.HistogramVec
 	upstreamDuration     *prometheus.HistogramVec
 	blocked              *prometheus.CounterVec
+	filterStageErrors    *prometheus.CounterVec
 }
 
 // NewServerMetrics creates and registers all server-level Prometheus collectors.
@@ -26,7 +42,7 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		}, []string{"proto"}),
 		profileCacheLookups: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "proxy_dns_profile_settings_cache_total",
-			Help: "Profile settings cache lookups by status.",
+			Help: "Profile settings lookups by outcome: hit, miss, stale (last-known-good served), unavailable.",
 		}, []string{"status"}),
 		queryDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "proxy_dns_query_duration_seconds",
@@ -52,6 +68,10 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 			Name: "proxy_dns_blocked_total",
 			Help: "Total blocked DNS queries by filter phase.",
 		}, []string{"phase"}),
+		filterStageErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_dns_filter_stage_errors_total",
+			Help: "Settings-store read failures by pipeline phase and stage; each one answers SERVFAIL.",
+		}, []string{"phase", "stage"}),
 	}
 	reg.MustRegister(
 		m.queries,
@@ -61,6 +81,7 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		m.ipFilterDuration,
 		m.upstreamDuration,
 		m.blocked,
+		m.filterStageErrors,
 	)
 	return m
 }
@@ -69,11 +90,7 @@ func (m *ServerMetrics) RecordQuery(proto string) {
 	m.queries.WithLabelValues(proto).Inc()
 }
 
-func (m *ServerMetrics) RecordProfileCacheLookup(hit bool) {
-	status := "miss"
-	if hit {
-		status = "hit"
-	}
+func (m *ServerMetrics) RecordProfileCacheLookup(status string) {
 	m.profileCacheLookups.WithLabelValues(status).Inc()
 }
 
@@ -95,4 +112,8 @@ func (m *ServerMetrics) RecordUpstreamDuration(upstream string, d time.Duration)
 
 func (m *ServerMetrics) RecordBlocked(phase string) {
 	m.blocked.WithLabelValues(phase).Inc()
+}
+
+func (m *ServerMetrics) RecordFilterStageError(phase, stage string) {
+	m.filterStageErrors.WithLabelValues(phase, stage).Inc()
 }

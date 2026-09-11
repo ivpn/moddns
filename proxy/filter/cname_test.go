@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -137,9 +138,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantDecision:       model.DecisionNone,
 		},
 		{
-			name:     "U2 — target on subscribed blocklist: Block T100",
-			tableRef: "F/U2",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
+			name:       "U2 — target on subscribed blocklist: Block T100",
+			tableRef:   "F/U2",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker.evil.net": true},
@@ -151,9 +152,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantReasons:     []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
 		},
 		{
-			name:     "U3 — intermediate chain name on blocklist: Block T100",
-			tableRef: "F/U3",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net", "edge.clean-cdn.example"}, "1.2.3.4"),
+			name:       "U3 — intermediate chain name on blocklist: Block T100",
+			tableRef:   "F/U3",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net", "edge.clean-cdn.example"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker.evil.net": true},
@@ -165,9 +166,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantReasons:     []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
 		},
 		{
-			name:     "U4 — parent of target on blocklist, subdomains rule on: Block T100 + subdomains reason",
-			tableRef: "F/U4",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker-park.net"}, "1.2.3.4"),
+			name:       "U4 — parent of target on blocklist, subdomains rule on: Block T100 + subdomains reason",
+			tableRef:   "F/U4",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker-park.net"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker-park.net": true},
@@ -179,9 +180,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantReasons:     []string{"blocklist: " + blocklistID, SUBDOMAINS_RULE, REASON_CNAME_UNCLOAKING},
 		},
 		{
-			name:     "U5 — parent of target on blocklist, subdomains rule off: None",
-			tableRef: "F/U5",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker-park.net"}, "1.2.3.4"),
+			name:       "U5 — parent of target on blocklist, subdomains rule off: None",
+			tableRef:   "F/U5",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker-park.net"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker-park.net": true},
@@ -191,9 +192,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantDecision:    model.DecisionNone,
 		},
 		{
-			name:     "U6 — target only on an unsubscribed list: None",
-			tableRef: "F/U6",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
+			name:       "U6 — target only on an unsubscribed list: None",
+			tableRef:   "F/U6",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {}, // subscribed list does not contain the target
@@ -203,9 +204,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantDecision:    model.DecisionNone,
 		},
 		{
-			name:     "U7 — target matches custom Block rule (wildcard): Block T200",
-			tableRef: "F/U7",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker.net"}, "1.2.3.4"),
+			name:            "U7 — target matches custom Block rule (wildcard): Block T200",
+			tableRef:        "F/U7",
+			response:        buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"sub.tracker.net"}, "1.2.3.4"),
 			blocklists:      []string{},
 			privacySettings: map[string]string{},
 			customHashes:    []string{"h1"},
@@ -217,9 +218,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantReasons:  []string{REASON_CUSTOM_RULES, REASON_CNAME_UNCLOAKING},
 		},
 		{
-			name:     "U8 — target matches custom Allow rule and a blocklist: Allow T200 wins",
-			tableRef: "F/U8",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
+			name:       "U8 — target matches custom Allow rule and a blocklist: Allow T200 wins",
+			tableRef:   "F/U8",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4"),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker.evil.net": true},
@@ -251,9 +252,9 @@ func TestFilterCNAME(t *testing.T) {
 			wantDecision:       model.DecisionNone,
 		},
 		{
-			name:     "U12 — HTTPS qtype answer carrying a CNAME: Block T100",
-			tableRef: "F/U12",
-			response: buildCNAMEChainResponse("metrics.shop.example", dns.TypeHTTPS, []string{"tracker.evil.net"}, ""),
+			name:       "U12 — HTTPS qtype answer carrying a CNAME: Block T100",
+			tableRef:   "F/U12",
+			response:   buildCNAMEChainResponse("metrics.shop.example", dns.TypeHTTPS, []string{"tracker.evil.net"}, ""),
 			blocklists: []string{blocklistID},
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker.evil.net": true},
@@ -288,14 +289,6 @@ func TestFilterCNAME(t *testing.T) {
 			mockCache := new(mocks.Cache)
 
 			if !tt.expectNoCacheCalls {
-				mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-					Return(tt.customHashes, nil).Maybe()
-				for hash, rule := range tt.customRules {
-					mockCache.On("GetCustomRulesHash", mock.Anything, hash).
-						Return(rule, nil).Maybe()
-				}
-				mockCache.On("GetProfileBlocklists", mock.Anything, profileID).
-					Return(tt.blocklists, nil).Maybe()
 				for blID, entries := range tt.blocklistEntries {
 					for domain, blocked := range entries {
 						mockCache.On("GetBlocklistEntry", mock.Anything, blID, domain).
@@ -312,6 +305,8 @@ func TestFilterCNAME(t *testing.T) {
 			loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 			reqCtx := &requestcontext.RequestContext{
 				ProfileId:       profileID,
+				Blocklists:      tt.blocklists,
+				CustomRules:     orderedRules(tt.customHashes, tt.customRules),
 				PrivacySettings: tt.privacySettings,
 				Logger:          loggerFactory.ForProfile(profileID, true),
 			}
@@ -327,7 +322,7 @@ func TestFilterCNAME(t *testing.T) {
 				dnsCtx.Res = tt.response
 			}
 
-			result, err := f.filterCNAME(reqCtx, dnsCtx)
+			result, err := f.filterCNAME(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.Equal(t, tt.wantDecision, result.Decision, "tableRef %s", tt.tableRef)
@@ -375,12 +370,6 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, profileID).
-				Return([]string{}, nil)
-			mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).
-				Return([]string{}, nil)
-			mockCache.On("GetProfileBlocklists", mock.Anything, profileID).
-				Return([]string{blocklistID}, nil)
 			mockCache.On("GetBlocklistEntry", mock.Anything, blocklistID, "tracker.evil.net").
 				Return(true, nil)
 			mockCache.On("GetBlocklistEntry", mock.Anything, mock.Anything, mock.Anything).
@@ -389,6 +378,7 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
 
 			reqCtx := newTestReqCtx(t, profileID)
+			reqCtx.Blocklists = []string{blocklistID}
 			reqCtx.PartialFilteringResults = append(
 				reqCtx.PartialFilteringResults, tt.domainResults...,
 			)
@@ -398,7 +388,7 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			req.SetQuestion("metrics.shop.example.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: res}
 
-			err := ipFilter.Execute(reqCtx, dnsCtx)
+			err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status, "tableRef %s", tt.tableRef)
 			for _, r := range tt.wantContains {

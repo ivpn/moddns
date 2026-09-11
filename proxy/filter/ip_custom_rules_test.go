@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"errors"
+	"context"
 	"net"
 	"testing"
 
@@ -13,7 +13,6 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 // buildDNSResponse creates a dns.Msg response with the given A and AAAA answer records.
@@ -243,20 +242,13 @@ func TestIPFilterCustomRules(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-
-			mockCache.On("GetCustomRulesHashes", mock.Anything, tt.profileID).
-				Return(tt.customRuleHashes, nil)
-			for hash, rule := range tt.customRules {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).
-					Return(rule, nil).Maybe()
-			}
-
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
+			// The stage has no store dependency: a strict mock fails on any call.
+			fm := NewIPFilter(&proxy.Proxy{}, mocks.NewCache(t), nil, nil, nil, nil)
 
 			reqCtx := &requestcontext.RequestContext{
-				ProfileId: tt.profileID,
-				Logger:    loggerFactory.ForProfile(tt.profileID, true),
+				ProfileId:   tt.profileID,
+				CustomRules: orderedRules(tt.customRuleHashes, tt.customRules),
+				Logger:      loggerFactory.ForProfile(tt.profileID, true),
 			}
 
 			msg := new(dns.Msg)
@@ -266,7 +258,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 				Res: tt.response,
 			}
 
-			got, err := fm.filterCustomRules(reqCtx, dctx)
+			got, err := fm.filterCustomRules(context.Background(), reqCtx, dctx)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -276,60 +268,6 @@ func TestIPFilterCustomRules(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, got)
 			assert.Equal(t, tt.expectedResult, got)
-			mockCache.AssertExpectations(t)
-		})
-	}
-}
-
-func TestIPFilterCustomRules_CacheErrors(t *testing.T) {
-	tests := []struct {
-		name      string
-		setupMock func(*mocks.Cache)
-	}{
-		{
-			name: "GetCustomRulesHashes returns error",
-			setupMock: func(m *mocks.Cache) {
-				m.On("GetCustomRulesHashes", mock.Anything, "test-profile").
-					Return([]string(nil), errors.New("redis connection refused"))
-			},
-		},
-		{
-			name: "GetCustomRulesHash returns error",
-			setupMock: func(m *mocks.Cache) {
-				m.On("GetCustomRulesHashes", mock.Anything, "test-profile").
-					Return([]string{"hash1"}, nil)
-				m.On("GetCustomRulesHash", mock.Anything, "hash1").
-					Return(map[string]string(nil), errors.New("redis timeout"))
-			},
-		},
-	}
-
-	loggerFactory := logging.NewFactory(zerolog.Disabled)
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			tt.setupMock(mockCache)
-
-			fm := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)
-
-			reqCtx := &requestcontext.RequestContext{
-				ProfileId: "test-profile",
-				Logger:    loggerFactory.ForProfile("test-profile", true),
-			}
-
-			msg := new(dns.Msg)
-			msg.SetQuestion("example.com.", dns.TypeA)
-			dctx := &proxy.DNSContext{
-				Req: msg,
-				Res: buildDNSResponse("example.com", []string{"1.2.3.4"}, nil),
-			}
-
-			got, err := fm.filterCustomRules(reqCtx, dctx)
-
-			assert.Error(t, err)
-			assert.Nil(t, got)
-			mockCache.AssertExpectations(t)
 		})
 	}
 }

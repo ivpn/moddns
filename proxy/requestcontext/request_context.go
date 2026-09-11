@@ -12,34 +12,50 @@ import (
 
 type RequestContext struct {
 	// Ctx                     context.Context
-	ProfileId                   string                  `json:"profile_id"`
-	DeviceId                    string                  `json:"device_id"`
-	PrivacySettings             map[string]string       `json:"privacy_settings"`
-	LogsSettings                map[string]string       `json:"logs_settings"`
-	AdvancedSettings            map[string]string       `json:"advanced_settings"`
-	DNSSECSettings              map[string]string       `json:"dnssec_settings"`
-	RebindingProtectionSettings map[string]string       `json:"rebinding_protection_settings"`
-	PartialFilteringResults     []model.StageResult     `json:"partial_filtering_results"`
-	FilterResult                model.FilterResult      `json:"filter_result"`
-	Logger                      logging.LoggerInterface `json:"-"`
-	LoggerConfig                logging.LoggingConfig   `json:"logger_config"`
-	StartTime                   time.Time               `json:"-"`
-	UpstreamName                string                  `json:"upstream_name"`
+	ProfileId                   string            `json:"profile_id"`
+	DeviceId                    string            `json:"device_id"`
+	PrivacySettings             map[string]string `json:"privacy_settings"`
+	LogsSettings                map[string]string `json:"logs_settings"`
+	AdvancedSettings            map[string]string `json:"advanced_settings"`
+	DNSSECSettings              map[string]string `json:"dnssec_settings"`
+	RebindingProtectionSettings map[string]string `json:"rebinding_protection_settings"`
+	StatisticsSettings          map[string]string `json:"statistics_settings"`
+	// Per-profile filter inputs from the settings batch; the filter stages
+	// read these instead of the store.
+	Blocklists              []string                `json:"blocklists"`
+	BlockedServices         []string                `json:"blocked_services"`
+	CustomRules             []map[string]string     `json:"custom_rules"`
+	PartialFilteringResults []model.StageResult     `json:"partial_filtering_results"`
+	FilterResult            model.FilterResult      `json:"filter_result"`
+	Logger                  logging.LoggerInterface `json:"-"`
+	LoggerConfig            logging.LoggingConfig   `json:"logger_config"`
+	StartTime               time.Time               `json:"-"`
+	UpstreamName            string                  `json:"upstream_name"`
 	// UpstreamErr is the resolve error captured from the vendor proxy (nil on
 	// success). Consumed by query-log outcome classification; never serialized.
 	UpstreamErr error `json:"-"`
 }
 
-func NewRequestContext(ctx context.Context, p *proxy.Proxy, profileId string, deviceId string, privacySettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings map[string]string, logger logging.LoggerInterface) *RequestContext {
+// NewRequestContext builds the per-request state from the profile's settings
+// batch. Settings groups whose read failed are nil maps; callers have already
+// applied their defaults.
+func NewRequestContext(ctx context.Context, p *proxy.Proxy, profileId string, deviceId string, settings *model.ProfileSettings, logger logging.LoggerInterface) *RequestContext {
+	if settings == nil {
+		settings = &model.ProfileSettings{}
+	}
 	return &RequestContext{
 		// Ctx:              ctx,
 		ProfileId:                   profileId,
 		DeviceId:                    deviceId,
-		PrivacySettings:             privacySettings,
-		LogsSettings:                logsSettings,
-		DNSSECSettings:              dnssecSettings,
-		RebindingProtectionSettings: rebindingProtectionSettings,
-		AdvancedSettings:            advancedSettings,
+		PrivacySettings:             settings.Privacy,
+		LogsSettings:                settings.Logs,
+		DNSSECSettings:              settings.DNSSEC,
+		RebindingProtectionSettings: settings.RebindingProtection,
+		AdvancedSettings:            settings.Advanced,
+		StatisticsSettings:          settings.Statistics,
+		Blocklists:                  settings.Blocklists,
+		BlockedServices:             settings.Services,
+		CustomRules:                 settings.CustomRules,
 		Logger:                      logger,
 		LoggerConfig:                logger.Config(),
 	}

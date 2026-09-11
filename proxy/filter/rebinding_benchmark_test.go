@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -60,7 +61,7 @@ func BenchmarkFilterRebinding(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				res, err := f.filterRebinding(reqCtx, dctx)
+				res, err := f.filterRebinding(context.Background(), reqCtx, dctx)
 				require.NoError(b, err)
 				require.NotNil(b, res)
 			}

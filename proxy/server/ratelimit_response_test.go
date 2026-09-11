@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -11,12 +11,13 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/libs/logging"
+	"github.com/ivpn/dns/proxy/cache"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/miekg/dns"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -140,7 +141,7 @@ func newProfileRateLimitServer(c *mocks.Cache, profileResponse string) *Server {
 			},
 		},
 		Cache:                c,
-		ProfileSettingsCache: gocache.New(time.Minute, time.Minute),
+		ProfileSettingsCache: mustSettingsCache(time.Minute),
 		LoggerFactory:        logging.NewDefaultFactory(),
 		RateLimiter: ratelimit.New(ratelimit.Config{
 			PerProfileEnabled: true,
@@ -149,6 +150,15 @@ func newProfileRateLimitServer(c *mocks.Cache, profileResponse string) *Server {
 		}, nil),
 		Metrics: noopMetrics{},
 	}
+}
+
+// mustSettingsCache builds a small settings cache for server fixtures.
+func mustSettingsCache(ttl time.Duration) *settingscache.Cache {
+	c, err := settingscache.New(ttl, 64)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }
 
 // newDoHDNSContext carries profileID via the DoH path, the simplest route
@@ -168,7 +178,7 @@ func newDoHDNSContext(profileID string) *proxy.DNSContext {
 func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 	c := mocks.NewCache(t)
 	c.EXPECT().GetProfileSettingsBatch(mock.Anything, "unknownprofile1").
-		Return(&model.ProfileSettings{PrivacyErr: errors.New("no [privacy] settings found for profile")}, nil)
+		Return(&model.ProfileSettings{PrivacyErr: fmt.Errorf("%w: [privacy]", cache.ErrSettingsNotFound)}, nil)
 	s := newProfileRateLimitServer(c, config.RateLimitResponseRefuse)
 
 	// Far past the burst of 1: every call must fail on existence, and the
@@ -184,14 +194,15 @@ func TestPrepareRequest_UnknownProfileNeverProfileRateLimited(t *testing.T) {
 // seedCachedProfile puts a minimal existing profile into the settings cache so
 // prepareRequest reaches the per-profile rate-limit layer without Redis.
 func seedCachedProfile(s *Server, profileID string) {
-	fetchErr := errors.New("settings unavailable")
-	s.ProfileSettingsCache.Set(profileID, &model.ProfileSettings{
+	// Absent settings groups (defaults apply), not store failures.
+	absent := fmt.Errorf("%w: [seed]", cache.ErrSettingsNotFound)
+	s.ProfileSettingsCache.Put(profileID, &model.ProfileSettings{
 		Privacy:                map[string]string{},
-		LogsErr:                fetchErr,
-		DNSSECErr:              fetchErr,
-		RebindingProtectionErr: fetchErr,
-		AdvancedErr:            fetchErr,
-	}, gocache.DefaultExpiration)
+		LogsErr:                absent,
+		DNSSECErr:              absent,
+		RebindingProtectionErr: absent,
+		AdvancedErr:            absent,
+	})
 }
 
 // specRef: proxy-request-admission-behaviour.md #Q7

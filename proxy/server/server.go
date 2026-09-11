@@ -21,10 +21,10 @@ import (
 	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/internal/metrics"
 	"github.com/ivpn/dns/proxy/internal/ratelimit"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
-	gocache "github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
 )
@@ -43,7 +43,7 @@ type Server struct {
 	DomainFilter         filter.Filter
 	IPFilter             filter.Filter
 	Cache                cache.Cache
-	ProfileSettingsCache *gocache.Cache
+	ProfileSettingsCache *settingscache.Cache
 	CollectorChannels    map[string]channel.CollectorChannel
 	LoggerFactory        logging.FactoryInterface
 	RateLimiter          *ratelimit.RateLimiter
@@ -57,6 +57,7 @@ var (
 	errProfileIdNotFound    = errors.New("profile_id not found")
 	errRateLimitedIP        = errors.New("rate limited by IP")
 	errRateLimitedProfile   = errors.New("rate limited by profile")
+	errStoreProbePending    = errors.New("settings store marked unavailable, probe not due")
 )
 
 func NewServer(serverConfig *config.Config, collectorChannels map[string]channel.CollectorChannel) (*Server, error) {
@@ -68,8 +69,18 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	// Initialize logging factory
 	loggerFactory := logging.NewDefaultFactory()
 
-	// In-memory profile settings cache to avoid Redis round-trips for warm profiles.
-	profileSettingsCache := gocache.New(serverConfig.Server.ProfileSettingsCacheTTL, 2*serverConfig.Server.ProfileSettingsCacheTTL)
+	// In-process profile settings: fresh entries skip Redis, stale entries are
+	// last-known-good for when Redis is unreachable.
+	cacheMetrics := metrics.NewSettingsCacheMetrics(prometheus.DefaultRegisterer)
+	profileSettingsCache, err := settingscache.New(
+		serverConfig.Server.ProfileSettingsCacheTTL,
+		serverConfig.Server.ProfileSettingsCacheSize,
+		settingscache.WithEvictionHook(cacheMetrics.RecordEviction),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("profile settings cache: %w", err)
+	}
+	metrics.ObserveSettingsCache(prometheus.DefaultRegisterer, profileSettingsCache)
 
 	rl := ratelimit.New(ratelimit.Config{
 		PerIPEnabled:      serverConfig.RateLimit.PerIPEnabled,
@@ -114,8 +125,12 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	}
 	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
 
-	server.DomainFilter = filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
-	server.IPFilter = filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding, serverConfig.Filtering)
+	domainFilter := filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
+	domainFilter.Metrics = server.Metrics
+	ipFilter := filter.NewIPFilter(dnsProxy, cache, servicesCatalog, lookup, serverConfig.Rebinding, serverConfig.Filtering)
+	ipFilter.Metrics = server.Metrics
+	server.DomainFilter = domainFilter
+	server.IPFilter = ipFilter
 	server.Proxy = dnsProxy
 
 	profileIDMinLength = serverConfig.ProfileIDMinLength
@@ -143,11 +158,13 @@ func (s *Server) ServeDNS(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSCo
 }
 
 // postResolve runs IP filtering, emits query logs/statistics, and responds.
-func (s *Server) postResolve(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
-	if reqCtx.FilterResult.Status != model.StatusBlocked {
+func (s *Server) postResolve(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
+	// Only a Processed domain phase has an answer to inspect; Blocked and
+	// Unavailable results are final.
+	if reqCtx.FilterResult.Status == model.StatusProcessed {
 		ipStart := time.Now()
-		if err := s.IPFilter.Execute(reqCtx, dctx); err != nil {
-			reqCtx.Logger.Err(err).Msg("IP Filtering error")
+		if err := s.IPFilter.Execute(ctx, reqCtx, dctx); err != nil {
+			reqCtx.Logger.Debug().Err(err).Msg("IP filtering unavailable")
 		}
 		s.Metrics.RecordIPFilterDuration(string(dctx.Proto), time.Since(ipStart))
 		if reqCtx.FilterResult.Status == model.StatusBlocked {
@@ -202,30 +219,9 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 		systemLogger.Warn().Err(errProfileIdNotProvided).Msg(errProfileIdNotProvided.Error())
 		return nil, nil, errProfileIdNotProvided
 	} else {
-		// Try in-memory profile settings cache first.
-		var settings *model.ProfileSettings
-		if cached, ok := s.ProfileSettingsCache.Get(profileId); ok {
-			s.Metrics.RecordProfileCacheLookup(true)
-			settings = cached.(*model.ProfileSettings)
-		} else {
-			s.Metrics.RecordProfileCacheLookup(false)
-			// Cache miss — fetch from Redis pipeline.
-			var fetchErr error
-			settings, fetchErr = s.Cache.GetProfileSettingsBatch(ctx, profileId)
-			if fetchErr != nil {
-				systemLogger.Err(fetchErr).Msg("Failed to fetch profile settings batch")
-				return nil, nil, errProfileIdNotFound
-			}
-			// Cache only successful fetches (profile exists).
-			if settings.PrivacyErr == nil {
-				s.ProfileSettingsCache.Set(profileId, settings, gocache.DefaultExpiration)
-			}
-		}
-
-		// Privacy settings are required — missing means profile doesn't exist.
-		if settings.PrivacyErr != nil {
-			systemLogger.Debug().Err(settings.PrivacyErr).Msg(errProfileIdNotFound.Error())
-			return nil, nil, errProfileIdNotFound
+		settings, errResp, err := s.loadProfileSettings(ctx, dctx.Req, profileId, systemLogger)
+		if err != nil || errResp != nil {
+			return nil, errResp, err
 		}
 
 		// Layer 2: per-profile rate limit. Runs after the existence check so
@@ -236,7 +232,6 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			}
 			return nil, nil, errRateLimitedProfile
 		}
-		prvSettings := settings.Privacy
 
 		// Logs settings: default to enabled if unavailable.
 		logsSettings := settings.Logs
@@ -272,27 +267,23 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 			LogClientIPs: logClientIPs,
 		})
 
-		// DNSSEC settings: default to enabled if unavailable.
+		// DNSSEC settings: default to enabled if absent. A hash that exists but
+		// does not parse is our data being wrong, not the client's: SERVFAIL (Q12).
 		dnssecSettings := settings.DNSSEC
 		var dnssecEnabled, sendDoBit = true, true
 		if settings.DNSSECErr != nil {
 			reqLogger.Debug().Msg("DNSSEC settings not found, using default values")
 		} else {
 			dnssecEnabled, err = strconv.ParseBool(dnssecSettings["enabled"])
-			if err != nil {
-				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return nil, nil, errProfileIdNotFound
+			if err == nil {
+				sendDoBit, err = strconv.ParseBool(dnssecSettings["send_do_bit"])
 			}
-			sendDoBit, err = strconv.ParseBool(dnssecSettings["send_do_bit"])
 			if err != nil {
-				reqLogger.Err(err).Msg(errProfileIdNotFound.Error())
-				return nil, nil, errProfileIdNotFound
+				s.Metrics.RecordFilterStageError(metrics.PhaseAdmission, metrics.StageProfileSettings)
+				reqLogger.Err(err).Msg("Malformed DNSSEC settings, answering SERVFAIL")
+				return nil, s.servFailResponse(dctx.Req), nil
 			}
 		}
-
-		// Rebinding protection (security): missing hash = empty map = opt-in OFF.
-		// Raw map is threaded through; the IP-phase filter reads the "enabled" key.
-		rebindingProtectionSettings := settings.RebindingProtection
 
 		// Advanced settings: default upstream if unavailable.
 		advancedSettings := settings.Advanced
@@ -317,7 +308,7 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 
 		dctx.CustomUpstreamConfig = upstreamConfig
 		reqLogger.Trace().Str("upstream", upstreamName).Msg("Upstream set")
-		reqCtx = requestcontext.NewRequestContext(ctx, p, profileId, deviceId, prvSettings, logsSettings, dnssecSettings, rebindingProtectionSettings, advancedSettings, reqLogger)
+		reqCtx = requestcontext.NewRequestContext(ctx, p, profileId, deviceId, settings, reqLogger)
 		reqCtx.StartTime = time.Now()
 		reqCtx.UpstreamName = upstreamName
 
@@ -325,6 +316,75 @@ func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy
 	}
 
 	return reqCtx, nil, nil
+}
+
+// loadProfileSettings returns the settings to serve the query with, applying
+// spec rows Q6 and Q12–Q14 of proxy-request-admission-behaviour.md. Exactly one
+// of the results is set: settings to continue with, a SERVFAIL response, or
+// errProfileIdNotFound meaning drop.
+func (s *Server) loadProfileSettings(ctx context.Context, req *dns.Msg, profileId string, logger logging.LoggerInterface) (*model.ProfileSettings, *dns.Msg, error) {
+	cached, state := s.ProfileSettingsCache.Get(profileId)
+	if state == settingscache.Fresh {
+		s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupHit)
+		return cached, nil, nil
+	}
+
+	// While the store is known to be failing, only one probe per interval
+	// reaches it; everyone else is served from the cache or refused at once.
+	if !s.ProfileSettingsCache.FetchAllowed() {
+		return s.settingsUnavailable(req, cached, state, logger, errStoreProbePending)
+	}
+
+	fetchCtx, cancel := context.WithTimeout(ctx, filter.StoreDeadline)
+	defer cancel()
+	fetched, fetchErr := s.Cache.GetProfileSettingsBatch(fetchCtx, profileId)
+	if fetchErr != nil {
+		// The outage is logged on its transitions only; per-query effects are
+		// visible through the cache and stage-error metrics.
+		if s.ProfileSettingsCache.StoreFailed() {
+			logger.Error().Err(fetchErr).Msg("Settings store unreachable, serving last-known-good settings where cached")
+		}
+		return s.settingsUnavailable(req, cached, state, logger, fetchErr)
+	}
+	if s.ProfileSettingsCache.StoreRecovered() {
+		logger.Info().Msg("Settings store reachable again")
+	}
+
+	// Privacy settings are required. Only an empty hash means the profile does
+	// not exist; any other read error is a store failure.
+	if fetched.PrivacyErr != nil {
+		if errors.Is(fetched.PrivacyErr, cache.ErrSettingsNotFound) {
+			// The store answered: the profile is gone, and so is any stale copy.
+			s.ProfileSettingsCache.Evict(profileId)
+			s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupMiss)
+			logger.Debug().Err(fetched.PrivacyErr).Msg(errProfileIdNotFound.Error())
+			return nil, nil, errProfileIdNotFound
+		}
+		return s.settingsUnavailable(req, cached, state, logger, fetched.PrivacyErr)
+	}
+	// The remaining groups may legitimately be absent (defaults apply), but a
+	// read failure on any of them means the filter inputs are incomplete.
+	if err := fetched.StoreError(); err != nil {
+		return s.settingsUnavailable(req, cached, state, logger, err)
+	}
+
+	s.ProfileSettingsCache.Put(profileId, fetched)
+	s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupMiss)
+	return fetched, nil, nil
+}
+
+// settingsUnavailable resolves a failed fetch: last-known-good settings when
+// a stale entry exists (Q13), otherwise SERVFAIL (Q12).
+func (s *Server) settingsUnavailable(req *dns.Msg, cached *model.ProfileSettings, state settingscache.State, logger logging.LoggerInterface, cause error) (*model.ProfileSettings, *dns.Msg, error) {
+	if state == settingscache.Stale {
+		s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupStale)
+		logger.Debug().Err(cause).Msg("Serving last-known-good profile settings")
+		return cached, nil, nil
+	}
+	s.Metrics.RecordProfileCacheLookup(metrics.CacheLookupUnavailable)
+	s.Metrics.RecordFilterStageError(metrics.PhaseAdmission, metrics.StageProfileSettings)
+	logger.Debug().Err(cause).Msg("Profile settings unavailable, answering SERVFAIL")
+	return nil, s.servFailResponse(req), nil
 }
 
 // handleRequest runs domain filtering, resolves via the profile's upstream
@@ -341,14 +401,16 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 
 	// perform filtering actions
 	domainStart := time.Now()
-	if err := s.DomainFilter.Execute(reqCtx, dctx); err != nil {
-		reqLogger.Err(err).Msg("Filtering error")
+	if err := s.DomainFilter.Execute(ctx, reqCtx, dctx); err != nil {
+		// Per-stage failures are counted in proxy_dns_filter_stage_errors_total.
+		reqLogger.Debug().Err(err).Msg("Domain filtering unavailable")
 	}
 	s.Metrics.RecordDomainFilterDuration(string(dctx.Proto), time.Since(domainStart))
 	if reqCtx.FilterResult.Status == model.StatusBlocked {
 		s.Metrics.RecordBlocked("domain")
 	}
 
+	// Blocked and Unavailable both skip resolution; respond() synthesizes the answer.
 	if reqCtx.FilterResult.Status == model.StatusProcessed {
 		reqLogger.Trace().Msg("Triggering default resolver")
 		upstreamStart := time.Now()
@@ -359,10 +421,15 @@ func (s *Server) handleRequest(ctx context.Context, dctx *proxy.DNSContext, reqC
 		s.Metrics.RecordUpstreamDuration(reqCtx.UpstreamName, time.Since(upstreamStart))
 	}
 
-	s.postResolve(reqCtx, dctx)
+	s.postResolve(ctx, reqCtx, dctx)
 }
 
 func (s *Server) respond(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) {
+	if reqCtx.FilterResult.Status == model.StatusUnavailable {
+		// An answer that could not be checked against the profile is withheld.
+		dctx.Res = s.servFailResponse(dctx.Req)
+		return
+	}
 	if reqCtx.FilterResult.Status != model.StatusBlocked {
 		return
 	}
@@ -497,6 +564,13 @@ func (s *Server) buildDNSCheckResponse(origReq *dns.Msg, upstream *dns.Msg) *dns
 func (s *Server) refusedResponse(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetRcode(req, dns.RcodeRefused)
+	return resp
+}
+
+// servFailResponse builds a minimal DNS SERVFAIL response for the given request.
+func (s *Server) servFailResponse(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetRcode(req, dns.RcodeServerFailure)
 	return resp
 }
 

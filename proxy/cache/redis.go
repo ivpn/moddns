@@ -106,7 +106,7 @@ func (c *RedisCache) getProfileSettings(ctx context.Context, profileId string, s
 		// Profile ID goes in a structured (Sentry-denylisted) field, never in
 		// the message or error text.
 		log.Warn().Str("profile_id", profileId).Msgf("No %s settings found for profile", settingsName)
-		return nil, fmt.Errorf("no %s settings found for profile", settingsName)
+		return nil, fmt.Errorf("%w: %s", ErrSettingsNotFound, settingsName)
 	}
 	return cmd.Val(), nil
 }
@@ -140,93 +140,111 @@ func (c *RedisCache) GetCustomRulesHash(ctx context.Context, hashId string) (map
 	return cmd.Val(), nil
 }
 
-// GetProfileSettingsBatch fetches privacy, logs, DNSSEC, rebinding protection, and
-// advanced settings for a profile in a single Redis pipeline round-trip.
+// GetProfileSettingsBatch fetches every per-profile input the proxy needs in
+// two pipeline round-trips: the settings hashes, lists and the custom-rule
+// set first, then the custom-rule hashes named by that set.
 func (c *RedisCache) GetProfileSettingsBatch(ctx context.Context, profileId string) (*model.ProfileSettings, error) {
 	if profileId == "" {
 		return nil, fmt.Errorf("profile ID cannot be empty")
 	}
 
-	privacyKey := "settings:" + profileId + ":privacy"
-	logsKey := "settings:" + profileId + ":logs"
-	dnssecKey := "settings:" + profileId + ":security:dnssec"
-	rebindingKey := "settings:" + profileId + ":security:rebinding_protection"
-	advancedKey := "settings:" + profileId + ":advanced"
-
+	settingsKey := "settings:" + profileId
 	pipe := c.client().Pipeline()
-	privacyCmd := pipe.HGetAll(ctx, privacyKey)
-	logsCmd := pipe.HGetAll(ctx, logsKey)
-	dnssecCmd := pipe.HGetAll(ctx, dnssecKey)
-	rebindingCmd := pipe.HGetAll(ctx, rebindingKey)
-	advancedCmd := pipe.HGetAll(ctx, advancedKey)
+	privacyCmd := pipe.HGetAll(ctx, settingsKey+":privacy")
+	logsCmd := pipe.HGetAll(ctx, settingsKey+":logs")
+	dnssecCmd := pipe.HGetAll(ctx, settingsKey+":security:dnssec")
+	rebindingCmd := pipe.HGetAll(ctx, settingsKey+":security:rebinding_protection")
+	advancedCmd := pipe.HGetAll(ctx, settingsKey+":advanced")
+	statisticsCmd := pipe.HGetAll(ctx, settingsKey+":statistics")
+	blocklistsCmd := pipe.LRange(ctx, settingsKey+":blocklists", 0, -1)
+	servicesCmd := pipe.LRange(ctx, settingsKey+":services", 0, -1)
+	customRulesCmd := pipe.SMembers(ctx, settingsKey+":custom_rules")
 
-	_, err := pipe.Exec(ctx)
-	// Pipeline Exec returns the error of the first failed command, but
-	// individual commands still hold their own results/errors. We only
-	// treat a total pipeline failure (e.g. connection lost) as fatal.
-	if err != nil && err != redis.Nil {
-		// If all commands failed with the same error, it's a connection-level
-		// failure (e.g. TCP reset, auth error) — return it so the caller can
-		// log the real cause instead of a misleading "profile not found".
-		if privacyCmd.Err() == err && logsCmd.Err() == err &&
-			dnssecCmd.Err() == err && rebindingCmd.Err() == err && advancedCmd.Err() == err {
-			return nil, fmt.Errorf("redis pipeline failed: %w", err)
-		}
-		// Otherwise it's a partial failure — handle per-command below.
-		log.Warn().Err(err).Msg("Redis pipeline partial error, checking individual commands")
+	cmds := []redis.Cmder{privacyCmd, logsCmd, dnssecCmd, rebindingCmd, advancedCmd, statisticsCmd, blocklistsCmd, servicesCmd, customRulesCmd}
+	if err := execPipeline(ctx, pipe, cmds); err != nil {
+		return nil, err
 	}
 
 	result := &model.ProfileSettings{}
+	result.Privacy, result.PrivacyErr = hashResult(privacyCmd, "privacy")
+	result.Logs, result.LogsErr = hashResult(logsCmd, "logs")
+	result.DNSSEC, result.DNSSECErr = hashResult(dnssecCmd, "security dnssec")
+	// Missing hash = empty map = opt-in OFF.
+	result.RebindingProtection, result.RebindingProtectionErr = hashResult(rebindingCmd, "security rebinding_protection")
+	result.Advanced, result.AdvancedErr = hashResult(advancedCmd, "advanced")
+	result.Statistics, result.StatisticsErr = hashResult(statisticsCmd, "statistics")
+	result.Blocklists, result.BlocklistsErr = blocklistsCmd.Result()
+	result.Services, result.ServicesErr = servicesCmd.Result()
 
-	// Privacy
-	switch {
-	case privacyCmd.Err() != nil:
-		result.PrivacyErr = privacyCmd.Err()
-	case len(privacyCmd.Val()) == 0:
-		result.PrivacyErr = errors.New("no [privacy] settings found for profile")
-	default:
-		result.Privacy = privacyCmd.Val()
+	ruleIDs, err := customRulesCmd.Result()
+	if err != nil {
+		result.CustomRulesErr = err
+		return result, nil
 	}
-
-	// Logs
-	switch {
-	case logsCmd.Err() != nil:
-		result.LogsErr = logsCmd.Err()
-	case len(logsCmd.Val()) == 0:
-		result.LogsErr = errors.New("no [logs] settings found for profile")
-	default:
-		result.Logs = logsCmd.Val()
-	}
-
-	// DNSSEC
-	switch {
-	case dnssecCmd.Err() != nil:
-		result.DNSSECErr = dnssecCmd.Err()
-	case len(dnssecCmd.Val()) == 0:
-		result.DNSSECErr = errors.New("no [security dnssec] settings found for profile")
-	default:
-		result.DNSSEC = dnssecCmd.Val()
-	}
-
-	// Rebinding protection (security). Missing hash = empty map = opt-in OFF.
-	switch {
-	case rebindingCmd.Err() != nil:
-		result.RebindingProtectionErr = rebindingCmd.Err()
-	case len(rebindingCmd.Val()) == 0:
-		result.RebindingProtectionErr = errors.New("no [security rebinding_protection] settings found for profile")
-	default:
-		result.RebindingProtection = rebindingCmd.Val()
-	}
-
-	// Advanced
-	switch {
-	case advancedCmd.Err() != nil:
-		result.AdvancedErr = advancedCmd.Err()
-	case len(advancedCmd.Val()) == 0:
-		result.AdvancedErr = errors.New("no [advanced] settings found for profile")
-	default:
-		result.Advanced = advancedCmd.Val()
-	}
-
+	result.CustomRules, result.CustomRulesErr = c.getCustomRules(ctx, ruleIDs)
 	return result, nil
+}
+
+// getCustomRules loads the named rule hashes in one pipeline. A rule whose
+// hash is empty (a set member left behind by a deleted rule) is skipped.
+func (c *RedisCache) getCustomRules(ctx context.Context, ruleIDs []string) ([]map[string]string, error) {
+	if len(ruleIDs) == 0 {
+		return nil, nil
+	}
+	pipe := c.client().Pipeline()
+	cmds := make([]*redis.MapStringStringCmd, len(ruleIDs))
+	cmders := make([]redis.Cmder, len(ruleIDs))
+	for i, id := range ruleIDs {
+		cmds[i] = pipe.HGetAll(ctx, id)
+		cmders[i] = cmds[i]
+	}
+	if err := execPipeline(ctx, pipe, cmders); err != nil {
+		return nil, err
+	}
+	rules := make([]map[string]string, 0, len(ruleIDs))
+	for i, cmd := range cmds {
+		rule, err := cmd.Result()
+		if err != nil {
+			// The rule key embeds the profile ID; it stays out of the error text.
+			return nil, fmt.Errorf("custom rule hash %d of %d: %w", i+1, len(ruleIDs), err)
+		}
+		if len(rule) == 0 {
+			continue
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+// execPipeline runs the pipeline and returns an error for a connection-level
+// failure. Only server replies (WRONGTYPE, MOVED, ...) implement redis.Error;
+// a dial or transport failure surfaces as a plain error from Exec while the
+// individual commands may carry no error at all, so classification goes by
+// type, never by comparing per-command errors.
+func execPipeline(ctx context.Context, pipe redis.Pipeliner, cmds []redis.Cmder) error {
+	_, err := pipe.Exec(ctx)
+	if err == nil {
+		return nil
+	}
+	// redis.Nil is itself a reply error and lands in the per-command branch.
+	var replyErr redis.Error
+	if !errors.As(err, &replyErr) {
+		return fmt.Errorf("redis pipeline failed: %w", err)
+	}
+	// A server reply error belongs to one command and is handled per command.
+	log.Warn().Err(err).Int("commands", len(cmds)).Msg("Redis pipeline partial error, checking individual commands")
+	return nil
+}
+
+// hashResult maps an HGETALL outcome to (value, error): a read error is kept
+// as is, an empty hash becomes ErrSettingsNotFound.
+func hashResult(cmd *redis.MapStringStringCmd, name string) (map[string]string, error) {
+	val, err := cmd.Result()
+	if err != nil {
+		return nil, err
+	}
+	if len(val) == 0 {
+		return nil, fmt.Errorf("%w: [%s]", ErrSettingsNotFound, name)
+	}
+	return val, nil
 }

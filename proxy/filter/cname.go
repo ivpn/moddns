@@ -51,7 +51,7 @@ func extractCNAMETargets(answers []dns.RR, qname string) []string {
 // custom Block (T200) > blocklist Block (T100). Custom rules are therefore
 // always evaluated, while blocklist lookups are skipped once a custom rule
 // has decided.
-func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierBlocklists}
@@ -68,16 +68,8 @@ func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *prox
 		return result, nil
 	}
 
-	customRuleHashes, err := f.Cache.GetCustomRulesHashes(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
 	allowMatched, blockMatched := false, false
-	for _, customRuleHash := range customRuleHashes {
-		hash, err := f.Cache.GetCustomRulesHash(context.Background(), customRuleHash)
-		if err != nil {
-			return nil, err
-		}
+	for _, hash := range reqCtx.CustomRules {
 		for _, target := range targets {
 			if matchDomainPattern(&f.patternCache, target, hash["value"]) {
 				switch hash["action"] {
@@ -105,12 +97,8 @@ func (f *IPFilter) filterCNAME(reqCtx *requestcontext.RequestContext, dctx *prox
 		return result, nil
 	}
 
-	blocklists, err := f.Cache.GetProfileBlocklists(context.Background(), reqCtx.ProfileId)
-	if err != nil {
-		return nil, err
-	}
 	for _, target := range targets {
-		match, err := matchDomainAgainstBlocklists(context.Background(), f.Cache, reqCtx, blocklists, target)
+		match, err := matchDomainAgainstBlocklists(ctx, f.Cache, reqCtx, reqCtx.Blocklists, target)
 		if err != nil {
 			return nil, err
 		}
