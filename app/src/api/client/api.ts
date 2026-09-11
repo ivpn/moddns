@@ -6808,7 +6808,6 @@ export const ApiV1ProfilesIdLogsGetStatusEnum = {
     All: 'all',
     Blocked: 'blocked',
     Processed: 'processed',
-    Unavailable: 'unavailable',
     Unanswered: 'unanswered'
 } as const;
 export type ApiV1ProfilesIdLogsGetStatusEnum = typeof ApiV1ProfilesIdLogsGetStatusEnum[keyof typeof ApiV1ProfilesIdLogsGetStatusEnum];

@@ -226,8 +226,6 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogs() {
 		// Only sub.example.com matches processed status; example.com is blocked. Expect 1 result.
 		{"processed search com within 1d", "processed", "LAST_1_DAY", "", "com", "created", 0, 0, 1, "com"},
 		{"all no search within 1d", "all", "LAST_1_DAY", "", "", "created", 0, 0, 7, ""}, // excludes old.example.com outside 1d
-		// specRef: query-log-outcomes-behaviour.md #O11
-		{"unavailable status selects only SERVFAIL-by-proxy rows", "unavailable", "LAST_1_DAY", "", "", "created", 0, 0, 1, "unavailable.example.net"},
 		// tableRef: query-log-outcomes-behaviour.md #C5 — outcome-based class (C3 set); DNSSEC verdicts and rows without an outcome are not matched
 		{"unanswered selects every no-answer outcome", "unanswered", "LAST_1_DAY", "", "", "created", 0, 0, 2, ""},
 		{"unanswered excludes resolved and blocked rows", "unanswered", "LAST_1_DAY", "", "example.com", "created", 0, 0, 0, ""},

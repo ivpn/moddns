@@ -2571,7 +2571,6 @@ paths:
         - all
         - blocked
         - processed
-        - unavailable
         - unanswered
         in: query
         name: status

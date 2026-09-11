@@ -1,14 +1,15 @@
 package model
 
-// Values of the logs endpoint's status filter. The first three match
-// QueryLog.Status as written by the proxy; StatusUnanswered is a pseudo-status
-// resolved by outcome (query-log-outcomes-behaviour.md C5).
+// Values of the logs endpoint's status filter. Blocked and processed match
+// QueryLog.Status as written by the proxy; unanswered is a pseudo-status
+// resolved by outcome (query-log-outcomes-behaviour.md C5). The proxy also
+// writes status "unavailable" (O11); those rows are reached through
+// unanswered, never selected by status.
 const (
-	QueryLogStatusAll         = "all"
-	QueryLogStatusBlocked     = "blocked"
-	QueryLogStatusProcessed   = "processed"
-	QueryLogStatusUnavailable = "unavailable"
-	QueryLogStatusUnanswered  = "unanswered"
+	QueryLogStatusAll        = "all"
+	QueryLogStatusBlocked    = "blocked"
+	QueryLogStatusProcessed  = "processed"
+	QueryLogStatusUnanswered = "unanswered"
 )
 
 // Resolution-outcome tokens written by the proxy into QueryLog.Outcome.
