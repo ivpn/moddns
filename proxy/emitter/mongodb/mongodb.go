@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	collNameQueryLogs = "query_logs"
-	collNameStats     = "statistics"
+	collNameQueryLogs    = "query_logs"
+	collNameServiceStats = "service_statistics"
 )
 
 // MongoDB is a MongoDB database instance
@@ -17,7 +17,7 @@ type MongoDB struct {
 	dbConfig *store.Config
 	client   *mongo.Client
 	*QueryLogsRepository
-	*StatisticsRepository
+	*ServiceStatisticsRepository
 }
 
 // NewMongoDB creates a new MongoDB instance
@@ -37,9 +37,9 @@ func (db *MongoDB) RegisterRepositories() error {
 		log.Error().Err(err).Msg("Failed to create query logs repository")
 		return err
 	}
-	db.StatisticsRepository, err = NewStatisticsRepository(db.client, db.dbConfig.Name)
+	db.ServiceStatisticsRepository, err = NewServiceStatisticsRepository(db.client, db.dbConfig.Name, collNameServiceStats)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to create statistics repository")
+		log.Error().Err(err).Msg("Failed to create service statistics repository")
 		return err
 	}
 	return nil

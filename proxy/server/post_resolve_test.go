@@ -76,7 +76,7 @@ func awaitWG(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-// setupStatsBackground mocks the async EmitStatistics path (Send) and wires
+// setupStatsBackground mocks the async EmitServiceStatistics path (Send) and wires
 // wg.Done into the Send call so callers can synchronise. Statistics settings
 // travel on the request context, so no cache expectation is needed.
 func setupStatsBackground(_ *mocks.Cache, statsCh *mocks.CollectorChannel, wg *sync.WaitGroup) {
@@ -261,10 +261,7 @@ func TestPostResolve_CacheHit_EmitsStats(t *testing.T) {
 
 	select {
 	case evt := <-received:
-		assert.Equal(t, testPostResolveProfileID, evt.Statistics.ProfileID)
-		assert.Equal(t, testPostResolveDeviceID, evt.Statistics.DeviceId)
-		assert.Equal(t, 1, evt.Statistics.Queries.Total)
-		assert.Equal(t, 0, evt.Statistics.Queries.Blocked)
+		assert.Equal(t, model.Queries{Total: 1}, evt.Queries, "one processed query: total only")
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for statistics event")
 	}
@@ -406,8 +403,7 @@ func TestPostResolve_Unavailable_StatsCountTotalNotBlocked(t *testing.T) {
 
 	select {
 	case evt := <-received:
-		assert.Equal(t, 1, evt.Statistics.Queries.Total)
-		assert.Equal(t, 0, evt.Statistics.Queries.Blocked, "unavailable is not a block")
+		assert.Equal(t, model.Queries{Total: 1}, evt.Queries, "unavailable is not a block")
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for statistics event")
 	}

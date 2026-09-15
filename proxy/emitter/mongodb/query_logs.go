@@ -24,6 +24,7 @@ var (
 	expirationOneWeek     int64 = 604800
 	expirationOneMonth    int64 = 2592000
 	metafieldProfileId          = "profile_id"
+	metafieldPop                = "pop"
 	timeField                   = "timestamp"
 	granularitySeconds          = "seconds"
 	granularityMinutes          = "minutes"

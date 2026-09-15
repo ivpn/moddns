@@ -35,8 +35,8 @@ func (e *MongoDBEmitter) EmitQueryLogs(ctx context.Context, data []model.EventQu
 	return e.DB.QueryLogsRepository.InsertBatch(ctx, data)
 }
 
-func (e *MongoDBEmitter) EmitStatistics(ctx context.Context, data []model.EventStatistics) error {
-	return e.DB.StatisticsRepository.InsertBatch(ctx, data)
+func (e *MongoDBEmitter) EmitServiceStatistics(ctx context.Context, data []model.ServiceStatistics) error {
+	return e.DB.ServiceStatisticsRepository.InsertBatch(ctx, data)
 }
 
 func (e *MongoDBEmitter) Disconnect() error {
