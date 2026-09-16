@@ -69,7 +69,7 @@ function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FA
             <div
                 ref={contentRef}
                 style={{ height }}
-                className="overflow-hidden transition-all duration-300 ease-in-out"
+                className="relative overflow-hidden transition-all duration-300 ease-in-out"
             >
                 <div className="p-4 pt-0 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                     {typeof answer === 'string' ? (
