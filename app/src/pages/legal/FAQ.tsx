@@ -836,8 +836,10 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    // Answers animate their height; opt the page out of scroll anchoring so an
+    // anchoring engine (Safari 27+, Chromium) does not shift the viewport per frame.
     return (
-        <div className="relative min-h-screen w-full overflow-x-hidden bg-[var(--public-page-background)]">
+        <div className="relative min-h-screen w-full overflow-x-hidden [overflow-anchor:none] bg-[var(--public-page-background)]">
             <div className="relative z-10 py-8">
                 <div className="w-full max-w-4xl mx-auto p-8">
                     {hasHistory && (
