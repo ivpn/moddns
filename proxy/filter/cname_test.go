@@ -297,6 +297,8 @@ func TestFilterCNAME(t *testing.T) {
 				}
 				mockCache.On("GetBlocklistEntry", mock.Anything, mock.Anything, mock.Anything).
 					Return(false, nil).Maybe()
+				mockCache.On("GetBlocklistExceptionEntry", mock.Anything, mock.Anything, mock.Anything).
+					Return(false, nil).Maybe()
 			}
 
 			f := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil,
@@ -373,6 +375,8 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			mockCache.On("GetBlocklistEntry", mock.Anything, blocklistID, "tracker.evil.net").
 				Return(true, nil)
 			mockCache.On("GetBlocklistEntry", mock.Anything, mock.Anything, mock.Anything).
+				Return(false, nil).Maybe()
+			mockCache.On("GetBlocklistExceptionEntry", mock.Anything, mock.Anything, mock.Anything).
 				Return(false, nil).Maybe()
 
 			ipFilter := NewIPFilter(&proxy.Proxy{}, mockCache, nil, nil, nil, nil)

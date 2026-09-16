@@ -16,7 +16,8 @@ var ErrSettingsNotFound = model.ErrSettingsNotFound
 
 // Cache is the proxy's read-only view of the settings store. Per-profile
 // inputs come from one GetProfileSettingsBatch call and travel on the request
-// context; GetBlocklistEntry is the only per-query lookup.
+// context; blocklist membership and its exception sets are the only per-query
+// lookups.
 type Cache interface {
 	// GetProfileSettingsBatch fetches every per-profile input in one batch.
 	// It returns an error only when the store is unreachable; per-key
@@ -24,6 +25,10 @@ type Cache interface {
 	GetProfileSettingsBatch(ctx context.Context, profileId string) (*model.ProfileSettings, error)
 	// GetBlocklistEntry reports whether fqdn is a member of the blocklist set.
 	GetBlocklistEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
+	// GetBlocklistExceptionEntry checks if a domain is present in the
+	// blocklist's companion exception set — the domains the list's own
+	// authors unblock. A missing set means no exceptions.
+	GetBlocklistExceptionEntry(ctx context.Context, blocklistId string, domain string) (bool, error)
 
 	// Close shuts down the cache and releases resources.
 	Close()

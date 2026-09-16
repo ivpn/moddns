@@ -262,3 +262,99 @@ func TestMultiServerNameIteration(t *testing.T) {
 		})
 	}
 }
+
+// specRef: #Q11 — profile IDs are strictly alphanumeric with a minimum
+// length, checked per rune. This predicate is the selection gate for
+// untrusted SNI input, so both accept and reject sides are pinned here.
+func TestIsValidProfileIDCharacterClasses(t *testing.T) {
+	// Default minimum length (10) applies; every reject case below that is
+	// long enough fails on characters, not length.
+	tests := []struct {
+		name string
+		id   string
+		want bool
+	}{
+		{"lowercase accepted", "abcdefghij", true},
+		{"uppercase accepted", "ABCDEFGHIJ", true},
+		{"digits accepted", "0123456789", true},
+		{"mixed accepted", "3mdq3851b9", true},
+		{"below min length rejected", "abcdefghi", false},
+		{"empty rejected", "", false},
+		{"underscore rejected", "abcdefghi_", false},
+		{"dot rejected", "abcdefghi.", false},
+		{"colon rejected", "abcdefghi:", false},
+		{"space rejected", "abcdefghi ", false},
+		{"hyphen rejected", "abcde-fghi", false},
+		{"control char rejected", "abcdefghi\x00", false},
+		{"multi-byte rune rejected", "abcdefghiä", false},
+		{"emoji rejected", "abcdefghi🌐", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isValidProfileID(tt.id); got != tt.want {
+				t.Errorf("isValidProfileID(%q) = %v, want %v", tt.id, got, tt.want)
+			}
+		})
+	}
+}
+
+// specRef: #Q11 — an invalid character in an SNI part must change profile-ID
+// selection: the failing part is never chosen, an earlier valid part wins,
+// and a subdomain with no valid part is an error. IsImmediateSubdomain does
+// not DNS-validate label content, so these bytes genuinely reach the gate.
+func TestClientIDFromClientServerNameProfileIDSelection(t *testing.T) {
+	const host = "example.com"
+
+	tests := []struct {
+		name         string
+		cliSrvName   string
+		wantClientID string
+		wantDeviceID string
+		wantErr      bool
+	}{
+		{
+			name:         "valid last part selected",
+			cliSrvName:   "mydevice-3mdq3851b9.example.com",
+			wantClientID: "3mdq3851b9",
+			wantDeviceID: "mydevice",
+		},
+		{
+			name:         "invalid char in last part falls back to earlier valid part",
+			cliSrvName:   "3mdq3851b9xy-bad_part.example.com",
+			wantClientID: "3mdq3851b9xy",
+			wantDeviceID: "",
+		},
+		{
+			name:       "invalid char in only long-enough part is an error",
+			cliSrvName: "mydevice-3mdq3851b_9x.example.com",
+			wantErr:    true,
+		},
+		{
+			name:       "colon in single part is an error",
+			cliSrvName: "3mdq3851:b9x.example.com",
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientID, deviceId, err := clientIDFromClientServerName(host, tt.cliSrvName, false, proxy.ProtoTLS)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got clientID=%q deviceId=%q", clientID, deviceId)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if clientID != tt.wantClientID {
+				t.Errorf("clientID = %q, want %q", clientID, tt.wantClientID)
+			}
+			if deviceId != tt.wantDeviceID {
+				t.Errorf("deviceId = %q, want %q", deviceId, tt.wantDeviceID)
+			}
+		})
+	}
+}
