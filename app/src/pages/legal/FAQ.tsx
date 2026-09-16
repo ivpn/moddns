@@ -9,6 +9,7 @@ import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
 import AuthFooter from "@/components/auth/AuthFooter";
 import { parseDnsServerLocations, firstAddress } from "@/lib/dnsServerLocations";
+import { LINKS } from "@/pages/landing/links";
 
 interface FAQItemProps {
     question: string;
@@ -110,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 3, 2026';
+const FAQ_LAST_UPDATED = 'September 9, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -397,6 +398,27 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    const howToGetModDNS = (
+        <div className="space-y-2">
+            <p>modDNS is included in the IVPN Plus and IVPN Pro Suite plans. There is no standalone modDNS subscription, and it is not part of the IVPN Standard plan. See <a href={LINKS.pricing} target="_blank" rel="noopener noreferrer" className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)]">ivpn.net/pricing</a> for current plans.</p>
+            <p>Once you have an eligible IVPN plan, start modDNS from your IVPN account area. IVPN sends you to a one-time signup link where you create your modDNS login with an email and password or a passkey. Your modDNS access then follows your IVPN subscription automatically.</p>
+        </div>
+    );
+
+    const qnameMinimisation = (
+        <div className="space-y-2">
+            <p>Yes. When a resolver looks up a name, it walks the DNS hierarchy from the root servers down. Without QNAME minimisation it repeats the full name (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">mail.example.com</code>) to every server on that path, so the root and top-level-domain servers learn which hosts you visit. With QNAME minimisation (RFC 9156) each server is asked only for the part it is responsible for.</p>
+            <p>modDNS applies this on every resolver location and for every profile. It is always on and there is no setting that disables it.</p>
+        </div>
+    );
+
+    const ednsClientSubnet = (
+        <div className="space-y-2">
+            <p>No. EDNS Client Subnet (ECS, RFC 7871) is a mechanism by which a resolver attaches part of your IP address to the queries it sends to authoritative DNS servers, mainly so that content delivery networks can pick a server near you. It also reveals your approximate network location to every authoritative server involved in a lookup.</p>
+            <p>modDNS does not use ECS. Your address is never attached to upstream queries, and if your device adds an ECS option to its own queries it is discarded before the lookup leaves our resolver. Authoritative servers only see the address of the modDNS server location that handled your query. There is no setting to turn ECS on.</p>
+        </div>
+    );
+
     const whatIsDNSSEC = (
         <div className="space-y-2">
             <p>DNSSEC stands for Domain Name System Security Extensions. It's a security protocol that adds digital signatures to DNS records to ensure their authenticity and integrity. This helps prevent DNS spoofing attacks, where malicious actors could redirect users to fake websites.</p>
@@ -508,6 +530,17 @@ export default function FAQ(): JSX.Element {
                     answer="modDNS is a privacy-focused DNS service that helps protect privacy and improve security by blocking ads, trackers, and malicious domains. It supports modern DNS protocols including DNS-over-HTTPS (DoH), DNS-over-TLS (DoT), and DNS-over-QUIC (DoQ)."
                 />
                 <FAQItem
+                    question="How do I get modDNS? Do I need a subscription?"
+                    answer={howToGetModDNS}
+                />
+                <FAQItem
+                    question="What DNS protocols do you support?"
+                    answer={supportedProtocols}
+                />
+            </FAQSection>
+
+            <FAQSection title="Privacy" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
+                <FAQItem
                     question="How does modDNS protect my privacy?"
                     answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs (default: off) so you can monitor what's being blocked."
                 />
@@ -518,8 +551,12 @@ export default function FAQ(): JSX.Element {
                     }
                 />
                 <FAQItem
-                    question="What DNS protocols do you support?"
-                    answer={supportedProtocols}
+                    question="Does modDNS use QNAME minimisation?"
+                    answer={qnameMinimisation}
+                />
+                <FAQItem
+                    question="Does modDNS send my IP address to other DNS servers (EDNS Client Subnet)?"
+                    answer={ednsClientSubnet}
                 />
             </FAQSection>
 
