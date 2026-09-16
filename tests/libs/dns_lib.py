@@ -1,11 +1,13 @@
 import asyncio
 import os
+import socket
 import time
 from pathlib import Path
 from typing import Callable, Optional
+from urllib.parse import urlparse
 
 import httpx
-from dns import resolver, message
+from dns import message
 from dns.query import https as query_https, tls as query_tls, quic as query_quic
 from dns.message import Message, ShortHeader
 
@@ -107,8 +109,11 @@ def _dev_ca_path() -> str:
 class DNSLib:
     def __init__(self, server: str):
         self.server = server
-        self.my_resolver = resolver.Resolver(configure=False)
-        self.my_resolver.nameservers = [self.server]
+        # dnspython >= 2.7 treats a URL nameserver as a DoH server and would ask
+        # the proxy itself to resolve its own hostname. Resolve it once through
+        # the C library instead (honours /etc/hosts) and hand dnspython the
+        # address, so the endpoint hostname is used only for TLS and the URL.
+        self.bootstrap_address = socket.gethostbyname(urlparse(server).hostname)
 
     async def send_doh_request(self, profile_id: str, domain: str, record_type: str) -> Message:
         with httpx.Client() as client:
@@ -117,7 +122,7 @@ class DNSLib:
                 query,
                 f"{self.server}{profile_id}",
                 session=client,
-                resolver=self.my_resolver,
+                bootstrap_address=self.bootstrap_address,
             )
             return r
 
@@ -195,7 +200,7 @@ class DNSLib:
         if stamp.protocol == Protocol.DOH:
             url = f"https://{stamp.hostname}{stamp.path}"
             with httpx.Client(verify=ca) as client:
-                return query_https(query, url, session=client)
+                return query_https(query, url, session=client, bootstrap_address=LOCAL_PROXY_HOST)
         if stamp.protocol == Protocol.DOT:
             port = _port_from_address(stamp.address, default=853)
             return query_tls(
