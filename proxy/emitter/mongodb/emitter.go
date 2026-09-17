@@ -32,11 +32,11 @@ func NewMongoDBEmitter(dbCfg *store.Config) (*MongoDBEmitter, error) {
 }
 
 func (e *MongoDBEmitter) EmitQueryLogs(ctx context.Context, data []model.EventQueryLog) error {
-	return e.DB.QueryLogsRepository.InsertBatch(ctx, data)
+	return e.DB.InsertBatch(ctx, data)
 }
 
 func (e *MongoDBEmitter) EmitServiceStatistics(ctx context.Context, data []model.ServiceStatistics) error {
-	return e.DB.ServiceStatisticsRepository.InsertBatch(ctx, data)
+	return e.DB.AddBatch(ctx, data)
 }
 
 func (e *MongoDBEmitter) Disconnect() error {

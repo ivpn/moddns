@@ -29,14 +29,15 @@ func evt(q model.Queries) model.EventStatistics {
 }
 
 // specRef: proxy-statistics-behaviour.md #Y5 #Y6
-func TestStatisticsCollector_SumsEventsIntoOneDocumentPerFlush(t *testing.T) {
+func TestServiceStatisticsCollector_SumsEventsIntoHourDocuments(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
-	flushedAt := time.Date(2026, 9, 15, 13, 58, 30, 0, time.UTC)
-	c.Now = func() time.Time { return flushedAt }
+	clock := time.Date(2026, 9, 17, 13, 58, 30, 0, time.UTC)
+	c.Now = func() time.Time { return clock }
 
 	c.add(evt(model.Queries{Total: 1}))
 	c.add(evt(model.Queries{Total: 1, Blocked: 1}))
+	clock = clock.Add(90 * time.Second) // crosses into the next hour
 	c.add(evt(model.Queries{Total: 1, DNSSEC: 1}))
 
 	var got []model.ServiceStatistics
@@ -47,16 +48,22 @@ func TestStatisticsCollector_SumsEventsIntoOneDocumentPerFlush(t *testing.T) {
 
 	c.flush("test")
 
-	require.Len(t, got, 1, "one service-wide document per flush")
-	assert.Equal(t, model.Queries{Total: 3, Blocked: 1, DNSSEC: 1}, got[0].Queries)
-	assert.True(t, got[0].Timestamp.Equal(flushedAt), "stamped at flush")
-	assert.Equal(t, "ams1", got[0].Pop)
+	require.Len(t, got, 2, "one document per hour touched in this flush")
+	assert.Equal(t, "ams1:2026-09-17T13", got[0].ID)
+	assert.Equal(t, model.Queries{Total: 2, Blocked: 1}, got[0].Queries)
+	assert.Equal(t, "ams1:2026-09-17T14", got[1].ID)
+	assert.Equal(t, model.Queries{Total: 1, DNSSEC: 1}, got[1].Queries)
+	for _, doc := range got {
+		assert.Equal(t, "ams1", doc.Pop)
+		assert.Zero(t, doc.Timestamp.Minute()+doc.Timestamp.Second()+doc.Timestamp.Nanosecond(), "hour start only")
+	}
 }
 
 // specRef: proxy-statistics-behaviour.md #Y8
-func TestStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
+func TestServiceStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
+	c.Now = func() time.Time { return time.Date(2026, 9, 17, 13, 10, 0, 0, time.UTC) }
 
 	emitter.On("EmitServiceStatistics", mock.Anything, mock.MatchedBy(func(batch []model.ServiceStatistics) bool {
 		return len(batch) == 1 && batch[0].Queries.Total == 3
@@ -67,13 +74,13 @@ func TestStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
 	}
 	c.flush("test")
 
-	assert.Nil(t, c.current)
+	assert.Empty(t, c.buckets)
 	assert.Zero(t, c.counter)
 	c.flush("test") // nothing pending: no emit (the mock would fail on a second call)
 }
 
 // specRef: proxy-statistics-behaviour.md #Y8
-func TestStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *testing.T) {
+func TestServiceStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 2, 50*time.Millisecond)
 
@@ -115,14 +122,15 @@ func TestStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *testing.T)
 }
 
 // specRef: proxy-statistics-behaviour.md #Y9
-func TestStatisticsCollector_EmitErrorDropsBatchAndContinues(t *testing.T) {
+func TestServiceStatisticsCollector_EmitErrorDropsBatchAndContinues(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
+	c.Now = func() time.Time { return time.Date(2026, 9, 17, 13, 10, 0, 0, time.UTC) }
 
 	emitter.On("EmitServiceStatistics", mock.Anything, mock.Anything).Return(assert.AnError).Once()
 	c.add(evt(model.Queries{Total: 1}))
 	assert.NotPanics(t, func() { c.flush("test") })
-	assert.Nil(t, c.current, "a failed batch is dropped, not retried")
+	assert.Empty(t, c.buckets, "a failed batch is dropped, not retried")
 
 	emitter.On("EmitServiceStatistics", mock.Anything, mock.MatchedBy(func(batch []model.ServiceStatistics) bool {
 		return len(batch) == 1 && batch[0].Queries.Total == 1

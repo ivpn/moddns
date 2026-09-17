@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/ivpn/dns/proxy/collector/channel"
@@ -10,8 +11,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ServiceStatisticsCollector sums per-query counter events into one service-wide
-// document per flush for this PoP. Only the Collect goroutine touches the
+// ServiceStatisticsCollector sums per-query counter events into one
+// service-wide document per hour for this PoP and hands the open documents to
+// the emitter on every flush. Only the Collect goroutine touches the
 // accumulator, so no locking is needed.
 type ServiceStatisticsCollector struct {
 	Type      string
@@ -21,10 +23,10 @@ type ServiceStatisticsCollector struct {
 	StatsChan chan model.EventStatistics
 	Emitter   emitter.Emitter
 	Pop       string
-	// Now stamps flushed documents; tests inject a clock.
+	// Now places events into their hour; tests inject a clock.
 	Now func() time.Time
 
-	current *model.ServiceStatistics
+	buckets map[time.Time]*model.ServiceStatistics
 	counter int
 }
 
@@ -59,15 +61,6 @@ func (c *ServiceStatisticsCollector) GetChannel() channel.CollectorChannel {
 	return channel.EventStatisticsChannel{Channel: c.StatsChan}
 }
 
-// add sums one event into the document open for this flush.
-func (c *ServiceStatisticsCollector) add(event model.EventStatistics) {
-	if c.current == nil {
-		c.current = &model.ServiceStatistics{Pop: c.Pop}
-	}
-	c.current.Aggregate(event)
-	c.counter++
-}
-
 func (c *ServiceStatisticsCollector) now() time.Time {
 	if c.Now != nil {
 		return c.Now()
@@ -75,14 +68,33 @@ func (c *ServiceStatisticsCollector) now() time.Time {
 	return time.Now()
 }
 
-// flush stamps the open document with the flush time, emits it and resets. A
-// failed emit is logged and the counters are dropped, as for query logs.
+// add sums one event into the document for the hour that is open now.
+func (c *ServiceStatisticsCollector) add(event model.EventStatistics) {
+	if c.buckets == nil {
+		c.buckets = make(map[time.Time]*model.ServiceStatistics)
+	}
+	now := c.now()
+	bucket := model.BucketStart(now)
+	doc, ok := c.buckets[bucket]
+	if !ok {
+		doc = model.NewServiceStatistics(c.Pop, now)
+		c.buckets[bucket] = doc
+	}
+	doc.Aggregate(event)
+	c.counter++
+}
+
+// flush emits every open document as an increment and resets. A failed emit
+// is logged and the counters are dropped, as for query logs.
 func (c *ServiceStatisticsCollector) flush(trigger string) {
-	if c.current == nil {
+	if len(c.buckets) == 0 {
 		return
 	}
-	c.current.Timestamp = c.now().UTC()
-	batch := []model.ServiceStatistics{*c.current}
+	batch := make([]model.ServiceStatistics, 0, len(c.buckets))
+	for _, doc := range c.buckets {
+		batch = append(batch, *doc)
+	}
+	sort.Slice(batch, func(i, j int) bool { return batch[i].Timestamp.Before(batch[j].Timestamp) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), EmitTimeout)
 	defer cancel()
@@ -91,6 +103,6 @@ func (c *ServiceStatisticsCollector) flush(trigger string) {
 		log.Error().Err(err).Msg("Failed to emit stats events")
 	}
 
-	c.current = nil
+	c.buckets = make(map[time.Time]*model.ServiceStatistics)
 	c.counter = 0
 }
