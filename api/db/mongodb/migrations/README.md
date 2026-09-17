@@ -17,7 +17,8 @@ Audit queries are in the PR that introduced the migration.
 ### Migration 026 (statistics clear)
 
 Clears the legacy per-profile `statistics` time-series collection. Query statistics are
-now service-wide and live in `service_statistics` (created by the proxy, meta `pop`, no TTL);
+now service-wide and live in `service_statistics` (a regular collection the proxy upserts
+into, one document per PoP and hour, no TTL);
 per-profile statistics return with the Analytics page in a new shape. `delete` with an empty
 filter, not `drop`, so a fresh database without the collection succeeds; an empty-filter
 delete on a time-series collection needs MongoDB ≥ 7.0. Idempotent; the down migration is
