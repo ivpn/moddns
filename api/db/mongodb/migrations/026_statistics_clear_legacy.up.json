@@ -1,0 +1,12 @@
+[
+  {
+    "delete": "statistics",
+    "deletes": [
+      {
+        "q": {},
+        "limit": 0
+      }
+    ],
+    "writeConcern": { "w": "majority" }
+  }
+]

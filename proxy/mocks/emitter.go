@@ -51,16 +51,16 @@ func (_m *Emitter) EmitQueryLogs(ctx context.Context, data []model.EventQueryLog
 	return r0
 }
 
-// EmitStatistics provides a mock function with given fields: ctx, data
-func (_m *Emitter) EmitStatistics(ctx context.Context, data []model.EventStatistics) error {
+// EmitServiceStatistics provides a mock function with given fields: ctx, data
+func (_m *Emitter) EmitServiceStatistics(ctx context.Context, data []model.ServiceStatistics) error {
 	ret := _m.Called(ctx, data)
 
 	if len(ret) == 0 {
-		panic("no return value specified for EmitStatistics")
+		panic("no return value specified for EmitServiceStatistics")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, []model.EventStatistics) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, []model.ServiceStatistics) error); ok {
 		r0 = rf(ctx, data)
 	} else {
 		r0 = ret.Error(0)
