@@ -146,6 +146,11 @@ const selectStyles: StylesConfig<RuleOption, true, RuleOptionGroup> = {
         color: "var(--tailwind-colors-slate-100)",
         caretColor: "var(--tailwind-colors-rdns-400)",
         minWidth: "6rem",
+        // react-select sizes the inner <input> to the mirrored typed text (0 min-content),
+        // so an empty field leaves a 2px-wide input under the placeholder. Browsers only
+        // offer Copy/Paste in the context or long-press menu when the pointer lands on
+        // the <input> itself, so let it fill the wrapper instead.
+        gridTemplateColumns: "0 1fr",
     }),
 };
 
