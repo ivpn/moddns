@@ -69,7 +69,7 @@ function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FA
             <div
                 ref={contentRef}
                 style={{ height }}
-                className="overflow-hidden transition-all duration-300 ease-in-out"
+                className="relative overflow-hidden transition-all duration-300 ease-in-out"
             >
                 <div className="p-4 pt-0 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                     {typeof answer === 'string' ? (
@@ -837,7 +837,7 @@ export default function FAQ(): JSX.Element {
     );
 
     return (
-        <div className="relative min-h-screen w-full overflow-x-hidden bg-[var(--public-page-background)]">
+        <div className="relative min-h-screen w-full overflow-x-clip bg-[var(--public-page-background)]">
             <div className="relative z-10 py-8">
                 <div className="w-full max-w-4xl mx-auto p-8">
                     {hasHistory && (
