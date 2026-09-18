@@ -108,9 +108,9 @@ export default function PrivacyPolicy() {
                                         </p>
                                         <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>DNS queries (e.g., which websites you visit)</li>
-                                            <li>Timestamps of DNS resolutions</li>
                                             <li>Your IP addresses</li>
                                             <li>Device information or identifiers</li>
+                                            <li>Timestamps of DNS resolutions with user/profile attribution</li>
                                         </ul>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mt-4">
                                             For more information on what is logged when you optionally enable "Query Logs", see the next section.
@@ -128,7 +128,7 @@ export default function PrivacyPolicy() {
                                             When query logging is turned off, all queries are processed entirely in memory and are never written to disk.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            The only DNS activity data we keep is anonymous service-wide statistics: the number of queries, blocked queries and DNSSEC-validated queries handled by each server location, added up across all users. These counters contain no profile, device or client reference. Example of data stored:
+                                            The only DNS activity data we keep is anonymous service-wide statistics: the number of queries, blocked queries and DNSSEC-validated queries handled by each server location, added up across all users with hourly timestamps. These counters contain no profile, device or client reference. Example of data stored:
                                         </p>
                                         <pre className="bg-[var(--shadcn-ui-app-background)] border border-[var(--shadcn-ui-app-border)] rounded-md p-4 text-sm text-[var(--shadcn-ui-app-foreground)] opacity-80 overflow-x-auto mb-4">{`"timestamp": "2026-09-16T10:00:00Z"
 "pop": "ams1"
