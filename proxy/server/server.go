@@ -176,7 +176,7 @@ func (s *Server) postResolve(ctx context.Context, reqCtx *requestcontext.Request
 		s.Metrics.RecordQueryDuration(string(dctx.Proto), time.Since(reqCtx.StartTime))
 	}
 	go s.EmitQueryLog(reqCtx, dctx)
-	go s.EmitStatistics(reqCtx, dctx)
+	go s.EmitServiceStatistics(reqCtx, dctx)
 }
 
 // prepareRequest runs everything that must precede filtering: rate limits,
