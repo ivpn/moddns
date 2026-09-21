@@ -50,7 +50,9 @@ class TestServiceStatistics:
         settings: no document references the profile; service_statistics gains
         anonymous, PoP-labelled hourly counters in a single document."""
         pid = user.new_profile("service-stats")
-        hour_start = _utc(time.time() - time.time() % HOUR_S)
+        # One clock read: two reads straddle a sub-microsecond gap and round below the hour.
+        now = time.time()
+        hour_start = _utc(now - now % HOUR_S)
         since = hour_start
         baseline = _service_total_since(mongo_db, since)
 
