@@ -1,39 +1,53 @@
 package maxmind
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"time"
 
+	"github.com/ivpn/dns/libs/geoipdb"
 	"github.com/oschwald/geoip2-golang"
 )
 
 // GeoLookupManager answers ASN lookups from a MaxMind database that is opened
-// once and shared by every request; geoip2.Reader is safe for concurrent use.
+// once, shared by every request, and reopened in place when the file on disk
+// is refreshed.
 type GeoLookupManager struct {
-	asnDB *geoip2.Reader
+	db *geoipdb.Reader
 }
 
 // NewGeoLookupManager opens the ASN database and fails if the file is missing,
 // unreadable or not an ASN-capable database type.
 func NewGeoLookupManager(dbASNFile string) (*GeoLookupManager, error) {
-	asnDB, err := geoip2.Open(dbASNFile)
+	db, err := geoipdb.Open(dbASNFile)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open geoip ASN database %q: %w", dbASNFile, err)
 	}
+	return &GeoLookupManager{db: db}, nil
+}
 
-	// geoip2 only reports a database/method mismatch at lookup time, so probe
-	// once here rather than on every request.
-	if _, err := asnDB.ASN(net.IPv4(192, 0, 2, 1)); err != nil {
-		asnDB.Close()
-		return nil, fmt.Errorf("geoip database %q does not support ASN lookups: %w", dbASNFile, err)
-	}
+// Reload checks the file now and reopens it if it changed; a broken replacement
+// is rejected and the loaded database keeps serving. Production relies on
+// Watch, which runs the same check on a timer; Reload is the synchronous
+// entry point for tests and for a manual "reload now" trigger.
+func (g *GeoLookupManager) Reload() (bool, error) {
+	return g.db.Reload()
+}
 
-	return &GeoLookupManager{asnDB: asnDB}, nil
+// Watch reloads the database on a timer until ctx is cancelled.
+func (g *GeoLookupManager) Watch(ctx context.Context, every time.Duration) {
+	g.db.Watch(ctx, every)
+}
+
+// Stats reports the build time and reload counters of the loaded database.
+func (g *GeoLookupManager) Stats() geoipdb.Stats {
+	return g.db.Stats()
 }
 
 // Close releases the underlying database.
 func (g *GeoLookupManager) Close() error {
-	return g.asnDB.Close()
+	return g.db.Close()
 }
 
 // GetGeoLookup returns the ASN record for ip. An address that is not in the
@@ -44,7 +58,7 @@ func (g *GeoLookupManager) GetGeoLookup(ip string) (*GeoLookup, error) {
 		return nil, fmt.Errorf("invalid IP address %q", ip)
 	}
 
-	asn, err := g.asnDB.ASN(ipnet)
+	asn, err := g.db.ASN(ipnet)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ASN: %w", err)
 	}
