@@ -125,6 +125,7 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	}
 	// The file is refreshed on disk by geoipupdate; follow it without a restart.
 	go lookup.Watch(context.Background(), serverConfig.Services.GeoIPASNDBReloadEvery)
+	metrics.ObserveGeoIPDB(prometheus.DefaultRegisterer, lookup)
 	log.Info().
 		Str("catalog", serverConfig.Services.CatalogPath).
 		Str("geodb", serverConfig.Services.GeoIPASNDBPath).
