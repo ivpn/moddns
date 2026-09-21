@@ -49,10 +49,7 @@ func (s *APIServer) DnsCheck() fiber.Handler {
 			return HandleError(c, err, ErrFailedToUnmarshalRecord)
 		}
 
-		return c.Status(200).JSON(dns.DNSCheckResponse{
-			Status:    dnsRecord.Status,
-			ProfileId: dnsRecord.ProfileId,
-		})
+		return c.Status(200).JSON(dns.DNSCheckResponse(dnsRecord))
 	}
 	return handler
 }

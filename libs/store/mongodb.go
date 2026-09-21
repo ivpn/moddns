@@ -130,7 +130,7 @@ func (db *MongoDB) connect() error {
 		tlsOpts := &tls.Config{
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
-			InsecureSkipVerify: db.Config.TLSInsecureSkipVerify,
+			InsecureSkipVerify: db.Config.TLSInsecureSkipVerify, //nolint:gosec // operator opt-in for dev/test stacks only; false in production config
 		}
 
 		clientOpts.SetTLSConfig(tlsOpts)
