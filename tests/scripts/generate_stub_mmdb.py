@@ -18,12 +18,11 @@ The 150.171.0.0/16 range is also announced by AS8075.
 
 Usage:
     python scripts/generate_stub_mmdb.py
-        Writes the backend E2E stubs to bootstrap/geolite/ (both files carry
-        the ASN payload; the "City" file is a copy so mounts never fail).
+        Writes the backend E2E ASN stub to bootstrap/geolite/.
 
     python scripts/generate_stub_mmdb.py --out-dir ../dnscheck/internal/maxmind/testdata --city-typed
-        Writes the dnscheck unit-test fixtures. --city-typed makes the City
-        file a real GeoLite2-City database so a wrong-type file can be tested.
+        Writes the dnscheck unit-test fixtures. --city-typed additionally
+        writes a real GeoLite2-City database so a wrong-type file can be tested.
 """
 
 import argparse
@@ -37,7 +36,7 @@ parser.add_argument("--out-dir", default="bootstrap/geolite", help="directory to
 parser.add_argument(
     "--city-typed",
     action="store_true",
-    help="write GeoLite2-City.mmdb with database_type GeoLite2-City instead of copying the ASN stub",
+    help="also write GeoLite2-City.mmdb with database_type GeoLite2-City (dnscheck wrong-type fixture)",
 )
 args = parser.parse_args()
 os.makedirs(args.out_dir, exist_ok=True)
@@ -75,8 +74,8 @@ out_asn = os.path.join(args.out_dir, "GeoLite2-ASN.mmdb")
 writer.to_db_file(out_asn)
 print(f"Wrote {out_asn}")
 
-out_city = os.path.join(args.out_dir, "GeoLite2-City.mmdb")
 if args.city_typed:
+    out_city = os.path.join(args.out_dir, "GeoLite2-City.mmdb")
     city_writer = MMDBWriter(
         ip_version=4,
         database_type="GeoLite2-City",
@@ -87,6 +86,4 @@ if args.city_typed:
         {"country": {"iso_code": "US", "names": {"en": "United States"}}},
     )
     city_writer.to_db_file(out_city)
-else:
-    writer.to_db_file(out_city)
-print(f"Wrote {out_city}")
+    print(f"Wrote {out_city}")
