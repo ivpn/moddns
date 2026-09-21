@@ -72,7 +72,6 @@ services:
     volumes:
       - ../dnscheck:/app
       - ./bootstrap/geolite/:/opt/dnscheck/GeoIP
-      - ./bootstrap/geolite/:/opt/dnscheck/GeoIPCity
     env_file:
       - ./config/dnscheck.env
 
