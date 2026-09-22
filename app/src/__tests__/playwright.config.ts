@@ -9,12 +9,14 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30 * 1000,
   expect: { timeout: 5000 },
-  globalTimeout: 12 * 60 * 1000,
+  // Must stay well under the 30-minute job timeout in .github/workflows/frontend.yml.
+  globalTimeout: 20 * 60 * 1000,
   maxFailures: 10,
   fullyParallel: true,
-  // Limit workers in CI to reduce flakiness / resource contention
-  workers: process.env.CI ? 2 : undefined,
+  // Public-repo ubuntu-latest runners have 4 vCPUs; leave one for the vite server.
+  workers: process.env.CI ? 3 : undefined,
   retries: 1,
+  reportSlowTests: { max: 10, threshold: 30 * 1000 },
   reporter: [
     ['github'],
     ['html', { open: 'never' }]
