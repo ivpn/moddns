@@ -39,7 +39,8 @@ const visibleControl = (page: Page, testId: string) =>
     page.locator(`[data-testid="${testId}"]:visible`);
 
 test.describe('Logs refresh controls', () => {
-    test('split button halves stay equal height at tablet width', async ({ page }) => {
+    // Sets its own viewport: run once per engine.
+    test('split button halves stay equal height at tablet width', { tag: ['@desktop', '@ios'] }, async ({ page }) => {
         // The Button default size carries sm:h-9, which silently shrinks the interval
         // trigger below the icon half on 640-1024px viewports unless pinned.
         await page.setViewportSize({ width: 834, height: 1112 });

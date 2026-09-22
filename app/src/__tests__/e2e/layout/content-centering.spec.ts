@@ -21,7 +21,9 @@ const VIEWPORTS = [
 
 const PROTECTED_ROUTES = ['/setup', '/blocklists', '/home', '/settings', '/custom-rules', '/query-logs'];
 
-test.describe('@layout Content centering - body styles', () => {
+// These tests set their own viewport, so the project's device descriptor is irrelevant;
+// run once per engine (Chromium desktop + WebKit iPhone) instead of on every project.
+test.describe('@layout Content centering - body styles', { tag: ['@desktop', '@ios'] }, () => {
   test('body element should not have centering flex styles', async ({ page }) => {
     await registerMocks(page, { authenticated: true });
     await page.goto('/setup');
@@ -72,7 +74,7 @@ test.describe('@layout Content centering - body styles', () => {
   });
 });
 
-test.describe('@layout Content centering - app content area', () => {
+test.describe('@layout Content centering - app content area', { tag: ['@desktop', '@ios'] }, () => {
   test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
@@ -107,7 +109,7 @@ test.describe('@layout Content centering - app content area', () => {
   }
 });
 
-test.describe('@layout Content centering - symmetric margins', () => {
+test.describe('@layout Content centering - symmetric margins', { tag: ['@desktop', '@ios'] }, () => {
   test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
