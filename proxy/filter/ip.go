@@ -10,7 +10,6 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
-	"golang.org/x/sync/errgroup"
 )
 
 type IPFilter struct {
@@ -20,8 +19,10 @@ type IPFilter struct {
 	ASNLookup       ASNLookup
 	RebindingConfig *config.RebindingConfig
 	FilteringConfig *config.FilteringConfig
-	patternCache    sync.Map
-	FilteringFuncs  []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error)
+	// Metrics receives per-stage failures; nil disables the metric.
+	Metrics      StageErrorRecorder
+	patternCache sync.Map
+	stages       []stage
 }
 
 // NewIPFilter creates a new IPFilter instance. A nil filteringConfig means all
@@ -35,47 +36,31 @@ func NewIPFilter(dnsProxy *proxy.Proxy, cache cache.Cache, servicesCatalog Servi
 		RebindingConfig: rebindingConfig,
 		FilteringConfig: filteringConfig,
 	}
-	fltrManager.FilteringFuncs = []func(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error){
-		fltrManager.filterServices,
-		fltrManager.filterRebinding,
-		fltrManager.filterCustomRules,
-		fltrManager.filterCNAME,
+	fltrManager.stages = []stage{
+		{StageServices, fltrManager.filterServices},
+		{StageRebinding, fltrManager.filterRebinding},
+		{StageCustomRules, fltrManager.filterCustomRules},
+		{StageCNAME, fltrManager.filterCNAME},
 	}
 	return fltrManager
 }
 
-// Execute performs all stages of filtering DNS requests
-func (f *IPFilter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
-	ctx := context.Background()
-	eg, egCtx := errgroup.WithContext(ctx)
-	resultChan := make(chan *model.StageResult, len(f.FilteringFuncs))
-	for _, fltrFunc := range f.FilteringFuncs {
-		func(ctx context.Context, reqCtx *requestcontext.RequestContext) {
-			eg.Go(func() error {
-				fltrRes, err := fltrFunc(reqCtx, dctx)
-				if err != nil {
-					return err
-				}
-				resultChan <- fltrRes
-				return nil
-			})
-		}(egCtx, reqCtx)
-	}
-	if err := eg.Wait(); err != nil {
-		reqCtx.Logger.Err(err).Msg("Error filtering IP address in DNS response")
-	}
-	close(resultChan)
+// Execute performs all stages of filtering DNS responses. Any stage failure
+// yields StatusUnavailable even though an upstream answer exists: an answer
+// that could not be checked is not returned.
+func (f *IPFilter) Execute(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (err error) {
+	err = runStages(ctx, FilterTypeIP, f.stages, f.Metrics, reqCtx, dctx)
 
-	for res := range resultChan {
-		reqCtx.PartialFilteringResults = append(reqCtx.PartialFilteringResults, *res)
+	var finalFltrRes model.FilterResult
+	if err != nil {
+		finalFltrRes = model.FilterResult{Status: model.StatusUnavailable}
+	} else {
+		finalFltrRes = getFinalFilteringResult(reqCtx.PartialFilteringResults)
 	}
-
-	finalFltrRes := getFinalFilteringResult(reqCtx.PartialFilteringResults)
 	e := reqCtx.Logger.Debug().Str("Query status", string(finalFltrRes.Status)).Strs("Reasons", finalFltrRes.Reasons).Str("qtype", dns.Type(dctx.Req.Question[0].Qtype).String()).Str("filter_type", FilterTypeIP)
 	reqCtx.AddClientIP(e, dctx.Addr.Addr().String())
 	reqCtx.AddDomain(e, dctx.Req.Question[0].Name).Msg("Final filtering result")
-	// save the final filtering result to the request context once, only in IP filtering phase?
 	reqCtx.FilterResult = finalFltrRes
 
-	return nil
+	return err
 }

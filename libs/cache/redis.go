@@ -50,6 +50,7 @@ func NewDirectClient(cfg *Config) (*redis.Client, error) {
 		Username: cfg.Username,
 		Password: cfg.Password,
 	}
+	cfg.applyCommandTimeout(&options.DialTimeout, &options.ReadTimeout, &options.WriteTimeout, &options.MaxRetries, &options.ContextTimeoutEnabled)
 
 	return redis.NewClient(options), nil
 }
@@ -66,6 +67,7 @@ func NewFailoverClient(cfg *Config) (*redis.Client, error) {
 		SentinelPassword: cfg.FailoverPassword,
 		DB:               0,
 	}
+	cfg.applyCommandTimeout(&options.DialTimeout, &options.ReadTimeout, &options.WriteTimeout, &options.MaxRetries, &options.ContextTimeoutEnabled)
 
 	if cfg.TLSEnabled {
 		log.Debug().Msg("Using TLS to connect to Redis")
@@ -87,8 +89,24 @@ func NewFailoverClient(cfg *Config) (*redis.Client, error) {
 		options.TLSConfig = &tls.Config{
 			Certificates:       []tls.Certificate{cert},
 			RootCAs:            caCertPool,
-			InsecureSkipVerify: cfg.TLSInsecureSkipVerify, // Only for testing, use false in production
+			InsecureSkipVerify: cfg.TLSInsecureSkipVerify, //nolint:gosec // operator opt-in for dev/test only; false in production
 		}
 	}
 	return redis.NewFailoverClient(options), nil
+}
+
+// applyCommandTimeout maps the single configured budget onto go-redis, which
+// has no command-level timeout of its own: connecting, each read and each
+// write are separate knobs, and retries multiply them. One value for all of
+// them keeps the worst case per operation at CommandTimeout × 2 attempts.
+// Context deadlines are only applied to socket I/O when ContextTimeoutEnabled
+// is set, so a caller's per-query deadline can cut a hung read as well.
+// Zero leaves the go-redis defaults untouched.
+func (c *Config) applyCommandTimeout(dial, read, write *time.Duration, maxRetries *int, contextTimeoutEnabled *bool) {
+	if c.CommandTimeout <= 0 {
+		return
+	}
+	*dial, *read, *write = c.CommandTimeout, c.CommandTimeout, c.CommandTimeout
+	*maxRetries = 1
+	*contextTimeoutEnabled = true
 }

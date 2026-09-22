@@ -78,7 +78,11 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 			},
 		})
 	}
-	if status != "all" {
+	switch status {
+	case model.QueryLogStatusAll:
+	case model.QueryLogStatusUnanswered:
+		matchFilter = append(matchFilter, unansweredFilter())
+	default:
 		matchFilter = append(matchFilter, bson.E{
 			Key:   "status",
 			Value: status,
@@ -246,4 +250,10 @@ func (r *QueryLogsRepository) getCollObject(retention model.Retention) *mongo.Co
 	default:
 		return r.queryLogsCollOneHour
 	}
+}
+
+// unansweredFilter selects the "No answer" class by outcome
+// (query-log-outcomes-behaviour.md C5).
+func unansweredFilter() bson.E {
+	return bson.E{Key: "outcome", Value: bson.D{{Key: "$in", Value: model.UnansweredOutcomes}}}
 }

@@ -8,8 +8,8 @@ import (
 
 	toxiclient "github.com/Shopify/toxiproxy/v2/client"
 	libscache "github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/proxy/internal/settingscache"
 	"github.com/ivpn/dns/proxy/model"
-	gocache "github.com/patrickmn/go-cache"
 	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -48,18 +48,53 @@ func seedTestData(ctx context.Context, t testing.TB, redisAddr string) {
 	pipe.HSet(ctx, "settings:"+benchProfileID+":advanced", map[string]interface{}{
 		"recursor": "default",
 	})
+	pipe.HSet(ctx, "settings:"+benchProfileID+":statistics", map[string]interface{}{
+		"enabled": "false",
+	})
+	pipe.RPush(ctx, "settings:"+benchProfileID+":blocklists", "bl-ads", "bl-tracking", "bl-malware")
+	pipe.RPush(ctx, "settings:"+benchProfileID+":services", "google", "meta")
+	for i, rule := range benchCustomRules {
+		key := fmt.Sprintf("settings:%s:custom_rule:%d", benchProfileID, i)
+		pipe.HSet(ctx, key, rule)
+		pipe.SAdd(ctx, "settings:"+benchProfileID+":custom_rules", key)
+	}
 	_, err := pipe.Exec(ctx)
 	require.NoError(t, err)
 }
 
-// getSettingsSequential mimics the old sequential settings-fetch code path:
-// 4 sequential Redis round-trips for profile settings.
+// benchCustomRules is a small, realistic rule set for the seeded profile.
+var benchCustomRules = []map[string]interface{}{
+	{"value": "ads.example", "action": "block", "syntax": "domain"},
+	{"value": "*.tracker.example", "action": "block", "syntax": "domain"},
+	{"value": "cdn.example", "action": "allow", "syntax": "domain"},
+	{"value": "203.0.113.7", "action": "block", "syntax": "ip"},
+}
+
+// getSettingsSequential mimics per-stage store reads: one round-trip per
+// settings group, list and custom rule, so the comparison against the batch
+// covers the same inputs.
 func getSettingsSequential(ctx context.Context, c *RedisCache, profileId string) *model.ProfileSettings {
 	result := &model.ProfileSettings{}
 	result.Privacy, result.PrivacyErr = c.GetProfilePrivacySettings(ctx, profileId)
 	result.Logs, result.LogsErr = c.GetProfileLogsSettings(ctx, profileId)
 	result.DNSSEC, result.DNSSECErr = c.GetProfileDNSSECSettings(ctx, profileId)
 	result.Advanced, result.AdvancedErr = c.GetProfileAdvancedSettings(ctx, profileId)
+	result.Statistics, result.StatisticsErr = c.GetProfileStatisticsSettings(ctx, profileId)
+	result.Blocklists, result.BlocklistsErr = c.GetProfileBlocklists(ctx, profileId)
+	result.Services, result.ServicesErr = c.GetProfileServicesBlocked(ctx, profileId)
+	ruleIDs, err := c.GetCustomRulesHashes(ctx, profileId)
+	if err != nil {
+		result.CustomRulesErr = err
+		return result
+	}
+	for _, id := range ruleIDs {
+		rule, err := c.GetCustomRulesHash(ctx, id)
+		if err != nil {
+			result.CustomRulesErr = err
+			return result
+		}
+		result.CustomRules = append(result.CustomRules, rule)
+	}
 	return result
 }
 
@@ -155,6 +190,8 @@ func BenchmarkGetProfileSettings(b *testing.B) {
 				require.NotNil(b, ps.Privacy)
 				require.Nil(b, ps.LogsErr)
 				require.NotNil(b, ps.Logs)
+				require.Len(b, ps.Blocklists, 3)
+				require.Len(b, ps.CustomRules, len(benchCustomRules))
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
@@ -170,6 +207,8 @@ func BenchmarkGetProfileSettings(b *testing.B) {
 				require.NotNil(b, ps.Privacy)
 				require.Nil(b, ps.LogsErr)
 				require.NotNil(b, ps.Logs)
+				require.Len(b, ps.Blocklists, 3)
+				require.Len(b, ps.CustomRules, len(benchCustomRules))
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
@@ -183,8 +222,9 @@ func BenchmarkGetProfileSettings(b *testing.B) {
 				require.NoError(b, err)
 				require.Nil(b, ps.PrivacyErr)
 
-				localCache := gocache.New(30*time.Second, time.Minute)
-				localCache.Set(benchProfileID, ps, gocache.DefaultExpiration)
+				localCache, err := settingscache.New(30*time.Second, 1024)
+				require.NoError(b, err)
+				localCache.Put(benchProfileID, ps)
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {

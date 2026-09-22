@@ -1,6 +1,9 @@
 package api
 
 import (
+	"io"
+	"os"
+
 	"github.com/dnscheck/cache"
 	"github.com/dnscheck/config"
 
@@ -19,6 +22,8 @@ type APIServer struct {
 	Config    *config.Config
 	Validator *APIValidator
 	Cache     cache.Cache
+	// AccessLog receives the per-request access log; defaults to stdout.
+	AccessLog io.Writer
 }
 
 // NewServer inititiates database connection and sets up API endpoints
@@ -38,13 +43,18 @@ func NewServer(config *config.Config, cache cache.Cache) *APIServer {
 		Config:    config,
 		Validator: apiValidator,
 		Cache:     cache,
+		AccessLog: os.Stdout,
 	}
 }
 
 // RegisterRoutes registers API endpoints
 func (s *APIServer) RegisterRoutes() {
 	s.App.Use(requestid.New())
-	s.App.Use(logger.New())
+	// Default format includes ${ip}; the client address is not logged.
+	s.App.Use(logger.New(logger.Config{
+		Format: "${time} | ${status} | ${latency} | ${method} | ${path} | ${error}\n",
+		Output: s.AccessLog,
+	}))
 	s.App.Use(limiter.New(
 		limiter.Config{
 			Max: 100,

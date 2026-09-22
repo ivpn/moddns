@@ -11,6 +11,25 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 )
 
+// Response modes for the rate-limit layers (RATELIMIT_PER_IP_RESPONSE,
+// RATELIMIT_PER_PROFILE_RESPONSE).
+const (
+	RateLimitResponseDrop   = "drop"
+	RateLimitResponseRefuse = "refuse"
+)
+
+// Defaults for the profile settings cache and the Redis client.
+const (
+	defaultProfileSettingsCacheTTL = 30 * time.Second
+	// defaultProfileSettingsCacheSize counts profiles, not bytes: stale entries are
+	// kept until evicted, and an entry holds the profile's custom rules, so a
+	// profile at the 10k-rule ceiling is a few MB while a typical one is a few KB.
+	defaultProfileSettingsCacheSize = 20_000
+	// defaultCacheCommandTimeout suits a PoP-local replica: one dial, read or
+	// write may take at most this long, with a single retry.
+	defaultCacheCommandTimeout = time.Second
+)
+
 // Config represents the application configuration
 type Config struct {
 	Server              *ServerConfig
@@ -57,11 +76,6 @@ type DNSCacheConfig struct {
 }
 
 // Rate limit response modes.
-const (
-	RateLimitResponseDrop   = "drop"
-	RateLimitResponseRefuse = "refuse"
-)
-
 // RateLimitConfig holds rate limiter settings.
 type RateLimitConfig struct {
 	PerIPEnabled       bool
@@ -100,7 +114,11 @@ type ServerConfig struct {
 	DnsCheckDomain          string
 	DnsCheckPort            string
 	ProfileSettingsCacheTTL time.Duration
-	MaxGoroutines           uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
+	// ProfileSettingsCacheSize bounds the in-process settings cache (LRU, in
+	// profiles); entries past the TTL stay until evicted and serve as
+	// last-known-good. PROFILE_SETTINGS_CACHE_SIZE.
+	ProfileSettingsCacheSize int
+	MaxGoroutines            uint // MAX_GOROUTINES - cap on concurrent request-processing goroutines (0 disables)
 }
 
 // ServicesConfig configures ASN-based services blocking.
@@ -348,8 +366,8 @@ func New() (*Config, error) {
 
 	dnsCacheCfg := loadDNSCacheConfig()
 	rebindingCfg := loadRebindingConfig()
-	// Profile settings in-memory cache TTL (default 30s, "0" disables expiration)
-	profileSettingsCacheTTL := 30 * time.Second
+	// Profile settings in-memory cache TTL ("0" disables expiration)
+	profileSettingsCacheTTL := defaultProfileSettingsCacheTTL
 	if v := os.Getenv("PROFILE_SETTINGS_CACHE_TTL"); v != "" {
 		parsed, err := time.ParseDuration(v)
 		if err != nil {
@@ -357,6 +375,7 @@ func New() (*Config, error) {
 		}
 		profileSettingsCacheTTL = parsed
 	}
+	profileSettingsCacheSize := loadProfileSettingsCacheSize()
 
 	// Get AdGuard log level (default to "info" if not set or invalid)
 	adguardLogLevel := strings.ToLower(os.Getenv("LOG_LEVEL_ADGUARD"))
@@ -385,11 +404,12 @@ func New() (*Config, error) {
 
 	return &Config{
 		Server: &ServerConfig{
-			Names:                   parseCSV(os.Getenv("SERVER_NAME")),
-			DnsCheckDomain:          dnsCheckDomain,
-			DnsCheckPort:            os.Getenv("DNS_CHECK_PORT"),
-			ProfileSettingsCacheTTL: profileSettingsCacheTTL,
-			MaxGoroutines:           loadMaxGoroutines(),
+			Names:                    parseCSV(os.Getenv("SERVER_NAME")),
+			DnsCheckDomain:           dnsCheckDomain,
+			DnsCheckPort:             os.Getenv("DNS_CHECK_PORT"),
+			ProfileSettingsCacheTTL:  profileSettingsCacheTTL,
+			ProfileSettingsCacheSize: profileSettingsCacheSize,
+			MaxGoroutines:            loadMaxGoroutines(),
 		},
 		Services: &ServicesConfig{
 			CatalogPath:        servicesCatalogPath,
@@ -404,6 +424,7 @@ func New() (*Config, error) {
 		TrustedProxies:     trustedProxies,
 		ProfileIDMinLength: profileIdMinLen,
 		Cache: &cache.Config{
+			CommandTimeout:        loadCacheCommandTimeout(),
 			Address:               os.Getenv("CACHE_ADDRESS"),
 			FailoverAddresses:     cacheAddrs,
 			Username:              os.Getenv("CACHE_USERNAME"),
@@ -513,4 +534,32 @@ func loadMetricsConfig() *MetricsConfig {
 		cfg.Port = v
 	}
 	return cfg
+}
+
+// loadProfileSettingsCacheSize reads PROFILE_SETTINGS_CACHE_SIZE; a missing,
+// non-numeric or non-positive value keeps the default.
+func loadProfileSettingsCacheSize() int {
+	v := os.Getenv("PROFILE_SETTINGS_CACHE_SIZE")
+	if v == "" {
+		return defaultProfileSettingsCacheSize
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		return defaultProfileSettingsCacheSize
+	}
+	return n
+}
+
+// loadCacheCommandTimeout reads CACHE_COMMAND_TIMEOUT (Go duration). Unset or
+// invalid keeps the default; "0" hands control back to the go-redis defaults.
+func loadCacheCommandTimeout() time.Duration {
+	v := os.Getenv("CACHE_COMMAND_TIMEOUT")
+	if v == "" {
+		return defaultCacheCommandTimeout
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < 0 {
+		return defaultCacheCommandTimeout
+	}
+	return d
 }

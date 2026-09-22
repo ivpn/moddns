@@ -2,24 +2,28 @@ package dns
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/dnscheck/cache"
+	"github.com/dnscheck/internal/maxmind"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
 )
 
 const (
-	// SubdomainRegexPattern validates the expected dnscheck subdomain format:
-	// 12 alphanumeric chars (nanoid), a dash, then the profile ID.
-	SubdomainRegexPattern          = `^[a-zA-Z0-9]{12}-[a-zA-Z0-9-]+$`
+	// SubdomainRegexPattern validates the dnscheck probe label: 12 alphanumeric
+	// chars (nanoid). A "-suffix" is tolerated for clients still running the
+	// previous frontend bundle, which appended the profile ID.
+	SubdomainRegexPattern          = `^[a-zA-Z0-9]{12}(-[a-zA-Z0-9-]+)?$`
 	ProfileIdAdditionalSectionCode = 0xfeed
 	TTL                            = 300
 )
+
+var subdomainRegex = regexp.MustCompile(SubdomainRegexPattern)
 
 type Handler struct {
 	srv *DNSServer
@@ -31,7 +35,6 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			log.Error().Interface("panic", rec).
-				Str("remote", w.RemoteAddr().String()).
 				Msg("Recovered from panic while serving DNS request")
 		}
 	}()
@@ -40,8 +43,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	// body, so a message can declare a question yet carry none. That unpacks
 	// without error, leaving Question empty here.
 	if len(r.Question) == 0 {
-		log.Debug().Str("remote", w.RemoteAddr().String()).
-			Msg("Rejecting DNS request with no question section")
+		log.Debug().Msg("Rejecting DNS request with no question section")
 		m := new(dns.Msg)
 		m.SetRcode(r, dns.RcodeFormatError)
 		if err := w.WriteMsg(m); err != nil {
@@ -50,7 +52,7 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		return
 	}
 
-	log.Debug().Str("protocol", w.RemoteAddr().Network()).Str("qtype", dns.Type(r.Question[0].Qtype).String()).Msgf("Received DNS request: %s", r.Question[0].Name)
+	log.Debug().Str("protocol", w.RemoteAddr().Network()).Str("qtype", dns.Type(r.Question[0].Qtype).String()).Msg("Received DNS request")
 
 	msg := dns.Msg{}
 	msg.SetReply(r)
@@ -63,47 +65,33 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 		if strings.Contains(domain, h.srv.Config.Server.Domain) {
 			subdomain := strings.Split(domain, ".")[0]
 
-			// Regex to identify the subdomain with the first part being exactly 12 characters
-			matched, err := regexp.MatchString(SubdomainRegexPattern, subdomain)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to compile regex")
-				return
-			}
-
-			if !matched {
-				log.Warn().Str("subdomain", subdomain).Msg("Unidentified subdomain")
+			if !subdomainRegex.MatchString(subdomain) {
+				log.Warn().Msg("Unidentified subdomain")
 				return
 			}
 
 			record := DNSLogRecord{}
 
-			udp := strings.HasPrefix(w.RemoteAddr().Network(), "udp")
-			var extractionMode string
-			if udp {
-				extractionMode = "udp"
-			} else {
-				extractionMode = "tcp"
-			}
-			IPAddress, _, err := h.extractIPAddressAndHostname(w, extractionMode)
+			clientAddr, err := clientIP(w.RemoteAddr())
 			if err != nil {
-				log.Warn().Err(err).Msgf("Error resolving address %s %s, defaulting to hostname None", w.RemoteAddr().Network(), w.RemoteAddr().String())
+				log.Warn().Err(err).Msg("Cannot determine client IP address")
 				return
 			}
 
-			lookupData, err := h.srv.GeoLookup.GetGeoLookup(IPAddress)
-			if err != nil {
-				log.Error().Err(err).Msgf("Error getting GeoLookup for %s", IPAddress)
+			// A failed lookup degrades to "no ASN information"; the IP-range check
+			// below still decides the status and the answer is still written.
+			lookupData, err := h.srv.GeoLookup.GetGeoLookup(clientAddr.String())
+			if err != nil || lookupData == nil {
+				log.Error().Err(err).Msg("GeoIP lookup failed, continuing without ASN")
+				lookupData = &maxmind.GeoLookup{}
 			}
 
-			record.IPAddress = IPAddress
-			record.ASN = lookupData.ASN
-			record.ASNOrganization = lookupData.ASNOrganization
-
 			// decide whether IP address or ASN is from modDNS
-			log.Trace().Bool("isOurIPRange", strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange)).
-				Bool("isOurASN", lookupData.ASN == h.srv.Config.Server.ASN).
+			isOurIPRange := h.srv.Config.Server.ContainsIP(clientAddr)
+			isOurASN := lookupData.ASN != 0 && lookupData.ASN == h.srv.Config.Server.ASN
+			log.Trace().Bool("isOurIPRange", isOurIPRange).Bool("isOurASN", isOurASN).
 				Msg("Checking if IP address or ASN is from our range")
-			if strings.HasPrefix(IPAddress, h.srv.Config.Server.IPRange) || lookupData.ASN == h.srv.Config.Server.ASN {
+			if isOurIPRange || isOurASN {
 				profileId := h.extractConfiguredProfileId(r)
 				record.Status = StatusConfigured
 				record.ProfileId = profileId
@@ -117,9 +105,9 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 			}
 			cacheKey := cache.HMACKey(h.srv.Config.Cache.HMACKey, subdomain)
 			if err = h.srv.Cache.SaveQueryData(cacheKey, recordBytes); err != nil {
-				log.Error().Err(err).Str("ID", subdomain).Msg("Failed to save record")
+				log.Error().Err(err).Msg("Failed to save record")
 			}
-			log.Debug().Str("ID", subdomain).Msg("Record saved")
+			log.Debug().Msg("Record saved")
 		}
 
 		msg.Answer = append(msg.Answer, &dns.A{
@@ -224,33 +212,17 @@ func (h *Handler) createSOA() []dns.RR {
 	}
 }
 
-func (h *Handler) extractIPAddressAndHostname(w dns.ResponseWriter, extractionMode string) (IPAddress string, hostname string, err error) {
-	switch extractionMode {
-	case "udp":
-		addr, err := net.ResolveUDPAddr(w.RemoteAddr().Network(), w.RemoteAddr().String())
-		if err != nil {
-			return "", "", err
-		}
-		IPAddress = addr.IP.String()
-		hostnames, err := net.LookupAddr(IPAddress)
-		if err == nil && len(hostnames) > 0 {
-			hostname = hostnames[0]
-		}
-	case "tcp":
-		addr, err := net.ResolveTCPAddr(w.RemoteAddr().Network(), w.RemoteAddr().String())
-		if err != nil {
-			return "", "", err
-		}
-		IPAddress = addr.IP.String()
-		hostnames, err := net.LookupAddr(IPAddress)
-		if err == nil && len(hostnames) > 0 {
-			hostname = hostnames[0]
-		}
+// clientIP returns the transport-level source address of the query. It is read
+// straight from the socket address and never resolved.
+func clientIP(addr net.Addr) (net.IP, error) {
+	switch a := addr.(type) {
+	case *net.UDPAddr:
+		return a.IP, nil
+	case *net.TCPAddr:
+		return a.IP, nil
 	default:
-		return "", "", errors.New("invalid extraction mode")
+		return nil, fmt.Errorf("unsupported remote address type %T", addr)
 	}
-
-	return IPAddress, hostname, nil
 }
 
 func FindStringSubmatchMap(rs string, s string) map[string]string {

@@ -362,7 +362,9 @@ async function profilesOnlyLoader() {
 
 // Unified base layout for public/protected wrappers
 function BaseLayout({ children, mode }: { children: React.ReactNode, mode: 'public' | 'app' }) {
-  const baseClasses = 'relative flex flex-col min-h-screen overflow-x-hidden bg-[var(--shadcn-ui-app-background)]';
+  // overflow-x-clip, not -hidden: `hidden` computes overflow-y:auto and turns the
+  // wrapper into a scroll container nested inside the viewport scroller.
+  const baseClasses = 'relative flex flex-col min-h-screen overflow-x-clip bg-[var(--shadcn-ui-app-background)]';
   if (mode === 'public') {
     return (
       <div data-testid="public-layout" className={baseClasses + ' w-full'} style={{ width: '100vw', maxWidth: '100vw' }}>

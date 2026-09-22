@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,16 +52,9 @@ func BenchmarkFilterCustomRules(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			mockCache := &mocks.Cache{}
-			filterManager := &DomainFilter{Cache: mockCache}
+			filterManager := &DomainFilter{Cache: &mocks.Cache{}}
 
 			hashes, rulesMap := setupTestData(tc.rulesSize)
-
-			// Setup mock expectations
-			mockCache.On("GetCustomRulesHashes", mock.Anything, mock.Anything).Return(hashes, nil)
-			for hash, rule := range rulesMap {
-				mockCache.On("GetCustomRulesHash", mock.Anything, hash).Return(rule, nil)
-			}
 
 			// Create DNS request context
 			msg := new(dns.Msg)
@@ -71,14 +64,15 @@ func BenchmarkFilterCustomRules(b *testing.B) {
 			}
 			loggerFactory := logging.NewFactory(zerolog.Disabled)
 			reqCtx := &requestcontext.RequestContext{
-				ProfileId: "test-profile",
-				Logger:    loggerFactory.ForProfile("test-profile", true),
+				ProfileId:   "test-profile",
+				CustomRules: orderedRules(hashes, rulesMap),
+				Logger:      loggerFactory.ForProfile("test-profile", true),
 			}
 
 			// Reset timer and run benchmark
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				result, err := filterManager.filterCustomRules(reqCtx, dnsCtx)
+				result, err := filterManager.filterCustomRules(context.Background(), reqCtx, dnsCtx)
 				require.NoError(b, err)
 				require.NotNil(b, result)
 			}

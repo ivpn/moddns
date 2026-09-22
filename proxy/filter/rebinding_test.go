@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -120,7 +121,7 @@ func TestFilterRebinding(t *testing.T) {
 			reqCtx.RebindingProtectionSettings = tt.settings
 			f := &IPFilter{RebindingConfig: tt.cfg}
 
-			res, err := f.filterRebinding(reqCtx, tt.dctx)
+			res, err := f.filterRebinding(context.Background(), reqCtx, tt.dctx)
 			assert.NoError(t, err, "row %s", tt.tableRef)
 			assert.NotNil(t, res, "row %s", tt.tableRef)
 			assert.Equal(t, tt.want, res.Decision, "row %s: %s", tt.tableRef, tt.name)
@@ -142,7 +143,7 @@ func TestFilterRebinding_ReasonReachesFinalFilterResult(t *testing.T) {
 	reqCtx.RebindingProtectionSettings = map[string]string{"enabled": "1"}
 	f := &IPFilter{RebindingConfig: defaultRebindingConfig()}
 
-	res, err := f.filterRebinding(reqCtx, dnsCtxNameA(t, "evil.com.", "192.168.1.1"))
+	res, err := f.filterRebinding(context.Background(), reqCtx, dnsCtxNameA(t, "evil.com.", "192.168.1.1"))
 	assert.NoError(t, err)
 
 	final := getFinalFilteringResult(append(reqCtx.PartialFilteringResults, *res))
@@ -159,7 +160,7 @@ func TestFilterRebinding_HTTPSHint(t *testing.T) {
 	f := &IPFilter{RebindingConfig: defaultRebindingConfig()}
 
 	dctx := dnsCtxWithHTTPSAnswer(t, "evil.com.", []net.IP{net.ParseIP("192.168.1.1")}, nil)
-	res, err := f.filterRebinding(reqCtx, dctx)
+	res, err := f.filterRebinding(context.Background(), reqCtx, dctx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionBlock, res.Decision)
 	assert.Contains(t, res.Reasons, REASON_REBINDING)

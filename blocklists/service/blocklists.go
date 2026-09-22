@@ -163,7 +163,7 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		return nil, err
 	}
 
-	domainsBytes, err := extr.Convert(blocklistBytes)
+	domainsBytes, convRes, err := extr.Convert(blocklistBytes)
 	if err != nil {
 		log.Err(err).Str("blocklist_id", metadata.BlocklistID).Msg("Failed to convert blocklist")
 		return nil, err
@@ -214,7 +214,32 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		return nil, err
 	}
 
+	// Exceptions pass the same shared validation gate as domains. They do not
+	// feed the shrink gate: the set is small and volatile, and losing it only
+	// under-suppresses, never over-blocks.
+	exceptions := make([]string, 0, len(convRes.Exceptions))
+	for _, d := range convRes.Exceptions {
+		if nd := extractor.NormalizeDomain(d); extractor.ValidDomain(nd) {
+			exceptions = append(exceptions, nd)
+		}
+	}
+
 	s.Metrics.SetDomainsExtracted(metadata.BlocklistID, totalDomains)
+	// Published every refresh, zeros included, so each series reflects the
+	// last successful conversion rather than holding a stale spike.
+	for _, rs := range []struct {
+		reason string
+		n      int
+	}{
+		{metrics.SkipRuleException, convRes.Stats.SkippedExceptions},
+		{metrics.SkipRuleBadfilter, convRes.Stats.SkippedBadfilter},
+		{metrics.SkipRuleModifier, convRes.Stats.SkippedModifiers},
+		{metrics.SkipRuleWildcard, convRes.Stats.SkippedWildcards},
+		{metrics.SkipRulePrefix, convRes.Stats.SkippedPrefixes},
+		{metrics.SkipRuleInvalid, convRes.Stats.SkippedInvalid},
+	} {
+		s.Metrics.SetRulesSkipped(metadata.BlocklistID, rs.reason, rs.n)
+	}
 	if numEntries > 0 {
 		// Source's own count (header or self-counted) — a divergence signal
 		// against the published count above.
@@ -237,6 +262,27 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 		}
 	}
 
+	// Persist the exception domains as a single content document; the
+	// per-blocklist cleanup below covers it like any chunk.
+	if len(exceptions) > 0 {
+		exceptionsContent, err := model.NewBlocklistContent(metadata.BlocklistID, 1, exceptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create exceptions content: %w", err)
+		}
+		exceptionsContent.Kind = model.ContentKindExceptions
+		if err := s.Store.UpsertContent(ctx, *exceptionsContent); err != nil {
+			return nil, fmt.Errorf("failed to upsert exceptions content: %w", err)
+		}
+	}
+
+	// Publish the exception set BEFORE the main set so a reader never sees
+	// new blocks paired with the previous run's exception set; when there are
+	// no exceptions the companion key is removed.
+	if err := s.Cache.CreateOrUpdateBlocklistExceptions(ctx, metadata.BlocklistID, []byte(strings.Join(exceptions, "\n"))); err != nil {
+		return nil, err
+	}
+	s.Metrics.SetExceptionsExtracted(metadata.BlocklistID, len(exceptions))
+
 	// Publish the SAME validated domains to the Redis set the proxy reads.
 	data := []byte(strings.Join(validated, "\n"))
 	if err := s.Cache.CreateOrUpdateBlocklist(ctx, metadata.BlocklistID, data); err != nil {
@@ -246,6 +292,7 @@ func (s *Service) processBlocklist(metadata model.BlocklistMetadata) (*model.Blo
 	metadata.LastModified = lastModified
 	metadata.Version = version
 	metadata.Entries = totalDomains
+	metadata.ExceptionEntries = len(exceptions)
 	metadata.Type = model.BlocklistTypePublic
 	metadata.UpdatedAt = time.Now().UTC()
 

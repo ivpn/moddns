@@ -2567,6 +2567,11 @@ paths:
         type: integer
       - default: '"all"'
         description: specify status for query
+        enum:
+        - all
+        - blocked
+        - processed
+        - unanswered
         in: query
         name: status
         type: string

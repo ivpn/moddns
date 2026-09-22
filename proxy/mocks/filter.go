@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	context "context"
+
 	proxy "github.com/AdguardTeam/dnsproxy/proxy"
 	mock "github.com/stretchr/testify/mock"
 
@@ -14,17 +16,17 @@ type Filter struct {
 	mock.Mock
 }
 
-// Execute provides a mock function with given fields: reqCtx, dctx
-func (_m *Filter) Execute(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) error {
-	ret := _m.Called(reqCtx, dctx)
+// Execute provides a mock function with given fields: ctx, reqCtx, dctx
+func (_m *Filter) Execute(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) error {
+	ret := _m.Called(ctx, reqCtx, dctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Execute")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(*requestcontext.RequestContext, *proxy.DNSContext) error); ok {
-		r0 = rf(reqCtx, dctx)
+	if rf, ok := ret.Get(0).(func(context.Context, *requestcontext.RequestContext, *proxy.DNSContext) error); ok {
+		r0 = rf(ctx, reqCtx, dctx)
 	} else {
 		r0 = ret.Error(0)
 	}

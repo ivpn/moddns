@@ -23,8 +23,12 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read app configuration")
 	}
+	// Infrastructure addresses, not client data: safe to log so operators can
+	// confirm which PoPs a running instance trusts.
+	log.Info().Str("ip_ranges", cfg.Server.IPRangesString()).Uint("asn", cfg.Server.ASN).
+		Msg("Trusted resolver sources")
 
-	cache, err := cache.New(cache.CacheTypeBigCache)
+	cache, err := cache.New(cache.CacheTypeBigCache, cfg.Cache.TTL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create cache")
 	}

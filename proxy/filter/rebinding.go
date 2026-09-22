@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,7 @@ const (
 // It is per-profile opt-in: the profile must have rebinding_protection enabled, and
 // the global master switch must be on. Names matching an operator allow-suffix
 // (e.g. .local) are never blocked.
-func (f *IPFilter) filterRebinding(reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
+func (f *IPFilter) filterRebinding(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
 	defer sentry.Recover()
 
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierRebinding}

@@ -35,6 +35,8 @@ func (w *captureWriter) Network() string           { return "udp" }
 // nil Question slice. Indexing Question[0] then panics, and the handler runs in a
 // goroutine per packet, so the panic would terminate the process -- taking the DNS
 // listener and the HTTP API sharing it down together.
+//
+// specRef: dnscheck-behaviour.md #D1
 func TestServeDNSHandlesMissingQuestionSection(t *testing.T) {
 	// 12-byte header, QDCOUNT=1, everything else zero. Passes the library's
 	// length and accept checks.
@@ -79,6 +81,8 @@ func TestServeDNSHandlesMissingQuestionSection(t *testing.T) {
 }
 
 // QDCOUNT=0 with no question: same code path, pinned for completeness.
+//
+// specRef: dnscheck-behaviour.md #D1
 func TestServeDNSHandlesZeroQuestionCount(t *testing.T) {
 	req := new(dns.Msg)
 	req.Id = 1234

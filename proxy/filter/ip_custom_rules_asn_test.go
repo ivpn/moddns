@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"net"
 	"testing"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
@@ -22,19 +22,11 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
 	allowIP := "1.1.1.1"
 	blockIP := "2.2.2.2"
 
-	mockCache := new(mocks.Cache)
-	customRuleHashes := []string{"hash_allow_asn", "hash_block_asn"}
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return(customRuleHashes, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "hash_allow_asn").Return(map[string]string{
-		"action": ACTION_ALLOW,
-		"value":  "AS15169",
-		"syntax": "asn",
-	}, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "hash_block_asn").Return(map[string]string{
-		"action": ACTION_BLOCK,
-		"value":  "15169",
-		"syntax": "asn",
-	}, nil)
+	mockCache := mocks.NewCache(t)
+	customRules := []map[string]string{
+		{"action": ACTION_ALLOW, "value": "AS15169", "syntax": "asn"},
+		{"action": ACTION_BLOCK, "value": "15169", "syntax": "asn"},
+	}
 
 	mockASN := mocks.NewASNLookup(t)
 	mockASN.On("ASN", net.ParseIP(allowIP)).Return(allowASN, nil)
@@ -56,9 +48,9 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
 	dnsCtx := &proxy.DNSContext{Req: req, Res: res}
 	loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 	testLogger := loggerFactory.ForProfile(profileID, true)
-	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, Logger: testLogger}
+	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, CustomRules: customRules, Logger: testLogger}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)
@@ -70,14 +62,10 @@ func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
 
 	ipStr := "1.1.1.1"
 
-	mockCache := new(mocks.Cache)
-	customRuleHashes := []string{"hash_block_asn"}
-	mockCache.On("GetCustomRulesHashes", mock.Anything, profileID).Return(customRuleHashes, nil)
-	mockCache.On("GetCustomRulesHash", mock.Anything, "hash_block_asn").Return(map[string]string{
-		"action": ACTION_BLOCK,
-		"value":  "AS15169",
-		"syntax": "asn",
-	}, nil)
+	mockCache := mocks.NewCache(t)
+	customRules := []map[string]string{
+		{"action": ACTION_BLOCK, "value": "AS15169", "syntax": "asn"},
+	}
 
 	mockASN := mocks.NewASNLookup(t)
 	mockASN.On("ASN", net.ParseIP(ipStr)).Return(asn, nil)
@@ -97,9 +85,9 @@ func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
 	dnsCtx := &proxy.DNSContext{Req: req, Res: res}
 	loggerFactory := logging.NewFactory(zerolog.DebugLevel)
 	testLogger := loggerFactory.ForProfile(profileID, true)
-	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, Logger: testLogger}
+	reqCtx := &requestcontext.RequestContext{ProfileId: profileID, CustomRules: customRules, Logger: testLogger}
 
-	err := ipFilter.Execute(reqCtx, dnsCtx)
+	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
 	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)

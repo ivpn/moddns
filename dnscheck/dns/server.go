@@ -1,11 +1,18 @@
 package dns
 
 import (
+	"fmt"
+
 	"github.com/dnscheck/cache"
 	"github.com/dnscheck/config"
 	"github.com/dnscheck/internal/maxmind"
 	"github.com/miekg/dns"
 )
+
+// GeoLookuper resolves a client IP to its ASN record.
+type GeoLookuper interface {
+	GetGeoLookup(ip string) (*maxmind.GeoLookup, error)
+}
 
 // DNSServer represents a DNS server
 type DNSServer struct {
@@ -15,7 +22,7 @@ type DNSServer struct {
 	DNSTCP *dns.Server
 
 	Cache     cache.Cache
-	GeoLookup *maxmind.GeoLookupManager
+	GeoLookup GeoLookuper
 }
 
 // New creates a new DNS server
@@ -25,7 +32,11 @@ func New(config *config.Config, cache cache.Cache) (*DNSServer, error) {
 		Cache:  cache,
 	}
 
-	srv.GeoLookup = maxmind.NewGeoLookupManager(config.GeoLookupConfig.DBFile, config.GeoLookupConfig.DBASNFile)
+	geoLookup, err := maxmind.NewGeoLookupManager(config.GeoLookupConfig.DBASNFile)
+	if err != nil {
+		return nil, fmt.Errorf("geoip: %w", err)
+	}
+	srv.GeoLookup = geoLookup
 
 	// DNS
 	srv.DNSTCP = &dns.Server{Addr: ":53", Net: "tcp"}

@@ -838,19 +838,21 @@ export default function CustomRulesCard({
         ? namedSections.find(s => s.name === activeGroupName)
         : undefined;
 
-    if (rules.length === 0) {
-        if (searchQuery.trim().length > 0) {
-            return (
-                <Card className="flex flex-1 h-full items-center justify-center border-[var(--tailwind-colors-slate-600)] rounded-md bg-background">
-                    <NoRulesExist
-                        type={type}
-                        title="No results found"
-                        message={`Try a different search term or clear your search to see all ${type === "denied" ? "denylist" : "allowlist"} domains.`}
-                    />
-                </Card>
-            );
-        }
+    if (rules.length === 0 && searchQuery.trim().length > 0) {
+        return (
+            <Card className="flex flex-1 h-full items-center justify-center border-[var(--tailwind-colors-slate-600)] rounded-md bg-background">
+                <NoRulesExist
+                    type={type}
+                    title="No results found"
+                    message={`Try a different search term or clear your search to see all ${type === "denied" ? "denylist" : "allowlist"} domains.`}
+                />
+            </Card>
+        );
+    }
 
+    // Groups are registry entries, not derived from rules, so an empty rule list still
+    // has folders to show; the empty state is only for a list with nothing at all.
+    if (rules.length === 0 && !hasNamedGroups) {
         return (
             <Card className="flex flex-col flex-1 self-stretch w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
                 <div className="flex flex-col items-center gap-6 p-6 w-full text-center">

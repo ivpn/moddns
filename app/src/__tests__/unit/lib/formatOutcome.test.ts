@@ -21,22 +21,21 @@ describe('formatOutcome', () => {
         expect(formatOutcome('refused')).toBe('Refused');
     });
 
-    it('falls back to a response-code derived label for legacy entries', () => {
-        // tableRef: query-log-outcomes-behaviour O10
-        expect(formatOutcome(undefined, 'NOERROR')).toBe('Resolved');
-        expect(formatOutcome('', 'NXDOMAIN')).toBe('Domain not found');
-        expect(formatOutcome(undefined, 'SERVFAIL')).toBe('Upstream failure');
-        expect(formatOutcome(undefined, 'REFUSED')).toBe('Refused');
-        expect(formatOutcome(undefined, undefined)).toBe('Unknown');
-        expect(formatOutcome('', '')).toBe('Unknown');
+    it('labels a filtering-unavailable SERVFAIL distinctly from upstream failures', () => {
+        // tableRef: query-log-outcomes-behaviour O11 — the proxy synthesized the
+        // SERVFAIL itself because a filter stage could not read the settings store.
+        expect(formatOutcome('filter_unavailable')).toBe('Filtering unavailable');
     });
 
-    it('shows an unmapped response code verbatim instead of Unknown', () => {
-        // tableRef: query-log-outcomes-behaviour OE4 — rare rcodes (FORMERR,
-        // NOTIMP, ...) surface as-is; "Unknown" is reserved for entries with
-        // neither outcome nor response code.
+    it('shows the response code verbatim when the outcome is absent, Unknown when both are', () => {
+        // tableRef: query-log-outcomes-behaviour O10, OE4 — an absent outcome is
+        // the proxy's defensive case (e.g. a FORMERR/NOTIMP rcode outside the
+        // table); the rcode is shown as-is, never mapped to an outcome label.
         expect(formatOutcome(undefined, 'FORMERR')).toBe('FORMERR');
         expect(formatOutcome('', 'NOTIMP')).toBe('NOTIMP');
+        expect(formatOutcome(undefined, 'SERVFAIL')).toBe('SERVFAIL');
+        expect(formatOutcome(undefined, undefined)).toBe('Unknown');
+        expect(formatOutcome('', '')).toBe('Unknown');
     });
 
     it('shows an unknown token verbatim rather than hiding it', () => {
@@ -83,28 +82,22 @@ describe('outcomePairs', () => {
         ]);
     });
 
-    it('falls back per member for legacy entries without outcome', () => {
-        // tableRef: query-log-outcomes-behaviour C1, O10
-        const r = outcomePairs([
-            member('A', undefined, 'NOERROR'),
-            member('AAAA', 'timeout'),
-        ]);
-        expect(r).toEqual([
-            { queryType: 'A', label: 'Resolved', failure: false },
-            { queryType: 'AAAA', label: 'Upstream timeout', failure: true },
+    it('renders filter_unavailable as a failure-class chip', () => {
+        // tableRef: query-log-outcomes-behaviour C1, O11
+        expect(outcomePairs([member('A', 'filter_unavailable')])).toEqual([
+            { queryType: 'A', label: 'Filtering unavailable', failure: true },
         ]);
     });
 
-    it('legacy blocked entries read the status, not the synthesized NOERROR rcode', () => {
-        // tableRef: query-log-outcomes-behaviour O10 — a blocked response is a
-        // synthesized NOERROR (0.0.0.0/::), so the rcode fallback alone would
-        // wrongly render "Resolved" under a red Blocked pill.
-        const legacyBlocked: ModelQueryLog = {
-            status: 'blocked',
-            dns_request: { query_type: 'A', response_code: 'NOERROR' },
-        };
-        expect(outcomePairs([legacyBlocked])).toEqual([
-            { queryType: 'A', label: 'Blocked', failure: true },
+    it('a member without an outcome shows its rcode verbatim and is not failure-tinted', () => {
+        // tableRef: query-log-outcomes-behaviour C1, O10, OE4
+        const r = outcomePairs([
+            member('A', undefined, 'FORMERR'),
+            member('AAAA', 'timeout'),
+        ]);
+        expect(r).toEqual([
+            { queryType: 'A', label: 'FORMERR', failure: false },
+            { queryType: 'AAAA', label: 'Upstream timeout', failure: true },
         ]);
     });
 });
@@ -112,7 +105,8 @@ describe('outcomePairs', () => {
 describe('hasUnansweredMember', () => {
     it('flags each unanswered outcome token', () => {
         // tableRef: query-log-outcomes-behaviour C3 — collapsed-card chip trigger set
-        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused']) {
+        // (O11 filter_unavailable is a synthesized SERVFAIL — unanswered too)
+        for (const outcome of ['servfail_upstream', 'timeout', 'network_error', 'refused', 'filter_unavailable']) {
             expect(hasUnansweredMember([member('A', outcome)])).toBe(true);
         }
     });
@@ -134,8 +128,6 @@ describe('hasUnansweredMember', () => {
     it('does not flag blocked entries — the Blocked pill owns those', () => {
         // tableRef: query-log-outcomes-behaviour C3
         expect(hasUnansweredMember([{ ...member('A', 'blocked'), status: 'blocked' }])).toBe(false);
-        // legacy blocked: no outcome, synthesized NOERROR
-        expect(hasUnansweredMember([{ ...member('A', undefined, 'NOERROR'), status: 'blocked' }])).toBe(false);
     });
 
     it('flags a mixed group when any member went unanswered', () => {
@@ -145,24 +137,12 @@ describe('hasUnansweredMember', () => {
         expect(hasUnansweredMember([member('A', 'resolved'), member('AAAA', 'nodata')])).toBe(false);
     });
 
-    it('falls back to the response code for legacy entries', () => {
-        // tableRef: query-log-outcomes-behaviour C3, O10 — legacy SERVFAIL/REFUSED
-        // entries went unanswered too; NOERROR/NXDOMAIN did not.
-        expect(hasUnansweredMember([member('A', undefined, 'SERVFAIL')])).toBe(true);
-        expect(hasUnansweredMember([member('A', undefined, 'REFUSED')])).toBe(true);
-        expect(hasUnansweredMember([member('A', undefined, 'NOERROR')])).toBe(false);
-        expect(hasUnansweredMember([member('A', undefined, 'NXDOMAIN')])).toBe(false);
+    it('never infers "No answer" from the response code alone', () => {
+        // tableRef: query-log-outcomes-behaviour C3, O10 — an absent outcome is
+        // the defensive case, not a legacy row; the rcode is not a trigger.
+        expect(hasUnansweredMember([member('A', undefined, 'SERVFAIL')])).toBe(false);
+        expect(hasUnansweredMember([member('A', undefined, 'REFUSED')])).toBe(false);
         expect(hasUnansweredMember([member('A')])).toBe(false);
-    });
-
-    it('legacy DNSSEC-failed SERVFAIL entries defer to the DNSSEC label', () => {
-        // tableRef: query-log-outcomes-behaviour C3 — pre-outcome entries carry the
-        // dnssec_failed reason (same signal as O5); the red DNSSEC label covers them.
-        const legacyDnssec: ModelQueryLog = {
-            ...member('A', undefined, 'SERVFAIL'),
-            reasons: ['dnssec_failed'],
-        };
-        expect(hasUnansweredMember([legacyDnssec])).toBe(false);
     });
 });
 

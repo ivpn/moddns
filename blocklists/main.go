@@ -23,6 +23,11 @@ import (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+// run holds main's body so its defers execute before os.Exit.
+func run() int {
 	defer func() {
 		if r := recover(); r != nil {
 			sentry.CurrentHub().Recover(r)
@@ -118,8 +123,8 @@ func main() {
 	service.CatchUp(sources)
 	service.PurgeStaleCoordinated(sources)
 
+	// Stop() runs on the signal paths before the exit code is sent.
 	updater.Start()
-	defer updater.Stop()
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan,
@@ -168,7 +173,7 @@ func main() {
 		}
 		cancel()
 	}
-	os.Exit(code)
+	return code
 }
 
 // safelyRun wraps each goroutine with panic recovery to ensure the application continues even if a panic occurs

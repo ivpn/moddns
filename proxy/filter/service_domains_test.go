@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"context"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -9,7 +10,6 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -114,21 +114,18 @@ func TestFilterServiceDomains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockCache := new(mocks.Cache)
-			mockCache.On("GetProfileServicesBlocked", mock.Anything, "test-profile").
-				Return(tt.blockedIDs, nil)
-
 			fm := &DomainFilter{
-				Cache:           mockCache,
+				Cache:           mocks.NewCache(t),
 				ServicesCatalog: staticCatalog{cat: catalog},
 			}
 
 			reqCtx := newTestReqCtx(t, "test-profile")
+			reqCtx.BlockedServices = tt.blockedIDs
 			msg := new(dns.Msg)
 			msg.SetQuestion(tt.domain, dns.TypeA)
 			dctx := &proxy.DNSContext{Req: msg}
 
-			result, err := fm.filterServiceDomains(reqCtx, dctx)
+			result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedDecision, result.Decision)
 			assert.Equal(t, TierServices, result.Tier)
@@ -150,26 +147,23 @@ func TestFilterServiceDomains_NilCatalog(t *testing.T) {
 	msg.SetQuestion("microsoft.com.", dns.TypeA)
 	dctx := &proxy.DNSContext{Req: msg}
 
-	result, err := fm.filterServiceDomains(reqCtx, dctx)
+	result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 	require.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, result.Decision)
 }
 
 func TestFilterServiceDomains_CatalogError(t *testing.T) {
-	mockCache := new(mocks.Cache)
-	mockCache.On("GetProfileServicesBlocked", mock.Anything, "test-profile").
-		Return([]string{"microsoft"}, nil)
-
 	fm := &DomainFilter{
-		Cache:           mockCache,
+		Cache:           mocks.NewCache(t),
 		ServicesCatalog: staticCatalogErr{err: assert.AnError},
 	}
 	reqCtx := newTestReqCtx(t, "test-profile")
+	reqCtx.BlockedServices = []string{"microsoft"}
 	msg := new(dns.Msg)
 	msg.SetQuestion("microsoft.com.", dns.TypeA)
 	dctx := &proxy.DNSContext{Req: msg}
 
-	result, err := fm.filterServiceDomains(reqCtx, dctx)
+	result, err := fm.filterServiceDomains(context.Background(), reqCtx, dctx)
 	require.NoError(t, err)
 	assert.Equal(t, model.DecisionNone, result.Decision)
 }

@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                            Last updated: Mar 23, 2026
+                                            Last updated: Sep 17, 2026
                                         </p>
                                     </div>
 
@@ -108,9 +108,9 @@ export default function PrivacyPolicy() {
                                         </p>
                                         <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>DNS queries (e.g., which websites you visit)</li>
-                                            <li>Timestamps of DNS resolutions</li>
                                             <li>Your IP addresses</li>
                                             <li>Device information or identifiers</li>
+                                            <li>Timestamps of DNS resolutions with user/profile attribution</li>
                                         </ul>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mt-4">
                                             For more information on what is logged when you optionally enable "Query Logs", see the next section.
@@ -125,13 +125,14 @@ export default function PrivacyPolicy() {
 
                                         <h3 className="text-lg font-semibold mb-2">a) Default setting (Query Logs Disabled)</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When query logging is turned off, all queries are processed entirely in memory and are never written to disk. We log no information about your usage of the DNS resolver, with one exception:
+                                            When query logging is turned off, all queries are processed entirely in memory and are never written to disk.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            We store a total count of DNS requests processed by your profile. This is a simple counter and contains no specific details about your activity. Example of data stored:
+                                            The only DNS activity data we keep is anonymous service-wide statistics: the number of queries, blocked queries and DNSSEC-validated queries handled by each server location, added up across all users with hourly timestamps. These counters contain no profile, device or client reference. Example of data stored:
                                         </p>
-                                        <pre className="bg-[var(--shadcn-ui-app-background)] border border-[var(--shadcn-ui-app-border)] rounded-md p-4 text-sm text-[var(--shadcn-ui-app-foreground)] opacity-80 overflow-x-auto mb-4">{`"profile_id": "ju8eamnqfn"
-"queries": { "total": 244 }`}</pre>
+                                        <pre className="bg-[var(--shadcn-ui-app-background)] border border-[var(--shadcn-ui-app-border)] rounded-md p-4 text-sm text-[var(--shadcn-ui-app-foreground)] opacity-80 overflow-x-auto mb-4">{`"timestamp": "2026-09-16T10:00:00Z"
+"pop": "ams1"
+"queries": { "total": 18342, "blocked": 2917, "dnssec": 520 }`}</pre>
 
                                         <h3 className="text-lg font-semibold mb-2">b) With Query Logs Enabled</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">

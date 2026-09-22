@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"time"
 )
 
 const CacheTypeBigCache = "bigcache"
@@ -13,11 +14,11 @@ type Cache interface {
 	DeleteQueryData(key string) error
 }
 
-// New creates a new Cache instance
-func New(cacheType string) (Cache, error) {
+// New creates a new Cache instance whose entries expire after ttl.
+func New(cacheType string, ttl time.Duration) (Cache, error) {
 	switch cacheType {
 	case CacheTypeBigCache:
-		return NewBigcache()
+		return NewBigcache(ttl)
 	}
 	return nil, errors.New("unknown cache type")
 }

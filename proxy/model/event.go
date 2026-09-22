@@ -6,9 +6,10 @@ type EventQueryLog struct {
 	Metadata Metadata
 }
 
-// EventStatistics holds a statistics data
+// EventStatistics is one query's counter increments (total 1, blocked and
+// dnssec 0 or 1). It carries no identifier and no time on purpose.
 type EventStatistics struct {
-	Statistics *Statistics
+	Queries Queries
 }
 
 type Metadata struct {
