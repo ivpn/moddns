@@ -88,21 +88,26 @@ test.describe('Desktop ConnectionStatusHeader', { tag: '@desktop' }, () => {
     await expect(page.getByTestId('conn-header-root')).toBeVisible();
   });
 
-  test('different profile state', async ({ page }) => {
+  test('a check answered by another profile shows Different Profile', async ({ page }) => {
+    // The active profile is prof1; the resolver reports p2.
     await mockDnsSequence(page, [
       { status: 'ok', profile_id: 'p2', asn: '', asn_organization: 'Org', ip: '1.1.1.1' }
     ]);
     await page.reload();
-    const badge = page.getByTestId('conn-header-badge-text');
-    await expect(badge).toBeVisible();
-    // Poll until it resolves to one of expected states (guard against state transition timing)
-    await expect.poll(async () => (await badge.textContent())?.trim() || '').toMatch(/Connected|Different Profile/i);
+    await expect(page.getByTestId('conn-header-badge-text')).toHaveText('Different Profile');
   });
 
-  test('disconnected 404', async ({ page }) => {
+  test('a check answered by the active profile shows Connected', async ({ page }) => {
+    await mockDnsSequence(page, [
+      { status: 'ok', profile_id: 'prof1', asn: '', asn_organization: 'Org', ip: '1.1.1.1' }
+    ]);
+    await page.reload();
+    await expect(page.getByTestId('conn-header-badge-text')).toHaveText('Connected');
+  });
+
+  test('disconnected 404 shows Disconnected', async ({ page }) => {
     await mockDnsSequence(page, [{ status: 404, body: { error: 'disconnected' } }]);
     await page.reload();
-    const badge = page.getByTestId('conn-header-badge-text');
-    await expect(badge).toHaveText(/Disconnected|Connected/);
+    await expect(page.getByTestId('conn-header-badge-text')).toHaveText('Disconnected');
   });
 });

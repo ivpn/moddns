@@ -92,7 +92,7 @@ test.describe('Login advanced flows', { tag: '@desktop' }, () => {
     await expect(page).toHaveURL(/\/home$/);
   });
 
-  test('Passkey login WebAuthn flow succeeds (network + no error toast)', async ({ page }) => {
+  test('Passkey login WebAuthn flow succeeds and redirects home', async ({ page }) => {
     let authed = false;
     let beginCalled = 0;
     let finishCalled = 0;
@@ -123,16 +123,13 @@ test.describe('Login advanced flows', { tag: '@desktop' }, () => {
       await page.getByTestId('btn-login-toggle-mode').click();
     }
     await page.getByTestId('input-email-passkey').fill('user@example.com');
-  await page.getByTestId('btn-login-passkey-submit').click();
+    await page.getByTestId('btn-login-passkey-submit').click();
 
-  // Allow async handlers to run
-  await page.waitForTimeout(300);
-
-  // Assertions: begin called exactly once and no error toast shown.
-  // finish endpoint may not be triggered if upstream logic short-circuits before sending payload in test env.
-  expect(beginCalled).toBe(1);
-  expect([0,1]).toContain(finishCalled); // tolerate missing finish under test constraints
-  await expect(page.getByTestId(AUTH_TOAST_IDS.passkeyError)).toHaveCount(0);
+    // begin → credentials.get (stubbed) → finish, then the authed loaders redirect home.
+    await page.waitForURL(/\/home$/);
+    expect(beginCalled).toBe(1);
+    expect(finishCalled).toBe(1);
+    await expect(page.getByTestId(AUTH_TOAST_IDS.passkeyError)).toHaveCount(0);
   });
 
   test('Passkey login failure shows passkey error toast', async ({ page }) => {

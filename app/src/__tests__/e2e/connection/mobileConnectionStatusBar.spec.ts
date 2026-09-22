@@ -43,5 +43,6 @@ test.describe('Mobile ConnectionStatusBar', { tag: '@mobile' }, () => {
     await page.reload();
     const badge = page.getByTestId('conn-mobile-badge');
     await expect(badge).toBeVisible();
+    await expect(badge).toHaveText(/Disconnected/);
   });
 });
