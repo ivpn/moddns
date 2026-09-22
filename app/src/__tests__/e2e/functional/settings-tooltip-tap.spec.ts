@@ -4,9 +4,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // #127: the shared Tooltip was hover-only, so the (i) info buttons did nothing
 // on touch devices. Taps must now toggle the tooltip, and tapping elsewhere
 // must dismiss it.
-test.describe('Settings retention tooltip on touch', () => {
-  test.beforeEach(async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'touch interaction is mobile-only');
+test.describe('Settings retention tooltip on touch', { tag: '@mobile' }, () => {
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
 

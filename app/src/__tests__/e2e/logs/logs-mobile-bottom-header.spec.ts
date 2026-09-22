@@ -21,10 +21,8 @@ const row = (i: number) => ({
     dns_request: { domain: `row-${i}.example.test`, query_type: 'A' },
 });
 
-test.describe('Logs mobile bottom header', () => {
+test.describe('Logs mobile bottom header', { tag: '@ios' }, () => {
     test('app header stays pinned at the bottom of a long list and through a refresh', async ({ page }) => {
-        test.skip(!/iphone15pro/i.test(test.info().project.name), 'Only run on iPhone project');
-
         await registerMocks(page, { authenticated: true, customProfiles: [profile] });
         await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route => {
             const url = new URL(route.request().url());

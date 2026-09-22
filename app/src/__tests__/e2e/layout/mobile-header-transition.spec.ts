@@ -8,9 +8,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // Playwright cannot simulate the URL-bar collapse itself, so this is a regression
 // guard on the mechanism: the wrapper must not transition `all` or any geometry
 // property on mobile viewports.
-test.describe('@layout mobile header wrapper transition', () => {
-  test.beforeEach(async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'mobile-only regression guard');
+test.describe('@layout mobile header wrapper transition', { tag: '@mobile' }, () => {
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
 

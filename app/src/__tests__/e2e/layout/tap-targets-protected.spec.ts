@@ -14,14 +14,9 @@ const protectedRoutes = [
   { path: "/faq", name: "FAQ" },
 ];
 
-test.describe("Tap targets – protected pages", () => {
+test.describe("Tap targets – protected pages", { tag: "@mobile" }, () => {
   for (const route of protectedRoutes) {
     test(`${route.name} has adequate tap targets`, async ({ page }) => {
-      test.skip(
-        test.info().project.name === "chromium-desktop",
-        "Mobile-only test"
-      );
-
       await page.goto(route.path);
       await page.waitForLoadState("networkidle");
 

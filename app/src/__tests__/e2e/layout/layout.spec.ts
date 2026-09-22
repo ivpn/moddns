@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 import { expectNoHorizontalOverflow, expectVisibleAndInViewport, collectTapTargetViolations } from '../utils/layoutAssertions';
 
-test.describe('@layout Mobile layout basics', () => {
-  test.beforeEach(() => {
-    if (test.info().project.name !== 'chromium-mobile') test.skip();
+test.describe('@layout Mobile layout basics', { tag: '@android' }, () => {
+  test.beforeEach(async ({ page }) => {
+    await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
   });
   test('home layout: no overflow (nav optional)', async ({ page }) => {
     await page.goto('/home');
@@ -48,9 +48,8 @@ test.describe('@layout Mobile layout basics', () => {
   });
 });
 
-test.describe('@layout Dark mode smoke', () => {
+test.describe('@layout Dark mode smoke', { tag: '@android' }, () => {
   test('login renders in dark mode', async ({ page }) => {
-    if (test.info().project.name !== 'chromium-mobile-dark') test.skip();
   // Ensure consistent unauthenticated state so login page mounts immediately without lingering loading.
   await registerMocks(page, { authenticated: false });
   await page.goto('/login');

@@ -6,9 +6,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // tooltip and must NOT trigger the copy action; tapping the address value must
 // still copy. Copy always raises a toast (success or failure), so "no toast"
 // proves copy was not triggered.
-test.describe('Setup IP info tooltip on touch', () => {
-  test.beforeEach(async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'touch interaction is mobile-only');
+test.describe('Setup IP info tooltip on touch', { tag: '@mobile' }, () => {
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
 

@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 
-(test.describe as typeof test.describe)('@layout @ios Logs iOS visibility', () => {
+test.describe('@layout Logs iOS visibility', { tag: '@ios' }, () => {
   test('renders logs page structure on iPhone', async ({ page }) => {
-    test.skip(!/iphone15pro/i.test(test.info().project.name), 'Only run on iPhone project');
-
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { custom_rules: [], logs: { enabled: true } } }], extraRoutes: async (p) => {
       await p.route('**/api/v1/profiles/prof1/logs*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
     } });
@@ -16,8 +14,6 @@ import { registerMocks } from '../../mocks/registerMocks';
   });
 
   test('search placeholder fits the input on iPhone', async ({ page }) => {
-    test.skip(!/iphone15pro/i.test(test.info().project.name), 'Only run on iPhone project');
-
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { custom_rules: [], logs: { enabled: true } } }], extraRoutes: async (p) => {
       await p.route('**/api/v1/profiles/prof1/logs*', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) }));
     } });

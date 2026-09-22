@@ -1,11 +1,10 @@
-import { expect } from '@playwright/test';
-import { desktopOnly as test } from '../utils/desktopOnly';
+import { test, expect } from '@playwright/test';
 import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 import { registerMocks } from '../../mocks/registerMocks';
 
 // Covers manual logout via UI and ensures single success toast + redirect.
 
-test.describe('Logout flows (desktop only)', () => {
+test.describe('Logout flows', { tag: '@desktop' }, () => {
   test('Manual logout (force helper) from authenticated home redirects to login and shows toast', async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Main' }] });
 

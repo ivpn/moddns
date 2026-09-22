@@ -8,9 +8,8 @@ const CLAMP_BASE = 1200; // mirrors DESKTOP_CONTENT_BASE_WIDTH in App.tsx
 const WIDTH_TOLERANCE = 8;
 const EDGE_TOLERANCE = 4;
 
-test.describe('@layout Ultrawide clamp alignment', () => {
+test.describe('@layout Ultrawide clamp alignment', { tag: '@desktop' }, () => {
   test.beforeEach(async ({ page }) => {
-    if (!/desktop/i.test(test.info().project.name)) test.skip();
     await page.setViewportSize(ULTRAWIDE_VIEWPORT);
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
     await page.goto(ROUTE);

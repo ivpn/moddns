@@ -4,9 +4,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 const routes = ['/home','/settings','/account-preferences','/mobileconfig'];
 
 for (const route of routes) {
-  test.describe(`@layout Desktop layout ${route}`, () => {
+  test.describe(`@layout Desktop layout ${route}`, { tag: '@desktop' }, () => {
     test.beforeEach(async ({ page }) => {
-      if (!/desktop/i.test(test.info().project.name)) test.skip();
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
       await page.goto(route);
     });

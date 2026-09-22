@@ -13,12 +13,10 @@ async function mockDnsSequence(page: Page, responses: Record<string, unknown>[])
   });
 }
 
-test.describe('Mobile ConnectionStatusBar', () => {
+test.describe('Mobile ConnectionStatusBar', { tag: '@mobile' }, () => {
   test.use({ viewport: { width: 375, height: 800 } });
 
-  test.beforeEach(async ({ page }, testInfo) => {
-    // Skip on desktop - mobile bar only appears on mobile viewports
-    test.skip(/desktop/i.test(testInfo.project.name), 'Mobile bar tests require mobile viewport');
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default' }] });
     await page.goto('/setup');
   });

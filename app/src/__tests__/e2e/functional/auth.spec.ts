@@ -40,8 +40,7 @@ test.describe('@functional Authentication', () => {
     expect(errors).toEqual([]);
   });
 
-  test('successful logout returns to login without hook errors', async ({ page }) => {
-    if (!/desktop/i.test(test.info().project.name)) test.skip();
+  test('successful logout returns to login without hook errors', { tag: '@desktop' }, async ({ page }) => {
     const consoleErrors: string[] = [];
     page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
 

@@ -30,20 +30,16 @@ async function mockDnsSequence(page: Page, responses: Record<string, unknown>[])
   });
 }
 
-// Desktop only tests rely on chromium-desktop project
-// Assumes /setup route renders the header when desktop
+// The header only renders on desktop viewports; /setup is where it mounts.
 
-test.describe('Desktop ConnectionStatusHeader', () => {
-  test.beforeEach(async ({ page }, testInfo) => {
-    // Skip on mobile viewports - header only appears on desktop
-    test.skip(!/desktop/i.test(testInfo.project.name), 'Desktop header tests require desktop viewport');
+test.describe('Desktop ConnectionStatusHeader', { tag: '@desktop' }, () => {
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default' }] });
     await page.goto('/setup');
     await page.evaluate(() => window.localStorage?.removeItem('moddns-storage'));
   });
 
-  test.afterEach(async ({ page }, testInfo) => {
-    if (!/desktop/i.test(testInfo.project.name)) return;
+  test.afterEach(async ({ page }) => {
     if (page.isClosed()) return;
     await page.evaluate(() => window.localStorage?.removeItem('moddns-storage'));
   });

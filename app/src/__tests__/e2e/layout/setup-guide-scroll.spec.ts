@@ -4,14 +4,7 @@ import { AUTH_KEY } from '@/lib/consts';
 
 // Verifies the setup guide overlay/panel is scrollable in mobile landscape.
 
-test.describe('@layout setup guide scrollability', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    // Only run on mobile-like projects (naming pattern from config)
-    if (!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name)) test.skip();
-    if (/iphone15pro/i.test(testInfo.project.name)) { test.skip(); }
-  });
-
+test.describe('@layout setup guide scrollability', { tag: '@android' }, () => {
   test('setup guide overlay scrolls to bottom in landscape', async ({ page }) => {
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'p1', profile_id: 'p1', name: 'Default', settings: { logs: { enabled: true }, custom_rules: [] } }] });
     await page.goto('/setup');

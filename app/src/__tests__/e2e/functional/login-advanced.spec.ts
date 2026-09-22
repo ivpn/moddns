@@ -1,5 +1,4 @@
-import { expect } from '@playwright/test';
-import { desktopOnly as test } from '../utils/desktopOnly';
+import { test, expect } from '@playwright/test';
 import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 import { installWebAuthnSuccessStub, installWebAuthnErrorStub } from '../utils/webauthn';
 
@@ -11,7 +10,7 @@ async function ensurePasswordMode(page: import('@playwright/test').Page) {
   }
 }
 
-test.describe('Login advanced flows (desktop only)', () => {
+test.describe('Login advanced flows', { tag: '@desktop' }, () => {
   test('TOTP required then success with OTP', async ({ page }) => {
     let authed = false;
 

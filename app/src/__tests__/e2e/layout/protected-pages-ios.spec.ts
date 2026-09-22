@@ -1,15 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { registerMocks } from "../../mocks/registerMocks";
 
-test.describe("Protected pages – iOS rendering", () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    test.skip(
-      testInfo.project.name !== "iphone15pro-dark",
-      "iPhone 15 Pro only"
-    );
-  });
-
+test.describe("Protected pages – iOS rendering", { tag: "@ios" }, () => {
   test("Settings renders on iOS", async ({ page }) => {
     await registerMocks(page, { authenticated: true });
     await page.goto("/settings");

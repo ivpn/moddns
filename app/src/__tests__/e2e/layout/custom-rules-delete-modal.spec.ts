@@ -5,10 +5,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // group name is very long (QA issue #634 — "Overflow issue in the Delete group
 // modal when group name is too long"). The interpolated name must wrap/break
 // inside the dialog rather than spill past its right edge.
-(test.describe as typeof test.describe)('@layout Custom Rules delete group modal long name', () => {
+test.describe('@layout Custom Rules delete group modal long name', { tag: '@desktop' }, () => {
   test('delete confirmation stays within the modal', async ({ page }) => {
-    test.skip(!/chromium-desktop/i.test(test.info().project.name), 'desktop layout regression');
-
     const longGroup = 'StuffsadsadadasdasdasdasdasdasdasdasdasdasdaszdasdsddsdsdsFddgd';
     await registerMocks(page, {
       authenticated: true,

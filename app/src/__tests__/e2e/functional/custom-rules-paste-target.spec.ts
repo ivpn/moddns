@@ -39,9 +39,8 @@ test.describe('@functional custom rules add box exposes a pasteable input', () =
     expect(inputBox.width).toBeGreaterThan(controlBox.width * 0.5);
   });
 
-  test('a real right-click on the empty field reaches the input (desktop)', async ({ page }) => {
-    test.skip(!/chromium-desktop/i.test(test.info().project.name), 'context menus are a desktop pointer path');
-
+  // Context menus are a desktop pointer path.
+  test('a real right-click on the empty field reaches the input', { tag: '@desktop' }, async ({ page }) => {
     await registerMocks(page, {
       authenticated: true,
       customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { custom_rules: [] } }],

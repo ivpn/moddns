@@ -47,16 +47,7 @@ async function performRouteInteractions(route: string, page: import('@playwright
   }
 }
 
-function isMobileProject(name?: string) {
-  return !!name && /(chromium-mobile|iphone15pro)/i.test(name);
-}
-
-test.describe('@layout mobile horizontal overflow ALL PAGES', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isMobileProject(testInfo.project.name)) test.skip();
-  });
-
+test.describe('@layout mobile horizontal overflow ALL PAGES', { tag: '@mobile' }, () => {
   for (const route of PUBLIC_ROUTES) {
     test(`public route no-overflow: ${route}`, async ({ page }) => {
       await registerMocks(page, { authenticated: false });

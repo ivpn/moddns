@@ -4,7 +4,6 @@ import { registerMocks } from '../../mocks/registerMocks';
 // Expanding an FAQ answer while scrolled must keep the viewport where it is.
 // Mobile projects only: the report is a phone-viewport regression.
 
-const MOBILE_PROJECTS = ['chromium-mobile-dark', 'iphone15pro-dark'];
 const LAST_QUESTION = 'Do you support 2FA?';
 // Height transition is 300ms; give layout time to settle before measuring.
 const SETTLE_MS = 600;
@@ -21,12 +20,7 @@ async function openFaqScrolledToLastQuestion(page: Page) {
     return { lastQuestion, scrollYBefore };
 }
 
-test.describe('FAQ expand keeps scroll position', () => {
-    // eslint-disable-next-line no-empty-pattern
-    test.beforeEach(async ({}, testInfo) => {
-        test.skip(!MOBILE_PROJECTS.includes(testInfo.project.name), 'mobile projects only');
-    });
-
+test.describe('FAQ expand keeps scroll position', { tag: '@mobile' }, () => {
     test('expanding the last answer does not move the viewport', async ({ page }) => {
         const { lastQuestion, scrollYBefore } = await openFaqScrolledToLastQuestion(page);
         await lastQuestion.click();
