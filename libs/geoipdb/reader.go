@@ -8,13 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"net"
+	"net/netip"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang/v2"
 	"github.com/rs/zerolog/log"
 )
 
@@ -93,13 +93,13 @@ func openFile(path string) (*geoip2.Reader, fileSig, error) {
 	if err != nil {
 		return nil, fileSig{}, err
 	}
-	db, err := geoip2.FromBytes(data)
+	db, err := geoip2.OpenBytes(data)
 	if err != nil {
 		return nil, fileSig{}, fmt.Errorf("open %s: %w", path, err)
 	}
 	// geoip2 reports an edition/method mismatch only at lookup time, so probe
 	// once here rather than on the first real query.
-	if _, err := db.ASN(net.IPv4(192, 0, 2, 1)); err != nil {
+	if _, err := db.ASN(netip.MustParseAddr("192.0.2.1")); err != nil {
 		return nil, fileSig{}, fmt.Errorf("%s does not support ASN lookups: %w", path, err)
 	}
 	return db, fileSig{size: info.Size(), modTime: info.ModTime()}, nil
@@ -119,13 +119,15 @@ func (r *Reader) Path() string {
 }
 
 // ASN looks up ip in the database currently loaded. An address outside the
-// database yields an empty record and no error.
-func (r *Reader) ASN(ip net.IP) (*geoip2.ASN, error) {
+// database yields a record with HasData() false and no error. IPv4-mapped
+// IPv6 addresses are unmapped first so both forms of an IPv4 address hit the
+// same entry.
+func (r *Reader) ASN(ip netip.Addr) (*geoip2.ASN, error) {
 	db := r.cur.Load()
 	if db == nil {
 		return nil, errors.New("geoip database is closed")
 	}
-	return db.ASN(ip)
+	return db.ASN(ip.Unmap())
 }
 
 // Stats returns a snapshot of the reader state.

@@ -51,6 +51,13 @@ func TestASNReturnsNumberAndZeroForUnknownOrNil(t *testing.T) {
 	if asn, err := l.ASN(net.ParseIP("203.0.113.5")); err != nil || asn != 0 {
 		t.Errorf("unknown IP: got asn=%d err=%v, want 0", asn, err)
 	}
+	// A records carry the 4-byte form; net.ParseIP yields the 16-byte form.
+	if asn, err := l.ASN(net.ParseIP("8.8.8.8").To4()); err != nil || asn != 15169 {
+		t.Errorf("4-byte IPv4: got asn=%d err=%v, want 15169", asn, err)
+	}
+	if asn, err := l.ASN(net.IP([]byte{1, 2, 3})); err != nil || asn != 0 {
+		t.Errorf("malformed IP: got asn=%d err=%v, want 0", asn, err)
+	}
 	if asn, err := l.ASN(nil); err != nil || asn != 0 {
 		t.Errorf("nil IP: got asn=%d err=%v, want 0", asn, err)
 	}

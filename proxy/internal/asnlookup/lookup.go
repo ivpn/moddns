@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"time"
 
 	"github.com/ivpn/dns/libs/geoipdb"
@@ -31,10 +32,11 @@ func (l *Lookup) ASN(ip net.IP) (uint, error) {
 	if l == nil || l.db == nil {
 		return 0, nil
 	}
-	if ip == nil {
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
 		return 0, nil
 	}
-	rec, err := l.db.ASN(ip)
+	rec, err := l.db.ASN(addr)
 	if err != nil {
 		return 0, fmt.Errorf("asn lookup: %w", err)
 	}

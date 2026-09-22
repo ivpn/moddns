@@ -3,11 +3,10 @@ package maxmind
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 	"time"
 
 	"github.com/ivpn/dns/libs/geoipdb"
-	"github.com/oschwald/geoip2-golang"
 )
 
 // GeoLookupManager answers ASN lookups from a MaxMind database that is opened
@@ -53,22 +52,20 @@ func (g *GeoLookupManager) Close() error {
 // GetGeoLookup returns the ASN record for ip. An address that is not in the
 // database yields an empty record and no error.
 func (g *GeoLookupManager) GetGeoLookup(ip string) (*GeoLookup, error) {
-	ipnet := net.ParseIP(ip)
-	if ipnet == nil {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
 		return nil, fmt.Errorf("invalid IP address %q", ip)
 	}
+	addr = addr.Unmap()
 
-	asn, err := g.db.ASN(ipnet)
+	rec := &GeoLookup{IPAddress: addr.String()}
+	asn, err := g.db.ASN(addr)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get ASN: %w", err)
 	}
-	if asn == nil {
-		asn = &geoip2.ASN{}
+	if asn != nil {
+		rec.ASN = asn.AutonomousSystemNumber
+		rec.ASNOrganization = asn.AutonomousSystemOrganization
 	}
-
-	return &GeoLookup{
-		IPAddress:       ipnet.String(),
-		ASN:             asn.AutonomousSystemNumber,
-		ASNOrganization: asn.AutonomousSystemOrganization,
-	}, nil
+	return rec, nil
 }
