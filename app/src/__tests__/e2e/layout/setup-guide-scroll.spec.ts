@@ -40,9 +40,8 @@ test.describe('@layout setup guide scrollability', { tag: '@android' }, () => {
   // bottom, the last step must not be hidden behind the fixed BottomNav.
   // The panel sits at z-40 and BottomNav at z-50; without a height offset for
   // the navbar the last step gets clipped under it on mobile.
-  // Auth is seeded manually (mirrors setup-overlay-header-visibility.spec.ts)
-  // because storageState alone doesn't reliably hydrate profile state on
-  // protected routes for these mobile projects.
+  // Auth and profile state are seeded on a public route first (mirrors
+  // setup-overlay-header-visibility.spec.ts) so the protected loader sees them.
   test('last step is visible above bottom nav when scrolled to bottom', async ({ page }) => {
     await page.goto('/login');
     await page.evaluate((key) => {

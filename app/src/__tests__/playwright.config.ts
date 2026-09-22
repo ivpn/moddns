@@ -40,27 +40,21 @@ export default defineConfig({
   // still pays for its browser context). Tags: @desktop (Chromium desktop), @android
   // (Pixel 5, Chromium), @ios (iPhone 15 Pro, WebKit), @mobile (both mobile projects).
   // Untagged tests run on every project; a tagged test runs only on the projects named.
+  // Every spec seeds its own auth state (registerMocks / addInitScript), so no project
+  // needs a shared storageState.
   projects: [
-    // Auth storage bootstrap project (runs first to produce storageState for dependent projects)
-    {
-      name: 'auth-setup',
-      testMatch: /auth\.setup\.ts/,
-    },
     // Mobile baseline: Pixel 5 (Chromium engine)
     {
       name: 'chromium-mobile-dark',
-      use: { ...devices['Pixel 5'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' },
-      dependencies: ['auth-setup'],
+      use: { ...devices['Pixel 5'], colorScheme: 'dark' },
       grepInvert: /^(?!.*@(?:android|mobile)\b)(?=.*@(?:desktop|ios)\b)/,
     },
     // Safari/WebKit coverage: latest supported iPhone (15 Pro) using default WebKit engine
     {
       name: 'iphone15pro-dark',
-      use: { ...devices['iPhone 15 Pro'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' },
-      dependencies: ['auth-setup'],
+      use: { ...devices['iPhone 15 Pro'], colorScheme: 'dark' },
       grepInvert: /^(?!.*@(?:ios|mobile)\b)(?=.*@(?:desktop|android)\b)/,
     },
-    // Desktop without pre-auth storage so login flows can exercise authentication UI
     {
       name: 'chromium-desktop',
       use: { ...devices['Desktop Chrome'] },
