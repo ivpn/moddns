@@ -99,7 +99,8 @@ for (const [routes, isProtected] of [[PUBLIC_ROUTES, false], [PROTECTED_ROUTES, 
       test(`${route} renders full-width without overflow`, async ({ page, isMobile }) => {
         await setup(page, isProtected);
         await page.goto(route);
-        await expect(page).toHaveURL(new RegExp(`${route.replace(/\//g, '\\/')}$`));
+        // A string is matched exactly against baseURL + route.
+        await expect(page).toHaveURL(route);
 
         const selector = rootSelector(route, isProtected);
         await page.waitForSelector(selector, { state: 'attached', timeout: 10_000 });
