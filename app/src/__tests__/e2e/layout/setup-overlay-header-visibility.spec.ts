@@ -4,14 +4,8 @@ import { AUTH_KEY } from '@/lib/consts';
 
 // Ensures app header remains visible and clickable when setup overlay is open in mobile landscape.
 
-test.describe('@layout setup overlay header visibility', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    if (!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name)) test.skip();
-  });
-
+test.describe('@layout setup overlay header visibility', { tag: '@android' }, () => {
   test('header visible above overlay and overlay scrolls', async ({ page }) => {
-    if (/iphone15pro/i.test(test.info().project.name)) test.skip();
     // Strategy: land on public route first so no protected loader / redirect runs before we seed auth + mocks.
     await page.goto('/login');
 
@@ -30,10 +24,8 @@ test.describe('@layout setup overlay header visibility', () => {
     await page.goto('/setup');
     await page.waitForURL(/\/setup$/, { timeout: 10000 });
 
-    // Force a landscape-like viewport only for chromium mobile (iphone preset keeps default to avoid mismatch)
-    if (/chromium-mobile/i.test(test.info().project.name)) {
-      try { await page.setViewportSize({ width: 700, height: 430 }); } catch { /* ignore if not supported */ }
-    }
+    // Force a landscape-like viewport.
+    await page.setViewportSize({ width: 700, height: 430 });
 
     // Open Windows guide
     const windowsCard = page.getByTestId('setup-platform-card-windows');

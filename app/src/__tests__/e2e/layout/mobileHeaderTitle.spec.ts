@@ -1,18 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 
-// Skip on desktop-like projects by inspecting project name heuristically
-// (Adjust condition if specific project names are defined in playwright.config)
-const desktopIndicators = ['chromium-desktop', 'firefox-desktop', 'webkit-desktop'];
-const shouldSkip = (projectName?: string) => !!projectName && desktopIndicators.some(ind => projectName.includes(ind));
-
-test.describe('Mobile Header Page Title', () => {
+test.describe('Mobile Header Page Title', { tag: '@mobile' }, () => {
   test.use({ viewport: { width: 430, height: 900 } });
 
-  test.beforeEach(async ({ page }, testInfo) => {
-    if (shouldSkip(testInfo.project.name)) {
-      test.skip(true, 'Skipping mobile-only header title test on desktop project');
-    }
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, {
       authenticated: true,
       customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default' }]

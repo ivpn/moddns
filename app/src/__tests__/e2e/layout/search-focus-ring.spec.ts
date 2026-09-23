@@ -20,7 +20,8 @@ const CASES = [
 
 for (const c of CASES) {
   for (const vp of c.viewports) {
-    test.describe(`@layout search focus ring ${c.path} (${vp.tag})`, () => {
+    // Sets its own viewport: run once per engine.
+    test.describe(`@layout search focus ring ${c.path} (${vp.tag})`, { tag: ['@desktop', '@ios'] }, () => {
       test.beforeEach(async ({ page }) => {
         await registerMocks(page, {
           authenticated: true,

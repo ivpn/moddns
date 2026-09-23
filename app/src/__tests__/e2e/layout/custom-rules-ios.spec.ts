@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 
-(test.describe as typeof test.describe)('@layout @ios Custom Rules iOS visibility', () => {
+test.describe('@layout Custom Rules iOS visibility', { tag: '@ios' }, () => {
   test('content renders on iOS', async ({ page }) => {
-    test.skip(!/iphone15pro/i.test(test.info().project.name), 'Only relevant for iPhone viewport projects');
-
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { custom_rules: [] } }] });
 
     await page.goto('/custom-rules');
@@ -16,8 +14,6 @@ import { registerMocks } from '../../mocks/registerMocks';
   // Regression: a long group name must truncate, not push the group header off-screen
   // (QA issue #634 — "Group names are cut off on mobile viewports when they are too long").
   test('long group name does not overflow on mobile', async ({ page }) => {
-    test.skip(!/iphone15pro/i.test(test.info().project.name), 'Only relevant for iPhone viewport projects');
-
     const longGroup = 'StuffsadsadadasdasdasdasdasdasdasdasdasdasdaszdasdsddsdsdsFddgd';
     await registerMocks(page, {
       authenticated: true,

@@ -241,10 +241,8 @@ test.describe('Logs mobile layout', () => {
     await expect(panel).toHaveAttribute('data-expanded', 'false');
   });
 
-  test('mobile: one-time expand hint shows, dismisses after first expand, and stays gone', async ({ page }, testInfo) => {
-    // The hint is mobile-only (md:hidden); skip on desktop projects.
-    test.skip(!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name), 'mobile-only hint');
-
+  // The hint is mobile-only (md:hidden).
+  test('mobile: one-time expand hint shows, dismisses after first expand, and stays gone', { tag: '@mobile' }, async ({ page }) => {
     await registerMocks(page, {
       authenticated: true,
       customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true } } }]
@@ -311,10 +309,9 @@ test.describe('Logs mobile layout', () => {
     await expect(panel.getByTestId('querylog-detail-query-type')).toHaveText('A, AAAA');
   });
 
-  test('tablet width: meta labels stack vertically and the row has no horizontal overflow', async ({ page }, testInfo) => {
-    // The tablet band (769–1023px) renders the desktop branch at Tailwind `md`. No project sits
-    // there, so drive it on the desktop project with an explicit tablet viewport.
-    test.skip(!/chromium-desktop/i.test(testInfo.project.name), 'tablet-band layout is desktop-branch only');
+  // The tablet band (769–1023px) renders the desktop branch at Tailwind `md`. No project sits
+  // there, so drive it on the desktop project with an explicit tablet viewport.
+  test('tablet width: meta labels stack vertically and the row has no horizontal overflow', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1000 });
 
     await registerMocks(page, {

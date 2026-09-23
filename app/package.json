@@ -16,8 +16,8 @@
     "test:e2e:headed": "playwright test -c src/__tests__/playwright.config.ts --headed --workers=2",
     "test:e2e:inspect": "playwright test -c src/__tests__/playwright.config.ts --ui",
     "test:e2e:report": "playwright show-report",
-    "snapshots:mobile": "MOBILE_SNAPSHOTS=1 playwright test -c src/__tests__/playwright.config.ts --project=chromium-mobile --project=iphone15pro src/__tests__/e2e/manual/mobileSnapshots.spec.ts --update-snapshots",
-    "snapshots:mobile:ci": "MOBILE_SNAPSHOTS=1 playwright test -c src/__tests__/playwright.config.ts --project=chromium-mobile --project=iphone15pro src/__tests__/e2e/manual/mobileSnapshots.spec.ts"
+    "snapshots:mobile": "MOBILE_SNAPSHOTS=1 playwright test -c src/__tests__/playwright.config.ts --project=chromium-mobile-dark --project=iphone15pro-dark src/__tests__/e2e/manual/mobileSnapshots.spec.ts --update-snapshots",
+    "snapshots:mobile:ci": "MOBILE_SNAPSHOTS=1 playwright test -c src/__tests__/playwright.config.ts --project=chromium-mobile-dark --project=iphone15pro-dark src/__tests__/e2e/manual/mobileSnapshots.spec.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

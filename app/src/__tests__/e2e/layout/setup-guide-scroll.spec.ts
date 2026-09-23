@@ -4,14 +4,7 @@ import { AUTH_KEY } from '@/lib/consts';
 
 // Verifies the setup guide overlay/panel is scrollable in mobile landscape.
 
-test.describe('@layout setup guide scrollability', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    // Only run on mobile-like projects (naming pattern from config)
-    if (!/(chromium-mobile|iphone15pro)/i.test(testInfo.project.name)) test.skip();
-    if (/iphone15pro/i.test(testInfo.project.name)) { test.skip(); }
-  });
-
+test.describe('@layout setup guide scrollability', { tag: '@android' }, () => {
   test('setup guide overlay scrolls to bottom in landscape', async ({ page }) => {
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'p1', profile_id: 'p1', name: 'Default', settings: { logs: { enabled: true }, custom_rules: [] } }] });
     await page.goto('/setup');
@@ -47,9 +40,8 @@ test.describe('@layout setup guide scrollability', () => {
   // bottom, the last step must not be hidden behind the fixed BottomNav.
   // The panel sits at z-40 and BottomNav at z-50; without a height offset for
   // the navbar the last step gets clipped under it on mobile.
-  // Auth is seeded manually (mirrors setup-overlay-header-visibility.spec.ts)
-  // because storageState alone doesn't reliably hydrate profile state on
-  // protected routes for these mobile projects.
+  // Auth and profile state are seeded on a public route first (mirrors
+  // setup-overlay-header-visibility.spec.ts) so the protected loader sees them.
   test('last step is visible above bottom nav when scrolled to bottom', async ({ page }) => {
     await page.goto('/login');
     await page.evaluate((key) => {

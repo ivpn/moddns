@@ -6,10 +6,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // device id, so a single fixture is enough.
 const STAMP_DOH = 'sdns://AgcAAAAAAAAAAA0xLjEuMS4xAA5kbnMubW9kZG5zLm5ldBYvZG5zLXF1ZXJ5L2FiYzEyM2RlZjQ';
 
-(test.describe as typeof test.describe)('@layout @desktop Setup → Linux → dnscrypt-proxy tab', () => {
+test.describe('@layout Setup → Linux → dnscrypt-proxy tab', { tag: '@desktop' }, () => {
   test('fetches the DoH stamp and renders a ready-to-paste dnscrypt-proxy.toml block', async ({ page }) => {
-    test.skip(!/-desktop$/i.test(test.info().project.name), 'Run only on *-desktop project');
-
     const calls: Array<{ profile_id?: string; device_id?: string }> = [];
 
     await registerMocks(page, {

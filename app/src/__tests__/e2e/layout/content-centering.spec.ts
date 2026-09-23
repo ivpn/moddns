@@ -21,7 +21,9 @@ const VIEWPORTS = [
 
 const PROTECTED_ROUTES = ['/setup', '/blocklists', '/home', '/settings', '/custom-rules', '/query-logs'];
 
-test.describe('@layout Content centering - body styles', () => {
+// These tests set their own viewport, so the project's device descriptor is irrelevant;
+// run once per engine (Chromium desktop + WebKit iPhone) instead of on every project.
+test.describe('@layout Content centering - body styles', { tag: ['@desktop', '@ios'] }, () => {
   test('body element should not have centering flex styles', async ({ page }) => {
     await registerMocks(page, { authenticated: true });
     await page.goto('/setup');
@@ -72,67 +74,39 @@ test.describe('@layout Content centering - body styles', () => {
   });
 });
 
-test.describe('@layout Content centering - app content area', () => {
+test.describe('@layout Content centering - viewport matrix', { tag: ['@desktop', '@ios'] }, () => {
   test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
   });
 
-  test('app-content fills full viewport width on mobile', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/setup');
-
-    const appContent = page.getByTestId('app-content');
-    await expect(appContent).toBeVisible();
-
-    const box = await appContent.boundingBox();
-    const viewport = page.viewportSize()!;
-
-    // app-content should start at x=0 (no left offset)
-    expect(box!.x).toBe(0);
-    // app-content should span full viewport width
-    expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
-  });
-
+  // One test per viewport keeps a fresh page for each; WebKit is unreliable across
+  // repeated navigations in a single page.
   for (const vp of VIEWPORTS) {
-    test(`content area starts at left edge on ${vp.name}`, async ({ page }) => {
+    test(`app-content starts at the left edge and setup-container is centered on ${vp.name}`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto('/setup');
 
       const appContent = page.getByTestId('app-content');
-      const box = await appContent.boundingBox();
+      await expect(appContent).toBeVisible();
+      const contentBox = (await appContent.boundingBox())!;
+      // Content should start at x=0, not offset to the right, and span the viewport.
+      expect(contentBox.x, `app-content x offset on ${vp.name}`).toBe(0);
+      expect(contentBox.width, `app-content width on ${vp.name}`).toBeGreaterThanOrEqual(vp.width - 1);
 
-      // Content should start at x=0, not offset to the right
-      expect(box!.x, `app-content x offset on ${vp.name}`).toBe(0);
-    });
-  }
-});
-
-test.describe('@layout Content centering - symmetric margins', () => {
-  test.beforeEach(async ({ page }) => {
-    await registerMocks(page, { authenticated: true });
-  });
-
-  for (const vp of VIEWPORTS.filter(v => v.width < 1280)) {
-    test(`setup-container has symmetric margins on ${vp.name}`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto('/setup');
-
-      const container = page.getByTestId('setup-container');
-      await expect(container).toBeVisible();
-
-      const box = await container.boundingBox();
-      const viewport = page.viewportSize()!;
-
-      const leftMargin = box!.x;
-      const rightMargin = viewport.width - (box!.x + box!.width);
-
-      // Left and right margins should be roughly equal (within 30px tolerance)
-      // This accounts for px-4 (16px) padding which may round differently
-      const marginDiff = Math.abs(leftMargin - rightMargin);
-      expect(
-        marginDiff,
-        `Asymmetric margins on ${vp.name}: left=${leftMargin.toFixed(0)}px, right=${rightMargin.toFixed(0)}px, diff=${marginDiff.toFixed(0)}px`
-      ).toBeLessThan(30);
+      // Below the desktop breakpoint the setup container is centered with symmetric margins.
+      if (vp.width < 1280) {
+        const container = page.getByTestId('setup-container');
+        await expect(container, `setup-container on ${vp.name}`).toBeVisible();
+        const box = (await container.boundingBox())!;
+        const leftMargin = box.x;
+        const rightMargin = vp.width - (box.x + box.width);
+        // 30px tolerance accounts for px-4 (16px) padding rounding differently per side.
+        const marginDiff = Math.abs(leftMargin - rightMargin);
+        expect(
+          marginDiff,
+          `Asymmetric margins on ${vp.name}: left=${leftMargin.toFixed(0)}px, right=${rightMargin.toFixed(0)}px, diff=${marginDiff.toFixed(0)}px`
+        ).toBeLessThan(30);
+      }
     });
   }
 

@@ -1,10 +1,9 @@
-import { expect } from '@playwright/test';
-import { desktopOnly as test } from '../utils/desktopOnly';
+import { test, expect } from '@playwright/test';
 import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 
 // Scenario: user hits session limit (429 with specific error), sees dialog, cancels -> remains on login, no success toast.
 
-test.describe('Session limit dialog cancel flow (desktop only)', () => {
+test.describe('Session limit dialog cancel flow', { tag: '@desktop' }, () => {
   test('Cancel maintains login state without authenticating', async ({ page }) => {
     const authed = false;
 

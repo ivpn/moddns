@@ -36,8 +36,10 @@ async function registerBlocklistsWithOverflow(page: import('@playwright/test').P
   });
 }
 
+// These tests set their own viewport, so the project's device descriptor is irrelevant;
+// run once per engine (Chromium desktop + WebKit iPhone) instead of on every project.
 for (const vp of VIEWPORTS) {
-  test.describe(`@layout blocklists scroll reach (${vp.label})`, () => {
+  test.describe(`@layout blocklists scroll reach (${vp.label})`, { tag: ['@desktop', '@ios'] }, () => {
     test.beforeEach(async ({ page }) => {
       await registerBlocklistsWithOverflow(page);
       await page.setViewportSize({ width: vp.width, height: vp.height });
