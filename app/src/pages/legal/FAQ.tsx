@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 9, 2026';
+const FAQ_LAST_UPDATED = 'September 24, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -522,6 +522,30 @@ export default function FAQ(): JSX.Element {
         </div>
     );
 
+    const localResolversWithModDNS = (
+        <div className="space-y-2">
+            <p>Yes, both. Put the local resolver in front of modDNS and let it forward every query it does not answer itself.</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>AdGuard Home</strong> speaks DoH, DoT and DoQ natively. Add <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://dns.moddns.net/dns-query/&lt;profile id&gt;</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">tls://&lt;profile id&gt;.dns.moddns.net</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">quic://&lt;profile id&gt;.dns.moddns.net:853</code> as an upstream, or paste one of your DNS Stamps. Click <strong>Test upstreams</strong> to confirm.</li>
+                <li><strong>Pi-hole</strong> forwards plain DNS only, so it needs <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> next to it. Configure dnscrypt-proxy with your DoH stamp (the ready-made <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> snippet is on the DNS Stamps tab under <strong>Setup</strong>) and set Pi-hole's upstream to <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1#5353</code>. Pi-hole's guide covers the installation: <a href="https://docs.pi-hole.net/guides/dns/dnscrypt-proxy/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">docs.pi-hole.net/guides/dns/dnscrypt-proxy</code></a>.</li>
+            </ul>
+            <p>Your profile id is shown on the <strong>Setup</strong> page. To see the resolver as a named device in your query logs, generate the stamp with a device label (see <em>"Can I generate a per-device DNS Stamp?"</em>).</p>
+            <p>Filter in one place only: a domain blocked by AdGuard Home or Pi-hole never reaches modDNS and is missing from your modDNS logs and statistics, so turn off the local blocklists and manage blocking in your modDNS profile.</p>
+        </div>
+    );
+
+    const adGuardHomeCannotResolveUpstream = (
+        <div className="space-y-2">
+            <p>AdGuard Home looks up the modDNS hostname through its own <strong>Bootstrap DNS servers</strong> setting, not through your system resolver. By default it asks Quad9. If your network only allows DNS to one resolver, that lookup never gets an answer and <strong>Test upstreams</strong> reports "couldn't communicate with upstream" with "resolving hostname" in the message, even though the modDNS server is reachable.</p>
+            <p>The most common case is a VPN client with a firewall or kill switch, such as the IVPN app, which only allows DNS to IVPN's own resolver. Two fixes, either one is enough:</p>
+            <ul className="list-disc pl-5 space-y-1">
+                <li><strong>Use a DNS Stamp as the upstream.</strong> A stamp carries the modDNS address, so no bootstrap lookup is needed. It keeps working whether the VPN is on or off.</li>
+                <li><strong>Set the bootstrap to the resolver your network allows.</strong> With the IVPN app that is the IVPN DNS server; the address depends on your AntiTracker setting, see <a href="https://www.ivpn.net/knowledgebase/troubleshooting/what-is-the-ip-address-of-your-dns-servers/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">What is the IP address of your DNS servers?</code></a>. This only works while the VPN is connected.</li>
+            </ul>
+            <p>AdGuard Home caches the result of the bootstrap lookup. If a setup that worked stops working after you turn a VPN on, restart AdGuard Home after changing the bootstrap, or switch to a stamp.</p>
+        </div>
+    );
+
     const renderFAQContent = () => (
         <div className="space-y-6">
             <FAQSection title="Basics" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
@@ -785,6 +809,10 @@ export default function FAQ(): JSX.Element {
                     answer={dnsStampsCompatibleClients}
                 />
                 <FAQItem
+                    question="Can I use AdGuard Home or Pi-hole with modDNS?"
+                    answer={localResolversWithModDNS}
+                />
+                <FAQItem
                     question="Do DNS Stamps add an extra layer of encryption?"
                     answer={dnsStampsEncryption}
                 />
@@ -806,6 +834,10 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="Why are some websites not loading?"
                     answer={whyWebsitesAreNotWorking}
+                />
+                <FAQItem
+                    question="AdGuard Home says it cannot resolve the modDNS upstream. Why?"
+                    answer={adGuardHomeCannotResolveUpstream}
                 />
                 <FAQItem
                     question="Can I choose which modDNS server my queries are routed to?"
