@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     DOH_ENDPOINT: str = "https://moddns.dev/dns-query/"
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
+    # Credentials match tests/docker-compose.yml (MONGO_INITDB_ROOT_*).
+    MONGO_URI: str = "mongodb://admin:admin@localhost:27017/?authSource=admin"
+    MONGO_DB: str = "dns"
     MOCK_PREAUTH_URL: str = "http://localhost:8080"
     # Must match API_PSK in config/api.env — the PSK middleware fails closed
     # when the secret is unset, so an empty value no longer passes.
