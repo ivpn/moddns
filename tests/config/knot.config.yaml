@@ -20,6 +20,9 @@ local-data:
     test.com: [104.18.74.230]
     ads.wp.pl: [212.77.99.7]
     svctest-google.com: [8.8.8.8]
+    ## AdGuard Home's upstream health check (test_adguard_home.py) queries this
+    ## name and accepts only its real answer.
+    google-public-dns-a.google.com: [8.8.8.8]
     ipv6-test.com: [2001:41d0:701:1100::29c8]
     ## DNS rebinding protection tests — public names deliberately mapped to
     ## private IPs so the proxy IP-phase rebinding filter can be exercised.
@@ -41,6 +44,16 @@ local-data:
     cnameclean.com. 300 IN A 104.18.74.233
     cloaked-sub.cnametest.com. 300 IN CNAME tracker.cnamepark.com.
     tracker.cnamepark.com. 300 IN A 104.18.74.234
+
+  ## The proxy's own names, for clients inside the stack that bootstrap their
+  ## encrypted upstream through a plain resolver (AdGuard Home in
+  ## test_adguard_home.py): moddns.dev and every <profile>.moddns.dev answer
+  ## with the proxy's fixed compose address, as the public zone does for
+  ## dns.moddns.net.
+  rules:
+    - name: [moddns.dev.]
+      subtree: redirect
+      address: [10.5.0.100]
 
 ## Deliberately-unresolvable test zone (query-log outcome C3, "No answer"):
 ## forwarded to a blackholed TEST-NET-1 address, so any query under

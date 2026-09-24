@@ -29,7 +29,11 @@ services:
       context: ../
       dockerfile: proxy/Dockerfile
     networks:
-      - dnsnetwork
+      dnsnetwork:
+        # Fixed so knot's local-data redirect (config/knot.config.yaml) can hand
+        # this address out for moddns.dev and *.moddns.dev — the in-stack stand-in
+        # for the public zone that resolves dns.moddns.net for real clients.
+        ipv4_address: 10.5.0.100
     container_name: dnsproxy
     depends_on:
       - cache
@@ -270,6 +274,60 @@ services:
     ports:
       - '8025:8025'
       - '1025:1025'
+
+  # Real third-party resolvers in front of modDNS (dns_tests/test_adguard_home.py,
+  # dns_tests/test_pihole.py). Host ports 5390+ stay clear of systemd-resolved.
+  adguardhome:
+    image: adguard/adguardhome:v0.107.79
+    container_name: adguardhome
+    networks:
+      - dnsnetwork
+    depends_on:
+      - dnsproxy
+      - knot
+    ports:
+      - "5390:53/udp"
+      - "5390:53/tcp"
+      - "5391:3000" # /control API
+    volumes:
+      - ./config/adguardhome.yaml:/seed/AdGuardHome.yaml:ro
+      - ../dev/certs/moddns_dev_development_CA.crt:/certs/dev-ca.crt:ro
+    environment:
+      # Go's TLS trust for the DoH/DoT/DoQ connections to the dev-cert proxy.
+      SSL_CERT_FILE: /certs/dev-ca.crt
+    # AdGuard Home rewrites its config file at runtime, so it gets a copy of the
+    # read-only seed rather than the seed itself.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - cp /seed/AdGuardHome.yaml /opt/adguardhome/conf/AdGuardHome.yaml
+        && exec /opt/adguardhome/AdGuardHome --no-check-update
+        -c /opt/adguardhome/conf/AdGuardHome.yaml -w /opt/adguardhome/work
+
+  pihole:
+    image: pihole/pihole:2026.09.0
+    container_name: pihole
+    networks:
+      - dnsnetwork
+    depends_on:
+      - dnsproxy
+    ports:
+      - "5392:53/udp"
+      - "5392:53/tcp"
+    volumes:
+      - ../dev/certs/moddns_dev_development_CA.crt:/certs/dev-ca.crt:ro
+    environment:
+      # Pi-hole has no encrypted-upstream support of its own; it forwards to a
+      # dnscrypt-proxy that the test starts inside this container on 5353 with
+      # the profile's DoH stamp (libs/pihole.py) — the documented Pi-hole setup.
+      FTLCONF_dns_upstreams: 127.0.0.1#5353
+      FTLCONF_dns_listeningMode: all
+      # Each test swaps the stamp behind the same upstream; a cached answer
+      # would leak one profile's verdict into the next test.
+      FTLCONF_dns_cache_size: 0
+      FTLCONF_webserver_api_password: ""
+      FTLCONF_misc_check_load: false
+      TZ: UTC
 
 networks:
   dnsnetwork:
