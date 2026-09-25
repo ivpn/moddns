@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 24, 2026';
+const FAQ_LAST_UPDATED = 'September 25, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -176,11 +176,14 @@ export default function FAQ(): JSX.Element {
     };
 
     const supportedProtocols = (
-        <ul className="list-disc pl-5 space-y-1">
-            <li>DNS-over-HTTPS (DoH) - Port 443</li>
-            <li>DNS-over-TLS (DoT) - Port 853</li>
-            <li>DNS-over-QUIC (DoQ) - Port 853</li>
-        </ul>
+        <div className="space-y-2">
+            <ul className="list-disc pl-5 space-y-1">
+                <li>DNS-over-HTTPS (DoH) - Port 443</li>
+                <li>DNS-over-TLS (DoT) - Port 853</li>
+                <li>DNS-over-QUIC (DoQ) - Port 853</li>
+            </ul>
+            <p>We do not offer unencrypted DNS on port 53. The modDNS address answers encrypted queries only, so it cannot serve as a bootstrap or fallback resolver in AdGuard Home, routers or similar clients; use any plain resolver for that role.</p>
+        </div>
     );
 
     const howToCreateProfile = (
