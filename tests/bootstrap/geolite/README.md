@@ -1,6 +1,6 @@
-These are stub .mmdb files for backend E2E tests, NOT full GeoLite2 databases.
+This is a stub GeoLite2-ASN .mmdb for backend E2E tests, NOT the full GeoLite2 database.
 
-They contain only two entries (AS15169 Google, AS13335 Cloudflare).
-City lookups return empty records but won't crash.
+It contains only the networks the tests query (Google, Cloudflare, Apple, Microsoft ASNs).
+The proxy and dnscheck read the ASN edition only; no City database is mounted.
 
 Regenerate: `cd tests && python3 scripts/generate_stub_mmdb.py`

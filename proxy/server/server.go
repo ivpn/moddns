@@ -123,7 +123,15 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 		log.Error().Err(err).Str("path", serverConfig.Services.GeoIPASNDBPath).Msg("Failed to open ASN MMDB")
 		return nil, fmt.Errorf("ASN lookup: %w", err)
 	}
-	log.Info().Str("catalog", serverConfig.Services.CatalogPath).Str("geodb", serverConfig.Services.GeoIPASNDBPath).Msg("Services blocking enabled")
+	// The file is refreshed on disk by geoipupdate; follow it without a restart.
+	go lookup.Watch(context.Background(), serverConfig.Services.GeoIPASNDBReloadEvery)
+	metrics.ObserveGeoIPDB(prometheus.DefaultRegisterer, lookup)
+	log.Info().
+		Str("catalog", serverConfig.Services.CatalogPath).
+		Str("geodb", serverConfig.Services.GeoIPASNDBPath).
+		Time("geodb_build", lookup.Stats().BuildTime).
+		Dur("geodb_reload", serverConfig.Services.GeoIPASNDBReloadEvery).
+		Msg("Services blocking enabled")
 
 	domainFilter := filter.NewDomainFilter(dnsProxy, cache, servicesCatalog)
 	domainFilter.Metrics = server.Metrics

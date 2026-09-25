@@ -83,9 +83,14 @@ type CacheConfig struct {
 	HMACKey string
 }
 
+// DefaultGeoIPDBReload is how often the ASN database file is checked for a
+// refreshed build when GEOIP_DB_RELOAD is unset.
+const DefaultGeoIPDBReload = 15 * time.Minute
+
 // GeoLookupConfig represents access to the MaxMind GeoIP ASN database
 type GeoLookupConfig struct {
-	DBASNFile string
+	DBASNFile   string
+	ReloadEvery time.Duration
 }
 
 // IsValid check whether config section is valid
@@ -123,8 +128,18 @@ func New() (*Config, error) {
 		return nil, errors.New("CACHE_HMAC_KEY environment variable is required")
 	}
 
+	geoReload := DefaultGeoIPDBReload
+	if raw := os.Getenv("GEOIP_DB_RELOAD"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed <= 0 {
+			return nil, fmt.Errorf("GEOIP_DB_RELOAD must be a positive duration, got %q", raw)
+		}
+		geoReload = parsed
+	}
+
 	geoLookup := &GeoLookupConfig{
-		DBASNFile: os.Getenv("GEOIP_DB_ASN_FILE"),
+		DBASNFile:   os.Getenv("GEOIP_DB_ASN_FILE"),
+		ReloadEvery: geoReload,
 	}
 	if err := geoLookup.IsValid(); err != nil {
 		return nil, err

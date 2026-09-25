@@ -116,8 +116,8 @@ cp api/.env.sample api/.env
 cp proxy/.env.sample proxy/.env
 cp dnscheck/.env.sample dnscheck/.env
 
-# 2. MaxMind GeoLite2 databases (mounted by the proxy and dnscheck)
-#    Place them under dev/bootstrap/GeoLite2-ASN/ and dev/bootstrap/GeoLite2-City/
+# 2. MaxMind GeoLite2-ASN database (mounted by the proxy and dnscheck)
+#    Place GeoLite2-ASN.mmdb under dev/bootstrap/GeoLite2-ASN/
 ```
 
 Then:
