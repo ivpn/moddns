@@ -1,0 +1,97 @@
+name: Workflow lint
+
+# Static analysis for GitHub Actions workflows: zizmor (security) and
+# actionlint (correctness/shellcheck). Findings the team has explicitly
+# accepted are suppressed via .github/zizmor.yml / SHELLCHECK_OPTS below;
+# everything else fails the PR.
+
+on:
+  push:
+    branches: ["develop", "main"]
+  # No paths filter: the gate runs in seconds and must run on every PR so it
+  # can be set as a required check without skipped-status gaps.
+  pull_request:
+    branches: ["develop", "main"]
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Only used by the advisory SARIF-upload step below.
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor (gate)
+        # Offline: this job has no need for the GitHub API, and running
+        # online audits would make the gate depend on network access.
+        # advanced-security: false is required for annotations, and also
+        # means the job fails on zizmor's own exit code instead of always
+        # succeeding once findings are handed off to Advanced Security.
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: "1.30.1"
+          config: .github/zizmor.yml
+          persona: regular
+          online-audits: false
+          min-severity: low
+          advanced-security: false
+          annotations: true
+
+      - name: Run zizmor (SARIF upload, advisory only)
+        # Non-fatal: code scanning is not enabled for this repository yet.
+        # zizmor exits 0 in --format=sarif mode
+        # regardless of findings, but continue-on-error also covers the
+        # upload-sarif sub-step failing if Advanced Security isn't enabled.
+        # The gate above is the source of truth, not this upload.
+        if: always()
+        continue-on-error: true
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: "1.30.1"
+          config: .github/zizmor.yml
+          persona: regular
+          online-audits: false
+          min-severity: low
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      ACTIONLINT_VERSION: "1.7.12"
+      # SC2086 (unquoted expansion), SC2006 (legacy backticks) and SC2129
+      # (style: grouping redirects) findings are tracked separately until
+      # the affected run: blocks are cleaned up. Every other shellcheck
+      # class, including SC2024 (sudo doesn't affect redirects), still gates.
+      SHELLCHECK_OPTS: "-e SC2086 -e SC2006 -e SC2129"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Download actionlint (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          curl -sSLO "${base_url}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSLO "${base_url}/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          tar -xzf "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" actionlint
+
+      - name: Run actionlint
+        # shellcheck is preinstalled on ubuntu-latest and picked up
+        # automatically for run: steps.
+        run: ./actionlint -color

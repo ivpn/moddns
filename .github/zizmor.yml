@@ -1,0 +1,34 @@
+# zizmor configuration — auto-discovered at .github/zizmor.yml by the
+# workflow-lint CI gate (.github/workflows/workflow-lint.yml).
+# See https://docs.zizmor.sh/configuration/ for the schema.
+#
+# Only findings the team has explicitly accepted are ignored here. Anything
+# else zizmor reports must fail the gate — do not add an ignore without
+# discussing it with the team first.
+
+rules:
+  cache-poisoning:
+    ignore:
+      # setup-go/setup-node's built-in caching flagged as a release-cache
+      # heuristic. Both workflows only build and test; they never publish
+      # an artifact, and both jobs run with `permissions: contents: read`
+      # (go.yml) / `permissions: read-all` (frontend.yml), so there is
+      # nothing a poisoned cache entry could get published from.
+      - go.yml
+      - frontend.yml
+
+  artipacked:
+    ignore:
+      # release_staging.yml:22 (job `staging_release`, step "Checkout code"):
+      # semantic-release commits the version bump and changelog back to the
+      # branch, which requires the checkout credential to persist so it can
+      # push. `persist-credentials: false` here would break the release.
+      - release_staging.yml:22
+
+  unpinned-uses:
+    config:
+      policies:
+        # This repo's convention is full SHA pinning for every action,
+        # including first-party `actions/*` ones (see go.yml, frontend.yml,
+        # etc.) — no ref/tag pinning is accepted anywhere.
+        "*": hash-pin
