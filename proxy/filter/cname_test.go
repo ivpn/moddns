@@ -149,7 +149,7 @@ func TestFilterCNAME(t *testing.T) {
 			customHashes:    []string{},
 			wantDecision:    model.DecisionBlock,
 			wantTier:        TierBlocklists,
-			wantReasons:     []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
+			wantReasons:     []string{"blocklist: " + blocklistID, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:       "U3 — intermediate chain name on blocklist: Block T100",
@@ -163,7 +163,7 @@ func TestFilterCNAME(t *testing.T) {
 			customHashes:    []string{},
 			wantDecision:    model.DecisionBlock,
 			wantTier:        TierBlocklists,
-			wantReasons:     []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
+			wantReasons:     []string{"blocklist: " + blocklistID, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:       "U4 — parent of target on blocklist, subdomains rule on: Block T100 + subdomains reason",
@@ -173,11 +173,11 @@ func TestFilterCNAME(t *testing.T) {
 			blocklistEntries: map[string]map[string]bool{
 				blocklistID: {"tracker-park.net": true},
 			},
-			privacySettings: map[string]string{SUBDOMAINS_RULE: RULE_BLOCK},
+			privacySettings: map[string]string{subdomainsRuleSetting: RULE_BLOCK},
 			customHashes:    []string{},
 			wantDecision:    model.DecisionBlock,
 			wantTier:        TierBlocklists,
-			wantReasons:     []string{"blocklist: " + blocklistID, SUBDOMAINS_RULE, REASON_CNAME_UNCLOAKING},
+			wantReasons:     []string{"blocklist: " + blocklistID, model.FilterReasonBlocklistsSubdomains, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:       "U5 — parent of target on blocklist, subdomains rule off: None",
@@ -215,7 +215,7 @@ func TestFilterCNAME(t *testing.T) {
 			},
 			wantDecision: model.DecisionBlock,
 			wantTier:     TierCustomRules,
-			wantReasons:  []string{REASON_CUSTOM_RULES, REASON_CNAME_UNCLOAKING},
+			wantReasons:  []string{model.FilterReasonCustomRules, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:       "U8 — target matches custom Allow rule and a blocklist: Allow T200 wins",
@@ -232,7 +232,7 @@ func TestFilterCNAME(t *testing.T) {
 			},
 			wantDecision: model.DecisionAllow,
 			wantTier:     TierCustomRules,
-			wantReasons:  []string{REASON_CUSTOM_RULES, REASON_CNAME_UNCLOAKING},
+			wantReasons:  []string{model.FilterReasonCustomRules, model.FilterReasonCnameUncloaking},
 		},
 		{
 			// A nil Res is exactly the domain-blocked state (#U10): no upstream
@@ -263,7 +263,7 @@ func TestFilterCNAME(t *testing.T) {
 			customHashes:    []string{},
 			wantDecision:    model.DecisionBlock,
 			wantTier:        TierBlocklists,
-			wantReasons:     []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
+			wantReasons:     []string{"blocklist: " + blocklistID, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:            "U13 — CNAMEs present but no blocklists and no custom rules: None",
@@ -358,14 +358,14 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			name:         "U2 — CNAME target on blocklist, no domain opinion → Blocked",
 			tableRef:     "F/U2",
 			wantStatus:   model.StatusBlocked,
-			wantContains: []string{"blocklist: " + blocklistID, REASON_CNAME_UNCLOAKING},
+			wantContains: []string{"blocklist: " + blocklistID, model.FilterReasonCnameUncloaking},
 		},
 		{
 			name:          "U9 — CNAME target on blocklist + domain custom Allow → Processed",
 			tableRef:      "F/U9",
 			domainResults: []model.StageResult{domainAllowResult()},
 			wantStatus:    model.StatusProcessed,
-			wantContains:  []string{REASON_CUSTOM_RULES},
+			wantContains:  []string{model.FilterReasonCustomRules},
 		},
 	}
 

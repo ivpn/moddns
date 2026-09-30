@@ -13,10 +13,8 @@ import (
 	"github.com/miekg/dns"
 )
 
-const (
-	SUBDOMAINS_RULE   = "blocklists_subdomains_rule"
-	REASON_BLOCKLISTS = "blocklists"
-)
+// subdomainsRuleSetting is the privacy setting key for the subdomains rule.
+const subdomainsRuleSetting = "blocklists_subdomains_rule"
 
 // blocklistMatch describes which blocklist matched a domain and whether the
 // match came from the parent-domain walk rather than an exact entry.
@@ -74,7 +72,7 @@ func matchDomainAgainstBlocklist(ctx context.Context, c cache.Cache, reqCtx *req
 		return &blocklistMatch{blocklistID: blocklistId}, nil
 	}
 
-	if reqCtx.PrivacySettings[SUBDOMAINS_RULE] == RULE_BLOCK {
+	if reqCtx.PrivacySettings[subdomainsRuleSetting] == RULE_BLOCK {
 		// iterate over all parent domains, excluding the TLD and the full
 		// FQDN (already covered by the exact-match check above)
 		parts := strings.Split(fqdn, ".")
@@ -147,7 +145,7 @@ func (f *DomainFilter) filterBlocklists(ctx context.Context, reqCtx *requestcont
 	reasons := "blocklists"
 	msg := "Domain blocked"
 	if match.viaParent {
-		reasons = fmt.Sprintf("%s,%s", REASON_BLOCKLISTS, SUBDOMAINS_RULE)
+		reasons = fmt.Sprintf("%s,%s", model.FilterReasonBlocklists, model.FilterReasonBlocklistsSubdomains)
 		msg = "Subdomain blocked"
 	}
 	e := reqCtx.Logger.Debug().
@@ -158,9 +156,9 @@ func (f *DomainFilter) filterBlocklists(ctx context.Context, reqCtx *requestcont
 	reqCtx.AddDomain(e, question).Msg(msg)
 
 	result.Decision = model.DecisionBlock
-	result.Reasons = append(result.Reasons, "blocklist: "+match.blocklistID)
+	result.Reasons = append(result.Reasons, model.FilterReasonBlocklistPrefix+match.blocklistID)
 	if match.viaParent {
-		result.Reasons = append(result.Reasons, SUBDOMAINS_RULE)
+		result.Reasons = append(result.Reasons, model.FilterReasonBlocklistsSubdomains)
 	}
 	return result, nil
 }

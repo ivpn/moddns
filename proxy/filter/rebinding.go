@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	REASON_REBINDING = "rebinding_protection"
 
 	// rebindingEnabledKey is the field read from the per-profile
 	// settings:<id>:security:rebinding_protection Redis hash.
@@ -57,9 +56,9 @@ func (f *IPFilter) filterRebinding(ctx context.Context, reqCtx *requestcontext.R
 	for _, ip := range ips {
 		if isPrivateRebindingIP(ip, f.RebindingConfig) {
 			result.Decision = model.DecisionBlock
-			result.Reasons = append(result.Reasons, REASON_REBINDING)
+			result.Reasons = append(result.Reasons, model.FilterReasonRebinding)
 			reqCtx.AddDomain(
-				reqCtx.Logger.Debug().Str("reason", REASON_REBINDING).Str("private_ip", ip.String()),
+				reqCtx.Logger.Debug().Str("reason", model.FilterReasonRebinding).Str("private_ip", ip.String()),
 				dctx.Req.Question[0].Name,
 			).Msg("Blocked DNS rebinding (public name → private IP)")
 			return result, nil
