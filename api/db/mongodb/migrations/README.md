@@ -26,6 +26,27 @@ a no-op. Deploy note: proxies still running the previous release between the DCN
 restarts may recreate `statistics` as a plain collection; after the DFN restart, drop it if
 `db.statistics.countDocuments({})` is non-zero.
 
+### Migration 027 (statistics retention collections)
+
+Creates the three per-profile statistics time-series collections the proxy writes to:
+`statistics_30d`, `statistics_90d`, `statistics_1y` (`timeField` `bucket_start`, `metaField`
+`meta` = `{profile_id, device_id}`, granularity `minutes`, `expireAfterSeconds` 2592000 /
+7776000 / 31536000) and a `{meta.profile_id: 1, bucket_start: 1}` index on each (the automatic
+`{meta, bucket_start}` index cannot serve a `meta.profile_id` predicate; explain-verified on 7.0.8
+and 8.2.3 for the statistics read and both purge deletes), then drops the legacy `statistics` collection (already emptied by 026).
+The proxy never creates these collections, so deploy the migration before the proxy release.
+Verified on mongo:7.0.8 with golang-migrate: `drop` of a missing namespace returns `ok: 1`, so
+the migration also applies to a fresh database. `create` is not idempotent (an existing
+collection fails with `NamespaceExists`), so if a run is interrupted after some `create`
+commands, drop the partially created `statistics_*` collections and `force 26` before retrying.
+The index build carries no `commitQuorum` because standalone MongoDB (dev, E2E) rejects it; on
+the degraded production replica set, build with `commitQuorum: "majority"` or fix a hung build
+with `setIndexCommitQuorum` (see the note on 018-style hangs). The down migration drops the three
+collections and their indexes (data is lost) and does not recreate the legacy `statistics`
+collection; after it, an older proxy's `InsertMany` would auto-create plain (non-time-series,
+no TTL) collections under the same names, so drop those before re-running `up`. Proxies still on the previous release may recreate `statistics`
+as a plain collection after the drop; drop it again once every PoP runs the new release.
+
 ### Query logs collections
 
 Note: Query logs time-series collections are created by the proxy service. Their only index is the `{profile_id, timestamp}` meta+time index MongoDB creates automatically on time-series creation (≥6.3) — no code creates query-log indexes explicitly (verified against prod, moddns-shadow#688).
