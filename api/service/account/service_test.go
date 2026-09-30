@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/ivpn/dns/api/cache"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -46,6 +49,8 @@ type AccountTestSuite struct {
 	mockBlocklistRepo    *mocks.BlocklistRepository
 	mockQueryLogsRepo    *mocks.QueryLogsRepository
 	mockStatsRepo        *mocks.StatisticsRepository
+	statsQueue           *cache.RedisCache
+	closeStatsRedis      func()
 	mockSubscriptionRepo *mocks.SubscriptionRepository
 	mockCredentialRepo   *mocks.WebAuthnCredentialRepository
 	mockCache            *mocks.Cachecache
@@ -90,7 +95,12 @@ func (suite *AccountTestSuite) SetupSuite() {
 	// Create dependency services with mocks
 	suite.blocklistService = blocklist.NewBlocklistService(suite.mockBlocklistRepo, suite.mockCache)
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
-	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatsRepo)
+	mr, mrErr := miniredis.Run()
+	suite.Require().NoError(mrErr)
+	statsRedis := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	suite.closeStatsRedis = func() { _ = statsRedis.Close(); mr.Close() }
+	suite.statsQueue = cache.NewRedisCacheFromClient(statsRedis)
+	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatsRepo, statistics.WithPurgeQueue(suite.statsQueue, statistics.PurgeTiming{}))
 	suite.mockSubscriptionRepo = mocks.NewSubscriptionRepository(suite.T())
 	suite.mockCredentialRepo = mocks.NewWebAuthnCredentialRepository(suite.T())
 	suite.subscriptionService = subscription.NewSubscriptionService(suite.mockSubscriptionRepo, suite.mockProfileRepo, suite.mockCache, suite.serviceConfig, config.APIConfig{}, webhookClient.Http{})
@@ -124,6 +134,12 @@ func (suite *AccountTestSuite) SetupSuite() {
 		suite.validator,
 		webhookClient.Http{}, // no-op http client for tests
 	)
+}
+
+func (suite *AccountTestSuite) TearDownSuite() {
+	if suite.closeStatsRedis != nil {
+		suite.closeStatsRedis()
+	}
 }
 
 // TestGetUnfinishedSignupOrPostAccount covers registration reuse & creation scenarios
@@ -1251,6 +1267,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 							}, nil)
 							suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
 							suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
+							suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, profileID, (*time.Time)(nil)).Return(nil)
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
 							suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
 						}
@@ -1331,6 +1348,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	)
 	suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), "profile2").Return(nil)
 	suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), "profile2").Return(nil)
+	suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, "profile2", (*time.Time)(nil)).Return(nil)
 	suite.mockCache.On("DeleteProfileSettings", context.Background(), "profile2").Return(nil)
 	suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, "profile2").Return(nil)
 
@@ -1347,6 +1365,54 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	// would have failed if it had.
 	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, "profile1")
 	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RemoveProfileFromAccount", mock.Anything, mock.Anything, "profile1")
+}
+
+// specRef: api-endpoint-behaviour.md J7 — account purge removes every profile's statistics.
+func (suite *AccountTestSuite) TestPurgeAccountData_RemovesStatistics() {
+	suite.mockAccountRepo.ExpectedCalls = nil
+	suite.mockProfileRepo.ExpectedCalls = nil
+	suite.mockCredentialRepo.ExpectedCalls = nil
+	suite.mockSubscriptionRepo.ExpectedCalls = nil
+	suite.mockStatsRepo.ExpectedCalls = nil
+	suite.mockStatsRepo.Calls = nil
+
+	accountID := "507f1f77bcf86cd799439011"
+	accountObjID, err := primitive.ObjectIDFromHex(accountID)
+	suite.Require().NoError(err)
+	profiles := []model.Profile{
+		{ProfileId: "profileA", AccountId: accountID},
+		{ProfileId: "profileB", AccountId: accountID},
+	}
+
+	suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(nil)
+	suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), accountID).Return(profiles, nil)
+	for _, p := range profiles {
+		suite.mockProfileRepo.On("GetProfileById", context.Background(), p.ProfileId).Return(&model.Profile{ProfileId: p.ProfileId, AccountId: accountID}, nil)
+		suite.mockProfileRepo.On("DeleteProfileById", mock.Anything, p.ProfileId).Return(nil)
+		suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), p.ProfileId).Return(nil)
+		suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, p.ProfileId, (*time.Time)(nil)).Return(nil).Once()
+		suite.mockCache.On("DeleteProfileSettings", context.Background(), p.ProfileId).Return(nil)
+		suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, p.ProfileId).Return(nil)
+	}
+	suite.mockAccountRepo.On("DeleteAccountById", context.Background(), accountID).Return(nil)
+	suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), accountID).Return(nil)
+
+	// Own instance: other tests in this suite swap suite.service for variants
+	// built without a credential repository.
+	svc := account.NewAccountService(suite.serviceConfig, suite.mockAccountRepo, suite.profileService, suite.statisticsService,
+		suite.subscriptionService, suite.mockCredentialRepo, suite.mockCache, suite.mockMailer, suite.mockIDGenerator,
+		suite.validator, webhookClient.Http{})
+	suite.Require().NoError(svc.PurgeAccountData(context.Background(), accountID))
+
+	suite.mockStatsRepo.AssertNumberOfCalls(suite.T(), "DeleteProfileStatistics", len(profiles))
+
+	entries, err := suite.statsQueue.DueStatisticsPurges(context.Background(), time.Now().Add(24*time.Hour), 100)
+	suite.Require().NoError(err)
+	queued := map[string]bool{}
+	for _, e := range entries {
+		queued[e.Member] = true
+	}
+	suite.True(queued["delete:profileA"] && queued["delete:profileB"], "each purged profile gets a delete-kind pass")
 }
 
 // TestDeleteAccount_RetryWithAllProfilesAlreadyGone covers the case where a

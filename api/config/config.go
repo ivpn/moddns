@@ -62,6 +62,12 @@ type ServiceConfig struct {
 	ServicesCatalogReloadEvery time.Duration
 	AnnouncementsURL           string
 	AnnouncementsReloadEvery   time.Duration
+	// ProxySettingsCacheTTL must be >= the proxy's PROFILE_SETTINGS_CACHE_TTL; it
+	// sets how far past a statistics disable the proxy may still count.
+	ProxySettingsCacheTTL time.Duration
+	// StatisticsPurgeDelay, when non-zero, replaces the derived due time of the
+	// delayed statistics purge (end-to-end tests only).
+	StatisticsPurgeDelay time.Duration
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
@@ -199,6 +205,16 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	proxySettingsCacheTTL, err := time.ParseDuration(envOrDefault("PROXY_SETTINGS_CACHE_TTL", "30s"))
+	if err != nil || proxySettingsCacheTTL <= 0 {
+		return nil, fmt.Errorf("invalid PROXY_SETTINGS_CACHE_TTL: %q", os.Getenv("PROXY_SETTINGS_CACHE_TTL"))
+	}
+	var statisticsPurgeDelay time.Duration
+	if v := os.Getenv("STATISTICS_PURGE_DELAY"); v != "" {
+		if statisticsPurgeDelay, err = time.ParseDuration(v); err != nil {
+			return nil, fmt.Errorf("invalid STATISTICS_PURGE_DELAY: %w", err)
+		}
+	}
 	idLimiterExpiration, err := time.ParseDuration(envOrDefault("ID_LIMITER_EXPIRATION", "1h"))
 	if err != nil {
 		return nil, err
@@ -307,6 +323,8 @@ func New() (*Config, error) {
 			ServicesCatalogReloadEvery:     servicesCatalogReloadEvery,
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
+			ProxySettingsCacheTTL:          proxySettingsCacheTTL,
+			StatisticsPurgeDelay:           statisticsPurgeDelay,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
 		},
 		Sentry: &SentryConfig{

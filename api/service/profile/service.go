@@ -179,6 +179,13 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
+	// Queued first: a failed deletion below must not leave statistics without a purge job.
+	now := time.Now()
+	if err := p.StatisticsService.SchedulePurgeForDelete(ctx, profileId, now); err != nil {
+		log.Ctx(ctx).Err(err).Msg(ErrFailedToDeleteProfile.Error())
+		return err
+	}
+
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() (err error) {
@@ -189,6 +196,11 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	eg.Go(func() (err error) {
 		// delete query logs
 		return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+	})
+
+	eg.Go(func() (err error) {
+		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it)
+		return p.StatisticsService.PurgeForDelete(ctx, profileId)
 	})
 
 	eg.Go(func() (err error) {
@@ -417,10 +429,14 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return nil, err
 	}
 
-	if err = p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
-		return nil, err
+	cacheErr := p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false)
+
+	// The change is persisted in Mongo either way, so its side effects must run.
+	p.applySettingsTransitions(ctx, profileId, before, snapshotSettings(profile.Settings))
+	if cacheErr != nil {
+		return nil, cacheErr
 	}
-	return profile, err
+	return profile, nil
 }
 
 // settingsSnapshot is the part of the settings whose transitions have side effects.
@@ -466,6 +482,14 @@ func reconcileStatisticsEnabledAt(before settingsSnapshot, settings *model.Profi
 		settings.Statistics.EnabledAt = nil
 	case before.statistics != nil:
 		settings.Statistics.EnabledAt = before.statistics.EnabledAt
+	}
+}
+
+// applySettingsTransitions runs the side effects of a settings change once per
+// PATCH, after the change is persisted, however many paths it touched.
+func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
+	if before.statisticsEnabled() && !after.statisticsEnabled() {
+		p.StatisticsService.PurgeOnDisable(ctx, profileId, time.Now())
 	}
 }
 

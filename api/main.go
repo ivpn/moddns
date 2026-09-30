@@ -17,6 +17,7 @@ import (
 	"github.com/ivpn/dns/api/internal/migrations"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/service"
+	"github.com/ivpn/dns/api/service/statistics"
 	libscache "github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/store"
@@ -114,6 +115,7 @@ func main() {
 	}
 	cache := cache.NewRedisCacheFromClient(redisClient)
 	cronLocker := cron.NewRedisLocker(redisClient, cronLockTTL)
+	statsPurgeSweeper := statistics.NewPurgeSweeper(cache, db)
 
 	idGen, err := idgen.NewGenerator(idgen.TypeSqids, appConfig.API.ProfileIDMinLength)
 	if err != nil {
@@ -160,7 +162,7 @@ func main() {
 	}
 	go announcementsLoader.Start(context.Background())
 
-	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn, servicesCatalog)
+	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn, servicesCatalog, cache)
 
 	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener, servicesCatalog, announcementsLoader)
 	if err != nil {
@@ -168,7 +170,7 @@ func main() {
 	}
 	server.RegisterRoutes()
 
-	cron.Start(db, db, db, cache, mailer, service, cronLocker)
+	cron.Start(db, db, db, cache, mailer, service, statsPurgeSweeper, cronLocker)
 
 	err = server.App.Listen(appConfig.API.Port)
 	log.Panic().Err(err).Msg("Failed to start REST API")

@@ -3,8 +3,12 @@ package profile_test
 import (
 	"context"
 	"errors"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/ivpn/dns/api/cache"
+	"github.com/redis/go-redis/v9"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
@@ -33,6 +37,7 @@ type ProfileTestSuite struct {
 	blocklistService   *blocklist.BlocklistService
 	queryLogsService   *querylogs.QueryLogsService
 	statisticsService  *statistics.StatisticsService
+	statsQueue         *cache.RedisCache
 	validator          *validator.Validate
 	serverConfig       config.ServerConfig
 	serviceConfig      config.ServiceConfig
@@ -74,7 +79,11 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
 
 	// Create the StatisticsService with mocked dependencies
-	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo)
+	mr := miniredis.RunT(suite.T())
+	statsRedis := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	suite.T().Cleanup(func() { _ = statsRedis.Close() })
+	suite.statsQueue = cache.NewRedisCacheFromClient(statsRedis)
+	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo, statistics.WithPurgeQueue(suite.statsQueue, statistics.PurgeTiming{}))
 
 	// Create the ProfileService with mocks (no catalog needed for non-import tests)
 	suite.service = profile.NewProfileService(
@@ -1510,6 +1519,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 }
 
 // TestDeleteProfile tests the DeleteProfile method
+// specRef: api-endpoint-behaviour.md G5, J7
 func (suite *ProfileTestSuite) TestDeleteProfile() {
 	tests := []struct {
 		name             string
@@ -1582,6 +1592,7 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockCache.ExpectedCalls = nil
 			suite.mockQueryLogsRepo.ExpectedCalls = nil
+			suite.mockStatisticsRepo.ExpectedCalls = nil
 
 			if tt.repoGetError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoGetError)
@@ -1606,6 +1617,9 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 						// Mock QueryLogs service deletion
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
 
+						// Mock statistics deletion (api-endpoint-behaviour.md J7)
+						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(nil)
+
 						// Mock cache deletion
 						if tt.cacheError != nil {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(tt.cacheError)
@@ -1625,6 +1639,13 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 				suite.Contains(err.Error(), tt.expectedError)
 			} else {
 				suite.NoError(err)
+				entries, qerr := suite.statsQueue.DueStatisticsPurges(context.Background(), time.Now().Add(24*time.Hour), 100)
+				suite.Require().NoError(qerr)
+				found := false
+				for _, e := range entries {
+					found = found || e.Member == "delete:"+tt.profileID
+				}
+				suite.True(found, "a delete-kind statistics purge is queued for the deleted profile")
 			}
 		})
 	}

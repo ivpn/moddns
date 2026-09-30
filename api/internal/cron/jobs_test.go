@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/api/service/statistics"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -330,4 +332,25 @@ func TestNotifyExpiring_PostFilterSkipsPDAndGrace(t *testing.T) {
 	// No mailer call expected.
 
 	NotifyExpiringSubscriptions(subRepo, accountRepo, mailer)
+}
+
+type fakeStatisticsSweeper struct {
+	calls int
+	err   error
+}
+
+func (f *fakeStatisticsSweeper) Sweep(_ context.Context, _ time.Time) (statistics.SweepResult, error) {
+	f.calls++
+	return statistics.SweepResult{Done: 1}, f.err
+}
+
+// specRef: api-endpoint-behaviour.md J10
+func TestSweepStatisticsPurges_RunsSweepAndSurvivesErrors(t *testing.T) {
+	ok := &fakeStatisticsSweeper{}
+	SweepStatisticsPurges(ok)
+	require.Equal(t, 1, ok.calls)
+
+	failing := &fakeStatisticsSweeper{err: errors.New("redis down")}
+	require.NotPanics(t, func() { SweepStatisticsPurges(failing) })
+	require.Equal(t, 1, failing.calls)
 }
