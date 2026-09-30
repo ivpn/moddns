@@ -383,6 +383,18 @@ func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string
 		return err
 	}
 
+	rebindingSettings := fmt.Sprintf("settings:%s:%s:%s", profileId, "security", "rebinding_protection")
+	if err := c.client.Del(ctx, rebindingSettings).Err(); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile rebinding protection settings")
+		return err
+	}
+
+	statsSettings := fmt.Sprintf("settings:%s:%s", profileId, "statistics")
+	if err := c.client.Del(ctx, statsSettings).Err(); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile statistics settings")
+		return err
+	}
+
 	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
 
 	// get all custom rule hashes
