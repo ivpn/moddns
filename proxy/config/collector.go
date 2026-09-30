@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/ivpn/dns/proxy/model"
+	"github.com/rs/zerolog/log"
 )
 
 type CollectorConfig interface {
 	GetBatchSize() int
 	GetFrequency() time.Duration
 	GetPopName() string
+	GetMaxOpenEntries() int
 }
 
 type BatchCollectorConfig struct {
@@ -23,6 +25,8 @@ type BatchCollectorConfig struct {
 	// PopName labels service-wide statistics documents; set for the
 	// statistics collector only.
 	PopName string
+	// MaxOpenEntries caps open consented statistics entries; statistics only.
+	MaxOpenEntries int
 }
 
 func (b *BatchCollectorConfig) GetBatchSize() int {
@@ -35,6 +39,10 @@ func (b *BatchCollectorConfig) GetFrequency() time.Duration {
 
 func (b *BatchCollectorConfig) GetPopName() string {
 	return b.PopName
+}
+
+func (b *BatchCollectorConfig) GetMaxOpenEntries() int {
+	return b.MaxOpenEntries
 }
 
 func NewCollectorConfig(collectorType string) (CollectorConfig, error) {
@@ -93,13 +101,28 @@ func loadStatisticsCollectorConfig() (*BatchCollectorConfig, error) {
 		return nil, err
 	}
 
+	maxOpen := DefaultStatisticsMaxOpenEntries
+	if v := os.Getenv("COLLECTOR_STATISTICS_MAX_OPEN_ENTRIES"); v != "" {
+		maxOpen, err = strconv.Atoi(v)
+		if err != nil {
+			return nil, err
+		}
+		if maxOpen <= 0 {
+			return nil, errors.New("COLLECTOR_STATISTICS_MAX_OPEN_ENTRIES must be a positive integer")
+		}
+	}
+
 	return &BatchCollectorConfig{
-		Type:      model.TYPE_STATISTICS,
-		BatchSize: batchSize,
-		Frequency: interval,
-		PopName:   loadPopName(),
+		Type:           model.TYPE_STATISTICS,
+		BatchSize:      batchSize,
+		Frequency:      interval,
+		PopName:        loadPopName(),
+		MaxOpenEntries: maxOpen,
 	}, nil
 }
+
+// DefaultStatisticsMaxOpenEntries keeps an entry-cap flush within four emit chunks.
+const DefaultStatisticsMaxOpenEntries = 20000
 
 const defaultPopName = "unknown"
 
@@ -113,4 +136,18 @@ func loadPopName() string {
 		return strings.TrimSpace(h)
 	}
 	return defaultPopName
+}
+
+// StatisticsMaxSettingsTTL is the longest profile settings cache TTL under which a
+// disabled profile stops being counted within the API's own cache window.
+const StatisticsMaxSettingsTTL = 30 * time.Second
+
+// WarnStatisticsSettingsTTL warns when the settings cache TTL never expires (0) or
+// exceeds StatisticsMaxSettingsTTL, since consented statistics assume a finite, short one.
+func WarnStatisticsSettingsTTL(ttl time.Duration) {
+	if ttl > 0 && ttl <= StatisticsMaxSettingsTTL {
+		return
+	}
+	log.Warn().Dur("ttl", ttl).Dur("max", StatisticsMaxSettingsTTL).
+		Msg("PROFILE_SETTINGS_CACHE_TTL is 0 or above 30s: a profile that turns statistics off keeps being counted until its cached settings expire")
 }

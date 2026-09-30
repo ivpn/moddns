@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -38,6 +39,7 @@ func main() {
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to load server configuration")
 	}
+	config.WarnStatisticsSettingsTTL(serverConfig.Server.ProfileSettingsCacheTTL)
 
 	// Set logging level for zerolog from configuration
 	zerologLevel := utils.ParseZerologLevel(serverConfig.Log.ZerologLevel)
@@ -71,11 +73,17 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create emitter")
 	}
 
+	quit := make(chan struct{})
+	var collectors sync.WaitGroup
+	closeQuit := sync.OnceFunc(func() { close(quit) })
+	stopCollectors := func() {
+		closeQuit()
+		waitFor(&collectors, collectorFlushTimeout)
+	}
 	defer func() {
-		shutdown(nil, emitterI, sentryWriter, nil)
+		shutdown(nil, emitterI, sentryWriter, nil, stopCollectors)
 	}()
 
-	quit := make(chan struct{})
 	queryLogsCollector, err := collector.NewCollector(serverConfig.CollectorQueryLogs, model.TYPE_QUERY_LOGS, quit, emitterI)
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to create query logs collector")
@@ -96,13 +104,13 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create server")
 	}
 
-	go safelyRun(func() {
+	go safelyRun(trackRun(&collectors, func() {
 		_ = queryLogsCollector.Collect()
-	})
+	}))
 
-	go safelyRun(func() {
+	go safelyRun(trackRun(&collectors, func() {
 		_ = statsCollector.Collect()
-	})
+	}))
 
 	var metricsServer *metrics.Server
 	if serverConfig.Metrics.Port > 0 {
@@ -124,8 +132,35 @@ func main() {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 	<-signals
-	close(quit)
-	shutdown(server, emitterI, sentryWriter, metricsServer)
+	shutdown(server, emitterI, sentryWriter, metricsServer, stopCollectors)
+}
+
+// collectorFlushTimeout bounds how long shutdown waits for collectors: the fleet
+// and consented statistics flushes each get up to one EmitTimeout.
+const collectorFlushTimeout = 2*collector.EmitTimeout + 5*time.Second
+
+// trackRun marks fn done on wg only when it returns. A run that panics is
+// restarted by safelyRun and stays counted until the restart returns.
+func trackRun(wg *sync.WaitGroup, fn func()) func() {
+	wg.Add(1)
+	var once sync.Once
+	return func() {
+		fn()
+		once.Do(wg.Done)
+	}
+}
+
+// waitFor reports whether wg finished before the timeout.
+func waitFor(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	select {
+	case <-done:
+		return true
+	case <-time.After(timeout):
+		log.Warn().Msg("Timed out waiting for collectors to flush")
+		return false
+	}
 }
 
 // safelyRun wraps each goroutine with panic recovery to ensure the application continues even if a panic occurs
@@ -147,7 +182,9 @@ func safelyRun(fn func()) {
 	}()
 }
 
-func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sentryzerolog.Writer, metricsServer *metrics.Server) {
+// shutdown stops the listeners first, then lets the collectors flush, and only
+// then disconnects from the database.
+func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sentryzerolog.Writer, metricsServer *metrics.Server, stopCollectors func()) {
 	log.Info().Msg("Shutting down server")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -164,6 +201,8 @@ func shutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *sen
 		}
 		server.Cache.Close()
 	}
+
+	stopCollectors()
 
 	if err := sentryWriter.Close(); err != nil {
 		log.Warn().Err(err).Msg("Failed to flush Sentry writer")
