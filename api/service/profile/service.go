@@ -271,9 +271,13 @@ func (p *ProfileService) DownloadProfileQueryLogs(ctx context.Context, accountId
 
 // GetProfileStatistics returns profile DNS statistics data
 func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error) {
-	_, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
+	}
+
+	if !statisticsEnabled(profile.Settings) {
+		return []model.StatisticsAggregated{{Total: 0}}, nil
 	}
 
 	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan)
@@ -413,6 +417,10 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return nil, err
 	}
 	return profile, err
+}
+
+func statisticsEnabled(s *model.ProfileSettings) bool {
+	return s != nil && s.Statistics != nil && s.Statistics.Enabled
 }
 
 func (p *ProfileService) handleQueryLogsSettingsUpdate(profile *model.Profile, updatePath string, update model.ProfileUpdate) error {

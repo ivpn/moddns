@@ -1976,6 +1976,7 @@ func (suite *ProfileTestSuite) TestDownloadProfileQueryLogs() {
 }
 
 // TestGetStatistics tests the GetStatistics method
+// specRef: api-endpoint-behaviour.md J4
 func (suite *ProfileTestSuite) TestGetStatistics() {
 	tests := []struct {
 		name            string
@@ -1997,11 +1998,25 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "",
 			expectedStats: []model.StatisticsAggregated{
 				{Total: 600}, // 100 blocked + 500 processed = 600 total
 			},
+		},
+		{
+			name:      "Statistics disabled answers zero without querying",
+			profileID: "profile123",
+			accountID: "account123",
+			timespan:  "LAST_1_DAY",
+			existingProfile: &model.Profile{
+				ProfileId: "profile123",
+				AccountId: "account123",
+				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: false}},
+			},
+			expectedStats: []model.StatisticsAggregated{{Total: 0}},
 		},
 		{
 			name:          "Profile not found",
@@ -2020,6 +2035,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account456", // Different account
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "not found",
 		},
@@ -2032,6 +2048,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			statsError:    errors.New("stats error"),
 			expectedError: "stats error",
@@ -2049,7 +2066,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 			} else if tt.existingProfile != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(tt.existingProfile, nil)
 
-				if tt.existingProfile.AccountId == tt.accountID {
+				if tt.existingProfile.AccountId == tt.accountID && tt.existingProfile.Settings.Statistics.Enabled {
 					if tt.statsError != nil {
 						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(nil, tt.statsError)
 					} else {

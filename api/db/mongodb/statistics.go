@@ -2,72 +2,70 @@ package mongodb
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// StatisticsRepository is a MongoDB repository for statistics timeseries collections
+// Retention collections written by the proxy; created by migration 027.
+var statisticsCollectionNames = []string{"statistics_30d", "statistics_90d", "statistics_1y"}
+
+// StatisticsRepository is a MongoDB repository for the statistics time-series collections
 type StatisticsRepository struct {
-	DbName         string
-	CollectionName string
-	statsColl      *mongo.Collection
+	DbName string
+	colls  []*mongo.Collection
 }
 
 // NewStatisticsRepository creates a new StatisticsRepository instance
-func NewStatisticsRepository(client *mongo.Client, dbName, collectionName string) StatisticsRepository {
-	repo := StatisticsRepository{
-		DbName:         dbName,
-		CollectionName: collectionName,
+func NewStatisticsRepository(client *mongo.Client, dbName string) StatisticsRepository {
+	repo := StatisticsRepository{DbName: dbName}
+	for _, name := range statisticsCollectionNames {
+		repo.colls = append(repo.colls, client.Database(dbName).Collection(name))
 	}
-	repo.statsColl = client.Database(repo.DbName).Collection(collectionName)
 
 	return repo
 }
 
-// GetProfileStatistics retrieves aggregated statistics for a profile
+// GetProfileStatistics sums the profile's query totals across all retention collections
 func (r *StatisticsRepository) GetProfileStatistics(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error) {
 	matchFilter := bson.D{
-		primitive.E{Key: "profile_id", Value: profileId},
+		primitive.E{Key: "meta.profile_id", Value: profileId},
 	}
 
 	if timespan != 0 {
+		now := time.Now()
 		matchFilter = append(matchFilter, bson.E{
-			Key: "timestamp",
+			Key: "bucket_start",
 			Value: bson.D{
-				primitive.E{Key: "$lte", Value: time.Now()},
-				primitive.E{Key: "$gte", Value: time.Now().Add(time.Duration(-timespan) * time.Hour)},
+				primitive.E{Key: "$lte", Value: now},
+				primitive.E{Key: "$gte", Value: now.Add(time.Duration(-timespan) * time.Hour)},
 			},
 		})
 	}
 
-	matchStage := bson.D{
-		primitive.E{Key: "$match", Value: matchFilter},
-	}
+	match := bson.D{primitive.E{Key: "$match", Value: matchFilter}}
 
-	groupFilter := bson.D{
+	pipeline := mongo.Pipeline{match}
+	for _, name := range statisticsCollectionNames[1:] {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$unionWith", Value: bson.D{
+			primitive.E{Key: "coll", Value: name},
+			primitive.E{Key: "pipeline", Value: bson.A{match}},
+		}}})
+	}
+	pipeline = append(pipeline, bson.D{primitive.E{Key: "$group", Value: bson.D{
 		primitive.E{Key: "_id", Value: nil},
 		// Note: "total" needs to be the same as in the model
 		primitive.E{Key: "total", Value: bson.D{
 			primitive.E{Key: "$sum", Value: "$queries.total"},
 		}},
-	}
+	}}})
 
-	groupStage := bson.D{
-		primitive.E{Key: "$group", Value: groupFilter},
-	}
-
-	pipeline := mongo.Pipeline{matchStage, groupStage}
-
-	cursor, err := r.statsColl.Aggregate(ctx, pipeline)
+	cursor, err := r.colls[0].Aggregate(ctx, pipeline)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, errors.ErrAccountNotFound
-		}
 		return nil, err
 	}
 
@@ -80,4 +78,21 @@ func (r *StatisticsRepository) GetProfileStatistics(ctx context.Context, profile
 	}
 
 	return results, nil
+}
+
+// DeleteProfileStatistics deletes the profile's documents from every retention
+// collection. Every collection is attempted; the errors are joined.
+func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) error {
+	filter := bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}
+	if before != nil {
+		filter = append(filter, bson.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$lt", Value: *before}}})
+	}
+
+	var errs []error
+	for _, coll := range r.colls {
+		if _, err := coll.DeleteMany(ctx, filter); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
