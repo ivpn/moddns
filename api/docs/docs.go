@@ -3945,6 +3945,10 @@ const docTemplate = `{
             "properties": {
                 "enabled": {
                     "type": "boolean"
+                },
+                "enabled_at": {
+                    "description": "EnabledAt is when Enabled last turned on; never written to Redis or exported.",
+                    "type": "string"
                 }
             }
         },

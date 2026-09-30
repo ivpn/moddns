@@ -17,8 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,7 +27,8 @@ class ModelStatisticsSettings(BaseModel):
     ModelStatisticsSettings
     """ # noqa: E501
     enabled: StrictBool
-    __properties: ClassVar[List[str]] = ["enabled"]
+    enabled_at: Optional[StrictStr] = Field(default=None, description="EnabledAt is when Enabled last turned on; never written to Redis or exported.")
+    __properties: ClassVar[List[str]] = ["enabled", "enabled_at"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -80,7 +81,8 @@ class ModelStatisticsSettings(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "enabled": obj.get("enabled")
+            "enabled": obj.get("enabled"),
+            "enabled_at": obj.get("enabled_at")
         })
         return _obj
 

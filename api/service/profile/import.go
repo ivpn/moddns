@@ -376,6 +376,10 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 
 	if src.Statistics != nil {
 		s.Statistics.Enabled = src.Statistics.Enabled
+		if s.Statistics.Enabled {
+			now := time.Now()
+			s.Statistics.EnabledAt = &now
+		}
 	}
 
 	// Per-list custom rule groups round-trip as-is. Groups that end up with no
