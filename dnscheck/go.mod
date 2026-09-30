@@ -6,7 +6,7 @@ require (
 	github.com/go-playground/validator/v10 v10.25.0
 	github.com/gofiber/fiber/v2 v2.52.12
 	github.com/miekg/dns v1.1.62
-	github.com/oschwald/geoip2-golang v1.11.0
+	github.com/oschwald/geoip2-golang v1.13.0
 	github.com/rs/zerolog v1.34.0
 )
 

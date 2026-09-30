@@ -19,8 +19,7 @@ type Store interface {
 
 // NewStore creates a new Db instance
 func New(dbType string, dbConfig *Config) (Store, error) {
-	switch dbType {
-	case DbTypeMongoDb:
+	if dbType == DbTypeMongoDb {
 		return NewMongoDB(dbConfig)
 	}
 	return nil, errors.New("unknown db type")

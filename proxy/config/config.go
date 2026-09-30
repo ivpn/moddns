@@ -126,6 +126,9 @@ type ServicesConfig struct {
 	CatalogPath        string
 	CatalogReloadEvery time.Duration
 	GeoIPASNDBPath     string
+	// GEOIP_DB_RELOAD: how often the ASN database file is checked for a
+	// refreshed build and reopened in place.
+	GeoIPASNDBReloadEvery time.Duration
 }
 
 // FilteringConfig holds global filter master switches. These are operator-level
@@ -397,6 +400,14 @@ func New() (*Config, error) {
 	}
 
 	geoIPASNDBPath := strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE"))
+	geoIPASNDBReloadEveryStr := strings.TrimSpace(os.Getenv("GEOIP_DB_RELOAD"))
+	if geoIPASNDBReloadEveryStr == "" {
+		geoIPASNDBReloadEveryStr = "15m"
+	}
+	geoIPASNDBReloadEvery, err := time.ParseDuration(geoIPASNDBReloadEveryStr)
+	if err != nil || geoIPASNDBReloadEvery <= 0 {
+		return nil, fmt.Errorf("GEOIP_DB_RELOAD must be a positive duration, got %q", geoIPASNDBReloadEveryStr)
+	}
 
 	cacheAddrs := strings.Split(os.Getenv("CACHE_ADDRESSES"), ",")
 
@@ -412,9 +423,10 @@ func New() (*Config, error) {
 			MaxGoroutines:            loadMaxGoroutines(),
 		},
 		Services: &ServicesConfig{
-			CatalogPath:        servicesCatalogPath,
-			CatalogReloadEvery: servicesCatalogReloadEvery,
-			GeoIPASNDBPath:     geoIPASNDBPath,
+			CatalogPath:           servicesCatalogPath,
+			CatalogReloadEvery:    servicesCatalogReloadEvery,
+			GeoIPASNDBPath:        geoIPASNDBPath,
+			GeoIPASNDBReloadEvery: geoIPASNDBReloadEvery,
 		},
 		Filtering: &FilteringConfig{
 			CNAMEUncloakingEnabled: getEnvBoolDefault("CNAME_UNCLOAKING_ENABLED", true),

@@ -1,12 +1,14 @@
 package dns
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/dnscheck/cache"
 	"github.com/dnscheck/config"
 	"github.com/dnscheck/internal/maxmind"
 	"github.com/miekg/dns"
+	"github.com/rs/zerolog/log"
 )
 
 // GeoLookuper resolves a client IP to its ASN record.
@@ -37,6 +39,13 @@ func New(config *config.Config, cache cache.Cache) (*DNSServer, error) {
 		return nil, fmt.Errorf("geoip: %w", err)
 	}
 	srv.GeoLookup = geoLookup
+	// The file is refreshed on disk by geoipupdate; follow it without a restart.
+	go geoLookup.Watch(context.Background(), config.GeoLookupConfig.ReloadEvery)
+	log.Info().
+		Str("path", config.GeoLookupConfig.DBASNFile).
+		Time("build_time", geoLookup.Stats().BuildTime).
+		Dur("reload_every", config.GeoLookupConfig.ReloadEvery).
+		Msg("GeoIP ASN database loaded")
 
 	// DNS
 	srv.DNSTCP = &dns.Server{Addr: ":53", Net: "tcp"}

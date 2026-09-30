@@ -129,3 +129,35 @@ func TestNewCacheTTLDefaultsAndValidates(t *testing.T) {
 		}
 	}
 }
+
+// specRef: dnscheck-behaviour.md #S8
+func TestNewGeoIPReloadDefaultsAndValidates(t *testing.T) {
+	t.Setenv("CACHE_HMAC_KEY", "test-key")
+	t.Setenv("GEOIP_DB_ASN_FILE", "/opt/dnscheck/GeoLite2-ASN.mmdb")
+	t.Setenv("DNS_AUTH_SERVER_IP_RANGE", "10.5.0.0/16")
+
+	t.Setenv("GEOIP_DB_RELOAD", "")
+	cfg, err := New()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.GeoLookupConfig.ReloadEvery != DefaultGeoIPDBReload {
+		t.Errorf("ReloadEvery = %v, want default %v", cfg.GeoLookupConfig.ReloadEvery, DefaultGeoIPDBReload)
+	}
+
+	t.Setenv("GEOIP_DB_RELOAD", "1h")
+	cfg, err = New()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.GeoLookupConfig.ReloadEvery != time.Hour {
+		t.Errorf("ReloadEvery = %v, want 1h", cfg.GeoLookupConfig.ReloadEvery)
+	}
+
+	for _, bad := range []string{"daily", "-15m", "0"} {
+		t.Setenv("GEOIP_DB_RELOAD", bad)
+		if _, err := New(); err == nil {
+			t.Errorf("expected an error for GEOIP_DB_RELOAD=%q", bad)
+		}
+	}
+}
