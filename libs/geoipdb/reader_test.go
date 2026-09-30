@@ -2,14 +2,14 @@ package geoipdb
 
 import (
 	"context"
-	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/geoip2-golang/v2"
 )
 
 const (
@@ -53,7 +53,7 @@ func openTemp(t *testing.T) (*Reader, string) {
 
 func mustASN(t *testing.T, r *Reader, ip string) *geoip2.ASN {
 	t.Helper()
-	rec, err := r.ASN(net.ParseIP(ip))
+	rec, err := r.ASN(netip.MustParseAddr(ip))
 	if err != nil {
 		t.Fatalf("lookup %s: %v", ip, err)
 	}
@@ -200,7 +200,7 @@ func TestReloadIsSafeUnderConcurrentLookups(t *testing.T) {
 				case <-stop:
 					return
 				default:
-					if rec, err := r.ASN(net.ParseIP("8.8.8.8")); err != nil || rec.AutonomousSystemNumber != 15169 {
+					if rec, err := r.ASN(netip.MustParseAddr("8.8.8.8")); err != nil || rec.AutonomousSystemNumber != 15169 {
 						t.Errorf("lookup during reload: rec=%+v err=%v", rec, err)
 						return
 					}
@@ -257,7 +257,7 @@ func TestCloseThenASNReturnsError(t *testing.T) {
 	if err := r.Close(); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	if _, err := r.ASN(net.ParseIP("8.8.8.8")); err == nil {
+	if _, err := r.ASN(netip.MustParseAddr("8.8.8.8")); err == nil {
 		t.Fatal("expected an error from a closed reader")
 	}
 }
@@ -268,7 +268,7 @@ func BenchmarkASN(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer r.Close()
-	ip := net.ParseIP("8.8.8.8")
+	ip := netip.MustParseAddr("8.8.8.8")
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -286,7 +286,7 @@ func BenchmarkASNRawReader(b *testing.B) {
 		b.Fatal(err)
 	}
 	defer db.Close()
-	ip := net.ParseIP("8.8.8.8")
+	ip := netip.MustParseAddr("8.8.8.8")
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
