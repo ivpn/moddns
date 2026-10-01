@@ -7,6 +7,13 @@
 # discussing it with the team first.
 
 rules:
+  adhoc-packages:
+    ignore:
+      # release_staging.yml:32 installs the semantic-release plugins without
+      # a lockfile. Accepted until the release toolchain is pinned; remove
+      # this entry with that change.
+      - release_staging.yml:32
+
   cache-poisoning:
     ignore:
       # setup-go/setup-node's built-in caching flagged as a release-cache
