@@ -7,17 +7,14 @@ field.
 specRef: proxy-statistics-behaviour #Y1 #Y5 #Y6 #Y7 #Y10.
 """
 
-import os
 import time
 
 import pytest
 from dns.rdatatype import A
 from libs.constants import RESOLVABLE_TEST_DOMAIN
 from libs.dns_lib import assert_not_blocked
+from libs.settings import get_settings
 from pymongo import MongoClient
-
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://admin:admin@localhost:27017/?authSource=admin")
-MONGO_DB = os.getenv("MONGO_DB", "dns")
 
 # Collector batch interval is 10s in this env (tests/config/proxy.env); poll past it.
 STATS_POLL_TIMEOUT_S = 30
@@ -30,8 +27,8 @@ HOUR_S = 3600
 
 @pytest.fixture(scope="module")
 def mongo_db():
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
-    yield client[MONGO_DB]
+    client = MongoClient(get_settings().MONGO_URI, serverSelectionTimeoutMS=5000)
+    yield client[get_settings().MONGO_DB]
     client.close()
 
 

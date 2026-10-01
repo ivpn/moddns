@@ -15,10 +15,8 @@ const STAMPS_WITH_DEVICE = {
   doq: 'sdns://BAcAAAAAAAAAABEyMDQuMTEuMTQuMjU6ODUzAB5MaXZpbmctLVJvb20tYWJjMTIzZGVmNC5kbnMubW9kZG5zLm5ldA',
 };
 
-(test.describe as typeof test.describe)('@layout @desktop Setup → Routers → DNS Stamps tab', () => {
+test.describe('@layout Setup → Routers → DNS Stamps tab', { tag: '@desktop' }, () => {
   test('renders three stamps, tooltip toggles, advanced disclosure triggers refetch with device id', async ({ page }) => {
-    test.skip(!/-desktop$/i.test(test.info().project.name), 'Run only on *-desktop project');
-
     // Track how many times the API was called and with which payload so we can
     // assert the debounced refetch actually happened with the device id.
     const calls: Array<{ profile_id?: string; device_id?: string }> = [];

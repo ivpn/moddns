@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { registerMocks } from '../../mocks/registerMocks';
 
 const mockAccount = {
   account_id: 'abc',
@@ -12,7 +13,8 @@ const setupRoutes = async (
   page: import('@playwright/test').Page,
   onPatch: (body: string | null) => void,
 ) => {
-  await page.addInitScript(() => { window.localStorage.setItem('AUTH_KEY', 'true'); });
+  await registerMocks(page, { authenticated: true, accountOverride: mockAccount });
+  // Registered after registerMocks so these win over its catch-all.
   await page.route('**/api/v1/accounts', async route => {
     if (route.request().method() === 'PATCH') {
       onPatch(route.request().postData());
@@ -20,15 +22,10 @@ const setupRoutes = async (
     }
     return route.continue();
   });
-  await page.route('**/api/v1/accounts/current', async route => {
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockAccount) });
-  });
-  await page.route('**/api/v1/webauthn/passkeys', async route => {
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
-  });
-  await page.route('**/api/v1/profiles', async route => {
-    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) });
-  });
+  await page.route('**/api/v1/sub', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
+  await page.route('**/api/v1/webauthn/passkeys', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 };
 
 // Happy path: two-step flow shows the lockout warning, tolerates a
@@ -36,14 +33,10 @@ const setupRoutes = async (
 test('email change requires confirm step and sends patch on match', async ({ page }) => {
   let patchBody: string | null = null;
   await setupRoutes(page, body => { patchBody = body; });
-  await page.goto('http://localhost:5173/account-preferences');
+  await page.goto('/account-preferences');
 
   const changeBtn = page.getByRole('button', { name: /Change email/i });
-  const isVisible = await changeBtn.isVisible().catch(() => false);
-  if (!isVisible) {
-    test.skip(true, 'Change email button not reachable - app server likely not started');
-    return;
-  }
+  await expect(changeBtn).toBeVisible({ timeout: 10_000 });
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');
@@ -69,14 +62,10 @@ test('email change requires confirm step and sends patch on match', async ({ pag
 test('email change blocked while confirm entry mismatches', async ({ page }) => {
   let patchCalled = false;
   await setupRoutes(page, () => { patchCalled = true; });
-  await page.goto('http://localhost:5173/account-preferences');
+  await page.goto('/account-preferences');
 
   const changeBtn = page.getByRole('button', { name: /Change email/i });
-  const isVisible = await changeBtn.isVisible().catch(() => false);
-  if (!isVisible) {
-    test.skip(true, 'Change email button not reachable - app server likely not started');
-    return;
-  }
+  await expect(changeBtn).toBeVisible({ timeout: 10_000 });
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');

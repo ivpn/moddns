@@ -23,12 +23,8 @@ const withOneRule = {
   },
 };
 
-test.describe('@functional custom rules keep empty groups visible', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(({}, testInfo) => {
-    test.skip(!/chromium-desktop/i.test(testInfo.project.name), 'group folders are exercised on desktop');
-  });
-
+// Group folders are exercised on desktop.
+test.describe('@functional custom rules keep empty groups visible', { tag: '@desktop' }, () => {
   test('renders registry groups when the profile has no custom rules', async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [withoutRules] });
     await page.goto('/custom-rules');

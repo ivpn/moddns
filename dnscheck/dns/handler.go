@@ -171,7 +171,9 @@ func (h *Handler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	default:
 		msg.Ns = h.createSOA()
 	}
-	w.WriteMsg(&msg)
+	if err := w.WriteMsg(&msg); err != nil {
+		log.Error().Err(err).Msg("Failed to write DNS response")
+	}
 }
 
 func (h *Handler) extractConfiguredProfileId(r *dns.Msg) (profileId string) {
@@ -203,13 +205,23 @@ func (h *Handler) createSOA() []dns.RR {
 				Ttl:    TTL},
 			Ns:      "ns1." + dom,
 			Mbox:    "hostmaster." + dom,
-			Serial:  uint32(time.Now().Truncate(time.Hour).Unix()),
+			Serial:  soaSerial(time.Now()),
 			Refresh: 28800,
 			Retry:   7200,
 			Expire:  604800,
 			Minttl:  TTL,
 		},
 	}
+}
+
+// soaSerial is the hour-truncated Unix time. RFC 1035 §3.3.13 makes SERIAL a
+// 32-bit unsigned value, which Unix seconds exceed only in 2106.
+func soaSerial(now time.Time) uint32 {
+	s := now.Truncate(time.Hour).Unix()
+	if s < 0 || s > 1<<32-1 {
+		return 0
+	}
+	return uint32(s)
 }
 
 // clientIP returns the transport-level source address of the query. It is read

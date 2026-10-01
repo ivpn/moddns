@@ -5,10 +5,8 @@ import { registerMocks } from '../../mocks/registerMocks';
 // is very long (QA issue #634 — "The Edit modal breaks when the group name is too
 // long"). The group <Select> value should truncate inside the dialog rather than
 // expand it or spill past its right edge.
-(test.describe as typeof test.describe)('@layout Custom Rules edit modal long group name', () => {
+test.describe('@layout Custom Rules edit modal long group name', { tag: '@desktop' }, () => {
   test('group select stays within the modal', async ({ page }) => {
-    test.skip(!/chromium-desktop/i.test(test.info().project.name), 'desktop layout regression');
-
     const longGroup = 'StuffsadsadadasdasdasdasdasdasdasdasdasdasdaszdasdsddsdsdsFddgd';
     await registerMocks(page, {
       authenticated: true,
@@ -40,8 +38,6 @@ import { registerMocks } from '../../mocks/registerMocks';
   // check icon / off the viewport edge (QA issue #634 follow-up — "Cutoff issue in
   // the group dropdown inside the Edit rule modal when the group name is too long").
   test('open group dropdown option stays on screen', async ({ page }) => {
-    test.skip(!/chromium-desktop/i.test(test.info().project.name), 'desktop layout regression');
-
     const longGroup = 'StuffsadsadadasdasdasdasdasdasdasdasdasdasdaszdasdsddsdsdsFddgd';
     await registerMocks(page, {
       authenticated: true,

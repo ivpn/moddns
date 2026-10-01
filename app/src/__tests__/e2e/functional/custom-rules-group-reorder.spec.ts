@@ -19,12 +19,8 @@ const profile = {
   },
 };
 
-test.describe('@functional custom rules group reorder', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(({}, testInfo) => {
-    test.skip(!/chromium-desktop/i.test(testInfo.project.name), 'pointer-drag reorder is exercised on desktop');
-  });
-
+// Pointer-drag reorder is exercised on desktop.
+test.describe('@functional custom rules group reorder', { tag: '@desktop' }, () => {
   test('renders groups in registry order (not alphabetical)', async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [profile] });
     await page.goto('/custom-rules');

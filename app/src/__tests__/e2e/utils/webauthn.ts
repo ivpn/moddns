@@ -8,6 +8,8 @@ export async function installWebAuthnSuccessStub(page: import('@playwright/test'
     function buf(str: string) { return enc.encode(str).buffer; }
     // @ts-expect-error - mocking WebAuthn API
     navigator.credentials = navigator.credentials || {};
+    // Shape follows what @simplewebauthn/browser's startAuthentication() reads
+    // from a PublicKeyCredential before serialising it for the finish call.
     // @ts-expect-error - mocking WebAuthn API
     navigator.credentials.get = async () => ({
       id: 'cred1',
@@ -18,7 +20,9 @@ export async function installWebAuthnSuccessStub(page: import('@playwright/test'
         signature: buf('sig'),
         userHandle: buf('user'),
       },
-      type: 'public-key'
+      type: 'public-key',
+      authenticatorAttachment: 'platform',
+      getClientExtensionResults: () => ({}),
     });
   });
 }

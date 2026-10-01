@@ -32,24 +32,6 @@ export async function expectNoHorizontalOverflow(page: Page) {
   }
 }
 
-export async function expectVisibleAndInViewport(page: Page, role: string, name: RegExp | string) {
-  const strict = process.env.STRICT_MOBILE === '1';
-  let locator = page.getByRole(role as Parameters<Page['getByRole']>[0], { name });
-  const count = await locator.count();
-  if (count === 0 && role === 'navigation') {
-    // fallback to header or first nav element manually
-    const header = page.locator('header, nav');
-    if (await header.count() > 0) locator = header.first();
-  }
-  try {
-    await expect(locator).toBeVisible({ timeout: 3000 });
-    await expect(locator).toBeInViewport();
-  } catch (err) {
-    if (strict) throw err;
-    console.warn('[SOFT] navigation landmark not visible: ' + (err as Error).message.split('\n')[0]);
-  }
-}
-
 export async function collectTapTargetViolations(page: Page, minSize = 40) {
   const locators = page.getByRole('button');
   const count = await locators.count();

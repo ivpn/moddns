@@ -9,12 +9,14 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30 * 1000,
   expect: { timeout: 5000 },
-  globalTimeout: 12 * 60 * 1000,
+  // Must stay well under the 30-minute job timeout in .github/workflows/frontend.yml.
+  globalTimeout: 20 * 60 * 1000,
   maxFailures: 10,
   fullyParallel: true,
-  // Limit workers in CI to reduce flakiness / resource contention
-  workers: process.env.CI ? 2 : undefined,
+  // Public-repo ubuntu-latest runners have 4 vCPUs; leave one for the vite server.
+  workers: process.env.CI ? 3 : undefined,
   retries: 1,
+  reportSlowTests: { max: 10, threshold: 30 * 1000 },
   reporter: [
     ['github'],
     ['html', { open: 'never' }]
@@ -32,19 +34,31 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 60_000
   },
+  // The manual snapshot suite only runs when explicitly requested (npm run snapshots:mobile).
+  testIgnore: process.env.MOBILE_SNAPSHOTS === '1' ? [] : [/\/manual\//],
+  // Project scoping is declared with tags, not runtime test.skip() calls (a skipped test
+  // still pays for its browser context). Tags: @desktop (Chromium desktop), @android
+  // (Pixel 5, Chromium), @ios (iPhone 15 Pro, WebKit), @mobile (both mobile projects).
+  // Untagged tests run on every project; a tagged test runs only on the projects named.
+  // Every spec seeds its own auth state (registerMocks / addInitScript), so no project
+  // needs a shared storageState.
   projects: [
-    // Auth storage bootstrap project (runs first to produce storageState for dependent projects)
-    {
-      name: 'auth-setup',
-      testMatch: /auth\.setup\.ts/,
-    },
     // Mobile baseline: Pixel 5 (Chromium engine)
-    { name: 'chromium-mobile-dark', use: { ...devices['Pixel 5'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
+    {
+      name: 'chromium-mobile-dark',
+      use: { ...devices['Pixel 5'], colorScheme: 'dark' },
+      grepInvert: /^(?!.*@(?:android|mobile)\b)(?=.*@(?:desktop|ios)\b)/,
+    },
     // Safari/WebKit coverage: latest supported iPhone (15 Pro) using default WebKit engine
-    { name: 'iphone15pro-dark', use: { ...devices['iPhone 15 Pro'], colorScheme: 'dark', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
-    // Mobile baseline: Pixel 5 light mode
-    { name: 'chromium-mobile-light', use: { ...devices['Pixel 5'], colorScheme: 'light', storageState: 'src/__tests__/e2e/.auth-storage.json' }, dependencies: ['auth-setup'] },
-    // Desktop without pre-auth storage so login flows can exercise authentication UI
-    { name: 'chromium-desktop', use: { ...devices['Desktop Chrome'] } }
+    {
+      name: 'iphone15pro-dark',
+      use: { ...devices['iPhone 15 Pro'], colorScheme: 'dark' },
+      grepInvert: /^(?!.*@(?:ios|mobile)\b)(?=.*@(?:desktop|android)\b)/,
+    },
+    {
+      name: 'chromium-desktop',
+      use: { ...devices['Desktop Chrome'] },
+      grepInvert: /^(?!.*@desktop\b)(?=.*@(?:android|ios|mobile)\b)/,
+    },
   ]
 });

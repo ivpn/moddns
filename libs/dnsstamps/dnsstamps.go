@@ -99,15 +99,16 @@ func NewServerStampFromString(stampStr string) (ServerStamp, error) {
 		return ServerStamp{}, errors.New("stamp is too short")
 	}
 
-	if bin[0] == uint8(StampProtoTypePlain) {
+	switch bin[0] {
+	case uint8(StampProtoTypePlain):
 		return newPlainServerStamp(bin)
-	} else if bin[0] == uint8(StampProtoTypeDNSCrypt) {
+	case uint8(StampProtoTypeDNSCrypt):
 		return newDNSCryptServerStamp(bin)
-	} else if bin[0] == uint8(StampProtoTypeDoH) {
+	case uint8(StampProtoTypeDoH):
 		return newDoHServerStamp(bin)
-	} else if bin[0] == uint8(StampProtoTypeTLS) {
+	case uint8(StampProtoTypeTLS):
 		return newDoTOrDoQServerStamp(bin, StampProtoTypeTLS, defaultDoTPort)
-	} else if bin[0] == uint8(StampProtoTypeDoQ) {
+	case uint8(StampProtoTypeDoQ):
 		return newDoTOrDoQServerStamp(bin, StampProtoTypeDoQ, defaultDoQPort)
 	}
 	return ServerStamp{}, errors.New("unsupported stamp version or protocol")
@@ -317,6 +318,18 @@ func newPlainServerStamp(bin []byte) (ServerStamp, error) {
 	return stamp, nil
 }
 
+// lenByte is the one-byte length prefix the stamp format uses for every
+// variable field; a value longer than 255 bytes cannot be encoded and is
+// truncated to the maximum rather than wrapped. Written as an explicit
+// comparison because gosec (G115) only credits a bounds check in that form.
+func lenByte[T ~string | ~[]byte](v T) uint8 {
+	n := len(v)
+	if n > 255 {
+		n = 255
+	}
+	return uint8(n)
+}
+
 func (stamp *ServerStamp) dnsCryptString() string {
 	bin := make([]uint8, 9)
 	bin[0] = uint8(StampProtoTypeDNSCrypt)
@@ -326,13 +339,13 @@ func (stamp *ServerStamp) dnsCryptString() string {
 	if strings.HasSuffix(serverAddrStr, ":"+strconv.Itoa(defaultDNSCryptPort)) {
 		serverAddrStr = serverAddrStr[:len(serverAddrStr)-1-len(strconv.Itoa(defaultDNSCryptPort))]
 	}
-	bin = append(bin, uint8(len(serverAddrStr)))
+	bin = append(bin, lenByte(serverAddrStr))
 	bin = append(bin, []uint8(serverAddrStr)...)
 
-	bin = append(bin, uint8(len(stamp.ServerPk)))
+	bin = append(bin, lenByte(stamp.ServerPk))
 	bin = append(bin, stamp.ServerPk...)
 
-	bin = append(bin, uint8(len(stamp.ProviderName)))
+	bin = append(bin, lenByte(stamp.ProviderName))
 	bin = append(bin, []uint8(stamp.ProviderName)...)
 
 	str := base64.RawURLEncoding.EncodeToString(bin)
@@ -349,7 +362,7 @@ func (stamp *ServerStamp) dohString() string {
 	if strings.HasSuffix(serverAddrStr, ":"+strconv.Itoa(defaultDoHPort)) {
 		serverAddrStr = serverAddrStr[:len(serverAddrStr)-1-len(strconv.Itoa(defaultDoHPort))]
 	}
-	bin = append(bin, uint8(len(serverAddrStr)))
+	bin = append(bin, lenByte(serverAddrStr))
 	bin = append(bin, []uint8(serverAddrStr)...)
 
 	if len(stamp.Hashes) == 0 {
@@ -357,19 +370,21 @@ func (stamp *ServerStamp) dohString() string {
 	} else {
 		last := len(stamp.Hashes) - 1
 		for i, hash := range stamp.Hashes {
-			vlen := len(hash)
+			// Low 7 bits carry the length (hashes are 32-byte SHA-256 digests),
+			// the high bit flags that another hash follows.
+			vlen := lenByte(hash) & 0x7f
 			if i < last {
 				vlen |= 0x80
 			}
-			bin = append(bin, uint8(vlen))
+			bin = append(bin, vlen)
 			bin = append(bin, hash...)
 		}
 	}
 
-	bin = append(bin, uint8(len(stamp.ProviderName)))
+	bin = append(bin, lenByte(stamp.ProviderName))
 	bin = append(bin, []uint8(stamp.ProviderName)...)
 
-	bin = append(bin, uint8(len(stamp.Path)))
+	bin = append(bin, lenByte(stamp.Path))
 	bin = append(bin, []uint8(stamp.Path)...)
 
 	str := base64.RawURLEncoding.EncodeToString(bin)
@@ -385,7 +400,7 @@ func (stamp *ServerStamp) dotOrDoqString(stampType StampProtoType, defaultPort u
 	if strings.HasSuffix(serverAddrStr, ":"+strconv.Itoa(int(defaultPort))) {
 		serverAddrStr = serverAddrStr[:len(serverAddrStr)-1-len(strconv.Itoa(int(defaultPort)))]
 	}
-	bin = append(bin, uint8(len(serverAddrStr)))
+	bin = append(bin, lenByte(serverAddrStr))
 	bin = append(bin, []uint8(serverAddrStr)...)
 
 	if len(stamp.Hashes) == 0 {
@@ -393,16 +408,18 @@ func (stamp *ServerStamp) dotOrDoqString(stampType StampProtoType, defaultPort u
 	} else {
 		last := len(stamp.Hashes) - 1
 		for i, hash := range stamp.Hashes {
-			vlen := len(hash)
+			// Low 7 bits carry the length (hashes are 32-byte SHA-256 digests),
+			// the high bit flags that another hash follows.
+			vlen := lenByte(hash) & 0x7f
 			if i < last {
 				vlen |= 0x80
 			}
-			bin = append(bin, uint8(vlen))
+			bin = append(bin, vlen)
 			bin = append(bin, hash...)
 		}
 	}
 
-	bin = append(bin, uint8(len(stamp.ProviderName)))
+	bin = append(bin, lenByte(stamp.ProviderName))
 	bin = append(bin, []uint8(stamp.ProviderName)...)
 
 	str := base64.RawURLEncoding.EncodeToString(bin)
@@ -418,7 +435,7 @@ func (stamp *ServerStamp) plainString() string {
 	if strings.HasSuffix(serverAddrStr, ":"+strconv.Itoa(defaultPlainPort)) {
 		serverAddrStr = serverAddrStr[:len(serverAddrStr)-1-len(strconv.Itoa(defaultPlainPort))]
 	}
-	bin = append(bin, uint8(len(serverAddrStr)))
+	bin = append(bin, lenByte(serverAddrStr))
 	bin = append(bin, []uint8(serverAddrStr)...)
 
 	str := base64.RawURLEncoding.EncodeToString(bin)

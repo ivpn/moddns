@@ -16,8 +16,7 @@ type Cache interface {
 
 // New creates a new Cache instance whose entries expire after ttl.
 func New(cacheType string, ttl time.Duration) (Cache, error) {
-	switch cacheType {
-	case CacheTypeBigCache:
+	if cacheType == CacheTypeBigCache {
 		return NewBigcache(ttl)
 	}
 	return nil, errors.New("unknown cache type")

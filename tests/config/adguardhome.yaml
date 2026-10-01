@@ -1,0 +1,25 @@
+## AdGuard Home seed config for the backend E2E stack (dns_tests/test_adguard_home.py).
+## The compose entrypoint copies it into place because AdGuard Home rewrites its
+## config at runtime. Tests set the real per-profile upstreams through the
+## /control API; the seed upstream only has to keep AdGuard Home starting.
+http:
+  address: 0.0.0.0:3000
+## No admin user: /control/* is driven unauthenticated from the tests.
+users: []
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  upstream_dns:
+    - 10.5.0.6
+  ## knot, which answers moddns.dev and *.moddns.dev with the proxy's address
+  ## (config/knot.config.yaml). Real deployments use the public DNS here.
+  bootstrap_dns:
+    - 10.5.0.6
+  ## Upstreams change per test; a cached answer would outlive its profile.
+  cache_size: 0
+querylog:
+  enabled: false
+statistics:
+  enabled: false
+schema_version: 29

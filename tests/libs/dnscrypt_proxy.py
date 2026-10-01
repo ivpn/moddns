@@ -14,6 +14,10 @@ The binary is resolved via, in order:
   1. MODDNS_DNSCRYPT_PROXY_BIN env var (explicit path — CI sets this).
   2. A checksum-verified download of the pinned release, cached under the temp dir.
 Non-linux/x86_64 hosts without the env override skip the test.
+
+This is the host-side way of running dnscrypt-proxy. libs/pihole.py reuses the
+same binary but runs it *inside* the Pi-hole container (test_pihole.py), where the
+stamp has to be re-addressed to the proxy's compose address first.
 """
 
 from __future__ import annotations
@@ -142,6 +146,11 @@ netprobe_timeout = 0
 """
 
 
+def render_toml(port: int, stamp: str) -> str:
+    """dnscrypt-proxy config bound to one modDNS stamp, listening on loopback ``port``."""
+    return _TOML.format(port=port, stamp=stamp)
+
+
 class DnscryptProxyClient:
     """A `dnscrypt-proxy` subprocess bound to a single modDNS DoH stamp.
 
@@ -168,7 +177,7 @@ class DnscryptProxyClient:
         self._workdir = tempfile.TemporaryDirectory(prefix="dcp-")
         wd = Path(self._workdir.name)
         cfg = wd / "dnscrypt-proxy.toml"
-        cfg.write_text(_TOML.format(port=self.port, stamp=self._stamp))
+        cfg.write_text(render_toml(self.port, self._stamp))
         self._logpath = wd / "dnscrypt-proxy.log"
 
         env = dict(os.environ)

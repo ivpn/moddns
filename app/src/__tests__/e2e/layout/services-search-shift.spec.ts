@@ -21,7 +21,8 @@ function makeServices(n: number) {
   }));
 }
 
-test.describe('@layout services search bar layout stability', () => {
+// Sets its own viewport: run once per engine (WebKit is where the bug reproduced).
+test.describe('@layout services search bar layout stability', { tag: ['@desktop', '@ios'] }, () => {
   test('search bar width is stable across ALL / BLOCKED / UNBLOCKED filters', async ({ page }) => {
     // No blocked services: clicking BLOCKED renders the empty state (fewest
     // cards) — the strongest trigger for the content column to collapse.

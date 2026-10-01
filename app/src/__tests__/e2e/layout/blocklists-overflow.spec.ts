@@ -38,8 +38,10 @@ async function registerLongBlocklists(page: import('@playwright/test').Page) {
   });
 }
 
+// These tests set their own viewport, so the project's device descriptor is irrelevant;
+// run once per engine (Chromium desktop + WebKit iPhone) instead of on every project.
 for (const vp of VIEWPORTS) {
-  test.describe(`@layout blocklists overflow (${vp.label})`, () => {
+  test.describe(`@layout blocklists overflow (${vp.label})`, { tag: ['@desktop', '@ios'] }, () => {
     test.beforeEach(async ({ page }) => {
       await registerLongBlocklists(page);
       await page.setViewportSize({ width: vp.width, height: vp.height });
@@ -96,7 +98,7 @@ for (const vp of VIEWPORTS) {
 // so a horizontally-overflowing inner container shows up as clipped content rather than
 // a page scrollbar. This guards against that by asserting that no element extends past
 // the viewport's right edge, across every blocklists tab.
-test.describe('@layout blocklists no inner horizontal overflow', () => {
+test.describe('@layout blocklists no inner horizontal overflow', { tag: ['@desktop', '@ios'] }, () => {
   test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true });
     await page.setViewportSize({ width: 390, height: 844 });

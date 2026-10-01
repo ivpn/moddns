@@ -2,41 +2,34 @@ import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 
-// Failing test (initially) to reproduce session expiry UI bug.
-// Expected correct behavior: upon session expiration, user is redirected to /login,
-// login page content is visible, and a session expired toast appears.
-// Current bug: a persistent loading screen (or non-login state) appears instead.
+// The app exposes window.__APP_DISPATCH_EVENT__ so tests can trigger a forced logout
+// without a real 401 round-trip. Both variants must land on /login with the login
+// page rendered (not a lingering loading screen) and raise exactly one toast.
 
-test.describe('@functional Session Expiry', () => {
-  test('redirects to login with session expired toast when force logout helper invoked', async ({ page }) => {
+type ForceLogout = { type: 'auth/forceLogout'; reason?: string; toastType?: string };
+const dispatch = (page: import('@playwright/test').Page, event: ForceLogout) =>
+  page.evaluate((e) => (window as unknown as { __APP_DISPATCH_EVENT__: (ev: unknown) => void }).__APP_DISPATCH_EVENT__(e), event);
+
+test.describe('@functional Forced logout', () => {
+  test.beforeEach(async ({ page }) => {
     await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Default' }] });
-
-  // No console log dependency; production logs removed.
-
-    await page.goto('/home');
-    await expect.poll(() => page.url()).toMatch(/\/home$/);
-
-  // Wait until helper is attached (effect mounts after initial render)
-  await page.evaluate(() => (window as unknown as { __APP_DISPATCH_EVENT__: (e: { type: string; reason: string; toastType: string }) => void }).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
-
-    await expect.poll(() => page.url(), { timeout: 8000 }).toMatch(/\/login$/);
-    await expect(page.getByTestId('login-page')).toBeVisible();
-
-  // Toast assertion by test id
-  await expect(page.getByTestId(AUTH_TOAST_IDS.sessionExpired)).toBeVisible();
-
-  // Behavior verified by URL + toast only.
-  });
-
-  test('session expired toast appears if loader forces logout before navigation to protected page', async ({ page }) => {
-    // Start unauthenticated but attempt to visit a protected route, emulate loader forcing logout (side effect already done in app code when account fetch 401 + flag)
-    await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof_1', name: 'Main' }] });
     await page.goto('/home');
     await expect(page).toHaveURL(/\/home$/);
-    // Trigger forced logout
-  await page.evaluate(() => (window as unknown as { __APP_DISPATCH_EVENT__: (e: { type: string; reason: string; toastType: string }) => void }).__APP_DISPATCH_EVENT__({ type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' }));
+  });
+
+  test('session expiry redirects to login with the session-expired toast', async ({ page }) => {
+    await dispatch(page, { type: 'auth/forceLogout', reason: 'Session expired - please log in again.', toastType: 'error' });
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByTestId('login-page')).toBeVisible();
     await expect(page.getByTestId(AUTH_TOAST_IDS.sessionExpired)).toBeVisible();
+    await expect(page.getByTestId(AUTH_TOAST_IDS.logoutSuccess)).toHaveCount(0);
+  });
+
+  test('manual logout redirects to login with the logged-out toast', async ({ page }) => {
+    await dispatch(page, { type: 'auth/forceLogout' });
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByTestId('login-page')).toBeVisible();
+    await expect(page.getByTestId(AUTH_TOAST_IDS.logoutSuccess)).toBeVisible();
+    await expect(page.getByTestId(AUTH_TOAST_IDS.sessionExpired)).toHaveCount(0);
   });
 });

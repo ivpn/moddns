@@ -18,9 +18,8 @@ async function getMainContainerWidths(page: Page) {
   });
 }
 
-test.describe('@layout Responsive layout matrix', () => {
+test.describe('@layout Responsive layout matrix', { tag: '@desktop' }, () => {
   test('home adapts across breakpoints (mobile + desktop)', async ({ page }) => {
-    if (test.info().project.name !== 'chromium-desktop') test.skip();
     for (const width of BREAKPOINTS) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto('/home');

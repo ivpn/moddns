@@ -1,10 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 
-(test.describe as typeof test.describe)('@layout @desktop Setup side panel desktop', () => {
+test.describe('@layout Setup side panel desktop', { tag: '@desktop' }, () => {
   test('opens platform guide in side panel on desktop', async ({ page }) => {
-    test.skip(!/-desktop$/i.test(test.info().project.name), 'Run only on *-desktop project');
-
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { custom_rules: [] } }] });
 
     await page.goto('/setup');

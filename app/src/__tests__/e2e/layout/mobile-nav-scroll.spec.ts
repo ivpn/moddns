@@ -4,17 +4,7 @@ import { registerMocks } from '../../mocks/registerMocks';
 // This test ensures the mobile navigation drawer is vertically scrollable in landscape mode
 // and that the last interactive element (support button) can be brought into view.
 
-// Some projects in config have suffixes like -dark; match loosely
-function isMobileLike(name?: string) {
-  return !!name && /(chromium-mobile|iphone15pro)/i.test(name);
-}
-
-test.describe('@layout mobile nav scrollability', () => {
-  // eslint-disable-next-line no-empty-pattern
-  test.beforeEach(async ({}, testInfo) => {
-    if (!isMobileLike(testInfo.project.name)) test.skip();
-  });
-
+test.describe('@layout mobile nav scrollability', { tag: '@mobile' }, () => {
   test('navigation menu scrolls to bottom in landscape', async ({ page }) => {
   await registerMocks(page, { authenticated: true, customProfiles: [{ id: 'p1', profile_id: 'p1', name: 'Default', settings: { logs: { enabled: true }, custom_rules: [] } }] });
     await page.goto('/home');

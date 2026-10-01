@@ -102,7 +102,7 @@ Note that the DNS proxy terminates TLS for the encrypted DNS transports itself; 
 - Docker & Docker Compose
 - Make (for the provided automation scripts)
 - Node.js 22+ and npm (for the React application)
-- Go 1.26.5+ for `proxy/`, Go 1.25.8+ for the other Go modules (toolchain versions pinned in the `go.mod` files)
+- Go 1.26.8+ for every Go module (toolchain version pinned in each `go.mod`)
 - Python 3.11 (for the backend E2E tests)
 - mkcert (optional, for trusted local TLS certificates)
 
@@ -116,8 +116,8 @@ cp api/.env.sample api/.env
 cp proxy/.env.sample proxy/.env
 cp dnscheck/.env.sample dnscheck/.env
 
-# 2. MaxMind GeoLite2 databases (mounted by the proxy and dnscheck)
-#    Place them under dev/bootstrap/GeoLite2-ASN/ and dev/bootstrap/GeoLite2-City/
+# 2. MaxMind GeoLite2-ASN database (mounted by the proxy and dnscheck)
+#    Place GeoLite2-ASN.mmdb under dev/bootstrap/GeoLite2-ASN/
 ```
 
 Then:

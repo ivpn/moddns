@@ -100,7 +100,8 @@ async function uploadJsonToDropzone(page: import('@playwright/test').Page, paylo
 // Test 1: Happy-path export — specRef E1, E13-E15
 // ---------------------------------------------------------------------------
 
-test.describe('Backup & Restore — Export', () => {
+// Dialog flows are engine-agnostic; run them once, on the desktop project.
+test.describe('Backup & Restore — Export', { tag: '@desktop' }, () => {
     test('happy-path export triggers file download', async ({ page }) => {
         await setupBaseMocks(page);
 
@@ -172,7 +173,7 @@ test.describe('Backup & Restore — Export', () => {
 // Test 2: Happy-path import — specRef I1, I4, I19-I20
 // ---------------------------------------------------------------------------
 
-test.describe('Backup & Restore — Import', () => {
+test.describe('Backup & Restore — Import', { tag: '@desktop' }, () => {
     test('happy-path import shows results in step 3 and Done closes dialog', async ({ page }) => {
         await setupBaseMocks(page);
 
@@ -319,10 +320,10 @@ test.describe('Backup & Restore — Import', () => {
     // action buttons off-screen because DialogBody dropped its height cap at >=640px
     // wide (sm:max-h-none). On a short-but-wide viewport the header + submit button
     // must stay in view, with the body scrolling internally.
-    test('import confirm step stays within a short laptop viewport (no cutoff)', async ({ page }) => {
-        // Short-but-wide viewport ~ a 13" laptop content area. Layout bugs like this
-        // are engine-specific — running this under the WebKit (iphone15pro-dark)
-        // project exercises the engine that shifts where Chromium does not.
+    // Short-but-wide viewport ~ a 13" laptop content area. Layout bugs like this
+    // are engine-specific — the extra @ios tag also runs it under WebKit, the
+    // engine that shifts where Chromium does not.
+    test('import confirm step stays within a short laptop viewport (no cutoff)', { tag: '@ios' }, async ({ page }) => {
         await page.setViewportSize({ width: 1000, height: 560 });
 
         await setupBaseMocks(page);

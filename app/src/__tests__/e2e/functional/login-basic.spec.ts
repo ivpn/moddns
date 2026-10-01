@@ -1,9 +1,8 @@
-import { expect } from '@playwright/test';
-import { desktopOnly as test } from '../utils/desktopOnly';
+import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
 
-test.describe('Login basic flows (desktop only)', () => {
+test.describe('Login basic flows', { tag: '@desktop' }, () => {
   test('successful password login shows toast and redirects', async ({ page }) => {
     // Dynamic auth state for account/profile routes
     let authed = false;

@@ -31,9 +31,7 @@ const buildSystemdResolvedConfig = (ctx: LinuxGuideDeps) => {
     const servers = ctx.ipv6 ? `${ctx.primaryIp}#${sni} ${ctx.ipv6}#${sni}` : `${ctx.primaryIp}#${sni}`;
     return `[Resolve]\nDNS=${servers}\nDNSOverTLS=yes\nDomains=~.`;
 };
-const buildDnsmasqConfig = (ctx: LinuxGuideDeps) => `no-resolv\nbogus-priv\nstrict-order\nserver=${ctx.primaryIp}\nadd-cpe-id=${ctx.profileId}`;
 const systemdRestartCmd = 'sudo systemctl restart systemd-resolved';
-const dnsmasqRestartCmd = 'sudo systemctl restart dnsmasq';
 const dnscryptRestartCmd = 'sudo systemctl restart dnscrypt-proxy';
 
 // Factory to build tab definitions with current context
@@ -121,7 +119,6 @@ const LinuxDnscryptProxyTab = ({ deps }: { deps: LinuxGuideDeps }) => {
 
 function buildTabs(deps: LinuxGuideDeps): TabDef[] {
     const systemdResolvedConfig = buildSystemdResolvedConfig(deps);
-    const dnsmasqConfig = buildDnsmasqConfig(deps);
     return [
         {
             key: 'systemd-resolved',
@@ -143,28 +140,6 @@ function buildTabs(deps: LinuxGuideDeps): TabDef[] {
                         <StepBlock number={3}>
                             Restart the systemd-resolved service: <code className="font-mono text-xs">{systemdRestartCmd}</code>
                             <CodeBlock value={systemdRestartCmd} />
-                        </StepBlock>
-                    </div>
-                </div>
-            )
-        },
-        {
-            key: 'dnsmasq',
-            label: 'dnsmasq',
-            content: (
-                <div className="flex flex-col gap-6">
-                    <div className="text-sm font-medium text-[var(--tailwind-colors-slate-200)]">Linux dnsmasq - DNS-over-TLS</div>
-                    <div className="flex flex-col gap-6">
-                        <StepBlock number={1}>
-                            On the modDNS website, go to <span className="font-medium">Settings &gt; Advanced Settings</span>, and set <span className="font-medium">DNSSEC OK (DO) bit</span> to <span className="font-medium">Disable</span>
-                        </StepBlock>
-                        <StepBlock number={2}>
-                            Edit <code className="font-mono text-xs">dnsmasq.conf</code>:
-                            <CodeBlock value={dnsmasqConfig} />
-                        </StepBlock>
-                        <StepBlock number={3}>
-                            Restart the dnsmasq service: <code className="font-mono text-xs">{dnsmasqRestartCmd}</code>
-                            <CodeBlock value={dnsmasqRestartCmd} />
                         </StepBlock>
                     </div>
                 </div>

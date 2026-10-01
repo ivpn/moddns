@@ -22,12 +22,10 @@ const getHeaderBar = (page: Page) => page.getByTestId('app-header-bar');
 
 // NOTE: We rely on data-testid="app-header-bar" set in mobile header only.
 
-// Only run on chromium-desktop project to leverage viewport resizing; skip mobile projects with fixed device descriptors
-// (project name check similar to existing responsive.spec)
+// Desktop only: viewport resizing needs a project without a fixed device descriptor.
 
-test.describe('@layout responsive navigation (navDesktop)', () => {
+test.describe('@layout responsive navigation (navDesktop)', { tag: '@desktop' }, () => {
   test.beforeEach(async ({ page }) => {
-    if (test.info().project.name !== 'chromium-desktop') test.skip();
     await ensureAuthed(page);
   });
 
