@@ -36,7 +36,7 @@ const importFixturesDir = "testdata/import"
 // validationErrorPrefix ("Validation error: ") to this, which the assertions add.
 var serverFixtureMessages = map[string]string{
 	"01-too-many-profiles.moddns.json":                    "profiles must be at most 100",
-	"02-too-many-custom-rules.moddns.json":                "customRules must be at most 1000",
+	"02-too-many-custom-rules.moddns.json":                "customRules must be at most 10000",
 	"03-too-many-blocklists.moddns.json":                  "blocklists must be at most 100",
 	"04-invalid-default-rule.moddns.json":                 "defaultRule must be one of: block, allow",
 	"05-invalid-blocklists-subdomains-rule.moddns.json":   "blocklistsSubdomainsRule must be one of: block, allow",

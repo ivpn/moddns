@@ -107,6 +107,11 @@ var (
 	// specRef: I16, I17, I18
 	ErrMaxProfilesExceeded = NewProfileError("import would exceed maximum profile limit")
 
+	// ErrMaxCustomRulesExceeded is returned when importing would push the
+	// account's custom rules over model.MaxCustomRulesPerAccount.
+	// specRef: I25
+	ErrMaxCustomRulesExceeded = NewProfileError("import would exceed maximum custom rules limit")
+
 	// ErrMaxCustomRulesReached is returned when creating custom rules would push
 	// the account over the model.MaxCustomRulesPerAccount cap. Its message is shown
 	// directly to the user (the frontend surfaces response.data.error), so it is

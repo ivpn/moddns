@@ -56,12 +56,6 @@ func (r ImportResult) MarshalJSON() ([]byte, error) {
 // Phase 2+ removes this.
 var ErrImportNotImplemented = errors.New("import not implemented")
 
-// maxCustomRulesPerProfile is the per-profile cap on imported custom rules.
-// The DTO layer enforces the same limit (ExportedSettings.CustomRules max=1000),
-// but the service applies a defensive check to remain safe when called without HTTP.
-// specRef: S6, V10
-const maxCustomRulesPerProfile = model.ExportedCustomRulesLimit
-
 // maxCustomRuleGroupsPerList is the per-list defensive cap on imported groups.
 // The DTO layer enforces the same limit (CustomRuleGroups.Block/Allow max), but
 // the service caps too so it stays safe when called without HTTP. Groups aren't
@@ -118,7 +112,7 @@ const staleExportThreshold = 90 * 24 * time.Hour
 // a new set of race-condition surfaces; today the cost outweighs the bound
 // on orphan visibility.
 //
-// specRef: M4, M5, M6, I1, I8, I11, I16-I23, V1-V17, S2-S6
+// specRef: M4, M5, M6, I1, I8, I11, I16-I23, I25, V1-V17, S2-S6
 func (p *ProfileService) Import(
 	ctx context.Context,
 	accountId, mode string,
@@ -172,6 +166,24 @@ func (p *ProfileService) Import(
 			currentCount,
 			incomingCount,
 			p.ServiceConfig.MaxProfiles,
+		)
+	}
+
+	// specRef: I25 -- account-wide custom-rules cap, counted before rule
+	// re-validation so the bound holds regardless of which rules are later skipped.
+	currentRules := countCustomRules(existingProfiles)
+	incomingRules := 0
+	for _, ep := range payload.Profiles {
+		if ep.Settings != nil {
+			incomingRules += len(ep.Settings.CustomRules)
+		}
+	}
+	if currentRules+incomingRules > model.MaxCustomRulesPerAccount {
+		return nil, fmt.Errorf("%w: would exceed limit of %d custom rules per account; have %d, payload has %d",
+			ErrMaxCustomRulesExceeded,
+			model.MaxCustomRulesPerAccount,
+			currentRules,
+			incomingRules,
 		)
 	}
 
@@ -279,16 +291,7 @@ func (p *ProfileService) importOneProfile(
 	// Decision: skip-with-warning for rules that fail validation (see top-level comment).
 	var validRules []*model.CustomRule
 	if ep.Settings != nil {
-		// specRef: S6, V10 -- defensive cap; DTO layer enforces the same limit.
-		rulesInput := ep.Settings.CustomRules
-		if len(rulesInput) > maxCustomRulesPerProfile {
-			rulesInput = rulesInput[:maxCustomRulesPerProfile]
-			warnings = append(warnings, fmt.Sprintf(
-				"profile '%s': custom rules capped at %d; %d rules were discarded",
-				resolvedName, maxCustomRulesPerProfile, len(ep.Settings.CustomRules)-maxCustomRulesPerProfile,
-			))
-		}
-		validRules, warnings = p.validateAndMapRules(rulesInput, resolvedName, accountId, warnings)
+		validRules, warnings = p.validateAndMapRules(ep.Settings.CustomRules, resolvedName, accountId, warnings)
 	}
 
 	// Defensive per-list cap on groups; the DTO layer enforces the same limit, but

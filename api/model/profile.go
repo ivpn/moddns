@@ -13,18 +13,14 @@ import (
 // the tags and this const stay aligned — do not change one without the other.
 const MaxProfileNameLen = 50
 
-// MaxCustomRulesPerAccount is the limit on custom rules: the total across all of
-// an account's profiles. It guards Mongo, Redis and the proxy's in-memory rule
-// cache. Enforced by the create path (service/profile/custom_rules.go).
+// MaxCustomRulesPerAccount is the one limit on custom rules: the total across
+// all of an account's profiles. It bounds what create and import may write, and
+// therefore what an export carries, so export never truncates. It guards Mongo,
+// Redis and the proxy's in-memory rule cache. Enforced in
+// service/profile/custom_rules.go (create) and service/profile/import.go (import).
+// Mirrors the `max` literal in the ExportedSettings.CustomRules tag in export.go;
+// the regression test in profile_test.go keeps them aligned — change both together.
 const MaxCustomRulesPerAccount = 10000
-
-// ExportedCustomRulesLimit is the maximum number of custom rules emitted per
-// profile in an export, and therefore the per-profile cap accepted on import.
-// Exports beyond this are truncated (oldest-first) so an export always re-imports
-// cleanly regardless of how many rules a profile accumulated. Mirrors the
-// `max` literal in the ExportedSettings.CustomRules tag in export.go; the
-// regression test in profile_test.go keeps them aligned — change both together.
-const ExportedCustomRulesLimit = 1000
 
 // ExportedCustomRuleGroupsLimit is the maximum number of custom-rule groups emitted
 // per list (denylist/allowlist) in an export, and the per-list cap accepted on
