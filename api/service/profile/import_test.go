@@ -818,56 +818,72 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Per-profile custom rules cap (S6 defensive service check)
+// Account-wide custom rules cap (I25)
 // ---------------------------------------------------------------------------
 
-// specRef: S6
-// The DTO layer rejects payloads with > model.ExportedCustomRulesLimit rules
-// before the service is reached. If the service is called directly with an
-// oversized rule list it truncates to the cap and adds a warning. This test
-// exercises that defensive code path.
-func TestImport_ExceedsRulesCap_PerProfile(t *testing.T) {
+// profileWithRules returns an existing account profile holding n custom rules.
+func profileWithRules(n int) model.Profile {
+	rules := make([]*model.CustomRule, n)
+	for i := range rules {
+		rules[i] = &model.CustomRule{Action: model.ACTION_BLOCK, Value: "example.com"}
+	}
+	return model.Profile{Settings: &model.ProfileSettings{CustomRules: rules}}
+}
+
+// exportedRules returns n valid exported custom rules.
+func exportedRules(n int) []model.ExportedCustomRule {
+	rules := make([]model.ExportedCustomRule, n)
+	for i := range rules {
+		rules[i] = model.ExportedCustomRule{Action: "block", Value: "example.com"}
+	}
+	return rules
+}
+
+// specRef: I25
+// Existing account rules plus every rule in the payload must stay within
+// model.MaxCustomRulesPerAccount; otherwise the whole import is rejected before
+// any profile is written.
+func TestImport_CustomRules_WouldExceedAccountCap(t *testing.T) {
 	env := newImportTestEnv(t, "secret", 100)
 
+	// 9,000 existing (split across profiles) + 1,001 incoming (split) = 10,001 > 10,000
 	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
-		Return([]model.Profile{}, nil).Once()
+		Return([]model.Profile{profileWithRules(5000), profileWithRules(4000), {}}, nil).Once()
+
+	envelope := minimalEnvelope(2)
+	envelope.Profiles[0].Settings = &model.ExportedSettings{CustomRules: exportedRules(1000)}
+	envelope.Profiles[1].Settings = &model.ExportedSettings{CustomRules: exportedRules(1)}
+
+	result, err := env.svc.Import(context.Background(), "acct1",
+		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, profile.ErrMaxCustomRulesExceeded)
+	env.profileRepo.AssertNotCalled(t, "CreateProfile", mock.Anything, mock.Anything)
+}
+
+// specRef: I25
+func TestImport_CustomRules_ReachesAccountCapExactly(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+
+	// 9,000 existing + 1,000 incoming = 10,000, exactly the cap.
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+		Return([]model.Profile{profileWithRules(9000)}, nil).Once()
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
 		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
-	// Exactly the cap must reach the repository (the service truncates the overflow rule).
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
-		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == model.ExportedCustomRulesLimit
-		})).Return(nil).Once()
-	// AddCustomRules is called once with all capped rules via pipeline.
+		mock.MatchedBy(func(rules []*model.CustomRule) bool { return len(rules) == 1000 })).Return(nil).Once()
 	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
-		mock.MatchedBy(func(rules []*model.CustomRule) bool {
-			return len(rules) == model.ExportedCustomRulesLimit
-		})).Return(nil).Once()
-
-	// Build one rule over the cap.
-	rules := make([]model.ExportedCustomRule, model.ExportedCustomRulesLimit+1)
-	for i := range rules {
-		rules[i] = model.ExportedCustomRule{Action: "block", Value: "example.com"}
-	}
+		mock.MatchedBy(func(rules []*model.CustomRule) bool { return len(rules) == 1000 })).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
-	envelope.Profiles[0].Settings = &model.ExportedSettings{CustomRules: rules}
+	envelope.Profiles[0].Settings = &model.ExportedSettings{CustomRules: exportedRules(1000)}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
 	require.NoError(t, err)
 	assert.Len(t, result.CreatedProfileIds, 1)
-
-	found := false
-	for _, w := range result.Warnings {
-		if strings.Contains(w, "capped") {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "expected a rules-cap warning; got: %v", result.Warnings)
 }
 
 // ---------------------------------------------------------------------------
