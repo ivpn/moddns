@@ -927,7 +927,7 @@ export interface ModelExportedSettings {
      */
     'customRuleGroups'?: ModelCustomRuleGroups;
     /**
-     * CustomRules holds the profile\'s custom filtering rules, capped at 1000 per profile.
+     * CustomRules holds the profile\'s custom filtering rules, bounded by the account-wide cap.
      * @type {Array<ModelExportedCustomRule>}
      * @memberof ModelExportedSettings
      */
