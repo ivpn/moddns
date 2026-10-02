@@ -3,8 +3,12 @@ package profile_test
 import (
 	"context"
 	"errors"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/ivpn/dns/api/cache"
+	"github.com/redis/go-redis/v9"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
@@ -33,6 +37,7 @@ type ProfileTestSuite struct {
 	blocklistService   *blocklist.BlocklistService
 	queryLogsService   *querylogs.QueryLogsService
 	statisticsService  *statistics.StatisticsService
+	statsQueue         *cache.RedisCache
 	validator          *validator.Validate
 	serverConfig       config.ServerConfig
 	serviceConfig      config.ServiceConfig
@@ -74,7 +79,11 @@ func (suite *ProfileTestSuite) SetupSuite() {
 	suite.queryLogsService = querylogs.NewQueryLogsService(suite.mockQueryLogsRepo)
 
 	// Create the StatisticsService with mocked dependencies
-	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo)
+	mr := miniredis.RunT(suite.T())
+	statsRedis := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	suite.T().Cleanup(func() { _ = statsRedis.Close() })
+	suite.statsQueue = cache.NewRedisCacheFromClient(statsRedis)
+	suite.statisticsService = statistics.NewStatisticsService(suite.mockStatisticsRepo, statistics.WithPurgeQueue(suite.statsQueue, statistics.PurgeTiming{}))
 
 	// Create the ProfileService with mocks (no catalog needed for non-import tests)
 	suite.service = profile.NewProfileService(
@@ -1510,6 +1519,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 }
 
 // TestDeleteProfile tests the DeleteProfile method
+// specRef: api-endpoint-behaviour.md G5, J7
 func (suite *ProfileTestSuite) TestDeleteProfile() {
 	tests := []struct {
 		name             string
@@ -1582,6 +1592,7 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockCache.ExpectedCalls = nil
 			suite.mockQueryLogsRepo.ExpectedCalls = nil
+			suite.mockStatisticsRepo.ExpectedCalls = nil
 
 			if tt.repoGetError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoGetError)
@@ -1606,6 +1617,9 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 						// Mock QueryLogs service deletion
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
 
+						// Mock statistics deletion (api-endpoint-behaviour.md J7)
+						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(nil)
+
 						// Mock cache deletion
 						if tt.cacheError != nil {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(tt.cacheError)
@@ -1625,6 +1639,13 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 				suite.Contains(err.Error(), tt.expectedError)
 			} else {
 				suite.NoError(err)
+				entries, qerr := suite.statsQueue.DueStatisticsPurges(context.Background(), time.Now().Add(24*time.Hour), 100)
+				suite.Require().NoError(qerr)
+				found := false
+				for _, e := range entries {
+					found = found || e.Member == "delete:"+tt.profileID
+				}
+				suite.True(found, "a delete-kind statistics purge is queued for the deleted profile")
 			}
 		})
 	}
@@ -1976,6 +1997,7 @@ func (suite *ProfileTestSuite) TestDownloadProfileQueryLogs() {
 }
 
 // TestGetStatistics tests the GetStatistics method
+// specRef: api-endpoint-behaviour.md J4
 func (suite *ProfileTestSuite) TestGetStatistics() {
 	tests := []struct {
 		name            string
@@ -1997,11 +2019,25 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "",
 			expectedStats: []model.StatisticsAggregated{
 				{Total: 600}, // 100 blocked + 500 processed = 600 total
 			},
+		},
+		{
+			name:      "Statistics disabled answers zero without querying",
+			profileID: "profile123",
+			accountID: "account123",
+			timespan:  "LAST_1_DAY",
+			existingProfile: &model.Profile{
+				ProfileId: "profile123",
+				AccountId: "account123",
+				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: false}},
+			},
+			expectedStats: []model.StatisticsAggregated{{Total: 0}},
 		},
 		{
 			name:          "Profile not found",
@@ -2020,6 +2056,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account456", // Different account
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "not found",
 		},
@@ -2032,6 +2069,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			statsError:    errors.New("stats error"),
 			expectedError: "stats error",
@@ -2049,7 +2087,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 			} else if tt.existingProfile != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(tt.existingProfile, nil)
 
-				if tt.existingProfile.AccountId == tt.accountID {
+				if tt.existingProfile.AccountId == tt.accountID && tt.existingProfile.Settings.Statistics.Enabled {
 					if tt.statsError != nil {
 						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(nil, tt.statsError)
 					} else {

@@ -2,11 +2,13 @@ package cron
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-co-op/gocron/v2"
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/internal/email"
+	"github.com/ivpn/dns/api/service/statistics"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,6 +19,11 @@ type AccountPurger interface {
 	PurgeAccountData(ctx context.Context, accountId string) error
 }
 
+// StatisticsPurgeSweeper runs the due statistics purge jobs.
+type StatisticsPurgeSweeper interface {
+	Sweep(ctx context.Context, now time.Time) (statistics.SweepResult, error)
+}
+
 // Start initializes the gocron scheduler with all periodic jobs.
 //
 // The locker enforces single-flight execution across load-balanced API
@@ -24,7 +31,7 @@ type AccountPurger interface {
 // a given tick runs the job body; the others silently skip. The MongoDB
 // notified flags remain the durable dedup safety net for the rare cases
 // where the lock cannot serialise (e.g. Redis failover mid-tick).
-func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer, purger AccountPurger, locker gocron.Locker) {
+func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer, purger AccountPurger, statsSweeper StatisticsPurgeSweeper, locker gocron.Locker) {
 	s, err := gocron.NewScheduler(gocron.WithDistributedLocker(locker))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create cron scheduler")
@@ -64,6 +71,15 @@ func Start(subRepo repository.SubscriptionRepository, accountRepo repository.Acc
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to schedule duplicate token_hash report job")
+		return
+	}
+
+	_, err = s.NewJob(
+		gocron.CronJob("* * * * *", false), // every minute
+		gocron.NewTask(SweepStatisticsPurges, statsSweeper),
+	)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to schedule statistics purge sweep job")
 		return
 	}
 

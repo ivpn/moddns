@@ -1262,3 +1262,46 @@ func TestImport_LongName_TruncatedNotRejected(t *testing.T) {
 	}
 	assert.True(t, found, "expected truncation warning; got: %v", result.Warnings)
 }
+
+// specRef: F19 — statistics arriving enabled get enabled_at = import time; disabled ones get none.
+func TestImport_StatisticsEnabledAt(t *testing.T) {
+	cases := []struct {
+		name    string
+		enabled bool
+	}{
+		{"enabled stamps enabled_at", true},
+		{"disabled leaves enabled_at empty", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newImportTestEnv(t, "secret", 100)
+
+			var captured *model.ProfileSettings
+			env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+				Return([]model.Profile{}, nil).Once()
+			env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+			env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+				captured = p.Settings
+				return true
+			})).Return(nil).Once()
+			env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+				mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+
+			envelope := minimalEnvelope(1)
+			envelope.Profiles[0].Settings = &model.ExportedSettings{Statistics: &model.ExportedStatistics{Enabled: tc.enabled}}
+
+			start := time.Now()
+			_, err := env.svc.Import(context.Background(), "acct1", profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+			require.NoError(t, err)
+			require.NotNil(t, captured)
+			assert.Equal(t, tc.enabled, captured.Statistics.Enabled)
+			if tc.enabled {
+				require.NotNil(t, captured.Statistics.EnabledAt)
+				assert.False(t, captured.Statistics.EnabledAt.Before(start.Add(-time.Second)))
+			} else {
+				assert.Nil(t, captured.Statistics.EnabledAt)
+			}
+		})
+	}
+}

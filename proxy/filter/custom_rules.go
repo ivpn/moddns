@@ -17,10 +17,9 @@ import (
 )
 
 const (
-	ACTION_ALLOW        = "allow"
-	ACTION_BLOCK        = "block"
-	REASON_CUSTOM_RULES = "custom_rules"
-	WILDCARD            = "*"
+	ACTION_ALLOW = "allow"
+	ACTION_BLOCK = "block"
+	WILDCARD     = "*"
 )
 
 // matchDomain checks if the domain matches the pattern, handling wildcards
@@ -121,18 +120,18 @@ func (f *DomainFilter) filterCustomRules(ctx context.Context, reqCtx *requestcon
 			switch hash["action"] {
 			case ACTION_BLOCK:
 				e := reqCtx.Logger.Debug().
-					Str("reason", REASON_CUSTOM_RULES).
+					Str("reason", model.FilterReasonCustomRules).
 					Str("protocol", string(dctx.Proto)).
 					Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
 				reqCtx.MaybeDomain(e, "pattern", hash["value"])
 				reqCtx.AddDomain(e, question).Msg("Domain blocked")
 				result.Decision = model.DecisionBlock
-				result.Reasons = append(result.Reasons, REASON_CUSTOM_RULES)
+				result.Reasons = append(result.Reasons, model.FilterReasonCustomRules)
 				return result, nil
 
 			case ACTION_ALLOW:
 				e := reqCtx.Logger.Debug().
-					Str("reason", REASON_CUSTOM_RULES)
+					Str("reason", model.FilterReasonCustomRules)
 				reqCtx.MaybeDomain(e, "pattern", hash["value"])
 				reqCtx.AddDomain(e, question).Msg("Domain allowed")
 				allowMatched = true
@@ -142,7 +141,7 @@ func (f *DomainFilter) filterCustomRules(ctx context.Context, reqCtx *requestcon
 
 	if allowMatched {
 		result.Decision = model.DecisionAllow
-		result.Reasons = append(result.Reasons, REASON_CUSTOM_RULES)
+		result.Reasons = append(result.Reasons, model.FilterReasonCustomRules)
 		return result, nil
 	}
 
@@ -198,12 +197,12 @@ func (f *IPFilter) filterCustomRules(ctx context.Context, reqCtx *requestcontext
 
 	if blockMatched {
 		result.Decision = model.DecisionBlock
-		result.Reasons = append(result.Reasons, REASON_CUSTOM_RULES)
+		result.Reasons = append(result.Reasons, model.FilterReasonCustomRules)
 		return result, nil
 	}
 	if allowMatched {
 		result.Decision = model.DecisionAllow
-		result.Reasons = append(result.Reasons, REASON_CUSTOM_RULES)
+		result.Reasons = append(result.Reasons, model.FilterReasonCustomRules)
 		return result, nil
 	}
 
@@ -246,10 +245,10 @@ func (f *IPFilter) matchASNRule(ip net.IP, ruleASN uint, action string) (allow b
 
 	switch action {
 	case ACTION_BLOCK:
-		log.Debug().Str("reason", REASON_CUSTOM_RULES).Uint("asn", asn).Msg("Blocked ASN")
+		log.Debug().Str("reason", model.FilterReasonCustomRules).Uint("asn", asn).Msg("Blocked ASN")
 		return false, true
 	case ACTION_ALLOW:
-		log.Debug().Str("reason", REASON_CUSTOM_RULES).Uint("asn", asn).Msg("Allowing ASN")
+		log.Debug().Str("reason", model.FilterReasonCustomRules).Uint("asn", asn).Msg("Allowing ASN")
 		return true, false
 	default:
 		return false, false
@@ -267,12 +266,12 @@ func (f *IPFilter) matchIPRule(reqCtx *requestcontext.RequestContext, ip net.IP,
 	// Answer IPs are DNS response content — gated like domains.
 	switch hash["action"] {
 	case ACTION_BLOCK:
-		e := reqCtx.Logger.Debug().Str("reason", REASON_CUSTOM_RULES)
+		e := reqCtx.Logger.Debug().Str("reason", model.FilterReasonCustomRules)
 		reqCtx.MaybeDomain(e, "pattern", hash["value"])
 		reqCtx.MaybeDomain(e, "ip", ip.String()).Msg("Blocked IP")
 		return false, true
 	case ACTION_ALLOW:
-		e := reqCtx.Logger.Debug().Str("reason", REASON_CUSTOM_RULES)
+		e := reqCtx.Logger.Debug().Str("reason", model.FilterReasonCustomRules)
 		reqCtx.MaybeDomain(e, "pattern", hash["value"])
 		reqCtx.MaybeDomain(e, "ip", ip.String()).Msg("Allowing IP")
 		return true, false

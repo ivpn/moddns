@@ -179,6 +179,13 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
+	// Queued first: a failed deletion below must not leave statistics without a purge job.
+	now := time.Now()
+	if err := p.StatisticsService.SchedulePurgeForDelete(ctx, profileId, now); err != nil {
+		log.Ctx(ctx).Err(err).Msg(ErrFailedToDeleteProfile.Error())
+		return err
+	}
+
 	eg, egCtx := errgroup.WithContext(ctx)
 
 	eg.Go(func() (err error) {
@@ -189,6 +196,11 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	eg.Go(func() (err error) {
 		// delete query logs
 		return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+	})
+
+	eg.Go(func() (err error) {
+		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it)
+		return p.StatisticsService.PurgeForDelete(ctx, profileId)
 	})
 
 	eg.Go(func() (err error) {
@@ -271,9 +283,13 @@ func (p *ProfileService) DownloadProfileQueryLogs(ctx context.Context, accountId
 
 // GetProfileStatistics returns profile DNS statistics data
 func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error) {
-	_, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
+	}
+
+	if !statisticsEnabled(profile.Settings) {
+		return []model.StatisticsAggregated{{Total: 0}}, nil
 	}
 
 	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan)
@@ -321,6 +337,8 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 	if err != nil {
 		return nil, err
 	}
+
+	before := snapshotSettings(profile.Settings)
 
 	for _, update := range updates {
 		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
@@ -405,14 +423,74 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
+	reconcileStatisticsEnabledAt(before, profile.Settings, time.Now())
+
 	if err := p.ProfileRepository.Update(ctx, profileId, profile); err != nil {
 		return nil, err
 	}
 
-	if err = p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
-		return nil, err
+	cacheErr := p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false)
+
+	// The change is persisted in Mongo either way, so its side effects must run.
+	p.applySettingsTransitions(ctx, profileId, before, snapshotSettings(profile.Settings))
+	if cacheErr != nil {
+		return nil, cacheErr
 	}
-	return profile, err
+	return profile, nil
+}
+
+// settingsSnapshot is the part of the settings whose transitions have side effects.
+type settingsSnapshot struct {
+	statistics *model.StatisticsSettings
+	logs       *model.LogsSettings
+}
+
+func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
+	var snap settingsSnapshot
+	if s == nil {
+		return snap
+	}
+	if s.Statistics != nil {
+		c := *s.Statistics
+		snap.statistics = &c
+	}
+	if s.Logs != nil {
+		c := *s.Logs
+		snap.logs = &c
+	}
+	return snap
+}
+
+func statisticsEnabled(s *model.ProfileSettings) bool {
+	return s != nil && s.Statistics != nil && s.Statistics.Enabled
+}
+
+func (s settingsSnapshot) statisticsEnabled() bool {
+	return s.statistics != nil && s.statistics.Enabled
+}
+
+// reconcileStatisticsEnabledAt derives enabled_at from the net change of a whole
+// PATCH: set on false->true, cleared on true->false, otherwise as it was.
+func reconcileStatisticsEnabledAt(before settingsSnapshot, settings *model.ProfileSettings, now time.Time) {
+	if settings == nil || settings.Statistics == nil {
+		return
+	}
+	switch {
+	case !before.statisticsEnabled() && settings.Statistics.Enabled:
+		settings.Statistics.EnabledAt = &now
+	case before.statisticsEnabled() && !settings.Statistics.Enabled:
+		settings.Statistics.EnabledAt = nil
+	case before.statistics != nil:
+		settings.Statistics.EnabledAt = before.statistics.EnabledAt
+	}
+}
+
+// applySettingsTransitions runs the side effects of a settings change once per
+// PATCH, after the change is persisted, however many paths it touched.
+func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
+	if before.statisticsEnabled() && !after.statisticsEnabled() {
+		p.StatisticsService.PurgeOnDisable(ctx, profileId, time.Now())
+	}
 }
 
 func (p *ProfileService) handleQueryLogsSettingsUpdate(profile *model.Profile, updatePath string, update model.ProfileUpdate) error {

@@ -1,0 +1,68 @@
+[
+  {
+    "create": "statistics_30d",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "granularity": "minutes"
+    },
+    "expireAfterSeconds": 2592000
+  },
+  {
+    "create": "statistics_90d",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "granularity": "minutes"
+    },
+    "expireAfterSeconds": 7776000
+  },
+  {
+    "create": "statistics_1y",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "granularity": "minutes"
+    },
+    "expireAfterSeconds": 31536000
+  },
+  {
+    "createIndexes": "statistics_30d",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_90d",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_1y",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "drop": "statistics"
+  }
+]

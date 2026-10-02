@@ -1,0 +1,5 @@
+[
+  { "drop": "statistics_30d" },
+  { "drop": "statistics_90d" },
+  { "drop": "statistics_1y" }
+]

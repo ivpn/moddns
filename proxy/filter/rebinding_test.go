@@ -127,7 +127,7 @@ func TestFilterRebinding(t *testing.T) {
 			assert.Equal(t, tt.want, res.Decision, "row %s: %s", tt.tableRef, tt.name)
 			assert.Equal(t, TierRebinding, res.Tier, "row %s: tier", tt.tableRef)
 			if tt.want == model.DecisionBlock {
-				assert.Contains(t, res.Reasons, REASON_REBINDING, "row %s: reason", tt.tableRef)
+				assert.Contains(t, res.Reasons, model.FilterReasonRebinding, "row %s: reason", tt.tableRef)
 			}
 		})
 	}
@@ -163,7 +163,7 @@ func TestFilterRebinding_HTTPSHint(t *testing.T) {
 	res, err := f.filterRebinding(context.Background(), reqCtx, dctx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.DecisionBlock, res.Decision)
-	assert.Contains(t, res.Reasons, REASON_REBINDING)
+	assert.Contains(t, res.Reasons, model.FilterReasonRebinding)
 }
 
 func TestIsRebindingAllowedSuffix(t *testing.T) {

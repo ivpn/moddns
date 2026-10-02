@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/mocks"
@@ -69,14 +70,15 @@ var exportedFields = map[string]string{
 // NOT exported. Each entry must cite the spec row (or rationale) recording that
 // decision — this is what makes the omission auditable instead of accidental.
 var exportExclusions = map[string]string{
-	"ID":                          "F9 — internal Mongo id; never exported",
-	"ProfileId":                   "F9 — internal id; regenerated on import",
-	"AccountId":                   "account-scoped; must never appear in an export (golden-envelope PII guard)",
-	"Settings.ProfileId":          "F9 — internal id; regenerated on import",
-	"Settings.CustomRules.ID":     "F9 — internal id; regenerated on import",
-	"Settings.CustomRules.Syntax": "derived from Value at parse time; re-derived on import",
-	"Settings.CustomRules.Order":  "F9 — positional; re-derived from array index on import",
-	"Settings.Advanced.Recursor":  "F7 — staging-only control, deliberately not exported",
+	"ID":                            "F9 — internal Mongo id; never exported",
+	"ProfileId":                     "F9 — internal id; regenerated on import",
+	"AccountId":                     "account-scoped; must never appear in an export (golden-envelope PII guard)",
+	"Settings.ProfileId":            "F9 — internal id; regenerated on import",
+	"Settings.CustomRules.ID":       "F9 — internal id; regenerated on import",
+	"Settings.CustomRules.Syntax":   "derived from Value at parse time; re-derived on import",
+	"Settings.CustomRules.Order":    "F9 — positional; re-derived from array index on import",
+	"Settings.Advanced.Recursor":    "F7 — staging-only control, deliberately not exported",
+	"Settings.Statistics.EnabledAt": "F19 — server-derived transition time; set to import time when statistics arrive enabled",
 }
 
 // collectLeafPaths walks t depth-first and appends dot-separated paths of every
@@ -99,7 +101,8 @@ func collectLeafPaths(t reflect.Type, prefix string, out *[]string) {
 		*out = append(*out, prefix)
 		return
 	}
-	if t.Kind() != reflect.Struct {
+	// time.Time has no exported fields; without this it would vanish from the walk.
+	if t.Kind() != reflect.Struct || t == reflect.TypeOf(time.Time{}) {
 		*out = append(*out, prefix)
 		return
 	}

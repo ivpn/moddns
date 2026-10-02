@@ -270,3 +270,19 @@ func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionR
 	}
 	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }
+
+// SweepStatisticsPurges runs the statistics purge jobs that are due. Logs carry
+// counts only.
+func SweepStatisticsPurges(sweeper StatisticsPurgeSweeper) {
+	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "sweep-statistics-purges").Logger().WithContext(ctx)
+
+	res, err := sweeper.Sweep(ctx, time.Now())
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics purge sweep failed")
+		return
+	}
+	if res.Done+res.Failed+res.Dropped > 0 {
+		log.Ctx(ctx).Info().Int("done", res.Done).Int("failed", res.Failed).Int("dropped", res.Dropped).Msg("Cron: statistics purge sweep complete")
+	}
+}

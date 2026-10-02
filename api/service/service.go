@@ -52,10 +52,11 @@ type Service struct {
 // New constructs the service layer. servicesCatalog is used by ProfileService
 // for service-ID validation on import (spec row V9); pass nil to skip catalog
 // validation (safe-default for environments without a catalog file).
-func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
+// statsPurgeQueue may be nil, which disables the delayed statistics purge pass.
+func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader, statsPurgeQueue cache.StatisticsPurgeQueue) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
-	statsSrv := statistics.NewStatisticsService(store)
+	statsSrv := statistics.NewStatisticsService(store, statistics.WithPurgeQueue(statsPurgeQueue, statistics.PurgeTiming{ProxySettingsTTL: cfg.Service.ProxySettingsCacheTTL, DelayOverride: cfg.Service.StatisticsPurgeDelay}))
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, store, blocklistSrv, queryLogsSrv, statsSrv, servicesCatalog, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)

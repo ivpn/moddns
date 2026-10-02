@@ -1378,6 +1378,12 @@ export interface ModelStatisticsSettings {
      * @memberof ModelStatisticsSettings
      */
     'enabled': boolean;
+    /**
+     * EnabledAt is when Enabled last turned on; never written to Redis or exported.
+     * @type {string}
+     * @memberof ModelStatisticsSettings
+     */
+    'enabled_at'?: string;
 }
 /**
  * 
