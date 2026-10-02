@@ -13,12 +13,10 @@ import (
 // the tags and this const stay aligned — do not change one without the other.
 const MaxProfileNameLen = 50
 
-// MaxCustomRulesPerProfile is the hard upper ceiling on how many custom rules a
-// single profile may hold. It is a high abuse/resource guard (protecting Redis
-// memory and the proxy's in-memory rule cache), not a product-facing limit —
-// real users never reach it. Enforced by the create path
-// (service/profile/custom_rules.go).
-const MaxCustomRulesPerProfile = 10000
+// MaxCustomRulesPerAccount is the limit on custom rules: the total across all of
+// an account's profiles. It guards Mongo, Redis and the proxy's in-memory rule
+// cache. Enforced by the create path (service/profile/custom_rules.go).
+const MaxCustomRulesPerAccount = 10000
 
 // ExportedCustomRulesLimit is the maximum number of custom rules emitted per
 // profile in an export, and therefore the per-profile cap accepted on import.
