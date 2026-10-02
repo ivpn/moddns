@@ -1,0 +1,50 @@
+# gitleaks configuration, read by the "Secret scan" CI gate
+# (.github/workflows/secrets.yml). Schema: https://github.com/gitleaks/gitleaks#configuration
+#
+# Every allowlist below is scoped to one rule and one path (or one exact value
+# shape), and covers only material that is public by design. Do not widen an
+# entry to a directory or drop its targetRules; add a new, equally narrow entry
+# with a comment saying why the value is not a secret.
+
+title = "modDNS gitleaks config"
+
+[extend]
+useDefault = true
+
+# Local-development TLS key and the test-only mobileconfig signing key
+# (see dev/certs/README.md). Both are generated for localhost / moddns.dev and
+# for unit and E2E tests; neither is trusted by, or deployed to, any real host.
+[[allowlists]]
+description = "Development and test keys under dev/certs"
+targetRules = ["private-key"]
+paths = [
+  '''^dev/certs/moddns\.dev\+4-key\.pem$''',
+  '''^dev/certs/private_key\.pem$''',
+]
+
+# Fixed throwaway RSA keys carried over from the upstream pkcs7 package's test
+# suite; they only exercise PKCS #7 signing and parsing in tests.
+[[allowlists]]
+description = "Upstream pkcs7 test fixtures"
+targetRules = ["private-key"]
+paths = ['''^api/service/apple/pkcs7/pkcs7_test\.go$''']
+
+# Mailtrap email template identifiers. They name a template and grant no
+# access on their own; the API token lives in deployment configuration.
+[[allowlists]]
+description = "Mailtrap template UUIDs"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^api/internal/email/mailtrap/mailtrap\.go$''']
+regexTarget = "secret"
+regexes = ['''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
+
+# Illustrative session document shown in the public Privacy Policy to explain
+# what a session record contains.
+[[allowlists]]
+description = "Sample session record in the Privacy Policy"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^app/src/pages/legal/PrivacyPolicy\.tsx$''']
+regexTarget = "match"
+regexes = ['''^token": "''']
