@@ -11,11 +11,20 @@ import (
 
 const CacheTypeRedis = "redis"
 
+// SettingsField is one field of a profile settings hash; Hash is the key suffix after
+// settings:<profile_id>: (e.g. "logs", "security:dnssec").
+type SettingsField struct {
+	Hash  string
+	Field string
+	Value any
+}
+
 // Cache is an interface for caching functionalities
 type Cache interface {
 	CacheBase
 	AddBlocklist(ctx context.Context, blocklistId string, data []byte) error
 	CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error
+	SetProfileSettingsFields(ctx context.Context, profileId string, fields []SettingsField) error
 	AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error
 	RemoveCustomRule(ctx context.Context, profileId, customRuleId string) error
 	DeleteProfileSettings(ctx context.Context, profileId string) error

@@ -2,9 +2,26 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/ivpn/dns/api/model"
 )
+
+// FieldSet sets one stored field, named by its dotted document path.
+type FieldSet struct {
+	Field string
+	Value any
+}
+
+// ProfileFieldsUpdate is applied to one profile as a single atomic update.
+type ProfileFieldsUpdate struct {
+	Set []FieldSet
+	// EnabledAtNow becomes settings.statistics.enabled_at when Set turns statistics on;
+	// enabled_at is derived from the stored value being replaced (api-endpoint-behaviour.md G22).
+	EnabledAtNow time.Time
+	// AppendCustomRules are appended unless a stored rule has the same value.
+	AppendCustomRules []*model.CustomRule
+}
 
 // ProfileRepository represents a profile repository
 type ProfileRepository interface {
@@ -25,7 +42,9 @@ type ProfileRepository interface {
 	// block maps to nil.
 	GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)
 	GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error)
-	Update(ctx context.Context, profileId string, profile *model.Profile) error
+	// UpdateFields applies upd atomically and returns the profile as stored immediately before
+	// the update and as re-read from the primary after it.
+	UpdateFields(ctx context.Context, profileId string, upd ProfileFieldsUpdate) (before, after *model.Profile, err error)
 	UpdateSettings(ctx context.Context, profileId string, settings *model.ProfileSettings) error
 	DeleteProfileById(ctx context.Context, profileId string) error
 }

@@ -345,15 +345,66 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 	return nil
 }
 
-// UpdateProfile updates profile data
+// UpdateProfile validates every operation against the stored profile, then writes the
+// touched fields as one atomic update (api-endpoint-behaviour.md G20-G23).
 func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId string, updates []model.ProfileUpdate) (*model.Profile, error) {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
 	}
 
-	before := snapshotSettings(profile.Settings)
+	touched, err := p.applyPatchOperations(ctx, profile, accountId, updates)
+	if err != nil {
+		return nil, err
+	}
+	if len(touched) == 0 {
+		return profile, nil
+	}
 
+	upd := repository.ProfileFieldsUpdate{EnabledAtNow: p.clock()}
+	var redisFields []cache.SettingsField
+	for _, path := range touched {
+		f := patchFields[path]
+		value := f.value(profile)
+		upd.Set = append(upd.Set, repository.FieldSet{Field: f.field, Value: value})
+		if f.hash != "" {
+			redisFields = append(redisFields, cache.SettingsField{Hash: f.hash, Field: f.hashField, Value: value})
+		}
+	}
+	if slices.Contains(touched, pathDefaultRule) && profile.Settings.Privacy.DefaultRule == model.DEFAULT_RULE_BLOCK {
+		// TODO: improve after wildcard support is implemented
+		for _, domain := range p.ServerConfig.AllowedDomains {
+			upd.AppendCustomRules = append(upd.AppendCustomRules, &model.CustomRule{
+				ID:     primitive.NewObjectID(),
+				Action: model.ACTION_ALLOW,
+				Value:  domain,
+			})
+		}
+	}
+
+	before, after, err := p.ProfileRepository.UpdateFields(ctx, profileId, upd)
+	if err != nil {
+		return nil, err
+	}
+
+	var cacheErr error
+	if len(redisFields) > 0 {
+		cacheErr = p.Cache.SetProfileSettingsFields(ctx, profileId, redisFields)
+	}
+
+	// The change is persisted in Mongo either way, so its side effects must run.
+	beforeSnap := snapshotSettings(before.Settings)
+	p.applySettingsTransitions(ctx, profileId, beforeSnap, beforeSnap.patched(touched, profile.Settings))
+	if cacheErr != nil {
+		return nil, cacheErr
+	}
+	return after, nil
+}
+
+// applyPatchOperations validates and applies every operation to profile in memory and
+// returns the paths that replace a value, in first-seen order.
+func (p *ProfileService) applyPatchOperations(ctx context.Context, profile *model.Profile, accountId string, updates []model.ProfileUpdate) ([]string, error) {
+	var touched []string
 	for _, update := range updates {
 		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
 		internalValue, err := cast.ToStringMapE(update.Value)
@@ -395,6 +446,10 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			}
 		}
 
+		if _, ok := patchFields[update.Path]; ok && update.Operation == model.UpdateOperationReplace && !slices.Contains(touched, update.Path) {
+			touched = append(touched, update.Path)
+		}
+
 		switch update.Path {
 		case "/name":
 			err = p.handleProfileNameUpdate(ctx, profile, accountId, update)
@@ -405,24 +460,6 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			err = p.handleDefaultRuleUpdate(profile, update)
 			if err != nil {
 				return nil, err
-			}
-
-			if profile.Settings.Privacy.DefaultRule == model.DEFAULT_RULE_BLOCK {
-				// TODO: improve after wildcard support is implemented
-				confguredDomains := make([]string, len(profile.Settings.CustomRules))
-				for _, userRule := range profile.Settings.CustomRules {
-					confguredDomains = append(confguredDomains, userRule.Value)
-				}
-				for _, domain := range p.ServerConfig.AllowedDomains {
-					// whitelist DNS servers domains
-					if !slices.Contains(confguredDomains, domain) {
-						profile.Settings.CustomRules = append(profile.Settings.CustomRules, &model.CustomRule{
-							ID:     primitive.NewObjectID(),
-							Action: model.ACTION_ALLOW,
-							Value:  domain,
-						})
-					}
-				}
 			}
 		case "/settings/privacy/blocklists_subdomains_rule":
 			err = p.handleBlocklistsSubdomainsRuleUpdate(profile, update)
@@ -437,21 +474,37 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
-	now := p.clock()
-	updateStatisticsEnabledAt(before, profile.Settings, now)
+	return touched, nil
+}
 
-	if err := p.ProfileRepository.Update(ctx, profileId, profile); err != nil {
-		return nil, err
-	}
+const (
+	pathStatisticsEnabled = "/settings/statistics/enabled"
+	pathDefaultRule       = "/settings/privacy/default_rule"
+)
 
-	cacheErr := p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false)
+// patchField maps a PATCH path to its stored field and, when the proxy reads it, its
+// Redis settings hash field.
+type patchField struct {
+	field     string
+	hash      string
+	hashField string
+	value     func(*model.Profile) any
+}
 
-	// The change is persisted in Mongo either way, so its side effects must run.
-	p.applySettingsTransitions(ctx, profileId, before, snapshotSettings(profile.Settings))
-	if cacheErr != nil {
-		return nil, cacheErr
-	}
-	return profile, nil
+var patchFields = map[string]patchField{
+	"/name":                                           {field: "name", value: func(p *model.Profile) any { return p.Name }},
+	pathStatisticsEnabled:                             {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
+	"/settings/logs/enabled":                          {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
+	"/settings/logs/log_clients_ips":                  {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
+	"/settings/logs/log_domains":                      {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
+	"/settings/logs/retention":                        {"settings.logs.retention", "logs", "retention", func(p *model.Profile) any { return p.Settings.Logs.Retention }},
+	pathDefaultRule:                                   {"settings.privacy.default_rule", "privacy", "default_rule", func(p *model.Profile) any { return p.Settings.Privacy.DefaultRule }},
+	"/settings/privacy/blocklists_subdomains_rule":    {"settings.privacy.blocklists_subdomains_rule", "privacy", "blocklists_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.BlocklistsSubdomainsRule }},
+	"/settings/privacy/custom_rules_subdomains_rule":  {"settings.privacy.custom_rules_subdomains_rule", "privacy", "custom_rules_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.CustomRulesSubdomainsRule }},
+	"/settings/security/dnssec/enabled":               {"settings.security.dnssec.enabled", "security:dnssec", "enabled", func(p *model.Profile) any { return p.Settings.Security.DNSSECSettings.Enabled }},
+	"/settings/security/dnssec/send_do_bit":           {"settings.security.dnssec.send_do_bit", "security:dnssec", "send_do_bit", func(p *model.Profile) any { return p.Settings.Security.DNSSECSettings.SendDoBit }},
+	"/settings/security/rebinding_protection/enabled": {"settings.security.rebinding_protection.enabled", "security:rebinding_protection", "enabled", func(p *model.Profile) any { return p.Settings.Security.RebindingProtection.Enabled }},
+	"/settings/advanced/recursor":                     {"settings.advanced.recursor", "advanced", "recursor", func(p *model.Profile) any { return p.Settings.Advanced.Recursor }},
 }
 
 // settingsSnapshot is the part of the settings whose transitions have side effects.
@@ -471,24 +524,17 @@ func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
 	return snap
 }
 
-func (s settingsSnapshot) statisticsEnabled() bool {
-	return s.statistics != nil && s.statistics.Enabled
+// patched is the snapshot with this PATCH's values applied to the paths it touched.
+func (s settingsSnapshot) patched(touched []string, patch *model.ProfileSettings) settingsSnapshot {
+	out := s
+	if slices.Contains(touched, pathStatisticsEnabled) {
+		out.statistics = &model.StatisticsSettings{Enabled: patch.Statistics.Enabled}
+	}
+	return out
 }
 
-// updateStatisticsEnabledAt derives enabled_at from the net change of a whole
-// PATCH: set on false->true, cleared on true->false, otherwise as it was.
-func updateStatisticsEnabledAt(before settingsSnapshot, settings *model.ProfileSettings, now time.Time) {
-	if settings == nil || settings.Statistics == nil {
-		return
-	}
-	switch {
-	case !before.statisticsEnabled() && settings.Statistics.Enabled:
-		settings.Statistics.EnabledAt = &now
-	case before.statisticsEnabled() && !settings.Statistics.Enabled:
-		settings.Statistics.EnabledAt = nil
-	case before.statistics != nil:
-		settings.Statistics.EnabledAt = before.statistics.EnabledAt
-	}
+func (s settingsSnapshot) statisticsEnabled() bool {
+	return s.statistics != nil && s.statistics.Enabled
 }
 
 // applySettingsTransitions runs the side effects of a settings change once per
