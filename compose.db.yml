@@ -1,6 +1,6 @@
 services:
   mongodb:
-    image: mongo:8.2.3
+    image: mongo:8.0.9
     networks:
       - dnsnetwork
     container_name: mongodb
