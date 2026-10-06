@@ -2,10 +2,14 @@ package querylogs
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 )
+
+// ErrInvalidTopKind is returned for a kind other than blocked or resolved.
+var ErrInvalidTopKind = errors.New("invalid top kind")
 
 type QueryLogsService struct {
 	QueryLogsRepository repository.QueryLogsRepository
@@ -40,6 +44,34 @@ func (q *QueryLogsService) DownloadProfileQueryLogs(ctx context.Context, profile
 
 func (q *QueryLogsService) GetProfileQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
 	return q.QueryLogsRepository.GetQueryLogDevices(ctx, profileId, retention)
+}
+
+// GetProfileQueryLogTopDomains returns the most frequent domains for kind
+// (model.QueryLogTopKindBlocked or QueryLogTopKindResolved) inside timespan.
+func (q *QueryLogsService) GetProfileQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, timespan, kind string, limit int) ([]model.QueryLogTopDomain, error) {
+	hours, err := model.NewTimespan(timespan)
+	if err != nil {
+		return nil, err
+	}
+	var status string
+	switch kind {
+	case model.QueryLogTopKindBlocked:
+		status = model.QueryLogStatusBlocked
+	case model.QueryLogTopKindResolved:
+		status = model.QueryLogStatusProcessed
+	default:
+		return nil, ErrInvalidTopKind
+	}
+	return q.QueryLogsRepository.GetQueryLogTopDomains(ctx, profileId, retention, status, hours, limit)
+}
+
+// GetProfileQueryLogTopClients returns the most frequent client IPs inside timespan.
+func (q *QueryLogsService) GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error) {
+	hours, err := model.NewTimespan(timespan)
+	if err != nil {
+		return nil, err
+	}
+	return q.QueryLogsRepository.GetQueryLogTopClients(ctx, profileId, retention, hours, limit)
 }
 
 func (q *QueryLogsService) DeleteProfileQueryLogs(ctx context.Context, profileId string) error {

@@ -202,6 +202,75 @@ func (r *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId 
 	return results, nil
 }
 
+// GetQueryLogTopDomains returns the profile's most frequent domains with the
+// given status inside the timespan window, count desc then domain asc. The
+// $group must unpack every bucket in the window (dns_request.domain is a
+// measurement field, so no index can serve it).
+func (r *QueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error) {
+	start := time.Now()
+	match := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+		{Key: "status", Value: status},
+		{Key: "dns_request.domain", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
+	}
+	results := make([]model.QueryLogTopDomain, 0)
+	if err := r.topGroup(ctx, retention, match, "$dns_request.domain", limit, &results); err != nil {
+		return nil, err
+	}
+	r.warnIfSlow(ctx, "Query log top domains fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// GetQueryLogTopClients returns the profile's most frequent client IPs inside
+// the timespan window, count desc then ip asc. Same cost profile as
+// GetQueryLogTopDomains.
+func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error) {
+	start := time.Now()
+	match := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+		{Key: "client_ip", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
+	}
+	results := make([]model.QueryLogTopClient, 0)
+	if err := r.topGroup(ctx, retention, match, "$client_ip", limit, &results); err != nil {
+		return nil, err
+	}
+	r.warnIfSlow(ctx, "Query log top clients fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// topGroup counts documents matching match per groupExpr, ordered count desc
+// then key asc, and decodes the first limit rows into out.
+func (r *QueryLogsRepository) topGroup(ctx context.Context, retention model.Retention, match bson.D, groupExpr string, limit int, out any) error {
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: match}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: groupExpr},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
+		bson.D{{Key: "$limit", Value: limit}},
+	}
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, pipeline)
+	if err != nil {
+		return err
+	}
+	return cursor.All(ctx, out)
+}
+
+// warnIfSlow logs durations and counts only; domains and IPs are sensitive.
+func (r *QueryLogsRepository) warnIfSlow(ctx context.Context, msg string, retention model.Retention, resultCount int, start time.Time) {
+	if duration := time.Since(start); duration > slowQueryThreshold {
+		log.Ctx(ctx).Warn().
+			Bool("slow", true).
+			Str("retention", string(retention)).
+			Int("result_count", resultCount).
+			Dur("duration", duration).
+			Msg(msg)
+	}
+}
+
 func buildSortSpec(sortBy string) bson.D {
 	switch sortBy {
 	case "domain":

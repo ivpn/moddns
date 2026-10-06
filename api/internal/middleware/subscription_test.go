@@ -71,6 +71,8 @@ func TestIsLimitedAccessAllowed(t *testing.T) {
 		{"GET", "/api/v1/profiles/abc123", true},
 		{"GET", "/api/v1/profiles/abc123/logs", true},
 		{"GET", "/api/v1/profiles/abc123/logs/devices", true},
+		{"GET", "/api/v1/profiles/abc123/logs/top", true},
+		{"GET", "/api/v1/profiles/abc123/logs/clients", true},
 		{"GET", "/api/v1/profiles/abc123/logs/download", true},
 		{"DELETE", "/api/v1/profiles/abc123/logs", true},
 		{"GET", "/api/v1/profiles/abc123/statistics", true},

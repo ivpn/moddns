@@ -56,3 +56,40 @@ type QueryLogDevice struct {
 	DeviceId string    `json:"device_id" bson:"_id"`
 	LastSeen time.Time `json:"last_seen" bson:"last_seen"`
 }
+
+// Kinds accepted by the top-domains endpoint; they map to the stored query-log
+// status (blocked -> "blocked", resolved -> "processed").
+const (
+	QueryLogTopKindBlocked  = "blocked"
+	QueryLogTopKindResolved = "resolved"
+)
+
+// QueryLogTopDomain is one row of the top-domains list: a log count per
+// domain. The bson "_id" tag decodes the $group output directly.
+type QueryLogTopDomain struct {
+	Domain string `json:"domain" bson:"_id"`
+	Count  int64  `json:"count" bson:"count"`
+}
+
+// QueryLogTopDomains is the top-domains response. Items is never null.
+type QueryLogTopDomains struct {
+	Enabled bool                `json:"enabled"`
+	Items   []QueryLogTopDomain `json:"items"`
+}
+
+// QueryLogTopClient is one row of the top-clients list. ASN, ASOrg and Country
+// are enrichment from the GeoIP databases and null when unknown; they are
+// never stored or cached.
+type QueryLogTopClient struct {
+	IP      string  `json:"ip" bson:"_id"`
+	Count   int64   `json:"count" bson:"count"`
+	ASN     *uint32 `json:"asn" bson:"-"`
+	ASOrg   *string `json:"as_org" bson:"-"`
+	Country *string `json:"country" bson:"-"`
+}
+
+// QueryLogTopClients is the top-clients response. Items is never null.
+type QueryLogTopClients struct {
+	Enabled bool                `json:"enabled"`
+	Items   []QueryLogTopClient `json:"items"`
+}
