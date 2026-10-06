@@ -7301,6 +7301,8 @@ export class QueryLogsApi extends BaseAPI {
  */
 export const ApiV1ProfilesIdLogsClientsGetTimespanEnum = {
     _1Hour: 'LAST_1_HOUR',
+    _3Hours: 'LAST_3_HOURS',
+    _6Hours: 'LAST_6_HOURS',
     _12Hours: 'LAST_12_HOURS',
     _1Day: 'LAST_1_DAY',
     _7Days: 'LAST_7_DAYS',
@@ -7339,6 +7341,8 @@ export type ApiV1ProfilesIdLogsTopGetKindEnum = typeof ApiV1ProfilesIdLogsTopGet
  */
 export const ApiV1ProfilesIdLogsTopGetTimespanEnum = {
     _1Hour: 'LAST_1_HOUR',
+    _3Hours: 'LAST_3_HOURS',
+    _6Hours: 'LAST_6_HOURS',
     _12Hours: 'LAST_12_HOURS',
     _1Day: 'LAST_1_DAY',
     _7Days: 'LAST_7_DAYS',
