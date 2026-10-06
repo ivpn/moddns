@@ -77,3 +77,8 @@ func (q *QueryLogsService) GetProfileQueryLogTopClients(ctx context.Context, pro
 func (q *QueryLogsService) DeleteProfileQueryLogs(ctx context.Context, profileId string) error {
 	return q.QueryLogsRepository.DeleteQueryLogs(ctx, profileId)
 }
+
+// ListProfileIDs returns every profile id that has query logs in any retention collection.
+func (q *QueryLogsService) ListProfileIDs(ctx context.Context) ([]string, error) {
+	return q.QueryLogsRepository.ListQueryLogProfileIDs(ctx)
+}

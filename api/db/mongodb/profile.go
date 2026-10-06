@@ -100,6 +100,47 @@ func (r *ProfileRepository) GetProfilesStatisticsSettings(ctx context.Context, p
 	return out, nil
 }
 
+func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+	if len(profileIds) == 0 {
+		return map[string]bool{}, nil
+	}
+
+	// Primary read: a lagging secondary must not make a fresh profile look deleted.
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.D{primitive.E{Key: "profile_id", Value: bson.D{primitive.E{Key: "$in", Value: profileIds}}}}
+	projection := bson.D{
+		primitive.E{Key: "profile_id", Value: 1},
+		primitive.E{Key: "settings.logs.enabled", Value: 1},
+	}
+	cursor, err := coll.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []struct {
+		ProfileId string `bson:"profile_id"`
+		Settings  *struct {
+			Logs *struct {
+				Enabled bool `bson:"enabled"`
+			} `bson:"logs"`
+		} `bson:"settings"`
+	}
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]bool, len(docs))
+	for _, d := range docs {
+		out[d.ProfileId] = d.Settings != nil && d.Settings.Logs != nil && d.Settings.Logs.Enabled
+	}
+	return out, nil
+}
+
 func (r *ProfileRepository) GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error) {
 	filterBson := bson.D{primitive.E{Key: "account_id", Value: accountId}}
 	cursor, err := r.profilesCollection.Find(ctx, filterBson)
