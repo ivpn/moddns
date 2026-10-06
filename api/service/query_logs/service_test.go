@@ -10,6 +10,7 @@ import (
 
 	"github.com/ivpn/dns/api/db/mongodb"
 	"github.com/ivpn/dns/api/model"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -23,6 +24,7 @@ type stubQueryLogsRepository struct {
 	getCalls    int
 	deleteCalls int
 	lastSort    string
+	lastHours   int
 }
 
 func (s *stubQueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error) {
@@ -37,11 +39,13 @@ func (s *stubQueryLogsRepository) GetQueryLogDevices(ctx context.Context, profil
 
 func (s *stubQueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error) {
 	s.getCalls++
+	s.lastHours = timespanHours
 	return nil, nil
 }
 
 func (s *stubQueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error) {
 	s.getCalls++
+	s.lastHours = timespanHours
 	return nil, nil
 }
 
@@ -82,6 +86,32 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 				t.Fatalf("expected repository GetQueryLogs not to be called, got %d calls", mockRepo.getCalls)
 			}
 		})
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J20, J21 — the top lists accept the 3 h and 6 h windows; J1 does not.
+func TestTopTimespans(t *testing.T) {
+	for ts, hours := range map[string]int{
+		model.LAST_3_HOURS: 3, model.LAST_6_HOURS: 6, model.LAST_1_HOUR: 1, model.LAST_12_HOURS: 12,
+		model.LAST_1_DAY: 24, model.LAST_7_DAYS: 168, model.LAST_MONTH: 720,
+	} {
+		t.Run(ts, func(t *testing.T) {
+			repo := &stubQueryLogsRepository{}
+			svc := NewQueryLogsService(repo)
+			_, err := svc.GetProfileQueryLogTopDomains(context.Background(), "p", model.RetentionOneDay, ts, model.QueryLogTopKindBlocked, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+			repo.lastHours = 0
+			_, err = svc.GetProfileQueryLogTopClients(context.Background(), "p", model.RetentionOneDay, ts, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+		})
+	}
+	for _, ts := range []string{model.LAST_3_HOURS, model.LAST_6_HOURS} {
+		repo := &stubQueryLogsRepository{}
+		_, err := NewQueryLogsService(repo).GetProfileQueryLogs(context.Background(), "p", model.RetentionOneDay, "all", ts, "", "", "created", 1, 10)
+		require.Error(t, err, "J1 keeps its enum")
+		require.Zero(t, repo.getCalls)
 	}
 }
 
