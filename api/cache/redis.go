@@ -333,55 +333,22 @@ func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRule
 
 // DeleteProfileSettings deletes profile settings from the cache
 func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string) error {
-	settingsBlocklist := fmt.Sprintf("settings:%s:%s", profileId, "blocklists")
-	blocklistsCmd := c.client.Del(ctx, settingsBlocklist)
-	if err := blocklistsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings blocklists")
+	prefix := "settings:" + profileId + ":"
+	keys := []string{
+		prefix + "blocklists",
+		prefix + "services",
+		prefix + "logs",
+		prefix + "privacy",
+		prefix + "advanced",
+		prefix + "statistics",
+		prefix + "security:dnssec",
+		prefix + "security:rebinding_protection",
+	}
+	if err := c.client.Del(ctx, keys...).Err(); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings")
 		return err
 	}
-	log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
-		Msg("Cache: Deleted profile settings blocklist")
-
-	servicesKey := fmt.Sprintf("settings:%s:%s", profileId, "services")
-	servicesCmd := c.client.Del(ctx, servicesKey)
-	if err := servicesCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings services")
-		return err
-	}
-	log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).
-		Msg("Cache: Deleted profile settings services")
-
-	// delete logs settings
-	logsSettings := fmt.Sprintf("settings:%s:%s", profileId, "logs")
-	logsCmd := c.client.Del(ctx, logsSettings)
-	if err := logsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile logs settings")
-		return err
-	}
-	log.Ctx(ctx).Info().Str("logs_settings_key", logsSettings).Msg("Cache: deleted profile logs settings")
-
-	// delete privacy settings
-	privacySettings := fmt.Sprintf("settings:%s:%s", profileId, "privacy")
-	privacyCmd := c.client.Del(ctx, privacySettings)
-	if err := privacyCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile privacy settings")
-		return err
-	}
-	// delete advanced settings
-	advancedSettings := fmt.Sprintf("settings:%s:%s", profileId, "advanced")
-	advancedCmd := c.client.Del(ctx, advancedSettings)
-	if err := advancedCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile advanced settings")
-		return err
-	}
-
-	// delete security DNSSEC settings
-	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", profileId, "security", "dnssec")
-	dnssecCmd := c.client.Del(ctx, dnssecSettings)
-	if err := dnssecCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile security settings")
-		return err
-	}
+	log.Ctx(ctx).Info().Msg("Cache: deleted profile settings")
 
 	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
 
