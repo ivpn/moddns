@@ -32,14 +32,15 @@ func NewCollector(collectorCfg config.CollectorConfig, collectorType string, sto
 		batchSize := collectorCfg.GetBatchSize()
 		freq := collectorCfg.GetFrequency()
 		statsChan := make(chan (model.EventStatistics), batchSize)
-		return &ServiceStatisticsCollector{
-			Type:      collectorType,
-			StopChan:  stopChan,
-			Frequency: freq,
-			BatchSize: batchSize,
-			StatsChan: statsChan,
-			Emitter:   emitter,
-			Pop:       collectorCfg.GetPopName(),
+		return &StatisticsCollector{
+			Type:           collectorType,
+			StopChan:       stopChan,
+			Frequency:      freq,
+			BatchSize:      batchSize,
+			StatsChan:      statsChan,
+			Emitter:        emitter,
+			Pop:            collectorCfg.GetPopName(),
+			MaxOpenEntries: collectorCfg.GetMaxOpenEntries(),
 		}, nil
 	default:
 		return nil, errors.New("unknown collector type")

@@ -76,7 +76,7 @@ func awaitWG(wg *sync.WaitGroup, timeout time.Duration) bool {
 	}
 }
 
-// setupStatsBackground mocks the async EmitServiceStatistics path (Send) and wires
+// setupStatsBackground mocks the async EmitStatistics path (Send) and wires
 // wg.Done into the Send call so callers can synchronise. Statistics settings
 // travel on the request context, so no cache expectation is needed.
 func setupStatsBackground(_ *mocks.Cache, statsCh *mocks.CollectorChannel, wg *sync.WaitGroup) {
