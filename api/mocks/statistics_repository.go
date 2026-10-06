@@ -175,3 +175,65 @@ func (_c *StatisticsRepository_GetProfileStatistics_Call) RunAndReturn(run func(
 	_c.Call.Return(run)
 	return _c
 }
+
+// ListStatisticsProfileIDs provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) ListStatisticsProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListStatisticsProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_ListStatisticsProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListStatisticsProfileIDs'
+type StatisticsRepository_ListStatisticsProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListStatisticsProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *StatisticsRepository_Expecter) ListStatisticsProfileIDs(ctx interface{}) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	return &StatisticsRepository_ListStatisticsProfileIDs_Call{Call: _e.mock.On("ListStatisticsProfileIDs", ctx)}
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) Run(run func(ctx context.Context)) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) Return(strings []string, err error) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
