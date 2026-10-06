@@ -117,3 +117,40 @@ func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, prof
 	}
 	return errors.Join(errs...)
 }
+
+// ListStatisticsProfileIDs returns the distinct meta.profile_id values across the
+// retention collections. It aggregates with $group (a cursor, so no 16 MB result
+// document) instead of distinct.
+func (r *StatisticsRepository) ListStatisticsProfileIDs(ctx context.Context) ([]string, error) {
+	group := bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$meta.profile_id"}}}}
+
+	pipeline := mongo.Pipeline{group}
+	for _, name := range statisticsCollectionNames[1:] {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$unionWith", Value: bson.D{
+			primitive.E{Key: "coll", Value: name},
+			primitive.E{Key: "pipeline", Value: bson.A{group}},
+		}}})
+	}
+	// The per-collection groups already emitted {_id: profile_id}; merge duplicates across collections.
+	pipeline = append(pipeline, bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$_id"}}}})
+
+	cursor, err := r.colls[0].Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rows []struct {
+		ID string `bson:"_id"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.ID != "" {
+			ids = append(ids, row.ID)
+		}
+	}
+	return ids, nil
+}

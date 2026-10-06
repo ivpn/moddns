@@ -206,6 +206,13 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	})
 
 	eg.Go(func() (err error) {
+		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it);
+		// leftovers of a failed purge are removed by the statistics reconciler
+		p.StatisticsService.PurgeBestEffort(ctx, profileId)
+		return nil
+	})
+
+	eg.Go(func() (err error) {
 		// delete all profile-related data from cache
 		return p.Cache.DeleteProfileSettings(ctx, profileId)
 	})
@@ -432,10 +439,14 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return nil, err
 	}
 
-	if err = p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
-		return nil, err
+	cacheErr := p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false)
+
+	// The change is persisted in Mongo either way, so its side effects must run.
+	p.applySettingsTransitions(ctx, profileId, before, snapshotSettings(profile.Settings))
+	if cacheErr != nil {
+		return nil, cacheErr
 	}
-	return profile, err
+	return profile, nil
 }
 
 // settingsSnapshot is the part of the settings whose transitions have side effects.
@@ -476,6 +487,14 @@ func reconcileStatisticsEnabledAt(before settingsSnapshot, settings *model.Profi
 		settings.Statistics.EnabledAt = nil
 	case before.statistics != nil:
 		settings.Statistics.EnabledAt = before.statistics.EnabledAt
+	}
+}
+
+// applySettingsTransitions runs the side effects of a settings change once per
+// PATCH, after the change is persisted, however many paths it touched.
+func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
+	if before.statisticsEnabled() && !after.statisticsEnabled() {
+		p.StatisticsService.PurgeBestEffort(ctx, profileId)
 	}
 }
 

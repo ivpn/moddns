@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -334,6 +335,81 @@ func (s *StatisticsRepositorySuite) TestProfileIndexServesReadAndPurge() {
 		s.Contains(plan, profileIndexName, "%s does not use the profile index: %s", name, plan)
 		s.NotContains(plan, "COLLSCAN", name)
 	}
+}
+
+// specRef: api-endpoint-behaviour.md J9
+func (s *StatisticsRepositorySuite) TestListStatisticsProfileIDs_DistinctAcrossCollections() {
+	now := time.Now().UTC()
+	s.insert("statistics_15min", "p1", now.Add(-time.Hour), 1)
+	s.insert("statistics_15min", "p1", now.Add(-2*time.Hour), 1)
+	s.insert("statistics_1h", "p1", now.Add(-time.Hour), 1)
+	s.insert("statistics_1h", "p2", now.Add(-time.Hour), 1)
+	s.insert("statistics_1d_1y", "p3", now.Add(-time.Hour), 1)
+
+	ids, err := s.repo.ListStatisticsProfileIDs(context.Background())
+	s.Require().NoError(err)
+	s.ElementsMatch([]string{"p1", "p2", "p3"}, ids)
+
+	empty := NewStatisticsRepository(s.client, s.dbName+"_empty")
+	none, err := empty.ListStatisticsProfileIDs(context.Background())
+	s.Require().NoError(err)
+	s.Empty(none)
+}
+
+// specRef: api-endpoint-behaviour.md J9 — listing profile ids is served by the profile index, not a collection scan.
+func (s *StatisticsRepositorySuite) TestListStatisticsProfileIDs_UsesProfileIndex() {
+	now := time.Now().UTC()
+	for _, c := range statisticsCollectionNames {
+		for i := 0; i < 50; i++ {
+			s.insert(c, fmt.Sprintf("p%d", i), now.Add(-time.Hour), 1)
+		}
+	}
+	plan := s.explainPlan(bson.D{{Key: "aggregate", Value: statisticsCollectionNames[0]}, {Key: "cursor", Value: bson.D{}},
+		{Key: "pipeline", Value: bson.A{bson.D{{Key: "$group", Value: bson.D{{Key: "_id", Value: "$meta.profile_id"}}}}}}})
+	s.Contains(plan, profileIndexName, plan)
+	s.NotContains(plan, "COLLSCAN")
+	s.True(strings.Contains(plan, "DISTINCT_SCAN") || strings.Contains(plan, "IXSCAN"), plan)
+	s.T().Logf("distinct scan: %v, index scan: %v", strings.Contains(plan, "DISTINCT_SCAN"), strings.Contains(plan, "IXSCAN"))
+}
+
+// specRef: api-endpoint-behaviour.md J9 — one query returns only settings.statistics; missing profiles are absent, a missing block maps to nil.
+func (s *StatisticsRepositorySuite) TestGetProfilesStatisticsSettings() {
+	ctx := context.Background()
+	coll := s.client.Database(s.dbName).Collection("profiles_reconcile")
+	enabledAt := time.Date(2026, 9, 29, 10, 7, 0, 0, time.UTC)
+	_, err := coll.InsertMany(ctx, []any{
+		bson.D{{Key: "profile_id", Value: "on"}, {Key: "account_id", Value: "secret"}, {Key: "settings", Value: bson.D{
+			{Key: "statistics", Value: bson.D{{Key: "enabled", Value: true}, {Key: "enabled_at", Value: enabledAt}}},
+			{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}},
+		}}},
+		bson.D{{Key: "profile_id", Value: "off"}, {Key: "settings", Value: bson.D{{Key: "statistics", Value: bson.D{{Key: "enabled", Value: false}}}}}},
+		bson.D{{Key: "profile_id", Value: "no-block"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}}}}},
+		bson.D{{Key: "profile_id", Value: "null-block"}, {Key: "settings", Value: bson.D{{Key: "statistics", Value: nil}}}},
+		bson.D{{Key: "profile_id", Value: "other"}},
+	})
+	s.Require().NoError(err)
+
+	repo := NewProfileRepository(s.client, s.dbName, "profiles_reconcile")
+	got, err := repo.GetProfilesStatisticsSettings(ctx, []string{"on", "off", "no-block", "null-block", "missing"})
+	s.Require().NoError(err)
+
+	s.Len(got, 4, "only requested, existing profiles are returned")
+	s.Require().NotNil(got["on"])
+	s.True(got["on"].Enabled)
+	s.Require().NotNil(got["on"].EnabledAt)
+	s.True(got["on"].EnabledAt.Equal(enabledAt))
+	s.Require().NotNil(got["off"])
+	s.False(got["off"].Enabled)
+	s.Contains(got, "no-block")
+	s.Nil(got["no-block"])
+	s.Contains(got, "null-block")
+	s.Nil(got["null-block"])
+	s.NotContains(got, "missing")
+	s.NotContains(got, "other")
+
+	empty, err := repo.GetProfilesStatisticsSettings(ctx, nil)
+	s.Require().NoError(err)
+	s.Empty(empty)
 }
 
 func TestStatisticsRepositorySuite(t *testing.T) {
