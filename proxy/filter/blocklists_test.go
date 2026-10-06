@@ -71,10 +71,10 @@ func TestFilterBlocklists(t *testing.T) {
 				},
 			},
 			privacySettings: map[string]string{
-				SUBDOMAINS_RULE: RULE_BLOCK,
+				subdomainsRuleSetting: RULE_BLOCK,
 			},
 			expectBlocked: true,
-			expectReasons: []string{"blocklist: bl1", SUBDOMAINS_RULE},
+			expectReasons: []string{"blocklist: bl1", model.FilterReasonBlocklistsSubdomains},
 			expectErr:     false,
 		},
 		{
@@ -88,7 +88,7 @@ func TestFilterBlocklists(t *testing.T) {
 				},
 			},
 			privacySettings: map[string]string{
-				SUBDOMAINS_RULE: RULE_ALLOW,
+				subdomainsRuleSetting: RULE_ALLOW,
 			},
 			expectBlocked: false,
 			expectReasons: nil,
@@ -247,7 +247,7 @@ func TestFilterBlocklists_Exceptions(t *testing.T) {
 			blocklists:      []string{listL},
 			blockEntries:    map[string]map[string]bool{listL: {"demdex.net": true}},
 			exceptions:      map[string]map[string]bool{listL: {"sbs.demdex.net": true}},
-			privacySettings: map[string]string{SUBDOMAINS_RULE: RULE_BLOCK},
+			privacySettings: map[string]string{subdomainsRuleSetting: RULE_BLOCK},
 			expectBlocked:   false,
 		},
 		{

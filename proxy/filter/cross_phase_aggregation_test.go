@@ -18,7 +18,7 @@ func domainAllowResult() model.StageResult {
 	return model.StageResult{
 		Decision: model.DecisionAllow,
 		Tier:     TierCustomRules,
-		Reasons:  []string{REASON_CUSTOM_RULES},
+		Reasons:  []string{model.FilterReasonCustomRules},
 	}
 }
 
@@ -36,7 +36,7 @@ func domainCustomBlockResult() model.StageResult {
 	return model.StageResult{
 		Decision: model.DecisionBlock,
 		Tier:     TierCustomRules,
-		Reasons:  []string{REASON_CUSTOM_RULES},
+		Reasons:  []string{model.FilterReasonCustomRules},
 	}
 }
 
@@ -98,7 +98,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			customHashes:      []string{},
 			dnsCtx:            dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:        model.StatusBlocked,
-			wantContains:      []string{REASON_SERVICES},
+			wantContains:      []string{model.FilterReasonServices},
 		},
 		{
 			name:              "#3 — IP CR Block only",
@@ -113,7 +113,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusBlocked,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#4 — SVC Block + IP CR Block",
@@ -142,7 +142,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusProcessed,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#6 — SVC Block + IP CR Allow → custom overrides services within IP phase",
@@ -157,8 +157,8 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:          dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:      model.StatusProcessed,
-			wantContains:    []string{REASON_CUSTOM_RULES},
-			wantNotContains: []string{REASON_SERVICES},
+			wantContains:    []string{model.FilterReasonCustomRules},
+			wantNotContains: []string{model.FilterReasonServices},
 		},
 
 		// ── Section A: Domain Allow + IP phase (behaviour-changing scenarios) ──
@@ -184,7 +184,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			customHashes:      []string{},
 			dnsCtx:            dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:        model.StatusProcessed,
-			wantContains:      []string{REASON_CUSTOM_RULES},
+			wantContains:      []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#9 — Domain Allow + IP CR Block → Processed (T200 allow overrides T200 block)",
@@ -199,7 +199,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusProcessed,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#10 — Domain Allow + SVC Block + IP CR Block → Processed (T200 allow wins)",
@@ -214,7 +214,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusProcessed,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#11 — Domain Allow + IP CR Allow → Processed",
@@ -243,8 +243,8 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:          dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:      model.StatusProcessed,
-			wantContains:    []string{REASON_CUSTOM_RULES},
-			wantNotContains: []string{REASON_SERVICES},
+			wantContains:    []string{model.FilterReasonCustomRules},
+			wantNotContains: []string{model.FilterReasonServices},
 		},
 
 		// ── Blocklist Block + Domain Allow + IP phase (same IP-phase behaviour) ──
@@ -270,7 +270,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			customHashes:      []string{},
 			dnsCtx:            dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:        model.StatusProcessed,
-			wantContains:      []string{REASON_CUSTOM_RULES},
+			wantContains:      []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#15 — BL Block + Domain Allow + IP CR Block → Processed (T200 allow wins)",
@@ -285,7 +285,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusProcessed,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#16 — BL Block + Domain Allow + SVC Block + IP CR Block → Processed (T200 allow wins)",
@@ -300,7 +300,7 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:       dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:   model.StatusProcessed,
-			wantContains: []string{REASON_CUSTOM_RULES},
+			wantContains: []string{model.FilterReasonCustomRules},
 		},
 		{
 			name:              "#17 — BL Block + Domain Allow + IP CR Allow → Processed",
@@ -329,8 +329,8 @@ func TestIPFilter_CrossPhaseAggregation(t *testing.T) {
 			},
 			dnsCtx:          dnsCtxWithAAnswer(t, answerIP),
 			wantStatus:      model.StatusProcessed,
-			wantContains:    []string{REASON_CUSTOM_RULES},
-			wantNotContains: []string{REASON_SERVICES},
+			wantContains:    []string{model.FilterReasonCustomRules},
+			wantNotContains: []string{model.FilterReasonServices},
 		},
 	}
 
