@@ -2720,6 +2720,74 @@ func (_c *Db_GetProfilesByAccountId_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// GetProfilesLogsEnabled provides a mock function for the type Db
+func (_mock *Db) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesLogsEnabled")
+	}
+
+	var r0 map[string]bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]bool, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]bool); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetProfilesLogsEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesLogsEnabled'
+type Db_GetProfilesLogsEnabled_Call struct {
+	*mock.Call
+}
+
+// GetProfilesLogsEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *Db_Expecter) GetProfilesLogsEnabled(ctx interface{}, profileIds interface{}) *Db_GetProfilesLogsEnabled_Call {
+	return &Db_GetProfilesLogsEnabled_Call{Call: _e.mock.On("GetProfilesLogsEnabled", ctx, profileIds)}
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) Run(run func(ctx context.Context, profileIds []string)) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) Return(stringToBool map[string]bool, err error) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(stringToBool, err)
+	return _c
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]bool, error)) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProfilesStatisticsSettings provides a mock function for the type Db
 func (_mock *Db) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
 	ret := _mock.Called(ctx, profileIds)
@@ -3292,6 +3360,68 @@ func (_c *Db_GetSubscriptionByAccountId_Call) Return(subscription *model.Subscri
 }
 
 func (_c *Db_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) (*model.Subscription, error)) *Db_GetSubscriptionByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListQueryLogProfileIDs provides a mock function for the type Db
+func (_mock *Db) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListQueryLogProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_ListQueryLogProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListQueryLogProfileIDs'
+type Db_ListQueryLogProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListQueryLogProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ListQueryLogProfileIDs(ctx interface{}) *Db_ListQueryLogProfileIDs_Call {
+	return &Db_ListQueryLogProfileIDs_Call{Call: _e.mock.On("ListQueryLogProfileIDs", ctx)}
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) Run(run func(ctx context.Context)) *Db_ListQueryLogProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) Return(strings []string, err error) *Db_ListQueryLogProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Db_ListQueryLogProfileIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

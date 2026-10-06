@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -28,7 +29,9 @@ type ProfileRepositorySuite struct {
 	container testcontainers.Container
 }
 
-func (s *ProfileRepositorySuite) SetupSuite() {
+// startTestMongo starts a throwaway MongoDB (TEST_MONGO_IMAGE, default the production version).
+func startTestMongo(t *testing.T) (*mongo.Client, testcontainers.Container) {
+	t.Helper()
 	ctx := context.Background()
 	username := firstNonEmpty(os.Getenv("TEST_MONGO_USERNAME"), "testuser")
 	password := firstNonEmpty(os.Getenv("TEST_MONGO_PASSWORD"), "testpass")
@@ -45,21 +48,24 @@ func (s *ProfileRepositorySuite) SetupSuite() {
 		},
 		Started: true,
 	})
-	s.Require().NoError(err)
-	s.container = container
+	require.NoError(t, err)
 
 	host, err := container.Host(ctx)
-	s.Require().NoError(err)
+	require.NoError(t, err)
 	port, err := container.MappedPort(ctx, "27017/tcp")
-	s.Require().NoError(err)
+	require.NoError(t, err)
 	uri := fmt.Sprintf("mongodb://%s:%s@%s:%s", url.QueryEscape(username), url.QueryEscape(password), host, port.Port())
 	connectCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(connectCtx, options.Client().ApplyURI(uri).SetAuth(options.Credential{Username: username, Password: password, AuthSource: authSource}))
-	s.Require().NoError(err)
-	s.Require().NoError(client.Database(authSource).RunCommand(connectCtx, bson.D{{Key: "ping", Value: 1}}).Err())
-	s.client = client
-	s.repo = NewProfileRepository(client, firstNonEmpty(os.Getenv("DB_TEST_NAME"), "dns_test")+"_profiles", "profiles")
+	require.NoError(t, err)
+	require.NoError(t, client.Database(authSource).RunCommand(connectCtx, bson.D{{Key: "ping", Value: 1}}).Err())
+	return client, container
+}
+
+func (s *ProfileRepositorySuite) SetupSuite() {
+	s.client, s.container = startTestMongo(s.T())
+	s.repo = NewProfileRepository(s.client, firstNonEmpty(os.Getenv("DB_TEST_NAME"), "dns_test")+"_profiles", "profiles")
 }
 
 func (s *ProfileRepositorySuite) TearDownSuite() {
@@ -212,6 +218,26 @@ func (s *ProfileRepositorySuite) TestUpdateFields_MissingProfile() {
 		Set: []repository.FieldSet{statsSet(true)},
 	})
 	s.ErrorIs(err, dbErrors.ErrProfileNotFound)
+}
+
+// specRef: api-endpoint-behaviour.md J13, J14 — one query returns logs.enabled per existing profile.
+func (s *ProfileRepositorySuite) TestGetProfilesLogsEnabled() {
+	ctx := context.Background()
+	_, err := s.repo.profilesCollection.InsertMany(ctx, []any{
+		bson.D{{Key: "profile_id", Value: "on"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}}}}},
+		bson.D{{Key: "profile_id", Value: "off"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: false}}}}}},
+		bson.D{{Key: "profile_id", Value: "no-block"}, {Key: "settings", Value: bson.D{}}},
+		bson.D{{Key: "profile_id", Value: "other"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}}}}},
+	})
+	s.Require().NoError(err)
+
+	got, err := s.repo.GetProfilesLogsEnabled(ctx, []string{"on", "off", "no-block", "missing"})
+	s.Require().NoError(err)
+	s.Equal(map[string]bool{"on": true, "off": false, "no-block": false}, got)
+
+	empty, err := s.repo.GetProfilesLogsEnabled(ctx, nil)
+	s.Require().NoError(err)
+	s.Empty(empty)
 }
 
 func TestProfileRepositorySuite(t *testing.T) {

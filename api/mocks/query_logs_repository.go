@@ -462,3 +462,65 @@ func (_c *QueryLogsRepository_GetQueryLogs_Call) RunAndReturn(run func(ctx conte
 	_c.Call.Return(run)
 	return _c
 }
+
+// ListQueryLogProfileIDs provides a mock function for the type QueryLogsRepository
+func (_mock *QueryLogsRepository) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListQueryLogProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsRepository_ListQueryLogProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListQueryLogProfileIDs'
+type QueryLogsRepository_ListQueryLogProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListQueryLogProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *QueryLogsRepository_Expecter) ListQueryLogProfileIDs(ctx interface{}) *QueryLogsRepository_ListQueryLogProfileIDs_Call {
+	return &QueryLogsRepository_ListQueryLogProfileIDs_Call{Call: _e.mock.On("ListQueryLogProfileIDs", ctx)}
+}
+
+func (_c *QueryLogsRepository_ListQueryLogProfileIDs_Call) Run(run func(ctx context.Context)) *QueryLogsRepository_ListQueryLogProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsRepository_ListQueryLogProfileIDs_Call) Return(strings []string, err error) *QueryLogsRepository_ListQueryLogProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *QueryLogsRepository_ListQueryLogProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *QueryLogsRepository_ListQueryLogProfileIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}

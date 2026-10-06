@@ -50,6 +50,10 @@ func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId
 	return nil
 }
 
+func (s *stubQueryLogsRepository) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	return nil, nil
+}
+
 // TestGetProfileQueryLogsInvalidTimespan validates that an invalid timespan string short-circuits
 // before hitting the repository and returns an error. A lightweight stub ensures the repository
 // layer is not touched.

@@ -304,6 +304,45 @@ func (r *QueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId str
 	return nil
 }
 
+// ListQueryLogProfileIDs groups on the metaField, which time-series collections answer
+// from the buckets without unpacking measurements.
+func (r *QueryLogsRepository) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	group := bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$profile_id"}}}}
+	pipeline := mongo.Pipeline{group}
+	for _, name := range queryLogsCollectionNames()[1:] {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$unionWith", Value: bson.D{
+			primitive.E{Key: "coll", Value: name},
+			primitive.E{Key: "pipeline", Value: bson.A{group}},
+		}}})
+	}
+	pipeline = append(pipeline, bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$_id"}}}})
+
+	cursor, err := r.queryLogsCollOneHour.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rows []struct {
+		ID string `bson:"_id"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.ID != "" {
+			ids = append(ids, row.ID)
+		}
+	}
+	return ids, nil
+}
+
+// queryLogsCollectionNames lists the retention collections, the 1h one first.
+func queryLogsCollectionNames() []string {
+	return []string{queryLogsCollOneHour, queryLogsCollSixHours, queryLogsCollOneDay, queryLogsCollOneWeek, queryLogsCollOneMonth}
+}
+
 func (r *QueryLogsRepository) getCollObject(retention model.Retention) *mongo.Collection {
 	switch retention {
 	case model.RetentionOneHour:
