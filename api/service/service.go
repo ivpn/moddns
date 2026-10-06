@@ -48,7 +48,7 @@ type Service struct {
 	SessionServicer
 	PasskeyServicer
 	dnsstamp.DNSStampServicer
-	// Statistics is exposed for the cron reconciler.
+	// Statistics is exposed for the unconsented-statistics purge job.
 	Statistics *statistics.StatisticsService
 }
 

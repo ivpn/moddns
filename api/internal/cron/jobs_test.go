@@ -334,23 +334,23 @@ func TestNotifyExpiring_PostFilterSkipsPDAndGrace(t *testing.T) {
 	NotifyExpiringSubscriptions(subRepo, accountRepo, mailer)
 }
 
-type fakeStatisticsReconciler struct {
+type fakeUnconsentedStatisticsPurger struct {
 	calls int
 	err   error
 }
 
-func (f *fakeStatisticsReconciler) ReconcileStatistics(_ context.Context) (statistics.ReconcileResult, error) {
+func (f *fakeUnconsentedStatisticsPurger) PurgeUnconsentedStatistics(_ context.Context) (statistics.UnconsentedPurgeResult, error) {
 	f.calls++
-	return statistics.ReconcileResult{Checked: 1}, f.err
+	return statistics.UnconsentedPurgeResult{Checked: 1}, f.err
 }
 
 // specRef: api-endpoint-behaviour.md J9
-func TestReconcileStatistics_RunsAndSurvivesErrors(t *testing.T) {
-	ok := &fakeStatisticsReconciler{}
-	ReconcileStatistics(ok)
+func TestPurgeUnconsentedStatistics_RunsAndSurvivesErrors(t *testing.T) {
+	ok := &fakeUnconsentedStatisticsPurger{}
+	PurgeUnconsentedStatistics(ok)
 	require.Equal(t, 1, ok.calls)
 
-	failing := &fakeStatisticsReconciler{err: errors.New("mongo down")}
-	require.NotPanics(t, func() { ReconcileStatistics(failing) })
+	failing := &fakeUnconsentedStatisticsPurger{err: errors.New("mongo down")}
+	require.NotPanics(t, func() { PurgeUnconsentedStatistics(failing) })
 	require.Equal(t, 1, failing.calls)
 }

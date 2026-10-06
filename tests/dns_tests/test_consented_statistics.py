@@ -34,8 +34,8 @@ from libs.statistics_helpers import (
 )
 from pymongo import MongoClient
 
-# STATISTICS_RECONCILE_INTERVAL is 5s in config/api.env; leave room for Mongo latency.
-RECONCILE_TIMEOUT_S = 60
+# STATISTICS_PURGE_INTERVAL is 5s in config/api.env; leave room for Mongo latency.
+PURGE_TIMEOUT_S = 60
 TS_TTL = {
     "statistics_15min": 86400,
     "statistics_1h": 691200,
@@ -91,7 +91,7 @@ def _insert_doc(db, pid, bucket_start, device="laptop", collection=TIER_15MIN):
     db[collection].insert_one(doc)
 
 
-async def _wait_until(cond, timeout=RECONCILE_TIMEOUT_S, step=2):
+async def _wait_until(cond, timeout=PURGE_TIMEOUT_S, step=2):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline and not cond():
         await asyncio.sleep(step)
@@ -160,7 +160,7 @@ class TestConsentedStatistics:
         """specRef: proxy-statistics-behaviour #Y11 #Y12 #Y13 #Y14 #Y17 #Y18 #Y19 #Y20;
         api-endpoint-behaviour #J6 #J8 — one flat document per device in each of the
         15-minute, 1-hour and 1-day (30d) tiers with exact counters; toggling off
-        removes them from every tier at once and the reconciler removes a late flush."""
+        removes them from every tier at once and the unconsented-statistics purge removes a late flush."""
         pid = user.new_profile("stats-on")
         user.add_rule(pid, "block", SVC_GOOGLE_DOMAIN)
         # Sync on the rule before enabling so measured queries are fully classified.
@@ -231,19 +231,19 @@ class TestConsentedStatistics:
         patch_stats(user, pid, False)
         assert _count(mongo_db, pid) == 0, "documents must be gone as soon as the PATCH returns"
 
-        # J8: a flush landing after the immediate purge is removed by the reconciler.
+        # J8: a flush landing after the immediate purge is removed by the unconsented-statistics purge.
         now = datetime.now(timezone.utc)
         _insert_doc(mongo_db, pid, _floor15(now), collection=TIER_15MIN)
         _insert_doc(mongo_db, pid, _floor_hour(now), collection=TIER_1H)
         _insert_doc(mongo_db, pid, _floor_day(now), collection="statistics_1d_90d")
         assert await _wait_until(lambda: _count(mongo_db, pid) == 0), (
-            "reconciler did not remove the late documents of a statistics-off profile"
+            "unconsented-statistics purge did not remove the late documents of a statistics-off profile"
         )
 
     @pytest.mark.asyncio
-    async def test_reconciler_keeps_only_buckets_since_reenable(self, user, mongo_db):
+    async def test_unconsented_purge_keeps_only_buckets_since_reenable(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #J8 #J9 — for a statistics-on profile the
-        reconciler deletes, per tier, buckets older than enabled_at floored to that
+        unconsented-statistics purge deletes, per tier, buckets older than enabled_at floored to that
         tier's width (15 min / 1 h / 1 day) and keeps buckets at or after it."""
         pid = user.new_profile("stats-reenable")
         await enable_and_warm(user, pid)
@@ -259,7 +259,7 @@ class TestConsentedStatistics:
         )
 
         # Inserted after the re-enable so the profile is never statistics-off
-        # while the reconciler can see these documents.
+        # while the unconsented-statistics purge can see these documents.
         for tier, cutoff, width in bounds:
             _insert_doc(mongo_db, pid, cutoff - width, device="old", collection=tier)
             _insert_doc(mongo_db, pid, cutoff, device="new", collection=tier)
@@ -278,12 +278,12 @@ class TestConsentedStatistics:
             )
 
     @pytest.mark.asyncio
-    async def test_reconciler_keeps_flushed_hour_and_day_tier_docs_of_an_enabled_profile(
+    async def test_unconsented_purge_keeps_flushed_hour_and_day_tier_docs_of_an_enabled_profile(
         self, user, mongo_db
     ):
         """specRef: api-endpoint-behaviour #J8 #J9 / proxy-statistics-behaviour #Y17 #Y18 —
         a profile that keeps statistics on keeps the 1-hour and 1-day documents of the
-        current period across reconcile runs (their bucket_start is the hour / day start,
+        current period across purge runs (their bucket_start is the hour / day start,
         earlier than floor15(enabled_at))."""
         pid = user.new_profile("stats-keep-tiers")
         await enable_and_warm(user, pid)
@@ -293,7 +293,7 @@ class TestConsentedStatistics:
         before = {n: _docs(mongo_db, pid, n) for n in (TIER_15MIN, TIER_1H, "statistics_1d_30d")}
         assert all(before.values()), {n: len(d) for n, d in before.items()}
 
-        # Several reconcile runs (5s interval) later nothing may be gone.
+        # Several purge runs (5s interval) later nothing may be gone.
         await asyncio.sleep(20)
         after = {n: _docs(mongo_db, pid, n) for n in before}
         assert {n: len(d) for n, d in after.items()} == {n: len(d) for n, d in before.items()}
@@ -301,7 +301,7 @@ class TestConsentedStatistics:
     @pytest.mark.asyncio
     async def test_profile_delete_purges_documents(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #J7 #J8 — deleting a profile removes its
-        statistics from every tier at once; the reconciler removes a late flush."""
+        statistics from every tier at once; the unconsented-statistics purge removes a late flush."""
         pid = user.new_profile("stats-delete")
         await enable_and_warm(user, pid)
         for _ in range(3):
@@ -320,7 +320,7 @@ class TestConsentedStatistics:
         _insert_doc(mongo_db, pid, _floor15(now), collection=TIER_15MIN)
         _insert_doc(mongo_db, pid, _floor_day(now), collection="statistics_1d_1y")
         assert await _wait_until(lambda: _count(mongo_db, pid) == 0), (
-            "reconciler did not remove the late documents of a deleted profile"
+            "unconsented-statistics purge did not remove the late documents of a deleted profile"
         )
 
 
