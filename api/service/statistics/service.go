@@ -11,10 +11,10 @@ import (
 )
 
 const (
-	reconcileBatch      = 1000
-	reconcileJobTimeout = 90 * time.Second
+	unconsentedPurgeBatch      = 1000
+	unconsentedPurgeJobTimeout = 90 * time.Second
 	// A run must finish well inside the cron lock TTL (10 min).
-	reconcileDeadline = 5 * time.Minute
+	unconsentedPurgeDeadline = 5 * time.Minute
 )
 
 // ProfileStatisticsReader loads the statistics settings of many profiles at once.
@@ -27,27 +27,27 @@ type ProfileStatisticsReader interface {
 type StatisticsService struct {
 	StatisticsRepository repository.StatisticsRepository
 
-	profiles         ProfileStatisticsReader
-	cache            ReadCache
-	now              func() time.Time
-	reconcileJobTime time.Duration
-	reconcileRunTime time.Duration
+	profiles     ProfileStatisticsReader
+	cache        ReadCache
+	now          func() time.Time
+	purgeJobTime time.Duration
+	purgeRunTime time.Duration
 }
 
 // Option configures optional StatisticsService dependencies.
 type Option func(*StatisticsService)
 
-// WithProfiles supplies the profile lookup ReconcileStatistics needs.
+// WithProfiles supplies the profile lookup PurgeUnconsentedStatistics needs.
 func WithProfiles(profiles ProfileStatisticsReader) Option {
 	return func(s *StatisticsService) { s.profiles = profiles }
 }
 
-// WithReconcileTimeouts overrides the per-profile delete bound and the whole-run
-// bound of ReconcileStatistics.
-func WithReconcileTimeouts(perProfile, wholeRun time.Duration) Option {
+// WithUnconsentedPurgeTimeouts overrides the per-profile delete bound and the whole-run
+// bound of PurgeUnconsentedStatistics.
+func WithUnconsentedPurgeTimeouts(perProfile, wholeRun time.Duration) Option {
 	return func(s *StatisticsService) {
-		s.reconcileJobTime = perProfile
-		s.reconcileRunTime = wholeRun
+		s.purgeJobTime = perProfile
+		s.purgeRunTime = wholeRun
 	}
 }
 
@@ -56,8 +56,8 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 		StatisticsRepository: db,
 		cache:                noopReadCache{},
 		now:                  time.Now,
-		reconcileJobTime:     reconcileJobTimeout,
-		reconcileRunTime:     reconcileDeadline,
+		purgeJobTime:         unconsentedPurgeJobTimeout,
+		purgeRunTime:         unconsentedPurgeDeadline,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -74,14 +74,14 @@ func (s *StatisticsService) PurgeProfile(ctx context.Context, profileId string) 
 
 // PurgeBestEffort is the immediate purge on statistics true->false and on profile
 // delete. A failure is only logged: statistics reads are gated on the setting and
-// the next reconcile removes whatever is left.
+// the next unconsented-statistics purge removes whatever is left.
 func (s *StatisticsService) PurgeBestEffort(ctx context.Context, profileId string) {
 	if err := s.PurgeProfile(ctx, profileId); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("statistics: immediate purge failed; the next reconcile removes the leftovers")
+		log.Ctx(ctx).Error().Err(err).Msg("statistics: immediate purge failed; the next unconsented-statistics purge removes the leftovers")
 	}
 }
 
-// ReconcileRule decides what to delete for one profile id found in the
+// UnconsentedPurgeBound decides what to delete for one profile id found in the
 // statistics collections: nothing, everything (nil before), or the buckets
 // starting before the returned instant.
 //   - profile missing or statistics off: everything.
@@ -90,7 +90,7 @@ func (s *StatisticsService) PurgeBestEffort(ctx context.Context, profileId strin
 //     bucket containing enabled_at and removes older ones (leftovers of an
 //     earlier on-period).
 //   - statistics on without enabled_at (enabled before the field existed): nothing.
-func ReconcileRule(exists bool, settings *model.StatisticsSettings) (purge bool, before *time.Time) {
+func UnconsentedPurgeBound(exists bool, settings *model.StatisticsSettings) (purge bool, before *time.Time) {
 	if !exists || settings == nil || !settings.Enabled {
 		return true, nil
 	}
@@ -101,24 +101,24 @@ func ReconcileRule(exists bool, settings *model.StatisticsSettings) (purge bool,
 	return true, &b
 }
 
-// ReconcileResult counts what one run did; it carries no identifiers.
-type ReconcileResult struct {
+// UnconsentedPurgeResult counts what one run did; it carries no identifiers.
+type UnconsentedPurgeResult struct {
 	Checked, Purged, Failed int
 }
 
-// ReconcileStatistics removes statistics that no longer have consent: for every
-// profile id present in the statistics collections it applies ReconcileRule
+// PurgeUnconsentedStatistics removes statistics that no longer have consent: for every
+// profile id present in the statistics collections it applies UnconsentedPurgeBound
 // against the profile as stored now. Everything is derived from Mongo, so a run
 // needs no memory of earlier ones. The first per-profile timeout ends the run
 // (the database is struggling) and so does the whole-run deadline; profiles not
 // reached are picked up by the next run.
-func (s *StatisticsService) ReconcileStatistics(ctx context.Context) (ReconcileResult, error) {
-	var res ReconcileResult
+func (s *StatisticsService) PurgeUnconsentedStatistics(ctx context.Context) (UnconsentedPurgeResult, error) {
+	var res UnconsentedPurgeResult
 	if s.profiles == nil {
-		return res, errors.New("statistics reconcile: no profile reader configured")
+		return res, errors.New("unconsented-statistics purge: no profile reader configured")
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, s.reconcileRunTime)
+	runCtx, cancel := context.WithTimeout(ctx, s.purgeRunTime)
 	defer cancel()
 
 	ids, err := s.StatisticsRepository.ListStatisticsProfileIDs(runCtx)
@@ -126,8 +126,8 @@ func (s *StatisticsService) ReconcileStatistics(ctx context.Context) (ReconcileR
 		return res, err
 	}
 
-	for start := 0; start < len(ids); start += reconcileBatch {
-		batch := ids[start:min(start+reconcileBatch, len(ids))]
+	for start := 0; start < len(ids); start += unconsentedPurgeBatch {
+		batch := ids[start:min(start+unconsentedPurgeBatch, len(ids))]
 		settings, err := s.profiles.GetProfilesStatisticsSettings(runCtx, batch)
 		if err != nil {
 			return res, err
@@ -139,12 +139,12 @@ func (s *StatisticsService) ReconcileStatistics(ctx context.Context) (ReconcileR
 			}
 			res.Checked++
 			st, exists := settings[id]
-			purge, before := ReconcileRule(exists, st)
+			purge, before := UnconsentedPurgeBound(exists, st)
 			if !purge {
 				continue
 			}
 
-			jobCtx, cancelJob := context.WithTimeout(runCtx, s.reconcileJobTime)
+			jobCtx, cancelJob := context.WithTimeout(runCtx, s.purgeJobTime)
 			delErr := s.StatisticsRepository.DeleteProfileStatistics(jobCtx, id, before)
 			s.invalidate(runCtx, id)
 			timedOut := errors.Is(jobCtx.Err(), context.DeadlineExceeded)

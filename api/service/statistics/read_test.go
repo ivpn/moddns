@@ -451,10 +451,10 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J46 — every reconcile delete attempt invalidates that profile's keys; untouched profiles keep theirs.
-func TestReconcile_InvalidatesReadCache(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J46 — every delete attempt of the unconsented-statistics purge invalidates that profile's keys; untouched profiles keep theirs.
+func TestUnconsentedPurge_InvalidatesReadCache(t *testing.T) {
 	cache := newFakeReadCache()
-	h := newReconcileHarness(t, statistics.WithReadCache(cache))
+	h := newUnconsentedPurgeHarness(t, statistics.WithReadCache(cache))
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "kept", "failing"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
 		"kept": stats(true, nil),
@@ -462,7 +462,7 @@ func TestReconcile_InvalidatesReadCache(t *testing.T) {
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(errors.New("boom")).Once()
 
-	_, err := h.svc.ReconcileStatistics(context.Background())
+	_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"gone", "failing"}, cache.invalidated)
 }

@@ -62,8 +62,8 @@ type ServiceConfig struct {
 	ServicesCatalogReloadEvery time.Duration
 	AnnouncementsURL           string
 	AnnouncementsReloadEvery   time.Duration
-	// StatisticsReconcileInterval is how often the statistics reconciler runs.
-	StatisticsReconcileInterval time.Duration
+	// StatisticsPurgeInterval is how often the unconsented-statistics purge runs.
+	StatisticsPurgeInterval time.Duration
 	// GeoIP databases enriching the query-log top-clients list; both optional.
 	GeoIPASNFile     string
 	GeoIPCountryFile string
@@ -205,7 +205,7 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	statisticsReconcileInterval, err := parsePositiveDuration("STATISTICS_RECONCILE_INTERVAL", "1h")
+	statisticsPurgeInterval, err := parsePositiveDuration("STATISTICS_PURGE_INTERVAL", "1h")
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func New() (*Config, error) {
 			ServicesCatalogReloadEvery:     servicesCatalogReloadEvery,
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
-			StatisticsReconcileInterval:    statisticsReconcileInterval,
+			StatisticsPurgeInterval:        statisticsPurgeInterval,
 			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
 			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
 			GeoIPReloadEvery:               geoIPReloadEvery,

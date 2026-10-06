@@ -25,7 +25,7 @@ func stats(enabled bool, at *time.Time) *model.StatisticsSettings {
 func atp(t time.Time) *time.Time { return &t }
 
 // specRef: api-endpoint-behaviour.md J8
-func TestReconcileRule(t *testing.T) {
+func TestUnconsentedPurgeBound(t *testing.T) {
 	tests := []struct {
 		name       string
 		exists     bool
@@ -44,7 +44,7 @@ func TestReconcileRule(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			purge, before := statistics.ReconcileRule(tt.exists, tt.settings)
+			purge, before := statistics.UnconsentedPurgeBound(tt.exists, tt.settings)
 			require.Equal(t, tt.wantPurge, purge)
 			if tt.wantBefore == nil {
 				require.Nil(t, before)
@@ -71,22 +71,22 @@ func TestPurgeBestEffort(t *testing.T) {
 	}
 }
 
-type reconcileHarness struct {
+type unconsentedPurgeHarness struct {
 	stats    *mocks.StatisticsRepository
 	profiles *mocks.ProfileRepository
 	svc      *statistics.StatisticsService
 }
 
-func newReconcileHarness(t *testing.T, opts ...statistics.Option) *reconcileHarness {
+func newUnconsentedPurgeHarness(t *testing.T, opts ...statistics.Option) *unconsentedPurgeHarness {
 	t.Helper()
-	h := &reconcileHarness{stats: mocks.NewStatisticsRepository(t), profiles: mocks.NewProfileRepository(t)}
+	h := &unconsentedPurgeHarness{stats: mocks.NewStatisticsRepository(t), profiles: mocks.NewProfileRepository(t)}
 	h.svc = statistics.NewStatisticsService(h.stats, append([]statistics.Option{statistics.WithProfiles(h.profiles)}, opts...)...)
 	return h
 }
 
 // specRef: api-endpoint-behaviour.md J8, J9 — each profile id gets the rule's decision; counts are returned.
-func TestReconcileStatistics_AppliesRulePerProfile(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeUnconsentedStatistics_AppliesRulePerProfile(t *testing.T) {
+	h := newUnconsentedPurgeHarness(t)
 	enabledAt := utc(2026, 9, 29, 10, 7, 0)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "off", "on-no-ts", "on-ts"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"gone", "off", "on-no-ts", "on-ts"}).Return(map[string]*model.StatisticsSettings{
@@ -98,15 +98,15 @@ func TestReconcileStatistics_AppliesRulePerProfile(t *testing.T) {
 		return b != nil && b.Equal(enabledAt)
 	})).Return(nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.ReconcileResult{Checked: 4, Purged: 3}, res)
+	require.Equal(t, statistics.UnconsentedPurgeResult{Checked: 4, Purged: 3}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "on-no-ts", mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — profile lookups are batched.
-func TestReconcileStatistics_BatchesProfileLookups(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeUnconsentedStatistics_BatchesProfileLookups(t *testing.T) {
+	h := newUnconsentedPurgeHarness(t)
 	ids := make([]string, 2500)
 	settings := map[string]*model.StatisticsSettings{}
 	for i := range ids {
@@ -117,76 +117,76 @@ func TestReconcileStatistics_BatchesProfileLookups(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(settings, nil).Times(3)
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 2500, res.Checked)
 	require.Zero(t, res.Purged)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a failed delete is counted and the run continues; the profile is retried next run.
-func TestReconcileStatistics_DeleteFailureDoesNotStopTheRun(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeUnconsentedStatistics_DeleteFailureDoesNotStopTheRun(t *testing.T) {
+	h := newUnconsentedPurgeHarness(t)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Return(errors.New("boom")).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "b", (*time.Time)(nil)).Return(nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.ReconcileResult{Checked: 2, Purged: 1, Failed: 1}, res)
+	require.Equal(t, statistics.UnconsentedPurgeResult{Checked: 2, Purged: 1, Failed: 1}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — the first per-profile timeout ends the run.
-func TestReconcileStatistics_JobTimeoutStopsTheRun(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithReconcileTimeouts(20*time.Millisecond, time.Minute))
+func TestPurgeUnconsentedStatistics_JobTimeoutStopsTheRun(t *testing.T) {
+	h := newUnconsentedPurgeHarness(t, statistics.WithUnconsentedPurgeTimeouts(20*time.Millisecond, time.Minute))
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Run(func(args mock.Arguments) {
 		<-args.Get(0).(context.Context).Done()
 	}).Return(context.DeadlineExceeded).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.ReconcileResult{Checked: 1, Failed: 1}, res)
+	require.Equal(t, statistics.UnconsentedPurgeResult{Checked: 1, Failed: 1}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — past the whole-run deadline no further profile is processed.
-func TestReconcileStatistics_RunDeadlineStopsTheRun(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithReconcileTimeouts(time.Minute, 50*time.Millisecond))
+func TestPurgeUnconsentedStatistics_RunDeadlineStopsTheRun(t *testing.T) {
+	h := newUnconsentedPurgeHarness(t, statistics.WithUnconsentedPurgeTimeouts(time.Minute, 50*time.Millisecond))
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Run(func(mock.Arguments) {
 		time.Sleep(120 * time.Millisecond)
 	}).Return(nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Purged)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — read failures abort the run with an error.
-func TestReconcileStatistics_ReadFailuresAbort(t *testing.T) {
+func TestPurgeUnconsentedStatistics_ReadFailuresAbort(t *testing.T) {
 	t.Run("listing ids", func(t *testing.T) {
-		h := newReconcileHarness(t)
+		h := newUnconsentedPurgeHarness(t)
 		h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.ReconcileStatistics(context.Background())
+		_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 		require.Error(t, err)
 	})
 	t.Run("profile lookup", func(t *testing.T) {
-		h := newReconcileHarness(t)
+		h := newUnconsentedPurgeHarness(t)
 		h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a"}, nil)
 		h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.ReconcileStatistics(context.Background())
+		_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 		require.Error(t, err)
 		h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a lookup failure must never be read as "profile missing".
-func TestReconcileStatistics_NoProfileReaderDeletesNothing(t *testing.T) {
+func TestPurgeUnconsentedStatistics_NoProfileReaderDeletesNothing(t *testing.T) {
 	stats := mocks.NewStatisticsRepository(t)
-	_, err := statistics.NewStatisticsService(stats).ReconcileStatistics(context.Background())
+	_, err := statistics.NewStatisticsService(stats).PurgeUnconsentedStatistics(context.Background())
 	require.Error(t, err)
 }
