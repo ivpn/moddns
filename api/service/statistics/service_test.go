@@ -30,22 +30,19 @@ func TestUnconsentedPurgeBound(t *testing.T) {
 		name       string
 		exists     bool
 		settings   *model.StatisticsSettings
-		wantPurge  bool
 		wantBefore *time.Time
 	}{
-		{"missing profile deletes everything", false, nil, true, nil},
-		{"statistics off deletes everything", true, stats(false, nil), true, nil},
-		{"statistics off with a stale enabled_at deletes everything", true, stats(false, atp(utc(2026, 9, 29, 10, 0, 0))), true, nil},
-		{"no statistics block counts as off", true, nil, true, nil},
-		{"on with nil enabled_at keeps everything", true, stats(true, nil), false, nil},
-		{"off-then-on: the bound is enabled_at itself (the repository floors it per tier)", true, stats(true, atp(utc(2026, 9, 29, 10, 7, 30))), true, atp(utc(2026, 9, 29, 10, 7, 30))},
-		{"enabled_at exactly on a boundary", true, stats(true, atp(utc(2026, 9, 29, 10, 15, 0))), true, atp(utc(2026, 9, 29, 10, 15, 0))},
-		{"non-UTC enabled_at is returned in UTC", true, stats(true, atp(time.Date(2026, 9, 29, 12, 7, 0, 0, time.FixedZone("x", 7200)))), true, atp(utc(2026, 9, 29, 10, 7, 0))},
+		{"missing profile deletes everything", false, nil, nil},
+		{"statistics off deletes everything", true, stats(false, nil), nil},
+		{"statistics off with a stale enabled_at deletes everything", true, stats(false, atp(utc(2026, 9, 29, 10, 0, 0))), nil},
+		{"no statistics block counts as off", true, nil, nil},
+		{"off-then-on: the bound is enabled_at itself (the repository floors it per tier)", true, stats(true, atp(utc(2026, 9, 29, 10, 7, 30))), atp(utc(2026, 9, 29, 10, 7, 30))},
+		{"enabled_at exactly on a boundary", true, stats(true, atp(utc(2026, 9, 29, 10, 15, 0))), atp(utc(2026, 9, 29, 10, 15, 0))},
+		{"non-UTC enabled_at is the same instant", true, stats(true, atp(time.Date(2026, 9, 29, 12, 7, 0, 0, time.FixedZone("x", 7200)))), atp(utc(2026, 9, 29, 10, 7, 0))},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			purge, before := statistics.UnconsentedPurgeBound(tt.exists, tt.settings)
-			require.Equal(t, tt.wantPurge, purge)
+			before := statistics.UnconsentedPurgeBound(tt.exists, tt.settings)
 			if tt.wantBefore == nil {
 				require.Nil(t, before)
 			} else {
@@ -88,9 +85,9 @@ func newUnconsentedPurgeHarness(t *testing.T, opts ...statistics.Option) *uncons
 func TestPurgeUnconsentedStatistics_AppliesRulePerProfile(t *testing.T) {
 	h := newUnconsentedPurgeHarness(t)
 	enabledAt := utc(2026, 9, 29, 10, 7, 0)
-	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "off", "on-no-ts", "on-ts"}, nil)
-	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"gone", "off", "on-no-ts", "on-ts"}).Return(map[string]*model.StatisticsSettings{
-		"off": stats(false, nil), "on-no-ts": stats(true, nil), "on-ts": stats(true, &enabledAt),
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "off", "on-ts"}, nil)
+	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"gone", "off", "on-ts"}).Return(map[string]*model.StatisticsSettings{
+		"off": stats(false, nil), "on-ts": stats(true, &enabledAt),
 	}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "off", (*time.Time)(nil)).Return(nil).Once()
@@ -100,27 +97,28 @@ func TestPurgeUnconsentedStatistics_AppliesRulePerProfile(t *testing.T) {
 
 	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.UnconsentedPurgeResult{Checked: 4, Purged: 3}, res)
-	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "on-no-ts", mock.Anything)
+	require.Equal(t, statistics.UnconsentedPurgeResult{Checked: 3, Purged: 3}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — profile lookups are batched.
 func TestPurgeUnconsentedStatistics_BatchesProfileLookups(t *testing.T) {
 	h := newUnconsentedPurgeHarness(t)
+	enabledAt := utc(2026, 9, 29, 10, 7, 0)
 	ids := make([]string, 2500)
 	settings := map[string]*model.StatisticsSettings{}
 	for i := range ids {
 		ids[i] = fmt.Sprintf("p%d", i)
-		settings[ids[i]] = stats(true, nil)
+		settings[ids[i]] = stats(true, &enabledAt)
 	}
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return(ids, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(settings, nil).Times(3)
+	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2500)
 
 	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 2500, res.Checked)
-	require.Zero(t, res.Purged)
+	require.Equal(t, 2500, res.Purged)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a failed delete is counted and the run continues; the profile is retried next run.
