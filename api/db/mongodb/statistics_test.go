@@ -350,7 +350,7 @@ func (s *StatisticsRepositorySuite) TestListStatisticsProfileIDs_UsesProfileInde
 // specRef: api-endpoint-behaviour.md J9 — one query returns only settings.statistics; missing profiles are absent, a missing block maps to nil.
 func (s *StatisticsRepositorySuite) TestGetProfilesStatisticsSettings() {
 	ctx := context.Background()
-	coll := s.client.Database(s.dbName).Collection("profiles_reconcile")
+	coll := s.client.Database(s.dbName).Collection("profiles_purge")
 	enabledAt := time.Date(2026, 9, 29, 10, 7, 0, 0, time.UTC)
 	_, err := coll.InsertMany(ctx, []any{
 		bson.D{{Key: "profile_id", Value: "on"}, {Key: "account_id", Value: "secret"}, {Key: "settings", Value: bson.D{
@@ -364,7 +364,7 @@ func (s *StatisticsRepositorySuite) TestGetProfilesStatisticsSettings() {
 	})
 	s.Require().NoError(err)
 
-	repo := NewProfileRepository(s.client, s.dbName, "profiles_reconcile")
+	repo := NewProfileRepository(s.client, s.dbName, "profiles_purge")
 	got, err := repo.GetProfilesStatisticsSettings(ctx, []string{"on", "off", "no-block", "null-block", "missing"})
 	s.Require().NoError(err)
 

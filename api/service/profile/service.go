@@ -211,7 +211,7 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 
 	eg.Go(func() (err error) {
 		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it);
-		// leftovers of a failed purge are removed by the statistics reconciler
+		// leftovers of a failed purge are removed by the unconsented-statistics purge
 		p.StatisticsService.PurgeBestEffort(ctx, profileId)
 		return nil
 	})
@@ -438,7 +438,7 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 	}
 
 	now := p.clock()
-	reconcileStatisticsEnabledAt(before, profile.Settings, now)
+	updateStatisticsEnabledAt(before, profile.Settings, now)
 
 	if err := p.ProfileRepository.Update(ctx, profileId, profile); err != nil {
 		return nil, err
@@ -475,9 +475,9 @@ func (s settingsSnapshot) statisticsEnabled() bool {
 	return s.statistics != nil && s.statistics.Enabled
 }
 
-// reconcileStatisticsEnabledAt derives enabled_at from the net change of a whole
+// updateStatisticsEnabledAt derives enabled_at from the net change of a whole
 // PATCH: set on false->true, cleared on true->false, otherwise as it was.
-func reconcileStatisticsEnabledAt(before settingsSnapshot, settings *model.ProfileSettings, now time.Time) {
+func updateStatisticsEnabledAt(before settingsSnapshot, settings *model.ProfileSettings, now time.Time) {
 	if settings == nil || settings.Statistics == nil {
 		return
 	}
