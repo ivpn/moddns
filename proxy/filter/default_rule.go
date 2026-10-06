@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	RULE_BLOCK   = "block"
-	RULE_ALLOW   = "allow"
-	DEFAULT_RULE = "default_rule"
+	RULE_BLOCK = "block"
+	RULE_ALLOW = "allow"
+
+	// defaultRuleSetting is the privacy setting key holding the default rule.
+	defaultRuleSetting = "default_rule"
 )
 
 func (f *DomainFilter) applyDefaultRule(ctx context.Context, reqCtx *requestcontext.RequestContext, dctx *proxy.DNSContext) (*model.StageResult, error) {
@@ -19,9 +21,9 @@ func (f *DomainFilter) applyDefaultRule(ctx context.Context, reqCtx *requestcont
 
 	// Privacy settings already travel on the request context; no store read.
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierDefaultRule}
-	if reqCtx.PrivacySettings[DEFAULT_RULE] == RULE_BLOCK {
+	if reqCtx.PrivacySettings[defaultRuleSetting] == RULE_BLOCK {
 		result.Decision = model.DecisionBlock
-		result.Reasons = append(result.Reasons, DEFAULT_RULE)
+		result.Reasons = append(result.Reasons, model.FilterReasonDefaultRule)
 		reqCtx.Logger.Debug().Msg("Applied default block rule")
 	}
 	return result, nil

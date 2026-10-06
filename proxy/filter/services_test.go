@@ -212,7 +212,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:     []string{"google"},
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantDecision:   model.DecisionBlock,
-			wantReasons:    []string{REASON_SERVICES, "service: google"},
+			wantReasons:    []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:           "blocks and reports multiple matched services",
@@ -221,7 +221,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:     []string{"google", "cloudflare"},
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantDecision:   model.DecisionBlock,
-			wantReasons:    []string{REASON_SERVICES, "service: google", "service: cloudflare"},
+			wantReasons:    []string{model.FilterReasonServices, "service: google", "service: cloudflare"},
 		},
 		{
 			name:           "ignores unknown blocked service ids",
@@ -241,7 +241,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantDecision:   model.DecisionBlock,
 			// Reason reports the canonical ID, not the alias.
-			wantReasons: []string{REASON_SERVICES, "service: google"},
+			wantReasons: []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			// An alias and its canonical ID both present must resolve to one
@@ -252,7 +252,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:     []string{"google", "google-legacy"},
 			dnsCtx:         dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantDecision:   model.DecisionBlock,
-			wantReasons:    []string{REASON_SERVICES, "service: google"},
+			wantReasons:    []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:           "multiple answers can match",
@@ -267,7 +267,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 				&dns.A{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 60}, A: net.ParseIP("2.2.2.2")},
 			}),
 			wantDecision: model.DecisionBlock,
-			wantReasons:  []string{REASON_SERVICES, "service: google"},
+			wantReasons:  []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:           "blocks on HTTPS answer with ipv4hint when asn matches",
@@ -278,7 +278,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:   []string{"google"},
 			dnsCtx:       dnsCtxWithHTTPSAnswer(t, "example.com.", []net.IP{net.ParseIP("142.250.74.46").To4()}, nil),
 			wantDecision: model.DecisionBlock,
-			wantReasons:  []string{REASON_SERVICES, "service: google"},
+			wantReasons:  []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:           "blocks on HTTPS answer with ipv6hint when asn matches",
@@ -289,7 +289,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 			blockedIDs:   []string{"google"},
 			dnsCtx:       dnsCtxWithHTTPSAnswer(t, "example.com.", nil, []net.IP{net.ParseIP("2a00:1450:4010:c0a::5e")}),
 			wantDecision: model.DecisionBlock,
-			wantReasons:  []string{REASON_SERVICES, "service: google"},
+			wantReasons:  []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:           "HTTPS answer without IP hints is not blocked",
@@ -310,7 +310,7 @@ func TestIPFilter_filterServices_Table(t *testing.T) {
 				&dns.AAAA{Hdr: dns.RR_Header{Name: "example.com.", Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: 60}, AAAA: net.ParseIP("2001:db8::1")},
 			}),
 			wantDecision: model.DecisionBlock,
-			wantReasons:  []string{REASON_SERVICES, "service: google"},
+			wantReasons:  []string{model.FilterReasonServices, "service: google"},
 		},
 	}
 
@@ -367,7 +367,7 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			asnLookup:    staticASNLookup{asn: asn},
 			dnsCtx:       dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantStatus:   model.StatusBlocked,
-			wantContains: []string{REASON_SERVICES, "service: google"},
+			wantContains: []string{model.FilterReasonServices, "service: google"},
 		},
 		{
 			name:         "allow-by-ip custom rule overrides services block (final aggregation)",
@@ -394,8 +394,8 @@ func TestIPFilter_ServicesBlocking_Integration_Table(t *testing.T) {
 			asnLookup:       staticASNLookup{asn: asn},
 			dnsCtx:          dnsCtxWithAAnswer(t, "1.1.1.1"),
 			wantStatus:      model.StatusProcessed,
-			wantContains:    []string{REASON_CUSTOM_RULES},
-			wantNotContains: []string{REASON_SERVICES},
+			wantContains:    []string{model.FilterReasonCustomRules},
+			wantNotContains: []string{model.FilterReasonServices},
 		},
 	}
 
