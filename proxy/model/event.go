@@ -7,9 +7,11 @@ type EventQueryLog struct {
 }
 
 // EventStatistics is one query's counter increments (total 1, blocked and
-// dnssec 0 or 1). It carries no identifier and no time on purpose.
+// dnssec 0 or 1). It carries no time on purpose. Consented is set only for a
+// profile with statistics enabled; without it the event carries no identifier.
 type EventStatistics struct {
-	Queries Queries
+	Queries   Queries
+	Consented *ConsentedStatistics
 }
 
 type Metadata struct {
