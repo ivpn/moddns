@@ -253,6 +253,22 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 	return nil
 }
 
+// SetProfileSettingsFields writes only the given fields, leaving the rest of each hash as stored.
+func (c *RedisCache) SetProfileSettingsFields(ctx context.Context, profileId string, fields []SettingsField) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	pipe := c.client.Pipeline()
+	for _, f := range fields {
+		pipe.HSet(ctx, fmt.Sprintf("settings:%s:%s", profileId, f.Hash), f.Field, f.Value)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		log.Ctx(ctx).Err(err).Int("fields", len(fields)).Msg("Cache: failed to update profile settings fields")
+		return err
+	}
+	return nil
+}
+
 // AppendServicesBlockedToProfileSettings appends multiple service IDs to the profile's services list in Redis.
 func (c *RedisCache) AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error {
 	key := fmt.Sprintf("settings:%s:%s", profileId, "services")

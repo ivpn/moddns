@@ -1306,27 +1306,25 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile:        false,
 		},
 		{
-			name:      "Cache update fails but profile is still returned",
+			name:      "Cache update fails and the error is returned",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/name",
-					Value:     "Updated Profile",
+					Path:      "/settings/logs/enabled",
+					Value:     true,
 				},
 			},
 			existingProfile: &model.Profile{
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Original Profile",
-				Settings:  &model.ProfileSettings{},
+				Settings:  &model.ProfileSettings{Logs: &model.LogsSettings{}},
 			},
-			shouldMockDuplicates: true,
-			existingProfiles:     []model.Profile{},
-			cacheError:           errors.New("cache error"),
-			expectedError:        "cache error",
-			expectProfile:        false, // Cache error prevents profile from being returned
+			cacheError:    errors.New("cache error"),
+			expectedError: "cache error",
+			expectProfile: false, // Cache error prevents profile from being returned
 		},
 
 		// Edge case: unknown update paths (should be ignored)
@@ -1474,14 +1472,10 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 
 					// Mock the update and cache operations
 					if tt.repoUpdateError != nil {
-						suite.mockProfileRepo.On("Update", context.Background(), tt.profileID, mock.AnythingOfType("*model.Profile")).Return(tt.repoUpdateError)
+						suite.mockProfileRepo.On("UpdateFields", context.Background(), tt.profileID, mock.AnythingOfType("repository.ProfileFieldsUpdate")).Return(nil, nil, tt.repoUpdateError).Maybe()
 					} else {
-						suite.mockProfileRepo.On("Update", context.Background(), tt.profileID, mock.AnythingOfType("*model.Profile")).Return(nil)
-						if tt.cacheError != nil {
-							suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), false).Return(tt.cacheError)
-						} else {
-							suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), false).Return(nil)
-						}
+						suite.mockProfileRepo.On("UpdateFields", context.Background(), tt.profileID, mock.AnythingOfType("repository.ProfileFieldsUpdate")).Return(tt.existingProfile, tt.existingProfile, nil).Maybe()
+						suite.mockCache.On("SetProfileSettingsFields", context.Background(), tt.profileID, mock.Anything).Return(tt.cacheError).Maybe()
 					}
 				}
 			}

@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ivpn/dns/api/config"
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/profile"
@@ -42,10 +43,39 @@ func newTransitionsHarness(t *testing.T) *transitionsHarness {
 	return h
 }
 
+// expectPersist makes the stored document before the update equal existing.
 func (h *transitionsHarness) expectPersist(existing *model.Profile) {
-	h.profiles.On("GetProfileById", mock.Anything, existing.ProfileId).Return(existing, nil)
-	h.profiles.On("Update", mock.Anything, existing.ProfileId, mock.Anything).Return(nil)
-	h.cache.On("CreateOrUpdateProfileSettings", mock.Anything, mock.Anything, false).Return(nil)
+	h.expectPersistWithStored(existing, cloneStatsProfile(existing))
+}
+
+// cloneStatsProfile copies what statsProfile sets, since the service edits the copy it read.
+func cloneStatsProfile(p *model.Profile) *model.Profile {
+	c := *p
+	settings := *p.Settings
+	stats, logs := *p.Settings.Statistics, *p.Settings.Logs
+	settings.Statistics, settings.Logs = &stats, &logs
+	c.Settings = &settings
+	return &c
+}
+
+// expectPersistWithStored lets the read used for validation differ from the document the
+// update replaces, as when another PATCH lands in between.
+func (h *transitionsHarness) expectPersistWithStored(read, stored *model.Profile) {
+	h.profiles.On("GetProfileById", mock.Anything, read.ProfileId).Return(read, nil)
+	h.profiles.On("UpdateFields", mock.Anything, read.ProfileId, mock.Anything).Return(stored, stored, nil)
+	h.cache.On("SetProfileSettingsFields", mock.Anything, read.ProfileId, mock.Anything).Return(nil).Maybe()
+}
+
+// sentUpdate returns the update passed to the repository.
+func (h *transitionsHarness) sentUpdate(t *testing.T) repository.ProfileFieldsUpdate {
+	t.Helper()
+	for _, c := range h.profiles.Calls {
+		if c.Method == "UpdateFields" {
+			return c.Arguments.Get(2).(repository.ProfileFieldsUpdate)
+		}
+	}
+	t.Fatal("UpdateFields was not called")
+	return repository.ProfileFieldsUpdate{}
 }
 
 func statsProfile(enabled bool, enabledAt *time.Time) *model.Profile {
@@ -64,25 +94,30 @@ func statsToggle(v bool) model.ProfileUpdate {
 	return model.ProfileUpdate{Operation: model.UpdateOperationReplace, Path: "/settings/statistics/enabled", Value: v}
 }
 
-// specRef: api-endpoint-behaviour.md J6, G7
-func TestUpdateProfile_StatisticsDisablePurgesAndClearsEnabledAt(t *testing.T) {
-	h := newTransitionsHarness(t)
-	past := time.Now().Add(-time.Hour)
-	existing := statsProfile(true, &past)
-	h.expectPersist(existing)
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
-
-	got, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
-	require.NoError(t, err)
-	require.False(t, got.Settings.Statistics.Enabled)
-	require.Nil(t, got.Settings.Statistics.EnabledAt, "enabled_at is cleared on true->false")
+func statsFieldSet(v bool) repository.FieldSet {
+	return repository.FieldSet{Field: "settings.statistics.enabled", Value: v}
 }
 
-// specRef: api-endpoint-behaviour.md J6 — the transition runs once per PATCH, not once per path.
+// specRef: api-endpoint-behaviour.md J6, G7, G22 — disabling purges and hands the clock to the
+// update, which clears enabled_at against the stored value.
+func TestUpdateProfile_StatisticsDisablePurges(t *testing.T) {
+	h := newTransitionsHarness(t)
+	past := time.Now().Add(-time.Hour)
+	h.expectPersist(statsProfile(true, &past))
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
+	require.NoError(t, err)
+	upd := h.sentUpdate(t)
+	require.Equal(t, []repository.FieldSet{statsFieldSet(false)}, upd.Set)
+	require.True(t, upd.EnabledAtNow.Equal(fixedNow))
+}
+
+// specRef: api-endpoint-behaviour.md J6, G20 — the transition runs once per PATCH, not once per path,
+// and a repeated path is written once with its last value.
 func TestUpdateProfile_StatisticsTransitionRunsOncePerPatch(t *testing.T) {
 	h := newTransitionsHarness(t)
-	existing := statsProfile(true, nil)
-	h.expectPersist(existing)
+	h.expectPersist(statsProfile(true, nil))
 	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
 
 	updates := []model.ProfileUpdate{
@@ -93,49 +128,69 @@ func TestUpdateProfile_StatisticsTransitionRunsOncePerPatch(t *testing.T) {
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", updates)
 	require.NoError(t, err)
 	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
+	require.Equal(t, []repository.FieldSet{statsFieldSet(false), {Field: "settings.logs.enabled", Value: true}}, h.sentUpdate(t).Set)
 }
 
-// specRef: api-endpoint-behaviour.md G7 — a PATCH with no net change purges nothing and keeps enabled_at.
-func TestUpdateProfile_StatisticsNoNetChangeKeepsStateAndPurgesNothing(t *testing.T) {
-	h := newTransitionsHarness(t)
-	at := time.Now().Add(-time.Hour).Truncate(time.Second)
-	existing := statsProfile(true, &at)
-	h.expectPersist(existing)
-
-	got, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
-		[]model.ProfileUpdate{statsToggle(false), statsToggle(true)})
-	require.NoError(t, err)
-	require.True(t, got.Settings.Statistics.Enabled)
-	require.NotNil(t, got.Settings.Statistics.EnabledAt)
-	require.True(t, got.Settings.Statistics.EnabledAt.Equal(at))
-	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
-}
-
-// specRef: api-endpoint-behaviour.md G7 — enabled_at is set on false->true and nothing is purged.
-func TestUpdateProfile_StatisticsEnableSetsEnabledAt(t *testing.T) {
-	h := newTransitionsHarness(t)
-	h.expectPersist(statsProfile(false, nil))
-
-	got, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(true)})
-	require.NoError(t, err)
-	require.True(t, got.Settings.Statistics.Enabled)
-	require.NotNil(t, got.Settings.Statistics.EnabledAt)
-	require.True(t, got.Settings.Statistics.EnabledAt.Equal(fixedNow))
-	require.Equal(t, time.UTC, got.Settings.Statistics.EnabledAt.Location(), "enabled_at is stored in UTC")
-	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
-}
-
-// specRef: api-endpoint-behaviour.md G7 — an unrelated PATCH leaves statistics.enabled_at untouched.
-func TestUpdateProfile_UnrelatedPatchLeavesEnabledAt(t *testing.T) {
+// specRef: api-endpoint-behaviour.md G7, G20 — a PATCH with no net change purges nothing.
+func TestUpdateProfile_StatisticsNoNetChangePurgesNothing(t *testing.T) {
 	h := newTransitionsHarness(t)
 	at := time.Now().Add(-time.Hour).Truncate(time.Second)
 	h.expectPersist(statsProfile(true, &at))
 
-	got, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+		[]model.ProfileUpdate{statsToggle(false), statsToggle(true)})
+	require.NoError(t, err)
+	require.Equal(t, []repository.FieldSet{statsFieldSet(true)}, h.sentUpdate(t).Set)
+	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: api-endpoint-behaviour.md G7 — enabling purges nothing and passes the UTC clock for enabled_at.
+func TestUpdateProfile_StatisticsEnablePassesClock(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.expectPersist(statsProfile(false, nil))
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(true)})
+	require.NoError(t, err)
+	upd := h.sentUpdate(t)
+	require.Equal(t, []repository.FieldSet{statsFieldSet(true)}, upd.Set)
+	require.True(t, upd.EnabledAtNow.Equal(fixedNow))
+	require.Equal(t, time.UTC, upd.EnabledAtNow.Location(), "enabled_at is stored in UTC")
+	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: api-endpoint-behaviour.md G7, G21 — an unrelated PATCH does not write statistics.
+func TestUpdateProfile_UnrelatedPatchLeavesStatistics(t *testing.T) {
+	h := newTransitionsHarness(t)
+	at := time.Now().Add(-time.Hour).Truncate(time.Second)
+	h.expectPersist(statsProfile(true, &at))
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
 		[]model.ProfileUpdate{{Operation: model.UpdateOperationReplace, Path: "/settings/logs/enabled", Value: false}})
 	require.NoError(t, err)
-	require.True(t, got.Settings.Statistics.EnabledAt.Equal(at))
+	require.Equal(t, []repository.FieldSet{{Field: "settings.logs.enabled", Value: false}}, h.sentUpdate(t).Set)
 	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: api-endpoint-behaviour.md G22 — the transition compares with the stored document the
+// update replaced, not with the copy read for validation.
+func TestUpdateProfile_StatisticsTransitionUsesReplacedValue(t *testing.T) {
+	t.Run("read off, stored on: purges", func(t *testing.T) {
+		h := newTransitionsHarness(t)
+		h.expectPersistWithStored(statsProfile(false, nil), statsProfile(true, nil))
+		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+
+		_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
+		require.NoError(t, err)
+		h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
+	})
+	t.Run("read on, stored off: no purge", func(t *testing.T) {
+		h := newTransitionsHarness(t)
+		h.expectPersistWithStored(statsProfile(true, nil), statsProfile(false, nil))
+
+		_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
+		require.NoError(t, err)
+		h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 // specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the unconsented-statistics purge and the PATCH still succeeds.
@@ -153,20 +208,20 @@ func TestUpdateProfile_StatisticsNoPurgeWhenPersistFails(t *testing.T) {
 	h := newTransitionsHarness(t)
 	existing := statsProfile(true, nil)
 	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(existing, nil)
-	h.profiles.On("Update", mock.Anything, "profile123", mock.Anything).Return(errors.New("db down"))
+	h.profiles.On("UpdateFields", mock.Anything, "profile123", mock.Anything).Return(nil, nil, errors.New("db down"))
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
 	require.Error(t, err)
 	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
 }
 
-// specRef: api-endpoint-behaviour.md J6 — a failed Redis write after the Mongo update still purges.
+// specRef: api-endpoint-behaviour.md J6, G23 — a failed Redis write after the Mongo update still purges.
 func TestUpdateProfile_StatisticsDisableRedisFailureStillPurges(t *testing.T) {
 	h := newTransitionsHarness(t)
 	existing := statsProfile(true, nil)
 	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(existing, nil)
-	h.profiles.On("Update", mock.Anything, "profile123", mock.Anything).Return(nil)
-	h.cache.On("CreateOrUpdateProfileSettings", mock.Anything, mock.Anything, false).Return(errors.New("redis down"))
+	h.profiles.On("UpdateFields", mock.Anything, "profile123", mock.Anything).Return(cloneStatsProfile(existing), cloneStatsProfile(existing), nil)
+	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(errors.New("redis down"))
 	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})

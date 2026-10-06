@@ -3,8 +3,10 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
@@ -123,15 +125,78 @@ func (r *ProfileRepository) DeleteProfileById(ctx context.Context, profileId str
 	return nil
 }
 
-func (r *ProfileRepository) Update(ctx context.Context, profileId string, profile *model.Profile) error {
+// UpdateFields applies upd as one pipeline update, so enabled_at and the custom-rule
+// append are evaluated against the stored document they replace.
+func (r *ProfileRepository) UpdateFields(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
 	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
-	res, err := r.profilesCollection.ReplaceOne(ctx, filterBson, profile)
-	if err != nil {
-		return err
-	}
-	log.Ctx(ctx).Debug().Int64("count", res.MatchedCount).Msgf("Updated profile")
 
-	return nil
+	set := bson.D{}
+	for _, f := range upd.Set {
+		set = append(set, primitive.E{Key: f.Field, Value: bson.D{primitive.E{Key: "$literal", Value: f.Value}}})
+		if f.Field == statisticsEnabledField {
+			set = append(set, primitive.E{Key: statisticsEnabledAtField, Value: enabledAtExpr(f.Value, upd.EnabledAtNow)})
+		}
+	}
+	pipeline := mongo.Pipeline{}
+	if len(set) > 0 {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$set", Value: set}})
+	}
+	// One stage per rule: fields within a single $set stage all read the input document.
+	for _, rule := range upd.AppendCustomRules {
+		pipeline = append(pipeline, appendCustomRuleIfAbsentStage(rule))
+	}
+	if len(pipeline) == 0 {
+		return nil, nil, fmt.Errorf("profile update has no fields")
+	}
+
+	var before model.Profile
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
+	if err := r.profilesCollection.FindOneAndUpdate(ctx, filterBson, pipeline, opts).Decode(&before); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil, errors.ErrProfileNotFound
+		}
+		return nil, nil, err
+	}
+
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, nil, err
+	}
+	var after model.Profile
+	if err := coll.FindOne(ctx, filterBson).Decode(&after); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil, errors.ErrProfileNotFound
+		}
+		return nil, nil, err
+	}
+	log.Ctx(ctx).Debug().Int("fields", len(upd.Set)).Msg("Updated profile fields")
+	return &before, &after, nil
+}
+
+const (
+	statisticsEnabledField   = "settings.statistics.enabled"
+	statisticsEnabledAtField = "settings.statistics.enabled_at"
+)
+
+// enabledAtExpr: set on false->true, removed on true->false, otherwise kept (api-endpoint-behaviour.md G7).
+func enabledAtExpr(enabled any, now time.Time) bson.D {
+	wasEnabled := bson.D{primitive.E{Key: "$eq", Value: bson.A{"$" + statisticsEnabledField, true}}}
+	keep := "$" + statisticsEnabledAtField
+	on, off := bson.A{wasEnabled, keep, now}, bson.A{wasEnabled, "$$REMOVE", keep}
+	branch := off
+	if b, _ := enabled.(bool); b {
+		branch = on
+	}
+	return bson.D{primitive.E{Key: "$cond", Value: branch}}
+}
+
+func appendCustomRuleIfAbsentStage(rule *model.CustomRule) bson.D {
+	rules := bson.D{primitive.E{Key: "$ifNull", Value: bson.A{"$settings.custom_rules", bson.A{}}}}
+	values := bson.D{primitive.E{Key: "$ifNull", Value: bson.A{"$settings.custom_rules.value", bson.A{}}}}
+	present := bson.D{primitive.E{Key: "$in", Value: bson.A{bson.D{primitive.E{Key: "$literal", Value: rule.Value}}, values}}}
+	appended := bson.D{primitive.E{Key: "$concatArrays", Value: bson.A{rules, bson.A{bson.D{primitive.E{Key: "$literal", Value: rule}}}}}}
+	return bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "settings.custom_rules",
+		Value: bson.D{primitive.E{Key: "$cond", Value: bson.A{present, rules, appended}}}}}}}
 }
 
 func (r *ProfileRepository) UpdateSettings(ctx context.Context, profileId string, settings *model.ProfileSettings) error {

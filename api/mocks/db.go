@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -3998,69 +3999,6 @@ func (_c *Db_SetNotified_Call) RunAndReturn(run func(ctx context.Context, subscr
 	return _c
 }
 
-// Update provides a mock function for the type Db
-func (_mock *Db) Update(ctx context.Context, profileId string, profile *model.Profile) error {
-	ret := _mock.Called(ctx, profileId, profile)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Update")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.Profile) error); ok {
-		r0 = returnFunc(ctx, profileId, profile)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Db_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type Db_Update_Call struct {
-	*mock.Call
-}
-
-// Update is a helper method to define mock.On call
-//   - ctx context.Context
-//   - profileId string
-//   - profile *model.Profile
-func (_e *Db_Expecter) Update(ctx interface{}, profileId interface{}, profile interface{}) *Db_Update_Call {
-	return &Db_Update_Call{Call: _e.mock.On("Update", ctx, profileId, profile)}
-}
-
-func (_c *Db_Update_Call) Run(run func(ctx context.Context, profileId string, profile *model.Profile)) *Db_Update_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 *model.Profile
-		if args[2] != nil {
-			arg2 = args[2].(*model.Profile)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *Db_Update_Call) Return(err error) *Db_Update_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Db_Update_Call) RunAndReturn(run func(ctx context.Context, profileId string, profile *model.Profile) error) *Db_Update_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateAccount provides a mock function for the type Db
 func (_mock *Db) UpdateAccount(ctx context.Context, account *model.Account) (*model.Account, error) {
 	ret := _mock.Called(ctx, account)
@@ -4383,6 +4321,88 @@ func (_c *Db_UpdateDeletionCode_Call) Return(err error) *Db_UpdateDeletionCode_C
 }
 
 func (_c *Db_UpdateDeletionCode_Call) RunAndReturn(run func(ctx context.Context, accountId string, code string, expiresAt time.Time) error) *Db_UpdateDeletionCode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateFields provides a mock function for the type Db
+func (_mock *Db) UpdateFields(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
+	ret := _mock.Called(ctx, profileId, upd)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFields")
+	}
+
+	var r0 *model.Profile
+	var r1 *model.Profile
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)); ok {
+		return returnFunc(ctx, profileId, upd)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r0 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r1 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, repository.ProfileFieldsUpdate) error); ok {
+		r2 = returnFunc(ctx, profileId, upd)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Db_UpdateFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFields'
+type Db_UpdateFields_Call struct {
+	*mock.Call
+}
+
+// UpdateFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - upd repository.ProfileFieldsUpdate
+func (_e *Db_Expecter) UpdateFields(ctx interface{}, profileId interface{}, upd interface{}) *Db_UpdateFields_Call {
+	return &Db_UpdateFields_Call{Call: _e.mock.On("UpdateFields", ctx, profileId, upd)}
+}
+
+func (_c *Db_UpdateFields_Call) Run(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate)) *Db_UpdateFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 repository.ProfileFieldsUpdate
+		if args[2] != nil {
+			arg2 = args[2].(repository.ProfileFieldsUpdate)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_UpdateFields_Call) Return(before *model.Profile, after *model.Profile, err error) *Db_UpdateFields_Call {
+	_c.Call.Return(before, after, err)
+	return _c
+}
+
+func (_c *Db_UpdateFields_Call) RunAndReturn(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)) *Db_UpdateFields_Call {
 	_c.Call.Return(run)
 	return _c
 }
