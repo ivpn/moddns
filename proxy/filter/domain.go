@@ -99,7 +99,7 @@ func (f *DomainFilter) filterServiceDomains(ctx context.Context, reqCtx *request
 		candidate := strings.Join(parts[i:], ".")
 		if svcID, ok := domainMap[candidate]; ok {
 			result.Decision = model.DecisionBlock
-			result.Reasons = append(result.Reasons, REASON_SERVICES, "service: "+svcID)
+			result.Reasons = append(result.Reasons, model.FilterReasonServices, model.FilterReasonServicePrefix+svcID)
 			return result, nil
 		}
 	}

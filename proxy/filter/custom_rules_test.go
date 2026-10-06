@@ -42,7 +42,7 @@ func TestFilterCustomRules(t *testing.T) {
 			expectedFltrResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{REASON_CUSTOM_RULES},
+				Reasons:  []string{model.FilterReasonCustomRules},
 			},
 			wantErr: false,
 		},
@@ -60,7 +60,7 @@ func TestFilterCustomRules(t *testing.T) {
 			expectedFltrResult: &model.StageResult{
 				Decision: model.DecisionAllow,
 				Tier:     TierCustomRules,
-				Reasons:  []string{REASON_CUSTOM_RULES},
+				Reasons:  []string{model.FilterReasonCustomRules},
 			},
 			wantErr: false,
 		},
@@ -100,7 +100,7 @@ func TestFilterCustomRules(t *testing.T) {
 			expectedFltrResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{REASON_CUSTOM_RULES},
+				Reasons:  []string{model.FilterReasonCustomRules},
 			},
 			wantErr: false,
 		},
@@ -506,9 +506,9 @@ func TestIPFilter_FilterCustomRules_ASN_Table(t *testing.T) {
 			assert.Equal(t, TierCustomRules, got.Tier)
 			assert.Equal(t, tt.wantDecision, got.Decision)
 			if tt.wantHasReason {
-				assert.Contains(t, got.Reasons, REASON_CUSTOM_RULES)
+				assert.Contains(t, got.Reasons, model.FilterReasonCustomRules)
 			} else {
-				assert.NotContains(t, got.Reasons, REASON_CUSTOM_RULES)
+				assert.NotContains(t, got.Reasons, model.FilterReasonCustomRules)
 			}
 		})
 	}

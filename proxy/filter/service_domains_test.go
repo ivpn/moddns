@@ -131,7 +131,7 @@ func TestFilterServiceDomains(t *testing.T) {
 			assert.Equal(t, TierServices, result.Tier)
 
 			if tt.expectedService != "" {
-				assert.Contains(t, result.Reasons, REASON_SERVICES)
+				assert.Contains(t, result.Reasons, model.FilterReasonServices)
 				assert.Contains(t, result.Reasons, "service: "+tt.expectedService)
 			}
 		})
