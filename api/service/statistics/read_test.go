@@ -451,18 +451,22 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J46 — every delete attempt of the unconsented-statistics purge invalidates that profile's keys; untouched profiles keep theirs.
+// specRef: api-endpoint-behaviour.md J46 — every delete attempt of the unconsented-statistics purge invalidates that profile's keys, whether the delete succeeds or fails.
 func TestUnconsentedPurge_InvalidatesReadCache(t *testing.T) {
 	cache := newFakeReadCache()
 	h := newUnconsentedPurgeHarness(t, statistics.WithReadCache(cache))
-	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "kept", "failing"}, nil)
+	enabledAt := time.Date(2026, 9, 29, 10, 7, 0, 0, time.UTC)
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "on", "failing"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
-		"kept": stats(true, nil),
+		"on": stats(true, &enabledAt),
 	}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "on", mock.MatchedBy(func(b *time.Time) bool {
+		return b != nil && b.Equal(enabledAt)
+	})).Return(nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(errors.New("boom")).Once()
 
 	_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"gone", "failing"}, cache.invalidated)
+	require.ElementsMatch(t, []string{"gone", "on", "failing"}, cache.invalidated)
 }
