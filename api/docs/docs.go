@@ -1919,6 +1919,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "LAST_1_HOUR",
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
                             "LAST_12_HOURS",
                             "LAST_1_DAY",
                             "LAST_7_DAYS",
@@ -2104,6 +2106,8 @@ const docTemplate = `{
                     {
                         "enum": [
                             "LAST_1_HOUR",
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
                             "LAST_12_HOURS",
                             "LAST_1_DAY",
                             "LAST_7_DAYS",
