@@ -104,7 +104,7 @@ func topLimitParam(c *fiber.Ctx) int {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Profile ID"
-// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
+// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_3_HOURS,LAST_6_HOURS,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
 // @Param kind query string true "which domains to rank" Enums(blocked,resolved)
 // @Param limit query int false "number of items" minimum(1) maximum(50) default(10)
 // @Success 200 {object} model.QueryLogTopDomains
@@ -143,7 +143,7 @@ func (s *APIServer) getProfileQueryLogTop() fiber.Handler {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Profile ID"
-// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
+// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_3_HOURS,LAST_6_HOURS,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
 // @Param limit query int false "number of items" minimum(1) maximum(50) default(10)
 // @Success 200 {object} model.QueryLogTopClients
 // @Failure 400 {object} ErrResponse

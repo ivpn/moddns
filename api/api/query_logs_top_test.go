@@ -98,3 +98,26 @@ func (s *QueryLogsAPIShortSuite) TestTopAndClientsRejectNonNumericAndOutOfRangeL
 		}
 	}
 }
+
+// tableRef: api-endpoint-behaviour #J20
+// tableRef: api-endpoint-behaviour #J21
+func (s *QueryLogsAPIShortSuite) TestTopAndClientsAcceptShortTimespans() {
+	for _, ts := range []string{"LAST_3_HOURS", "LAST_6_HOURS"} {
+		s.svc.On("GetProfileQueryLogTop", mock.Anything, qlAccID, qlProfile, ts, "blocked", 10).Return(&model.QueryLogTopDomains{Enabled: true}, nil).Once()
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top?kind=blocked&timespan=" + ts)
+		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
+
+		s.svc.On("GetProfileQueryLogClients", mock.Anything, qlAccID, qlProfile, ts, 10).Return(&model.QueryLogTopClients{Enabled: true}, nil).Once()
+		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/clients?timespan=" + ts)
+		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
+	}
+}
+
+// tableRef: api-endpoint-behaviour #J1
+// tableRef: api-endpoint-behaviour #J20
+func (s *QueryLogsAPIShortSuite) TestLogsListRejectsShortTimespans() {
+	for _, ts := range []string{"LAST_3_HOURS", "LAST_6_HOURS"} {
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs?page=1&limit=25&status=all&timespan=" + ts)
+		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, ts)
+	}
+}
