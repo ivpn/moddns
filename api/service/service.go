@@ -13,6 +13,7 @@ import (
 	"github.com/ivpn/dns/api/db"
 	webhookClient "github.com/ivpn/dns/api/internal/client"
 	"github.com/ivpn/dns/api/internal/email"
+	"github.com/ivpn/dns/api/internal/geoip"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
@@ -69,6 +70,9 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	// AccountService satisfies reauth.MfaVerifier via its MfaCheck method.
 	// Wired post-construction because profSrv is built before accSrv.
 	profSrv.SetMfaVerifier(accSrv)
+	geo := geoip.New(geoip.Config{ASNFile: cfg.Service.GeoIPASNFile, CountryFile: cfg.Service.GeoIPCountryFile, ReloadEvery: cfg.Service.GeoIPReloadEvery})
+	geo.Start(context.Background())
+	profSrv.SetClientEnricher(geo)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
 	dnsstampSrv := dnsstamp.NewDNSStampService(&cfg)
 	return Service{
@@ -157,6 +161,8 @@ type ProfileServicer interface {
 	// Query logs
 	GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	GetProfileQueryLogDevices(ctx context.Context, accountId, profileId string) ([]model.QueryLogDevice, error)
+	GetProfileQueryLogTop(ctx context.Context, accountId, profileId, timespan, kind string, limit int) (*model.QueryLogTopDomains, error)
+	GetProfileQueryLogClients(ctx context.Context, accountId, profileId, timespan string, limit int) (*model.QueryLogTopClients, error)
 	DownloadProfileQueryLogs(ctx context.Context, accountId, profileId string, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, accountId, profileId string) error
 
@@ -190,6 +196,8 @@ type ProfileServicer interface {
 type QueryLogsServicer interface {
 	GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	GetProfileQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error)
+	GetProfileQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, timespan, kind string, limit int) ([]model.QueryLogTopDomain, error)
+	GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error)
 	DownloadProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, profileId string) error
 }
