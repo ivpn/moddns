@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
@@ -36,6 +37,69 @@ type StatisticsRepository_Expecter struct {
 
 func (_m *StatisticsRepository) EXPECT() *StatisticsRepository_Expecter {
 	return &StatisticsRepository_Expecter{mock: &_m.Mock}
+}
+
+// DeleteProfileStatistics provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) error {
+	ret := _mock.Called(ctx, profileId, before)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatistics")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) error); ok {
+		r0 = returnFunc(ctx, profileId, before)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// StatisticsRepository_DeleteProfileStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatistics'
+type StatisticsRepository_DeleteProfileStatistics_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - before *time.Time
+func (_e *StatisticsRepository_Expecter) DeleteProfileStatistics(ctx interface{}, profileId interface{}, before interface{}) *StatisticsRepository_DeleteProfileStatistics_Call {
+	return &StatisticsRepository_DeleteProfileStatistics_Call{Call: _e.mock.On("DeleteProfileStatistics", ctx, profileId, before)}
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, before *time.Time)) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *time.Time
+		if args[2] != nil {
+			arg2 = args[2].(*time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Return(err error) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, before *time.Time) error) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetProfileStatistics provides a mock function for the type StatisticsRepository
