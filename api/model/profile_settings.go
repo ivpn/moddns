@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Profile default-rule values (the fallback action when no rule matches). The
@@ -77,6 +78,8 @@ func NewSettings() *ProfileSettings {
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
+	// When statistics were last turned on (UTC). Absent while statistics are off.
+	EnabledAt *time.Time `json:"enabled_at,omitempty" bson:"enabled_at,omitempty" redis:"-"` // not written to Redis, not exported (F19)
 }
 
 type LogsSettings struct {

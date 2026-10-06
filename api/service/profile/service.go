@@ -61,11 +61,25 @@ type ProfileService struct {
 	// for unit tests that do not exercise the MFA path.
 	MfaVerifier reauth.MfaVerifier
 
+	// now is the clock; nil means time.Now (see SetClock).
+	now func() time.Time
+
 	Cache         cache.Cache
 	IdGen         idgen.Generator
 	Validate      *validator.Validate
 	ServerConfig  config.ServerConfig
 	ServiceConfig config.ServiceConfig
+}
+
+// SetClock replaces the service clock; tests use it to fix time-derived values.
+func (p *ProfileService) SetClock(now func() time.Time) { p.now = now }
+
+// clock returns the current time in UTC.
+func (p *ProfileService) clock() time.Time {
+	if p.now == nil {
+		return time.Now().UTC()
+	}
+	return p.now().UTC()
 }
 
 // SetMfaVerifier wires the MFA verifier used by the password path of profile
@@ -326,6 +340,8 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return nil, err
 	}
 
+	before := snapshotSettings(profile.Settings)
+
 	for _, update := range updates {
 		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
 		internalValue, err := cast.ToStringMapE(update.Value)
@@ -409,6 +425,9 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
+	now := p.clock()
+	reconcileStatisticsEnabledAt(before, profile.Settings, now)
+
 	if err := p.ProfileRepository.Update(ctx, profileId, profile); err != nil {
 		return nil, err
 	}
@@ -419,8 +438,45 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 	return profile, err
 }
 
+// settingsSnapshot is the part of the settings whose transitions have side effects.
+type settingsSnapshot struct {
+	statistics *model.StatisticsSettings
+}
+
+func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
+	var snap settingsSnapshot
+	if s == nil {
+		return snap
+	}
+	if s.Statistics != nil {
+		c := *s.Statistics
+		snap.statistics = &c
+	}
+	return snap
+}
+
 func statisticsEnabled(s *model.ProfileSettings) bool {
 	return s != nil && s.Statistics != nil && s.Statistics.Enabled
+}
+
+func (s settingsSnapshot) statisticsEnabled() bool {
+	return s.statistics != nil && s.statistics.Enabled
+}
+
+// reconcileStatisticsEnabledAt derives enabled_at from the net change of a whole
+// PATCH: set on false->true, cleared on true->false, otherwise as it was.
+func reconcileStatisticsEnabledAt(before settingsSnapshot, settings *model.ProfileSettings, now time.Time) {
+	if settings == nil || settings.Statistics == nil {
+		return
+	}
+	switch {
+	case !before.statisticsEnabled() && settings.Statistics.Enabled:
+		settings.Statistics.EnabledAt = &now
+	case before.statisticsEnabled() && !settings.Statistics.Enabled:
+		settings.Statistics.EnabledAt = nil
+	case before.statistics != nil:
+		settings.Statistics.EnabledAt = before.statistics.EnabledAt
+	}
 }
 
 func (p *ProfileService) handleQueryLogsSettingsUpdate(profile *model.Profile, updatePath string, update model.ProfileUpdate) error {
