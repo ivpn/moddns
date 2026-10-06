@@ -49,7 +49,7 @@ func (q *QueryLogsService) GetProfileQueryLogDevices(ctx context.Context, profil
 // GetProfileQueryLogTopDomains returns the most frequent domains for kind
 // (model.QueryLogTopKindBlocked or QueryLogTopKindResolved) inside timespan.
 func (q *QueryLogsService) GetProfileQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, timespan, kind string, limit int) ([]model.QueryLogTopDomain, error) {
-	hours, err := model.NewTimespan(timespan)
+	hours, err := model.NewTopTimespan(timespan)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (q *QueryLogsService) GetProfileQueryLogTopDomains(ctx context.Context, pro
 
 // GetProfileQueryLogTopClients returns the most frequent client IPs inside timespan.
 func (q *QueryLogsService) GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error) {
-	hours, err := model.NewTimespan(timespan)
+	hours, err := model.NewTopTimespan(timespan)
 	if err != nil {
 		return nil, err
 	}

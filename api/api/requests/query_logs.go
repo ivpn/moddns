@@ -18,12 +18,12 @@ type QueryLogsQueryParams struct {
 }
 
 type QueryLogsTopQueryParams struct {
-	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
+	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_3_HOURS LAST_6_HOURS LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
 	Kind     string `json:"kind" validate:"oneof=blocked resolved"`
 	Limit    int    `json:"limit" validate:"min=1,max=50"`
 }
 
 type QueryLogsClientsQueryParams struct {
-	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
+	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_3_HOURS LAST_6_HOURS LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
 	Limit    int    `json:"limit" validate:"min=1,max=50"`
 }

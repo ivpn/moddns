@@ -226,7 +226,7 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogsInvalidatesTopCache() {
 	suite.NoError(suite.service.DeleteProfileQueryLogs(ctx, "account123", "profile123"))
 
 	for _, kind := range []string{"blocked", "resolved", "clients"} {
-		for _, ts := range []string{"LAST_1_HOUR", "LAST_12_HOURS", "LAST_1_DAY", "LAST_7_DAYS", "LAST_MONTH"} {
+		for _, ts := range []string{"LAST_1_HOUR", "LAST_3_HOURS", "LAST_6_HOURS", "LAST_12_HOURS", "LAST_1_DAY", "LAST_7_DAYS", "LAST_MONTH"} {
 			suite.True(deleted["logs:"+kind+":profile123:"+ts], kind+" "+ts)
 		}
 	}
