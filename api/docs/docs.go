@@ -3996,6 +3996,10 @@ const docTemplate = `{
             "properties": {
                 "enabled": {
                     "type": "boolean"
+                },
+                "enabled_at": {
+                    "description": "When statistics were last turned on (UTC). Absent while statistics are off.",
+                    "type": "string"
                 }
             }
         },
