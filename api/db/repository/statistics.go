@@ -8,7 +8,9 @@ import (
 )
 
 type StatisticsRepository interface {
-	GetProfileStatistics(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error)
+	// GetProfileStatistics aggregates the profile's buckets of one tier with
+	// bucket_start in [from, to); series points are `bucket` wide.
+	GetProfileStatistics(ctx context.Context, profileId string, tier model.StatisticsTier, from, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error)
 	// ListStatisticsProfileIDs returns the distinct profile ids present in any retention collection.
 	ListStatisticsProfileIDs(ctx context.Context) ([]string, error)
 	// DeleteProfileStatistics removes the profile's statistics from every tier. A non-nil
