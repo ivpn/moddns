@@ -50,6 +50,8 @@ type Service struct {
 	dnsstamp.DNSStampServicer
 	// Statistics is exposed for the unconsented-statistics purge job.
 	Statistics *statistics.StatisticsService
+	// QueryLogsPurger is exposed for the unconsented query-logs purge job.
+	QueryLogsPurger *profile.ProfileService
 }
 
 func newStatisticsReadCache(c cache.Cache) *cache.StatisticsReadCache {
@@ -88,6 +90,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		HTTP:                 *httpClient,
 		DNSStampServicer:     dnsstampSrv,
 		Statistics:           statsSrv,
+		QueryLogsPurger:      profSrv,
 	}
 }
 

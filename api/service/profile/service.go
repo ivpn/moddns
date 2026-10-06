@@ -68,6 +68,9 @@ type ProfileService struct {
 	// now is the clock; nil means time.Now (see SetClock).
 	now func() time.Time
 
+	// Zero means the defaults (see SetQueryLogsPurgeTimeouts).
+	logsPurgeJobTime, logsPurgeRunTime time.Duration
+
 	Cache         cache.Cache
 	IdGen         idgen.Generator
 	Validate      *validator.Validate
@@ -334,15 +337,17 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 	if err := p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId); err != nil {
 		return err
 	}
+	p.invalidateQueryLogCaches(ctx, profileId)
+	return nil
+}
 
-	// Deleting logs deletes the device list's source — drop the cached copy so
-	// it cannot outlive the data (best-effort; TTL bounds a miss).
+// invalidateQueryLogCaches drops every cache derived from the profile's query logs so it
+// cannot outlive the data (best-effort; TTL bounds a miss).
+func (p *ProfileService) invalidateQueryLogCaches(ctx context.Context, profileId string) {
 	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
 		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
 	}
 	p.invalidateQueryLogTopCache(ctx, profileId)
-
-	return nil
 }
 
 // UpdateProfile validates every operation against the stored profile, then writes the
@@ -479,6 +484,7 @@ func (p *ProfileService) applyPatchOperations(ctx context.Context, profile *mode
 
 const (
 	pathStatisticsEnabled = "/settings/statistics/enabled"
+	pathLogsEnabled       = "/settings/logs/enabled"
 	pathDefaultRule       = "/settings/privacy/default_rule"
 )
 
@@ -494,7 +500,7 @@ type patchField struct {
 var patchFields = map[string]patchField{
 	"/name":                                           {field: "name", value: func(p *model.Profile) any { return p.Name }},
 	pathStatisticsEnabled:                             {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
-	"/settings/logs/enabled":                          {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
+	pathLogsEnabled:                                   {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
 	"/settings/logs/log_clients_ips":                  {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
 	"/settings/logs/log_domains":                      {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
 	"/settings/logs/retention":                        {"settings.logs.retention", "logs", "retention", func(p *model.Profile) any { return p.Settings.Logs.Retention }},
@@ -509,7 +515,8 @@ var patchFields = map[string]patchField{
 
 // settingsSnapshot is the part of the settings whose transitions have side effects.
 type settingsSnapshot struct {
-	statistics *model.StatisticsSettings
+	statistics  *model.StatisticsSettings
+	logsEnabled bool
 }
 
 func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
@@ -521,6 +528,7 @@ func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
 		c := *s.Statistics
 		snap.statistics = &c
 	}
+	snap.logsEnabled = s.Logs != nil && s.Logs.Enabled
 	return snap
 }
 
@@ -529,6 +537,9 @@ func (s settingsSnapshot) patched(touched []string, patch *model.ProfileSettings
 	out := s
 	if slices.Contains(touched, pathStatisticsEnabled) {
 		out.statistics = &model.StatisticsSettings{Enabled: patch.Statistics.Enabled}
+	}
+	if slices.Contains(touched, pathLogsEnabled) {
+		out.logsEnabled = patch.Logs.Enabled
 	}
 	return out
 }
@@ -542,6 +553,9 @@ func (s settingsSnapshot) statisticsEnabled() bool {
 func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
 	if before.statisticsEnabled() && !after.statisticsEnabled() {
 		p.StatisticsService.PurgeBestEffort(ctx, profileId)
+	}
+	if before.logsEnabled && !after.logsEnabled {
+		p.purgeQueryLogsBestEffort(ctx, profileId)
 	}
 }
 
