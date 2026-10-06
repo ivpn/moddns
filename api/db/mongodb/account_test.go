@@ -31,8 +31,8 @@ type AccountRepositorySuite struct {
 func (s *AccountRepositorySuite) SetupSuite() {
 	ctx := context.Background()
 
-	// Mongo image version sourced from docker compose: mongo:7.0.8
-	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:7.0.8")
+	// Mongo image version sourced from docker compose: mongo:8.0.9
+	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:8.0.9")
 	username := firstNonEmpty(os.Getenv("TEST_MONGO_USERNAME"), "testuser")
 	password := firstNonEmpty(os.Getenv("TEST_MONGO_PASSWORD"), "testpass")
 	authSource := firstNonEmpty(os.Getenv("DB_AUTH_SOURCE"), "admin")
