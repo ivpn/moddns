@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -2174,6 +2175,7 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
 						// Deleting logs invalidates the cached device list (best-effort).
 						suite.mockCache.On("Del", context.Background(), "query_log_devices:"+tt.profileID).Return(nil)
+						suite.mockCache.On("Del", context.Background(), mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs:") })).Return(nil)
 					}
 				}
 			}

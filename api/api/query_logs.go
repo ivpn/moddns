@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
@@ -80,6 +81,95 @@ func (s *APIServer) getProfileQueryLogDevices() fiber.Handler {
 		}
 
 		return c.Status(200).JSON(devices)
+	}
+	return handler
+}
+
+// topLimitParam returns the "limit" query value, 10 when absent. A present but
+// non-integer value maps to 0, which the request validation rejects (min=1).
+func topLimitParam(c *fiber.Ctx) int {
+	if !c.Context().QueryArgs().Has("limit") {
+		return 10
+	}
+	n, err := strconv.Atoi(c.Query("limit"))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+// @Summary Get profile top domains
+// @Description Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+// @Tags QueryLogs
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
+// @Param kind query string true "which domains to rank" Enums(blocked,resolved)
+// @Param limit query int false "number of items" minimum(1) maximum(50) default(10)
+// @Success 200 {object} model.QueryLogTopDomains
+// @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/logs/top [get]
+func (s *APIServer) getProfileQueryLogTop() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		profileId := c.Params("id")
+		params := requests.QueryLogsTopQueryParams{
+			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Kind:     c.Query("kind", ""),
+			Limit:    topLimitParam(c),
+		}
+		if err := s.Validator.Validator.Struct(params); err != nil {
+			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		}
+
+		accountId := auth.GetAccountID(c)
+		top, err := s.Service.GetProfileQueryLogTop(c.UserContext(), accountId, profileId, params.Timespan, params.Kind, params.Limit)
+		if err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogTop.Error())
+			return HandleError(c, err, ErrFailedToGetQueryLogTop.Error())
+		}
+
+		return c.Status(200).JSON(top)
+	}
+	return handler
+}
+
+// @Summary Get profile top clients
+// @Description Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+// @Tags QueryLogs
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
+// @Param limit query int false "number of items" minimum(1) maximum(50) default(10)
+// @Success 200 {object} model.QueryLogTopClients
+// @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/logs/clients [get]
+func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		profileId := c.Params("id")
+		params := requests.QueryLogsClientsQueryParams{
+			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Limit:    topLimitParam(c),
+		}
+		if err := s.Validator.Validator.Struct(params); err != nil {
+			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		}
+
+		accountId := auth.GetAccountID(c)
+		clients, err := s.Service.GetProfileQueryLogClients(c.UserContext(), accountId, profileId, params.Timespan, params.Limit)
+		if err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogClients.Error())
+			return HandleError(c, err, ErrFailedToGetQueryLogClients.Error())
+		}
+
+		return c.Status(200).JSON(clients)
 	}
 	return handler
 }

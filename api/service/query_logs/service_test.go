@@ -35,6 +35,16 @@ func (s *stubQueryLogsRepository) GetQueryLogDevices(ctx context.Context, profil
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error) {
+	s.getCalls++
+	return nil, nil
+}
+
+func (s *stubQueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error) {
+	s.getCalls++
+	return nil, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil
@@ -334,6 +344,104 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogDevices() {
 		}
 		s.False(d.LastSeen.IsZero(), "last_seen must be set")
 	}
+}
+
+// insertTopDocs inserts one log document per (domain, status, client_ip, age) row.
+func (s *QueryLogsServiceSuite) insertTopDocs(profileID string, rows ...[4]any) {
+	now := time.Now()
+	docs := make([]any, 0, len(rows))
+	for _, r := range rows {
+		docs = append(docs, bson.D{
+			{Key: "timestamp", Value: now.Add(-r[3].(time.Duration))},
+			{Key: "profile_id", Value: profileID},
+			{Key: "device_id", Value: "d"},
+			{Key: "status", Value: r[1]},
+			{Key: "reasons", Value: bson.A{}},
+			{Key: "dns_request", Value: bson.D{{Key: "domain", Value: r[0]}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}},
+			{Key: "client_ip", Value: r[2]},
+			{Key: "protocol", Value: "udp"},
+		})
+	}
+	_, err := s.collMap[model.RetentionOneWeek].InsertMany(context.Background(), docs)
+	s.Require().NoError(err)
+}
+
+// TestGetProfileQueryLogTopDomains verifies grouping per status, count desc
+// then domain asc, the limit, the timespan floor, empty-domain exclusion and
+// profile isolation.
+// tableRef: api-endpoint-behaviour #J20
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopDomains() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-domains-profile"
+	s.insertTopDocs(pid,
+		[4]any{"b.com", "blocked", "1.1.1.1", 1 * h}, [4]any{"b.com", "blocked", "1.1.1.1", 2 * h}, [4]any{"b.com", "blocked", "1.1.1.1", 3 * h},
+		[4]any{"a.com", "blocked", "1.1.1.1", 1 * h}, [4]any{"a.com", "blocked", "1.1.1.1", 2 * h}, [4]any{"a.com", "blocked", "1.1.1.1", 3 * h}, // ties with b.com: a before b
+		[4]any{"c.com", "blocked", "1.1.1.1", 1 * h},
+		[4]any{"old.com", "blocked", "1.1.1.1", 30 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 31 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 32 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 33 * h}, // outside LAST_1_DAY
+		[4]any{"", "blocked", "1.1.1.1", 1 * h}, // empty domain skipped
+		[4]any{"ok.com", "processed", "1.1.1.1", 1 * h}, [4]any{"ok.com", "processed", "1.1.1.1", 2 * h},
+		[4]any{"unavail.com", "unavailable", "1.1.1.1", 1 * h},
+	)
+	s.insertTopDocs("someone-else", [4]any{"a.com", "blocked", "9.9.9.9", 1 * h}, [4]any{"a.com", "blocked", "9.9.9.9", 1 * h})
+
+	blocked, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "a.com", Count: 3}, {Domain: "b.com", Count: 3}, {Domain: "c.com", Count: 1}}, blocked)
+
+	limited, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 2)
+	s.Require().NoError(err)
+	s.Equal(blocked[:2], limited)
+
+	week, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_7_DAYS, model.QueryLogTopKindBlocked, 1)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "old.com", Count: 4}}, week)
+
+	resolved, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindResolved, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "ok.com", Count: 2}}, resolved)
+
+	none, err := s.service.GetProfileQueryLogTopDomains(ctx, "no-such-profile", retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 50)
+	s.Require().NoError(err)
+	s.NotNil(none)
+	s.Empty(none)
+
+	_, err = s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, "bogus", 50)
+	s.ErrorIs(err, ErrInvalidTopKind)
+	_, err = s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, "NOPE", model.QueryLogTopKindBlocked, 50)
+	s.Error(err)
+}
+
+// TestGetProfileQueryLogTopClients verifies grouping by client IP across
+// statuses, count desc then ip asc, the limit, the timespan floor and profile
+// isolation.
+// tableRef: api-endpoint-behaviour #J21
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopClients() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-clients-profile"
+	s.insertTopDocs(pid,
+		[4]any{"x.com", "blocked", "203.0.113.7", 1 * h}, [4]any{"x.com", "processed", "203.0.113.7", 2 * h}, [4]any{"y.com", "processed", "203.0.113.7", 3 * h},
+		[4]any{"x.com", "processed", "198.51.100.2", 1 * h}, [4]any{"x.com", "processed", "198.51.100.2", 2 * h}, [4]any{"x.com", "processed", "198.51.100.2", 3 * h}, // ties: 198.* before 203.*
+		[4]any{"x.com", "processed", "2001:db8::1", 1 * h},
+		[4]any{"x.com", "processed", "192.0.2.9", 40 * h}, [4]any{"x.com", "processed", "192.0.2.9", 41 * h}, [4]any{"x.com", "processed", "192.0.2.9", 42 * h}, [4]any{"x.com", "processed", "192.0.2.9", 43 * h}, // outside LAST_1_DAY
+		[4]any{"x.com", "processed", "", 1 * h}, // empty ip skipped
+	)
+	s.insertTopDocs("someone-else", [4]any{"x.com", "processed", "203.0.113.7", 1 * h})
+
+	got, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopClient{{IP: "198.51.100.2", Count: 3}, {IP: "203.0.113.7", Count: 3}, {IP: "2001:db8::1", Count: 1}}, got)
+
+	limited, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_1_DAY, 1)
+	s.Require().NoError(err)
+	s.Equal(got[:1], limited)
+
+	week, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_7_DAYS, 1)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopClient{{IP: "192.0.2.9", Count: 4}}, week)
 }
 
 // TestDeleteProfileQueryLogs ensures removal from all retention collections.

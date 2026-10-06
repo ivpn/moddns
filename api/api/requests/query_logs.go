@@ -16,3 +16,14 @@ type QueryLogsQueryParams struct {
 	Search   string `json:"search" validate:"omitempty,max=256"`
 	SortBy   string `json:"sort_by" validate:"oneof=created domain client_ip"`
 }
+
+type QueryLogsTopQueryParams struct {
+	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
+	Kind     string `json:"kind" validate:"oneof=blocked resolved"`
+	Limit    int    `json:"limit" validate:"min=1,max=50"`
+}
+
+type QueryLogsClientsQueryParams struct {
+	Timespan string `json:"timespan" validate:"oneof=LAST_1_HOUR LAST_12_HOURS LAST_1_DAY LAST_7_DAYS LAST_MONTH"`
+	Limit    int    `json:"limit" validate:"min=1,max=50"`
+}

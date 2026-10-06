@@ -61,6 +61,10 @@ type ProfileService struct {
 	// for unit tests that do not exercise the MFA path.
 	MfaVerifier reauth.MfaVerifier
 
+	// clientEnricher adds ASN and country to the top-clients list; nil leaves
+	// those fields null (see SetClientEnricher).
+	clientEnricher ClientEnricher
+
 	// now is the clock; nil means time.Now (see SetClock).
 	now func() time.Time
 
@@ -336,6 +340,7 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
 		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
 	}
+	p.invalidateQueryLogTopCache(ctx, profileId)
 
 	return nil
 }

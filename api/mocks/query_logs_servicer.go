@@ -255,6 +255,184 @@ func (_c *QueryLogsServicer_GetProfileQueryLogDevices_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetProfileQueryLogTopClients provides a mock function for the type QueryLogsServicer
+func (_mock *QueryLogsServicer) GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespan, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogTopClients")
+	}
+
+	var r0 []model.QueryLogTopClient
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int) ([]model.QueryLogTopClient, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespan, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int) []model.QueryLogTopClient); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespan, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopClient)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespan, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsServicer_GetProfileQueryLogTopClients_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogTopClients'
+type QueryLogsServicer_GetProfileQueryLogTopClients_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogTopClients is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespan string
+//   - limit int
+func (_e *QueryLogsServicer_Expecter) GetProfileQueryLogTopClients(ctx interface{}, profileId interface{}, retention interface{}, timespan interface{}, limit interface{}) *QueryLogsServicer_GetProfileQueryLogTopClients_Call {
+	return &QueryLogsServicer_GetProfileQueryLogTopClients_Call{Call: _e.mock.On("GetProfileQueryLogTopClients", ctx, profileId, retention, timespan, limit)}
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopClients_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int)) *QueryLogsServicer_GetProfileQueryLogTopClients_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopClients_Call) Return(queryLogTopClients []model.QueryLogTopClient, err error) *QueryLogsServicer_GetProfileQueryLogTopClients_Call {
+	_c.Call.Return(queryLogTopClients, err)
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopClients_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error)) *QueryLogsServicer_GetProfileQueryLogTopClients_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfileQueryLogTopDomains provides a mock function for the type QueryLogsServicer
+func (_mock *QueryLogsServicer) GetProfileQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, timespan string, kind string, limit int) ([]model.QueryLogTopDomain, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespan, kind, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogTopDomains")
+	}
+
+	var r0 []model.QueryLogTopDomain
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, string, int) ([]model.QueryLogTopDomain, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespan, kind, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, string, int) []model.QueryLogTopDomain); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespan, kind, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopDomain)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, string, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespan, kind, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsServicer_GetProfileQueryLogTopDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogTopDomains'
+type QueryLogsServicer_GetProfileQueryLogTopDomains_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogTopDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespan string
+//   - kind string
+//   - limit int
+func (_e *QueryLogsServicer_Expecter) GetProfileQueryLogTopDomains(ctx interface{}, profileId interface{}, retention interface{}, timespan interface{}, kind interface{}, limit interface{}) *QueryLogsServicer_GetProfileQueryLogTopDomains_Call {
+	return &QueryLogsServicer_GetProfileQueryLogTopDomains_Call{Call: _e.mock.On("GetProfileQueryLogTopDomains", ctx, profileId, retention, timespan, kind, limit)}
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopDomains_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, kind string, limit int)) *QueryLogsServicer_GetProfileQueryLogTopDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopDomains_Call) Return(queryLogTopDomains []model.QueryLogTopDomain, err error) *QueryLogsServicer_GetProfileQueryLogTopDomains_Call {
+	_c.Call.Return(queryLogTopDomains, err)
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopDomains_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, kind string, limit int) ([]model.QueryLogTopDomain, error)) *QueryLogsServicer_GetProfileQueryLogTopDomains_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProfileQueryLogs provides a mock function for the type QueryLogsServicer
 func (_mock *QueryLogsServicer) GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan string, deviceId string, search string, sortBy string, page int, limit int) ([]model.QueryLog, error) {
 	ret := _mock.Called(ctx, profileId, retention, status, timespan, deviceId, search, sortBy, page, limit)

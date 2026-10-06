@@ -64,6 +64,10 @@ type ServiceConfig struct {
 	AnnouncementsReloadEvery   time.Duration
 	// StatisticsReconcileInterval is how often the statistics reconciler runs.
 	StatisticsReconcileInterval time.Duration
+	// GeoIP databases enriching the query-log top-clients list; both optional.
+	GeoIPASNFile     string
+	GeoIPCountryFile string
+	GeoIPReloadEvery time.Duration
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
@@ -205,6 +209,10 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	geoIPReloadEvery, err := parsePositiveDuration("GEOIP_DB_RELOAD", "15m")
+	if err != nil {
+		return nil, err
+	}
 	idLimiterExpiration, err := time.ParseDuration(envOrDefault("ID_LIMITER_EXPIRATION", "1h"))
 	if err != nil {
 		return nil, err
@@ -314,6 +322,9 @@ func New() (*Config, error) {
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
 			StatisticsReconcileInterval:    statisticsReconcileInterval,
+			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
+			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
+			GeoIPReloadEvery:               geoIPReloadEvery,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
 		},
 		Sentry: &SentryConfig{
