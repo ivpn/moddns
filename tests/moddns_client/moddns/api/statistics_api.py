@@ -16,10 +16,10 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
-from typing import List, Optional
+from pydantic import Field, StrictStr, field_validator
+from typing import Optional
 from typing_extensions import Annotated
-from moddns.models.model_statistics_aggregated import ModelStatisticsAggregated
+from moddns.models.model_statistics_response import ModelStatisticsResponse
 
 from moddns.api_client import ApiClient, RequestSerialized
 from moddns.api_response import ApiResponse
@@ -56,10 +56,10 @@ class StatisticsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> List[ModelStatisticsAggregated]:
+    ) -> ModelStatisticsResponse:
         """Get statistics data for a profile
 
-        Get statistics data for a profile
+        Get the profile's DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
 
         :param id: Profile ID (required)
         :type id: str
@@ -97,7 +97,7 @@ class StatisticsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelStatisticsAggregated]",
+            '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
@@ -129,10 +129,10 @@ class StatisticsApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[List[ModelStatisticsAggregated]]:
+    ) -> ApiResponse[ModelStatisticsResponse]:
         """Get statistics data for a profile
 
-        Get statistics data for a profile
+        Get the profile's DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
 
         :param id: Profile ID (required)
         :type id: str
@@ -170,7 +170,7 @@ class StatisticsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelStatisticsAggregated]",
+            '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
@@ -205,7 +205,7 @@ class StatisticsApi:
     ) -> RESTResponseType:
         """Get statistics data for a profile
 
-        Get statistics data for a profile
+        Get the profile's DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
 
         :param id: Profile ID (required)
         :type id: str
@@ -243,7 +243,7 @@ class StatisticsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelStatisticsAggregated]",
+            '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
             '500': "ApiErrResponse",
         }

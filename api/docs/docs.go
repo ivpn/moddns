@@ -1897,6 +1897,87 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/profiles/{id}/logs/clients": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile top clients",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "LAST_1_HOUR",
+                            "LAST_12_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH"
+                        ],
+                        "type": "string",
+                        "default": "LAST_1_DAY",
+                        "description": "specify timespan for query",
+                        "name": "timespan",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "number of items",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.QueryLogTopClients"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/logs/devices": {
             "get": {
                 "security": [
@@ -1988,6 +2069,98 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/logs/top": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile top domains",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "LAST_1_HOUR",
+                            "LAST_12_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH"
+                        ],
+                        "type": "string",
+                        "default": "LAST_1_DAY",
+                        "description": "specify timespan for query",
+                        "name": "timespan",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "blocked",
+                            "resolved"
+                        ],
+                        "type": "string",
+                        "description": "which domains to rank",
+                        "name": "kind",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "number of items",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.QueryLogTopDomains"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -2128,7 +2301,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get statistics data for a profile",
+                "description": "Get the profile's DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; ` + "`" + `enabled` + "`" + ` is false (with empty data) when statistics are off.",
                 "produces": [
                     "application/json"
                 ],
@@ -2145,8 +2318,17 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "enum": [
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH",
+                            "LAST_3_MONTHS",
+                            "LAST_YEAR"
+                        ],
                         "type": "string",
-                        "default": "\"LAST_MONTH\"",
+                        "default": "LAST_7_DAYS",
                         "description": "specify timespan for query",
                         "name": "timespan",
                         "in": "query"
@@ -2156,10 +2338,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/model.StatisticsAggregated"
-                            }
+                            "$ref": "#/definitions/model.StatisticsResponse"
                         }
                     },
                     "400": {
@@ -3889,6 +4068,65 @@ const docTemplate = `{
                 }
             }
         },
+        "model.QueryLogTopClient": {
+            "type": "object",
+            "properties": {
+                "as_org": {
+                    "type": "string"
+                },
+                "asn": {
+                    "type": "integer"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "ip": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.QueryLogTopClients": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.QueryLogTopClient"
+                    }
+                }
+            }
+        },
+        "model.QueryLogTopDomain": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "domain": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.QueryLogTopDomains": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.QueryLogTopDomain"
+                    }
+                }
+            }
+        },
         "model.RebindingProtection": {
             "type": "object",
             "properties": {
@@ -3928,12 +4166,118 @@ const docTemplate = `{
                 }
             }
         },
-        "model.StatisticsAggregated": {
+        "model.StatisticsDevice": {
             "type": "object",
             "properties": {
-                "total": {
-                    "description": "Note: \"total\" needs to be the same as in the repository mongo query",
+                "blocked": {
                     "type": "integer"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatisticsPoint": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "dnssec": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "ts": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StatisticsProtocols": {
+            "type": "object",
+            "properties": {
+                "doh": {
+                    "type": "integer"
+                },
+                "doq": {
+                    "type": "integer"
+                },
+                "dot": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatisticsReasons": {
+            "type": "object",
+            "properties": {
+                "blocklist": {
+                    "type": "integer"
+                },
+                "custom_rule": {
+                    "type": "integer"
+                },
+                "default_rule": {
+                    "type": "integer"
+                },
+                "other": {
+                    "type": "integer"
+                },
+                "rebinding": {
+                    "type": "integer"
+                },
+                "service": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.StatisticsResponse": {
+            "type": "object",
+            "properties": {
+                "bucket_seconds": {
+                    "type": "integer"
+                },
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatisticsDevice"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "enabled_at": {
+                    "type": "string"
+                },
+                "from": {
+                    "type": "string"
+                },
+                "protocols": {
+                    "$ref": "#/definitions/model.StatisticsProtocols"
+                },
+                "reasons": {
+                    "$ref": "#/definitions/model.StatisticsReasons"
+                },
+                "retention": {
+                    "type": "string"
+                },
+                "series": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.StatisticsPoint"
+                    }
+                },
+                "timespan": {
+                    "type": "string"
+                },
+                "to": {
+                    "type": "string"
+                },
+                "totals": {
+                    "$ref": "#/definitions/model.StatisticsTotals"
                 }
             }
         },
@@ -3949,6 +4293,20 @@ const docTemplate = `{
                 "enabled_at": {
                     "description": "When statistics were last turned on (UTC). Absent while statistics are off.",
                     "type": "string"
+                }
+            }
+        },
+        "model.StatisticsTotals": {
+            "type": "object",
+            "properties": {
+                "blocked": {
+                    "type": "integer"
+                },
+                "dnssec": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
