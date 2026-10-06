@@ -81,24 +81,17 @@ func (s *StatisticsService) PurgeBestEffort(ctx context.Context, profileId strin
 	}
 }
 
-// UnconsentedPurgeBound decides what to delete for one profile id found in the
-// statistics collections: nothing, everything (nil before), or the buckets
-// starting before the returned instant.
-//   - profile missing or statistics off: everything.
-//   - statistics on with enabled_at: enabled_at itself is the bound; the
-//     repository floors it to each tier's bucket width, so every tier keeps the
-//     bucket containing enabled_at and removes older ones (leftovers of an
-//     earlier on-period).
-//   - statistics on without enabled_at (enabled before the field existed): nothing.
-func UnconsentedPurgeBound(exists bool, settings *model.StatisticsSettings) (purge bool, before *time.Time) {
+// UnconsentedPurgeBound returns what to delete for one profile id found in the
+// statistics collections: nil means everything (profile missing or statistics
+// off); otherwise enabled_at, which the repository floors to each tier's bucket
+// width, so every tier keeps the bucket containing enabled_at and removes older
+// ones (leftovers of an earlier on-period). Turning statistics on always sets
+// enabled_at.
+func UnconsentedPurgeBound(exists bool, settings *model.StatisticsSettings) *time.Time {
 	if !exists || settings == nil || !settings.Enabled {
-		return true, nil
+		return nil
 	}
-	if settings.EnabledAt == nil {
-		return false, nil
-	}
-	b := settings.EnabledAt.UTC()
-	return true, &b
+	return settings.EnabledAt
 }
 
 // UnconsentedPurgeResult counts what one run did; it carries no identifiers.
@@ -139,10 +132,7 @@ func (s *StatisticsService) PurgeUnconsentedStatistics(ctx context.Context) (Unc
 			}
 			res.Checked++
 			st, exists := settings[id]
-			purge, before := UnconsentedPurgeBound(exists, st)
-			if !purge {
-				continue
-			}
+			before := UnconsentedPurgeBound(exists, st)
 
 			jobCtx, cancelJob := context.WithTimeout(runCtx, s.purgeJobTime)
 			delErr := s.StatisticsRepository.DeleteProfileStatistics(jobCtx, id, before)
