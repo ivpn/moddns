@@ -130,10 +130,12 @@ Class | Method | HTTP request | Description
 *ProfileApi* | [**api_v1_profiles_import_post**](docs/ProfileApi.md#api_v1_profiles_import_post) | **POST** /api/v1/profiles/import | Import profiles
 *ProfileApi* | [**api_v1_profiles_post**](docs/ProfileApi.md#api_v1_profiles_post) | **POST** /api/v1/profiles | Create profile
 *ProfileApi* | [**api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch**](docs/ProfileApi.md#api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch) | **PATCH** /api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id} | Update profile custom rule
+*QueryLogsApi* | [**api_v1_profiles_id_logs_clients_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_clients_get) | **GET** /api/v1/profiles/{id}/logs/clients | Get profile top clients
 *QueryLogsApi* | [**api_v1_profiles_id_logs_delete**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_delete) | **DELETE** /api/v1/profiles/{id}/logs | Delete profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_devices_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_devices_get) | **GET** /api/v1/profiles/{id}/logs/devices | Get profile query log devices
 *QueryLogsApi* | [**api_v1_profiles_id_logs_download_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_download_get) | **GET** /api/v1/profiles/{id}/logs/download | Download profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_get) | **GET** /api/v1/profiles/{id}/logs | Get profile query logs
+*QueryLogsApi* | [**api_v1_profiles_id_logs_top_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_top_get) | **GET** /api/v1/profiles/{id}/logs/top | Get profile top domains
 *ServicesApi* | [**api_v1_services_get**](docs/ServicesApi.md#api_v1_services_get) | **GET** /api/v1/services | Get services catalog
 *SessionsApi* | [**api_v1_sessions_delete**](docs/SessionsApi.md#api_v1_sessions_delete) | **DELETE** /api/v1/sessions | Delete all other sessions
 *StatisticsApi* | [**api_v1_profiles_id_statistics_get**](docs/StatisticsApi.md#api_v1_profiles_id_statistics_get) | **GET** /api/v1/profiles/{id}/statistics | Get statistics data for a profile
@@ -188,11 +190,20 @@ Class | Method | HTTP request | Description
  - [ModelProfileUpdate](docs/ModelProfileUpdate.md)
  - [ModelQueryLog](docs/ModelQueryLog.md)
  - [ModelQueryLogDevice](docs/ModelQueryLogDevice.md)
+ - [ModelQueryLogTopClient](docs/ModelQueryLogTopClient.md)
+ - [ModelQueryLogTopClients](docs/ModelQueryLogTopClients.md)
+ - [ModelQueryLogTopDomain](docs/ModelQueryLogTopDomain.md)
+ - [ModelQueryLogTopDomains](docs/ModelQueryLogTopDomains.md)
  - [ModelRebindingProtection](docs/ModelRebindingProtection.md)
  - [ModelRetention](docs/ModelRetention.md)
  - [ModelSecurity](docs/ModelSecurity.md)
- - [ModelStatisticsAggregated](docs/ModelStatisticsAggregated.md)
+ - [ModelStatisticsDevice](docs/ModelStatisticsDevice.md)
+ - [ModelStatisticsPoint](docs/ModelStatisticsPoint.md)
+ - [ModelStatisticsProtocols](docs/ModelStatisticsProtocols.md)
+ - [ModelStatisticsReasons](docs/ModelStatisticsReasons.md)
+ - [ModelStatisticsResponse](docs/ModelStatisticsResponse.md)
  - [ModelStatisticsSettings](docs/ModelStatisticsSettings.md)
+ - [ModelStatisticsTotals](docs/ModelStatisticsTotals.md)
  - [ModelSubscription](docs/ModelSubscription.md)
  - [ModelSubscriptionStatus](docs/ModelSubscriptionStatus.md)
  - [ModelTOTPBackup](docs/ModelTOTPBackup.md)

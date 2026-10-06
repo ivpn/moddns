@@ -1307,6 +1307,100 @@ export interface ModelQueryLogDevice {
 /**
  * 
  * @export
+ * @interface ModelQueryLogTopClient
+ */
+export interface ModelQueryLogTopClient {
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogTopClient
+     */
+    'as_org'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelQueryLogTopClient
+     */
+    'asn'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelQueryLogTopClient
+     */
+    'count'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogTopClient
+     */
+    'country'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogTopClient
+     */
+    'ip'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelQueryLogTopClients
+ */
+export interface ModelQueryLogTopClients {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelQueryLogTopClients
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {Array<ModelQueryLogTopClient>}
+     * @memberof ModelQueryLogTopClients
+     */
+    'items'?: Array<ModelQueryLogTopClient>;
+}
+/**
+ * 
+ * @export
+ * @interface ModelQueryLogTopDomain
+ */
+export interface ModelQueryLogTopDomain {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelQueryLogTopDomain
+     */
+    'count'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogTopDomain
+     */
+    'domain'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelQueryLogTopDomains
+ */
+export interface ModelQueryLogTopDomains {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelQueryLogTopDomains
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {Array<ModelQueryLogTopDomain>}
+     * @memberof ModelQueryLogTopDomains
+     */
+    'items'?: Array<ModelQueryLogTopDomain>;
+}
+/**
+ * 
+ * @export
  * @interface ModelRebindingProtection
  */
 export interface ModelRebindingProtection {
@@ -1356,15 +1450,205 @@ export interface ModelSecurity {
 /**
  * 
  * @export
- * @interface ModelStatisticsAggregated
+ * @interface ModelStatisticsDevice
  */
-export interface ModelStatisticsAggregated {
+export interface ModelStatisticsDevice {
     /**
-     * Note: \"total\" needs to be the same as in the repository mongo query
+     * 
      * @type {number}
-     * @memberof ModelStatisticsAggregated
+     * @memberof ModelStatisticsDevice
+     */
+    'blocked'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsDevice
+     */
+    'device_id'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsDevice
      */
     'total'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface ModelStatisticsPoint
+ */
+export interface ModelStatisticsPoint {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsPoint
+     */
+    'blocked'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsPoint
+     */
+    'dnssec'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsPoint
+     */
+    'total'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsPoint
+     */
+    'ts'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelStatisticsProtocols
+ */
+export interface ModelStatisticsProtocols {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsProtocols
+     */
+    'doh'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsProtocols
+     */
+    'doq'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsProtocols
+     */
+    'dot'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface ModelStatisticsReasons
+ */
+export interface ModelStatisticsReasons {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'blocklist'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'custom_rule'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'default_rule'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'other'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'rebinding'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsReasons
+     */
+    'service'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface ModelStatisticsResponse
+ */
+export interface ModelStatisticsResponse {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsResponse
+     */
+    'bucket_seconds'?: number;
+    /**
+     * 
+     * @type {Array<ModelStatisticsDevice>}
+     * @memberof ModelStatisticsResponse
+     */
+    'devices'?: Array<ModelStatisticsDevice>;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ModelStatisticsResponse
+     */
+    'enabled'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'enabled_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'from'?: string;
+    /**
+     * 
+     * @type {ModelStatisticsProtocols}
+     * @memberof ModelStatisticsResponse
+     */
+    'protocols'?: ModelStatisticsProtocols;
+    /**
+     * 
+     * @type {ModelStatisticsReasons}
+     * @memberof ModelStatisticsResponse
+     */
+    'reasons'?: ModelStatisticsReasons;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'retention'?: string;
+    /**
+     * 
+     * @type {Array<ModelStatisticsPoint>}
+     * @memberof ModelStatisticsResponse
+     */
+    'series'?: Array<ModelStatisticsPoint>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'timespan'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'to'?: string;
+    /**
+     * 
+     * @type {ModelStatisticsTotals}
+     * @memberof ModelStatisticsResponse
+     */
+    'totals'?: ModelStatisticsTotals;
 }
 /**
  * 
@@ -1384,6 +1668,31 @@ export interface ModelStatisticsSettings {
      * @memberof ModelStatisticsSettings
      */
     'enabled_at'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ModelStatisticsTotals
+ */
+export interface ModelStatisticsTotals {
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsTotals
+     */
+    'blocked'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsTotals
+     */
+    'dnssec'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof ModelStatisticsTotals
+     */
+    'total'?: number;
 }
 /**
  * 
@@ -6445,6 +6754,50 @@ export class ProfileApi extends BaseAPI {
 export const QueryLogsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * @summary Get profile top clients
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsClientsGet: async (id: string, timespan?: ApiV1ProfilesIdLogsClientsGetTimespanEnum, limit?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdLogsClientsGet', 'id', id)
+            const localVarPath = `/api/v1/profiles/{id}/logs/clients`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timespan !== undefined) {
+                localVarQueryParameter['timespan'] = timespan;
+            }
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Delete profile query logs
          * @summary Delete profile query logs
          * @param {string} id Profile ID
@@ -6615,6 +6968,57 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * @summary Get profile top domains
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
+         * @param {ApiV1ProfilesIdLogsTopGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsTopGet: async (id: string, kind: ApiV1ProfilesIdLogsTopGetKindEnum, timespan?: ApiV1ProfilesIdLogsTopGetTimespanEnum, limit?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdLogsTopGet', 'id', id)
+            // verify required parameter 'kind' is not null or undefined
+            assertParamExists('apiV1ProfilesIdLogsTopGet', 'kind', kind)
+            const localVarPath = `/api/v1/profiles/{id}/logs/top`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timespan !== undefined) {
+                localVarQueryParameter['timespan'] = timespan;
+            }
+
+            if (kind !== undefined) {
+                localVarQueryParameter['kind'] = kind;
+            }
+
+            if (limit !== undefined) {
+                localVarQueryParameter['limit'] = limit;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -6625,6 +7029,21 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
 export const QueryLogsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = QueryLogsApiAxiosParamCreator(configuration)
     return {
+        /**
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * @summary Get profile top clients
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdLogsClientsGet(id: string, timespan?: ApiV1ProfilesIdLogsClientsGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelQueryLogTopClients>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdLogsClientsGet(id, timespan, limit, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['QueryLogsApi.apiV1ProfilesIdLogsClientsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
         /**
          * Delete profile query logs
          * @summary Delete profile query logs
@@ -6684,6 +7103,22 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['QueryLogsApi.apiV1ProfilesIdLogsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * @summary Get profile top domains
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
+         * @param {ApiV1ProfilesIdLogsTopGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdLogsTopGet(id: string, kind: ApiV1ProfilesIdLogsTopGetKindEnum, timespan?: ApiV1ProfilesIdLogsTopGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelQueryLogTopDomains>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdLogsTopGet(id, kind, timespan, limit, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['QueryLogsApi.apiV1ProfilesIdLogsTopGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -6694,6 +7129,18 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
 export const QueryLogsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = QueryLogsApiFp(configuration)
     return {
+        /**
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * @summary Get profile top clients
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsClientsGet(id: string, timespan?: ApiV1ProfilesIdLogsClientsGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig): AxiosPromise<ModelQueryLogTopClients> {
+            return localVarFp.apiV1ProfilesIdLogsClientsGet(id, timespan, limit, options).then((request) => request(axios, basePath));
+        },
         /**
          * Delete profile query logs
          * @summary Delete profile query logs
@@ -6741,6 +7188,19 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
         apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: ApiV1ProfilesIdLogsGetStatusEnum, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelQueryLog>> {
             return localVarFp.apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options).then((request) => request(axios, basePath));
         },
+        /**
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * @summary Get profile top domains
+         * @param {string} id Profile ID
+         * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
+         * @param {ApiV1ProfilesIdLogsTopGetTimespanEnum} [timespan] specify timespan for query
+         * @param {number} [limit] number of items
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdLogsTopGet(id: string, kind: ApiV1ProfilesIdLogsTopGetKindEnum, timespan?: ApiV1ProfilesIdLogsTopGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig): AxiosPromise<ModelQueryLogTopDomains> {
+            return localVarFp.apiV1ProfilesIdLogsTopGet(id, kind, timespan, limit, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -6751,6 +7211,20 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
  * @extends {BaseAPI}
  */
 export class QueryLogsApi extends BaseAPI {
+    /**
+     * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+     * @summary Get profile top clients
+     * @param {string} id Profile ID
+     * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
+     * @param {number} [limit] number of items
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof QueryLogsApi
+     */
+    public apiV1ProfilesIdLogsClientsGet(id: string, timespan?: ApiV1ProfilesIdLogsClientsGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig) {
+        return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsClientsGet(id, timespan, limit, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * Delete profile query logs
      * @summary Delete profile query logs
@@ -6805,8 +7279,34 @@ export class QueryLogsApi extends BaseAPI {
     public apiV1ProfilesIdLogsGet(id: string, page?: number, limit?: number, status?: ApiV1ProfilesIdLogsGetStatusEnum, timespan?: string, deviceId?: string, search?: string, sortBy?: ApiV1ProfilesIdLogsGetSortByEnum, options?: RawAxiosRequestConfig) {
         return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options).then((request) => request(this.axios, this.basePath));
     }
+
+    /**
+     * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+     * @summary Get profile top domains
+     * @param {string} id Profile ID
+     * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
+     * @param {ApiV1ProfilesIdLogsTopGetTimespanEnum} [timespan] specify timespan for query
+     * @param {number} [limit] number of items
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof QueryLogsApi
+     */
+    public apiV1ProfilesIdLogsTopGet(id: string, kind: ApiV1ProfilesIdLogsTopGetKindEnum, timespan?: ApiV1ProfilesIdLogsTopGetTimespanEnum, limit?: number, options?: RawAxiosRequestConfig) {
+        return QueryLogsApiFp(this.configuration).apiV1ProfilesIdLogsTopGet(id, kind, timespan, limit, options).then((request) => request(this.axios, this.basePath));
+    }
 }
 
+/**
+ * @export
+ */
+export const ApiV1ProfilesIdLogsClientsGetTimespanEnum = {
+    _1Hour: 'LAST_1_HOUR',
+    _12Hours: 'LAST_12_HOURS',
+    _1Day: 'LAST_1_DAY',
+    _7Days: 'LAST_7_DAYS',
+    Month: 'LAST_MONTH'
+} as const;
+export type ApiV1ProfilesIdLogsClientsGetTimespanEnum = typeof ApiV1ProfilesIdLogsClientsGetTimespanEnum[keyof typeof ApiV1ProfilesIdLogsClientsGetTimespanEnum];
 /**
  * @export
  */
@@ -6826,6 +7326,25 @@ export const ApiV1ProfilesIdLogsGetSortByEnum = {
     ClientIp: 'client_ip'
 } as const;
 export type ApiV1ProfilesIdLogsGetSortByEnum = typeof ApiV1ProfilesIdLogsGetSortByEnum[keyof typeof ApiV1ProfilesIdLogsGetSortByEnum];
+/**
+ * @export
+ */
+export const ApiV1ProfilesIdLogsTopGetKindEnum = {
+    Blocked: 'blocked',
+    Resolved: 'resolved'
+} as const;
+export type ApiV1ProfilesIdLogsTopGetKindEnum = typeof ApiV1ProfilesIdLogsTopGetKindEnum[keyof typeof ApiV1ProfilesIdLogsTopGetKindEnum];
+/**
+ * @export
+ */
+export const ApiV1ProfilesIdLogsTopGetTimespanEnum = {
+    _1Hour: 'LAST_1_HOUR',
+    _12Hours: 'LAST_12_HOURS',
+    _1Day: 'LAST_1_DAY',
+    _7Days: 'LAST_7_DAYS',
+    Month: 'LAST_MONTH'
+} as const;
+export type ApiV1ProfilesIdLogsTopGetTimespanEnum = typeof ApiV1ProfilesIdLogsTopGetTimespanEnum[keyof typeof ApiV1ProfilesIdLogsTopGetTimespanEnum];
 
 
 /**
@@ -7037,14 +7556,14 @@ export class SessionsApi extends BaseAPI {
 export const StatisticsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Get statistics data for a profile
+         * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
-         * @param {string} [timespan] specify timespan for query
+         * @param {ApiV1ProfilesIdStatisticsGetTimespanEnum} [timespan] specify timespan for query
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdStatisticsGet: async (id: string, timespan?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1ProfilesIdStatisticsGet: async (id: string, timespan?: ApiV1ProfilesIdStatisticsGetTimespanEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('apiV1ProfilesIdStatisticsGet', 'id', id)
             const localVarPath = `/api/v1/profiles/{id}/statistics`
@@ -7086,14 +7605,14 @@ export const StatisticsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = StatisticsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Get statistics data for a profile
+         * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
-         * @param {string} [timespan] specify timespan for query
+         * @param {ApiV1ProfilesIdStatisticsGetTimespanEnum} [timespan] specify timespan for query
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1ProfilesIdStatisticsGet(id: string, timespan?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelStatisticsAggregated>>> {
+        async apiV1ProfilesIdStatisticsGet(id: string, timespan?: ApiV1ProfilesIdStatisticsGetTimespanEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelStatisticsResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdStatisticsGet(id, timespan, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StatisticsApi.apiV1ProfilesIdStatisticsGet']?.[localVarOperationServerIndex]?.url;
@@ -7110,14 +7629,14 @@ export const StatisticsApiFactory = function (configuration?: Configuration, bas
     const localVarFp = StatisticsApiFp(configuration)
     return {
         /**
-         * Get statistics data for a profile
+         * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
-         * @param {string} [timespan] specify timespan for query
+         * @param {ApiV1ProfilesIdStatisticsGetTimespanEnum} [timespan] specify timespan for query
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1ProfilesIdStatisticsGet(id: string, timespan?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelStatisticsAggregated>> {
+        apiV1ProfilesIdStatisticsGet(id: string, timespan?: ApiV1ProfilesIdStatisticsGetTimespanEnum, options?: RawAxiosRequestConfig): AxiosPromise<ModelStatisticsResponse> {
             return localVarFp.apiV1ProfilesIdStatisticsGet(id, timespan, options).then((request) => request(axios, basePath));
         },
     };
@@ -7131,19 +7650,32 @@ export const StatisticsApiFactory = function (configuration?: Configuration, bas
  */
 export class StatisticsApi extends BaseAPI {
     /**
-     * Get statistics data for a profile
+     * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
      * @summary Get statistics data for a profile
      * @param {string} id Profile ID
-     * @param {string} [timespan] specify timespan for query
+     * @param {ApiV1ProfilesIdStatisticsGetTimespanEnum} [timespan] specify timespan for query
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StatisticsApi
      */
-    public apiV1ProfilesIdStatisticsGet(id: string, timespan?: string, options?: RawAxiosRequestConfig) {
+    public apiV1ProfilesIdStatisticsGet(id: string, timespan?: ApiV1ProfilesIdStatisticsGetTimespanEnum, options?: RawAxiosRequestConfig) {
         return StatisticsApiFp(this.configuration).apiV1ProfilesIdStatisticsGet(id, timespan, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
+/**
+ * @export
+ */
+export const ApiV1ProfilesIdStatisticsGetTimespanEnum = {
+    _3Hours: 'LAST_3_HOURS',
+    _6Hours: 'LAST_6_HOURS',
+    _1Day: 'LAST_1_DAY',
+    _7Days: 'LAST_7_DAYS',
+    Month: 'LAST_MONTH',
+    _3Months: 'LAST_3_MONTHS',
+    Year: 'LAST_YEAR'
+} as const;
+export type ApiV1ProfilesIdStatisticsGetTimespanEnum = typeof ApiV1ProfilesIdStatisticsGetTimespanEnum[keyof typeof ApiV1ProfilesIdStatisticsGetTimespanEnum];
 
 
 /**

@@ -656,6 +656,44 @@ definitions:
       last_seen:
         type: string
     type: object
+  model.QueryLogTopClient:
+    properties:
+      as_org:
+        type: string
+      asn:
+        type: integer
+      count:
+        type: integer
+      country:
+        type: string
+      ip:
+        type: string
+    type: object
+  model.QueryLogTopClients:
+    properties:
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/model.QueryLogTopClient'
+        type: array
+    type: object
+  model.QueryLogTopDomain:
+    properties:
+      count:
+        type: integer
+      domain:
+        type: string
+    type: object
+  model.QueryLogTopDomains:
+    properties:
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/model.QueryLogTopDomain'
+        type: array
+    type: object
   model.RebindingProtection:
     properties:
       enabled:
@@ -684,12 +722,80 @@ definitions:
     required:
     - dnssec
     type: object
-  model.StatisticsAggregated:
+  model.StatisticsDevice:
     properties:
-      total:
-        description: 'Note: "total" needs to be the same as in the repository mongo
-          query'
+      blocked:
         type: integer
+      device_id:
+        type: string
+      total:
+        type: integer
+    type: object
+  model.StatisticsPoint:
+    properties:
+      blocked:
+        type: integer
+      dnssec:
+        type: integer
+      total:
+        type: integer
+      ts:
+        type: string
+    type: object
+  model.StatisticsProtocols:
+    properties:
+      doh:
+        type: integer
+      doq:
+        type: integer
+      dot:
+        type: integer
+    type: object
+  model.StatisticsReasons:
+    properties:
+      blocklist:
+        type: integer
+      custom_rule:
+        type: integer
+      default_rule:
+        type: integer
+      other:
+        type: integer
+      rebinding:
+        type: integer
+      service:
+        type: integer
+    type: object
+  model.StatisticsResponse:
+    properties:
+      bucket_seconds:
+        type: integer
+      devices:
+        items:
+          $ref: '#/definitions/model.StatisticsDevice'
+        type: array
+      enabled:
+        type: boolean
+      enabled_at:
+        type: string
+      from:
+        type: string
+      protocols:
+        $ref: '#/definitions/model.StatisticsProtocols'
+      reasons:
+        $ref: '#/definitions/model.StatisticsReasons'
+      retention:
+        type: string
+      series:
+        items:
+          $ref: '#/definitions/model.StatisticsPoint'
+        type: array
+      timespan:
+        type: string
+      to:
+        type: string
+      totals:
+        $ref: '#/definitions/model.StatisticsTotals'
     type: object
   model.StatisticsSettings:
     properties:
@@ -701,6 +807,15 @@ definitions:
         type: string
     required:
     - enabled
+    type: object
+  model.StatisticsTotals:
+    properties:
+      blocked:
+        type: integer
+      dnssec:
+        type: integer
+      total:
+        type: integer
     type: object
   model.Subscription:
     properties:
@@ -2624,6 +2739,64 @@ paths:
       summary: Get profile query logs
       tags:
       - QueryLogs
+  /api/v1/profiles/{id}/logs/clients:
+    get:
+      description: Most frequent client IPs in the profile's query logs (current retention
+        window), enriched with ASN, AS organisation and country (null when unknown).
+        Returns enabled=false with no items unless logs and client IP logging are
+        on.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_1_DAY
+        description: specify timespan for query
+        enum:
+        - LAST_1_HOUR
+        - LAST_12_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        in: query
+        name: timespan
+        type: string
+      - default: 10
+        description: number of items
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.QueryLogTopClients'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile top clients
+      tags:
+      - QueryLogs
   /api/v1/profiles/{id}/logs/devices:
     get:
       description: List distinct device IDs seen in the profile's query logs (current
@@ -2689,6 +2862,71 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Download profile query logs
+      tags:
+      - QueryLogs
+  /api/v1/profiles/{id}/logs/top:
+    get:
+      description: Most frequent blocked or resolved domains in the profile's query
+        logs (current retention window). Returns enabled=false with no items unless
+        logs and domain logging are on. Counts only.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_1_DAY
+        description: specify timespan for query
+        enum:
+        - LAST_1_HOUR
+        - LAST_12_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        in: query
+        name: timespan
+        type: string
+      - description: which domains to rank
+        enum:
+        - blocked
+        - resolved
+        in: query
+        name: kind
+        required: true
+        type: string
+      - default: 10
+        description: number of items
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.QueryLogTopDomains'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile top domains
       tags:
       - QueryLogs
   /api/v1/profiles/{id}/services:
@@ -2770,15 +3008,26 @@ paths:
       - Profile
   /api/v1/profiles/{id}/statistics:
     get:
-      description: Get statistics data for a profile
+      description: 'Get the profile''s DNS statistics for a timespan: totals, a zero-filled
+        time series, blocking reasons, transport protocols and per-device counts.
+        Always answers 200 for an owned profile; `enabled` is false (with empty data)
+        when statistics are off.'
       parameters:
       - description: Profile ID
         in: path
         name: id
         required: true
         type: string
-      - default: '"LAST_MONTH"'
+      - default: LAST_7_DAYS
         description: specify timespan for query
+        enum:
+        - LAST_3_HOURS
+        - LAST_6_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        - LAST_3_MONTHS
+        - LAST_YEAR
         in: query
         name: timespan
         type: string
@@ -2788,9 +3037,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/model.StatisticsAggregated'
-            type: array
+            $ref: '#/definitions/model.StatisticsResponse'
         "400":
           description: Bad Request
           schema:
