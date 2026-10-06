@@ -47,6 +47,8 @@ type Service struct {
 	SessionServicer
 	PasskeyServicer
 	dnsstamp.DNSStampServicer
+	// Statistics is exposed for the cron reconciler.
+	Statistics *statistics.StatisticsService
 }
 
 // New constructs the service layer. servicesCatalog is used by ProfileService
@@ -55,7 +57,7 @@ type Service struct {
 func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
-	statsSrv := statistics.NewStatisticsService(store)
+	statsSrv := statistics.NewStatisticsService(store, statistics.WithProfiles(store))
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, store, blocklistSrv, queryLogsSrv, statsSrv, servicesCatalog, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
@@ -77,6 +79,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		Webauthn:             webauthn,
 		HTTP:                 *httpClient,
 		DNSStampServicer:     dnsstampSrv,
+		Statistics:           statsSrv,
 	}
 }
 

@@ -2701,6 +2701,74 @@ func (_c *Db_GetProfilesByAccountId_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// GetProfilesStatisticsSettings provides a mock function for the type Db
+func (_mock *Db) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesStatisticsSettings")
+	}
+
+	var r0 map[string]*model.StatisticsSettings
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]*model.StatisticsSettings, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]*model.StatisticsSettings); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]*model.StatisticsSettings)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetProfilesStatisticsSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesStatisticsSettings'
+type Db_GetProfilesStatisticsSettings_Call struct {
+	*mock.Call
+}
+
+// GetProfilesStatisticsSettings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *Db_Expecter) GetProfilesStatisticsSettings(ctx interface{}, profileIds interface{}) *Db_GetProfilesStatisticsSettings_Call {
+	return &Db_GetProfilesStatisticsSettings_Call{Call: _e.mock.On("GetProfilesStatisticsSettings", ctx, profileIds)}
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) Run(run func(ctx context.Context, profileIds []string)) *Db_GetProfilesStatisticsSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) Return(stringToStatisticsSettings map[string]*model.StatisticsSettings, err error) *Db_GetProfilesStatisticsSettings_Call {
+	_c.Call.Return(stringToStatisticsSettings, err)
+	return _c
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)) *Db_GetProfilesStatisticsSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetQueryLogDevices provides a mock function for the type Db
 func (_mock *Db) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
 	ret := _mock.Called(ctx, profileId, retention)
@@ -3027,6 +3095,68 @@ func (_c *Db_GetSubscriptionByAccountId_Call) Return(subscription *model.Subscri
 }
 
 func (_c *Db_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) (*model.Subscription, error)) *Db_GetSubscriptionByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListStatisticsProfileIDs provides a mock function for the type Db
+func (_mock *Db) ListStatisticsProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListStatisticsProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_ListStatisticsProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListStatisticsProfileIDs'
+type Db_ListStatisticsProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListStatisticsProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ListStatisticsProfileIDs(ctx interface{}) *Db_ListStatisticsProfileIDs_Call {
+	return &Db_ListStatisticsProfileIDs_Call{Call: _e.mock.On("ListStatisticsProfileIDs", ctx)}
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) Run(run func(ctx context.Context)) *Db_ListStatisticsProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) Return(strings []string, err error) *Db_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Db_ListStatisticsProfileIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

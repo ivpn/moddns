@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // ProfileRepository is a MongoDB repository for profiles collection
@@ -52,6 +53,49 @@ func (r *ProfileRepository) GetProfileById(ctx context.Context, profileId string
 		return nil, err
 	}
 	return &profile, nil
+}
+
+func (r *ProfileRepository) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
+	if len(profileIds) == 0 {
+		return map[string]*model.StatisticsSettings{}, nil
+	}
+
+	// Primary read: a lagging secondary must not make a fresh profile look deleted.
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.D{primitive.E{Key: "profile_id", Value: bson.D{primitive.E{Key: "$in", Value: profileIds}}}}
+	projection := bson.D{
+		primitive.E{Key: "profile_id", Value: 1},
+		primitive.E{Key: "settings.statistics", Value: 1},
+	}
+	cursor, err := coll.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []struct {
+		ProfileId string `bson:"profile_id"`
+		Settings  *struct {
+			Statistics *model.StatisticsSettings `bson:"statistics"`
+		} `bson:"settings"`
+	}
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]*model.StatisticsSettings, len(docs))
+	for _, d := range docs {
+		var st *model.StatisticsSettings
+		if d.Settings != nil {
+			st = d.Settings.Statistics
+		}
+		out[d.ProfileId] = st
+	}
+	return out, nil
 }
 
 func (r *ProfileRepository) GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error) {

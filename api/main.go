@@ -168,7 +168,7 @@ func main() {
 	}
 	server.RegisterRoutes()
 
-	cron.Start(db, db, db, cache, mailer, service, cronLocker)
+	cron.Start(db, db, db, cache, mailer, service, service.Statistics, appConfig.Service.StatisticsReconcileInterval, cronLocker)
 
 	err = server.App.Listen(appConfig.API.Port)
 	log.Panic().Err(err).Msg("Failed to start REST API")

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
@@ -1510,6 +1511,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 }
 
 // TestDeleteProfile tests the DeleteProfile method
+// specRef: api-endpoint-behaviour.md G5, J7
 func (suite *ProfileTestSuite) TestDeleteProfile() {
 	tests := []struct {
 		name             string
@@ -1582,6 +1584,7 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockCache.ExpectedCalls = nil
 			suite.mockQueryLogsRepo.ExpectedCalls = nil
+			suite.mockStatisticsRepo.ExpectedCalls = nil
 
 			if tt.repoGetError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoGetError)
@@ -1605,6 +1608,9 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 
 						// Mock QueryLogs service deletion
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
+
+						// Mock statistics deletion (api-endpoint-behaviour.md J7)
+						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(nil)
 
 						// Mock cache deletion
 						if tt.cacheError != nil {

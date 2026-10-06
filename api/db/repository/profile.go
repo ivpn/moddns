@@ -20,6 +20,10 @@ type ProfileRepository interface {
 	EnableServices(ctx context.Context, profileId string, serviceIds []string) error
 	DisableServices(ctx context.Context, profileId string, serviceIds []string) error
 	GetProfileById(ctx context.Context, profileId string) (*model.Profile, error)
+	// GetProfilesStatisticsSettings reads only settings.statistics of the given profiles from the
+	// primary. Profiles that do not exist are absent from the result; a profile with no statistics
+	// block maps to nil.
+	GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)
 	GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error)
 	Update(ctx context.Context, profileId string, profile *model.Profile) error
 	UpdateSettings(ctx context.Context, profileId string, settings *model.ProfileSettings) error
