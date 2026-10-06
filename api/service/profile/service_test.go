@@ -1982,7 +1982,7 @@ func (suite *ProfileTestSuite) TestDownloadProfileQueryLogs() {
 }
 
 // TestGetStatistics tests the GetStatistics method
-// specRef: api-endpoint-behaviour.md J4
+// specRef: api-endpoint-behaviour.md J4, J42
 func (suite *ProfileTestSuite) TestGetStatistics() {
 	tests := []struct {
 		name            string
@@ -1993,7 +1993,9 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 		repoError       error
 		statsError      error
 		expectedError   string
-		expectedStats   []model.StatisticsAggregated
+		expectedStats   *model.StatisticsAggregate
+		wantEnabled     bool
+		wantTotal       int64
 	}{
 		{
 			name:      "Successfully get statistics",
@@ -2007,9 +2009,9 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "",
-			expectedStats: []model.StatisticsAggregated{
-				{Total: 600}, // 100 blocked + 500 processed = 600 total
-			},
+			expectedStats: &model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 600}},
+			wantEnabled:   true,
+			wantTotal:     600,
 		},
 		{
 			name:      "Statistics disabled answers zero without querying",
@@ -2022,7 +2024,6 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				Name:      "Test Profile",
 				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: false}},
 			},
-			expectedStats: []model.StatisticsAggregated{{Total: 0}},
 		},
 		{
 			name:          "Profile not found",
@@ -2074,9 +2075,9 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 
 				if tt.existingProfile.AccountId == tt.accountID && tt.existingProfile.Settings.Statistics.Enabled {
 					if tt.statsError != nil {
-						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(nil, tt.statsError)
+						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("model.StatisticsTier"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Duration")).Return(nil, tt.statsError)
 					} else {
-						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(tt.expectedStats, nil)
+						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("model.StatisticsTier"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Duration")).Return(tt.expectedStats, nil)
 					}
 				}
 			}
@@ -2091,7 +2092,10 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				suite.Nil(stats)
 			} else {
 				suite.NoError(err)
-				suite.Equal(tt.expectedStats, stats)
+				suite.Require().NotNil(stats)
+				suite.Equal(tt.wantEnabled, stats.Enabled)
+				suite.Equal(tt.wantTotal, stats.Totals.Total)
+				suite.Equal(tt.timespan, stats.Timespan)
 			}
 		})
 	}

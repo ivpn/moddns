@@ -2560,27 +2560,27 @@ func (_c *Db_GetProfileById_Call) RunAndReturn(run func(ctx context.Context, pro
 }
 
 // GetProfileStatistics provides a mock function for the type Db
-func (_mock *Db) GetProfileStatistics(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error) {
-	ret := _mock.Called(ctx, profileId, timespan)
+func (_mock *Db) GetProfileStatistics(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error) {
+	ret := _mock.Called(ctx, profileId, tier, from, to, bucket)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProfileStatistics")
 	}
 
-	var r0 []model.StatisticsAggregated
+	var r0 *model.StatisticsAggregate
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]model.StatisticsAggregated, error)); ok {
-		return returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) (*model.StatisticsAggregate, error)); ok {
+		return returnFunc(ctx, profileId, tier, from, to, bucket)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []model.StatisticsAggregated); ok {
-		r0 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) *model.StatisticsAggregate); ok {
+		r0 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.StatisticsAggregated)
+			r0 = ret.Get(0).(*model.StatisticsAggregate)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) error); ok {
+		r1 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2595,12 +2595,15 @@ type Db_GetProfileStatistics_Call struct {
 // GetProfileStatistics is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - timespan int
-func (_e *Db_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, timespan interface{}) *Db_GetProfileStatistics_Call {
-	return &Db_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, timespan)}
+//   - tier model.StatisticsTier
+//   - from time.Time
+//   - to time.Time
+//   - bucket time.Duration
+func (_e *Db_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, tier interface{}, from interface{}, to interface{}, bucket interface{}) *Db_GetProfileStatistics_Call {
+	return &Db_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, tier, from, to, bucket)}
 }
 
-func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan int)) *Db_GetProfileStatistics_Call {
+func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration)) *Db_GetProfileStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2610,25 +2613,40 @@ func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profil
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 model.StatisticsTier
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(model.StatisticsTier)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		var arg4 time.Time
+		if args[4] != nil {
+			arg4 = args[4].(time.Time)
+		}
+		var arg5 time.Duration
+		if args[5] != nil {
+			arg5 = args[5].(time.Duration)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
+			arg4,
+			arg5,
 		)
 	})
 	return _c
 }
 
-func (_c *Db_GetProfileStatistics_Call) Return(statisticsAggregateds []model.StatisticsAggregated, err error) *Db_GetProfileStatistics_Call {
-	_c.Call.Return(statisticsAggregateds, err)
+func (_c *Db_GetProfileStatistics_Call) Return(statisticsAggregate *model.StatisticsAggregate, err error) *Db_GetProfileStatistics_Call {
+	_c.Call.Return(statisticsAggregate, err)
 	return _c
 }
 
-func (_c *Db_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error)) *Db_GetProfileStatistics_Call {
+func (_c *Db_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error)) *Db_GetProfileStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

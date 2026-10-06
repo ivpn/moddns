@@ -28,6 +28,8 @@ type StatisticsService struct {
 	StatisticsRepository repository.StatisticsRepository
 
 	profiles         ProfileStatisticsReader
+	cache            ReadCache
+	now              func() time.Time
 	reconcileJobTime time.Duration
 	reconcileRunTime time.Duration
 }
@@ -52,6 +54,8 @@ func WithReconcileTimeouts(perProfile, wholeRun time.Duration) Option {
 func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *StatisticsService {
 	s := &StatisticsService{
 		StatisticsRepository: db,
+		cache:                noopReadCache{},
+		now:                  time.Now,
 		reconcileJobTime:     reconcileJobTimeout,
 		reconcileRunTime:     reconcileDeadline,
 	}
@@ -61,22 +65,11 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 	return s
 }
 
-func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId string, timespan string) ([]model.StatisticsAggregated, error) {
-	timespanHours, err := model.NewTimespan(timespan)
-	if err != nil {
-		return nil, err
-	}
-
-	stats, err := s.StatisticsRepository.GetProfileStatistics(ctx, profileId, timespanHours)
-	if err != nil {
-		return nil, err
-	}
-	return stats, nil
-}
-
 // PurgeProfile deletes all of the profile's statistics.
 func (s *StatisticsService) PurgeProfile(ctx context.Context, profileId string) error {
-	return s.StatisticsRepository.DeleteProfileStatistics(ctx, profileId, nil)
+	err := s.StatisticsRepository.DeleteProfileStatistics(ctx, profileId, nil)
+	s.invalidate(ctx, profileId)
+	return err
 }
 
 // PurgeBestEffort is the immediate purge on statistics true->false and on profile
@@ -153,6 +146,7 @@ func (s *StatisticsService) ReconcileStatistics(ctx context.Context) (ReconcileR
 
 			jobCtx, cancelJob := context.WithTimeout(runCtx, s.reconcileJobTime)
 			delErr := s.StatisticsRepository.DeleteProfileStatistics(jobCtx, id, before)
+			s.invalidate(runCtx, id)
 			timedOut := errors.Is(jobCtx.Err(), context.DeadlineExceeded)
 			cancelJob()
 			if delErr != nil {

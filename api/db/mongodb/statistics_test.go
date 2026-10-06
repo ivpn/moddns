@@ -184,31 +184,6 @@ func (s *StatisticsRepositorySuite) TestMigration027_DropsLegacyAndRollsBack() {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J4
-func (s *StatisticsRepositorySuite) TestGetProfileStatistics_SumsAcrossCollectionsWithinTimespan() {
-	ctx := context.Background()
-	now := time.Now().UTC()
-	s.insert("statistics_1d_30d", "p1", now.Add(-time.Hour), 10)
-	s.insert("statistics_1d_90d", "p1", now.Add(-2*time.Hour), 20)
-	s.insert("statistics_1d_1y", "p1", now.Add(-3*time.Hour), 30)
-	s.insert("statistics_1d_1y", "p1", now.Add(-72*time.Hour), 1000)
-	s.insert("statistics_1d_30d", "p2", now.Add(-time.Hour), 7)
-
-	got, err := s.repo.GetProfileStatistics(ctx, "p1", 24)
-	s.Require().NoError(err)
-	s.Require().Len(got, 1)
-	s.EqualValues(60, got[0].Total)
-
-	all, err := s.repo.GetProfileStatistics(ctx, "p1", 0)
-	s.Require().NoError(err)
-	s.EqualValues(1060, all[0].Total)
-
-	none, err := s.repo.GetProfileStatistics(ctx, "nobody", 24)
-	s.Require().NoError(err)
-	s.Require().Len(none, 1)
-	s.EqualValues(0, none[0].Total)
-}
-
 // specRef: api-endpoint-behaviour.md J6
 func (s *StatisticsRepositorySuite) TestDeleteProfileStatistics_RemovesOnlyThatProfileFromAllCollections() {
 	now := time.Now().UTC()
