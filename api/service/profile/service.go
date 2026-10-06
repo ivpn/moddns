@@ -290,18 +290,18 @@ func (p *ProfileService) DownloadProfileQueryLogs(ctx context.Context, accountId
 	return p.QueryLogsService.DownloadProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, page, limit)
 }
 
-// GetProfileStatistics returns profile DNS statistics data
-func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error) {
+// GetStatistics returns the profile's statistics for the timespan; the enabled gate lives in the statistics service.
+func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) (*model.StatisticsResponse, error) {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
 	}
 
-	if !statisticsEnabled(profile.Settings) {
-		return []model.StatisticsAggregated{{Total: 0}}, nil
+	var settings *model.StatisticsSettings
+	if profile.Settings != nil {
+		settings = profile.Settings.Statistics
 	}
-
-	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan)
+	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan, settings)
 }
 
 // validateProfileIdAffiliation checks whether profile is within the current account profiles list
@@ -464,10 +464,6 @@ func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
 		snap.statistics = &c
 	}
 	return snap
-}
-
-func statisticsEnabled(s *model.ProfileSettings) bool {
-	return s != nil && s.Statistics != nil && s.Statistics.Enabled
 }
 
 func (s settingsSnapshot) statisticsEnabled() bool {

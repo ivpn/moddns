@@ -263,7 +263,7 @@ func (s *APIServer) RegisterRoutes() {
 	profiles.Delete("/:id/logs", middleware.NewLimit(20, 1*time.Minute), s.deleteProfileQueryLogs())
 
 	// Statistics endpoints
-	profiles.Get("/:id/statistics", middleware.NewLimit(20, 1*time.Minute), s.getStatistics())
+	profiles.Get("/:id/statistics", middleware.NewLimit(500, 1*time.Minute), s.getStatistics())
 
 	// Custom rules endpoints
 	profiles.Delete("/:profile_id/custom_rules/:custom_rule_id", middleware.NewLimit(20, 1*time.Minute), s.deleteProfileCustomRule())
