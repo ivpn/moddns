@@ -54,7 +54,8 @@ func (s fileSig) equal(o fileSig) bool {
 // GeoLite2-ASN is small enough (~11 MB) for the copy to be free. It also
 // means dropping a database releases nothing but heap.
 type Reader struct {
-	path string
+	path  string
+	probe func(*geoip2.Reader) error // rejects a file of the wrong edition
 	cur  atomic.Pointer[geoip2.Reader]
 
 	mu    sync.Mutex // guards sig and stats; serialises Reload callers
@@ -65,15 +66,42 @@ type Reader struct {
 // Open opens an ASN-capable database. A missing, unreadable, corrupt or
 // wrong-edition file is an error.
 func Open(path string) (*Reader, error) {
+	return open(path, probeASN)
+}
+
+// OpenCountry opens a database that answers Country lookups: GeoLite2-Country
+// or GeoLite2-City. The reload behaviour is identical to Open.
+func OpenCountry(path string) (*Reader, error) {
+	return open(path, probeCountry)
+}
+
+func probeASN(db *geoip2.Reader) error {
+	// geoip2 reports an edition/method mismatch only at lookup time, so probe
+	// once here rather than on the first real query.
+	if _, err := db.ASN(netip.MustParseAddr("192.0.2.1")); err != nil {
+		return fmt.Errorf("does not support ASN lookups: %w", err)
+	}
+	return nil
+}
+
+func probeCountry(db *geoip2.Reader) error {
+	if _, err := db.Country(netip.MustParseAddr("192.0.2.1")); err != nil {
+		return fmt.Errorf("does not support Country lookups: %w", err)
+	}
+	return nil
+}
+
+func open(path string, probe func(*geoip2.Reader) error) (*Reader, error) {
 	if path == "" {
 		return nil, errors.New("geoip database path is required")
 	}
-	db, sig, err := openFile(path)
+	db, sig, err := openFile(path, probe)
 	if err != nil {
 		return nil, err
 	}
 	r := &Reader{
 		path:  path,
+		probe: probe,
 		sig:   sig,
 		stats: Stats{BuildTime: buildTime(db), LoadedAt: time.Now()},
 	}
@@ -81,7 +109,7 @@ func Open(path string) (*Reader, error) {
 	return r, nil
 }
 
-func openFile(path string) (*geoip2.Reader, fileSig, error) {
+func openFile(path string, probe func(*geoip2.Reader) error) (*geoip2.Reader, fileSig, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, fileSig{}, err
@@ -97,10 +125,8 @@ func openFile(path string) (*geoip2.Reader, fileSig, error) {
 	if err != nil {
 		return nil, fileSig{}, fmt.Errorf("open %s: %w", path, err)
 	}
-	// geoip2 reports an edition/method mismatch only at lookup time, so probe
-	// once here rather than on the first real query.
-	if _, err := db.ASN(netip.MustParseAddr("192.0.2.1")); err != nil {
-		return nil, fileSig{}, fmt.Errorf("%s does not support ASN lookups: %w", path, err)
+	if err := probe(db); err != nil {
+		return nil, fileSig{}, fmt.Errorf("%s %w", path, err)
 	}
 	return db, fileSig{size: info.Size(), modTime: info.ModTime()}, nil
 }
@@ -130,6 +156,16 @@ func (r *Reader) ASN(ip netip.Addr) (*geoip2.ASN, error) {
 	return db.ASN(ip.Unmap())
 }
 
+// Country looks up ip in a database opened with OpenCountry; same semantics
+// as ASN.
+func (r *Reader) Country(ip netip.Addr) (*geoip2.Country, error) {
+	db := r.cur.Load()
+	if db == nil {
+		return nil, errors.New("geoip database is closed")
+	}
+	return db.Country(ip.Unmap())
+}
+
 // Stats returns a snapshot of the reader state.
 func (r *Reader) Stats() Stats {
 	r.mu.Lock()
@@ -157,7 +193,7 @@ func (r *Reader) Reload() (bool, error) {
 		return false, nil
 	}
 
-	db, sig, err := openFile(r.path)
+	db, sig, err := openFile(r.path, r.probe)
 	if err != nil {
 		return false, r.failLocked(err)
 	}
