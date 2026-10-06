@@ -64,6 +64,8 @@ type ServiceConfig struct {
 	AnnouncementsReloadEvery   time.Duration
 	// StatisticsPurgeInterval is how often the unconsented-statistics purge runs.
 	StatisticsPurgeInterval time.Duration
+	// QueryLogsPurgeInterval is how often the unconsented query-logs sweep runs.
+	QueryLogsPurgeInterval time.Duration
 	// GeoIP databases enriching the query-log top-clients list; both optional.
 	GeoIPASNFile     string
 	GeoIPCountryFile string
@@ -209,6 +211,10 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	queryLogsPurgeInterval, err := parsePositiveDuration("QUERY_LOGS_PURGE_INTERVAL", "1h")
+	if err != nil {
+		return nil, err
+	}
 	geoIPReloadEvery, err := parsePositiveDuration("GEOIP_DB_RELOAD", "15m")
 	if err != nil {
 		return nil, err
@@ -322,6 +328,7 @@ func New() (*Config, error) {
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
 			StatisticsPurgeInterval:        statisticsPurgeInterval,
+			QueryLogsPurgeInterval:         queryLogsPurgeInterval,
 			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
 			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
 			GeoIPReloadEvery:               geoIPReloadEvery,

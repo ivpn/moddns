@@ -165,9 +165,9 @@ func TestUpdateProfile_UnrelatedPatchLeavesStatistics(t *testing.T) {
 	h.expectPersist(statsProfile(true, &at))
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
-		[]model.ProfileUpdate{{Operation: model.UpdateOperationReplace, Path: "/settings/logs/enabled", Value: false}})
+		[]model.ProfileUpdate{{Operation: model.UpdateOperationReplace, Path: "/settings/logs/retention", Value: "1d"}})
 	require.NoError(t, err)
-	require.Equal(t, []repository.FieldSet{{Field: "settings.logs.enabled", Value: false}}, h.sentUpdate(t).Set)
+	require.Equal(t, []repository.FieldSet{{Field: "settings.logs.retention", Value: model.Retention("1d")}}, h.sentUpdate(t).Set)
 	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
 }
 

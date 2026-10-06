@@ -12,4 +12,6 @@ type QueryLogsRepository interface {
 	GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error)
 	GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error)
 	DeleteQueryLogs(ctx context.Context, profileId string) error
+	// ListQueryLogProfileIDs returns every profile id present in any retention collection.
+	ListQueryLogProfileIDs(ctx context.Context) ([]string, error)
 }
