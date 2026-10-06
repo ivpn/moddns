@@ -53,7 +53,7 @@ func TestIPFilter_BlockWinsOnConflict_CustomRules_ASN(t *testing.T) {
 	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
-	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)
+	assert.Contains(t, reqCtx.FilterResult.Reasons, model.FilterReasonCustomRules)
 }
 
 func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
@@ -90,5 +90,5 @@ func TestIPFilter_BlockByASN_CustomRules(t *testing.T) {
 	err := ipFilter.Execute(context.Background(), reqCtx, dnsCtx)
 	assert.NoError(t, err)
 	assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
-	assert.Contains(t, reqCtx.FilterResult.Reasons, REASON_CUSTOM_RULES)
+	assert.Contains(t, reqCtx.FilterResult.Reasons, model.FilterReasonCustomRules)
 }

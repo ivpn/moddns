@@ -12,10 +12,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-const (
-	REASON_SERVICES = "services"
-)
-
 type ServicesCatalogGetter interface {
 	Get() (*servicescatalog.Catalog, error)
 }
@@ -84,9 +80,9 @@ func (f *IPFilter) filterServices(ctx context.Context, reqCtx *requestcontext.Re
 	}
 
 	result.Decision = model.DecisionBlock
-	result.Reasons = append(result.Reasons, REASON_SERVICES)
+	result.Reasons = append(result.Reasons, model.FilterReasonServices)
 	for id := range matchedServices {
-		result.Reasons = append(result.Reasons, "service: "+id)
+		result.Reasons = append(result.Reasons, model.FilterReasonServicePrefix+id)
 	}
 	return result, nil
 }
