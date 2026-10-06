@@ -22,8 +22,8 @@ const (
 )
 
 var (
-	queryLogTimespans = []string{model.LAST_1_HOUR, model.LAST_12_HOURS, model.LAST_1_DAY, model.LAST_7_DAYS, model.LAST_MONTH}
-	queryLogTopKinds  = []string{model.QueryLogTopKindBlocked, model.QueryLogTopKindResolved, queryLogClientsKind}
+	queryLogTopTimespans = []string{model.LAST_1_HOUR, model.LAST_3_HOURS, model.LAST_6_HOURS, model.LAST_12_HOURS, model.LAST_1_DAY, model.LAST_7_DAYS, model.LAST_MONTH}
+	queryLogTopKinds     = []string{model.QueryLogTopKindBlocked, model.QueryLogTopKindResolved, queryLogClientsKind}
 )
 
 // ClientEnricher resolves a client IP to ASN and country; *geoip.Enricher
@@ -43,7 +43,7 @@ func queryLogTopCacheKey(kind, profileId, timespan string) string {
 // invalidateQueryLogTopCache drops every cached top list of the profile.
 func (p *ProfileService) invalidateQueryLogTopCache(ctx context.Context, profileId string) {
 	for _, kind := range queryLogTopKinds {
-		for _, timespan := range queryLogTimespans {
+		for _, timespan := range queryLogTopTimespans {
 			if err := p.Cache.Del(ctx, queryLogTopCacheKey(kind, profileId, timespan)); err != nil {
 				log.Ctx(ctx).Warn().Err(err).Msg("failed to invalidate query log top cache")
 			}
