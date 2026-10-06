@@ -1378,6 +1378,12 @@ export interface ModelStatisticsSettings {
      * @memberof ModelStatisticsSettings
      */
     'enabled': boolean;
+    /**
+     * When statistics were last turned on (UTC). Absent while statistics are off.
+     * @type {string}
+     * @memberof ModelStatisticsSettings
+     */
+    'enabled_at'?: string;
 }
 /**
  * 
