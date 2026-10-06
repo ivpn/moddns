@@ -52,3 +52,21 @@ func TestStatisticsHashEncoding(t *testing.T) {
 		require.Equal(t, map[string]string{"enabled": tc.want}, all)
 	}
 }
+
+// specRef: api-endpoint-behaviour.md G5 — a deleted profile leaves no settings keys behind.
+func TestDeleteProfileSettings_LeavesNoKeys(t *testing.T) {
+	mr := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	c := NewRedisCacheFromClient(client)
+
+	settings := model.NewSettings()
+	settings.ProfileId = "profile123"
+	settings.Statistics.Enabled = true
+	settings.Security.RebindingProtection.Enabled = true
+	require.NoError(t, c.CreateOrUpdateProfileSettings(context.Background(), settings, false))
+	require.NotEmpty(t, mr.Keys())
+
+	require.NoError(t, c.DeleteProfileSettings(context.Background(), "profile123"))
+	require.Empty(t, mr.Keys(), "leftover keys: %v", mr.Keys())
+}
