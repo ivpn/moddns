@@ -1337,23 +1337,23 @@ func (_c *ProfileServicer_GetProfiles_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // GetStatistics provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) GetStatistics(ctx context.Context, accountId string, profileId string, timespan string) ([]model.StatisticsAggregated, error) {
+func (_mock *ProfileServicer) GetStatistics(ctx context.Context, accountId string, profileId string, timespan string) (*model.StatisticsResponse, error) {
 	ret := _mock.Called(ctx, accountId, profileId, timespan)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStatistics")
 	}
 
-	var r0 []model.StatisticsAggregated
+	var r0 *model.StatisticsResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) ([]model.StatisticsAggregated, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.StatisticsResponse, error)); ok {
 		return returnFunc(ctx, accountId, profileId, timespan)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) []model.StatisticsAggregated); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.StatisticsResponse); ok {
 		r0 = returnFunc(ctx, accountId, profileId, timespan)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.StatisticsAggregated)
+			r0 = ret.Get(0).(*model.StatisticsResponse)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
@@ -1406,12 +1406,12 @@ func (_c *ProfileServicer_GetStatistics_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *ProfileServicer_GetStatistics_Call) Return(statisticsAggregateds []model.StatisticsAggregated, err error) *ProfileServicer_GetStatistics_Call {
-	_c.Call.Return(statisticsAggregateds, err)
+func (_c *ProfileServicer_GetStatistics_Call) Return(statisticsResponse *model.StatisticsResponse, err error) *ProfileServicer_GetStatistics_Call {
+	_c.Call.Return(statisticsResponse, err)
 	return _c
 }
 
-func (_c *ProfileServicer_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string) ([]model.StatisticsAggregated, error)) *ProfileServicer_GetStatistics_Call {
+func (_c *ProfileServicer_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string) (*model.StatisticsResponse, error)) *ProfileServicer_GetStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -51,13 +51,17 @@ type Service struct {
 	Statistics *statistics.StatisticsService
 }
 
+func newStatisticsReadCache(c cache.Cache) *cache.StatisticsReadCache {
+	return cache.NewStatisticsReadCache(c)
+}
+
 // New constructs the service layer. servicesCatalog is used by ProfileService
 // for service-ID validation on import (spec row V9); pass nil to skip catalog
 // validation (safe-default for environments without a catalog file).
 func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
-	statsSrv := statistics.NewStatisticsService(store, statistics.WithProfiles(store))
+	statsSrv := statistics.NewStatisticsService(store, statistics.WithProfiles(store), statistics.WithReadCache(newStatisticsReadCache(cache)))
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, store, blocklistSrv, queryLogsSrv, statsSrv, servicesCatalog, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
@@ -157,7 +161,7 @@ type ProfileServicer interface {
 	DeleteProfileQueryLogs(ctx context.Context, accountId, profileId string) error
 
 	// Statistics
-	GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error)
+	GetStatistics(ctx context.Context, accountId, profileId, timespan string) (*model.StatisticsResponse, error)
 
 	// Custom Rules
 	DeleteCustomRule(ctx context.Context, accountId, profileId, customRuleId string) error
