@@ -49,6 +49,42 @@ func (_m *CollectorConfig) GetFrequency() time.Duration {
 	return r0
 }
 
+// GetMaxOpenEntries provides a mock function with no fields
+func (_m *CollectorConfig) GetMaxOpenEntries() int {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMaxOpenEntries")
+	}
+
+	var r0 int
+	if rf, ok := ret.Get(0).(func() int); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+
+	return r0
+}
+
+// GetPopName provides a mock function with no fields
+func (_m *CollectorConfig) GetPopName() string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPopName")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
 // NewCollectorConfig creates a new instance of CollectorConfig. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewCollectorConfig(t interface {
