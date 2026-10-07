@@ -2,10 +2,14 @@ package profile_test
 
 import (
 	"context"
+	"errors"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
@@ -134,4 +138,112 @@ func TestUpdateProfile_DefaultRuleAllowAppendsNothing(t *testing.T) {
 		[]model.ProfileUpdate{replaceOp("/settings/privacy/default_rule", model.DEFAULT_RULE_ALLOW)})
 	require.NoError(t, err)
 	require.Empty(t, h.sentUpdate(t).AppendCustomRules)
+}
+
+// appendingRepo makes UpdateFields behave like the store for the custom-rule append: rules
+// whose value is in stored are skipped, the others land in the re-read profile.
+func appendingRepo(h *transitionsHarness, stored ...string) {
+	h.profiles.EXPECT().UpdateFields(mock.Anything, "profile123", mock.Anything).RunAndReturn(
+		func(_ context.Context, _ string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
+			before, after := defaultsProfile(), defaultsProfile()
+			for _, v := range stored {
+				r := &model.CustomRule{ID: primitive.NewObjectID(), Action: model.ACTION_ALLOW, Value: v}
+				before.Settings.CustomRules = append(before.Settings.CustomRules, r)
+				after.Settings.CustomRules = append(after.Settings.CustomRules, r)
+			}
+			for _, r := range upd.AppendCustomRules {
+				if !slices.Contains(stored, r.Value) {
+					c := *r
+					after.Settings.CustomRules = append(after.Settings.CustomRules, &c)
+				}
+			}
+			return before, after, nil
+		})
+}
+
+func ruleValues(rules []*model.CustomRule) []string {
+	out := make([]string, 0, len(rules))
+	for _, r := range rules {
+		out = append(out, r.Value)
+	}
+	return out
+}
+
+// specRef: api-endpoint-behaviour.md G24 — the appended allow rules reach Redis, where the proxy reads them.
+func TestUpdateProfile_DefaultRuleBlockWritesAppendedRulesToRedis(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.svc.ServerConfig = config.ServerConfig{AllowedDomains: []string{"app.example", "api.example"}}
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(defaultsProfile(), nil)
+	appendingRepo(h)
+	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(nil)
+	var written []*model.CustomRule
+	h.cache.On("AddCustomRules", mock.Anything, "profile123", mock.Anything).Run(func(args mock.Arguments) {
+		written = args.Get(2).([]*model.CustomRule)
+	}).Return(nil).Once()
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+		[]model.ProfileUpdate{replaceOp("/settings/privacy/default_rule", model.DEFAULT_RULE_BLOCK)})
+	require.NoError(t, err)
+	require.Equal(t, []string{"app.example", "api.example"}, ruleValues(written))
+	sent := h.sentUpdate(t).AppendCustomRules
+	for i := range written {
+		require.Equal(t, sent[i].ID, written[i].ID, "Redis gets the ids stored in Mongo")
+		require.EqualValues(t, model.ACTION_ALLOW, written[i].Action)
+	}
+}
+
+// specRef: api-endpoint-behaviour.md G21, G24 — a value already stored is not appended and not rewritten.
+func TestUpdateProfile_DefaultRuleBlockWritesOnlyNewlyAppendedRules(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.svc.ServerConfig = config.ServerConfig{AllowedDomains: []string{"app.example", "api.example"}}
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(defaultsProfile(), nil)
+	appendingRepo(h, "app.example")
+	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(nil)
+	h.cache.On("AddCustomRules", mock.Anything, "profile123", mock.MatchedBy(func(r []*model.CustomRule) bool {
+		return slices.Equal(ruleValues(r), []string{"api.example"})
+	})).Return(nil).Once()
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+		[]model.ProfileUpdate{replaceOp("/settings/privacy/default_rule", model.DEFAULT_RULE_BLOCK)})
+	require.NoError(t, err)
+}
+
+// specRef: api-endpoint-behaviour.md G24 — nothing appended, nothing written.
+func TestUpdateProfile_DefaultRuleBlockAllStoredWritesNothing(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.svc.ServerConfig = config.ServerConfig{AllowedDomains: []string{"app.example"}}
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(defaultsProfile(), nil)
+	appendingRepo(h, "app.example")
+	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(nil)
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+		[]model.ProfileUpdate{replaceOp("/settings/privacy/default_rule", model.DEFAULT_RULE_BLOCK)})
+	require.NoError(t, err)
+	h.cache.AssertNotCalled(t, "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: api-endpoint-behaviour.md G24, J6 — a Redis error on the rules fails the PATCH after transitions ran.
+func TestUpdateProfile_DefaultRuleBlockRedisFailure(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.svc.ServerConfig = config.ServerConfig{AllowedDomains: []string{"app.example"}}
+	read := defaultsProfile()
+	read.Settings.Statistics.Enabled = true
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(read, nil)
+	h.profiles.EXPECT().UpdateFields(mock.Anything, "profile123", mock.Anything).RunAndReturn(
+		func(_ context.Context, _ string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
+			before, after := defaultsProfile(), defaultsProfile()
+			before.Settings.Statistics.Enabled = true
+			after.Settings.CustomRules = append(after.Settings.CustomRules, upd.AppendCustomRules...)
+			return before, after, nil
+		})
+	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(nil)
+	h.cache.On("AddCustomRules", mock.Anything, "profile123", mock.Anything).Return(errors.New("redis down")).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+
+	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{
+		replaceOp("/settings/privacy/default_rule", model.DEFAULT_RULE_BLOCK),
+		statsToggle(false),
+	})
+	require.Error(t, err)
+	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
 }
