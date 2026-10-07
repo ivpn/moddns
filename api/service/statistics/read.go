@@ -37,10 +37,12 @@ func WithClock(now func() time.Time) Option {
 	return func(s *StatisticsService) { s.now = now }
 }
 
-// statisticsRetention is the retention window the read is clamped to; it is read
-// through this helper so the per-profile setting only has to change here.
-func statisticsRetention(*model.StatisticsSettings) (string, time.Duration) {
-	return model.StatisticsRetentionWindow("")
+// statisticsRetention is the retention window the read is clamped to (J41, J48).
+func statisticsRetention(settings *model.StatisticsSettings) (string, time.Duration) {
+	if settings == nil {
+		return model.StatisticsRetentionWindow("")
+	}
+	return model.StatisticsRetentionWindow(settings.Retention)
 }
 
 // ComputeWindow returns the read window [from, to): to is now in UTC, from is

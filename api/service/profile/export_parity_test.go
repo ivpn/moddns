@@ -79,6 +79,7 @@ var exportExclusions = map[string]string{
 	"Settings.CustomRules.Order":    "F9 — positional; re-derived from array index on import",
 	"Settings.Advanced.Recursor":    "F7 — staging-only control, deliberately not exported",
 	"Settings.Statistics.EnabledAt": "F19 — server-derived transition time; set to import time when statistics arrive enabled",
+	"Settings.Statistics.Retention": "F20 — longer retention is an explicit opt-in; imports start at 30d",
 }
 
 // collectLeafPaths walks t depth-first and appends dot-separated paths of every

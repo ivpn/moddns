@@ -3,6 +3,8 @@ package model
 import (
 	"strings"
 	"time"
+
+	"github.com/ivpn/dns/libs/statistics"
 )
 
 const (
@@ -18,13 +20,13 @@ const (
 )
 
 // StatisticsRetention is a profile's statistics retention setting; it selects the
-// collection documents are written to.
-type StatisticsRetention string
+// collection documents are written to. The values are shared with the API.
+type StatisticsRetention = statistics.Retention
 
 const (
-	StatisticsRetention30d StatisticsRetention = "30d"
-	StatisticsRetention90d StatisticsRetention = "90d"
-	StatisticsRetention1y  StatisticsRetention = "1y"
+	StatisticsRetention30d = statistics.Retention30d
+	StatisticsRetention90d = statistics.Retention90d
+	StatisticsRetention1y  = statistics.Retention1y
 )
 
 // StatisticsTier names a statistics resolution and selects the target collection.
