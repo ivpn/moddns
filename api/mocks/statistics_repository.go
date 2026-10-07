@@ -40,20 +40,29 @@ func (_m *StatisticsRepository) EXPECT() *StatisticsRepository_Expecter {
 }
 
 // DeleteProfileStatistics provides a mock function for the type StatisticsRepository
-func (_mock *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) error {
+func (_mock *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) (int64, error) {
 	ret := _mock.Called(ctx, profileId, before)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteProfileStatistics")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) error); ok {
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, before)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) int64); ok {
 		r0 = returnFunc(ctx, profileId, before)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, before)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // StatisticsRepository_DeleteProfileStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatistics'
@@ -92,31 +101,40 @@ func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Run(run func(ctx co
 	return _c
 }
 
-func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Return(err error) *StatisticsRepository_DeleteProfileStatistics_Call {
-	_c.Call.Return(err)
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Return(n int64, err error) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *StatisticsRepository_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, before *time.Time) error) *StatisticsRepository_DeleteProfileStatistics_Call {
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, before *time.Time) (int64, error)) *StatisticsRepository_DeleteProfileStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteProfileStatisticsThrough provides a mock function for the type StatisticsRepository
-func (_mock *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) error {
+func (_mock *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error) {
 	ret := _mock.Called(ctx, profileId, at)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteProfileStatisticsThrough")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) error); ok {
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, at)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) int64); ok {
 		r0 = returnFunc(ctx, profileId, at)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int64)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // StatisticsRepository_DeleteProfileStatisticsThrough_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatisticsThrough'
@@ -155,12 +173,12 @@ func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) Run(run func
 	return _c
 }
 
-func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) Return(err error) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
-	_c.Call.Return(err)
+func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) Return(n int64, err error) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) error) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (int64, error)) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
 	_c.Call.Return(run)
 	return _c
 }
