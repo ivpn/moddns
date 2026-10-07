@@ -122,131 +122,41 @@ func (c *RedisCache) AddBlocklist(ctx context.Context, blocklistId string, data 
 }
 
 // CreateOrUpdateProfileSettings adds profile settings to the cache
-func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
+func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings) error {
 	storedRules, err := c.client.SMembers(ctx, customRulesSetKey(settings.ProfileId)).Result()
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("Cache: failed to read profile custom rules")
 		return err
 	}
 
+	// Queued commands only fail at Exec, so errors are checked there.
 	rdp := c.client.Pipeline()
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "blocklists")
-	res := rdp.Del(ctx, settingsBlocklist)
-	if err := res.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings blocklists")
-		return err
-	}
-	// associate blocklists to selected settings
+	rdp.Del(ctx, settingsBlocklist)
 	for _, blocklistID := range settings.Privacy.Blocklists {
-		// put settings model as blocklist value; this can be replaced
-		blocklistsCmd := rdp.RPush(ctx, settingsBlocklist, blocklistID)
-		if err := blocklistsCmd.Err(); err != nil {
-			log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings blocklist")
-			if rollback {
-				rdp.Del(ctx, settingsBlocklist)
-			}
-			return err
-		}
-		log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
-			Msgf("Created/updated profile settings blocklist")
+		rdp.RPush(ctx, settingsBlocklist, blocklistID)
 	}
 
-	// associate blocked services to selected settings
 	servicesKey := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "services")
-	res = rdp.Del(ctx, servicesKey)
-	if err := res.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings services")
-		return err
-	}
+	rdp.Del(ctx, servicesKey)
 	if settings.Privacy != nil {
 		for _, serviceID := range settings.Privacy.Services {
-			cmd := rdp.RPush(ctx, servicesKey, serviceID)
-			if err := cmd.Err(); err != nil {
-				log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings services")
-				if rollback {
-					rdp.Del(ctx, servicesKey)
-				}
-				return err
-			}
+			rdp.RPush(ctx, servicesKey, serviceID)
 		}
-		log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).Msg("Created/updated profile settings services")
 	}
 
-	// add logs settings
-	logsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs")
-	logsCmd := rdp.HSet(ctx, logsSettings, settings.Logs)
-	if err := logsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create logs settings")
-		if rollback {
-			rdp.Del(ctx, logsSettings)
-		}
-		return err
-	}
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs"), settings.Logs)
 
-	// add statistics settings
 	if settings.Statistics == nil {
 		settings.Statistics = &model.StatisticsSettings{
 			Enabled: false,
 		}
 	}
-	statsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "statistics")
-	statsCmd := rdp.HSet(ctx, statsSettings, settings.Statistics)
-	if err := statsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create statistics settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back statistics settings")
-			rdp.Del(ctx, statsSettings)
-		}
-		return err
-	}
-
-	// add security DNSSEC settings
-	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "dnssec")
-	securityDNSSECCmd := rdp.HSet(ctx, dnssecSettings, settings.Security.DNSSECSettings)
-	if err := securityDNSSECCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security DNSSEC settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back security DNSSEC settings")
-			rdp.Del(ctx, dnssecSettings)
-		}
-		return err
-	}
-
-	// add security rebinding protection settings
-	rebindingSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection")
-	securityRebindingCmd := rdp.HSet(ctx, rebindingSettings, settings.Security.RebindingProtection)
-	if err := securityRebindingCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security rebinding protection settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back security rebinding protection settings")
-			rdp.Del(ctx, rebindingSettings)
-		}
-		return err
-	}
-
-	// add advanced settings
-	advancedSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced")
-	advancedCmd := rdp.HSet(ctx, advancedSettings, settings.Advanced)
-	if err := advancedCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create advanced settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back advanced settings")
-			rdp.Del(ctx, advancedSettings)
-		}
-		return err
-	}
-
-	// add privacy settings
-	privacySettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "privacy")
-	privacyCmd := rdp.HSet(ctx, privacySettings, settings.Privacy)
-	if err := privacyCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create privacy settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back privacy settings")
-			rdp.Del(ctx, privacySettings)
-		}
-		return err
-	}
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "statistics"), settings.Statistics)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "dnssec"), settings.Security.DNSSECSettings)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection"), settings.Security.RebindingProtection)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced"), settings.Advanced)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "privacy"), settings.Privacy)
 
 	// ProfileSettings.CustomRules is redis:"-", so the hashes above never carry them.
 	queueReplaceCustomRules(ctx, rdp, settings.ProfileId, settings.CustomRules, storedRules)
