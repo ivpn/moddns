@@ -496,6 +496,7 @@ func TestUnconsentedPurge_InvalidatesReadCache(t *testing.T) {
 		return b != nil && b.Equal(enabledAt)
 	})).Return(nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(errors.New("boom")).Once()
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", model.StatisticsRetention30d, mock.Anything).Return(0, nil).Once()
 
 	_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
