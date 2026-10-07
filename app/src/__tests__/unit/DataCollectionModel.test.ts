@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
     buildUpdates,
     fromProfile,
+    normalizeStatsRetention,
+    profileStatsRetention,
     stateKey,
+    statsRetentionWords,
     transitionFor,
     type DataCollectionState,
     type StateKey,
@@ -166,5 +169,35 @@ describe('buildUpdates', () => {
             ['/settings/statistics/enabled', false],
             ['/settings/logs/enabled', false],
         ]);
+    });
+});
+
+describe('statistics retention', () => {
+    it('reads an empty or unknown value as 30 days', () => {
+        // tableRef: statistics-behaviour #P13
+        expect(normalizeStatsRetention(undefined)).toBe('30d');
+        expect(normalizeStatsRetention('')).toBe('30d');
+        expect(normalizeStatsRetention('7d')).toBe('30d');
+        expect(normalizeStatsRetention('90d')).toBe('90d');
+        expect(normalizeStatsRetention('1y')).toBe('1y');
+        expect(profileStatsRetention(profile({}, { retention: '1y' }))).toBe('1y');
+        expect(profileStatsRetention(profile({}, {}))).toBe('30d');
+        expect(profileStatsRetention(null)).toBe('30d');
+    });
+
+    it('words every retention', () => {
+        expect(statsRetentionWords('30d')).toBe('30 days');
+        expect(statsRetentionWords('90d')).toBe('90 days');
+        expect(statsRetentionWords('1y')).toBe('1 year');
+        expect(statsRetentionWords('nonsense')).toBe('30 days');
+    });
+
+    it('puts the live statistics retention into notes and dialogs', () => {
+        // tableRef: statistics-behaviour #C7, #C14
+        expect(transitionFor(states.S0, states.S1, '1 year')?.note).toBe(
+            "modDNS will start counting this profile's queries per device and keep the counts for 1 year. No domains or addresses are stored.",
+        );
+        expect(transitionFor(states.S3, states.S1, '90 days')?.dialog?.body).toContain('count queries per device for 90 days'.replace('count', 'counting'));
+        expect(transitionFor(states.S3, states.S2, '90 days')?.note).toBe('modDNS will also keep counts per device for 90 days.');
     });
 });

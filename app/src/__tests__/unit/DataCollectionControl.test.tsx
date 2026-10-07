@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import api from '@/api/api';
@@ -434,5 +435,67 @@ describe('DataCollectionControl', () => {
         await user.click(saveBtn());
         await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
         expect(toast.error).not.toHaveBeenCalled();
+    });
+    it('uses the profile\'s live statistics retention in the level descriptions and notes', async () => {
+        // tableRef: statistics-behaviour #C3, #C5, #C7
+        const user = userEvent.setup();
+        const p = mk('p1', 'off');
+        (p.settings.statistics as unknown as { retention: string }).retention = '1y';
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        expect(screen.getByText('Query counts per device, kept for 1 year. No domains or IP addresses.')).toBeInTheDocument();
+        await user.click(radio('Query logs'));
+        expect(screen.getByText('Counts per device for 1 year. No domains or addresses.')).toBeInTheDocument();
+        expect(screen.getByText(/keep counts per device for 1 year\./)).toBeInTheDocument();
+    });
+
+    it('treats a missing statistics retention as 30 days', () => {
+        // tableRef: statistics-behaviour #C3
+        const p = mk('p1', 'off');
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        expect(screen.getByText(/Query counts per device, kept for 30 days\./)).toBeInTheDocument();
+    });
+
+    it('Settings shows a read-only retention line under Statistics that links to the Statistics page', () => {
+        // tableRef: statistics-behaviour #S4, #D1
+        const p = mk('p1', 'stats');
+        (p.settings.statistics as unknown as { retention: string }).retention = '90d';
+        seed(p);
+        render(
+            <MemoryRouter>
+                <DataCollectionControl profile={p} retentionLine />
+            </MemoryRouter>,
+        );
+        expect(screen.getByText(/Counts kept for/)).toHaveTextContent('Counts kept for 90 days · Change on the Statistics page');
+        expect(screen.getByRole('link', { name: 'Change on the Statistics page' })).toHaveAttribute('href', '/statistics');
+    });
+
+    it('Settings shows the line under "Also keep statistics" when it is saved and checked', () => {
+        // tableRef: statistics-behaviour #S4, #D1
+        const p = mk('p1', 'logs');
+        seed(p);
+        render(
+            <MemoryRouter>
+                <DataCollectionControl profile={p} retentionLine />
+            </MemoryRouter>,
+        );
+        expect(screen.getByRole('link', { name: 'Change on the Statistics page' })).toBeInTheDocument();
+    });
+
+    it('does not show the line without the Settings flag or when statistics are off', () => {
+        // tableRef: statistics-behaviour #S4
+        const p = mk('p1', 'stats');
+        seed(p);
+        const { unmount } = render(<DataCollectionControl profile={p} />);
+        expect(screen.queryByText(/Counts kept for/)).not.toBeInTheDocument();
+        unmount();
+        const off = mk('p1', 'off');
+        render(
+            <MemoryRouter>
+                <DataCollectionControl profile={off} retentionLine />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByText(/Counts kept for/)).not.toBeInTheDocument();
     });
 });

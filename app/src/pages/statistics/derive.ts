@@ -38,6 +38,7 @@ export interface StatsDevice {
 
 export interface StatsData {
     enabled: boolean;
+    /** When counting started: the later of enabled_at and history_deleted_at. */
     enabledAt: number | null;
     retention: string;
     fromMs: number;
@@ -57,6 +58,10 @@ const time = (v: unknown): number | null => {
     return Number.isNaN(t) ? null : t;
 };
 
+function latest(a: number | null, b: number | null): number | null {
+    return a === null ? b : b === null ? a : Math.max(a, b);
+}
+
 /** Tolerates absent fields: an off profile answers with empty collections. */
 export function normalizeStats(raw: unknown): StatsData {
     const r = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as ModelStatisticsResponse;
@@ -67,7 +72,7 @@ export function normalizeStats(raw: unknown): StatsData {
     for (const p of PROTOCOLS) protocols[p.key] = num(r.protocols?.[p.key]);
     return {
         enabled: r.enabled === true,
-        enabledAt: time(r.enabled_at),
+        enabledAt: latest(time(r.enabled_at), time(r.history_deleted_at)),
         retention: typeof r.retention === "string" ? r.retention : "",
         fromMs: time(r.from) ?? 0,
         toMs: time(r.to) ?? 0,
@@ -134,13 +139,6 @@ export type CountsState = "data" | "no-queries-yet" | "empty-range";
 export function countsState(d: StatsData): CountsState {
     if (d.totals.total > 0) return "data";
     return d.enabledAt !== null && d.enabledAt >= d.fromMs ? "no-queries-yet" : "empty-range";
-}
-
-const RETENTION_WORDS: Record<string, string> = { "30d": "30 days", "90d": "90 days", "1y": "1 year" };
-
-/** An empty or unknown retention reads as 30 days (api-endpoint-behaviour.md J41). */
-export function statsRetentionWords(retention: string | undefined): string {
-    return RETENTION_WORDS[retention ?? ""] ?? RETENTION_WORDS["30d"];
 }
 
 export function deviceLabel(id: string): { kind: "id" | "none" | "other"; text: string; hint?: string } {
