@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { registerMocks, registerStatisticsMocks } from '../../mocks/registerMocks';
+import { createStatsResponse, devicesList, topBlocked, topClients, topResolved } from '../../mocks/statisticsMocks';
 import { expectNoHorizontalOverflow, collectTapTargetViolations } from '../utils/layoutAssertions';
 
 // One pass per route, per project. Each route is loaded once and checked for:
@@ -16,7 +17,7 @@ const TAP_TARGET_EXCLUDED = new Set(['/setup', '/blocklists']);
 
 // Public routes: '/' is the landing page; the rest render inside PublicLayout.
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/reset-password', '/tos', '/privacy', '/faq'];
-const PROTECTED_ROUTES = ['/home', '/setup', '/settings', '/blocklists', '/custom-rules', '/account-preferences', '/mobileconfig', '/query-logs'];
+const PROTECTED_ROUTES = ['/home', '/setup', '/settings', '/blocklists', '/custom-rules', '/statistics', '/account-preferences', '/mobileconfig', '/query-logs'];
 
 const ROOT_SELECTOR: Record<string, string> = {
   '/': '.moddns-landing',
@@ -25,7 +26,7 @@ function rootSelector(route: string, isProtected: boolean) {
   return ROOT_SELECTOR[route] ?? (isProtected ? '[data-testid="app-content"]' : '[data-testid="public-layout"]');
 }
 
-const PROFILE = { id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true }, custom_rules: [] } };
+const PROFILE = { id: 'prof1', profile_id: 'prof1', name: 'Default', settings: { logs: { enabled: true, log_clients_ips: true }, statistics: { enabled: true }, custom_rules: [] } };
 
 async function setup(page: Page, isProtected: boolean) {
   if (!isProtected) {
@@ -36,6 +37,12 @@ async function setup(page: Page, isProtected: boolean) {
   // Registered after registerMocks so it wins over the /profiles catch-all.
   await page.route(/\/api\/v1\/profiles\/prof1\/logs(\?|$)/i, route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await registerStatisticsMocks(page, {
+    statistics: createStatsResponse({ points: 168 }),
+    top: { blocked: topBlocked, resolved: topResolved },
+    clients: topClients,
+    devices: devicesList,
+  });
 }
 
 // `exactLeft`: the root must start at x=0. On desktop the protected layout sits to the

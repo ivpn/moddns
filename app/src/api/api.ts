@@ -71,6 +71,7 @@ const Client = {
   accountsApi: new client.AccountApi(config),
   profilesApi: new client.ProfileApi(config),
   queryLogsApi: new client.QueryLogsApi(config),
+  statisticsApi: new client.StatisticsApi(config),
   blocklistsApi: new client.BlocklistsApi(config),
   servicesApi: new client.ServicesApi(config),
   verificationApi: new client.VerificationApi(config),

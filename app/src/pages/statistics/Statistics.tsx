@@ -1,0 +1,226 @@
+// The Statistics page.
+//
+// Source of truth: docs/specs/statistics-behaviour.md Sections P, K, D, X.
+
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type JSX } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { ModelAccount, ModelProfile } from "@/api/client";
+import api from "@/api/api";
+import { useAppStore } from "@/store/general";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import BetaEndingBanner from "@/components/BetaEndingBanner";
+import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
+import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
+import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
+import { isClamped, normalizeStats, statsRetentionWords, type StatsData } from "./derive";
+import { LOGS_TIMESPAN, STATS_TIMESPAN, parseRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
+import { formatDateTime, formatRangeCaption, formatUtcDay, browserOffsetsFromUtc } from "./time";
+import { useApiResource } from "./useApiResource";
+import { CountsGroup, LogsGroup, type GateId } from "./groups";
+import { StatsToolbar } from "./StatsToolbar";
+import { StatsHero } from "./StatsHero";
+import { mutedText } from "./primitives";
+import { cn } from "@/lib/utils";
+import { Info } from "lucide-react";
+import type { DomainItem } from "./panels/DomainsPanel";
+import type { ClientItem } from "./panels/ClientsPanel";
+
+interface StatisticsProps {
+    account?: ModelAccount;
+    profiles: ModelProfile[];
+}
+
+const LIST_LIMIT = 10;
+
+const GATE_DIALOG: Record<GateId, { focus: InitialFocus; pending: Partial<DataCollectionState> }> = {
+    stats: { focus: "keep", pending: { level: "logs", keep: true } },
+    logs: { focus: "level-logs", pending: { level: "logs", keep: true } },
+    domains: { focus: "domains", pending: { level: "logs", domains: true } },
+    ips: { focus: "ips", pending: { level: "logs", ips: true } },
+};
+
+function asDomains(raw: unknown): DomainItem[] {
+    const items = (raw as { items?: unknown })?.items;
+    return Array.isArray(items)
+        ? items.flatMap(i => (typeof i?.domain === "string" ? [{ domain: i.domain as string, count: Number(i.count) || 0 }] : []))
+        : [];
+}
+
+function asClients(raw: unknown): ClientItem[] {
+    const items = (raw as { items?: unknown })?.items;
+    return Array.isArray(items)
+        ? items.flatMap(i =>
+              typeof i?.ip === "string"
+                  ? [{ ip: i.ip as string, count: Number(i.count) || 0, asOrg: i.as_org ?? null, asn: i.asn ?? null, country: i.country ?? null }]
+                  : [],
+          )
+        : [];
+}
+
+function asLastSeen(raw: unknown): Map<string, number> {
+    const m = new Map<string, number>();
+    if (Array.isArray(raw)) {
+        for (const d of raw) {
+            const t = Date.parse(d?.last_seen);
+            if (typeof d?.device_id === "string" && !Number.isNaN(t)) m.set(d.device_id, t);
+        }
+    }
+    return m;
+}
+
+export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
+    const storeProfile = useAppStore(s => s.activeProfile);
+    const setActiveProfile = useAppStore(s => s.setActiveProfile);
+    const profile = storeProfile ?? profiles[0] ?? null;
+    const { isRestricted } = useSubscriptionGuard();
+    const laNoteId = useId();
+    const [params, setParams] = useSearchParams();
+    const range = parseRange(params.get("range"));
+
+    const setRange = useCallback(
+        (k: RangeKey) =>
+            setParams(
+                p => {
+                    const next = new URLSearchParams(p);
+                    if (k === DEFAULT_RANGE) next.delete("range");
+                    else next.set("range", k);
+                    return next;
+                },
+                { replace: true },
+            ),
+        [setParams],
+    );
+
+    const pid = profile?.profile_id ?? null;
+    const cfg = fromProfile(profile);
+    const logsOn = !!profile?.settings?.logs?.enabled;
+    const statsOn = !!profile?.settings?.statistics?.enabled;
+    const domainsOn = logsOn && (profile?.settings?.logs?.log_domains ?? true);
+    const ipsOn = logsOn && !!profile?.settings?.logs?.log_clients_ips;
+
+    const stats = useApiResource<StatsData>(pid, pid && statsOn ? `${pid}|${range}` : null, async () => {
+        const res = await api.Client.statisticsApi.apiV1ProfilesIdStatisticsGet(pid as string, STATS_TIMESPAN[range]);
+        return normalizeStats(res.data);
+    });
+
+    const logsTimespan = LOGS_TIMESPAN[range];
+    const blocked = useApiResource<DomainItem[]>(pid, pid && domainsOn ? `${pid}|${range}|b` : null, async () =>
+        asDomains((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "blocked", logsTimespan, LIST_LIMIT)).data),
+    );
+    const resolved = useApiResource<DomainItem[]>(pid, pid && domainsOn ? `${pid}|${range}|r` : null, async () =>
+        asDomains((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "resolved", logsTimespan, LIST_LIMIT)).data),
+    );
+    const clients = useApiResource<ClientItem[]>(pid, pid && ipsOn ? `${pid}|${range}|c` : null, async () =>
+        asClients((await api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet(pid as string, logsTimespan, LIST_LIMIT)).data),
+    );
+    // Once per profile: `last_seen` does not depend on the range and the endpoint is slow and rate-limited.
+    const devices = useApiResource<Map<string, number>>(pid, pid && logsOn ? `${pid}|devices` : null, async () =>
+        asLastSeen((await api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet(pid as string)).data),
+    );
+
+    // P17: the store says on but the API says off. Show OFF and revalidate once per profile.
+    const revalidated = useRef<string | null>(null);
+    const serverOff = statsOn && stats.status === "ready" && stats.data !== null && !stats.data.enabled;
+    useEffect(() => {
+        if (!serverOff || !pid || revalidated.current === pid) return;
+        revalidated.current = pid;
+        api.Client.profilesApi
+            .apiV1ProfilesIdGet(pid)
+            .then(res => res.data && setActiveProfile(res.data))
+            .catch(() => undefined);
+    }, [serverOff, pid, setActiveProfile]);
+
+    const countsOn = statsOn && !serverOff;
+    const anyCollection = countsOn || logsOn;
+
+    const [gate, setGate] = useState<GateId | null>(null);
+    const emptyHeading = useRef<HTMLHeadingElement>(null);
+    const [focusEmpty, setFocusEmpty] = useState(false);
+    useEffect(() => {
+        if (focusEmpty && emptyHeading.current) {
+            emptyHeading.current.focus();
+            setFocusEmpty(false);
+        }
+    }, [focusEmpty, stats.status, stats.data]);
+
+    const caption = useMemo(() => {
+        const d = countsOn && stats.status === "ready" ? stats.data : null;
+        if (!d || d.toMs <= d.fromMs) return null;
+        if (isClamped(d, range)) {
+            const span =
+                d.bucketSeconds >= 86400 ? `${formatUtcDay(d.fromMs)} – ${formatUtcDay(d.toMs)}` : `${formatDateTime(d.fromMs)} – ${formatDateTime(d.toMs)}`;
+            const utc = d.bucketSeconds >= 86400 && browserOffsetsFromUtc() ? " Days are UTC days." : "";
+            return `Statistics are kept for ${statsRetentionWords(d.retention)}, so this view shows ${span}.${utc}`;
+        }
+        return formatRangeCaption(d.fromMs, d.toMs, d.bucketSeconds);
+    }, [countsOn, stats.status, stats.data, range]);
+
+    if (!profile || !pid) return <div />;
+
+    const lastSeen = logsOn && devices.status === "ready" ? devices.data : null;
+    const statsData = stats.status === "ready" ? stats.data : null;
+
+    return (
+        <div className="flex flex-col w-full items-start gap-6 py-6 pt-8 md:p-8 min-w-0 bg-[var(--shadcn-ui-app-background)]">
+            <BetaEndingBanner />
+            <LimitedAccessBanner />
+            <p className={cn("text-sm md:text-base leading-5 md:leading-6", mutedText)}>
+                Counts of DNS queries for this profile — no domains, no addresses.
+            </p>
+
+            {!anyCollection ? (
+                <div className="w-full">
+                    <StatsHero profile={profile} onSaved={() => setFocusEmpty(true)} />
+                </div>
+            ) : (
+                <div className="flex flex-col gap-6 w-full min-w-0">
+                    <StatsToolbar range={range} onRange={setRange} caption={caption} />
+                    {countsOn && statsData && (
+                        <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
+                            <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
+                            <span>
+                                {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}
+                                kept for {statsRetentionWords(statsData.retention)}
+                            </span>
+                        </p>
+                    )}
+                    <CountsGroup
+                        statsOn={countsOn}
+                        stats={stats}
+                        range={range}
+                        onRange={setRange}
+                        lastSeen={lastSeen}
+                        emptyHeadingRef={emptyHeading}
+                        restricted={isRestricted}
+                        laNoteId={laNoteId}
+                        onGate={setGate}
+                    />
+                    <LogsGroup
+                        logsOn={logsOn}
+                        domainsOn={domainsOn}
+                        ipsOn={ipsOn}
+                        logsRetention={cfg.retention}
+                        range={range}
+                        blocked={blocked}
+                        resolved={resolved}
+                        clients={clients}
+                        restricted={isRestricted}
+                        laNoteId={laNoteId}
+                        onGate={setGate}
+                    />
+                </div>
+            )}
+
+            {gate && (
+                <DataCollectionDialog
+                    open
+                    onOpenChange={open => !open && setGate(null)}
+                    profile={profile}
+                    initialPending={GATE_DIALOG[gate].pending}
+                    initialFocus={GATE_DIALOG[gate].focus}
+                />
+            )}
+        </div>
+    );
+}
