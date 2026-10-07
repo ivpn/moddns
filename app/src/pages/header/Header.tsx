@@ -81,7 +81,7 @@ export default function Header({
                 {/* Left: page name (sidebar auto-collapses based on width) */}
                 <div className="flex items-center gap-3">
                     {currentPageName && (
-                        <h2 className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8">
+                        <h2 data-page-heading tabIndex={-1} className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8 outline-none">
                             {currentPageName}
                         </h2>
                     )}
@@ -198,7 +198,7 @@ export default function Header({
                     data-testid="mobile-header-page-title"
                     className="md:hidden px-4 sm:px-6 pt-1 pb-2 flex items-center justify-between gap-3"
                 >
-                    <h2 data-slot="mobile-page-title" className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8">
+                    <h2 data-slot="mobile-page-title" data-page-heading tabIndex={-1} className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8 outline-none">
                         {currentPageName}
                     </h2>
                     {location.pathname === '/blocklists' && (

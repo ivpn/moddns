@@ -3,6 +3,7 @@ import { List, Lock } from "lucide-react";
 import { type JSX, useId } from "react";
 import { useNavigate } from "react-router-dom";
 import type { ModelProfile } from "@/api/client";
+import { focusPageHeading } from "@/lib/focusPageHeading";
 import { DataCollectionControl } from "@/components/data-collection/DataCollectionControl";
 
 export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
@@ -42,6 +43,7 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
                         profile={profile}
                         labelledBy={headingId}
                         initialPending={{ level: "logs", keep: true }}
+                        onSaved={focusPageHeading}
                     />
                 </div>
 
