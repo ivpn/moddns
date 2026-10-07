@@ -36,6 +36,7 @@ class ModelStatisticsResponse(BaseModel):
     enabled: Optional[StrictBool] = None
     enabled_at: Optional[StrictStr] = None
     var_from: Optional[StrictStr] = Field(default=None, alias="from")
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Last \"Delete statistics history\" (J53); null while off or never deleted.")
     protocols: Optional[ModelStatisticsProtocols] = None
     reasons: Optional[ModelStatisticsReasons] = None
     retention: Optional[StrictStr] = None
@@ -43,7 +44,7 @@ class ModelStatisticsResponse(BaseModel):
     timespan: Optional[StrictStr] = None
     to: Optional[StrictStr] = None
     totals: Optional[ModelStatisticsTotals] = None
-    __properties: ClassVar[List[str]] = ["bucket_seconds", "devices", "enabled", "enabled_at", "from", "protocols", "reasons", "retention", "series", "timespan", "to", "totals"]
+    __properties: ClassVar[List[str]] = ["bucket_seconds", "devices", "enabled", "enabled_at", "from", "history_deleted_at", "protocols", "reasons", "retention", "series", "timespan", "to", "totals"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -124,6 +125,7 @@ class ModelStatisticsResponse(BaseModel):
             "enabled": obj.get("enabled"),
             "enabled_at": obj.get("enabled_at"),
             "from": obj.get("from"),
+            "history_deleted_at": obj.get("history_deleted_at"),
             "protocols": ModelStatisticsProtocols.from_dict(obj["protocols"]) if obj.get("protocols") is not None else None,
             "reasons": ModelStatisticsReasons.from_dict(obj["reasons"]) if obj.get("reasons") is not None else None,
             "retention": obj.get("retention"),
