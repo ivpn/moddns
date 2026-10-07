@@ -4,6 +4,7 @@
 
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Info } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import api from "@/api/api";
 import type { ModelProfile } from "@/api/client";
@@ -26,9 +27,10 @@ import {
     LOGS_RETENTION_OPTIONS,
     LOGS_RETENTION_WORDS,
     SAVE_ERROR_TEXT,
-    STATISTICS_RETENTION_WORDS,
     buildUpdates,
     fromProfile,
+    profileStatsRetention,
+    statsRetentionWords,
     transitionFor,
     type DataCollectionState,
     type Level,
@@ -51,6 +53,8 @@ export interface DataCollectionControlProps {
     /** Rendered under the checkbox when `subOptions` is "keep" (e.g. the "More options in Settings" link). */
     keepFooter?: React.ReactNode;
     onSaved?: (profile: ModelProfile, transition: Transition) => void;
+    /** Settings only: a read-only "Counts kept for …" line linking to the Statistics page. */
+    retentionLine?: boolean;
     className?: string;
 }
 
@@ -131,6 +135,20 @@ function PillGroup<T extends string>({
     );
 }
 
+function RetentionLine({ words }: { words: string }) {
+    return (
+        <p className={cn(muted, "mt-1")}>
+            Counts kept for <b>{words}</b> ·{" "}
+            <Link
+                to="/statistics"
+                className="underline text-[var(--tailwind-colors-rdns-600)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+            >
+                Change on the Statistics page
+            </Link>
+        </p>
+    );
+}
+
 function Hint({ children }: { children: React.ReactNode }) {
     return (
         <div role="note" className="flex gap-1.5 mt-1.5 text-[13px] leading-[18px] text-[var(--tailwind-colors-slate-100)]">
@@ -158,6 +176,7 @@ function Inner({
     labelledBy,
     keepFooter,
     onSaved,
+    retentionLine,
     className,
 }: DataCollectionControlProps) {
     const uid = useId();
@@ -174,7 +193,7 @@ function Inner({
     // The reset state after a stale-tab check; C20 shows until pending moves off it.
     const [stale, setStale] = useState<DataCollectionState | null>(null);
 
-    const statsWords = STATISTICS_RETENTION_WORDS;
+    const statsWords = statsRetentionWords(profileStatsRetention(profile));
     const logsWords = LOGS_RETENTION_WORDS[pending.retention];
     const transition = transitionFor(saved, pending, statsWords);
     const disabled = isRestricted || saving;
@@ -374,6 +393,11 @@ function Inner({
                                     </span>
                                 </span>
                             </label>
+                            {retentionLine && level === "stats" && saved.level === "stats" && (
+                                <div className="px-4 pb-3 pl-[46px] -mt-2">
+                                    <RetentionLine words={statsWords} />
+                                </div>
+                            )}
 
                             {level === "logs" && checked && (
                                 <div className="flex flex-col gap-5 border-t border-[var(--tailwind-colors-slate-600)] mx-3 sm:mx-4 py-4 sm:pl-[30px]">
@@ -393,6 +417,9 @@ function Inner({
                                             <span id={`${ids.keep}-desc`} className={muted}>
                                                 {`Counts per device for ${statsWords}. No domains or addresses.`}
                                             </span>
+                                            {retentionLine && saved.level === "logs" && saved.keep && pending.keep && (
+                                                <RetentionLine words={statsWords} />
+                                            )}
                                         </div>
                                     </div>
 

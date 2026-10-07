@@ -13,12 +13,14 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
-import { isClamped, normalizeStats, statsRetentionWords, type StatsData } from "./derive";
+import { isClamped, normalizeStats, type StatsData } from "./derive";
+import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
 import { LOGS_TIMESPAN, STATS_TIMESPAN, parseRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
 import { formatDateTime, formatRangeCaption, formatUtcDay, browserOffsetsFromUtc } from "./time";
 import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId } from "./groups";
 import { StatsToolbar } from "./StatsToolbar";
+import { RetentionControl } from "./RetentionControl";
 import { StatsHero } from "./StatsHero";
 import { mutedText } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -99,7 +101,10 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const domainsOn = logsOn && (profile?.settings?.logs?.log_domains ?? true);
     const ipsOn = logsOn && !!profile?.settings?.logs?.log_clients_ips;
 
-    const stats = useApiResource<StatsData>(pid, pid && statsOn ? `${pid}|${range}` : null, async () => {
+    const [reload, setReload] = useState(0);
+    const retention = profileStatsRetention(profile);
+    // A retention change or a history deletion invalidates the server cache (J46), so refetch.
+    const stats = useApiResource<StatsData>(pid, pid && statsOn ? `${pid}|${range}|${retention}|${reload}` : null, async () => {
         const res = await api.Client.statisticsApi.apiV1ProfilesIdStatisticsGet(pid as string, STATS_TIMESPAN[range]);
         return normalizeStats(res.data);
     });
@@ -175,7 +180,22 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                 </div>
             ) : (
                 <div className="flex flex-col gap-6 w-full min-w-0">
-                    <StatsToolbar range={range} onRange={setRange} caption={caption} />
+                    <StatsToolbar
+                        range={range}
+                        onRange={setRange}
+                        caption={caption}
+                        trailing={
+                            countsOn && (
+                                <RetentionControl
+                                    profile={profile}
+                                    onHistoryDeleted={() => {
+                                        setReload(n => n + 1);
+                                        setFocusEmpty(true);
+                                    }}
+                                />
+                            )
+                        }
+                    />
                     {countsOn && statsData && (
                         <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
                             <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />

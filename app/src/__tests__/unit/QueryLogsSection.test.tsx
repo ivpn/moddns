@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { describe, test, expect, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import QueryLogsSection from '@/pages/settings/QueryLogsSection';
 import type { ModelProfile } from '@/api/client';
 
@@ -22,7 +23,7 @@ const profile = {
 describe('QueryLogsSection', () => {
     test('renders the Data collection heading, intro and Download / Clear actions', () => {
         // tableRef: statistics-behaviour #D1, #C1
-        render(<QueryLogsSection activeProfile={profile} />);
+        render(<MemoryRouter><QueryLogsSection activeProfile={profile} /></MemoryRouter>);
         expect(screen.getByRole('heading', { name: 'DATA COLLECTION' })).toBeInTheDocument();
         expect(screen.getByText("Choose what modDNS keeps about this profile's DNS queries. Off by default.")).toBeInTheDocument();
         expect(screen.getByRole('radiogroup', { name: 'DATA COLLECTION' })).toBeInTheDocument();
@@ -33,7 +34,7 @@ describe('QueryLogsSection', () => {
 
 describe('QueryLogsSection retention info tooltip', () => {
     test('shows informational tooltip content when hovering info icon', async () => {
-        render(<QueryLogsSection activeProfile={profile} />);
+        render(<MemoryRouter><QueryLogsSection activeProfile={profile} /></MemoryRouter>);
         const trigger = screen.getByTestId('retention-info-trigger');
         expect(trigger).toBeInTheDocument();
         fireEvent.mouseEnter(trigger);
@@ -43,7 +44,7 @@ describe('QueryLogsSection retention info tooltip', () => {
     });
 
     test('accessible name on trigger button', () => {
-        render(<QueryLogsSection activeProfile={profile} />);
+        render(<MemoryRouter><QueryLogsSection activeProfile={profile} /></MemoryRouter>);
         expect(screen.getByRole('button', { name: /Retention period information/i })).toBeInTheDocument();
     });
 });

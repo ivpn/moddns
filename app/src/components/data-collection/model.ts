@@ -51,7 +51,26 @@ export const LOGS_RETENTION_OPTIONS: { value: LogsRetention; label: string }[] =
     { value: "1m", label: "1 M" },
 ];
 
-export const STATISTICS_RETENTION_WORDS = "30 days";
+export type StatsRetention = "30d" | "90d" | "1y";
+
+export const STATS_RETENTION_OPTIONS: { value: StatsRetention; words: string; days: number }[] = [
+    { value: "30d", words: "30 days", days: 30 },
+    { value: "90d", words: "90 days", days: 90 },
+    { value: "1y", words: "1 year", days: 365 },
+];
+
+/** An empty or unknown value reads as 30d (api-endpoint-behaviour.md J48); the API may or may not normalise it. */
+export function normalizeStatsRetention(value: unknown): StatsRetention {
+    return STATS_RETENTION_OPTIONS.find(o => o.value === value)?.value ?? "30d";
+}
+
+export function statsRetentionWords(value: unknown): string {
+    return STATS_RETENTION_OPTIONS.find(o => o.value === normalizeStatsRetention(value))!.words;
+}
+
+export function profileStatsRetention(profile: ModelProfile | null | undefined): StatsRetention {
+    return normalizeStatsRetention(profile?.settings?.statistics?.retention);
+}
 
 export const LIMITED_ACCESS_TEXT =
     "Data collection can't be changed in limited access mode. You can still clear query logs.";
@@ -89,7 +108,7 @@ const UNDONE = "This action cannot be undone.";
 export function transitionFor(
     saved: DataCollectionState,
     pending: DataCollectionState,
-    statsWords: string = STATISTICS_RETENTION_WORDS,
+    statsWords: string = statsRetentionWords(undefined),
 ): Transition | null {
     const from = stateKey(saved);
     const to = stateKey(pending);

@@ -136,4 +136,38 @@ test.describe('@statistics Statistics page', () => {
     await group.getByText('7d').click();
     await expect(page).toHaveURL(/\/statistics$/);
   });
+  // tableRef: statistics-behaviour #U7, #S1
+  test('U7: raising retention asks for confirmation and keeps the choice', async ({ page }) => {
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    const select = page.getByLabel('Kept for');
+    await expect(select).toHaveValue('30d');
+    await select.selectOption('1y');
+    const dialog = page.getByRole('dialog', { name: 'Keep statistics for 1 year?' });
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await dialog.getByRole('button', { name: 'Keep for 1 year' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(select).toHaveValue('1y');
+    await expectNoHorizontalOverflow(page);
+  });
+
+  // tableRef: statistics-behaviour #S3, #P5
+  test('Delete statistics history empties the counts and lands on the no-queries-yet card', async ({ page }) => {
+    await setup(page, { logs: false, stats: true });
+    let deleted = false;
+    const empty = createStatsResponse({ empty: true, points: 4, enabledAt: '2026-09-14T09:12:00Z' });
+    await page.route(/\/api\/v1\/profiles\/p1\/statistics/i, r => {
+      if (r.request().method() === 'DELETE') {
+        deleted = true;
+        return r.fulfill({ status: 204 });
+      }
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(deleted ? { ...empty, history_deleted_at: '2026-10-06T15:10:00Z' } : createStatsResponse({ points: 168 })) });
+    });
+    await page.goto('/statistics');
+    await expect(page.getByLabel(/^Total queries:/)).toBeVisible();
+    await page.getByRole('button', { name: 'More statistics actions' }).click();
+    await page.getByRole('menuitem', { name: 'Delete statistics history' }).click();
+    await page.getByRole('dialog', { name: 'Delete statistics history?' }).getByRole('button', { name: 'Delete history' }).click();
+    await expect(page.getByRole('heading', { name: 'No queries counted yet' })).toBeFocused();
+  });
 });

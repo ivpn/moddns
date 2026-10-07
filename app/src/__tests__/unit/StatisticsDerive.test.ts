@@ -6,8 +6,8 @@ import {
     deviceLabel,
     isClamped,
     normalizeStats,
-    statsRetentionWords,
 } from '@/pages/statistics/derive';
+import { statsRetentionWords } from '@/components/data-collection/model';
 import { LOGS_TIMESPAN, RANGES, STATS_TIMESPAN, logsWindowCaption, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
 import { formatBucketTick, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
 import { createStatsResponse } from '../mocks/statisticsMocks';

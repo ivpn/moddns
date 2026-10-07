@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import QueryLogsSection from '@/pages/settings/QueryLogsSection';
 import { vi, describe, it, expect } from 'vitest';
+import type { ModelProfile } from '@/api/client';
 
 // Mock api client
 vi.mock('@/api/api', () => ({
@@ -19,15 +20,13 @@ vi.mock('@/api/api', () => ({
     }
 }));
 
-// Provide minimal props
-const logsSettings = [
-    { value: 'enable', options: [{ value: 'enable', label: 'Enable' }, { value: 'disable', label: 'Disable' }] },
-    { title: 'Include blocked', description: 'Include blocked queries', value: 'on', options: [{ value: 'on', label: 'On' }] },
-    { title: 'Include processed', description: 'Include processed queries', value: 'on', options: [{ value: 'on', label: 'On' }] },
-    { value: '1d', options: [{ value: '1d', label: '1 Day' }] }
-];
-
-const activeProfile = { profile_id: 'profile-1' };
+const activeProfile = {
+    id: 'profile-1',
+    profile_id: 'profile-1',
+    account_id: 'a',
+    name: 'p',
+    settings: {},
+} as unknown as ModelProfile;
 
 // Mock URL + anchor interactions (JSDOM lacks createObjectURL)
 const createObjectURLMock = vi.fn().mockReturnValue('blob:url');
@@ -46,7 +45,7 @@ document.body.appendChild = (<T extends Node>(el: T): T => {
 
 describe('DownloadQueryLogsButton', () => {
     it('calls API and creates a downloadable blob with expected filename', async () => {
-        render(<QueryLogsSection logsSettings={logsSettings} activeProfile={activeProfile} handleLogsChange={() => { }} />);
+        render(<QueryLogsSection activeProfile={activeProfile} />);
 
         const btn = screen.getByText('Download query logs');
         fireEvent.click(btn);
