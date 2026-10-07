@@ -544,6 +544,69 @@ func (_c *ProfileServicer_DeleteProfileQueryLogs_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// DeleteStatisticsHistory provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) DeleteStatisticsHistory(ctx context.Context, accountId string, profileId string) error {
+	ret := _mock.Called(ctx, accountId, profileId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteStatisticsHistory")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileServicer_DeleteStatisticsHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteStatisticsHistory'
+type ProfileServicer_DeleteStatisticsHistory_Call struct {
+	*mock.Call
+}
+
+// DeleteStatisticsHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+func (_e *ProfileServicer_Expecter) DeleteStatisticsHistory(ctx interface{}, accountId interface{}, profileId interface{}) *ProfileServicer_DeleteStatisticsHistory_Call {
+	return &ProfileServicer_DeleteStatisticsHistory_Call{Call: _e.mock.On("DeleteStatisticsHistory", ctx, accountId, profileId)}
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) Run(run func(ctx context.Context, accountId string, profileId string)) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) Return(err error) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string) error) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DisableBlocklists provides a mock function for the type ProfileServicer
 func (_mock *ProfileServicer) DisableBlocklists(ctx context.Context, accountId string, profileId string, blocklistIds []string) error {
 	ret := _mock.Called(ctx, accountId, profileId, blocklistIds)

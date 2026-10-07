@@ -76,6 +76,8 @@ func TestIsLimitedAccessAllowed(t *testing.T) {
 		{"GET", "/api/v1/profiles/abc123/logs/download", true},
 		{"DELETE", "/api/v1/profiles/abc123/logs", true},
 		{"GET", "/api/v1/profiles/abc123/statistics", true},
+		// specRef: api-endpoint-behaviour.md J52 — deleting statistics history stays blocked until the PO decides.
+		{"DELETE", "/api/v1/profiles/abc123/statistics", false},
 		{"GET", "/api/v1/blocklists", true},
 		{"GET", "/api/v1/services", true},
 		// GET /webauthn/passkeys moved to alwaysAllowed — not tested here

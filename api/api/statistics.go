@@ -40,3 +40,23 @@ func (s *APIServer) getStatistics() fiber.Handler {
 	}
 	return handler
 }
+
+// @Summary Delete a profile's statistics history
+// @Description Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.
+// @Tags Statistics
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Success 204
+// @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/statistics [delete]
+func (s *APIServer) deleteStatisticsHistory() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		accountId := auth.GetAccountID(c)
+		if err := s.Service.DeleteStatisticsHistory(c.UserContext(), accountId, c.Params("id")); err != nil {
+			return HandleError(c, err, ErrFailedToDeleteStatistics.Error())
+		}
+		return c.SendStatus(204)
+	}
+}

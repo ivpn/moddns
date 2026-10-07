@@ -179,6 +179,9 @@ func (s *StatisticsService) PurgeUnconsentedStatistics(ctx context.Context) (Unc
 
 			jobCtx, cancelJob := context.WithTimeout(runCtx, s.purgeJobTime)
 			delErr := s.StatisticsRepository.DeleteProfileStatistics(jobCtx, id, before)
+			if delErr == nil && exists && st != nil && st.Enabled && st.HistoryDeletedAt != nil {
+				delErr = s.StatisticsRepository.DeleteProfileStatisticsThrough(jobCtx, id, *st.HistoryDeletedAt)
+			}
 			if delErr == nil && exists && st != nil && st.Enabled {
 				var moved int
 				moved, delErr = s.moveToRetention(jobCtx, id, st.Retention)

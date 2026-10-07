@@ -171,6 +171,7 @@ type ProfileServicer interface {
 
 	// Statistics
 	GetStatistics(ctx context.Context, accountId, profileId, timespan string) (*model.StatisticsResponse, error)
+	DeleteStatisticsHistory(ctx context.Context, accountId, profileId string) error
 
 	// Custom Rules
 	DeleteCustomRule(ctx context.Context, accountId, profileId, customRuleId string) error
