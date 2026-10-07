@@ -80,6 +80,7 @@ moddns/models/model_statistics_point.py
 moddns/models/model_statistics_protocols.py
 moddns/models/model_statistics_reasons.py
 moddns/models/model_statistics_response.py
+moddns/models/model_statistics_retention.py
 moddns/models/model_statistics_settings.py
 moddns/models/model_statistics_totals.py
 moddns/models/model_subscription.py
