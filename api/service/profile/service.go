@@ -557,13 +557,30 @@ func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
 // patched is the snapshot with this PATCH's values applied to the paths it touched.
 func (s settingsSnapshot) patched(touched []string, patch *model.ProfileSettings) settingsSnapshot {
 	out := s
-	if slices.Contains(touched, pathStatisticsEnabled) {
-		out.statistics = &model.StatisticsSettings{Enabled: patch.Statistics.Enabled}
+	if slices.Contains(touched, pathStatisticsEnabled) || slices.Contains(touched, pathStatisticsRetention) {
+		next := model.StatisticsSettings{}
+		if s.statistics != nil {
+			next = *s.statistics
+		}
+		if slices.Contains(touched, pathStatisticsEnabled) {
+			next.Enabled = patch.Statistics.Enabled
+		}
+		if slices.Contains(touched, pathStatisticsRetention) {
+			next.Retention = patch.Statistics.Retention
+		}
+		out.statistics = &next
 	}
 	if slices.Contains(touched, pathLogsEnabled) {
 		out.logsEnabled = patch.Logs.Enabled
 	}
 	return out
+}
+
+func (s settingsSnapshot) statisticsRetention() model.StatisticsRetention {
+	if s.statistics == nil {
+		return ""
+	}
+	return s.statistics.Retention
 }
 
 func (s settingsSnapshot) statisticsEnabled() bool {
@@ -575,6 +592,9 @@ func (s settingsSnapshot) statisticsEnabled() bool {
 func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
 	if before.statisticsEnabled() && !after.statisticsEnabled() {
 		p.StatisticsService.PurgeBestEffort(ctx, profileId)
+	}
+	if after.statisticsEnabled() && after.statistics.Retention.Window() < before.statisticsRetention().Window() {
+		p.StatisticsService.MoveBestEffort(ctx, profileId, after.statistics.Retention)
 	}
 	if before.logsEnabled && !after.logsEnabled {
 		p.purgeQueryLogsBestEffort(ctx, profileId)

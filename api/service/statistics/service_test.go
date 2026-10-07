@@ -94,6 +94,7 @@ func TestPurgeUnconsentedStatistics_AppliesRulePerProfile(t *testing.T) {
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "on-ts", mock.MatchedBy(func(b *time.Time) bool {
 		return b != nil && b.Equal(enabledAt)
 	})).Return(nil).Once()
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on-ts", model.StatisticsRetention30d, mock.Anything).Return(0, nil).Once()
 
 	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)
@@ -114,6 +115,7 @@ func TestPurgeUnconsentedStatistics_BatchesProfileLookups(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(settings, nil).Times(3)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2500)
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Times(2500)
 
 	res, err := h.svc.PurgeUnconsentedStatistics(context.Background())
 	require.NoError(t, err)

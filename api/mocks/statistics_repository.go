@@ -255,3 +255,81 @@ func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) RunAndReturn(run f
 	_c.Call.Return(run)
 	return _c
 }
+
+// MoveProfileDailyStatistics provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
+	ret := _mock.Called(ctx, profileId, to, since)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveProfileDailyStatistics")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) (int, error)); ok {
+		return returnFunc(ctx, profileId, to, since)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) int); ok {
+		r0 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsRetention, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_MoveProfileDailyStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveProfileDailyStatistics'
+type StatisticsRepository_MoveProfileDailyStatistics_Call struct {
+	*mock.Call
+}
+
+// MoveProfileDailyStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - to model.StatisticsRetention
+//   - since time.Time
+func (_e *StatisticsRepository_Expecter) MoveProfileDailyStatistics(ctx interface{}, profileId interface{}, to interface{}, since interface{}) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	return &StatisticsRepository_MoveProfileDailyStatistics_Call{Call: _e.mock.On("MoveProfileDailyStatistics", ctx, profileId, to, since)}
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Run(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.StatisticsRetention
+		if args[2] != nil {
+			arg2 = args[2].(model.StatisticsRetention)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Return(n int, err error) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	_c.Call.Return(run)
+	return _c
+}

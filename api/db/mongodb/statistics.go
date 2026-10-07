@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Statistics tiers written by the proxy; created by migration 027. Purges and the
@@ -241,6 +242,111 @@ func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, prof
 	return errors.Join(errs...)
 }
 
+// dailyCollectionNames are the day-tier collections by retention, shortest first.
+var dailyCollectionNames = []struct {
+	retention model.StatisticsRetention
+	name      string
+}{
+	{model.StatisticsRetention30d, statisticsColl1d30d},
+	{model.StatisticsRetention90d, statisticsColl1d90d},
+	{model.StatisticsRetention1y, statisticsColl1d1y},
+}
+
+const (
+	statisticsMoveBatch       = 1000
+	statisticsMoveUndoTimeout = 30 * time.Second
+)
+
+// MoveProfileDailyStatistics copies then deletes batch by batch (api-endpoint-behaviour.md J50):
+// $merge and $out cannot write into a time-series collection.
+func (r *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
+	target := r.collection(statisticsColl1d30d)
+	longer := false
+	moved := 0
+	for _, d := range dailyCollectionNames {
+		if d.retention == to.OrDefault() {
+			target = r.collection(d.name)
+			longer = true
+			continue
+		}
+		if !longer {
+			continue
+		}
+		n, err := r.moveCollection(ctx, r.collection(d.name), target, profileId, since)
+		moved += n
+		if err != nil {
+			return moved, err
+		}
+	}
+	return moved, nil
+}
+
+func (r *StatisticsRepository) moveCollection(ctx context.Context, source, target *mongo.Collection, profileId string, since time.Time) (int, error) {
+	moved := 0
+	for {
+		cur, err := source.Find(ctx, bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}, options.Find().SetLimit(statisticsMoveBatch))
+		if err != nil {
+			return moved, err
+		}
+		var docs []bson.D
+		if err := cur.All(ctx, &docs); err != nil {
+			return moved, err
+		}
+		if len(docs) == 0 {
+			return moved, nil
+		}
+
+		ids := make(bson.A, 0, len(docs))
+		var keep []any
+		var keepIds bson.A
+		for _, doc := range docs {
+			id := docField(doc, "_id")
+			ids = append(ids, id)
+			if start, ok := docField(doc, "bucket_start").(primitive.DateTime); ok && !start.Time().Before(since) {
+				keep = append(keep, doc)
+				keepIds = append(keepIds, id)
+			}
+		}
+		filter := func(in bson.A) bson.D {
+			return bson.D{
+				primitive.E{Key: "meta.profile_id", Value: profileId},
+				primitive.E{Key: "_id", Value: bson.D{primitive.E{Key: "$in", Value: in}}},
+			}
+		}
+		// Undo the copies of a failed batch so a retry cannot count them twice.
+		undo := func(err error) error {
+			if len(keepIds) == 0 {
+				return err
+			}
+			// The batch may have failed on ctx's deadline; the undo must still run.
+			undoCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), statisticsMoveUndoTimeout)
+			defer cancel()
+			if _, undoErr := target.DeleteMany(undoCtx, filter(keepIds)); undoErr != nil {
+				return errors.Join(err, undoErr)
+			}
+			return err
+		}
+		if len(keep) > 0 {
+			if _, err := target.InsertMany(ctx, keep); err != nil {
+				return moved, undo(err)
+			}
+		}
+		if _, err := source.DeleteMany(ctx, filter(ids)); err != nil {
+			return moved, undo(err)
+		}
+		moved += len(keep)
+	}
+}
+
+func (r *StatisticsRepository) collection(name string) *mongo.Collection {
+	for i, n := range statisticsCollectionNames {
+		if n == name {
+			return r.colls[i]
+		}
+	}
+	return nil
+}
+
 // ListStatisticsProfileIDs returns the distinct meta.profile_id values across the
 // retention collections. It aggregates with $group (a cursor, so no 16 MB result
 // document) instead of distinct.
@@ -276,4 +382,14 @@ func (r *StatisticsRepository) ListStatisticsProfileIDs(ctx context.Context) ([]
 		}
 	}
 	return ids, nil
+}
+
+// docField returns the value of key in doc, or nil when absent.
+func docField(doc bson.D, key string) any {
+	for _, e := range doc {
+		if e.Key == key {
+			return e.Value
+		}
+	}
+	return nil
 }

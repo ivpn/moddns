@@ -7,6 +7,7 @@ import (
 
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/libs/dislock"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,6 +16,11 @@ const (
 	unconsentedPurgeJobTimeout = 90 * time.Second
 	// A run must finish well inside the cron lock TTL (10 min).
 	unconsentedPurgeDeadline = 5 * time.Minute
+
+	// RetentionMoveLockPrefix namespaces the per-profile retention-move locks in Redis.
+	RetentionMoveLockPrefix = "statistics:retention-move:"
+	// Longer than one move is allowed to run (unconsentedPurgeJobTimeout).
+	retentionMoveLockTTL = 2 * time.Minute
 )
 
 // ProfileStatisticsReader loads the statistics settings of many profiles at once.
@@ -29,6 +35,7 @@ type StatisticsService struct {
 
 	profiles     ProfileStatisticsReader
 	cache        ReadCache
+	moveLocker   *dislock.Locker
 	now          func() time.Time
 	purgeJobTime time.Duration
 	purgeRunTime time.Duration
@@ -65,6 +72,42 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 	return s
 }
 
+// SetRetentionMoveLocker serialises retention moves of one profile across instances
+// (api-endpoint-behaviour.md J50). Without it moves run unlocked.
+func (s *StatisticsService) SetRetentionMoveLocker(l *dislock.Locker) { s.moveLocker = l }
+
+// MoveToRetention leaves the profile's daily statistics only in collections no longer than
+// retention, keeping the days the retention still covers (J50). A move already running on
+// another instance is skipped. It returns the number of documents copied.
+func (s *StatisticsService) MoveToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int, error) {
+	moved, err := s.moveToRetention(ctx, profileId, retention)
+	s.invalidate(ctx, profileId)
+	return moved, err
+}
+
+func (s *StatisticsService) moveToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int, error) {
+	if s.moveLocker != nil {
+		lock, err := s.moveLocker.TryLock(ctx, profileId, retentionMoveLockTTL)
+		if errors.Is(err, dislock.ErrNotAcquired) {
+			return 0, nil
+		}
+		if err != nil {
+			return 0, err
+		}
+		defer func() { _ = lock.Unlock(context.WithoutCancel(ctx)) }()
+	}
+	since := s.now().UTC().Add(-retention.Window()).Truncate(24 * time.Hour)
+	return s.StatisticsRepository.MoveProfileDailyStatistics(ctx, profileId, retention.OrDefault(), since)
+}
+
+// MoveBestEffort is the immediate move on lowering the retention; the next
+// unconsented-statistics purge repeats it for anything left.
+func (s *StatisticsService) MoveBestEffort(ctx context.Context, profileId string, retention model.StatisticsRetention) {
+	if _, err := s.MoveToRetention(ctx, profileId, retention); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("statistics: retention move failed; the next unconsented-statistics purge retries it")
+	}
+}
+
 // PurgeProfile deletes all of the profile's statistics.
 func (s *StatisticsService) PurgeProfile(ctx context.Context, profileId string) error {
 	err := s.StatisticsRepository.DeleteProfileStatistics(ctx, profileId, nil)
@@ -96,7 +139,7 @@ func UnconsentedPurgeBound(exists bool, settings *model.StatisticsSettings) *tim
 
 // UnconsentedPurgeResult counts what one run did; it carries no identifiers.
 type UnconsentedPurgeResult struct {
-	Checked, Purged, Failed int
+	Checked, Purged, Failed, Moved int
 }
 
 // PurgeUnconsentedStatistics removes statistics that no longer have consent: for every
@@ -136,6 +179,11 @@ func (s *StatisticsService) PurgeUnconsentedStatistics(ctx context.Context) (Unc
 
 			jobCtx, cancelJob := context.WithTimeout(runCtx, s.purgeJobTime)
 			delErr := s.StatisticsRepository.DeleteProfileStatistics(jobCtx, id, before)
+			if delErr == nil && exists && st != nil && st.Enabled {
+				var moved int
+				moved, delErr = s.moveToRetention(jobCtx, id, st.Retention)
+				res.Moved += moved
+			}
 			s.invalidate(runCtx, id)
 			timedOut := errors.Is(jobCtx.Err(), context.DeadlineExceeded)
 			cancelJob()

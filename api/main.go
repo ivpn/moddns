@@ -17,7 +17,9 @@ import (
 	"github.com/ivpn/dns/api/internal/migrations"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/service"
+	"github.com/ivpn/dns/api/service/statistics"
 	libscache "github.com/ivpn/dns/libs/cache"
+	"github.com/ivpn/dns/libs/dislock"
 	"github.com/ivpn/dns/libs/servicescatalogcache"
 	"github.com/ivpn/dns/libs/store"
 	"github.com/ivpn/dns/libs/telemetry"
@@ -161,6 +163,7 @@ func main() {
 	go announcementsLoader.Start(context.Background())
 
 	service := service.New(*appConfig, db, cache, idGen, apiValidator, mailer, shortener, webAuthn, servicesCatalog)
+	service.Statistics.SetRetentionMoveLocker(dislock.New(redisClient, statistics.RetentionMoveLockPrefix))
 
 	server, err := api.NewServer(appConfig, service, db, cache, idGen, apiValidator, mailer, shortener, servicesCatalog, announcementsLoader)
 	if err != nil {
