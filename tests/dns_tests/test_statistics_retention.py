@@ -1,6 +1,6 @@
 """End-to-end checks for the per-profile statistics retention (#713).
 
-specRef: api-endpoint-behaviour #G26 #J48 #J50 #J51 #J52 #J53; proxy-statistics-behaviour #Y20.
+specRef: api-endpoint-behaviour #G26 #J48 #J49 #J50 #J51 #J52 #J53; proxy-statistics-behaviour #Y20.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -83,6 +83,14 @@ class TestStatisticsRetention:
         """specRef: api-endpoint-behaviour #J48"""
         pid = user.new_profile("ret-default")
         assert _retention(mongo_db, pid) == "30d"
+
+    def test_profile_without_stored_retention_reads_30d(self, user, mongo_db):
+        """specRef: api-endpoint-behaviour #J49 — a profile from before the field existed is shown as 30d
+        and nothing is written back."""
+        pid = user.new_profile("ret-legacy")
+        mongo_db.profiles.update_one({"profile_id": pid}, {"$unset": {"settings.statistics.retention": ""}})
+        assert user.get_profile(pid).settings.statistics.retention == "30d"
+        assert _retention(mongo_db, pid) is None
 
     def test_unknown_retention_is_rejected(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #G26"""
