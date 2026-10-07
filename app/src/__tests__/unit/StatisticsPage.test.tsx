@@ -447,6 +447,7 @@ describe('Statistics page retention', () => {
         const updated = mk('S');
         (updated.settings.statistics as unknown as { retention: string }).retention = '1y';
         (api.Client.profilesApi.apiV1ProfilesIdPatch as unknown as Mock).mockResolvedValue({ status: 200, data: updated });
+        profileGet.mockResolvedValue({ data: mk('S') });
         mount(mk('S'));
         await user.selectOptions(await screen.findByLabelText('Kept for'), '1y');
         await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Keep for 1 year' }));
