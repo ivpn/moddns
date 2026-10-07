@@ -123,6 +123,12 @@ func (c *RedisCache) AddBlocklist(ctx context.Context, blocklistId string, data 
 
 // CreateOrUpdateProfileSettings adds profile settings to the cache
 func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
+	storedRules, err := c.client.SMembers(ctx, customRulesSetKey(settings.ProfileId)).Result()
+	if err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to read profile custom rules")
+		return err
+	}
+
 	rdp := c.client.Pipeline()
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "blocklists")
 	res := rdp.Del(ctx, settingsBlocklist)
@@ -242,8 +248,10 @@ func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings
 		return err
 	}
 
-	_, err := rdp.Exec(ctx)
-	if err != nil {
+	// ProfileSettings.CustomRules is redis:"-", so the hashes above never carry them.
+	queueReplaceCustomRules(ctx, rdp, settings.ProfileId, settings.CustomRules, storedRules)
+
+	if _, err := rdp.Exec(ctx); err != nil {
 		log.Ctx(ctx).Err(err).Msg("Cache: failed to execute pipeline")
 		return err
 	}
@@ -301,6 +309,56 @@ func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Contex
 	return nil
 }
 
+func customRulesSetKey(profileId string) string {
+	return fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
+}
+
+func customRuleKey(profileId, ruleId string) string {
+	return fmt.Sprintf("settings:%s:custom_rule:%s", profileId, ruleId)
+}
+
+// queueCustomRules queues the layout the proxy reads custom rules from: one hash per rule,
+// then their keys in the profile's set. It returns the keys.
+func queueCustomRules(ctx context.Context, pipe redis.Pipeliner, profileId string, rules []*model.CustomRule) map[string]struct{} {
+	keys := make(map[string]struct{}, len(rules))
+	if len(rules) == 0 {
+		return keys
+	}
+	members := make([]any, 0, len(rules))
+	for _, rule := range rules {
+		key := customRuleKey(profileId, rule.ID.Hex())
+		pipe.HSet(ctx, key, rule)
+		keys[key] = struct{}{}
+		members = append(members, key)
+	}
+	pipe.SAdd(ctx, customRulesSetKey(profileId), members...)
+	return keys
+}
+
+// queueReplaceCustomRules makes the stored rules equal to rules. Current rules are written
+// before stale ones are removed, so a reader never misses a rule that stays.
+func queueReplaceCustomRules(ctx context.Context, pipe redis.Pipeliner, profileId string, rules []*model.CustomRule, stored []string) {
+	keep := queueCustomRules(ctx, pipe, profileId, rules)
+	var stale []any
+	for _, key := range stored {
+		if _, ok := keep[key]; !ok {
+			stale = append(stale, key)
+		}
+	}
+	if len(stale) > 0 {
+		pipe.SRem(ctx, customRulesSetKey(profileId), stale...)
+		pipe.Del(ctx, anyToStrings(stale)...)
+	}
+}
+
+func anyToStrings(in []any) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = v.(string)
+	}
+	return out
+}
+
 // AddCustomRules bulk-inserts all rules for a profile in a single Redis
 // pipeline. It issues one HSet per rule plus a single variadic SAdd for the set
 // membership, using the canonical key/field layout (settings:<id>:custom_rule:<ruleId>
@@ -310,16 +368,8 @@ func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules
 	if len(rules) == 0 {
 		return nil
 	}
-	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
-
 	pipe := c.client.Pipeline()
-	hashKeys := make([]any, 0, len(rules))
-	for _, rule := range rules {
-		customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, rule.ID.Hex())
-		pipe.HSet(ctx, customRuleHash, rule)
-		hashKeys = append(hashKeys, customRuleHash)
-	}
-	pipe.SAdd(ctx, customRulesSetName, hashKeys...)
+	queueCustomRules(ctx, pipe, profileId, rules)
 
 	if _, err := pipe.Exec(ctx); err != nil {
 		log.Ctx(ctx).Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
