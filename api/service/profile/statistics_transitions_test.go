@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ivpn/dns/api/config"
+	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
@@ -330,4 +331,38 @@ func TestUpdateProfile_StatisticsRetentionMoveFailureIsBestEffort(t *testing.T) 
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{retentionOp("30d")})
 	require.NoError(t, err)
+}
+
+// specRef: api-endpoint-behaviour.md J52 — deleting history stamps keep-since on an enabled
+// profile, deletes everything and leaves the settings alone.
+func TestDeleteStatisticsHistory(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		h := newTransitionsHarness(t)
+		h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(enabled, nil), nil)
+		h.profiles.On("SetStatisticsHistoryDeletedAt", mock.Anything, "profile123", fixedNow).Return(enabled, nil).Once()
+		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+
+		require.NoError(t, h.svc.DeleteStatisticsHistory(context.Background(), "account123", "profile123"))
+		h.profiles.AssertNotCalled(t, "UpdateFields", mock.Anything, mock.Anything, mock.Anything)
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J52 — a foreign profile is not found and nothing is deleted.
+func TestDeleteStatisticsHistory_ForeignProfile(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(true, nil), nil)
+
+	err := h.svc.DeleteStatisticsHistory(context.Background(), "other-account", "profile123")
+	require.ErrorIs(t, err, dbErrors.ErrProfileNotFound)
+	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: api-endpoint-behaviour.md J52 — a failed delete is reported; the stamp stays for the purge.
+func TestDeleteStatisticsHistory_DeleteFailure(t *testing.T) {
+	h := newTransitionsHarness(t)
+	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(true, nil), nil)
+	h.profiles.On("SetStatisticsHistoryDeletedAt", mock.Anything, "profile123", fixedNow).Return(true, nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(errors.New("boom")).Once()
+
+	require.Error(t, h.svc.DeleteStatisticsHistory(context.Background(), "account123", "profile123"))
 }
