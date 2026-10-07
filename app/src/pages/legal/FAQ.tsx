@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 25, 2026';
+const FAQ_LAST_UPDATED = 'October 7, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -569,13 +569,31 @@ export default function FAQ(): JSX.Element {
             <FAQSection title="Privacy" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
                 <FAQItem
                     question="How does modDNS protect my privacy?"
-                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs (default: off) so you can monitor what's being blocked."
+                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and offers two optional ways to monitor what's being blocked: statistics (counts only) and query logs, both off by default."
                 />
                 <FAQItem
                     question="Do you log my DNS queries?"
                     answer={
-                        <p>Query logging is optional, off by default. When enabled, retention period is controlled by you, with logs available for review in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
+                        <div>
+                            <p>Not unless you choose to. Data collection is off by default for every profile, and you set it per profile in Settings under Data collection:</p>
+                            <br />
+                            • <strong>Off</strong> — nothing is stored about this profile's queries.
+                            <br />
+                            • <strong>Statistics</strong> — query counts per device, kept for 30 days. No domains and no IP addresses are stored.
+                            <br />
+                            • <strong>Query logs</strong> — a record of each query (time, device, domain, result), kept for the retention period you choose, from 1 hour to 1 month. Client IP addresses are stored only if you turn that on. You can also keep statistics alongside query logs.
+                            <br /><br />
+                            <p>Turning a level off permanently deletes what it stored; the deletion completes within an hour. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
+                        </div>
                     }
+                />
+                <FAQItem
+                    question="What is the Statistics page?"
+                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days. The page also shows your most queried domains and clients if you have turned on query logs."
+                />
+                <FAQItem
+                    question="Should I use Statistics or Query logs?"
+                    answer="Use Statistics when you want counts without a history: how busy and how blocked a profile is, per device, without recording which sites were visited. Use Query logs when you need to see individual queries, for example to find out why a site is blocked or broken. Query logs are kept only for the short retention period you pick, and you can turn them off again at any time."
                 />
                 <FAQItem
                     question="Does modDNS use QNAME minimisation?"
@@ -621,7 +639,7 @@ export default function FAQ(): JSX.Element {
                         <div>
                             modDNS access follows your IVPN subscription. When it lapses, your account moves through reduced-access states rather than being switched off immediately:
                             <br /><br />
-                            • <strong>Limited Access</strong> — DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings, logs and analytics are unavailable).
+                            • <strong>Limited Access</strong> — DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings and data collection settings). Whatever data collection is already on keeps running, and you can still view statistics and clear query logs.
                             <br />
                             • <strong>Inactive</strong> — DNS resolution stops for your profiles and only account export and deletion remain available.
                             <br /><br />
@@ -631,7 +649,7 @@ export default function FAQ(): JSX.Element {
                 />
                 <FAQItem
                     question="What is Limited Access mode?"
-                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules or profile settings, and logs and analytics are unavailable. To regain full access, add time to your IVPN account."
+                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules, profile settings or what modDNS collects. Data collection that is already on keeps running, and you can still view statistics and clear query logs. To regain full access, add time to your IVPN account."
                 />
                 <FAQItem
                     question="Why is my account Inactive?"
