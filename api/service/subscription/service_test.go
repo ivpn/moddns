@@ -213,8 +213,8 @@ func (s *UpdateSubscriptionFromPASessionSuite) TestResyncWritesSettingsWithCusto
 	s.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, sub.AccountID.Hex()).Return([]model.Profile{withRules, noRules}, nil)
 	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, mock.MatchedBy(func(st *model.ProfileSettings) bool {
 		return st.ProfileId == "p1" && len(st.CustomRules) == 2 && st.CustomRules[0].Value == "a.example"
-	}), false).Return(nil).Once()
-	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, noRules.Settings, false).Return(nil).Once()
+	})).Return(nil).Once()
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, noRules.Settings).Return(nil).Once()
 
 	s.Require().NoError(svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-r", ""))
 	s.mockCache.AssertNotCalled(s.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
@@ -232,8 +232,8 @@ func (s *UpdateSubscriptionFromPASessionSuite) TestResyncWriteFailureIsBestEffor
 	s.mockSubscriptionRepo.On("Upsert", mock.Anything, mock.AnythingOfType("model.Subscription")).Return(nil)
 	s.mockSubscriptionRepo.On("ClearLegacyType", mock.Anything, sub.AccountID.Hex()).Return(nil)
 	s.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, sub.AccountID.Hex()).Return([]model.Profile{first, second}, nil)
-	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, first.Settings, false).Return(errors.New("redis down")).Once()
-	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, second.Settings, false).Return(nil).Once()
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, first.Settings).Return(errors.New("redis down")).Once()
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, second.Settings).Return(nil).Once()
 
 	s.Require().NoError(svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-f", ""))
 }

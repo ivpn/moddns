@@ -117,7 +117,7 @@ func TestUpdateProfile_ConcurrentPatchesOnDifferentPathsBothPersist(t *testing.T
 	mr := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	redisCache := cache.NewRedisCacheFromClient(rdb)
-	require.NoError(t, redisCache.CreateOrUpdateProfileSettings(ctx, settings, false))
+	require.NoError(t, redisCache.CreateOrUpdateProfileSettings(ctx, settings))
 
 	statsRepo := mocks.NewStatisticsRepository(t)
 	statsRepo.On("DeleteProfileStatistics", mock.Anything, profileId, (*time.Time)(nil)).Return(nil).Once()
@@ -153,6 +153,6 @@ func TestUpdateProfile_ConcurrentPatchesOnDifferentPathsBothPersist(t *testing.T
 
 	want := miniredis.RunT(t)
 	wantRdb := redis.NewClient(&redis.Options{Addr: want.Addr()})
-	require.NoError(t, cache.NewRedisCacheFromClient(wantRdb).CreateOrUpdateProfileSettings(ctx, stored.Settings, false))
+	require.NoError(t, cache.NewRedisCacheFromClient(wantRdb).CreateOrUpdateProfileSettings(ctx, stored.Settings))
 	require.Equal(t, settingsHashes(t, wantRdb, profileId), settingsHashes(t, rdb, profileId), "Redis settings hashes match Mongo")
 }

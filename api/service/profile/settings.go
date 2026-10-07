@@ -22,7 +22,7 @@ func (p *ProfileService) createSettings(ctx context.Context, profileId string) (
 		settings.Privacy.Blocklists = append(settings.Privacy.Blocklists, blocklist.BlocklistID)
 	}
 	// save settings to cache
-	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings, true); err != nil {
+	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings); err != nil {
 		return nil, err
 	}
 
