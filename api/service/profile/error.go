@@ -51,6 +51,7 @@ var (
 	ErrCustomRuleAlreadyExists      = errors.New("custom rule already exists")
 	ErrLastProfileInAccount         = errors.New("cannot delete the last profile in the account")
 	ErrRecursorInvalid              = fmt.Errorf("recursor value is invalid. Allowed values: %v", model.RECURSORS)
+	ErrStatisticsRetentionInvalid   = fmt.Errorf("statistics retention is invalid. Allowed values: %v", model.StatisticsRetentions())
 	ErrMaxProfilesLimitReached      = errors.New("maximum number of profiles reached")
 	ErrQueryLogsRateLimited         = errors.New("query logs rate limited")
 	ErrServiceNotFound              = errors.New("service not found")

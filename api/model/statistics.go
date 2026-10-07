@@ -3,7 +3,36 @@ package model
 import (
 	"errors"
 	"time"
+
+	"github.com/ivpn/dns/libs/statistics"
 )
+
+// StatisticsRetention is the profile's statistics retention setting (api-endpoint-behaviour.md J48).
+// The values and rules live in libs/statistics; this named type keeps the swagger enum
+// separate from the logs Retention.
+type StatisticsRetention string
+
+const (
+	StatisticsRetention30d StatisticsRetention = "30d"
+	StatisticsRetention90d StatisticsRetention = "90d"
+	StatisticsRetention1y  StatisticsRetention = "1y"
+)
+
+func (r StatisticsRetention) lib() statistics.Retention { return statistics.Retention(r) }
+
+// Valid reports whether r is an allowed value.
+func (r StatisticsRetention) Valid() bool { return r.lib().Valid() }
+
+// OrDefault returns r, or 30d when r is not allowed.
+func (r StatisticsRetention) OrDefault() StatisticsRetention {
+	return StatisticsRetention(r.lib().OrDefault())
+}
+
+// Window is how far back the retention reaches.
+func (r StatisticsRetention) Window() time.Duration { return r.lib().Window() }
+
+// MarshalBinary lets go-redis write the value; it has no fallback for named strings.
+func (r StatisticsRetention) MarshalBinary() ([]byte, error) { return []byte(r), nil }
 
 // Timespans accepted by the statistics read endpoint; the logs endpoints keep
 // their own enum (timespan.go).
@@ -15,9 +44,6 @@ const (
 
 	// StatisticsDefaultTimespan applies when the query parameter is absent.
 	StatisticsDefaultTimespan = LAST_7_DAYS
-
-	// StatisticsDefaultRetention is what an empty retention setting reads as.
-	StatisticsDefaultRetention = "30d"
 
 	// StatisticsMaxDevices bounds the devices list, the folded entry included.
 	StatisticsMaxDevices = 100
@@ -67,16 +93,19 @@ func NewStatisticsTimespan(timespan string) (StatisticsTimespanSpec, error) {
 	return spec, nil
 }
 
-// StatisticsRetentionWindow resolves a retention label ("30d", "90d", "1y"); an
-// empty or unknown label reads as 30d.
-func StatisticsRetentionWindow(label string) (string, time.Duration) {
-	switch label {
-	case "90d":
-		return "90d", 90 * 24 * time.Hour
-	case "1y":
-		return "1y", 365 * 24 * time.Hour
+// StatisticsRetentions lists the allowed retention values, shortest first.
+func StatisticsRetentions() []StatisticsRetention {
+	out := []StatisticsRetention{}
+	for _, r := range statistics.Retentions() {
+		out = append(out, StatisticsRetention(r))
 	}
-	return StatisticsDefaultRetention, 30 * 24 * time.Hour
+	return out
+}
+
+// StatisticsRetentionWindow resolves a retention setting; an empty or unknown
+// value reads as 30d.
+func StatisticsRetentionWindow(r StatisticsRetention) (string, time.Duration) {
+	return string(r.OrDefault()), r.Window()
 }
 
 type StatisticsTotals struct {
