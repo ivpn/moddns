@@ -1,30 +1,39 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import QueryLogsSection from '@/pages/settings/QueryLogsSection';
-import type { LogsSetting } from '@/pages/settings/QueryLogsSection';
+import type { ModelProfile } from '@/api/client';
 
-// Minimal shape for logsSettings passed to component
-// Index mapping in component:
-// 0 -> enable/disable logs
-// 1,2 -> other settings (we can stub)
-// 3 -> retention period
-const stubSettings: LogsSetting[] = [
-    { value: 'enable', options: [{ value: 'enable', label: 'Enable' }, { value: 'disable', label: 'Disable' }] },
-    { title: 'Setting A', description: 'Desc A', value: 'on', options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }] },
-    { title: 'Setting B', description: 'Desc B', value: 'on', options: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }] },
-    { value: '1d', options: [{ value: '1d', label: '1d' }, { value: '7d', label: '7d' }] }
-];
+vi.mock('@/api/api', () => ({
+    default: { Client: { profilesApi: { apiV1ProfilesIdPatch: vi.fn(), apiV1ProfilesIdGet: vi.fn() }, queryLogsApi: {} } },
+}));
+
+const profile = {
+    id: 'p1',
+    profile_id: 'p1',
+    account_id: 'a',
+    name: 'p1',
+    settings: {
+        logs: { enabled: true, log_domains: true, log_clients_ips: false, retention: '1d' },
+        statistics: { enabled: true },
+    },
+} as unknown as ModelProfile;
+
+describe('QueryLogsSection', () => {
+    test('renders the Data collection heading, intro and Download / Clear actions', () => {
+        // tableRef: statistics-behaviour #D1, #C1
+        render(<QueryLogsSection activeProfile={profile} />);
+        expect(screen.getByRole('heading', { name: 'DATA COLLECTION' })).toBeInTheDocument();
+        expect(screen.getByText("Choose what modDNS keeps about this profile's DNS queries. Off by default.")).toBeInTheDocument();
+        expect(screen.getByRole('radiogroup', { name: 'DATA COLLECTION' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Download query logs' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Clear query logs' })).toBeInTheDocument();
+    });
+});
 
 describe('QueryLogsSection retention info tooltip', () => {
     test('shows informational tooltip content when hovering info icon', async () => {
-        render(
-            <QueryLogsSection
-                logsSettings={stubSettings}
-                activeProfile={{ profile_id: 'p1' }}
-                handleLogsChange={() => { }}
-            />
-        );
+        render(<QueryLogsSection activeProfile={profile} />);
         const trigger = screen.getByTestId('retention-info-trigger');
         expect(trigger).toBeInTheDocument();
         fireEvent.mouseEnter(trigger);
@@ -34,14 +43,7 @@ describe('QueryLogsSection retention info tooltip', () => {
     });
 
     test('accessible name on trigger button', () => {
-        render(
-            <QueryLogsSection
-                logsSettings={stubSettings}
-                activeProfile={{ profile_id: 'p1' }}
-                handleLogsChange={() => { }}
-            />
-        );
-        const trigger = screen.getByRole('button', { name: /Retention period information/i });
-        expect(trigger).toBeInTheDocument();
+        render(<QueryLogsSection activeProfile={profile} />);
+        expect(screen.getByRole('button', { name: /Retention period information/i })).toBeInTheDocument();
     });
 });
