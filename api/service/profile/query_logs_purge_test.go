@@ -78,7 +78,7 @@ func TestUpdateProfile_LogsAndStatisticsOffPurgeEachOnce(t *testing.T) {
 	existing.Settings.Logs.Enabled = true
 	h.expectPersist(existing)
 	ql.On("DeleteQueryLogs", mock.Anything, "profile123").Return(nil).Once()
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
 		[]model.ProfileUpdate{logsToggle(false), statsToggle(false), logsToggle(false)})
