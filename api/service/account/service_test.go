@@ -278,7 +278,7 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.mockIDGenerator.On("Generate").Return("profile123", nil)
 				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return([]*model.Blocklist{{Name: "Default Blocklist", Default: true}}, nil)
 				suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
-				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
+				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(nil)
 				suite.mockSubscriptionRepo.On("Create", context.Background(), mock.AnythingOfType("model.Subscription")).Return(nil)
 				suite.mockAccountRepo.On("CreateAccount", context.Background(), email, password, mock.AnythingOfType("string"), "profile123").Return(&model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}, nil)
 				// CompleteRegistration mocks

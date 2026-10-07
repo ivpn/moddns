@@ -54,7 +54,7 @@ func TestCreateOrUpdateProfileSettings_WritesCustomRulesInAddCustomRulesLayout(t
 	settings := settingsWithRules("a.example", "b.example")
 
 	got, gotClient := newTestRedis(t)
-	require.NoError(t, got.CreateOrUpdateProfileSettings(ctx, settings, false))
+	require.NoError(t, got.CreateOrUpdateProfileSettings(ctx, settings))
 
 	want, wantClient := newTestRedis(t)
 	require.NoError(t, want.AddCustomRules(ctx, "p1", settings.CustomRules))
@@ -71,11 +71,11 @@ func TestCreateOrUpdateProfileSettings_ReplacesCustomRules(t *testing.T) {
 	ctx := context.Background()
 	c, client := newTestRedis(t)
 	first := settingsWithRules("keep.example", "drop.example")
-	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, first, false))
+	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, first))
 
 	second := settingsWithRules()
 	second.CustomRules = []*model.CustomRule{first.CustomRules[0], {ID: primitive.NewObjectID(), Action: model.ACTION_ALLOW, Value: "new.example", Syntax: model.SYNTAX_FQDN}}
-	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, second, false))
+	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, second))
 
 	members, hashes := dumpRules(t, ctx, client)
 	require.ElementsMatch(t, []string{
@@ -92,12 +92,12 @@ func TestCreateOrUpdateProfileSettings_ReplacesCustomRules(t *testing.T) {
 func TestCreateOrUpdateProfileSettings_NoCustomRules(t *testing.T) {
 	ctx := context.Background()
 	c, client := newTestRedis(t)
-	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, settingsWithRules("x.example"), false))
+	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, settingsWithRules("x.example")))
 
 	for _, rules := range [][]*model.CustomRule{nil, {}} {
 		s := settingsWithRules()
 		s.CustomRules = rules
-		require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, s, false))
+		require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, s))
 		members, hashes := dumpRules(t, ctx, client)
 		require.Empty(t, members)
 		require.Empty(t, hashes)
@@ -120,7 +120,7 @@ func TestCreateOrUpdateProfileSettings_NoCustomRules(t *testing.T) {
 func TestCreateOrUpdateProfileSettings_ThenAddCustomRulesKeepsThem(t *testing.T) {
 	ctx := context.Background()
 	c, client := newTestRedis(t)
-	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, settingsWithRules(), false))
+	require.NoError(t, c.CreateOrUpdateProfileSettings(ctx, settingsWithRules()))
 	rules := settingsWithRules("imported.example").CustomRules
 	require.NoError(t, c.AddCustomRules(ctx, "p1", rules))
 

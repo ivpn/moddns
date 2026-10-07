@@ -236,7 +236,7 @@ func TestExport_Import_Export_RoundTripEquality(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 	imp.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	imp.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-rt-id",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
 			capturedRules = rules
