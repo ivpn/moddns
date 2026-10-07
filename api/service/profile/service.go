@@ -503,9 +503,10 @@ func (p *ProfileService) applyPatchOperations(ctx context.Context, profile *mode
 }
 
 const (
-	pathStatisticsEnabled = "/settings/statistics/enabled"
-	pathLogsEnabled       = "/settings/logs/enabled"
-	pathDefaultRule       = "/settings/privacy/default_rule"
+	pathStatisticsEnabled   = "/settings/statistics/enabled"
+	pathStatisticsRetention = "/settings/statistics/retention"
+	pathLogsEnabled         = "/settings/logs/enabled"
+	pathDefaultRule         = "/settings/privacy/default_rule"
 )
 
 // patchField maps a PATCH path to its stored field and, when the proxy reads it, its
@@ -520,6 +521,7 @@ type patchField struct {
 var patchFields = map[string]patchField{
 	"/name":                                           {field: "name", value: func(p *model.Profile) any { return p.Name }},
 	pathStatisticsEnabled:                             {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
+	pathStatisticsRetention:                           {"settings.statistics.retention", "statistics", "retention", func(p *model.Profile) any { return p.Settings.Statistics.Retention }},
 	pathLogsEnabled:                                   {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
 	"/settings/logs/log_clients_ips":                  {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
 	"/settings/logs/log_domains":                      {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
@@ -598,6 +600,8 @@ func (p *ProfileService) handleStatisticsSettingsUpdate(profile *model.Profile, 
 	switch updatePath { // nolint
 	case "/settings/statistics/enabled":
 		return p.updateStatisticsEnabled(profile, update)
+	case pathStatisticsRetention:
+		return p.updateStatisticsRetention(profile, update)
 	}
 
 	return nil
@@ -611,6 +615,22 @@ func (p *ProfileService) updateStatisticsEnabled(profile *model.Profile, update 
 			return err
 		}
 		profile.Settings.Statistics.Enabled = enabled
+	}
+	return nil
+}
+
+func (p *ProfileService) updateStatisticsRetention(profile *model.Profile, update model.ProfileUpdate) error {
+	switch update.Operation { // nolint
+	case model.UpdateOperationReplace:
+		value, err := cast.ToStringE(update.Value)
+		if err != nil {
+			return ErrStatisticsRetentionInvalid
+		}
+		retention := model.StatisticsRetention(value)
+		if !retention.Valid() {
+			return ErrStatisticsRetentionInvalid
+		}
+		profile.Settings.Statistics.Retention = retention
 	}
 	return nil
 }
