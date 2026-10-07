@@ -23,7 +23,7 @@ func TestCreateOrUpdateProfileSettings_StatisticsEnabledAtNotWritten(t *testing.
 	at := time.Now()
 	settings.Statistics.EnabledAt = &at
 
-	require.NoError(t, NewRedisCacheFromClient(client).CreateOrUpdateProfileSettings(context.Background(), settings, false))
+	require.NoError(t, NewRedisCacheFromClient(client).CreateOrUpdateProfileSettings(context.Background(), settings))
 
 	fields := mr.HGet("settings:profile123:statistics", "enabled")
 	require.Equal(t, "1", fields)
@@ -45,7 +45,7 @@ func TestStatisticsHashEncoding(t *testing.T) {
 		settings := model.NewSettings()
 		settings.ProfileId = "profile123"
 		settings.Statistics.Enabled = tc.enabled
-		require.NoError(t, NewRedisCacheFromClient(client).CreateOrUpdateProfileSettings(context.Background(), settings, false))
+		require.NoError(t, NewRedisCacheFromClient(client).CreateOrUpdateProfileSettings(context.Background(), settings))
 
 		all, err := client.HGetAll(context.Background(), "settings:profile123:statistics").Result()
 		require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestDeleteProfileSettings_LeavesNoKeys(t *testing.T) {
 	settings.ProfileId = "profile123"
 	settings.Statistics.Enabled = true
 	settings.Security.RebindingProtection.Enabled = true
-	require.NoError(t, c.CreateOrUpdateProfileSettings(context.Background(), settings, false))
+	require.NoError(t, c.CreateOrUpdateProfileSettings(context.Background(), settings))
 	require.NotEmpty(t, mr.Keys())
 
 	require.NoError(t, c.DeleteProfileSettings(context.Background(), "profile123"))

@@ -374,16 +374,16 @@ func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) RunAndReturn(r
 }
 
 // CreateOrUpdateProfileSettings provides a mock function for the type Cachecache
-func (_mock *Cachecache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
-	ret := _mock.Called(ctx, settings, rollback)
+func (_mock *Cachecache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings) error {
+	ret := _mock.Called(ctx, settings)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrUpdateProfileSettings")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.ProfileSettings, bool) error); ok {
-		r0 = returnFunc(ctx, settings, rollback)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.ProfileSettings) error); ok {
+		r0 = returnFunc(ctx, settings)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -398,12 +398,11 @@ type Cachecache_CreateOrUpdateProfileSettings_Call struct {
 // CreateOrUpdateProfileSettings is a helper method to define mock.On call
 //   - ctx context.Context
 //   - settings *model.ProfileSettings
-//   - rollback bool
-func (_e *Cachecache_Expecter) CreateOrUpdateProfileSettings(ctx interface{}, settings interface{}, rollback interface{}) *Cachecache_CreateOrUpdateProfileSettings_Call {
-	return &Cachecache_CreateOrUpdateProfileSettings_Call{Call: _e.mock.On("CreateOrUpdateProfileSettings", ctx, settings, rollback)}
+func (_e *Cachecache_Expecter) CreateOrUpdateProfileSettings(ctx interface{}, settings interface{}) *Cachecache_CreateOrUpdateProfileSettings_Call {
+	return &Cachecache_CreateOrUpdateProfileSettings_Call{Call: _e.mock.On("CreateOrUpdateProfileSettings", ctx, settings)}
 }
 
-func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx context.Context, settings *model.ProfileSettings, rollback bool)) *Cachecache_CreateOrUpdateProfileSettings_Call {
+func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx context.Context, settings *model.ProfileSettings)) *Cachecache_CreateOrUpdateProfileSettings_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -413,14 +412,9 @@ func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(*model.ProfileSettings)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -431,7 +425,7 @@ func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Return(err error) *Cach
 	return _c
 }
 
-func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) RunAndReturn(run func(ctx context.Context, settings *model.ProfileSettings, rollback bool) error) *Cachecache_CreateOrUpdateProfileSettings_Call {
+func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) RunAndReturn(run func(ctx context.Context, settings *model.ProfileSettings) error) *Cachecache_CreateOrUpdateProfileSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }

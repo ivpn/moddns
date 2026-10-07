@@ -240,7 +240,7 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
 
 					// Mock cache call for saving profile settings
-					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
+					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(nil)
 				}
 
 				if tt.repoGetError == nil && tt.idGenError == nil {

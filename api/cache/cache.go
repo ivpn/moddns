@@ -23,7 +23,7 @@ type SettingsField struct {
 type Cache interface {
 	CacheBase
 	AddBlocklist(ctx context.Context, blocklistId string, data []byte) error
-	CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error
+	CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings) error
 	SetProfileSettingsFields(ctx context.Context, profileId string, fields []SettingsField) error
 	AddCustomRules(ctx context.Context, profileId string, rules []*model.CustomRule) error
 	RemoveCustomRule(ctx context.Context, profileId, customRuleId string) error

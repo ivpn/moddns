@@ -310,7 +310,7 @@ func (p *ProfileService) importOneProfile(
 	}
 
 	// Populate cache for the new profile.
-	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings, true); err != nil {
+	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings); err != nil {
 		return "", nil, err
 	}
 

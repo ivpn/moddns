@@ -29,7 +29,7 @@ func TestSetProfileSettingsFields_MatchesFullWrite(t *testing.T) {
 	}
 
 	got := newClient()
-	require.NoError(t, NewRedisCacheFromClient(got).CreateOrUpdateProfileSettings(ctx, base(), false))
+	require.NoError(t, NewRedisCacheFromClient(got).CreateOrUpdateProfileSettings(ctx, base()))
 	require.NoError(t, NewRedisCacheFromClient(got).SetProfileSettingsFields(ctx, "p1", []SettingsField{
 		{Hash: "statistics", Field: "enabled", Value: true},
 		{Hash: "logs", Field: "enabled", Value: true},
@@ -55,7 +55,7 @@ func TestSetProfileSettingsFields_MatchesFullWrite(t *testing.T) {
 	wantSettings.Security.RebindingProtection.Enabled = true
 	wantSettings.Advanced.Recursor = model.RECURSOR_SDNS
 	want := newClient()
-	require.NoError(t, NewRedisCacheFromClient(want).CreateOrUpdateProfileSettings(ctx, wantSettings, false))
+	require.NoError(t, NewRedisCacheFromClient(want).CreateOrUpdateProfileSettings(ctx, wantSettings))
 
 	for _, h := range []string{"logs", "statistics", "privacy", "security:dnssec", "security:rebinding_protection", "advanced"} {
 		key := "settings:p1:" + h
