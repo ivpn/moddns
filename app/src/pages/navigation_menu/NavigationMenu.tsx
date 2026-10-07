@@ -3,6 +3,7 @@ import {
     GlobeIcon,
     ListIcon,
     SettingsIcon,
+    ChartColumn,
     ShieldIcon,
     FilterX,
     UserIcon,
@@ -99,6 +100,11 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             icon: <FilterX className="w-5 h-5" />,
             label: "Custom rules",
             route: "/custom-rules",
+        },
+        {
+            icon: <ChartColumn className="w-5 h-5" />,
+            label: "Statistics",
+            route: "/statistics",
         },
         {
             icon: <ListIcon className="w-5 h-5" />,
