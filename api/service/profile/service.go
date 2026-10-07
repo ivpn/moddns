@@ -396,6 +396,12 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 	if len(redisFields) > 0 {
 		cacheErr = p.Cache.SetProfileSettingsFields(ctx, profileId, redisFields)
 	}
+	// The proxy reads custom rules only from Redis (api-endpoint-behaviour.md G24).
+	if appended := appendedCustomRules(after, upd.AppendCustomRules); len(appended) > 0 {
+		if err := p.Cache.AddCustomRules(ctx, profileId, appended); err != nil && cacheErr == nil {
+			cacheErr = err
+		}
+	}
 
 	// The change is persisted in Mongo either way, so its side effects must run.
 	beforeSnap := snapshotSettings(before.Settings)
@@ -404,6 +410,20 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return nil, cacheErr
 	}
 	return after, nil
+}
+
+// appendedCustomRules returns the candidates the update actually stored, as re-read.
+func appendedCustomRules(after *model.Profile, candidates []*model.CustomRule) []*model.CustomRule {
+	if len(candidates) == 0 || after == nil || after.Settings == nil {
+		return nil
+	}
+	var out []*model.CustomRule
+	for _, rule := range after.Settings.CustomRules {
+		if slices.ContainsFunc(candidates, func(c *model.CustomRule) bool { return c.ID == rule.ID }) {
+			out = append(out, rule)
+		}
+	}
+	return out
 }
 
 // applyPatchOperations validates and applies every operation to profile in memory and
