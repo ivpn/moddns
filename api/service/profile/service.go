@@ -311,6 +311,19 @@ func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId
 	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan, settings)
 }
 
+// DeleteStatisticsHistory deletes all of the profile's statistics and keeps statistics as
+// they are; on an enabled profile it first stamps the keep-since instant the purge and
+// reads honour (api-endpoint-behaviour.md J52, J53).
+func (p *ProfileService) DeleteStatisticsHistory(ctx context.Context, accountId, profileId string) error {
+	if _, err := p.validateProfileIdAffiliation(ctx, accountId, profileId); err != nil {
+		return err
+	}
+	if _, err := p.ProfileRepository.SetStatisticsHistoryDeletedAt(ctx, profileId, p.clock()); err != nil {
+		return err
+	}
+	return p.StatisticsService.PurgeProfile(ctx, profileId)
+}
+
 // validateProfileIdAffiliation checks whether profile is within the current account profiles list
 func (p *ProfileService) validateProfileIdAffiliation(ctx context.Context, accountId, profileId string) (*model.Profile, error) {
 	profile, err := p.ProfileRepository.GetProfileById(ctx, profileId)

@@ -154,16 +154,18 @@ type StatisticsAggregate struct {
 
 // StatisticsResponse is the body of GET /profiles/{id}/statistics.
 type StatisticsResponse struct {
-	Enabled       bool                `json:"enabled"`
-	EnabledAt     *time.Time          `json:"enabled_at"`
-	Retention     string              `json:"retention"`
-	Timespan      string              `json:"timespan"`
-	From          time.Time           `json:"from"`
-	To            time.Time           `json:"to"`
-	BucketSeconds int                 `json:"bucket_seconds"`
-	Totals        StatisticsTotals    `json:"totals"`
-	Series        []StatisticsPoint   `json:"series"`
-	Reasons       StatisticsReasons   `json:"reasons"`
-	Protocols     StatisticsProtocols `json:"protocols"`
-	Devices       []StatisticsDevice  `json:"devices"`
+	Enabled   bool       `json:"enabled"`
+	EnabledAt *time.Time `json:"enabled_at"`
+	// Last "Delete statistics history" (J53); null while off or never deleted.
+	HistoryDeletedAt *time.Time          `json:"history_deleted_at"`
+	Retention        string              `json:"retention"`
+	Timespan         string              `json:"timespan"`
+	From             time.Time           `json:"from"`
+	To               time.Time           `json:"to"`
+	BucketSeconds    int                 `json:"bucket_seconds"`
+	Totals           StatisticsTotals    `json:"totals"`
+	Series           []StatisticsPoint   `json:"series"`
+	Reasons          StatisticsReasons   `json:"reasons"`
+	Protocols        StatisticsProtocols `json:"protocols"`
+	Devices          []StatisticsDevice  `json:"devices"`
 }

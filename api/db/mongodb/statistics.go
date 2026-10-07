@@ -242,6 +242,27 @@ func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, prof
 	return errors.Join(errs...)
 }
 
+// DeleteProfileStatisticsThrough deletes, per collection, documents with bucket_start
+// < ceil_W(at): the bucket containing at also holds counts from before at.
+func (r *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) error {
+	var errs []error
+	for i, coll := range r.colls {
+		width := statisticsBucketWidth[statisticsCollectionNames[i]]
+		cutoff := at.UTC().Truncate(width)
+		if cutoff.Before(at.UTC()) {
+			cutoff = cutoff.Add(width)
+		}
+		filter := bson.D{
+			primitive.E{Key: "meta.profile_id", Value: profileId},
+			primitive.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$lt", Value: cutoff}}},
+		}
+		if _, err := coll.DeleteMany(ctx, filter); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // dailyCollectionNames are the day-tier collections by retention, shortest first.
 var dailyCollectionNames = []struct {
 	retention model.StatisticsRetention

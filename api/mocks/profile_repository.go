@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
@@ -937,6 +938,78 @@ func (_c *ProfileRepository_SetCustomRuleGroups_Call) Return(err error) *Profile
 }
 
 func (_c *ProfileRepository_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx context.Context, profileId string, groups model.CustomRuleGroups) error) *ProfileRepository_SetCustomRuleGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetStatisticsHistoryDeletedAt provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error) {
+	ret := _mock.Called(ctx, profileId, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetStatisticsHistoryDeletedAt")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (bool, error)); ok {
+		return returnFunc(ctx, profileId, at)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) bool); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileRepository_SetStatisticsHistoryDeletedAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetStatisticsHistoryDeletedAt'
+type ProfileRepository_SetStatisticsHistoryDeletedAt_Call struct {
+	*mock.Call
+}
+
+// SetStatisticsHistoryDeletedAt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - at time.Time
+func (_e *ProfileRepository_Expecter) SetStatisticsHistoryDeletedAt(ctx interface{}, profileId interface{}, at interface{}) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
+	return &ProfileRepository_SetStatisticsHistoryDeletedAt_Call{Call: _e.mock.On("SetStatisticsHistoryDeletedAt", ctx, profileId, at)}
+}
+
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) Return(b bool, err error) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (bool, error)) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Return(run)
 	return _c
 }

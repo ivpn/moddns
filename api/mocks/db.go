@@ -853,6 +853,69 @@ func (_c *Db_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// DeleteProfileStatisticsThrough provides a mock function for the type Db
+func (_mock *Db) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) error {
+	ret := _mock.Called(ctx, profileId, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatisticsThrough")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) error); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Db_DeleteProfileStatisticsThrough_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatisticsThrough'
+type Db_DeleteProfileStatisticsThrough_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatisticsThrough is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - at time.Time
+func (_e *Db_Expecter) DeleteProfileStatisticsThrough(ctx interface{}, profileId interface{}, at interface{}) *Db_DeleteProfileStatisticsThrough_Call {
+	return &Db_DeleteProfileStatisticsThrough_Call{Call: _e.mock.On("DeleteProfileStatisticsThrough", ctx, profileId, at)}
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *Db_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) Return(err error) *Db_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) error) *Db_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteQueryLogs provides a mock function for the type Db
 func (_mock *Db) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	ret := _mock.Called(ctx, profileId)
@@ -4203,6 +4266,78 @@ func (_c *Db_SetNotified_Call) Return(err error) *Db_SetNotified_Call {
 }
 
 func (_c *Db_SetNotified_Call) RunAndReturn(run func(ctx context.Context, subscriptionIDs []uuid.UUID, value bool) error) *Db_SetNotified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetStatisticsHistoryDeletedAt provides a mock function for the type Db
+func (_mock *Db) SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error) {
+	ret := _mock.Called(ctx, profileId, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetStatisticsHistoryDeletedAt")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (bool, error)); ok {
+		return returnFunc(ctx, profileId, at)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) bool); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_SetStatisticsHistoryDeletedAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetStatisticsHistoryDeletedAt'
+type Db_SetStatisticsHistoryDeletedAt_Call struct {
+	*mock.Call
+}
+
+// SetStatisticsHistoryDeletedAt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - at time.Time
+func (_e *Db_Expecter) SetStatisticsHistoryDeletedAt(ctx interface{}, profileId interface{}, at interface{}) *Db_SetStatisticsHistoryDeletedAt_Call {
+	return &Db_SetStatisticsHistoryDeletedAt_Call{Call: _e.mock.On("SetStatisticsHistoryDeletedAt", ctx, profileId, at)}
+}
+
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *Db_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) Return(b bool, err error) *Db_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (bool, error)) *Db_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Return(run)
 	return _c
 }

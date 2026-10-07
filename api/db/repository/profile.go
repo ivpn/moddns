@@ -41,6 +41,9 @@ type ProfileRepository interface {
 	// primary. Profiles that do not exist are absent from the result; a profile with no statistics
 	// block maps to nil.
 	GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)
+	// SetStatisticsHistoryDeletedAt stamps settings.statistics.history_deleted_at when statistics
+	// are on and reports whether they were (api-endpoint-behaviour.md J52).
+	SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error)
 	// GetProfilesLogsEnabled reads only settings.logs.enabled of the given profiles from the
 	// primary. Profiles that do not exist are absent; a missing logs block maps to false.
 	GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error)

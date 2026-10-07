@@ -45,6 +45,7 @@ var (
 	ErrFailedToGetQueryLogTop     = errors.New("failed to get profile query log top domains")
 	ErrFailedToGetQueryLogClients = errors.New("failed to get profile query log clients")
 	ErrFailedToGetStatistics      = errors.New("failed to get profile statistics")
+	ErrFailedToDeleteStatistics   = errors.New("failed to delete profile statistics")
 	ErrFailedToDeleteQueryLogs    = errors.New("failed to delete profile query logs")
 	ErrFailedToGetAccount         = errors.New("failed to get account data")
 	ErrFailedToVerifyEmail        = errors.New("failed to verify email")

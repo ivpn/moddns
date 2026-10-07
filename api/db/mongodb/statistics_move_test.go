@@ -110,3 +110,35 @@ func (s *StatisticsRepositorySuite) TestMoveProfileDailyStatistics_BatchesAndNoo
 	s.Require().NoError(err)
 	s.Zero(moved, "nothing is longer than 1y")
 }
+
+// specRef: api-endpoint-behaviour.md J53 — a history delete is ceiled per tier: the bucket that
+// contains the instant goes too; an instant on a bucket start keeps that bucket.
+func (s *StatisticsRepositorySuite) TestDeleteProfileStatisticsThrough_CeilsPerTier() {
+	d := func(day, h, m int) time.Time { return time.Date(2026, 9, day, h, m, 0, 0, time.UTC) }
+	at := d(29, 14, 37)
+	for _, start := range []time.Time{d(29, 14, 15), d(29, 14, 30), d(29, 14, 45)} {
+		s.insertFlat(statisticsColl15min, "p1", "laptop", start, 1)
+	}
+	for _, start := range []time.Time{d(29, 13, 0), d(29, 14, 0), d(29, 15, 0)} {
+		s.insertFlat(statisticsColl1h, "p1", "laptop", start, 1)
+	}
+	for _, c := range []string{statisticsColl1d30d, statisticsColl1d90d, statisticsColl1d1y} {
+		for _, start := range []time.Time{d(28, 0, 0), d(29, 0, 0), d(30, 0, 0)} {
+			s.insertFlat(c, "p1", "laptop", start, 1)
+		}
+	}
+	s.insertFlat(statisticsColl15min, "p2", "laptop", d(29, 14, 15), 1)
+
+	s.Require().NoError(s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", at))
+
+	s.Equal([]time.Time{d(29, 14, 45)}, s.starts(statisticsColl15min, "p1"))
+	s.Equal([]time.Time{d(29, 15, 0)}, s.starts(statisticsColl1h, "p1"))
+	for _, c := range []string{statisticsColl1d30d, statisticsColl1d90d, statisticsColl1d1y} {
+		s.Equal([]time.Time{d(30, 0, 0)}, s.starts(c, "p1"), c)
+	}
+	s.EqualValues(1, s.count(statisticsColl15min, "p2"))
+
+	boundary := d(30, 0, 0)
+	s.Require().NoError(s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", boundary))
+	s.Equal([]time.Time{d(30, 0, 0)}, s.starts(statisticsColl1d30d, "p1"), "a bucket starting exactly at the instant is kept")
+}
