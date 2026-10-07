@@ -1203,6 +1203,7 @@ export type ModelProfileUpdateOperationEnum = typeof ModelProfileUpdateOperation
 export const ModelProfileUpdatePathEnum = {
     Name: '/name',
     SettingsStatisticsEnabled: '/settings/statistics/enabled',
+    SettingsStatisticsRetention: '/settings/statistics/retention',
     SettingsLogsEnabled: '/settings/logs/enabled',
     SettingsLogsLogClientsIps: '/settings/logs/log_clients_ips',
     SettingsLogsLogDomains: '/settings/logs/log_domains',
@@ -1608,6 +1609,12 @@ export interface ModelStatisticsResponse {
      */
     'from'?: string;
     /**
+     * Last \"Delete statistics history\" (J53); null while off or never deleted.
+     * @type {string}
+     * @memberof ModelStatisticsResponse
+     */
+    'history_deleted_at'?: string;
+    /**
      * 
      * @type {ModelStatisticsProtocols}
      * @memberof ModelStatisticsResponse
@@ -1653,6 +1660,21 @@ export interface ModelStatisticsResponse {
 /**
  * 
  * @export
+ * @enum {string}
+ */
+
+export const ModelStatisticsRetention = {
+    StatisticsRetention30d: '30d',
+    StatisticsRetention90d: '90d',
+    StatisticsRetention1y: '1y'
+} as const;
+
+export type ModelStatisticsRetention = typeof ModelStatisticsRetention[keyof typeof ModelStatisticsRetention];
+
+
+/**
+ * 
+ * @export
  * @interface ModelStatisticsSettings
  */
 export interface ModelStatisticsSettings {
@@ -1668,7 +1690,21 @@ export interface ModelStatisticsSettings {
      * @memberof ModelStatisticsSettings
      */
     'enabled_at'?: string;
+    /**
+     * Last \"Delete statistics history\" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).
+     * @type {string}
+     * @memberof ModelStatisticsSettings
+     */
+    'history_deleted_at'?: string;
+    /**
+     * No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).
+     * @type {ModelStatisticsRetention}
+     * @memberof ModelStatisticsSettings
+     */
+    'retention'?: ModelStatisticsRetention;
 }
+
+
 /**
  * 
  * @export
@@ -7560,6 +7596,40 @@ export class SessionsApi extends BaseAPI {
 export const StatisticsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
+         * Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.
+         * @summary Delete a profile\'s statistics history
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdStatisticsDelete: async (id: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'id' is not null or undefined
+            assertParamExists('apiV1ProfilesIdStatisticsDelete', 'id', id)
+            const localVarPath = `/api/v1/profiles/{id}/statistics`
+                .replace(`{${"id"}}`, encodeURIComponent(String(id)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
@@ -7609,6 +7679,19 @@ export const StatisticsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = StatisticsApiAxiosParamCreator(configuration)
     return {
         /**
+         * Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.
+         * @summary Delete a profile\'s statistics history
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1ProfilesIdStatisticsDelete(id: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1ProfilesIdStatisticsDelete(id, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StatisticsApi.apiV1ProfilesIdStatisticsDelete']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
@@ -7633,6 +7716,16 @@ export const StatisticsApiFactory = function (configuration?: Configuration, bas
     const localVarFp = StatisticsApiFp(configuration)
     return {
         /**
+         * Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.
+         * @summary Delete a profile\'s statistics history
+         * @param {string} id Profile ID
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1ProfilesIdStatisticsDelete(id: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1ProfilesIdStatisticsDelete(id, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
          * @summary Get statistics data for a profile
          * @param {string} id Profile ID
@@ -7653,6 +7746,18 @@ export const StatisticsApiFactory = function (configuration?: Configuration, bas
  * @extends {BaseAPI}
  */
 export class StatisticsApi extends BaseAPI {
+    /**
+     * Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.
+     * @summary Delete a profile\'s statistics history
+     * @param {string} id Profile ID
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StatisticsApi
+     */
+    public apiV1ProfilesIdStatisticsDelete(id: string, options?: RawAxiosRequestConfig) {
+        return StatisticsApiFp(this.configuration).apiV1ProfilesIdStatisticsDelete(id, options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * Get the profile\'s DNS statistics for a timespan: totals, a zero-filled time series, blocking reasons, transport protocols and per-device counts. Always answers 200 for an owned profile; `enabled` is false (with empty data) when statistics are off.
      * @summary Get statistics data for a profile

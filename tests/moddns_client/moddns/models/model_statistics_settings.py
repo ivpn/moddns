@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.model_statistics_retention import ModelStatisticsRetention
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,7 +29,9 @@ class ModelStatisticsSettings(BaseModel):
     """ # noqa: E501
     enabled: StrictBool
     enabled_at: Optional[StrictStr] = Field(default=None, description="When statistics were last turned on (UTC). Absent while statistics are off.")
-    __properties: ClassVar[List[str]] = ["enabled", "enabled_at"]
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Last \"Delete statistics history\" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).")
+    retention: Optional[ModelStatisticsRetention] = Field(default=None, description="No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).")
+    __properties: ClassVar[List[str]] = ["enabled", "enabled_at", "history_deleted_at", "retention"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,7 +85,9 @@ class ModelStatisticsSettings(BaseModel):
 
         _obj = cls.model_validate({
             "enabled": obj.get("enabled"),
-            "enabled_at": obj.get("enabled_at")
+            "enabled_at": obj.get("enabled_at"),
+            "history_deleted_at": obj.get("history_deleted_at"),
+            "retention": obj.get("retention")
         })
         return _obj
 
