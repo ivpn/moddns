@@ -16,6 +16,7 @@ import (
 	"github.com/ivpn/dns/api/db/repository"
 	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/api/service/profile"
 )
 
 func defaultsProfile() *model.Profile {
@@ -246,4 +247,41 @@ func TestUpdateProfile_DefaultRuleBlockRedisFailure(t *testing.T) {
 	})
 	require.Error(t, err)
 	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
+}
+
+// specRef: api-endpoint-behaviour.md G26, J48 — the retention path writes Mongo and the Redis statistics hash.
+func TestUpdateProfile_StatisticsRetention(t *testing.T) {
+	for _, value := range []string{"30d", "90d", "1y"} {
+		t.Run(value, func(t *testing.T) {
+			h := newTransitionsHarness(t)
+			h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(defaultsProfile(), nil)
+			h.profiles.On("UpdateFields", mock.Anything, "profile123", mock.Anything).Return(defaultsProfile(), defaultsProfile(), nil)
+			h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", []cache.SettingsField{
+				{Hash: "statistics", Field: "retention", Value: model.StatisticsRetention(value)},
+			}).Return(nil).Once()
+
+			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+				[]model.ProfileUpdate{replaceOp("/settings/statistics/retention", value)})
+			require.NoError(t, err)
+			require.Equal(t, []repository.FieldSet{{Field: "settings.statistics.retention", Value: model.StatisticsRetention(value)}}, h.sentUpdate(t).Set)
+		})
+	}
+}
+
+// specRef: api-endpoint-behaviour.md G26, G20 — an unknown retention fails the PATCH before any write.
+func TestUpdateProfile_StatisticsRetentionInvalid(t *testing.T) {
+	for _, value := range []any{"1m", "", "365d", 30} {
+		h := newTransitionsHarness(t)
+		h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(defaultsProfile(), nil)
+
+		_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
+			[]model.ProfileUpdate{replaceOp("/settings/statistics/retention", value)})
+		require.ErrorIs(t, err, profile.ErrStatisticsRetentionInvalid, "%v", value)
+		h.profiles.AssertNotCalled(t, "UpdateFields", mock.Anything, mock.Anything, mock.Anything)
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J48 — new profiles start at 30d.
+func TestNewSettings_StatisticsRetentionDefault(t *testing.T) {
+	require.Equal(t, model.StatisticsRetention30d, model.NewSettings().Statistics.Retention)
 }

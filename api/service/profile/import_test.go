@@ -1263,7 +1263,7 @@ func TestImport_LongName_TruncatedNotRejected(t *testing.T) {
 	assert.True(t, found, "expected truncation warning; got: %v", result.Warnings)
 }
 
-// specRef: F19 — statistics arriving enabled get enabled_at = import time; disabled ones get none.
+// specRef: F19, F20 — statistics arriving enabled get enabled_at = import time; disabled ones get none; retention starts at 30d.
 func TestImport_StatisticsEnabledAt(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -1296,6 +1296,7 @@ func TestImport_StatisticsEnabledAt(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, captured)
 			assert.Equal(t, tc.enabled, captured.Statistics.Enabled)
+			assert.Equal(t, model.StatisticsRetention30d, captured.Statistics.Retention, "F20: imports start at 30d")
 			if tc.enabled {
 				require.NotNil(t, captured.Statistics.EnabledAt)
 				assert.False(t, captured.Statistics.EnabledAt.Before(start.Add(-time.Second)))

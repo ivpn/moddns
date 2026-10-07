@@ -119,6 +119,37 @@ func TestGetProfileStatistics_TimespanBuckets(t *testing.T) {
 	}
 }
 
+// specRef: api-endpoint-behaviour.md J41, J48 — the read is clamped to the profile's retention; an empty or unknown value reads as 30d.
+func TestGetProfileStatistics_ClampsToProfileRetention(t *testing.T) {
+	for _, tc := range []struct {
+		retention model.StatisticsRetention
+		label     string
+		from      time.Time
+		points    int
+	}{
+		{"", "30d", utc(2026, 9, 5, 0, 0, 0), 31},
+		{"bogus", "30d", utc(2026, 9, 5, 0, 0, 0), 31},
+		{model.StatisticsRetention90d, "90d", utc(2026, 7, 7, 0, 0, 0), 91},
+		{model.StatisticsRetention1y, "1y", utc(2025, 10, 5, 0, 0, 0), 366},
+	} {
+		t.Run(tc.label+"/"+string(tc.retention), func(t *testing.T) {
+			settings := enabledSettings()
+			settings.Retention = tc.retention
+			repo := mocks.NewStatisticsRepository(t)
+			repo.On("GetProfileStatistics", mock.Anything, "p1", model.StatisticsTier1D,
+				mock.MatchedBy(func(from time.Time) bool { return from.Equal(tc.from) }),
+				mock.Anything, 24*time.Hour,
+			).Return(&model.StatisticsAggregate{}, nil).Once()
+
+			got, err := readService(t, repo, nil).GetProfileStatistics(context.Background(), "p1", model.StatisticsLastYear, settings)
+			require.NoError(t, err)
+			require.Equal(t, tc.label, got.Retention)
+			require.True(t, got.From.Equal(tc.from), "from=%s", got.From)
+			require.Len(t, got.Series, tc.points)
+		})
+	}
+}
+
 // specRef: api-endpoint-behaviour.md J40 — an unknown timespan is rejected before any query.
 func TestGetProfileStatistics_RejectsUnknownTimespan(t *testing.T) {
 	for _, ts := range []string{"", "LAST_1_HOUR", "LAST_12_HOURS", "LAST_3_YEARS", "bogus"} {
