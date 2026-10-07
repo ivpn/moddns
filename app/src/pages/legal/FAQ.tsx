@@ -579,7 +579,7 @@ export default function FAQ(): JSX.Element {
                             <br />
                             • <strong>Off</strong> — nothing is stored about this profile's queries.
                             <br />
-                            • <strong>Statistics</strong> — query counts per device, kept for 30 days. No domains and no IP addresses are stored.
+                            • <strong>Statistics</strong> — query counts per device, kept for 30 days by default; you can keep them for 90 days or 1 year on the Statistics page. No domains and no IP addresses are stored.
                             <br />
                             • <strong>Query logs</strong> — a record of each query (time, device, domain, result), kept for the retention period you choose, from 1 hour to 1 month. Client IP addresses are stored only if you turn that on. You can also keep statistics alongside query logs.
                             <br /><br />
@@ -589,7 +589,7 @@ export default function FAQ(): JSX.Element {
                 />
                 <FAQItem
                     question="What is the Statistics page?"
-                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days. The page also shows your most queried domains and clients if you have turned on query logs."
+                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days by default; you can keep them for 90 days or 1 year on the Statistics page. There you can also choose Delete statistics history to remove all counts and start again. The page also shows your most queried domains and clients if you have turned on query logs."
                 />
                 <FAQItem
                     question="Should I use Statistics or Query logs?"

@@ -13,7 +13,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/api/api', () => ({
     default: {
         Client: {
-            statisticsApi: { apiV1ProfilesIdStatisticsGet: vi.fn() },
+            statisticsApi: { apiV1ProfilesIdStatisticsGet: vi.fn(), apiV1ProfilesIdStatisticsDelete: vi.fn() },
             queryLogsApi: {
                 apiV1ProfilesIdLogsTopGet: vi.fn(),
                 apiV1ProfilesIdLogsClientsGet: vi.fn(),
@@ -30,6 +30,7 @@ const topGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet as unknown as M
 const clientsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet as unknown as Mock;
 const devicesGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet as unknown as Mock;
 const profileGet = api.Client.profilesApi.apiV1ProfilesIdGet as unknown as Mock;
+const statsDelete = api.Client.statisticsApi.apiV1ProfilesIdStatisticsDelete as unknown as Mock;
 
 type Cfg = 'OFF' | 'S' | 'SL' | 'SL-dom' | 'SL-ip' | 'L';
 
@@ -396,7 +397,9 @@ describe('Statistics page gate actions and limited access', () => {
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
         expect(await screen.findByLabelText(/^Total queries:/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on query logs' })).toBeDisabled();
-        expect(screen.getByText("Data collection can't be changed in limited access mode. You can still clear query logs.")).toBeVisible();
+        for (const note of screen.getAllByText("Data collection can't be changed in limited access mode. You can still clear query logs.")) {
+            expect(note).toBeVisible();
+        }
     });
 
     it('under limited access the hero control is disabled with the reason visible', async () => {
@@ -419,5 +422,61 @@ describe('Statistics page accessibility structure', () => {
             const h = screen.getByRole('heading', { name, level: 3 });
             expect(h.closest('section')).toHaveAttribute('aria-labelledby', h.id);
         }
+    });
+});
+
+describe('Statistics page retention', () => {
+    it('shows the Kept for control and menu whenever statistics are on', async () => {
+        // tableRef: statistics-behaviour #S1
+        mount(mk('S'));
+        expect(await screen.findByLabelText('Kept for')).toHaveValue('30d');
+        expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeInTheDocument();
+    });
+
+    it('hides it when statistics are off', async () => {
+        // tableRef: statistics-behaviour #S1
+        mount(mk('L'));
+        await screen.findByRole('heading', { name: 'Counts are off' });
+        expect(screen.queryByLabelText('Kept for')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'More statistics actions' })).not.toBeInTheDocument();
+    });
+
+    it('refetches statistics after the retention changes', async () => {
+        // tableRef: statistics-behaviour #S1
+        const user = userEvent.setup();
+        const updated = mk('S');
+        (updated.settings.statistics as unknown as { retention: string }).retention = '1y';
+        (api.Client.profilesApi.apiV1ProfilesIdPatch as unknown as Mock).mockResolvedValue({ status: 200, data: updated });
+        mount(mk('S'));
+        await user.selectOptions(await screen.findByLabelText('Kept for'), '1y');
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Keep for 1 year' }));
+        await waitFor(() => expect(statsGet).toHaveBeenCalledTimes(2));
+    });
+
+    it('counts since the later of enabled_at and history_deleted_at', async () => {
+        // tableRef: statistics-behaviour #P13
+        statsGet.mockResolvedValue({ data: { ...createStatsResponse(), enabled_at: '2026-09-14T09:12:00Z', history_deleted_at: '2026-10-05T10:00:00Z' } });
+        mount(mk('S'));
+        const line = await screen.findByTestId('stats-availability');
+        const fmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        expect(line).toHaveTextContent(`Statistics on since ${fmt.format(Date.parse('2026-10-05T10:00:00Z'))}`);
+    });
+
+    it('after Delete history shows the no-queries-yet card and moves focus to its heading', async () => {
+        // tableRef: statistics-behaviour #S3, #P5
+        const user = userEvent.setup();
+        mount(mk('S'));
+        await screen.findByLabelText(/^Total queries:/);
+        statsDelete.mockResolvedValue({ status: 204 });
+        profileGet.mockResolvedValue({ data: mk('S') });
+        statsGet.mockResolvedValue({
+            data: { ...createStatsResponse({ empty: true, points: 4, enabledAt: '2026-09-14T09:12:00Z' }), history_deleted_at: '2026-10-06T15:10:00Z' },
+        });
+        await user.click(screen.getByRole('button', { name: 'More statistics actions' }));
+        await user.click(await screen.findByRole('menuitem', { name: 'Delete statistics history' }));
+        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete history' }));
+        const heading = await screen.findByRole('heading', { name: 'No queries counted yet' });
+        expect(statsDelete).toHaveBeenCalledWith('p1');
+        await waitFor(() => expect(heading).toHaveFocus());
     });
 });

@@ -52,7 +52,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) =>
                         Choose what modDNS keeps about this profile's DNS queries. Off by default.
                     </p>
 
-                    <DataCollectionControl profile={activeProfile} labelledBy={headingId} />
+                    <DataCollectionControl profile={activeProfile} labelledBy={headingId} retentionLine />
 
                     {/* Download (GET) and Clear (DELETE on logs) are allowed in limited access at API level */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
