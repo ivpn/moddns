@@ -61,21 +61,49 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
     const saved = profileStatsRetention(profile);
     const [pending, setPending] = useState<Pending | null>(null);
     const [busy, setBusy] = useState(false);
+    // The value the user picked while the stale-tab check is in flight.
+    const [candidate, setCandidate] = useState<StatsRetention | null>(null);
+    const [stale, setStale] = useState(false);
     const selectRef = useRef<HTMLSelectElement>(null);
     const menuRef = useRef<HTMLButtonElement>(null);
     const noteId = `${uid}-la`;
 
-    const shown = pending && pending.kind !== "delete" ? pending.to : saved;
+    const shown = pending && pending.kind !== "delete" ? pending.to : (candidate ?? saved);
+    const savedEnabled = !!profile.settings?.statistics?.enabled;
 
     const writeProfile = (p: ModelProfile) => {
         setActiveProfile(p);
         setProfiles(useAppStore.getState().profiles.map(x => (x.profile_id === p.profile_id ? p : x)));
     };
 
+    // Before any confirmation, re-read the profile: a stale tab must not confirm a change
+    // against a state the server no longer holds.
+    const guard = async (next: Pending) => {
+        setStale(false);
+        setBusy(true);
+        let fresh: ModelProfile | null = null;
+        try {
+            fresh = (await api.Client.profilesApi.apiV1ProfilesIdGet(profile.profile_id)).data;
+        } catch {
+            // A failed re-read must not block the change.
+        }
+        setBusy(false);
+        setCandidate(null);
+        if (fresh && (profileStatsRetention(fresh) !== saved || !!fresh.settings?.statistics?.enabled !== savedEnabled)) {
+            writeProfile(fresh);
+            setStale(true);
+            requestAnimationFrame(() => selectRef.current?.focus());
+            return;
+        }
+        setPending(next);
+    };
+
     const onSelect = (value: string) => {
         const to = value as StatsRetention;
+        setStale(false);
         if (to === saved) return;
-        setPending({ kind: days(to) > days(saved) ? "raise" : "lower", to });
+        setCandidate(to);
+        void guard({ kind: days(to) > days(saved) ? "raise" : "lower", to });
     };
 
     const close = (restoreFocus: "select" | "menu") => {
@@ -170,7 +198,7 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem
                             variant="destructive"
-                            onSelect={() => setPending({ kind: "delete" })}
+                            onSelect={() => void guard({ kind: "delete" })}
                             className="min-h-11 lg:min-h-8"
                         >
                             <Trash2 className="w-4 h-4" aria-hidden />
@@ -180,6 +208,9 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
                 </DropdownMenu>
             </div>
             {isRestricted && <LimitedAccessNote id={noteId} />}
+            <p aria-live="polite" className={cn("text-[13px] leading-[18px]", mutedText)}>
+                {stale ? "This setting was changed elsewhere. Review it and try again." : null}
+            </p>
 
             <Dialog open={!!pending} onOpenChange={open => !open && !busy && close(pending?.kind === "delete" ? "menu" : "select")}>
                 <DialogContent

@@ -34,13 +34,21 @@ const mk = (retention?: string): ModelProfile =>
 
 function mount(p: ModelProfile, onHistoryDeleted = vi.fn()) {
     useAppStore.setState({ activeProfile: p, profiles: [p], subscriptionStatus: null });
-    render(<RetentionControl profile={p} onHistoryDeleted={onHistoryDeleted} />);
+    // Like the page, read the profile from the store so store writes reach the control.
+    const Harness = () => {
+        const current = useAppStore(st => st.activeProfile) ?? p;
+        return <RetentionControl profile={current} onHistoryDeleted={onHistoryDeleted} />;
+    };
+    render(<Harness />);
     return { onHistoryDeleted };
 }
 
 const select = () => screen.getByLabelText('Kept for') as HTMLSelectElement;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+    vi.clearAllMocks();
+    get.mockImplementation(async (id: string) => ({ status: 200, data: useAppStore.getState().profiles.find(p => p.profile_id === id) }));
+});
 
 describe('RetentionControl', () => {
     it('shows the profile retention and treats a missing one as 30 days', () => {
@@ -168,5 +176,95 @@ describe('RetentionControl', () => {
             expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeDisabled();
             expect(screen.getByText(/can't be changed in limited access mode/)).toBeVisible();
         });
+    });
+});
+
+describe('RetentionControl stale check', () => {
+    const C20 = 'This setting was changed elsewhere. Review it and try again.';
+
+    it('applies nothing when the stored retention changed elsewhere and shows the server value', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        const server = mk('1y');
+        get.mockResolvedValue({ status: 200, data: server });
+        mount(mk('30d'));
+        await user.selectOptions(select(), '90d');
+        await waitFor(() => expect(screen.getByText(C20)).toBeInTheDocument());
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(patch).not.toHaveBeenCalled();
+        expect(useAppStore.getState().activeProfile).toBe(server);
+        await waitFor(() => expect(select().value).toBe('1y'));
+        await waitFor(() => expect(select()).toHaveFocus());
+        expect(screen.getByText(C20).closest('p')).toHaveAttribute('aria-live', 'polite');
+    });
+
+    it('clears the message on the next interaction', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        get.mockResolvedValueOnce({ status: 200, data: mk('1y') });
+        mount(mk('30d'));
+        await user.selectOptions(select(), '90d');
+        await screen.findByText(C20);
+        get.mockImplementation(async () => ({ status: 200, data: mk('1y') }));
+        await user.selectOptions(select(), '30d');
+        await waitFor(() => expect(screen.queryByText(C20)).not.toBeInTheDocument());
+    });
+
+    it('treats a changed statistics.enabled as stale too', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        const off = mk('30d');
+        (off.settings.statistics as unknown as { enabled: boolean }).enabled = false;
+        get.mockResolvedValue({ status: 200, data: off });
+        mount(mk('30d'));
+        await user.selectOptions(select(), '90d');
+        await waitFor(() => expect(useAppStore.getState().activeProfile).toBe(off));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(patch).not.toHaveBeenCalled();
+    });
+
+    it('opens the normal dialog when the re-read matches, and stays busy during the check', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        let resolve!: (v: unknown) => void;
+        get.mockReturnValue(new Promise(r => (resolve = r)));
+        mount(mk('30d'));
+        await user.selectOptions(select(), '90d');
+        expect(select()).toBeDisabled();
+        expect(select().value).toBe('90d');
+        resolve({ status: 200, data: mk('30d') });
+        expect(await screen.findByRole('dialog', { name: 'Keep statistics for 90 days?' })).toBeInTheDocument();
+        expect(screen.queryByText(C20)).not.toBeInTheDocument();
+    });
+
+    it('proceeds when the re-read fails', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        get.mockRejectedValue(new Error('network'));
+        mount(mk('30d'));
+        await user.selectOptions(select(), '90d');
+        expect(await screen.findByRole('dialog', { name: 'Keep statistics for 90 days?' })).toBeInTheDocument();
+        expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it('does not delete the history when the profile changed elsewhere', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        get.mockResolvedValue({ status: 200, data: mk('1y') });
+        mount(mk('30d'));
+        await user.click(screen.getByRole('button', { name: 'More statistics actions' }));
+        await user.click(await screen.findByRole('menuitem', { name: 'Delete statistics history' }));
+        await screen.findByText(C20);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(del).not.toHaveBeenCalled();
+    });
+
+    it('opens the delete confirmation when the re-read matches', async () => {
+        // tableRef: statistics-behaviour #S6
+        const user = userEvent.setup();
+        mount(mk('30d'));
+        await user.click(screen.getByRole('button', { name: 'More statistics actions' }));
+        await user.click(await screen.findByRole('menuitem', { name: 'Delete statistics history' }));
+        expect(await screen.findByRole('dialog', { name: 'Delete statistics history?' })).toBeInTheDocument();
     });
 });
