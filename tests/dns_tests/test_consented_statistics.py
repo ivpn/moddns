@@ -160,7 +160,7 @@ class TestConsentedStatistics:
         """specRef: proxy-statistics-behaviour #Y11 #Y12 #Y13 #Y14 #Y17 #Y18 #Y19 #Y20;
         api-endpoint-behaviour #J6 #J8 — one flat document per device in each of the
         15-minute, 1-hour and 1-day (30d) tiers with exact counters; toggling off
-        removes them from every tier at once and the unconsented-statistics purge removes a late flush."""
+        removes them from every tier at once and the statistics reconcile removes a late flush."""
         pid = user.new_profile("stats-on")
         user.add_rule(pid, "block", SVC_GOOGLE_DOMAIN)
         # Sync on the rule before enabling so measured queries are fully classified.
@@ -231,19 +231,19 @@ class TestConsentedStatistics:
         patch_stats(user, pid, False)
         assert _count(mongo_db, pid) == 0, "documents must be gone as soon as the PATCH returns"
 
-        # J8: a flush landing after the immediate purge is removed by the unconsented-statistics purge.
+        # J8: a flush landing after the immediate purge is removed by the statistics reconcile.
         now = datetime.now(timezone.utc)
         _insert_doc(mongo_db, pid, _floor15(now), collection=TIER_15MIN)
         _insert_doc(mongo_db, pid, _floor_hour(now), collection=TIER_1H)
         _insert_doc(mongo_db, pid, _floor_day(now), collection="statistics_1d_90d")
         assert await _wait_until(lambda: _count(mongo_db, pid) == 0), (
-            "unconsented-statistics purge did not remove the late documents of a statistics-off profile"
+            "statistics reconcile did not remove the late documents of a statistics-off profile"
         )
 
     @pytest.mark.asyncio
-    async def test_unconsented_purge_keeps_only_buckets_since_reenable(self, user, mongo_db):
+    async def test_reconcile_keeps_only_buckets_since_reenable(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #J8 #J9 — for a statistics-on profile the
-        unconsented-statistics purge deletes, per tier, buckets older than enabled_at floored to that
+        statistics reconcile deletes, per tier, buckets older than enabled_at floored to that
         tier's width (15 min / 1 h / 1 day) and keeps buckets at or after it."""
         pid = user.new_profile("stats-reenable")
         await enable_and_warm(user, pid)
@@ -259,7 +259,7 @@ class TestConsentedStatistics:
         )
 
         # Inserted after the re-enable so the profile is never statistics-off
-        # while the unconsented-statistics purge can see these documents.
+        # while the statistics reconcile can see these documents.
         for tier, cutoff, width in bounds:
             _insert_doc(mongo_db, pid, cutoff - width, device="old", collection=tier)
             _insert_doc(mongo_db, pid, cutoff, device="new", collection=tier)
@@ -278,7 +278,7 @@ class TestConsentedStatistics:
             )
 
     @pytest.mark.asyncio
-    async def test_unconsented_purge_keeps_flushed_hour_and_day_tier_docs_of_an_enabled_profile(
+    async def test_reconcile_keeps_flushed_hour_and_day_tier_docs_of_an_enabled_profile(
         self, user, mongo_db
     ):
         """specRef: api-endpoint-behaviour #J8 #J9 / proxy-statistics-behaviour #Y17 #Y18 —
@@ -301,7 +301,7 @@ class TestConsentedStatistics:
     @pytest.mark.asyncio
     async def test_profile_delete_purges_documents(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #J7 #J8 — deleting a profile removes its
-        statistics from every tier at once; the unconsented-statistics purge removes a late flush."""
+        statistics from every tier at once; the statistics reconcile removes a late flush."""
         pid = user.new_profile("stats-delete")
         await enable_and_warm(user, pid)
         for _ in range(3):
@@ -320,7 +320,7 @@ class TestConsentedStatistics:
         _insert_doc(mongo_db, pid, _floor15(now), collection=TIER_15MIN)
         _insert_doc(mongo_db, pid, _floor_day(now), collection="statistics_1d_1y")
         assert await _wait_until(lambda: _count(mongo_db, pid) == 0), (
-            "unconsented-statistics purge did not remove the late documents of a deleted profile"
+            "statistics reconcile did not remove the late documents of a deleted profile"
         )
 
 

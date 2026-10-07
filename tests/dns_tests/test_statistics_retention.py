@@ -146,7 +146,7 @@ class TestStatisticsRetention:
 
     @pytest.mark.asyncio
     async def test_raising_after_traffic_keeps_the_chart_continuous(self, user, mongo_db):
-        """specRef: api-endpoint-behaviour #J51 — 30d → 1y: earlier days stay in statistics_1d_30d,
+        """specRef: api-endpoint-behaviour #J45 #J51 — 30d → 1y: earlier days stay in statistics_1d_30d,
         new days go to statistics_1d_1y, and the month view sums both."""
         pid = user.new_profile("ret-raise")
         await _enable(user, pid)
@@ -164,6 +164,10 @@ class TestStatisticsRetention:
 
         assert _docs(mongo_db, pid, "statistics_1d_30d"), "earlier days stay in the shorter collection"
         assert _docs(mongo_db, pid, "statistics_1d_1y"), "new days go to the longer collection"
+        # The month view may be served from the 60 s read cache (J45) until it expires.
+        deadline = time.monotonic() + 75
+        while time.monotonic() < deadline and _month_total(user, pid) < first + 3:
+            await asyncio.sleep(3)
         assert _month_total(user, pid) >= first + 3
 
     @pytest.mark.asyncio
