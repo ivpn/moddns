@@ -56,7 +56,7 @@ func (s fileSig) equal(o fileSig) bool {
 type Reader struct {
 	path  string
 	probe func(*geoip2.Reader) error // rejects a file of the wrong edition
-	cur  atomic.Pointer[geoip2.Reader]
+	cur   atomic.Pointer[geoip2.Reader]
 
 	mu    sync.Mutex // guards sig and stats; serialises Reload callers
 	sig   fileSig
