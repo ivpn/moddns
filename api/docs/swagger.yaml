@@ -603,6 +603,7 @@ definitions:
         enum:
         - /name
         - /settings/statistics/enabled
+        - /settings/statistics/retention
         - /settings/logs/enabled
         - /settings/logs/log_clients_ips
         - /settings/logs/log_domains
@@ -780,6 +781,10 @@ definitions:
         type: string
       from:
         type: string
+      history_deleted_at:
+        description: Last "Delete statistics history" (J53); null while off or never
+          deleted.
+        type: string
       protocols:
         $ref: '#/definitions/model.StatisticsProtocols'
       reasons:
@@ -797,6 +802,16 @@ definitions:
       totals:
         $ref: '#/definitions/model.StatisticsTotals'
     type: object
+  model.StatisticsRetention:
+    enum:
+    - 30d
+    - 90d
+    - 1y
+    type: string
+    x-enum-varnames:
+    - StatisticsRetention30d
+    - StatisticsRetention90d
+    - StatisticsRetention1y
   model.StatisticsSettings:
     properties:
       enabled:
@@ -805,6 +820,19 @@ definitions:
         description: When statistics were last turned on (UTC). Absent while statistics
           are off.
         type: string
+      history_deleted_at:
+        description: Last "Delete statistics history" while on (UTC); bounds what
+          is kept (J53). Not in Redis, not exported (F21).
+        type: string
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsRetention'
+        description: 'No omitempty: HSET merges fields, so an omitted value would
+          leave a stale one (J48).'
+        enum:
+        - 30d
+        - 90d
+        - 1y
     required:
     - enabled
     type: object
@@ -3011,6 +3039,35 @@ paths:
       tags:
       - Profile
   /api/v1/profiles/{id}/statistics:
+    delete:
+      description: Delete every stored statistic of the profile, including the current
+        hour and day; statistics stay on with the same retention.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a profile's statistics history
+      tags:
+      - Statistics
     get:
       description: 'Get the profile''s DNS statistics for a timespan: totals, a zero-filled
         time series, blocking reasons, transport protocols and per-device counts.

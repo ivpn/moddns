@@ -68,6 +68,7 @@ from moddns.models.model_statistics_point import ModelStatisticsPoint
 from moddns.models.model_statistics_protocols import ModelStatisticsProtocols
 from moddns.models.model_statistics_reasons import ModelStatisticsReasons
 from moddns.models.model_statistics_response import ModelStatisticsResponse
+from moddns.models.model_statistics_retention import ModelStatisticsRetention
 from moddns.models.model_statistics_settings import ModelStatisticsSettings
 from moddns.models.model_statistics_totals import ModelStatisticsTotals
 from moddns.models.model_subscription import ModelSubscription

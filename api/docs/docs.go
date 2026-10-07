@@ -2358,6 +2358,50 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete every stored statistic of the profile, including the current hour and day; statistics stay on with the same retention.",
+                "tags": [
+                    "Statistics"
+                ],
+                "summary": "Delete a profile's statistics history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id}": {
@@ -4006,6 +4050,7 @@ const docTemplate = `{
                     "enum": [
                         "/name",
                         "/settings/statistics/enabled",
+                        "/settings/statistics/retention",
                         "/settings/logs/enabled",
                         "/settings/logs/log_clients_ips",
                         "/settings/logs/log_domains",
@@ -4259,6 +4304,10 @@ const docTemplate = `{
                 "from": {
                     "type": "string"
                 },
+                "history_deleted_at": {
+                    "description": "Last \"Delete statistics history\" (J53); null while off or never deleted.",
+                    "type": "string"
+                },
                 "protocols": {
                     "$ref": "#/definitions/model.StatisticsProtocols"
                 },
@@ -4285,6 +4334,19 @@ const docTemplate = `{
                 }
             }
         },
+        "model.StatisticsRetention": {
+            "type": "string",
+            "enum": [
+                "30d",
+                "90d",
+                "1y"
+            ],
+            "x-enum-varnames": [
+                "StatisticsRetention30d",
+                "StatisticsRetention90d",
+                "StatisticsRetention1y"
+            ]
+        },
         "model.StatisticsSettings": {
             "type": "object",
             "required": [
@@ -4297,6 +4359,23 @@ const docTemplate = `{
                 "enabled_at": {
                     "description": "When statistics were last turned on (UTC). Absent while statistics are off.",
                     "type": "string"
+                },
+                "history_deleted_at": {
+                    "description": "Last \"Delete statistics history\" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).",
+                    "type": "string"
+                },
+                "retention": {
+                    "description": "No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).",
+                    "enum": [
+                        "30d",
+                        "90d",
+                        "1y"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.StatisticsRetention"
+                        }
+                    ]
                 }
             }
         },
