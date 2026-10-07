@@ -70,16 +70,17 @@ var exportedFields = map[string]string{
 // NOT exported. Each entry must cite the spec row (or rationale) recording that
 // decision — this is what makes the omission auditable instead of accidental.
 var exportExclusions = map[string]string{
-	"ID":                            "F9 — internal Mongo id; never exported",
-	"ProfileId":                     "F9 — internal id; regenerated on import",
-	"AccountId":                     "account-scoped; must never appear in an export (golden-envelope PII guard)",
-	"Settings.ProfileId":            "F9 — internal id; regenerated on import",
-	"Settings.CustomRules.ID":       "F9 — internal id; regenerated on import",
-	"Settings.CustomRules.Syntax":   "derived from Value at parse time; re-derived on import",
-	"Settings.CustomRules.Order":    "F9 — positional; re-derived from array index on import",
-	"Settings.Advanced.Recursor":    "F7 — staging-only control, deliberately not exported",
-	"Settings.Statistics.EnabledAt": "F19 — server-derived transition time; set to import time when statistics arrive enabled",
-	"Settings.Statistics.Retention": "F20 — longer retention is an explicit opt-in; imports start at 30d",
+	"ID":                                   "F9 — internal Mongo id; never exported",
+	"ProfileId":                            "F9 — internal id; regenerated on import",
+	"AccountId":                            "account-scoped; must never appear in an export (golden-envelope PII guard)",
+	"Settings.ProfileId":                   "F9 — internal id; regenerated on import",
+	"Settings.CustomRules.ID":              "F9 — internal id; regenerated on import",
+	"Settings.CustomRules.Syntax":          "derived from Value at parse time; re-derived on import",
+	"Settings.CustomRules.Order":           "F9 — positional; re-derived from array index on import",
+	"Settings.Advanced.Recursor":           "F7 — staging-only control, deliberately not exported",
+	"Settings.Statistics.EnabledAt":        "F19 — server-derived transition time; set to import time when statistics arrive enabled",
+	"Settings.Statistics.HistoryDeletedAt": "F21 — server-derived keep-since instant of the last history delete",
+	"Settings.Statistics.Retention":        "F20 — longer retention is an explicit opt-in; imports start at 30d",
 }
 
 // collectLeafPaths walks t depth-first and appends dot-separated paths of every

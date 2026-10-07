@@ -240,6 +240,58 @@ func (s *ProfileRepositorySuite) TestGetProfilesLogsEnabled() {
 	s.Empty(empty)
 }
 
+// specRef: api-endpoint-behaviour.md J52, J53 — the keep-since instant is stamped only on an
+// enabled profile.
+func (s *ProfileRepositorySuite) TestSetStatisticsHistoryDeletedAt() {
+	ctx := context.Background()
+	s.seed(true, &updateNow)
+	at := updateNow.Add(time.Hour)
+	enabled, err := s.repo.SetStatisticsHistoryDeletedAt(ctx, "p1", at)
+	s.Require().NoError(err)
+	s.True(enabled)
+	got, err := s.repo.GetProfileById(ctx, "p1")
+	s.Require().NoError(err)
+	s.Require().NotNil(got.Settings.Statistics.HistoryDeletedAt)
+	s.True(at.Equal(*got.Settings.Statistics.HistoryDeletedAt))
+
+	s.SetupTest()
+	s.seed(false, nil)
+	enabled, err = s.repo.SetStatisticsHistoryDeletedAt(ctx, "p1", at)
+	s.Require().NoError(err)
+	s.False(enabled)
+	got, err = s.repo.GetProfileById(ctx, "p1")
+	s.Require().NoError(err)
+	s.Nil(got.Settings.Statistics.HistoryDeletedAt)
+}
+
+// specRef: api-endpoint-behaviour.md J53, G22 — history_deleted_at is removed whenever
+// statistics.enabled changes value and kept otherwise.
+func (s *ProfileRepositorySuite) TestUpdateFields_HistoryDeletedAtFollowsEnabled() {
+	for _, tc := range []struct {
+		name        string
+		stored, set bool
+		wantKept    bool
+	}{
+		{"on to off removes", true, false, false},
+		{"on to on keeps", true, true, true},
+		{"off to on removes", false, true, false},
+	} {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			s.seed(tc.stored, &updateNow)
+			_, err := s.repo.profilesCollection.UpdateOne(context.Background(), bson.D{{Key: "profile_id", Value: "p1"}},
+				bson.D{{Key: "$set", Value: bson.D{{Key: "settings.statistics.history_deleted_at", Value: updateNow}}}})
+			s.Require().NoError(err)
+
+			_, after, err := s.repo.UpdateFields(context.Background(), "p1", repository.ProfileFieldsUpdate{
+				Set: []repository.FieldSet{statsSet(tc.set)}, EnabledAtNow: updateNow.Add(time.Hour),
+			})
+			s.Require().NoError(err)
+			s.Equal(tc.wantKept, after.Settings.Statistics.HistoryDeletedAt != nil)
+		})
+	}
+}
+
 func TestProfileRepositorySuite(t *testing.T) {
 	suite.Run(t, new(ProfileRepositorySuite))
 }

@@ -81,12 +81,18 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 	}
 	resp.Enabled = true
 	resp.EnabledAt = settings.EnabledAt
+	resp.HistoryDeletedAt = settings.HistoryDeletedAt
 
 	if cached := s.readCached(ctx, profileId, timespan); cached != nil {
 		return cached, nil
 	}
 
-	agg, err := s.StatisticsRepository.GetProfileStatistics(ctx, profileId, spec.Tier, from, to, spec.Bucket)
+	queryFrom := keepSince(from, settings.HistoryDeletedAt, spec.Bucket)
+	if !queryFrom.Before(to) {
+		resp.Series = fillSeries(nil, from, to, spec.Bucket)
+		return resp, nil
+	}
+	agg, err := s.StatisticsRepository.GetProfileStatistics(ctx, profileId, spec.Tier, queryFrom, to, spec.Bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +107,22 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 		s.writeCached(ctx, profileId, timespan, resp)
 	}
 	return resp, nil
+}
+
+// keepSince moves the query start past the bucket containing a history delete: that
+// bucket also holds counts from before it (J53).
+func keepSince(from time.Time, deletedAt *time.Time, bucket time.Duration) time.Time {
+	if deletedAt == nil {
+		return from
+	}
+	cutoff := deletedAt.UTC().Truncate(bucket)
+	if cutoff.Before(deletedAt.UTC()) {
+		cutoff = cutoff.Add(bucket)
+	}
+	if cutoff.After(from) {
+		return cutoff
+	}
+	return from
 }
 
 func (s *StatisticsService) readCached(ctx context.Context, profileId, timespan string) *model.StatisticsResponse {

@@ -1,9 +1,12 @@
 """End-to-end checks for the per-profile statistics retention (#713).
 
-specRef: api-endpoint-behaviour #G26 #J48 #J50 #J51; proxy-statistics-behaviour #Y20.
+specRef: api-endpoint-behaviour #G26 #J48 #J50 #J51 #J52 #J53; proxy-statistics-behaviour #Y20.
 """
 
 from datetime import datetime, timedelta, timezone
+
+import asyncio
+import time
 
 import pytest
 import requests
@@ -154,3 +157,41 @@ class TestStatisticsRetention:
         assert _docs(mongo_db, pid, "statistics_1d_30d"), "earlier days stay in the shorter collection"
         assert _docs(mongo_db, pid, "statistics_1d_1y"), "new days go to the longer collection"
         assert _month_total(user, pid) >= first + 3
+
+    @pytest.mark.asyncio
+    async def test_delete_history_empties_every_tier_and_keeps_the_setting(self, user, mongo_db):
+        """specRef: api-endpoint-behaviour #J52 #J53 — DELETE removes every bucket incl. the current
+        ones, statistics stay on with their retention, stragglers flushed afterwards into the deleted
+        buckets are purged, and buckets after the delete survive."""
+        pid = user.new_profile("ret-delete")
+        _set_retention(user, pid, "90d")
+        await _enable(user, pid)
+        await _traffic(user, pid, 2)
+        await restart_proxy(user)
+        assert _count(mongo_db, pid, TIER_15MIN) > 0
+
+        resp = requests.delete(
+            f"{get_settings().DNS_API_ADDR}/api/v1/profiles/{pid}/statistics",
+            headers={"Cookie": user.cookie}, timeout=15,
+        )
+        assert resp.status_code == 204, resp.text
+
+        for c in (TIER_15MIN, TIER_1H, *DAY_TIERS):
+            assert _count(mongo_db, pid, c) == 0, c
+        stats = mongo_db.profiles.find_one({"profile_id": pid})["settings"]["statistics"]
+        assert stats["enabled"] is True and stats["retention"] == "90d"
+        assert stats.get("history_deleted_at") is not None
+        assert _month_total(user, pid) == 0
+
+        # A straggler the proxy flushes into the deleted quarter, and a bucket after the delete.
+        deleted_at = stats["history_deleted_at"].replace(tzinfo=timezone.utc)
+        quarter = deleted_at.replace(minute=deleted_at.minute - deleted_at.minute % 15, second=0, microsecond=0)
+        straggler = _insert_day(mongo_db, pid, TIER_15MIN, quarter, 4)
+        later = _insert_day(mongo_db, pid, TIER_15MIN, quarter + timedelta(minutes=15), 1)
+        # STATISTICS_PURGE_INTERVAL is 5s in config/api.env.
+        deadline = time.monotonic() + 60
+        while time.monotonic() < deadline and _docs(mongo_db, pid, TIER_15MIN).get(straggler):
+            await asyncio.sleep(2)
+        remaining = _docs(mongo_db, pid, TIER_15MIN)
+        assert straggler not in remaining, "the straggler in the deleted bucket is purged"
+        assert later in remaining, "a bucket after the delete is kept"
