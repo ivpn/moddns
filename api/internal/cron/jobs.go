@@ -271,18 +271,18 @@ func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionR
 	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }
 
-// PurgeUnconsentedStatistics removes statistics whose profile is gone, has statistics
-// off, or predates the current on-period. Logs carry counts only.
-func PurgeUnconsentedStatistics(statsPurger UnconsentedStatisticsPurger) {
+// ReconcileStatistics runs one statistics reconcile (api-endpoint-behaviour.md J8, J9).
+// Logs carry counts only.
+func ReconcileStatistics(statsReconciler StatisticsReconciler) {
 	ctx := context.Background()
-	ctx = log.With().Str("cron_job", "purge-unconsented-statistics").Logger().WithContext(ctx)
+	ctx = log.With().Str("cron_job", "reconcile-statistics").Logger().WithContext(ctx)
 
-	res, err := statsPurger.PurgeUnconsentedStatistics(ctx)
+	res, err := statsReconciler.ReconcileStatistics(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("Cron: unconsented-statistics purge failed")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics reconcile failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("failed", res.Failed).Msg("Cron: unconsented-statistics purge complete")
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: statistics reconcile complete")
 }
 
 // PurgeUnconsentedQueryLogs runs one unconsented query-logs sweep (api-endpoint-behaviour.md J14).

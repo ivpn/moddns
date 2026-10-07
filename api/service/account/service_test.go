@@ -1251,7 +1251,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 							}, nil)
 							suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
 							suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
-							suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, profileID, (*time.Time)(nil)).Return(nil)
+							suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, profileID, (*time.Time)(nil)).Return(int64(0), nil)
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
 							suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
 						}
@@ -1332,7 +1332,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	)
 	suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), "profile2").Return(nil)
 	suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), "profile2").Return(nil)
-	suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, "profile2", (*time.Time)(nil)).Return(nil)
+	suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, "profile2", (*time.Time)(nil)).Return(int64(0), nil)
 	suite.mockCache.On("DeleteProfileSettings", context.Background(), "profile2").Return(nil)
 	suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, "profile2").Return(nil)
 
@@ -1374,7 +1374,7 @@ func (suite *AccountTestSuite) TestPurgeAccountData_RemovesStatistics() {
 		suite.mockProfileRepo.On("GetProfileById", context.Background(), p.ProfileId).Return(&model.Profile{ProfileId: p.ProfileId, AccountId: accountID}, nil)
 		suite.mockProfileRepo.On("DeleteProfileById", mock.Anything, p.ProfileId).Return(nil)
 		suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), p.ProfileId).Return(nil)
-		suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, p.ProfileId, (*time.Time)(nil)).Return(nil).Once()
+		suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, p.ProfileId, (*time.Time)(nil)).Return(int64(0), nil).Once()
 		suite.mockCache.On("DeleteProfileSettings", context.Background(), p.ProfileId).Return(nil)
 		suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, p.ProfileId).Return(nil)
 	}

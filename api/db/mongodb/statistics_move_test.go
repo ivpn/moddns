@@ -129,7 +129,9 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatisticsThrough_CeilsPerT
 	}
 	s.insertFlat(statisticsColl15min, "p2", "laptop", d(29, 14, 15), 1)
 
-	s.Require().NoError(s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", at))
+	deleted, err := s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", at)
+	s.Require().NoError(err)
+	s.EqualValues(10, deleted, "deleted documents are counted across collections")
 
 	s.Equal([]time.Time{d(29, 14, 45)}, s.starts(statisticsColl15min, "p1"))
 	s.Equal([]time.Time{d(29, 15, 0)}, s.starts(statisticsColl1h, "p1"))
@@ -139,6 +141,8 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatisticsThrough_CeilsPerT
 	s.EqualValues(1, s.count(statisticsColl15min, "p2"))
 
 	boundary := d(30, 0, 0)
-	s.Require().NoError(s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", boundary))
+	deleted, err = s.repo.DeleteProfileStatisticsThrough(context.Background(), "p1", boundary)
+	s.Require().NoError(err)
+	s.EqualValues(2, deleted, "the 15min and 1h documents before the boundary")
 	s.Equal([]time.Time{d(30, 0, 0)}, s.starts(statisticsColl1d30d, "p1"), "a bucket starting exactly at the instant is kept")
 }

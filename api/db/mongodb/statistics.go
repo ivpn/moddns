@@ -227,7 +227,8 @@ func (r *StatisticsRepository) GetProfileStatistics(ctx context.Context, profile
 // collection is attempted; the errors are joined. A non-nil before is floored per
 // tier (documents are stamped at their own bucket start), so each tier keeps the
 // bucket containing it.
-func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) error {
+func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) (int64, error) {
+	var deleted int64
 	var errs []error
 	for i, coll := range r.colls {
 		filter := bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}
@@ -235,16 +236,20 @@ func (r *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, prof
 			cutoff := before.UTC().Truncate(statisticsBucketWidth[statisticsCollectionNames[i]])
 			filter = append(filter, bson.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$lt", Value: cutoff}}})
 		}
-		if _, err := coll.DeleteMany(ctx, filter); err != nil {
+		res, err := coll.DeleteMany(ctx, filter)
+		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
+		deleted += res.DeletedCount
 	}
-	return errors.Join(errs...)
+	return deleted, errors.Join(errs...)
 }
 
 // DeleteProfileStatisticsThrough deletes, per collection, documents with bucket_start
 // < ceil_W(at): the bucket containing at also holds counts from before at.
-func (r *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) error {
+func (r *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error) {
+	var deleted int64
 	var errs []error
 	for i, coll := range r.colls {
 		width := statisticsBucketWidth[statisticsCollectionNames[i]]
@@ -256,11 +261,14 @@ func (r *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Contex
 			primitive.E{Key: "meta.profile_id", Value: profileId},
 			primitive.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$lt", Value: cutoff}}},
 		}
-		if _, err := coll.DeleteMany(ctx, filter); err != nil {
+		res, err := coll.DeleteMany(ctx, filter)
+		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
+		deleted += res.DeletedCount
 	}
-	return errors.Join(errs...)
+	return deleted, errors.Join(errs...)
 }
 
 // dailyCollectionNames are the day-tier collections by retention, shortest first.

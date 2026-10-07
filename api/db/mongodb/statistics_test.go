@@ -192,7 +192,9 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatistics_RemovesOnlyThatP
 		s.insert(c, "p2", now.Add(-time.Hour), 1)
 	}
 
-	s.Require().NoError(s.repo.DeleteProfileStatistics(context.Background(), "p1", nil))
+	deleted, err := s.repo.DeleteProfileStatistics(context.Background(), "p1", nil)
+	s.Require().NoError(err)
+	s.EqualValues(len(statisticsCollectionNames), deleted, "deleted documents are counted across collections")
 
 	for _, c := range statisticsCollectionNames {
 		s.EqualValues(0, s.count(c, "p1"), c)
@@ -234,7 +236,9 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatistics_BoundIsFlooredPe
 	s.insert("statistics_15min", "p2", d(29, 14, 15), 1)
 	s.insert("statistics_1d_1y", "p2", d(28, 0, 0), 1)
 
-	s.Require().NoError(s.repo.DeleteProfileStatistics(context.Background(), "p1", &enabledAt))
+	deleted, err := s.repo.DeleteProfileStatistics(context.Background(), "p1", &enabledAt)
+	s.Require().NoError(err)
+	s.EqualValues(5, deleted)
 
 	s.Equal([]time.Time{d(29, 14, 30), d(29, 14, 45)}, s.starts("statistics_15min", "p1"), "15min keeps the bucket containing enabled_at and later")
 	s.Equal([]time.Time{d(29, 14, 0), d(29, 15, 0)}, s.starts("statistics_1h", "p1"), "1h keeps the hour containing enabled_at and later")
@@ -256,7 +260,9 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatistics_BoundOnBoundaryK
 	s.insert("statistics_1d_30d", "p1", d(28, 0, 0), 1)
 	s.insert("statistics_1d_30d", "p1", d(29, 0, 0), 1)
 
-	s.Require().NoError(s.repo.DeleteProfileStatistics(context.Background(), "p1", &boundary))
+	deleted, err := s.repo.DeleteProfileStatistics(context.Background(), "p1", &boundary)
+	s.Require().NoError(err)
+	s.EqualValues(3, deleted)
 
 	s.Equal([]time.Time{d(29, 0, 0)}, s.starts("statistics_15min", "p1"))
 	s.Equal([]time.Time{d(29, 0, 0)}, s.starts("statistics_1h", "p1"))

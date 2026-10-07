@@ -472,7 +472,7 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 			if failing {
 				err = errors.New("boom")
 			}
-			repo.On("DeleteProfileStatistics", mock.Anything, "p1", (*time.Time)(nil)).Return(err).Once()
+			repo.On("DeleteProfileStatistics", mock.Anything, "p1", (*time.Time)(nil)).Return(int64(0), err).Once()
 			cache := newFakeReadCache()
 			cache.invalErr = errors.New("redis down") // must not surface
 
@@ -482,23 +482,33 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J46 — every delete attempt of the unconsented-statistics purge invalidates that profile's keys, whether the delete succeeds or fails.
-func TestUnconsentedPurge_InvalidatesReadCache(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J9, J46 — the reconcile drops a profile's cached reads only
+// when its run deleted or moved documents; a no-op or a failure that changed nothing keeps them.
+func TestReconcile_InvalidatesOnlyChangedProfiles(t *testing.T) {
 	cache := newFakeReadCache()
-	h := newUnconsentedPurgeHarness(t, statistics.WithReadCache(cache))
+	h := newReconcileHarness(t, statistics.WithReadCache(cache))
 	enabledAt := time.Date(2026, 9, 29, 10, 7, 0, 0, time.UTC)
-	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "on", "failing"}, nil)
+	deletedAt := time.Date(2026, 9, 30, 10, 7, 0, 0, time.UTC)
+	keep := stats(true, &enabledAt)
+	history := stats(true, &enabledAt)
+	history.HistoryDeletedAt = &deletedAt
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "noop", "moved", "history", "failing", "partial"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
-		"on": stats(true, &enabledAt),
+		"noop": keep, "moved": keep, "history": history,
 	}, nil)
-	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(nil).Once()
-	h.stats.On("DeleteProfileStatistics", mock.Anything, "on", mock.MatchedBy(func(b *time.Time) bool {
-		return b != nil && b.Equal(enabledAt)
-	})).Return(nil).Once()
-	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(errors.New("boom")).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", model.StatisticsRetention30d, mock.Anything).Return(0, nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(int64(3), nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "noop", mock.Anything).Return(int64(0), nil).Once()
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "noop", mock.Anything, mock.Anything).Return(0, nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "moved", mock.Anything).Return(int64(0), nil).Once()
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "moved", mock.Anything, mock.Anything).Return(2, nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "history", mock.Anything).Return(int64(0), nil).Once()
+	h.stats.On("DeleteProfileStatisticsThrough", mock.Anything, "history", deletedAt).Return(int64(1), nil).Once()
+	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "history", mock.Anything, mock.Anything).Return(0, nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "partial", (*time.Time)(nil)).Return(int64(4), errors.New("one collection failed")).Once()
 
-	_, err := h.svc.PurgeUnconsentedStatistics(context.Background())
+	res, err := h.svc.ReconcileStatistics(context.Background())
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{"gone", "on", "failing"}, cache.invalidated)
+	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 6, Deleted: 8, Moved: 2, Failed: 2}, res)
+	require.ElementsMatch(t, []string{"gone", "moved", "history", "partial"}, cache.invalidated)
 }

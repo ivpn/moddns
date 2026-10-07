@@ -20,9 +20,9 @@ type AccountPurger interface {
 	PurgeAccountData(ctx context.Context, accountId string) error
 }
 
-// UnconsentedStatisticsPurger removes statistics that no longer have consent.
-type UnconsentedStatisticsPurger interface {
-	PurgeUnconsentedStatistics(ctx context.Context) (statistics.UnconsentedPurgeResult, error)
+// StatisticsReconciler makes stored statistics conform to each profile's current settings.
+type StatisticsReconciler interface {
+	ReconcileStatistics(ctx context.Context) (statistics.StatisticsReconcileResult, error)
 }
 
 // UnconsentedQueryLogsPurger removes query logs of profiles that have logging off or no longer exist.
@@ -37,7 +37,7 @@ type UnconsentedQueryLogsPurger interface {
 // a given tick runs the job body; the others silently skip. The MongoDB
 // notified flags remain the durable dedup safety net for the rare cases
 // where the lock cannot serialise (e.g. Redis failover mid-tick).
-func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer, purger AccountPurger, statsPurger UnconsentedStatisticsPurger, purgeInterval time.Duration, logsPurger UnconsentedQueryLogsPurger, logsPurgeInterval time.Duration, locker gocron.Locker) {
+func Start(subRepo repository.SubscriptionRepository, accountRepo repository.AccountRepository, profileRepo repository.ProfileRepository, profileCache cache.Cache, mailer email.Mailer, purger AccountPurger, statsReconciler StatisticsReconciler, reconcileInterval time.Duration, logsPurger UnconsentedQueryLogsPurger, logsPurgeInterval time.Duration, locker gocron.Locker) {
 	s, err := gocron.NewScheduler(gocron.WithDistributedLocker(locker))
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to create cron scheduler")
@@ -81,14 +81,14 @@ func Start(subRepo repository.SubscriptionRepository, accountRepo repository.Acc
 	}
 
 	_, err = s.NewJob(
-		gocron.DurationJob(purgeInterval),
-		gocron.NewTask(PurgeUnconsentedStatistics, statsPurger),
+		gocron.DurationJob(reconcileInterval),
+		gocron.NewTask(ReconcileStatistics, statsReconciler),
 		// A slow run must not overlap the next tick on this instance; the cron
 		// lock covers other instances.
 		gocron.WithSingletonMode(gocron.LimitModeReschedule),
 	)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to schedule unconsented-statistics purge job")
+		log.Error().Err(err).Msg("Failed to schedule statistics reconcile job")
 		return
 	}
 

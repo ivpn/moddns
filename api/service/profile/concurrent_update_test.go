@@ -120,7 +120,7 @@ func TestUpdateProfile_ConcurrentPatchesOnDifferentPathsBothPersist(t *testing.T
 	require.NoError(t, redisCache.CreateOrUpdateProfileSettings(ctx, settings))
 
 	statsRepo := mocks.NewStatisticsRepository(t)
-	statsRepo.On("DeleteProfileStatistics", mock.Anything, profileId, (*time.Time)(nil)).Return(nil).Once()
+	statsRepo.On("DeleteProfileStatistics", mock.Anything, profileId, (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	var wg sync.WaitGroup
 	wg.Add(2)

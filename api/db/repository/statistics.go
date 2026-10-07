@@ -16,10 +16,11 @@ type StatisticsRepository interface {
 	// DeleteProfileStatistics removes the profile's statistics from every tier. A non-nil
 	// before is an instant; each tier deletes the buckets starting before the bucket of its
 	// own width (15 min, 1 h, 1 d, UTC) that contains it.
-	DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) error
+	// It returns the number of documents deleted across the collections.
+	DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) (int64, error)
 	// DeleteProfileStatisticsThrough removes the profile's buckets up to and including the one
 	// of each tier's width that contains at (api-endpoint-behaviour.md J53).
-	DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) error
+	DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error)
 	// MoveProfileDailyStatistics leaves the profile's daily statistics only in collections no
 	// longer than to: documents of longer daily collections with bucket_start >= since are
 	// copied unchanged into to's collection, then removed there with the older ones. It

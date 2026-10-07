@@ -1605,7 +1605,7 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
 
 						// Mock statistics deletion (api-endpoint-behaviour.md J7)
-						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(nil)
+						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(int64(0), nil)
 
 						// Mock cache deletion
 						if tt.cacheError != nil {

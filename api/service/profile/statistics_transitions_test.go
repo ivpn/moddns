@@ -105,7 +105,7 @@ func TestUpdateProfile_StatisticsDisablePurges(t *testing.T) {
 	h := newTransitionsHarness(t)
 	past := time.Now().Add(-time.Hour)
 	h.expectPersist(statsProfile(true, &past))
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
 	require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestUpdateProfile_StatisticsDisablePurges(t *testing.T) {
 func TestUpdateProfile_StatisticsTransitionRunsOncePerPatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectPersist(statsProfile(true, nil))
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	updates := []model.ProfileUpdate{
 		statsToggle(false),
@@ -178,7 +178,7 @@ func TestUpdateProfile_StatisticsTransitionUsesReplacedValue(t *testing.T) {
 	t.Run("read off, stored on: purges", func(t *testing.T) {
 		h := newTransitionsHarness(t)
 		h.expectPersistWithStored(statsProfile(false, nil), statsProfile(true, nil))
-		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 		_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
 		require.NoError(t, err)
@@ -194,11 +194,11 @@ func TestUpdateProfile_StatisticsTransitionUsesReplacedValue(t *testing.T) {
 	})
 }
 
-// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the unconsented-statistics purge and the PATCH still succeeds.
+// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the statistics reconcile and the PATCH still succeeds.
 func TestUpdateProfile_StatisticsPurgeFailureDoesNotFailThePatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectPersist(statsProfile(true, nil))
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(errors.New("boom")).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestUpdateProfile_StatisticsDisableRedisFailureStillPurges(t *testing.T) {
 	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(existing, nil)
 	h.profiles.On("UpdateFields", mock.Anything, "profile123", mock.Anything).Return(cloneStatsProfile(existing), cloneStatsProfile(existing), nil)
 	h.cache.On("SetProfileSettingsFields", mock.Anything, "profile123", mock.Anything).Return(errors.New("redis down"))
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{statsToggle(false)})
 	require.Error(t, err)
@@ -244,17 +244,17 @@ func (h *transitionsHarness) expectDelete(t *testing.T, existing *model.Profile,
 func TestDeleteProfile_PurgesStatistics(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectDelete(t, statsProfile(true, nil), nil)
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	require.NoError(t, h.svc.DeleteProfile(context.Background(), "account123", "profile123", true))
 	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
 }
 
-// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the unconsented-statistics purge; the deletion succeeds.
+// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the statistics reconcile; the deletion succeeds.
 func TestDeleteProfile_StatisticsPurgeFailureDoesNotFailTheDeletion(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectDelete(t, statsProfile(true, nil), nil)
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(errors.New("boom")).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 
 	require.NoError(t, h.svc.DeleteProfile(context.Background(), "account123", "profile123", true))
 }
@@ -267,7 +267,7 @@ func TestDeleteProfile_StatisticsPurgeRunsEvenWhenAnotherLegFails(t *testing.T) 
 	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Run(func(args mock.Arguments) {
 		time.Sleep(50 * time.Millisecond) // let the failing sibling leg cancel the errgroup context first
 		ctxErr = args.Get(0).(context.Context).Err()
-	}).Return(nil).Once()
+	}).Return(int64(0), nil).Once()
 
 	require.Error(t, h.svc.DeleteProfile(context.Background(), "account123", "profile123", true))
 	require.NoError(t, ctxErr)
@@ -311,7 +311,7 @@ func TestUpdateProfile_StatisticsRetentionTransitions(t *testing.T) {
 				h.statsRepo.On("MoveProfileDailyStatistics", mock.Anything, "profile123", tc.wantMove, mock.Anything).Return(2, nil).Once()
 			}
 			if tc.wantPurge {
-				h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+				h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 			}
 
 			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", tc.ops)
@@ -340,7 +340,7 @@ func TestDeleteStatisticsHistory(t *testing.T) {
 		h := newTransitionsHarness(t)
 		h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(enabled, nil), nil)
 		h.profiles.On("SetStatisticsHistoryDeletedAt", mock.Anything, "profile123", fixedNow).Return(enabled, nil).Once()
-		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(nil).Once()
+		h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 		require.NoError(t, h.svc.DeleteStatisticsHistory(context.Background(), "account123", "profile123"))
 		h.profiles.AssertNotCalled(t, "UpdateFields", mock.Anything, mock.Anything, mock.Anything)
@@ -362,7 +362,7 @@ func TestDeleteStatisticsHistory_DeleteFailure(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(true, nil), nil)
 	h.profiles.On("SetStatisticsHistoryDeletedAt", mock.Anything, "profile123", fixedNow).Return(true, nil).Once()
-	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(errors.New("boom")).Once()
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 
 	require.Error(t, h.svc.DeleteStatisticsHistory(context.Background(), "account123", "profile123"))
 }
