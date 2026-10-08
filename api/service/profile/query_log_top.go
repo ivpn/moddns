@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Cache-aside for the top-domains and top-clients aggregations (unindexable
+// Cache-aside for the top-domains, top-clients and top-blocklists aggregations (unindexable
 // full-window bucket unpack — see api-endpoint-behaviour #J23).
 const (
 	queryLogTopCachePrefix = "logs:"
@@ -19,11 +19,12 @@ const (
 	// is applied on read so one entry serves every limit.
 	queryLogTopFetchLimit = 50
 	queryLogClientsKind   = "clients"
+	queryLogBlocklistKind = "blocklists"
 )
 
 var (
 	queryLogTopTimespans = []string{model.LAST_1_HOUR, model.LAST_3_HOURS, model.LAST_6_HOURS, model.LAST_12_HOURS, model.LAST_1_DAY, model.LAST_7_DAYS, model.LAST_MONTH}
-	queryLogTopKinds     = []string{model.QueryLogTopKindBlocked, model.QueryLogTopKindResolved, queryLogClientsKind}
+	queryLogTopKinds     = []string{model.QueryLogTopKindBlocked, model.QueryLogTopKindResolved, queryLogClientsKind, queryLogBlocklistKind}
 )
 
 // ClientEnricher resolves a client IP to ASN and country; *geoip.Enricher
@@ -146,4 +147,35 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 		out[i] = model.QueryLogTopClient{IP: it.IP, Count: it.Count, ASN: info.ASN, ASOrg: info.ASOrg, Country: info.Country}
 	}
 	return &model.QueryLogTopClients{Enabled: true, Items: out}, nil
+}
+
+// GetProfileQueryLogBlocklists returns the blocklists that blocked the most
+// queries in the profile's query logs. It answers {enabled:false} without
+// querying unless logging is on; reasons need neither domain nor client-IP logging.
+func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accountId, profileId, timespan string, limit int) (*model.QueryLogTopBlocklists, error) {
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+	if err != nil {
+		return nil, err
+	}
+	logs := profile.Settings.Logs
+	if logs == nil || !logs.Enabled {
+		return &model.QueryLogTopBlocklists{Items: []model.QueryLogTopBlocklist{}}, nil
+	}
+
+	key := queryLogTopCacheKey(queryLogBlocklistKind, profileId, timespan)
+	items, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, key)
+	if !ok {
+		items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
+		if err != nil {
+			return nil, err
+		}
+		storeTop(ctx, p, key, items)
+	}
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	if items == nil {
+		items = []model.QueryLogTopBlocklist{}
+	}
+	return &model.QueryLogTopBlocklists{Enabled: true, Items: items}, nil
 }

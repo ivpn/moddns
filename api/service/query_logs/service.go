@@ -74,6 +74,15 @@ func (q *QueryLogsService) GetProfileQueryLogTopClients(ctx context.Context, pro
 	return q.QueryLogsRepository.GetQueryLogTopClients(ctx, profileId, retention, hours, limit)
 }
 
+// GetProfileQueryLogTopBlocklists returns the blocklists that blocked the most queries inside timespan.
+func (q *QueryLogsService) GetProfileQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopBlocklist, error) {
+	hours, err := model.NewTopTimespan(timespan)
+	if err != nil {
+		return nil, err
+	}
+	return q.QueryLogsRepository.GetQueryLogTopBlocklists(ctx, profileId, retention, hours, limit)
+}
+
 func (q *QueryLogsService) DeleteProfileQueryLogs(ctx context.Context, profileId string) error {
 	return q.QueryLogsRepository.DeleteQueryLogs(ctx, profileId)
 }

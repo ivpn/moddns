@@ -93,3 +93,17 @@ type QueryLogTopClients struct {
 	Enabled bool                `json:"enabled"`
 	Items   []QueryLogTopClient `json:"items"`
 }
+
+// QueryLogTopBlocklist is one row of the top-blocklists list: the blocked
+// queries a blocklist matched.
+type QueryLogTopBlocklist struct {
+	BlocklistID string `json:"blocklist_id"`
+	Count       int64  `json:"count"`
+}
+
+// QueryLogTopBlocklists is the top-blocklists response. Items is never null; a
+// query matched by several blocklists counts once for each.
+type QueryLogTopBlocklists struct {
+	Enabled bool                   `json:"enabled"`
+	Items   []QueryLogTopBlocklist `json:"items"`
+}
