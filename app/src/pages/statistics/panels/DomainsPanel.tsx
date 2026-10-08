@@ -1,6 +1,7 @@
 import { formatCount } from "@/lib/formatStats";
 import { BarList, PanelShell, StatsTable, mutedText } from "../primitives";
 import { rangeDef, type RangeKey } from "../ranges";
+import { stripTrailingDot } from "@/lib/utils";
 
 export interface DomainItem {
     domain: string;
@@ -28,7 +29,7 @@ export function DomainsPanel({
                     <StatsTable
                         caption={`${title}, ${windowWords} of query logs (${rangeDef(range).words})`}
                         columns={[{ label: "#" }, { label: "Domain" }, { label: "Queries", align: "right" }]}
-                        rows={items.map((d, i) => [String(i + 1), <span key="d" className="font-mono break-all">{d.domain}</span>, formatCount(d.count)])}
+                        rows={items.map((d, i) => [String(i + 1), <span key="d" className="font-mono break-all">{stripTrailingDot(d.domain)}</span>, formatCount(d.count)])}
                     />
                 ) : (
                     <BarList
@@ -39,8 +40,8 @@ export function DomainsPanel({
                             value: d.count,
                             color: kind === "blocked" ? "var(--stats-blocked)" : "var(--stats-all)",
                             label: (
-                                <span className="font-mono truncate" title={d.domain}>
-                                    {d.domain}
+                                <span className="font-mono truncate" title={stripTrailingDot(d.domain)}>
+                                    {stripTrailingDot(d.domain)}
                                 </span>
                             ),
                             meta: <b>{formatCount(d.count)}</b>,
