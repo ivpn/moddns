@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type JSX } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { ModelAccount, ModelProfile } from "@/api/client";
+import type { ModelAccount, ModelProfile, ModelQueryLogTopBlocklists } from "@/api/client";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import type { DomainItem } from "./panels/DomainsPanel";
 import type { ClientItem } from "./panels/ClientsPanel";
+import type { BlocklistItem } from "./panels/BlocklistsPanel";
 
 interface StatisticsProps {
     account?: ModelAccount;
@@ -47,6 +48,12 @@ function asDomains(raw: unknown): DomainItem[] {
     return Array.isArray(items)
         ? items.flatMap(i => (typeof i?.domain === "string" ? [{ domain: i.domain as string, count: Number(i.count) || 0 }] : []))
         : [];
+}
+
+function asBlocklists(raw: ModelQueryLogTopBlocklists | undefined): BlocklistItem[] {
+    return (raw?.items ?? []).flatMap(i =>
+        i.blocklist_id ? [{ id: i.blocklist_id, name: i.name, count: Number(i.count) || 0 }] : [],
+    );
 }
 
 function asClients(raw: unknown): ClientItem[] {
@@ -118,6 +125,9 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     );
     const clients = useApiResource<ClientItem[]>(pid, pid && ipsOn ? `${pid}|${range}|c` : null, async () =>
         asClients((await api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet(pid as string, logsTimespan, LIST_LIMIT)).data),
+    );
+    const blocklists = useApiResource<BlocklistItem[]>(pid, pid && logsOn ? `${pid}|${range}|bl` : null, async () =>
+        asBlocklists((await api.Client.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet(pid as string, logsTimespan, LIST_LIMIT)).data),
     );
     // Once per profile: `last_seen` does not depend on the range and the endpoint is slow and rate-limited.
     const devices = useApiResource<Map<string, number>>(pid, pid && logsOn ? `${pid}|devices` : null, async () =>
@@ -225,6 +235,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         blocked={blocked}
                         resolved={resolved}
                         clients={clients}
+                        blocklists={blocklists}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
                         onGate={setGate}

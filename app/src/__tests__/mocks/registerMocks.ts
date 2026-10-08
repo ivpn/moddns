@@ -128,6 +128,7 @@ export interface StatisticsMockOptions {
   statistics?: unknown;
   top?: { blocked?: unknown; resolved?: unknown };
   clients?: unknown;
+  blocklists?: unknown;
   devices?: unknown;
 }
 
@@ -145,6 +146,8 @@ export async function registerStatisticsMocks(page: Page, opts: StatisticsMockOp
   });
   await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/clients/i, (r: Route) =>
     json(r, opts.clients ?? { enabled: true, items: [] }));
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/blocklists/i, (r: Route) =>
+    json(r, opts.blocklists ?? { enabled: true, items: [] }));
   if (opts.devices) {
     await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/devices/i, (r: Route) => json(r, opts.devices));
   }
