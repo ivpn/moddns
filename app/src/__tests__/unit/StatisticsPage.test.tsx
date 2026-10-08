@@ -388,7 +388,7 @@ describe('Statistics page gate actions and limited access', () => {
         mount(mk('SL-dom'));
         await user.click(await screen.findByRole('button', { name: 'Log domains' }));
         const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
-        await waitFor(() => expect(within(dialog).getByRole('radiogroup', { name: 'Log domains' }).querySelector('input')).toHaveFocus());
+        await waitFor(() => expect(within(dialog).getByRole('radiogroup', { name: 'Log domains' }).querySelector('[role="radio"]')).toHaveFocus());
     });
 
     it('under limited access data renders, gate actions are disabled and the reason is visible text', async () => {

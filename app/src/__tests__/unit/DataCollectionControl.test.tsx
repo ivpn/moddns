@@ -252,6 +252,21 @@ describe('DataCollectionControl', () => {
         expect(screen.getByTestId('retention-info-trigger')).toBeInTheDocument();
     });
 
+    it('sub-option pills show Enable/Disable and 1 H to 1 M, and re-pressing the selected pill keeps it', async () => {
+        // tableRef: statistics-behaviour #C6, #T20
+        const user = userEvent.setup();
+        const p = mk('p1', 'logs');
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        const domains = screen.getByRole('radiogroup', { name: 'Log domains' });
+        expect(within(domains).getAllByRole('radio').map(r => r.textContent)).toEqual(['Disable', 'Enable']);
+        expect(within(screen.getByRole('radiogroup', { name: 'Retention period' })).getAllByRole('radio').map(r => r.textContent))
+            .toEqual(['1 H', '6 H', '1 D', '1 W', '1 M']);
+        await user.click(within(domains).getByLabelText('Enable'));
+        expect(within(domains).getByLabelText('Enable')).toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
+    });
+
     it('renders logs-only with the checkbox unchecked and does not repair it', () => {
         // tableRef: statistics-behaviour #L5
         const p = mk('p1', 'logsOnly');
