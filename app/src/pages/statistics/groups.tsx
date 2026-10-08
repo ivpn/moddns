@@ -14,6 +14,7 @@ import { ReasonsPanel } from "./panels/ReasonsPanel";
 import { ProtocolsPanel } from "./panels/ProtocolsPanel";
 import { DevicesPanel } from "./panels/DevicesPanel";
 import { DomainsPanel, type DomainItem } from "./panels/DomainsPanel";
+import { BlocklistsPanel, type BlocklistItem } from "./panels/BlocklistsPanel";
 import { ClientsPanel, type ClientItem } from "./panels/ClientsPanel";
 import type { ResourceState } from "./useApiResource";
 
@@ -193,6 +194,7 @@ export interface LogsGroupProps extends GateProps {
     blocked: ListState<DomainItem>;
     resolved: ListState<DomainItem>;
     clients: ListState<ClientItem>;
+    blocklists: ListState<BlocklistItem>;
 }
 
 function ListSlot<T>({ state, what, children }: { state: ListState<T>; what: string; children: (items: T[]) => React.ReactNode }) {
@@ -245,6 +247,9 @@ export function LogsGroup(p: LogsGroupProps) {
                         action="Log domains"
                     />
                 )}
+                <ListSlot state={p.blocklists} what="top blocklists">
+                    {items => <BlocklistsPanel items={items} range={p.range} windowWords={retentionWords} />}
+                </ListSlot>
                 {p.ipsOn ? (
                     <ListSlot state={p.clients} what="top clients">
                         {items => <ClientsPanel items={items} windowWords={retentionWords} />}

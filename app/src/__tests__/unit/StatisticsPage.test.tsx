@@ -7,7 +7,7 @@ import Statistics from '@/pages/statistics/Statistics';
 import { useAppStore } from '@/store/general';
 import api from '@/api/api';
 import type { ModelProfile } from '@/api/client';
-import { createStatsResponse, devicesList, topBlocked, topClients, topResolved } from '../mocks/statisticsMocks';
+import { createStatsResponse, devicesList, topBlocked, topBlocklists, topClients, topResolved } from '../mocks/statisticsMocks';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/api/api', () => ({
@@ -17,8 +17,10 @@ vi.mock('@/api/api', () => ({
             queryLogsApi: {
                 apiV1ProfilesIdLogsTopGet: vi.fn(),
                 apiV1ProfilesIdLogsClientsGet: vi.fn(),
+                apiV1ProfilesIdLogsBlocklistsGet: vi.fn(),
                 apiV1ProfilesIdLogsDevicesGet: vi.fn(),
             },
+            blocklistsApi: { apiV1BlocklistsGet: vi.fn() },
             profilesApi: { apiV1ProfilesIdGet: vi.fn(), apiV1ProfilesIdPatch: vi.fn() },
         },
     },
@@ -28,6 +30,8 @@ type Mock = ReturnType<typeof vi.fn>;
 const statsGet = api.Client.statisticsApi.apiV1ProfilesIdStatisticsGet as unknown as Mock;
 const topGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet as unknown as Mock;
 const clientsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet as unknown as Mock;
+const blocklistsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet as unknown as Mock;
+const catalogGet = api.Client.blocklistsApi.apiV1BlocklistsGet as unknown as Mock;
 const devicesGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet as unknown as Mock;
 const profileGet = api.Client.profilesApi.apiV1ProfilesIdGet as unknown as Mock;
 const statsDelete = api.Client.statisticsApi.apiV1ProfilesIdStatisticsDelete as unknown as Mock;
@@ -87,6 +91,7 @@ beforeEach(() => {
     topGet.mockImplementation(async (_id: string, kind: string) => ({ data: kind === 'blocked' ? topBlocked : topResolved }));
     clientsGet.mockResolvedValue({ data: topClients });
     devicesGet.mockResolvedValue({ data: devicesList });
+    blocklistsGet.mockResolvedValue({ data: topBlocklists });
 });
 
 const headings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
@@ -163,6 +168,41 @@ describe('Statistics page configurations', () => {
         expect(await screen.findByRole('heading', { name: 'Top blocked domains' })).toBeInTheDocument();
         expect(screen.queryByTestId('stats-availability')).not.toBeInTheDocument();
         expect(statsGet).not.toHaveBeenCalled();
+    });
+});
+
+describe('Top blocklists panel', () => {
+    it('lists the blocklists with the names from the response and no catalog request', async () => {
+        // tableRef: statistics-behaviour #P22
+        mount(mk('SL'));
+        const panel = await screen.findByRole('region', { name: 'Top blocklists' });
+        expect(await within(panel).findByText('Basic Protection')).toBeInTheDocument();
+        expect(within(panel).getByText('bl-nameless')).toBeInTheDocument();
+        expect(catalogGet).not.toHaveBeenCalled();
+        expect(within(panel).getByText('A query blocked by several lists counts once for each.')).toBeInTheDocument();
+        expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_7_DAYS', 10);
+    });
+
+    it('does not depend on log_domains', async () => {
+        // tableRef: statistics-behaviour #P22
+        mount(mk('SL-dom'));
+        expect(await screen.findByRole('region', { name: 'Top blocklists' })).toBeInTheDocument();
+        expect(topGet).not.toHaveBeenCalled();
+    });
+
+    it('shows the empty text when no queries were blocked', async () => {
+        // tableRef: statistics-behaviour #P22
+        blocklistsGet.mockResolvedValue({ data: { enabled: true, items: [] } });
+        mount(mk('SL'));
+        expect(await screen.findByText('No blocked queries in this range.')).toBeInTheDocument();
+    });
+
+    it('is not requested while query logs are off', async () => {
+        // tableRef: statistics-behaviour #P22
+        mount(mk('S'));
+        expect(await screen.findByRole('heading', { name: 'Domains and clients come from query logs' })).toBeInTheDocument();
+        expect(screen.queryByRole('region', { name: 'Top blocklists' })).not.toBeInTheDocument();
+        expect(blocklistsGet).not.toHaveBeenCalled();
     });
 });
 
