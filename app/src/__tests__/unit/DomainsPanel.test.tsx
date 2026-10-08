@@ -20,3 +20,17 @@ describe('DomainsPanel', () => {
         expect(screen.getAllByTestId('bar-row')).toHaveLength(2);
     });
 });
+
+describe('DomainsPanel trailing dot', () => {
+    const dotted = [{ domain: 'example.com.', count: 5 }];
+
+    it('shows names without the root dot in the table and the chart', async () => {
+        // tableRef: statistics-behaviour #X7
+        render(<DomainsPanel kind="blocked" items={dotted} range="7d" windowWords="1 week" />);
+        expect(screen.getByRole('cell', { name: 'example.com' })).toBeInTheDocument();
+        expect(screen.queryByText('example.com.')).not.toBeInTheDocument();
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
+        expect(screen.getByText('example.com')).toHaveAttribute('title', 'example.com');
+        expect(screen.queryByText('example.com.')).not.toBeInTheDocument();
+    });
+});
