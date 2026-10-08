@@ -28,7 +28,8 @@ class ModelQueryLogTopBlocklist(BaseModel):
     """ # noqa: E501
     blocklist_id: Optional[StrictStr] = None
     count: Optional[StrictInt] = None
-    __properties: ClassVar[List[str]] = ["blocklist_id", "count"]
+    name: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["blocklist_id", "count", "name"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,7 +83,8 @@ class ModelQueryLogTopBlocklist(BaseModel):
 
         _obj = cls.model_validate({
             "blocklist_id": obj.get("blocklist_id"),
-            "count": obj.get("count")
+            "count": obj.get("count"),
+            "name": obj.get("name")
         })
         return _obj
 

@@ -64,7 +64,7 @@ class QueryLogsApi:
     ) -> ModelQueryLogTopBlocklists:
         """Get profile top blocklists
 
-        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
 
         :param id: Profile ID (required)
         :type id: str
@@ -143,7 +143,7 @@ class QueryLogsApi:
     ) -> ApiResponse[ModelQueryLogTopBlocklists]:
         """Get profile top blocklists
 
-        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
 
         :param id: Profile ID (required)
         :type id: str
@@ -222,7 +222,7 @@ class QueryLogsApi:
     ) -> RESTResponseType:
         """Get profile top blocklists
 
-        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+        Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
 
         :param id: Profile ID (required)
         :type id: str
