@@ -195,9 +195,19 @@ describe('statistics retention', () => {
     it('puts the live statistics retention into notes and dialogs', () => {
         // tableRef: statistics-behaviour #C7, #C14
         expect(transitionFor(states.S0, states.S1, '1 year')?.note).toBe(
-            "modDNS will start counting this profile's queries per device and keep the counts for 1 year. No domains or addresses are stored.",
+            "modDNS will start counting this profile's queries per device and keep the counts for 1 year. No domains or addresses are stored. The first counts appear at the next quarter hour.",
         );
         expect(transitionFor(states.S3, states.S1, '90 days')?.dialog?.body).toContain('count queries per device for 90 days'.replace('count', 'counting'));
-        expect(transitionFor(states.S3, states.S2, '90 days')?.note).toBe('modDNS will also keep counts per device for 90 days.');
+        expect(transitionFor(states.S3, states.S2, '90 days')?.note).toBe('modDNS will also keep counts per device for 90 days. The first counts appear at the next quarter hour.');
+    });
+
+    it.each([['S0', 'S1'], ['S0', 'S2'], ['S3', 'S1'], ['S3', 'S2']] as const)('ends the %s to %s note with the first-counts line', (from, to) => {
+        // tableRef: statistics-behaviour #C21
+        expect(transitionFor(states[from], states[to])?.note).toMatch(/ The first counts appear at the next quarter hour\.$/);
+    });
+
+    it.each([['S0', 'S3'], ['S1', 'S2'], ['S1', 'S3']] as const)('leaves the %s to %s note without it', (from, to) => {
+        // tableRef: statistics-behaviour #C21
+        expect(transitionFor(states[from], states[to])?.note).not.toContain('first counts');
     });
 });

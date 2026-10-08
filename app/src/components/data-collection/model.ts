@@ -104,6 +104,7 @@ function subOptionsChanged(saved: DataCollectionState, pending: DataCollectionSt
 }
 
 const UNDONE = "This action cannot be undone.";
+const FIRST = " The first counts appear at the next quarter hour.";
 
 export function transitionFor(
     saved: DataCollectionState,
@@ -126,14 +127,14 @@ export function transitionFor(
                 id: "T1",
                 label: "Turn on statistics",
                 toast: "Statistics turned on.",
-                note: `modDNS will start counting this profile's queries per device and keep the counts for ${statsWords}. No domains or addresses are stored.`,
+                note: `modDNS will start counting this profile's queries per device and keep the counts for ${statsWords}. No domains or addresses are stored.${FIRST}`,
             };
         case "S0>S2":
             return {
                 id: "T2",
                 label: "Turn on query logs",
                 toast: "Query logs turned on.",
-                note: `modDNS will record each query for ${logsWords} and keep counts per device for ${statsWords}.`,
+                note: `modDNS will record each query for ${logsWords} and keep counts per device for ${statsWords}.${FIRST}`,
             };
         case "S0>S3":
             return {
@@ -221,7 +222,7 @@ export function transitionFor(
                 id: "T11",
                 label: "Save changes",
                 toast: "Data collection updated.",
-                note: `modDNS will start counting this profile's queries per device and keep the counts for ${statsWords}.`,
+                note: `modDNS will start counting this profile's queries per device and keep the counts for ${statsWords}.${FIRST}`,
                 dialog: {
                     title: "Switch to statistics?",
                     body: `All query logs for this profile will be permanently deleted, and modDNS will start counting queries per device for ${statsWords}. ${UNDONE}`,
@@ -233,7 +234,7 @@ export function transitionFor(
                 id: "T12",
                 label: "Save changes",
                 toast: "Statistics turned on.",
-                note: `modDNS will also keep counts per device for ${statsWords}.`,
+                note: `modDNS will also keep counts per device for ${statsWords}.${FIRST}`,
             };
         default:
             return null;
