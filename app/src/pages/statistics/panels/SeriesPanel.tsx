@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Area, CartesianGrid, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
+import {
+    Area,
+    CartesianGrid,
+    ComposedChart,
+    ReferenceLine,
+    Tooltip,
+    XAxis,
+    YAxis,
+    useActiveTooltipLabel,
+    useChartWidth,
+    useIsTooltipActive,
+    usePlotArea,
+    useXAxisInverseDataSnapScale,
+    useXAxisScale,
+} from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { formatAxisCount, formatCount } from "@/lib/formatStats";
 import { buildBuckets, countingSince, type Bucket, type StatsData } from "../derive";
@@ -8,6 +22,7 @@ import { axisTicks, bucketUnitWord, formatBucketLabel, formatDateTime } from "..
 import { PanelShell, StatsTable, mutedText } from "../primitives";
 import { cn } from "@/lib/utils";
 import { ENTRANCE_MS, useChartEntrance } from "../useChartEntrance";
+import { AXIS_BAND_HEIGHT, HOVER_LABEL_HEIGHT, HOVER_STRIP_HEIGHT, axisLabelBox } from "../axisHover";
 
 const config: ChartConfig = {
     all: { label: "All queries", color: "var(--stats-all)" },
@@ -69,6 +84,48 @@ function SeriesTooltip({ active, payload, bucketSeconds }: { active?: boolean; p
     );
 }
 
+/**
+ * X9: a cursor and a label pinned on the time axis at the hovered bucket. Follows the value tooltip
+ * (pointer over the plot, keyboard, tap) and, below the plot, the pointer's own position.
+ */
+function AxisHoverLabel({ pointerX, bucketSeconds }: { pointerX: number | null; bucketSeconds: number }) {
+    const plot = usePlotArea();
+    const scale = useXAxisScale();
+    const snap = useXAxisInverseDataSnapScale();
+    const tooltipActive = useIsTooltipActive();
+    const activeLabel = useActiveTooltipLabel();
+    const chartWidth = useChartWidth();
+    if (!plot || !scale) return null;
+    let ts: number | undefined;
+    if (tooltipActive && typeof activeLabel === "number") ts = activeLabel;
+    else if (pointerX !== null && pointerX >= plot.x && pointerX <= plot.x + plot.width) {
+        const v = snap?.(pointerX);
+        if (typeof v === "number") ts = v;
+    }
+    const cx = ts === undefined ? undefined : scale(ts);
+    if (ts === undefined || cx === undefined) return null;
+    const text = formatBucketLabel(ts, bucketSeconds);
+    const box = axisLabelBox(cx, text, 0, chartWidth ?? plot.x + plot.width);
+    const bottom = plot.y + plot.height;
+    return (
+        <g aria-hidden="true" pointerEvents="none" data-testid="axis-hover-label">
+            <line x1={cx} x2={cx} y1={plot.y} y2={bottom} stroke="var(--stats-axis)" strokeWidth={1} />
+            <rect
+                x={box.x}
+                y={bottom + AXIS_BAND_HEIGHT + 2}
+                width={box.width}
+                height={HOVER_LABEL_HEIGHT}
+                rx={4}
+                fill="var(--shadcn-ui-app-background)"
+                stroke="var(--tailwind-colors-slate-600)"
+            />
+            <text x={box.x + box.width / 2} y={bottom + AXIS_BAND_HEIGHT + 2 + HOVER_LABEL_HEIGHT / 2 + 4} textAnchor="middle" fontSize={11} fill="var(--tailwind-colors-slate-50)">
+                {text}
+            </text>
+        </g>
+    );
+}
+
 /** The element's width in px; undefined until measured or where ResizeObserver is missing. */
 function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined {
     const [width, setWidth] = useState<number | undefined>(undefined);
@@ -92,6 +149,11 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
     const animate = useChartEntrance(`${data.bucketSeconds}:${Math.round((data.toMs - data.fromMs) / 3_600_000)}`);
     const chartBox = useRef<HTMLDivElement>(null);
     const width = useWidth(chartBox);
+    const [pointerX, setPointerX] = useState<number | null>(null);
+    const trackPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+        const svg = chartBox.current?.querySelector("svg.recharts-surface");
+        if (svg) setPointerX(e.clientX - svg.getBoundingClientRect().left);
+    };
     const ticks = useMemo(() => axisTicks(range, rows.map(r => r.ts), width), [range, rows, width]);
     const tickLabels = useMemo(() => new Map(ticks.map(t => [t.ts, t.label])), [ticks]);
     const markerTs = since !== null ? rows.find(r => r.all !== null || r.allTail !== null)?.ts : undefined;
@@ -144,12 +206,21 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                     In progress
                                 </span>
                             </div>
-                            <div ref={chartBox} role="group" aria-roledescription="chart" aria-label={summary}>
-                                <ChartContainer config={config} className="aspect-auto h-[200px] md:h-[280px] w-full">
-                                    <ComposedChart accessibilityLayer data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                            <div
+                                ref={chartBox}
+                                role="group"
+                                aria-roledescription="chart"
+                                aria-label={summary}
+                                onPointerMove={trackPointer}
+                                onPointerDown={trackPointer}
+                                onPointerLeave={e => e.pointerType === "mouse" && setPointerX(null)}
+                            >
+                                <ChartContainer config={config} className="aspect-auto h-[224px] md:h-[304px] w-full">
+                                    <ComposedChart accessibilityLayer data={rows} margin={{ top: 8, right: 8, bottom: HOVER_STRIP_HEIGHT, left: 0 }}>
                                         <CartesianGrid vertical={false} stroke="var(--stats-grid)" />
                                         <XAxis
                                             dataKey="ts"
+                                            height={AXIS_BAND_HEIGHT}
                                             tickLine={false}
                                             axisLine={{ stroke: "var(--stats-axis)" }}
                                             padding={{ left: 0, right: 24 }}
@@ -166,7 +237,7 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                             tick={{ fill: "var(--stats-axis)" }}
                                             tickFormatter={(v: number) => formatAxisCount(v)}
                                         />
-                                        <Tooltip content={<SeriesTooltip bucketSeconds={data.bucketSeconds} />} />
+                                        <Tooltip cursor={false} content={<SeriesTooltip bucketSeconds={data.bucketSeconds} />} />
                                         {markerTs !== undefined && (
                                             <ReferenceLine
                                                 x={markerTs}
@@ -179,6 +250,7 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                         <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
                                         <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
                                         <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <AxisHoverLabel pointerX={pointerX} bucketSeconds={data.bucketSeconds} />
                                     </ComposedChart>
                                 </ChartContainer>
                             </div>
