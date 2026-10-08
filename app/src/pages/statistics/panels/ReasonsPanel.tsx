@@ -22,6 +22,7 @@ export function ReasonsPanel({ data, range }: { data: StatsData; range: RangeKey
                     />
                 ) : (
                     <BarList
+                        scale="share"
                         collapseAfter={REASON_CLASSES.length}
                         rows={rows.map(r => ({
                             id: r.key,

@@ -156,12 +156,30 @@ export interface BarRow {
     meta: React.ReactNode;
 }
 
-/** X6: label · bar · count; every row carries text, never colour alone. */
-export function BarList({ rows, collapseAfter = 5, noun = "rows" }: { rows: BarRow[]; collapseAfter?: number; noun?: string }) {
+/**
+ * X6, X7: label · bar · text; every row carries text, never colour alone.
+ * "share" scales each bar to its part of all rows, so the track means 100 %;
+ * "leader" scales to the largest row, ranking the rows against each other.
+ */
+export function BarList({
+    rows,
+    scale,
+    collapseAfter = 5,
+    noun = "rows",
+}: {
+    rows: BarRow[];
+    scale: "share" | "leader";
+    collapseAfter?: number;
+    noun?: string;
+}) {
     const [expanded, setExpanded] = useState(false);
-    const max = Math.max(1, ...rows.map(r => r.value));
+    const denominator = scale === "share" ? rows.reduce((s, r) => s + r.value, 0) : Math.max(...rows.map(r => r.value));
     const many = rows.length > collapseAfter;
     const shown = many && !expanded ? rows.slice(0, collapseAfter) : rows;
+    const seg = (value: number, color: string | undefined) =>
+        value > 0 && denominator > 0 ? (
+            <span data-testid="bar-seg" style={{ width: `${(value / denominator) * 100}%`, minWidth: 2, background: color }} />
+        ) : null;
     return (
         <>
             <ul className="flex flex-col gap-3">
@@ -169,14 +187,18 @@ export function BarList({ rows, collapseAfter = 5, noun = "rows" }: { rows: BarR
                     <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center">
                         <span className={cn("min-w-0 truncate text-sm flex items-center gap-2", titleText)}>{r.label}</span>
                         <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
-                        <span aria-hidden className="col-span-2 flex h-2.5 rounded-[3px] overflow-hidden bg-[var(--stats-track)]">
+                        <span
+                            aria-hidden
+                            data-testid="bar-row"
+                            className="col-span-2 flex h-2.5 rounded-[3px] overflow-hidden bg-[var(--stats-track)]"
+                        >
                             {r.blocked !== undefined ? (
                                 <>
-                                    <span style={{ width: `${((r.value - r.blocked) / max) * 100}%`, background: "var(--stats-all)" }} />
-                                    <span style={{ width: `${(r.blocked / max) * 100}%`, background: "var(--stats-blocked)" }} />
+                                    {seg(r.value - r.blocked, "var(--stats-all)")}
+                                    {seg(r.blocked, "var(--stats-blocked)")}
                                 </>
                             ) : (
-                                <span style={{ width: `${(r.value / max) * 100}%`, background: r.color }} />
+                                seg(r.value, r.color)
                             )}
                         </span>
                     </li>
