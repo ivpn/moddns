@@ -3,6 +3,8 @@
 // Source of truth: docs/specs/statistics-behaviour.md Section K (K5, K6).
 // Sub-day buckets use browser local time; daily buckets are UTC days.
 
+import type { RangeKey } from "./ranges";
+
 const cache = new Map<string, Intl.DateTimeFormat>();
 
 function fmt(key: string, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
@@ -55,22 +57,116 @@ export function formatRangeCaption(fromMs: number, toMs: number, bucketSeconds: 
     return `${range} · ${bucketUnitWord(bucketSeconds)}${days}`;
 }
 
-function isLocalMidnight(ms: number): boolean {
-    const d = new Date(ms);
-    return d.getHours() === 0 && d.getMinutes() === 0;
+export interface AxisTick {
+    ts: number;
+    label: string;
 }
 
-/** Axis tick label, driven by the bucket width. */
-export function formatBucketTick(ms: number, bucketSeconds: number, longYear = false): string {
-    if (bucketSeconds >= 86400) {
-        return longYear
-            ? fmt("utcmy", { month: "short", year: "2-digit", timeZone: "UTC" }).format(ms)
-            : formatUtcDay(ms);
+/** Rough rendered label widths, enough to decide how many ticks fit. */
+const TICK_LABEL_PX: Record<RangeKey, number> = { "3h": 64, "6h": 64, "24h": 64, "7d": 52, "30d": 50, "3m": 50, "12m": 64 };
+
+const utcDay = (ms: number) => new Date(ms).getUTCDay();
+const utcDate = (ms: number) => new Date(ms).getUTCDate();
+
+type DayStep = { kind: "days"; n: number } | { kind: "monday"; every: number } | { kind: "month"; every: number };
+
+/** Smallest step first; the first one whose label count fits wins. */
+const DAILY_LADDER: DayStep[] = [
+    { kind: "days", n: 1 },
+    { kind: "days", n: 2 },
+    { kind: "days", n: 3 },
+    { kind: "monday", every: 1 },
+    { kind: "monday", every: 2 },
+    { kind: "month", every: 1 },
+    { kind: "month", every: 2 },
+    { kind: "month", every: 3 },
+];
+
+function stepIndexes(tsList: number[], step: DayStep): number[] {
+    const out: number[] = [];
+    if (step.kind === "days") {
+        for (let i = 0; i < tsList.length; i += step.n) out.push(i);
+    } else if (step.kind === "monday") {
+        let k = 0;
+        tsList.forEach((ts, i) => {
+            if (utcDay(ts) === 1 && k++ % step.every === 0) out.push(i);
+        });
+    } else {
+        let k = 0;
+        tsList.forEach((ts, i) => {
+            if (utcDate(ts) === 1 && k++ % step.every === 0) out.push(i);
+        });
     }
-    if (bucketSeconds >= 3600 && isLocalMidnight(ms)) {
-        return fmt("wd", { weekday: "short", day: "numeric" }).format(ms);
+    return out;
+}
+
+/**
+ * K6: ticks for the daily (UTC-day) views, chosen from the span actually shown, not from the view
+ * name: retention can clamp a 3m or 12m view to a month.
+ */
+function dailyTicks(tsList: number[], widthPx: number): AxisTick[] {
+    if (tsList.length === 0) return [];
+    const crossesYear = new Date(tsList[0]).getUTCFullYear() !== new Date(tsList[tsList.length - 1]).getUTCFullYear();
+    const label = (ts: number, step: DayStep, first: boolean) =>
+        step.kind === "month"
+            ? fmt("utcmy", { month: "short", year: "numeric", timeZone: "UTC" }).format(ts)
+            : formatUtcDay(ts, crossesYear && (first || (utcDate(ts) === 1 && new Date(ts).getUTCMonth() === 0)));
+    const wanted = Math.min(tsList.length, 4);
+    type Pick = { step: DayStep; idx: number[] };
+    let chosen: Pick | null = null;
+    let previous: Pick | null = null;
+    for (const step of DAILY_LADDER) {
+        const idx = stepIndexes(tsList, step);
+        const px = step.kind === "month" ? 64 : crossesYear ? 74 : 54;
+        const fit = Math.floor((widthPx - 40) / (px + 4));
+        const max = Math.max(4, Math.min(fit, widthPx < 520 ? 5 : 10));
+        if (idx.length <= max) {
+            chosen = idx.length < wanted && previous !== null ? previous : { step, idx };
+            break;
+        }
+        previous = { step, idx };
     }
-    return formatClock(ms);
+    chosen ??= previous;
+    if (chosen === null) return [];
+    const { step, idx } = chosen;
+    return idx.map((i, k) => ({ ts: tsList[i], label: label(tsList[i], step, k === 0) }));
+}
+
+/**
+ * K6: explicit X-axis ticks for each view, taken from the bucket timestamps `tsList`.
+ * Sub-day views use the browser's local clock; daily views are UTC days. Given the chart width in
+ * px, ticks are thinned to what fits, and below 520 px at least every other one is dropped.
+ */
+export function axisTicks(range: RangeKey, tsList: number[], widthPx?: number): AxisTick[] {
+    if (range === "30d" || range === "3m" || range === "12m") return dailyTicks(tsList, widthPx ?? 1000);
+    const local = (ms: number) => new Date(ms);
+    let ticks: AxisTick[] = [];
+    for (const ts of tsList) {
+        const d = local(ts);
+        const onHour = d.getMinutes() === 0;
+        switch (range) {
+            case "3h":
+                if (d.getMinutes() % 30 === 0) ticks.push({ ts, label: formatClock(ts) });
+                break;
+            case "6h":
+                if (onHour) ticks.push({ ts, label: formatClock(ts) });
+                break;
+            case "24h":
+                if (onHour && d.getHours() % 3 === 0) {
+                    ticks.push({ ts, label: d.getHours() === 0 ? fmt("md", { month: "short", day: "numeric" }).format(ts) : formatClock(ts) });
+                }
+                break;
+            case "7d":
+                if (onHour && d.getHours() === 0) ticks.push({ ts, label: fmt("wd", { weekday: "short", day: "numeric" }).format(ts) });
+                break;
+        }
+    }
+    if (widthPx !== undefined && ticks.length > 1) {
+        const fit = Math.max(1, Math.floor((widthPx - 40) / (TICK_LABEL_PX[range] + 8)));
+        const step = Math.max(Math.ceil(ticks.length / fit), widthPx < 520 ? 2 : 1);
+        ticks = ticks.filter((_, i) => i % step === 0);
+    }
+    return ticks;
 }
 
 /** Tooltip and table row header for one bucket. */
