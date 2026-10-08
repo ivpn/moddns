@@ -170,7 +170,7 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
                     className={cn(
                         "min-h-11 lg:min-h-9 rounded-md border border-[var(--tailwind-colors-slate-600)] bg-transparent px-3 text-sm",
                         titleText,
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] disabled:opacity-60 disabled:cursor-not-allowed",
+                        "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] disabled:opacity-60 disabled:cursor-not-allowed",
                     )}
                 >
                     {STATS_RETENTION_OPTIONS.map(o => (
@@ -187,7 +187,7 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
                             aria-label="More statistics actions"
                             disabled={isRestricted || busy}
                             className={cn(
-                                "inline-flex items-center justify-center min-h-11 min-w-11 lg:min-h-9 lg:min-w-9 rounded-md hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed",
+                                "inline-flex items-center justify-center cursor-pointer min-h-11 min-w-11 lg:min-h-9 lg:min-w-9 rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] hover:bg-muted disabled:opacity-60 disabled:cursor-not-allowed",
                                 titleText,
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
                             )}
