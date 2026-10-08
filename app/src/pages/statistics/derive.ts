@@ -3,7 +3,7 @@
 // Source of truth: docs/specs/statistics-behaviour.md Sections P, K, X.
 
 import type { ModelStatisticsResponse } from "@/api/client";
-import { rangeDef, type RangeKey } from "./ranges";
+import type { RangeKey } from "./ranges";
 
 export const REASON_CLASSES = [
     { key: "blocklist", label: "Blocklists", cat: 1 },
@@ -130,12 +130,6 @@ export function countingSince(d: StatsData): number | null {
     if (d.enabledAt === null || d.enabledAt <= d.fromMs) return null;
     const first = d.series[0]?.ts;
     return first !== undefined && d.enabledAt > first ? d.enabledAt : null;
-}
-
-/** P11: the view is shorter than requested because retention clamps `from`. */
-export function isClamped(d: StatsData, range: RangeKey): boolean {
-    if (d.toMs <= d.fromMs) return false;
-    return (d.toMs - d.fromMs) / 1000 < rangeDef(range).seconds - d.bucketSeconds;
 }
 
 export type CountsState = "data" | "no-queries-yet" | "empty-range";

@@ -2,6 +2,7 @@
 //
 // Source of truth: docs/specs/statistics-behaviour.md Section K.
 
+import { STATS_RETENTION_OPTIONS, type StatsRetention } from "@/components/data-collection/model";
 import {
     ApiV1ProfilesIdLogsTopGetTimespanEnum as LogsTimespan,
     ApiV1ProfilesIdStatisticsGetTimespanEnum as StatsTimespan,
@@ -39,6 +40,19 @@ export function rangeDef(key: RangeKey): RangeDef {
 /** K2: an invalid or missing value reads as the default. */
 export function parseRange(value: string | null | undefined): RangeKey {
     return RANGES.some(r => r.key === value) ? (value as RangeKey) : DEFAULT_RANGE;
+}
+
+/** K11: the views whose window the statistics retention covers, shortest first. */
+export function offeredRanges(retention: StatsRetention): RangeDef[] {
+    const days = STATS_RETENTION_OPTIONS.find(o => o.value === retention)?.days ?? 30;
+    return RANGES.filter(r => r.seconds <= days * DAY);
+}
+
+/** K2, K11: the view to show for a `?range=` value; a hidden view reads as the longest one offered. */
+export function resolveRange(value: string | null | undefined, retention: StatsRetention): RangeKey {
+    const asked = parseRange(value);
+    const offered = offeredRanges(retention);
+    return offered.some(r => r.key === asked) ? asked : offered[offered.length - 1].key;
 }
 
 export function nextLongerRange(key: RangeKey): RangeKey | null {
