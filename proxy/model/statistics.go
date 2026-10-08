@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strings"
 	"time"
 
@@ -100,15 +101,15 @@ func ClassifyReasons(reasons []string) ReasonClass {
 	for _, r := range reasons {
 		rank := classRankNone
 		switch {
-		case r == FilterReasonCustomRules:
+		case r == filterreasons.CustomRules:
 			rank = classRankCustomRule
-		case r == FilterReasonRebinding:
+		case r == filterreasons.Rebinding:
 			rank = classRankRebinding
-		case r == FilterReasonBlocklists, r == FilterReasonBlocklistsSubdomains, strings.HasPrefix(r, FilterReasonBlocklistPrefix):
+		case r == filterreasons.Blocklists, r == filterreasons.BlocklistsSubdomains, strings.HasPrefix(r, filterreasons.BlocklistPrefix):
 			rank = classRankBlocklist
-		case r == FilterReasonServices, strings.HasPrefix(r, FilterReasonServicePrefix):
+		case r == filterreasons.Services, strings.HasPrefix(r, filterreasons.ServicePrefix):
 			rank = classRankService
-		case r == FilterReasonDefaultRule:
+		case r == filterreasons.DefaultRule:
 			rank = classRankDefaultRule
 		}
 		if rank > best {

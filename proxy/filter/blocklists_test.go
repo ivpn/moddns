@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"errors"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -74,7 +75,7 @@ func TestFilterBlocklists(t *testing.T) {
 				subdomainsRuleSetting: RULE_BLOCK,
 			},
 			expectBlocked: true,
-			expectReasons: []string{"blocklist: bl1", model.FilterReasonBlocklistsSubdomains},
+			expectReasons: []string{"blocklist: bl1", filterreasons.BlocklistsSubdomains},
 			expectErr:     false,
 		},
 		{

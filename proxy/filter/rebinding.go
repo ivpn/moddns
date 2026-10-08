@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strconv"
 	"strings"
 
@@ -55,9 +56,9 @@ func (f *IPFilter) filterRebinding(ctx context.Context, reqCtx *requestcontext.R
 	for _, ip := range ips {
 		if isPrivateRebindingIP(ip, f.RebindingConfig) {
 			result.Decision = model.DecisionBlock
-			result.Reasons = append(result.Reasons, model.FilterReasonRebinding)
+			result.Reasons = append(result.Reasons, filterreasons.Rebinding)
 			reqCtx.AddDomain(
-				reqCtx.Logger.Debug().Str("reason", model.FilterReasonRebinding).Str("private_ip", ip.String()),
+				reqCtx.Logger.Debug().Str("reason", filterreasons.Rebinding).Str("private_ip", ip.String()),
 				dctx.Req.Question[0].Name,
 			).Msg("Blocked DNS rebinding (public name → private IP)")
 			return result, nil

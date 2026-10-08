@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"net"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -80,9 +81,9 @@ func (f *IPFilter) filterServices(ctx context.Context, reqCtx *requestcontext.Re
 	}
 
 	result.Decision = model.DecisionBlock
-	result.Reasons = append(result.Reasons, model.FilterReasonServices)
+	result.Reasons = append(result.Reasons, filterreasons.Services)
 	for id := range matchedServices {
-		result.Reasons = append(result.Reasons, model.FilterReasonServicePrefix+id)
+		result.Reasons = append(result.Reasons, filterreasons.ServicePrefix+id)
 	}
 	return result, nil
 }

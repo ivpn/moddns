@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"net"
 	"strconv"
 	"time"
@@ -141,7 +142,7 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 		}
 
 		if dnssecFailed {
-			queryLog.Reasons = appendReason(queryLog.Reasons, model.FilterReasonDNSSECFailed)
+			queryLog.Reasons = appendReason(queryLog.Reasons, filterreasons.DNSSECFailed)
 		}
 		retention := model.Retention(logsSettings["retention"])
 		// send event to channel

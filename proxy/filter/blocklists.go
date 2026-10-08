@@ -3,6 +3,7 @@ package filter
 import (
 	"context"
 	"fmt"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -142,10 +143,10 @@ func (f *DomainFilter) filterBlocklists(ctx context.Context, reqCtx *requestcont
 		return result, nil
 	}
 
-	reasons := model.FilterReasonBlocklists
+	reasons := filterreasons.Blocklists
 	msg := "Domain blocked"
 	if match.viaParent {
-		reasons = fmt.Sprintf("%s,%s", model.FilterReasonBlocklists, model.FilterReasonBlocklistsSubdomains)
+		reasons = fmt.Sprintf("%s,%s", filterreasons.Blocklists, filterreasons.BlocklistsSubdomains)
 		msg = "Subdomain blocked"
 	}
 	e := reqCtx.Logger.Debug().
@@ -156,9 +157,9 @@ func (f *DomainFilter) filterBlocklists(ctx context.Context, reqCtx *requestcont
 	reqCtx.AddDomain(e, question).Msg(msg)
 
 	result.Decision = model.DecisionBlock
-	result.Reasons = append(result.Reasons, model.FilterReasonBlocklistPrefix+match.blocklistID)
+	result.Reasons = append(result.Reasons, filterreasons.BlocklistPrefix+match.blocklistID)
 	if match.viaParent {
-		result.Reasons = append(result.Reasons, model.FilterReasonBlocklistsSubdomains)
+		result.Reasons = append(result.Reasons, filterreasons.BlocklistsSubdomains)
 	}
 	return result, nil
 }
