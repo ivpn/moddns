@@ -16,9 +16,9 @@ export function formatCompact(n: number): string {
     return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
-/** One decimal; "<0.1 %" for small non-zero shares; "—" when the denominator is 0. */
+/** One decimal; "<0.1 %" for small non-zero shares; "-" when the denominator is 0. */
 export function formatPercent(part: number, whole: number): string {
-    if (!whole) return '—';
+    if (!whole) return '-';
     const value = (part / whole) * 100;
     if (value > 0 && value < 0.05) return '<0.1 %';
     return `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;

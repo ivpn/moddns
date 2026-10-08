@@ -33,10 +33,10 @@ describe('formatStats', () => {
         expect(formatPercent(1, 10000)).toBe('<0.1 %');
     });
 
-    it('renders an em dash when the denominator is 0', () => {
+    it('renders a hyphen when the denominator is 0', () => {
         // tableRef: statistics-behaviour #X4
-        expect(formatPercent(0, 0)).toBe('—');
-        expect(formatPercent(5, 0)).toBe('—');
+        expect(formatPercent(0, 0)).toBe('-');
+        expect(formatPercent(5, 0)).toBe('-');
     });
 
     it('formats axis ticks', () => {
