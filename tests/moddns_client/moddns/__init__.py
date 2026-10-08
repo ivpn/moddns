@@ -86,6 +86,8 @@ from moddns.models.model_profile_settings import ModelProfileSettings
 from moddns.models.model_profile_update import ModelProfileUpdate
 from moddns.models.model_query_log import ModelQueryLog
 from moddns.models.model_query_log_device import ModelQueryLogDevice
+from moddns.models.model_query_log_top_blocklist import ModelQueryLogTopBlocklist
+from moddns.models.model_query_log_top_blocklists import ModelQueryLogTopBlocklists
 from moddns.models.model_query_log_top_client import ModelQueryLogTopClient
 from moddns.models.model_query_log_top_clients import ModelQueryLogTopClients
 from moddns.models.model_query_log_top_domain import ModelQueryLogTopDomain
