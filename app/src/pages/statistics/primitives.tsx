@@ -40,7 +40,7 @@ export function ViewToggle({ title, view, onChange }: { title: string; view: Pan
             title={label}
             onClick={() => onChange(v)}
             className={cn(
-                "inline-flex items-center justify-center min-h-11 min-w-11 lg:min-h-8 lg:min-w-8 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
+                "inline-flex items-center justify-center cursor-pointer min-h-11 min-w-11 lg:min-h-8 lg:min-w-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
                 view === v
                     ? "bg-[var(--tailwind-colors-rdns-600)]/15 text-[var(--tailwind-colors-rdns-600)]"
                     : cn("hover:bg-muted", mutedText),
@@ -51,7 +51,11 @@ export function ViewToggle({ title, view, onChange }: { title: string; view: Pan
         </button>
     );
     return (
-        <div role="group" aria-label={`${title} view`} className="flex items-center">
+        <div
+            role="group"
+            aria-label={`${title} view`}
+            className="flex items-center overflow-hidden rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] [&>button+button]:border-l [&>button+button]:border-[var(--tailwind-colors-slate-light-300)] dark:[&>button+button]:border-[var(--tailwind-colors-slate-600)]"
+        >
             {btn("chart", "Chart", ChartColumn)}
             {btn("table", "Table", Table2)}
         </div>
@@ -112,7 +116,7 @@ export function StatsTable({
         >
             <table className="w-full text-sm tabular-nums">
                 <caption className={cn("text-left text-[13px] pb-2", mutedText)}>{caption}</caption>
-                <thead className={cn(scroll && "sticky top-0 bg-[var(--variable-collection-surface)]")}>
+                <thead className={cn(scroll && "sticky top-0 bg-[var(--shadcn-ui-app-background)] dark:bg-[var(--variable-collection-surface)]")}>
                     <tr className="border-b border-[var(--tailwind-colors-slate-600)]">
                         {columns.map(c => (
                             <th

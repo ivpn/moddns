@@ -21,6 +21,8 @@ export interface ToggleGroupProps {
     disabled?: boolean;
     /** Id of the element naming the group; exposes it as a radiogroup. */
     labelledBy?: string;
+    /** Accessible name when no visible element names the group; exposes it as a radiogroup. */
+    ariaLabel?: string;
     groupProps?: React.ComponentProps<typeof UIToggleGroup>;
     itemProps?: Partial<React.ComponentProps<typeof UIToggleGroupItem>>;
 }
@@ -60,15 +62,16 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
     itemClassName = "",
     disabled,
     labelledBy,
+    ariaLabel,
     groupProps = {},
     itemProps = {},
 }) => {
     return (
         <UIToggleGroup
             type="single"
-            aria-label={labelledBy ? undefined : "Toggle Group"}
+            aria-label={labelledBy ? undefined : (ariaLabel ?? "Toggle Group")}
             aria-labelledby={labelledBy}
-            role={labelledBy ? "radiogroup" : undefined}
+            role={labelledBy || ariaLabel ? "radiogroup" : undefined}
             disabled={disabled}
             variant={variant}
             className={`
