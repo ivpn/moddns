@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -131,7 +132,7 @@ func TestFilterServiceDomains(t *testing.T) {
 			assert.Equal(t, TierServices, result.Tier)
 
 			if tt.expectedService != "" {
-				assert.Contains(t, result.Reasons, model.FilterReasonServices)
+				assert.Contains(t, result.Reasons, filterreasons.Services)
 				assert.Contains(t, result.Reasons, "service: "+tt.expectedService)
 			}
 		})

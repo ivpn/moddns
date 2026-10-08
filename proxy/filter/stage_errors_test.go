@@ -12,6 +12,7 @@ package filter
 import (
 	"context"
 	"errors"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"sync"
 	"testing"
 
@@ -266,7 +267,7 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionBlock, res.Decision)
 		assert.Equal(t, TierDefaultRule, res.Tier)
-		assert.Contains(t, res.Reasons, model.FilterReasonDefaultRule)
+		assert.Contains(t, res.Reasons, filterreasons.DefaultRule)
 	})
 
 	t.Run("stage direct allow", func(t *testing.T) {
@@ -280,7 +281,7 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 		err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
-		assert.Contains(t, reqCtx.FilterResult.Reasons, model.FilterReasonDefaultRule)
+		assert.Contains(t, reqCtx.FilterResult.Reasons, filterreasons.DefaultRule)
 	})
 }
 

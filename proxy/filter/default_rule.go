@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 )
@@ -23,7 +24,7 @@ func (f *DomainFilter) applyDefaultRule(ctx context.Context, reqCtx *requestcont
 	result := &model.StageResult{Decision: model.DecisionNone, Tier: TierDefaultRule}
 	if reqCtx.PrivacySettings[defaultRuleSetting] == RULE_BLOCK {
 		result.Decision = model.DecisionBlock
-		result.Reasons = append(result.Reasons, model.FilterReasonDefaultRule)
+		result.Reasons = append(result.Reasons, filterreasons.DefaultRule)
 		reqCtx.Logger.Debug().Msg("Applied default block rule")
 	}
 	return result, nil
