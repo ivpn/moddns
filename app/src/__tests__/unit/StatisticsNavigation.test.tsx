@@ -50,9 +50,34 @@ describe('navigation', () => {
         );
         const labels = within(screen.getByRole('navigation', { name: 'Primary' }))
             .getAllByRole('button')
-            .map(b => b.textContent?.trim())
+            .map(b => b.textContent?.trim().replace(/New$/, '').trim())
             .filter(t => ['DNS Setup', 'Blocklists', 'Custom rules', 'Statistics', 'Logs', 'Settings', 'Account'].includes(t ?? ''));
         expect(labels).toEqual(['DNS Setup', 'Blocklists', 'Custom rules', 'Statistics', 'Logs', 'Settings', 'Account']);
+    });
+
+    it('marks only Statistics as new, announced as "Statistics, new"', () => {
+        // tableRef: statistics-behaviour #N2
+        render(
+            <MemoryRouter initialEntries={['/setup']}>
+                <NavigationCollapseProvider>
+                    <NavigationMenu isMobile={true} onClose={() => {}} />
+                </NavigationCollapseProvider>
+            </MemoryRouter>,
+        );
+        const pills = screen.getAllByTestId('nav-new-pill');
+        expect(pills).toHaveLength(1);
+        expect(pills[0]).toHaveAttribute('aria-hidden', 'true');
+        expect(screen.getByRole('button', { name: 'Statistics, new' })).toContainElement(pills[0]);
+        expect(screen.getByRole('button', { name: 'Logs' })).toBeInTheDocument();
+    });
+
+    it('bottom nav carries no new pill', () => {
+        render(
+            <MemoryRouter initialEntries={['/statistics']}>
+                <BottomNav onMoreClick={() => {}} />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByTestId('nav-new-pill')).not.toBeInTheDocument();
     });
 
     it('every navigation route has a preloader', () => {
