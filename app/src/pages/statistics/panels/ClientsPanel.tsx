@@ -10,7 +10,7 @@ export interface ClientItem {
     country: string | null;
 }
 
-const isp = (c: ClientItem) => (c.asOrg ? (c.asn ? `${c.asOrg} (AS${c.asn})` : c.asOrg) : "—");
+const isp = (c: ClientItem) => (c.asOrg ? (c.asn ? `${c.asOrg} (AS${c.asn})` : c.asOrg) : "-");
 
 export function ClientsPanel({ items, windowWords }: { items: ClientItem[]; windowWords: string }) {
     const noGeo = items.length > 0 && items.every(c => !c.asOrg && !c.asn && !c.country);
@@ -25,7 +25,7 @@ export function ClientsPanel({ items, windowWords }: { items: ClientItem[]; wind
                             <StatsTable
                                 caption={`Client addresses seen in the ${windowWords} of query logs`}
                                 columns={[{ label: "IP address" }, { label: "Queries", align: "right" }, { label: "ISP (ASN)" }, { label: "Country" }]}
-                                rows={items.map(c => [<span key="ip" className="font-mono">{c.ip}</span>, formatCount(c.count), isp(c), c.country ?? "—"])}
+                                rows={items.map(c => [<span key="ip" className="font-mono">{c.ip}</span>, formatCount(c.count), isp(c), c.country ?? "-"])}
                             />
                         </div>
                         <ul className="sm:hidden flex flex-col gap-3" aria-label="Top clients">
@@ -36,7 +36,7 @@ export function ClientsPanel({ items, windowWords }: { items: ClientItem[]; wind
                                         <span className="tabular-nums">{formatCount(c.count)}</span>
                                     </div>
                                     <div className={cn("text-[13px]", mutedText)}>
-                                        {isp(c)} · {c.country ?? "—"}
+                                        {isp(c)} · {c.country ?? "-"}
                                     </div>
                                 </li>
                             ))}

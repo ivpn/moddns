@@ -48,7 +48,7 @@ export function DevicesPanel({ data, range, lastSeen }: { data: StatsData; range
                                 formatCount(d.total),
                                 formatCount(d.blocked),
                                 formatPercent(d.blocked, d.total),
-                                ...(lastSeen ? [s ? <span key="s" title={s.abs}>{s.text}</span> : "—"] : []),
+                                ...(lastSeen ? [s ? <span key="s" title={s.abs}>{s.text}</span> : "-"] : []),
                             ];
                         })}
                     />

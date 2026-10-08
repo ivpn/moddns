@@ -97,6 +97,12 @@ beforeEach(() => {
 const headings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
 
 describe('Statistics page configurations', () => {
+    it('describes the page without assuming any settings', async () => {
+        // tableRef: statistics-behaviour #P1
+        mount(mk('OFF'));
+        expect(await screen.findByText("An overview of this profile's DNS queries over time.")).toBeInTheDocument();
+    });
+
     it('OFF: one hero replaces everything below the description', async () => {
         // tableRef: statistics-behaviour #P1, #D2, #U1
         mount(mk('OFF'));

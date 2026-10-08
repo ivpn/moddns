@@ -202,11 +202,11 @@ describe('ClientsPanel', () => {
         expect(screen.queryByText('ISP and country unavailable')).not.toBeInTheDocument();
     });
 
-    it('shows dashes and a footnote when GeoIP data is missing', () => {
+    it('shows hyphens and a footnote when GeoIP data is missing', () => {
         // tableRef: statistics-behaviour #P19
         render(<ClientsPanel items={[{ ip: '198.51.100.2', count: 5, asn: null, asOrg: null, country: null }]} windowWords="1 day" />);
         expect(screen.getByText('ISP and country unavailable')).toBeInTheDocument();
-        expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
+        expect(screen.getAllByText('-').length).toBeGreaterThanOrEqual(2);
         expect(topClients.items.length).toBe(2);
     });
 });
