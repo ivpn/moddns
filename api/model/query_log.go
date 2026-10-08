@@ -98,6 +98,7 @@ type QueryLogTopClients struct {
 // queries a blocklist matched.
 type QueryLogTopBlocklist struct {
 	BlocklistID string `json:"blocklist_id"`
+	Name        string `json:"name"`
 	Count       int64  `json:"count"`
 }
 
