@@ -123,7 +123,7 @@ test.describe('@statistics Statistics page', () => {
     const group = page.getByRole('radiogroup', { name: 'Time range' });
     await expect(group).toBeVisible();
     await expect(group.getByRole('radio', { name: 'Last 30 days' })).toBeChecked();
-    const boxes = await group.locator('label').evaluateAll(els => els.map(e => e.getBoundingClientRect()));
+    const boxes = await group.getByRole('radio').evaluateAll(els => els.map(e => e.getBoundingClientRect()));
     expect(boxes).toHaveLength(7);
     for (const b of boxes) {
       expect(b.width).toBeGreaterThanOrEqual(43.5);
