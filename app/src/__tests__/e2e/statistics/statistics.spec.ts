@@ -117,8 +117,9 @@ test.describe('@statistics Statistics page', () => {
     await expect(panel.getByText('Basic Protection')).toBeVisible();
     await expect(panel.getByText('bl-nameless')).toBeVisible();
     await expect(panel.getByText('A query blocked by several lists counts once for each.')).toBeVisible();
-    await panel.getByRole('button', { name: 'Table' }).click();
     await expect(panel.getByRole('row', { name: /Basic Protection/ })).toContainText('90');
+    await panel.getByRole('button', { name: 'Chart' }).click();
+    await expect(panel.getByText('Basic Protection')).toBeVisible();
     expect(catalogRequests).toEqual([]);
     await expectNoHorizontalOverflow(page);
   });

@@ -24,6 +24,7 @@ function seen(lastSeen: Map<string, number> | null, d: StatsDevice): { text: str
 /** `lastSeen` is null while logs are off: the column and the line are omitted. */
 export function DevicesPanel({ data, range, lastSeen }: { data: StatsData; range: RangeKey; lastSeen: Map<string, number> | null }) {
     const devices = data.devices;
+    const total = devices.reduce((s, d) => s + d.total, 0);
     return (
         <PanelShell title="Devices" toggle={devices.length > 0}>
             {view =>
@@ -64,6 +65,7 @@ export function DevicesPanel({ data, range, lastSeen }: { data: StatsData; range
                             </span>
                         </div>
                         <BarList
+                            scale="share"
                             noun="devices"
                             rows={devices.map(d => {
                                 const s = seen(lastSeen, d);
@@ -74,7 +76,7 @@ export function DevicesPanel({ data, range, lastSeen }: { data: StatsData; range
                                     label: <DeviceName id={d.id} />,
                                     meta: (
                                         <>
-                                            <b>{formatCount(d.total)}</b> · {formatCount(d.blocked)} blocked
+                                            <b>{formatCount(d.total)}</b> · {formatPercent(d.total, total)} · {formatCount(d.blocked)} blocked
                                             {s && (
                                                 <span className={cn("block text-[12px]", mutedText)} title={s.abs}>
                                                     last seen in logs {s.text}
