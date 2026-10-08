@@ -5,11 +5,10 @@ import {
     countsState,
     deviceLabel,
     expectedFirstCounts,
-    isClamped,
     normalizeStats,
 } from '@/pages/statistics/derive';
 import { statsRetentionWords } from '@/components/data-collection/model';
-import { LOGS_TIMESPAN, RANGES, STATS_TIMESPAN, logsWindowCaption, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
+import { LOGS_TIMESPAN, RANGES, offeredRanges, resolveRange, STATS_TIMESPAN, logsWindowCaption, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
 import { axisTicks, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
 import { createStatsResponse } from '../mocks/statisticsMocks';
 
@@ -91,15 +90,6 @@ describe('buildBuckets', () => {
         const d = normalizeStats(createStatsResponse({ points: 6 }));
         expect(buildBuckets(d).every(b => b.total !== null)).toBe(true);
         expect(countingSince(d)).toBeNull();
-    });
-});
-
-describe('isClamped', () => {
-    it('detects a view shorter than requested', () => {
-        // tableRef: statistics-behaviour #P11
-        const d = normalizeStats(createStatsResponse({ points: 30, bucketSeconds: 86400 }));
-        expect(isClamped(d, '3m')).toBe(true);
-        expect(isClamped(d, '30d')).toBe(false);
     });
 });
 
@@ -321,5 +311,24 @@ describe('axisTicks', () => {
             if (before === undefined) delete process.env.TZ;
             else process.env.TZ = before;
         }
+    });
+});
+
+describe('offeredRanges and resolveRange', () => {
+    it('offers the views whose window fits the retention, shortest first', () => {
+        // tableRef: statistics-behaviour #K11
+        expect(offeredRanges('30d').map(r => r.key)).toEqual(['3h', '6h', '24h', '7d', '30d']);
+        expect(offeredRanges('90d').map(r => r.key)).toEqual(['3h', '6h', '24h', '7d', '30d', '3m']);
+        expect(offeredRanges('1y').map(r => r.key)).toEqual(['3h', '6h', '24h', '7d', '30d', '3m', '12m']);
+    });
+
+    it('reads a hidden view as the longest offered one and an invalid value as 7d', () => {
+        // tableRef: statistics-behaviour #K2, #K11
+        expect(resolveRange('12m', '30d')).toBe('30d');
+        expect(resolveRange('3m', '30d')).toBe('30d');
+        expect(resolveRange('12m', '90d')).toBe('3m');
+        expect(resolveRange('12m', '1y')).toBe('12m');
+        expect(resolveRange('bogus', '30d')).toBe('7d');
+        expect(resolveRange(null, '1y')).toBe('7d');
     });
 });
