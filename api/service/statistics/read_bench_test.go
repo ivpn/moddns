@@ -2,8 +2,8 @@ package statistics_test
 
 // Env-gated benchmark of the statistics read aggregation (spec row J47) on real
 // time-series collections created by migration 027, written the way the proxy
-// writes them: every tier holds one additive measurement per (profile, device,
-// tier bucket, writer), and the 1d tier is also written hourly. Run with:
+// writes them: one additive measurement per (profile, device, writer) every 15
+// minutes, stamped at the 15-minute, hour or day start of its tier. Run with:
 //
 //	BENCH_STATISTICS=1 go test ./service/statistics/ -run TestBenchmarkStatisticsRead -v
 //	TEST_MONGO_IMAGE=mongo:7.0.8 BENCH_STATISTICS=1 go test ... (other server version; default is prod's 8.0.9)
@@ -102,8 +102,8 @@ func TestBenchmarkStatisticsRead(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Hour).Add(13 * time.Minute) // mid-hour, like a request
 
 	// seed writes one measurement per profile, device and writer at every closed
-	// step of period over the last `days` days into coll. The 1d tier uses an hourly
-	// period stamped at the day start (an additive measurement).
+	// step of period over the last `days` days into coll, stamped at its tier bucket.
+	// The 1h and 1d tiers get a partial measurement per quarter (proxy-statistics-behaviour.md Y28).
 	seed := func(coll string, days int, period time.Duration, stamp func(time.Time) time.Time, ps []string) int {
 		c := db.Collection(coll)
 		batch := make([]any, 0, 10_000)
@@ -134,13 +134,15 @@ func TestBenchmarkStatisticsRead(t *testing.T) {
 		return n
 	}
 	same := func(t time.Time) time.Time { return t }
+	hour := func(t time.Time) time.Time { return t.Truncate(time.Hour) }
 	day := func(t time.Time) time.Time { return t.Truncate(24 * time.Hour) }
+	const quarter = 15 * time.Minute
 	start := time.Now()
-	n15 := seed("statistics_15min", 1, 15*time.Minute, same, profiles)
-	n1h := seed("statistics_1h", 8, time.Hour, same, profiles)
-	n1d := seed("statistics_1d_1y", 365, time.Hour, day, profiles[:1]) // the target holds a full year
-	n1d += seed("statistics_1d_90d", 90, time.Hour, day, profiles[1:])
-	n1d += seed("statistics_1d_30d", 30, time.Hour, day, profiles[1:])
+	n15 := seed("statistics_15min", 1, quarter, same, profiles)
+	n1h := seed("statistics_1h", 8, quarter, hour, profiles)
+	n1d := seed("statistics_1d_1y", 365, quarter, day, profiles[:1]) // the target holds a full year
+	n1d += seed("statistics_1d_90d", 90, quarter, day, profiles[1:])
+	n1d += seed("statistics_1d_30d", 30, quarter, day, profiles[1:])
 	t.Logf("%s: seeded %d (15min) + %d (1h) + %d (1d) measurements, %d profiles, %d writers in %s", image, n15, n1h, n1d, len(profiles), writers, time.Since(start).Round(time.Millisecond))
 
 	repo := mongodb.NewStatisticsRepository(client, dbName)

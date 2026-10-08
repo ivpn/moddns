@@ -14,7 +14,7 @@ import (
 // StatisticsCollector feeds per-query events to a fleet accumulator (one
 // service-wide document per hour for this PoP) and, for consenting profiles, to two
 // consented accumulators (per-profile, per-device 15-minute and 1-hour entries), and
-// emits all of them. Closed hours are also written as 1-day measurements. Only the
+// emits all of them. Hours are also written as 1-day measurements. Only the
 // Collect goroutine touches the accumulators, so no locking is needed.
 type StatisticsCollector struct {
 	Type      string
@@ -169,8 +169,9 @@ func (c *StatisticsCollector) flush(trigger string) {
 }
 
 // flushConsented emits the closed-bucket entries of both tiers, or every entry when all
-// is set. Each hour entry also goes out as a 1-day measurement. A failed emit is logged
-// without identifiers and the entries are dropped.
+// is set. When a quarter closed, the open hour's counts so far go out too (Y28). Each
+// hour entry also goes out as a 1-day measurement. A failed emit is logged without
+// identifiers and the entries are dropped.
 func (c *StatisticsCollector) flushConsented(all bool) {
 	c.ensure()
 	var quarters, hours []model.Statistics
@@ -178,7 +179,12 @@ func (c *StatisticsCollector) flushConsented(all bool) {
 		quarters, hours = c.quarter.takeAll(), c.hour.takeAll()
 	} else {
 		now := c.now()
-		quarters, hours = c.quarter.takeClosed(now), c.hour.takeClosed(now)
+		quarters = c.quarter.takeClosed(now)
+		if len(quarters) > 0 {
+			hours = c.hour.takeCounts(now)
+		} else {
+			hours = c.hour.takeClosed(now)
+		}
 	}
 	batch := make([]model.Statistics, 0, len(quarters)+2*len(hours))
 	batch = append(batch, quarters...)

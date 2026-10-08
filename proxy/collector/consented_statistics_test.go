@@ -257,18 +257,16 @@ func TestConsented_DefaultCapFlushesInAtMostFourChunks(t *testing.T) {
 	assert.Equal(t, []int{5000, 5000, 5000, 3000}, sizes)
 }
 
-// specRef: proxy-statistics-behaviour.md #Y17
-func TestConsented_TickEmitsOnlyClosedBucketsPerTier(t *testing.T) {
+// specRef: proxy-statistics-behaviour.md #Y17 #Y28
+func TestConsented_TickEmitsClosedQuartersAndOpenHourDeltas(t *testing.T) {
 	e := mocks.NewEmitter(t)
 	c, clock := newConsentedCollector(t, e, t1300)
 	var emitted [][]model.Statistics
 	captureStatsEmit(e, &emitted)
 	e.On("EmitServiceStatistics", mock.Anything, mock.Anything).Return(nil)
+	dayStart := time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)
 
 	c.add(plain("p1", "d1"))
-	*clock = t1300.Add(15 * time.Minute)
-	c.add(plain("p1", "d1"))
-
 	*clock = t1300.Add(14*time.Minute + 59*time.Second)
 	c.tick()
 	assert.Empty(t, emitted, "nothing is closed at 13:14:59")
@@ -276,29 +274,44 @@ func TestConsented_TickEmitsOnlyClosedBucketsPerTier(t *testing.T) {
 	*clock = t1300.Add(15 * time.Minute)
 	c.tick()
 	require.Len(t, emitted, 1)
-	require.Len(t, emitted[0], 1, "only the 13:00 quarter closed; the hour is still open")
-	assert.Equal(t, model.StatisticsTier15Min, emitted[0][0].Tier)
-	assert.True(t, emitted[0][0].BucketStart.Equal(t1300))
+	require.Len(t, emitted[0], 3, "the closed quarter, the open hour so far and its 1-day measurement")
+	assert.Equal(t, int64(1), docFor(t, emitted[0], model.StatisticsTier15Min, "p1", "d1", t1300).Total)
+	assert.Equal(t, int64(1), docFor(t, emitted[0], model.StatisticsTier1Hour, "p1", "d1", t1300).Total)
+	assert.Equal(t, int64(1), docFor(t, emitted[0], model.StatisticsTier1Day, "p1", "d1", dayStart).Total)
 
 	c.tick()
 	assert.Len(t, emitted, 1, "nothing newly closed: nothing emitted")
 
+	*clock = t1300.Add(20 * time.Minute)
+	c.add(plain("p1", "d1"))
+	c.add(plain("p1", "d1"))
 	*clock = t1300.Add(30 * time.Minute)
 	c.tick()
 	require.Len(t, emitted, 2)
-	assert.True(t, emitted[1][0].BucketStart.Equal(t1300.Add(15*time.Minute)))
+	require.Len(t, emitted[1], 3)
+	assert.Equal(t, int64(2), docFor(t, emitted[1], model.StatisticsTier15Min, "p1", "d1", t1300.Add(15*time.Minute)).Total)
+	assert.Equal(t, int64(2), docFor(t, emitted[1], model.StatisticsTier1Hour, "p1", "d1", t1300).Total, "only the delta since the last emit")
+	assert.Equal(t, int64(2), docFor(t, emitted[1], model.StatisticsTier1Day, "p1", "d1", dayStart).Total)
 
+	*clock = t1300.Add(50 * time.Minute)
+	c.add(plain("p1", "d1"))
 	*clock = t1300.Add(time.Hour)
 	c.tick()
 	require.Len(t, emitted, 3)
-	hour := tierDocs(emitted[2], model.StatisticsTier1Hour)
-	day := tierDocs(emitted[2], model.StatisticsTier1Day)
-	require.Len(t, hour, 1)
-	require.Len(t, day, 1, "a closed hour is also written to the 1-day tier")
-	assert.Equal(t, int64(2), hour[0].Total)
-	assert.True(t, day[0].BucketStart.Equal(time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)))
+	assert.Equal(t, int64(1), docFor(t, emitted[2], model.StatisticsTier1Hour, "p1", "d1", t1300).Total, "the closed hour carries the remainder")
 	assert.Zero(t, c.quarter.size()+c.hour.size())
 	assert.Empty(t, c.hour.devices)
+
+	docs := all(emitted)
+	sum := func(tier model.StatisticsTier) (n int64) {
+		for _, d := range tierDocs(docs, tier) {
+			n += d.Total
+		}
+		return n
+	}
+	assert.Equal(t, int64(4), sum(model.StatisticsTier15Min))
+	assert.Equal(t, sum(model.StatisticsTier15Min), sum(model.StatisticsTier1Hour), "every tier sums to the same totals")
+	assert.Equal(t, sum(model.StatisticsTier15Min), sum(model.StatisticsTier1Day))
 }
 
 // specRef: proxy-statistics-behaviour.md #Y17 #Y8
@@ -361,7 +374,7 @@ func TestConsented_StopDrainsAndFlushesBothAccumulators(t *testing.T) {
 	}
 }
 
-// specRef: proxy-statistics-behaviour.md #Y17
+// specRef: proxy-statistics-behaviour.md #Y17 #Y28
 func TestConsented_CollectTickEmitsClosedBucket(t *testing.T) {
 	e := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, e, 100, 20*time.Millisecond)
@@ -386,8 +399,10 @@ func TestConsented_CollectTickEmitsClosedBucket(t *testing.T) {
 	clock.Store(t1300.Add(15 * time.Minute).UnixNano())
 	select {
 	case batch := <-got:
-		require.Len(t, batch, 1)
-		assert.Equal(t, model.StatisticsTier15Min, batch[0].Tier)
+		require.Len(t, batch, 3, "the closed quarter, the open hour so far and its 1-day measurement")
+		assert.Len(t, tierDocs(batch, model.StatisticsTier15Min), 1)
+		assert.Len(t, tierDocs(batch, model.StatisticsTier1Hour), 1)
+		assert.Len(t, tierDocs(batch, model.StatisticsTier1Day), 1)
 	case <-time.After(time.Second):
 		t.Fatal("closed bucket was not emitted on a tick")
 	}

@@ -66,13 +66,17 @@ type consentedAccumulator struct {
 	tier    model.StatisticsTier
 	entries map[consentedKey]*model.Statistics
 	devices map[profileBucket]int
+	// admitted holds the keys counted toward devices, so a device keeps its own entry
+	// after takeCounts removes it while the bucket is still open.
+	admitted map[consentedKey]struct{}
 }
 
 func newConsentedAccumulator(tier model.StatisticsTier) *consentedAccumulator {
 	return &consentedAccumulator{
-		tier:    tier,
-		entries: make(map[consentedKey]*model.Statistics),
-		devices: make(map[profileBucket]int),
+		tier:     tier,
+		entries:  make(map[consentedKey]*model.Statistics),
+		devices:  make(map[profileBucket]int),
+		admitted: make(map[consentedKey]struct{}),
 	}
 }
 
@@ -93,12 +97,15 @@ func (a *consentedAccumulator) add(event model.EventStatistics, now time.Time) {
 
 	doc, ok := a.entries[key]
 	if !ok {
-		pb := profileBucket{profileID: cs.ProfileID, bucket: bucket}
-		if a.devices[pb] >= model.MaxDevicesPerProfileBucket {
-			key.deviceID = model.OtherDeviceID
-			doc, ok = a.entries[key]
-		} else {
-			a.devices[pb]++
+		if _, seen := a.admitted[key]; !seen {
+			pb := profileBucket{profileID: cs.ProfileID, bucket: bucket}
+			if a.devices[pb] >= model.MaxDevicesPerProfileBucket {
+				key.deviceID = model.OtherDeviceID
+				doc, ok = a.entries[key]
+			} else {
+				a.devices[pb]++
+				a.admitted[key] = struct{}{}
+			}
 		}
 	}
 	if !ok {
@@ -118,25 +125,40 @@ func (a *consentedAccumulator) size() int { return len(a.entries) }
 // takeClosed removes and returns the entries whose bucket closed at or before now.
 func (a *consentedAccumulator) takeClosed(now time.Time) []model.Statistics {
 	w := a.width()
-	return a.take(func(bucket time.Time) bool { return !bucket.Add(w).After(now) })
+	closed := func(bucket time.Time) bool { return !bucket.Add(w).After(now) }
+	return a.take(closed, closed)
 }
 
 // takeAll removes and returns every entry, open buckets included.
 func (a *consentedAccumulator) takeAll() []model.Statistics {
-	return a.take(func(time.Time) bool { return true })
+	return a.take(func(time.Time) bool { return true }, func(time.Time) bool { return true })
 }
 
-func (a *consentedAccumulator) take(want func(bucket time.Time) bool) []model.Statistics {
+// takeCounts removes and returns every entry, open buckets included, but keeps the
+// device-cap bookkeeping of buckets still open at now (Y28).
+func (a *consentedAccumulator) takeCounts(now time.Time) []model.Statistics {
+	w := a.width()
+	return a.take(func(time.Time) bool { return true }, func(bucket time.Time) bool { return !bucket.Add(w).After(now) })
+}
+
+// take removes the entries whose bucket wantEntry selects and the device
+// bookkeeping of the buckets wantDevices selects.
+func (a *consentedAccumulator) take(wantEntry, wantDevices func(bucket time.Time) bool) []model.Statistics {
 	var batch []model.Statistics
 	for key, doc := range a.entries {
-		if want(key.bucket) {
+		if wantEntry(key.bucket) {
 			batch = append(batch, *doc)
 			delete(a.entries, key)
 		}
 	}
 	for pb := range a.devices {
-		if want(pb.bucket) {
+		if wantDevices(pb.bucket) {
 			delete(a.devices, pb)
+		}
+	}
+	for key := range a.admitted {
+		if wantDevices(key.bucket) {
+			delete(a.admitted, key)
 		}
 	}
 	return batch

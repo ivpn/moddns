@@ -1,11 +1,11 @@
 """End-to-end checks for consented per-profile statistics.
 
 The proxy writes flat documents per (profile, device, bucket) into the tiered
-time-series collections only while ``statistics.enabled`` is true: 15-minute and
-1-hour entries when a bucket closes, and each hour's counts added to the 1-day
-tier (stamped at the UTC day start). Waiting for a bucket to close is not an
-option, so tests force the flush by restarting the proxy container, which
-flushes partial buckets on shutdown (Y18).
+time-series collections only while ``statistics.enabled`` is true: 15-minute
+entries when a quarter closes, and at that point the hour's counts so far as an
+additive 1-hour measurement and a 1-day one (stamped at the UTC day start).
+Waiting for a quarter to close is not an option, so tests force the flush by
+restarting the proxy container, which flushes partial buckets on shutdown (Y18).
 specRef: proxy-statistics-behaviour #Y11 #Y12 #Y13 #Y14 #Y17 #Y18 #Y19 #Y20;
 api-endpoint-behaviour #J6 #J7 #J8 #J9 #J11.
 """
