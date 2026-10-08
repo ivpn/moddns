@@ -68,6 +68,8 @@ moddns/models/model_profile_settings.py
 moddns/models/model_profile_update.py
 moddns/models/model_query_log.py
 moddns/models/model_query_log_device.py
+moddns/models/model_query_log_top_blocklist.py
+moddns/models/model_query_log_top_blocklists.py
 moddns/models/model_query_log_top_client.py
 moddns/models/model_query_log_top_clients.py
 moddns/models/model_query_log_top_domain.py

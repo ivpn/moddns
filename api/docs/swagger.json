@@ -1889,6 +1889,89 @@
                 }
             }
         },
+        "/api/v1/profiles/{id}/logs/blocklists": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile top blocklists",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "LAST_1_HOUR",
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
+                            "LAST_12_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH"
+                        ],
+                        "type": "string",
+                        "default": "LAST_1_DAY",
+                        "description": "specify timespan for query",
+                        "name": "timespan",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "number of items",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.QueryLogTopBlocklists"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/profiles/{id}/logs/clients": {
             "get": {
                 "security": [
@@ -4106,6 +4189,31 @@
                 },
                 "last_seen": {
                     "type": "string"
+                }
+            }
+        },
+        "model.QueryLogTopBlocklist": {
+            "type": "object",
+            "properties": {
+                "blocklist_id": {
+                    "type": "string"
+                },
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.QueryLogTopBlocklists": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.QueryLogTopBlocklist"
+                    }
                 }
             }
         },
