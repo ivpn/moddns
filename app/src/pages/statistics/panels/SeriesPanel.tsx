@@ -7,6 +7,7 @@ import { rangeDef, type RangeKey } from "../ranges";
 import { bucketUnitWord, formatBucketLabel, formatBucketTick, formatDateTime } from "../time";
 import { PanelShell, StatsTable, mutedText } from "../primitives";
 import { cn } from "@/lib/utils";
+import { ENTRANCE_MS, useChartEntrance } from "../useChartEntrance";
 
 const config: ChartConfig = {
     all: { label: "All queries", color: "var(--stats-all)" },
@@ -75,6 +76,7 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
     const unit = bucketUnitWord(data.bucketSeconds);
     const unitPlural = unit === "daily" ? "days" : unit === "hourly" ? "hours" : "15-minute buckets";
     const summary = chartSummary(data, buckets, range);
+    const animate = useChartEntrance(`${data.bucketSeconds}:${Math.round((data.toMs - data.fromMs) / 3_600_000)}`);
     const markerTs = since !== null ? rows.find(r => r.all !== null || r.allTail !== null)?.ts : undefined;
 
     return (
@@ -155,10 +157,10 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                                 label={{ value: "Statistics on", position: "insideTopLeft", fill: "var(--stats-axis)", fontSize: 11 }}
                                             />
                                         )}
-                                        <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                                        <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-                                        <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
-                                        <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={false} />
+                                        <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
                                     </ComposedChart>
                                 </ChartContainer>
                             </div>
