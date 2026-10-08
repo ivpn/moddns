@@ -87,6 +87,14 @@ export const topClients = {
     ],
 };
 
+export const topBlocklists = {
+    enabled: true,
+    items: [
+        { blocklist_id: 'bl-basic', name: 'Basic Protection', count: 90 },
+        { blocklist_id: 'bl-nameless', count: 12 },
+    ],
+};
+
 export const devicesList = [
     { device_id: 'laptop', last_seen: '2026-10-06T15:00:00Z' },
     { device_id: 'phone', last_seen: '2026-10-06T10:00:00Z' },
