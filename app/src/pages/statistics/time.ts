@@ -45,12 +45,12 @@ export function bucketUnitWord(bucketSeconds: number): string {
     return "15-minute";
 }
 
-/** K5: "{from} – {to} · hourly" */
+/** K5: "{from} - {to} · hourly" */
 export function formatRangeCaption(fromMs: number, toMs: number, bucketSeconds: number): string {
     const daily = bucketSeconds >= 86400;
     const range = daily
-        ? `${formatUtcDay(fromMs)} – ${formatUtcDay(toMs)}`
-        : `${formatDateTime(fromMs)} – ${formatDateTime(toMs)}`;
+        ? `${formatUtcDay(fromMs)} - ${formatUtcDay(toMs)}`
+        : `${formatDateTime(fromMs)} - ${formatDateTime(toMs)}`;
     const days = daily && browserOffsetsFromUtc() ? " · Days are UTC days" : "";
     return `${range} · ${bucketUnitWord(bucketSeconds)}${days}`;
 }
@@ -76,7 +76,7 @@ export function formatBucketTick(ms: number, bucketSeconds: number, longYear = f
 /** Tooltip and table row header for one bucket. */
 export function formatBucketLabel(ms: number, bucketSeconds: number): string {
     if (bucketSeconds >= 86400) return `${formatUtcDay(ms, true)} (UTC day)`;
-    return `${formatDateTime(ms)}–${formatClock(ms + bucketSeconds * 1000)}`;
+    return `${formatDateTime(ms)}-${formatClock(ms + bucketSeconds * 1000)}`;
 }
 
 export function formatRelative(ms: number, nowMs = Date.now()): string {
