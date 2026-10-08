@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import api from "@/api/api";
 import type { ModelProfile } from "@/api/client";
 import { Button } from "@/components/ui/button";
+import ToggleGroup from "@/components/general/ToggleGroup";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -84,54 +85,44 @@ interface PillOption<T extends string> {
     value: T;
     label: string;
     ariaLabel?: string;
+    icon?: "check" | "octagon-x";
 }
 
+const subTitle =
+    "[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words";
+const subDesc = "text-sm leading-5 text-[var(--tailwind-colors-slate-200)] break-words";
+const subRow = "flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full";
+const subText = "flex flex-col items-start gap-2 min-w-0 max-w-full";
+
 function PillGroup<T extends string>({
-    name,
     labelledBy,
     options,
     value,
     disabled,
     onChange,
     firstId,
+    wide,
 }: {
-    name: string;
     labelledBy: string;
     options: PillOption<T>[];
     value: T;
     disabled: boolean;
     onChange: (v: T) => void;
     firstId?: string;
+    wide?: boolean;
 }) {
     return (
-        <div role="radiogroup" aria-labelledby={labelledBy} className="flex flex-wrap gap-1 self-start sm:self-auto">
-            {options.map((o, i) => (
-                <label
-                    key={o.value}
-                    className={cn(
-                        "flex items-center justify-center min-h-11 lg:min-h-9 min-w-[52px] px-3 rounded border text-sm font-medium cursor-pointer select-none",
-                        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--tailwind-colors-rdns-600)]",
-                        value === o.value
-                            ? "bg-[var(--tailwind-colors-rdns-600)] border-[var(--tailwind-colors-rdns-600)] text-white"
-                            : "border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-slate-50)]",
-                        disabled && "cursor-not-allowed opacity-60",
-                    )}
-                >
-                    <input
-                        type="radio"
-                        className="sr-only"
-                        name={name}
-                        id={i === 0 ? firstId : undefined}
-                        value={o.value}
-                        checked={value === o.value}
-                        disabled={disabled}
-                        aria-label={o.ariaLabel}
-                        onChange={() => onChange(o.value)}
-                    />
-                    {o.label}
-                </label>
-            ))}
-        </div>
+        <ToggleGroup
+            options={options.map((o, i) => ({ ...o, id: i === 0 ? firstId : undefined }))}
+            value={value}
+            // Radix reports "" when the selected pill is pressed again.
+            onChange={v => v && onChange(v as T)}
+            variant="outline"
+            className={wide ? "!w-full sm:!w-auto" : "rounded p-0.5 self-start sm:self-auto"}
+            itemClassName={wide ? "min-w-0 sm:min-w-[64px] flex-1 sm:flex-initial px-1 sm:px-3" : undefined}
+            labelledBy={labelledBy}
+            disabled={disabled}
+        />
     );
 }
 
@@ -307,9 +298,9 @@ function Inner({
     const domainHint = saved.level === "logs" && saved.domains && !pending.domains;
     const ipHint = saved.level === "logs" && saved.ips && !pending.ips;
 
-    const onOff = [
-        { value: "false", label: "Disable" },
-        { value: "true", label: "Enable" },
+    const onOff: PillOption<string>[] = [
+        { value: "false", label: "Disable", icon: "octagon-x" },
+        { value: "true", label: "Enable", icon: "check" },
     ];
 
     return (
@@ -425,12 +416,12 @@ function Inner({
 
                                     {showAll && (
                                         <>
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <div id={ids.domainsLabel} className={cn(strong, "text-sm")}>
+                                            <div className={subRow}>
+                                                <div className={subText}>
+                                                    <div id={ids.domainsLabel} className={subTitle}>
                                                         Log domains
                                                     </div>
-                                                    <div className={muted}>Store the domain of each query.</div>
+                                                    <div className={subDesc}>Store the domain of each query.</div>
                                                     {domainHint && (
                                                         <Hint>
                                                             Applies to new queries. Existing logs keep their domains until they expire or you clear them.
@@ -438,7 +429,6 @@ function Inner({
                                                     )}
                                                 </div>
                                                 <PillGroup
-                                                    name={`${uid}-domains`}
                                                     firstId={ids.domains}
                                                     labelledBy={ids.domainsLabel}
                                                     options={onOff}
@@ -448,12 +438,12 @@ function Inner({
                                                 />
                                             </div>
 
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <div id={ids.ipsLabel} className={cn(strong, "text-sm")}>
+                                            <div className={subRow}>
+                                                <div className={subText}>
+                                                    <div id={ids.ipsLabel} className={subTitle}>
                                                         Log client IP addresses
                                                     </div>
-                                                    <div className={muted}>Store the IP address each query came from.</div>
+                                                    <div className={subDesc}>Store the IP address each query came from.</div>
                                                     {ipHint && (
                                                         <Hint>
                                                             Applies to new queries. Existing logs keep their IP addresses until they expire or you clear them.
@@ -461,7 +451,6 @@ function Inner({
                                                     )}
                                                 </div>
                                                 <PillGroup
-                                                    name={`${uid}-ips`}
                                                     firstId={ids.ips}
                                                     labelledBy={ids.ipsLabel}
                                                     options={onOff}
@@ -471,10 +460,10 @@ function Inner({
                                                 />
                                             </div>
 
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                                <div className="min-w-0">
+                                            <div className={subRow}>
+                                                <div className={subText}>
                                                     <div className="flex items-center gap-1">
-                                                        <span id={ids.retLabel} className={cn(strong, "text-sm")}>
+                                                        <span id={ids.retLabel} className={subTitle}>
                                                             Retention period
                                                         </span>
                                                         <Tooltip
@@ -501,12 +490,13 @@ function Inner({
                                                             </button>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className={muted}>
+                                                    <div className={subDesc}>
                                                         Choose how long query logs are kept before being automatically deleted.
                                                     </div>
                                                 </div>
+                                                <div className="w-full sm:w-auto md:flex-shrink-0">
                                                 <PillGroup
-                                                    name={`${uid}-retention`}
+                                                    wide
                                                     labelledBy={ids.retLabel}
                                                     options={LOGS_RETENTION_OPTIONS.map(o => ({
                                                         ...o,
@@ -516,6 +506,7 @@ function Inner({
                                                     disabled={disabled}
                                                     onChange={v => setPending(p => ({ ...p, retention: v }))}
                                                 />
+                                                </div>
                                             </div>
                                         </>
                                     )}
