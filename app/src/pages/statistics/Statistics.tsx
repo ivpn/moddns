@@ -183,7 +183,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
         if (!d || d.toMs <= d.fromMs) return null;
         if (isClamped(d, range)) {
             const span =
-                d.bucketSeconds >= 86400 ? `${formatUtcDay(d.fromMs)} – ${formatUtcDay(d.toMs)}` : `${formatDateTime(d.fromMs)} – ${formatDateTime(d.toMs)}`;
+                d.bucketSeconds >= 86400 ? `${formatUtcDay(d.fromMs)} - ${formatUtcDay(d.toMs)}` : `${formatDateTime(d.fromMs)} - ${formatDateTime(d.toMs)}`;
             const utc = d.bucketSeconds >= 86400 && browserOffsetsFromUtc() ? " Days are UTC days." : "";
             return `Statistics are kept for ${statsRetentionWords(d.retention)}, so this view shows ${span}.${utc}`;
         }
@@ -200,7 +200,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <p className={cn("text-sm md:text-base leading-5 md:leading-6", mutedText)}>
-                Counts of DNS queries for this profile — no domains, no addresses.
+                An overview of this profile's DNS queries over time.
             </p>
 
             {!anyCollection ? (
