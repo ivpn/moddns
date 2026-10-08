@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { LOGS_RETENTION_WORDS } from "@/components/data-collection/model";
-import { countsState, type StatsData } from "./derive";
+import { countsState, expectedFirstCounts, type StatsData } from "./derive";
 import { logsWindowCaption, nextLongerRange, rangeDef, type RangeKey } from "./ranges";
-import { formatDateTime } from "./time";
+import { formatDateTime, formatExpected } from "./time";
 import { GateAction, GroupHeading, LimitedAccessNote, MessageCard, StatsCard, mutedText } from "./primitives";
 import { KpiCards } from "./panels/KpiCards";
 import { SeriesPanel } from "./panels/SeriesPanel";
@@ -102,6 +102,8 @@ export interface CountsGroupProps extends GateProps {
     onRange: (k: RangeKey) => void;
     lastSeen: Map<string, number> | null;
     emptyHeadingRef: React.Ref<HTMLHeadingElement>;
+    /** Clock for the collecting / no-queries-yet switch (P5, P23). */
+    now: number;
 }
 
 export function CountsGroup(p: CountsGroupProps) {
@@ -127,11 +129,19 @@ export function CountsGroup(p: CountsGroupProps) {
         const d = stats.data;
         const state = countsState(d);
         if (state === "no-queries-yet") {
+            const expected = expectedFirstCounts(range, d.turnedOnAt, d.historyDeletedAt);
+            const collecting = expected !== null && p.now < expected.collectingUntilMs;
+            const start = d.enabledAt !== null ? formatDateTime(d.enabledAt) : null;
             body = (
-                <MessageCard icon={<ChartColumn className="w-6 h-6" />} title="No queries counted yet" headingRef={p.emptyHeadingRef}>
+                <MessageCard
+                    icon={<ChartColumn className="w-6 h-6" />}
+                    title={collecting ? "Collecting statistics" : "No queries counted yet"}
+                    headingRef={p.emptyHeadingRef}
+                >
                     <p className={cn("text-sm", mutedText)}>
-                        {d.enabledAt !== null ? `Statistics on since ${formatDateTime(d.enabledAt)}. ` : ""}
-                        Counts appear about 15 minutes after the first query.
+                        {collecting
+                            ? `${start ? `Statistics are on since ${start}. ` : ""}To protect your privacy, modDNS counts queries in 15-minute blocks, never one by one, so the first counts appear at about ${formatExpected(expected.displayMs, p.now)}. This page updates by itself.`
+                            : `No queries have reached this profile${start ? ` since ${start}` : ""}. If your devices should be using it, check the device setup.`}
                     </p>
                     <Link
                         to="/setup"

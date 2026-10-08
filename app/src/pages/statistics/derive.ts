@@ -40,6 +40,9 @@ export interface StatsData {
     enabled: boolean;
     /** When counting started: the later of enabled_at and history_deleted_at. */
     enabledAt: number | null;
+    /** The raw timestamps behind `enabledAt`; the expected-first-counts time depends on which one wins. */
+    turnedOnAt: number | null;
+    historyDeletedAt: number | null;
     retention: string;
     fromMs: number;
     toMs: number;
@@ -73,6 +76,8 @@ export function normalizeStats(raw: unknown): StatsData {
     return {
         enabled: r.enabled === true,
         enabledAt: latest(time(r.enabled_at), time(r.history_deleted_at)),
+        turnedOnAt: time(r.enabled_at),
+        historyDeletedAt: time(r.history_deleted_at),
         retention: typeof r.retention === "string" ? r.retention : "",
         fromMs: time(r.from) ?? 0,
         toMs: time(r.to) ?? 0,
@@ -149,4 +154,38 @@ export function deviceLabel(id: string): { kind: "id" | "none" | "other"; text: 
 
 export function sum(values: (number | null)[]): number {
     return values.reduce<number>((s, v) => s + (v ?? 0), 0);
+}
+
+const QUARTER_MS = 15 * 60_000;
+const HOUR_MS = 60 * 60_000;
+const DAY_MS = 24 * HOUR_MS;
+const FLUSH_TICK_MS = 60_000;
+const COLLECTING_GRACE_MS = 2 * 60_000;
+
+export interface ExpectedFirstCounts {
+    /** When the first bucket of the view closes. */
+    boundaryMs: number;
+    /** What the page says ("about …"): the boundary plus the proxy's 60 s flush tick. */
+    displayMs: number;
+    /** P5 shows until this moment; after it an empty window is P23. */
+    collectingUntilMs: number;
+}
+
+/**
+ * P24: when the first counts can appear in `range`'s bucket tier (Y15, Y17, Y28, J53).
+ * After turning on, every view waits for the next quarter-hour boundary; after Delete history the
+ * hourly and daily tiers also wait for their own bucket to close.
+ */
+export function expectedFirstCounts(range: RangeKey, enabledAt: number | null, historyDeletedAt: number | null): ExpectedFirstCounts | null {
+    const start = latest(enabledAt, historyDeletedAt);
+    if (start === null) return null;
+    const afterDelete = historyDeletedAt !== null && (enabledAt === null || historyDeletedAt > enabledAt);
+    const nextQuarter = Math.floor(start / QUARTER_MS) * QUARTER_MS + QUARTER_MS;
+    let boundaryMs = nextQuarter;
+    if (afterDelete) {
+        if (range === "24h" || range === "7d") boundaryMs = Math.floor(start / HOUR_MS) * HOUR_MS + HOUR_MS + QUARTER_MS;
+        else if (range === "30d" || range === "3m" || range === "12m") boundaryMs = Math.floor(start / DAY_MS) * DAY_MS + DAY_MS + QUARTER_MS;
+    }
+    const displayMs = boundaryMs + FLUSH_TICK_MS;
+    return { boundaryMs, displayMs, collectingUntilMs: displayMs + COLLECTING_GRACE_MS };
 }

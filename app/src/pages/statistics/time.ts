@@ -25,6 +25,11 @@ export function formatClock(ms: number): string {
     return fmt("hm", HM).format(ms);
 }
 
+/** "about {expected}" (P5): the clock time today, the date and time on another day. */
+export function formatExpected(ms: number, nowMs: number): string {
+    return new Date(ms).toDateString() === new Date(nowMs).toDateString() ? formatClock(ms) : formatDateTime(ms);
+}
+
 export function formatUtcDay(ms: number, withYear = false): string {
     return fmt("utcday", { month: "short", day: "numeric", year: withYear ? "numeric" : undefined, timeZone: "UTC" }).format(ms);
 }

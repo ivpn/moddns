@@ -13,7 +13,7 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
-import { isClamped, normalizeStats, type StatsData } from "./derive";
+import { countsState, expectedFirstCounts, isClamped, normalizeStats, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
 import { LOGS_TIMESPAN, STATS_TIMESPAN, parseRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
 import { formatDateTime, formatRangeCaption, formatUtcDay, browserOffsetsFromUtc } from "./time";
@@ -159,6 +159,25 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
         }
     }, [focusEmpty, stats.status, stats.data]);
 
+    // K10: while P5 shows, one silent refetch just after the first bucket flushes; no other polling.
+    const [now, setNow] = useState(() => Date.now());
+    const expected =
+        stats.status === "ready" && stats.data && countsState(stats.data) === "no-queries-yet"
+            ? expectedFirstCounts(range, stats.data.turnedOnAt, stats.data.historyDeletedAt)
+            : null;
+    const collectingUntil = expected?.collectingUntilMs ?? null;
+    const refetchAt = expected ? expected.boundaryMs + 90_000 : null;
+    const refetchStats = stats.refetch;
+    useEffect(() => {
+        if (collectingUntil === null || refetchAt === null) return;
+        const t0 = Date.now();
+        setNow(t0);
+        if (t0 >= collectingUntil) return;
+        const timers = [setTimeout(() => setNow(Date.now()), collectingUntil - t0)];
+        if (refetchAt > t0) timers.push(setTimeout(refetchStats, refetchAt - t0));
+        return () => timers.forEach(clearTimeout);
+    }, [collectingUntil, refetchAt, refetchStats, pid, range]);
+
     const caption = useMemo(() => {
         const d = countsOn && stats.status === "ready" ? stats.data : null;
         if (!d || d.toMs <= d.fromMs) return null;
@@ -222,6 +241,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         onRange={setRange}
                         lastSeen={lastSeen}
                         emptyHeadingRef={emptyHeading}
+                        now={now}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
                         onGate={setGate}
