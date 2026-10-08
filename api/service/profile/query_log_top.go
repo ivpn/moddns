@@ -169,13 +169,45 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 		if err != nil {
 			return nil, err
 		}
+		p.nameBlocklists(ctx, items)
 		storeTop(ctx, p, key, items)
 	}
 	if len(items) > limit {
 		items = items[:limit]
 	}
+	for i := range items {
+		if items[i].Name == "" {
+			items[i].Name = items[i].BlocklistID
+		}
+	}
 	if items == nil {
 		items = []model.QueryLogTopBlocklist{}
 	}
 	return &model.QueryLogTopBlocklists{Enabled: true, Items: items}, nil
+}
+
+// nameBlocklists sets each item's catalogue name with one lookup. An id missing
+// from the catalogue, or every id when the lookup fails, is named by itself.
+func (p *ProfileService) nameBlocklists(ctx context.Context, items []model.QueryLogTopBlocklist) {
+	if len(items) == 0 {
+		return
+	}
+	ids := make([]string, len(items))
+	for i, it := range items {
+		ids[i] = it.BlocklistID
+	}
+	names := make(map[string]string, len(items))
+	catalog, err := p.BlocklistService.GetBlocklist(ctx, map[string]any{"blocklist_ids": ids}, "")
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Int("blocklists", len(ids)).Msg("failed to resolve top blocklist names")
+	}
+	for _, b := range catalog {
+		names[b.BlocklistID] = b.Name
+	}
+	for i := range items {
+		items[i].Name = names[items[i].BlocklistID]
+		if items[i].Name == "" {
+			items[i].Name = items[i].BlocklistID
+		}
+	}
 }

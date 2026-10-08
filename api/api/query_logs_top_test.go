@@ -130,7 +130,7 @@ func (s *QueryLogsAPIShortSuite) TestLogsListRejectsShortTimespans() {
 
 // tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestBlocklistsDefaultsAndBody() {
-	want := &model.QueryLogTopBlocklists{Enabled: true, Items: []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 7}}}
+	want := &model.QueryLogTopBlocklists{Enabled: true, Items: []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Name: "OISD Big", Count: 7}}}
 	s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, "LAST_1_DAY", 10).Return(want, nil)
 
 	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists")
@@ -143,6 +143,8 @@ func (s *QueryLogsAPIShortSuite) TestBlocklistsDefaultsAndBody() {
 	assert.True(s.T(), raw.Enabled)
 	require.Len(s.T(), raw.Items, 1)
 	assert.Equal(s.T(), "oisd", raw.Items[0]["blocklist_id"])
+	assert.Equal(s.T(), "OISD Big", raw.Items[0]["name"])
+	assert.Len(s.T(), raw.Items[0], 3, "blocklist_id, name, count")
 	assert.EqualValues(s.T(), 7, raw.Items[0]["count"])
 }
 
