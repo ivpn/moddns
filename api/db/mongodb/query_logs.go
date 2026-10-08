@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -237,6 +239,53 @@ func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profile
 		return nil, err
 	}
 	r.warnIfSlow(ctx, "Query log top clients fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// topBlocklistsPipeline counts the profile's blocked rows since from once per
+// "blocklist: <id>" reason token, count desc then token asc. Sorting on the full
+// token equals sorting on the id: every token shares the prefix.
+func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pipeline {
+	prefix := bson.D{{Key: "$regex", Value: "^" + regexp.QuoteMeta(filterreasons.BlocklistPrefix)}}
+	return mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.D{
+			{Key: "profile_id", Value: profileId},
+			{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: from}}},
+			{Key: "status", Value: model.QueryLogStatusBlocked},
+		}}},
+		bson.D{{Key: "$unwind", Value: "$reasons"}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "reasons", Value: prefix}}}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$reasons"},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
+		bson.D{{Key: "$limit", Value: limit}},
+	}
+}
+
+// GetQueryLogTopBlocklists returns the blocklists that blocked the profile's
+// queries most often inside the timespan window. A row matched by several lists
+// counts once for each. Same cost profile as GetQueryLogTopDomains.
+func (r *QueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
+	start := time.Now()
+	from := time.Now().Add(-time.Duration(timespanHours) * time.Hour)
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, topBlocklistsPipeline(profileId, from, limit))
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Token string `bson:"_id"`
+		Count int64  `bson:"count"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	results := make([]model.QueryLogTopBlocklist, len(rows))
+	for i, row := range rows {
+		results[i] = model.QueryLogTopBlocklist{BlocklistID: strings.TrimPrefix(row.Token, filterreasons.BlocklistPrefix), Count: row.Count}
+	}
+	r.warnIfSlow(ctx, "Query log top blocklists fetch took too long", retention, len(results), start)
 	return results, nil
 }
 

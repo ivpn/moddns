@@ -113,6 +113,32 @@ func (s *QueryLogsRepositorySuite) TestListQueryLogProfileIDs_DoesNotUnpackMeasu
 	s.NotContains(plan, "COLLSCAN")
 }
 
+// specRef: api-endpoint-behaviour.md J25 — the top-blocklists read is bounded by the automatic
+// metaField+time index to the profile and window; no COLLSCAN.
+func (s *QueryLogsRepositorySuite) TestGetQueryLogTopBlocklists_UsesMetaTimeIndex() {
+	for i := 0; i < 20; i++ {
+		s.insert(queryLogsCollOneDay, fmt.Sprintf("p%d", i), 50)
+	}
+	var out bson.M
+	s.Require().NoError(s.db.RunCommand(context.Background(), bson.D{
+		{Key: "explain", Value: bson.D{
+			{Key: "aggregate", Value: queryLogsCollOneDay},
+			{Key: "cursor", Value: bson.D{}},
+			{Key: "pipeline", Value: topBlocklistsPipeline("p3", time.Now().Add(-6*time.Hour), 50)},
+		}},
+		{Key: "verbosity", Value: "executionStats"},
+	}).Decode(&out))
+	b, err := bson.MarshalExtJSON(out, false, false)
+	s.Require().NoError(err)
+	plan := string(b)
+	s.Contains(plan, `"indexName":"profile_id_1_timestamp_1"`, plan)
+	s.NotContains(plan, "COLLSCAN", plan)
+
+	got, err := s.repo.GetQueryLogTopBlocklists(context.Background(), "p3", "1d", 6, 50)
+	s.Require().NoError(err)
+	s.Empty(got, "processed rows without reasons count for nothing")
+}
+
 // specRef: api-endpoint-behaviour.md J12, J13 — deleting a profile's logs empties every retention collection.
 func (s *QueryLogsRepositorySuite) TestDeleteQueryLogs_AllCollections() {
 	for _, c := range queryLogsCollectionNames() {

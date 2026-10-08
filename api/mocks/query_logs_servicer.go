@@ -255,6 +255,92 @@ func (_c *QueryLogsServicer_GetProfileQueryLogDevices_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetProfileQueryLogTopBlocklists provides a mock function for the type QueryLogsServicer
+func (_mock *QueryLogsServicer) GetProfileQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopBlocklist, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespan, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogTopBlocklists")
+	}
+
+	var r0 []model.QueryLogTopBlocklist
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int) ([]model.QueryLogTopBlocklist, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespan, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int) []model.QueryLogTopBlocklist); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespan, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopBlocklist)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespan, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogTopBlocklists'
+type QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogTopBlocklists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespan string
+//   - limit int
+func (_e *QueryLogsServicer_Expecter) GetProfileQueryLogTopBlocklists(ctx interface{}, profileId interface{}, retention interface{}, timespan interface{}, limit interface{}) *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call {
+	return &QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call{Call: _e.mock.On("GetProfileQueryLogTopBlocklists", ctx, profileId, retention, timespan, limit)}
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int)) *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call) Return(queryLogTopBlocklists []model.QueryLogTopBlocklist, err error) *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call {
+	_c.Call.Return(queryLogTopBlocklists, err)
+	return _c
+}
+
+func (_c *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopBlocklist, error)) *QueryLogsServicer_GetProfileQueryLogTopBlocklists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProfileQueryLogTopClients provides a mock function for the type QueryLogsServicer
 func (_mock *QueryLogsServicer) GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error) {
 	ret := _mock.Called(ctx, profileId, retention, timespan, limit)

@@ -90,8 +90,9 @@ func (s *QueryLogsAPIShortSuite) TestClientsRejectsBadParams() {
 // Present-but-invalid limit is a 400, never a silent default.
 // tableRef: api-endpoint-behaviour #J20
 // tableRef: api-endpoint-behaviour #J21
+// tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestTopAndClientsRejectNonNumericAndOutOfRangeLimit() {
-	for _, ep := range []string{"/logs/top?kind=blocked&", "/logs/clients?"} {
+	for _, ep := range []string{"/logs/top?kind=blocked&", "/logs/clients?", "/logs/blocklists?"} {
 		for _, l := range []string{"x", "", "1.5", "0", "-1", "51", "99999999999999999999"} {
 			resp := s.get("/api/v1/profiles/" + qlProfile + ep + "limit=" + l)
 			assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, ep+"limit="+l)
@@ -101,6 +102,7 @@ func (s *QueryLogsAPIShortSuite) TestTopAndClientsRejectNonNumericAndOutOfRangeL
 
 // tableRef: api-endpoint-behaviour #J20
 // tableRef: api-endpoint-behaviour #J21
+// tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestTopAndClientsAcceptShortTimespans() {
 	for _, ts := range []string{"LAST_3_HOURS", "LAST_6_HOURS"} {
 		s.svc.On("GetProfileQueryLogTop", mock.Anything, qlAccID, qlProfile, ts, "blocked", 10).Return(&model.QueryLogTopDomains{Enabled: true}, nil).Once()
@@ -109,6 +111,10 @@ func (s *QueryLogsAPIShortSuite) TestTopAndClientsAcceptShortTimespans() {
 
 		s.svc.On("GetProfileQueryLogClients", mock.Anything, qlAccID, qlProfile, ts, 10).Return(&model.QueryLogTopClients{Enabled: true}, nil).Once()
 		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/clients?timespan=" + ts)
+		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
+
+		s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, ts, 10).Return(&model.QueryLogTopBlocklists{Enabled: true}, nil).Once()
+		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists?timespan=" + ts)
 		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
 	}
 }
@@ -120,4 +126,37 @@ func (s *QueryLogsAPIShortSuite) TestLogsListRejectsShortTimespans() {
 		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs?page=1&limit=25&status=all&timespan=" + ts)
 		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, ts)
 	}
+}
+
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsAPIShortSuite) TestBlocklistsDefaultsAndBody() {
+	want := &model.QueryLogTopBlocklists{Enabled: true, Items: []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 7}}}
+	s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, "LAST_1_DAY", 10).Return(want, nil)
+
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists")
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+	var raw struct {
+		Enabled bool             `json:"enabled"`
+		Items   []map[string]any `json:"items"`
+	}
+	require.NoError(s.T(), json.NewDecoder(resp.Body).Decode(&raw))
+	assert.True(s.T(), raw.Enabled)
+	require.Len(s.T(), raw.Items, 1)
+	assert.Equal(s.T(), "oisd", raw.Items[0]["blocklist_id"])
+	assert.EqualValues(s.T(), 7, raw.Items[0]["count"])
+}
+
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsAPIShortSuite) TestBlocklistsRejectsBadParams() {
+	for _, q := range []string{"?limit=0", "?limit=51", "?timespan=nope", "?timespan=LAST_YEAR"} {
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists" + q)
+		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
+	}
+}
+
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsAPIShortSuite) TestBlocklistsForeignProfileIsNotFound() {
+	s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, "LAST_1_DAY", 50).Return(nil, dbErrors.ErrProfileNotFound)
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists?limit=50")
+	assert.Equal(s.T(), http.StatusNotFound, resp.StatusCode)
 }

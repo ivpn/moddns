@@ -49,6 +49,12 @@ func (s *stubQueryLogsRepository) GetQueryLogTopClients(ctx context.Context, pro
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
+	s.getCalls++
+	s.lastHours = timespanHours
+	return nil, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil
@@ -89,7 +95,7 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J20, J21 — the top lists accept the 3 h and 6 h windows; J1 does not.
+// specRef: api-endpoint-behaviour.md J20, J21, J24 — the top lists accept the 3 h and 6 h windows; J1 does not.
 func TestTopTimespans(t *testing.T) {
 	for ts, hours := range map[string]int{
 		model.LAST_3_HOURS: 3, model.LAST_6_HOURS: 6, model.LAST_1_HOUR: 1, model.LAST_12_HOURS: 12,
@@ -103,6 +109,10 @@ func TestTopTimespans(t *testing.T) {
 			require.Equal(t, hours, repo.lastHours)
 			repo.lastHours = 0
 			_, err = svc.GetProfileQueryLogTopClients(context.Background(), "p", model.RetentionOneDay, ts, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+			repo.lastHours = 0
+			_, err = svc.GetProfileQueryLogTopBlocklists(context.Background(), "p", model.RetentionOneDay, ts, 10)
 			require.NoError(t, err)
 			require.Equal(t, hours, repo.lastHours)
 		})
@@ -525,4 +535,67 @@ func (s *QueryLogsServiceSuite) TestSearchRegexInjection() {
 
 func TestQueryLogsServiceSuite(t *testing.T) {
 	suite.Run(t, new(QueryLogsServiceSuite))
+}
+
+// insertReasonDocs inserts one log document per (status, reasons, age) row.
+func (s *QueryLogsServiceSuite) insertReasonDocs(profileID string, rows ...[3]any) {
+	now := time.Now()
+	docs := make([]any, 0, len(rows))
+	for _, r := range rows {
+		docs = append(docs, bson.D{
+			{Key: "timestamp", Value: now.Add(-r[2].(time.Duration))},
+			{Key: "profile_id", Value: profileID},
+			{Key: "status", Value: r[0]},
+			{Key: "reasons", Value: r[1]},
+			{Key: "dns_request", Value: bson.D{{Key: "domain", Value: "x.com"}}},
+		})
+	}
+	_, err := s.collMap[model.RetentionOneWeek].InsertMany(context.Background(), docs)
+	s.Require().NoError(err)
+}
+
+// TestGetProfileQueryLogTopBlocklists verifies one count per blocklist token of
+// a blocked row, other reasons and statuses ignored, count desc then id asc,
+// the limit, the timespan floor and profile isolation.
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopBlocklists() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-blocklists-profile"
+	both := bson.A{"blocklists", "blocklist: hagezi_pro", "blocklist: oisd"}
+	s.insertReasonDocs(pid,
+		[3]any{"blocked", both, 1 * h}, [3]any{"blocked", both, 2 * h}, // counted once per list
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: oisd"}, 3 * h},
+		[3]any{"blocked", bson.A{"blocklists_subdomains_rule", "blocklist: adguard"}, 1 * h},
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: zz_list"}, 1 * h}, [3]any{"blocked", bson.A{"blocklists", "blocklist: zz_list"}, 2 * h}, // ties with hagezi_pro: id asc
+		[3]any{"blocked", bson.A{"services", "service: google"}, 1 * h},
+		[3]any{"blocked", bson.A{"custom_rules"}, 1 * h},
+		[3]any{"blocked", bson.A{}, 1 * h},
+		[3]any{"processed", bson.A{"blocklist: oisd"}, 1 * h},
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: old"}, 30 * h}, // outside LAST_1_DAY
+	)
+	s.insertReasonDocs("someone-else", [3]any{"blocked", bson.A{"blocklist: oisd"}, 1 * h})
+
+	got, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopBlocklist{
+		{BlocklistID: "oisd", Count: 3}, {BlocklistID: "hagezi_pro", Count: 2}, {BlocklistID: "zz_list", Count: 2}, {BlocklistID: "adguard", Count: 1},
+	}, got)
+
+	limited, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_1_DAY, 2)
+	s.Require().NoError(err)
+	s.Equal(got[:2], limited)
+
+	week, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_7_DAYS, 50)
+	s.Require().NoError(err)
+	s.Contains(week, model.QueryLogTopBlocklist{BlocklistID: "old", Count: 1})
+
+	none, err := s.service.GetProfileQueryLogTopBlocklists(ctx, "no-such-profile", retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.NotNil(none)
+	s.Empty(none)
+
+	_, err = s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, "NOPE", 50)
+	s.Error(err)
 }

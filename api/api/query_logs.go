@@ -174,6 +174,43 @@ func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
 	return handler
 }
 
+// @Summary Get profile top blocklists
+// @Description Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+// @Tags QueryLogs
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Profile ID"
+// @Param timespan query string false "specify timespan for query" Enums(LAST_1_HOUR,LAST_3_HOURS,LAST_6_HOURS,LAST_12_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH) default(LAST_1_DAY)
+// @Param limit query int false "number of items" minimum(1) maximum(50) default(10)
+// @Success 200 {object} model.QueryLogTopBlocklists
+// @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/profiles/{id}/logs/blocklists [get]
+func (s *APIServer) getProfileQueryLogBlocklists() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		profileId := c.Params("id")
+		params := requests.QueryLogsBlocklistsQueryParams{
+			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Limit:    topLimitParam(c),
+		}
+		if err := s.Validator.Validator.Struct(params); err != nil {
+			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		}
+
+		accountId := auth.GetAccountID(c)
+		blocklists, err := s.Service.GetProfileQueryLogBlocklists(c.UserContext(), accountId, profileId, params.Timespan, params.Limit)
+		if err != nil {
+			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogBlocklists.Error())
+			return HandleError(c, err, ErrFailedToGetQueryLogBlocklists.Error())
+		}
+
+		return c.Status(200).JSON(blocklists)
+	}
+	return handler
+}
+
 // @Summary Download profile query logs
 // @Description Download profile query logs
 // @Tags QueryLogs
