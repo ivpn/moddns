@@ -130,6 +130,7 @@ Class | Method | HTTP request | Description
 *ProfileApi* | [**api_v1_profiles_import_post**](docs/ProfileApi.md#api_v1_profiles_import_post) | **POST** /api/v1/profiles/import | Import profiles
 *ProfileApi* | [**api_v1_profiles_post**](docs/ProfileApi.md#api_v1_profiles_post) | **POST** /api/v1/profiles | Create profile
 *ProfileApi* | [**api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch**](docs/ProfileApi.md#api_v1_profiles_profile_id_custom_rules_custom_rule_id_patch) | **PATCH** /api/v1/profiles/{profile_id}/custom_rules/{custom_rule_id} | Update profile custom rule
+*QueryLogsApi* | [**api_v1_profiles_id_logs_blocklists_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_blocklists_get) | **GET** /api/v1/profiles/{id}/logs/blocklists | Get profile top blocklists
 *QueryLogsApi* | [**api_v1_profiles_id_logs_clients_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_clients_get) | **GET** /api/v1/profiles/{id}/logs/clients | Get profile top clients
 *QueryLogsApi* | [**api_v1_profiles_id_logs_delete**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_delete) | **DELETE** /api/v1/profiles/{id}/logs | Delete profile query logs
 *QueryLogsApi* | [**api_v1_profiles_id_logs_devices_get**](docs/QueryLogsApi.md#api_v1_profiles_id_logs_devices_get) | **GET** /api/v1/profiles/{id}/logs/devices | Get profile query log devices
@@ -191,6 +192,8 @@ Class | Method | HTTP request | Description
  - [ModelProfileUpdate](docs/ModelProfileUpdate.md)
  - [ModelQueryLog](docs/ModelQueryLog.md)
  - [ModelQueryLogDevice](docs/ModelQueryLogDevice.md)
+ - [ModelQueryLogTopBlocklist](docs/ModelQueryLogTopBlocklist.md)
+ - [ModelQueryLogTopBlocklists](docs/ModelQueryLogTopBlocklists.md)
  - [ModelQueryLogTopClient](docs/ModelQueryLogTopClient.md)
  - [ModelQueryLogTopClients](docs/ModelQueryLogTopClients.md)
  - [ModelQueryLogTopDomain](docs/ModelQueryLogTopDomain.md)
