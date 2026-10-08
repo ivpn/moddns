@@ -2,6 +2,7 @@ package profile_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -239,14 +240,31 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogsInvalidatesTopCache() {
 func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 	ctx := context.Background()
 	key := "logs:blocklists:profile123:LAST_1_DAY"
-	repoItems := []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 9}, {BlocklistID: "hagezi_pro", Count: 5}, {BlocklistID: "adguard", Count: 1}}
+	repoItems := []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 9}, {BlocklistID: "hagezi_pro", Count: 5}, {BlocklistID: "gone", Count: 1}}
+	catalogFilter := map[string]any{"blocklist_ids": []string{"oisd", "hagezi_pro", "gone"}}
+	catalog := []*model.Blocklist{{BlocklistID: "hagezi_pro", Name: "Hagezi Pro"}, {BlocklistID: "oisd", Name: "OISD Big"}}
+	named := []model.QueryLogTopBlocklist{
+		{BlocklistID: "oisd", Name: "OISD Big", Count: 9}, {BlocklistID: "hagezi_pro", Name: "Hagezi Pro", Count: 5}, {BlocklistID: "gone", Name: "gone", Count: 1},
+	}
+	reset := func() {
+		suite.resetTopMocks()
+		suite.mockBlocklistRepo.ExpectedCalls = nil
+		suite.mockBlocklistRepo.Calls = nil
+	}
+	// cachedSet captures the value written to the top cache.
+	cachedSet := func() *string {
+		var raw string
+		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).
+			Run(func(args mock.Arguments) { raw = string(args.Get(2).([]byte)) }).Return(nil)
+		return &raw
+	}
 
 	suite.Run("gate is logs.enabled only", func() {
 		for name, logs := range map[string]*model.LogsSettings{
 			"logs disabled":     {Enabled: false, LogDomains: true, LogClientsIPs: true, Retention: model.RetentionOneDay},
 			"nil logs settings": nil,
 		} {
-			suite.resetTopMocks()
+			reset()
 			suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(logs), nil)
 
 			got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
@@ -256,49 +274,73 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 			suite.Empty(got.Items, name)
 			suite.mockCache.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything)
 			suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogTopBlocklists", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			suite.mockBlocklistRepo.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything, mock.Anything)
 		}
 
-		suite.resetTopMocks()
+		reset()
 		bare := &model.LogsSettings{Enabled: true, Retention: model.RetentionOneDay}
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(bare), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneDay, 24, 50).Return(repoItems, nil)
-		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).Return(nil)
+		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(catalog, nil)
+		cachedSet()
 
 		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
 		suite.NoError(err)
 		suite.True(got.Enabled, "neither domain nor client IP logging is needed")
-		suite.Equal(repoItems, got.Items)
+		suite.Equal(named, got.Items)
 	})
 
 	on := &model.LogsSettings{Enabled: true, Retention: model.RetentionOneWeek}
 
-	suite.Run("miss aggregates the full list from the current retention, caches it and trims to the limit", func() {
-		suite.resetTopMocks()
+	suite.Run("miss resolves names in one lookup before caching, falls back to the id and trims to the limit", func() {
+		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(repoItems, nil)
-		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).Return(nil)
+		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(catalog, nil).Once()
+		raw := cachedSet()
 
 		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 2)
 		suite.NoError(err)
 		suite.True(got.Enabled)
-		suite.Equal(repoItems[:2], got.Items)
+		suite.Equal(named[:2], got.Items)
+		var cached []model.QueryLogTopBlocklist
+		suite.Require().NoError(json.Unmarshal([]byte(*raw), &cached))
+		suite.Equal(named, cached, "the cached list carries the names")
 	})
 
-	suite.Run("hit skips the aggregation and still honours the limit", func() {
-		suite.resetTopMocks()
+	suite.Run("catalog error falls back to the id and still answers", func() {
+		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, key).Return(`[{"blocklist_id":"oisd","count":9},{"blocklist_id":"hagezi_pro","count":5}]`, nil)
+		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
+		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(repoItems, nil)
+		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(nil, errors.New("mongo down"))
+		cachedSet()
 
-		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 1)
+		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
 		suite.NoError(err)
-		suite.Equal([]model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 9}}, got.Items)
-		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogTopBlocklists", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		suite.True(got.Enabled)
+		for _, it := range got.Items {
+			suite.Equal(it.BlocklistID, it.Name)
+		}
+		suite.Len(got.Items, 3)
 	})
 
-	suite.Run("empty result is returned as [] and never cached", func() {
-		suite.resetTopMocks()
+	suite.Run("hit skips both lookups, honours the limit and names a nameless row by its id", func() {
+		reset()
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, key).Return(`[{"blocklist_id":"oisd","name":"OISD Big","count":9},{"blocklist_id":"hagezi_pro","count":5}]`, nil)
+
+		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 2)
+		suite.NoError(err)
+		suite.Equal([]model.QueryLogTopBlocklist{{BlocklistID: "oisd", Name: "OISD Big", Count: 9}, {BlocklistID: "hagezi_pro", Name: "hagezi_pro", Count: 5}}, got.Items)
+		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogTopBlocklists", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		suite.mockBlocklistRepo.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	suite.Run("empty result is returned as [] without a catalog lookup and never cached", func() {
+		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(nil, nil)
@@ -309,10 +351,11 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.NotNil(got.Items)
 		suite.Empty(got.Items)
 		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		suite.mockBlocklistRepo.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	suite.Run("aggregation error is returned and not cached", func() {
-		suite.resetTopMocks()
+		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(nil, errors.New("boom"))
@@ -323,7 +366,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 	})
 
 	suite.Run("foreign profile is not found", func() {
-		suite.resetTopMocks()
+		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 
 		_, err := suite.service.GetProfileQueryLogBlocklists(ctx, "other-account", "profile123", model.LAST_1_DAY, 10)

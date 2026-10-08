@@ -175,7 +175,7 @@ func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
 }
 
 // @Summary Get profile top blocklists
-// @Description Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+// @Description Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
 // @Tags QueryLogs
 // @Produce json
 // @Security ApiKeyAuth
