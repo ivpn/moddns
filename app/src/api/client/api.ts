@@ -1323,6 +1323,12 @@ export interface ModelQueryLogTopBlocklist {
      * @memberof ModelQueryLogTopBlocklist
      */
     'count'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ModelQueryLogTopBlocklist
+     */
+    'name'?: string;
 }
 /**
  * 
@@ -6828,7 +6834,7 @@ export class ProfileApi extends BaseAPI {
 export const QueryLogsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7148,7 +7154,7 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = QueryLogsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7263,7 +7269,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
     const localVarFp = QueryLogsApiFp(configuration)
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7357,7 +7363,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
  */
 export class QueryLogsApi extends BaseAPI {
     /**
-     * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id. A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+     * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
      * @summary Get profile top blocklists
      * @param {string} id Profile ID
      * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
