@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { registerMocks, registerStatisticsMocks } from '../../mocks/registerMocks';
-import { createStatsResponse, devicesList, topBlocked, topClients, topResolved } from '../../mocks/statisticsMocks';
+import { createStatsResponse, devicesList, topBlocked, topBlocklists, topClients, topResolved } from '../../mocks/statisticsMocks';
 import { expectNoHorizontalOverflow } from '../utils/layoutAssertions';
 
 interface Cfg {
@@ -31,6 +31,7 @@ async function setup(page: Page, cfg: Cfg, stats: unknown = createStatsResponse(
     statistics: stats,
     top: { blocked: topBlocked, resolved: topResolved },
     clients: topClients,
+    blocklists: topBlocklists,
     devices: devicesList,
   });
   await page.route(/\/api\/v1\/profiles(\?.*)?$/i, r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([profile]) }));
@@ -102,6 +103,24 @@ test.describe('@statistics Statistics page', () => {
     await expect(page.getByRole('heading', { name: 'Top blocked domains' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Top clients' })).toBeVisible();
     await expect(page.getByTestId('stats-availability')).toHaveCount(0);
+  });
+
+  // tableRef: statistics-behaviour #P22
+  test('P22: Top blocklists shows the names from the response without a catalog request', async ({ page }) => {
+    await setup(page, { logs: true, stats: false });
+    const catalogRequests: string[] = [];
+    page.on('request', r => {
+      if (/\/api\/v1\/blocklists/i.test(new URL(r.url()).pathname)) catalogRequests.push(r.url());
+    });
+    await page.goto('/statistics');
+    const panel = page.getByRole('region', { name: 'Top blocklists' });
+    await expect(panel.getByText('Basic Protection')).toBeVisible();
+    await expect(panel.getByText('bl-nameless')).toBeVisible();
+    await expect(panel.getByText('A query blocked by several lists counts once for each.')).toBeVisible();
+    await panel.getByRole('button', { name: 'Table' }).click();
+    await expect(panel.getByRole('row', { name: /Basic Protection/ })).toContainText('90');
+    expect(catalogRequests).toEqual([]);
+    await expectNoHorizontalOverflow(page);
   });
 
   // tableRef: statistics-behaviour #P5
