@@ -23,7 +23,7 @@ export function BlocklistsPanel({
 }) {
     const nameOf = (b: BlocklistItem) => b.name || b.id;
     return (
-        <PanelShell title="Top blocklists" toggle={items.length > 0}>
+        <PanelShell title="Top blocklists" toggle={items.length > 0} defaultView="table">
             {view =>
                 items.length === 0 ? (
                     <p className={cn("text-sm", mutedText)}>No blocked queries in this range.</p>
@@ -37,6 +37,7 @@ export function BlocklistsPanel({
                             />
                         ) : (
                             <BarList
+                                scale="leader"
                                 noun="blocklists"
                                 rows={items.map(b => ({
                                     id: b.id,

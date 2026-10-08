@@ -20,7 +20,7 @@ export function DomainsPanel({
 }) {
     const title = kind === "blocked" ? "Top blocked domains" : "Top resolved domains";
     return (
-        <PanelShell title={title} toggle={items.length > 0}>
+        <PanelShell title={title} toggle={items.length > 0} defaultView="table">
             {view =>
                 items.length === 0 ? (
                     <p className={`text-sm ${mutedText}`}>{`No ${kind} domains in this range.`}</p>
@@ -32,6 +32,7 @@ export function DomainsPanel({
                     />
                 ) : (
                     <BarList
+                        scale="leader"
                         noun="domains"
                         rows={items.map(d => ({
                             id: d.domain,
