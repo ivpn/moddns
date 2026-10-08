@@ -9,7 +9,7 @@ import (
 
 const (
 	// StatisticsBucket15Min and StatisticsBucket1Hour are the widths of the two
-	// accumulated tiers; the 1-day tier is stamped from closed hours.
+	// accumulated tiers; the 1-day tier is stamped from 1-hour entries.
 	StatisticsBucket15Min = 15 * time.Minute
 	StatisticsBucket1Hour = time.Hour
 	// MaxDevicesPerProfileBucket bounds distinct device ids per profile in one open bucket.
