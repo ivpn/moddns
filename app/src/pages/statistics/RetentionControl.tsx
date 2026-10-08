@@ -155,8 +155,8 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
     const copy = pending ? dialogCopy(pending) : null;
 
     return (
-        <div className="flex flex-col gap-2 items-start sm:items-end">
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 items-start sm:items-end w-full sm:w-auto">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
                 <label htmlFor={`${uid}-ret`} className={cn("text-sm", mutedText)}>
                     Kept for
                 </label>
@@ -168,7 +168,7 @@ export function RetentionControl({ profile, onHistoryDeleted }: { profile: Model
                     aria-describedby={isRestricted ? noteId : undefined}
                     onChange={e => onSelect(e.target.value)}
                     className={cn(
-                        "min-h-11 lg:min-h-9 rounded-md border border-[var(--tailwind-colors-slate-600)] bg-transparent px-3 text-sm",
+                        "flex-1 sm:flex-none min-w-0 min-h-11 lg:min-h-9 rounded-md border border-[var(--tailwind-colors-slate-600)] bg-transparent px-3 text-sm",
                         titleText,
                         "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] disabled:opacity-60 disabled:cursor-not-allowed",
                     )}

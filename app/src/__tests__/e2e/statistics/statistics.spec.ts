@@ -167,6 +167,22 @@ test.describe('@statistics Statistics page', () => {
     await group.getByText('7d').click();
     await expect(page).toHaveURL(/\/statistics$/);
   });
+  // tableRef: statistics-behaviour #K2
+  test('the retention select stretches across the width on mobile with the menu button at the end', { tag: '@mobile' }, async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    const select = page.getByLabel('Kept for');
+    const menu = page.getByRole('button', { name: 'More statistics actions' });
+    await expect(select).toBeVisible();
+    const [s, m] = await Promise.all([select.boundingBox(), menu.boundingBox()]);
+    expect(s!.height).toBeGreaterThanOrEqual(43.5);
+    expect(s!.width).toBeGreaterThan(200);
+    expect(m!.x).toBeGreaterThan(s!.x + s!.width);
+    expect(m!.x + m!.width).toBeGreaterThan(375 - 40);
+    await expectNoHorizontalOverflow(page);
+  });
+
   // tableRef: statistics-behaviour #U7, #S1
   test('U7: raising retention asks for confirmation and keeps the choice', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
