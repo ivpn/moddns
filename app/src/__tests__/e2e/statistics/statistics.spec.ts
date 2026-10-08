@@ -183,6 +183,25 @@ test.describe('@statistics Statistics page', () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  // tableRef: statistics-behaviour #X9
+  test('X9: hovering the time axis shows the bucket label on the axis', { tag: '@desktop' }, async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 1200 });
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    const panel = page.getByRole('region', { name: 'Queries over time' });
+    const svg = panel.locator('svg.recharts-surface').first();
+    await expect(svg).toBeVisible();
+    const box = (await svg.boundingBox())!;
+    await expect(page.getByTestId('axis-hover-label')).toHaveCount(0);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 8);
+    const label = page.getByTestId('axis-hover-label');
+    await expect(label).toHaveCount(1);
+    await expect(label).toContainText(/^[A-Z][a-z]{2} \d{1,2}, .+-.+$/);
+    await expect(label).toHaveAttribute('aria-hidden', 'true');
+    await page.mouse.move(box.x + box.width / 2, box.y - 40);
+    await expect(label).toHaveCount(0);
+  });
+
   // tableRef: statistics-behaviour #U7, #S1
   test('U7: raising retention asks for confirmation and keeps the choice', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
