@@ -4,6 +4,7 @@ import {
     countingSince,
     countsState,
     deviceLabel,
+    expectedFirstCounts,
     isClamped,
     normalizeStats,
 } from '@/pages/statistics/derive';
@@ -118,6 +119,55 @@ describe('countsState', () => {
 
     it('is data when something was counted', () => {
         expect(countsState(normalizeStats(createStatsResponse()))).toBe('data');
+    });
+});
+
+describe('expectedFirstCounts', () => {
+    const at = (iso: string) => Date.parse(iso);
+    const iso = (ms: number | undefined) => (ms === undefined ? null : new Date(ms).toISOString());
+
+    it('after turning on, every view waits for the next quarter hour and shows boundary + 1 min', () => {
+        // tableRef: statistics-behaviour #P24
+        for (const r of ['3h', '6h', '24h', '7d', '30d', '3m', '12m'] as const) {
+            const e = expectedFirstCounts(r, at('2026-10-06T10:43:00Z'), null);
+            expect(iso(e?.boundaryMs)).toBe('2026-10-06T10:45:00.000Z');
+            expect(iso(e?.displayMs)).toBe('2026-10-06T10:46:00.000Z');
+            expect(iso(e?.collectingUntilMs)).toBe('2026-10-06T10:48:00.000Z');
+        }
+    });
+
+    it('turning on exactly on a boundary waits for the next one', () => {
+        // tableRef: statistics-behaviour #P24
+        expect(iso(expectedFirstCounts('3h', at('2026-10-06T10:45:00Z'), null)?.boundaryMs)).toBe('2026-10-06T11:00:00.000Z');
+    });
+
+    it('uses the later of enabled_at and history_deleted_at, and enabled_at wins when later', () => {
+        // tableRef: statistics-behaviour #P24
+        expect(iso(expectedFirstCounts('7d', at('2026-10-06T10:43:00Z'), at('2026-10-06T09:00:00Z'))?.boundaryMs)).toBe('2026-10-06T10:45:00.000Z');
+        expect(expectedFirstCounts('7d', null, null)).toBeNull();
+    });
+
+    it('after Delete history the tiers differ: quarter, hour + 15 min, UTC day + 15 min', () => {
+        // tableRef: statistics-behaviour #P24
+        const en = at('2026-09-14T09:12:00Z');
+        const del = at('2026-10-06T10:43:00Z');
+        expect(iso(expectedFirstCounts('3h', en, del)?.boundaryMs)).toBe('2026-10-06T10:45:00.000Z');
+        expect(iso(expectedFirstCounts('6h', en, del)?.boundaryMs)).toBe('2026-10-06T10:45:00.000Z');
+        expect(iso(expectedFirstCounts('24h', en, del)?.boundaryMs)).toBe('2026-10-06T11:15:00.000Z');
+        expect(iso(expectedFirstCounts('7d', en, del)?.boundaryMs)).toBe('2026-10-06T11:15:00.000Z');
+        for (const r of ['30d', '3m', '12m'] as const) {
+            expect(iso(expectedFirstCounts(r, en, del)?.boundaryMs)).toBe('2026-10-07T00:15:00.000Z');
+            expect(iso(expectedFirstCounts(r, en, del)?.displayMs)).toBe('2026-10-07T00:16:00.000Z');
+        }
+    });
+
+    it('computes UTC day edges from instants, independent of the local timezone', () => {
+        // tableRef: statistics-behaviour #P24
+        // 23:50 at UTC-5 is 04:50 UTC the next day; the next UTC day starts on the 8th.
+        expect(iso(expectedFirstCounts('30d', null, at('2026-10-06T23:50:00-05:00'))?.boundaryMs)).toBe('2026-10-08T00:15:00.000Z');
+        // 01:10 at UTC+2 is 23:10 UTC the previous day.
+        expect(iso(expectedFirstCounts('12m', null, at('2026-10-07T01:10:00+02:00'))?.boundaryMs)).toBe('2026-10-07T00:15:00.000Z');
+        expect(iso(expectedFirstCounts('24h', null, at('2026-10-06T23:50:00Z'))?.boundaryMs)).toBe('2026-10-07T00:15:00.000Z');
     });
 });
 

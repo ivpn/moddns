@@ -124,13 +124,24 @@ test.describe('@statistics Statistics page', () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  // tableRef: statistics-behaviour #P5
+  // tableRef: statistics-behaviour #P5, #P24
+  test('collecting: the first counts are announced with the expected time', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-10-06T14:53:30Z'));
+    const empty = createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:53:00Z' });
+    await setup(page, { logs: false, stats: true }, empty);
+    await page.goto('/statistics');
+    await expect(page.getByRole('heading', { name: 'Collecting statistics' })).toBeVisible();
+    await expect(page.getByText(/so the first counts appear at about .*\. This page updates by itself\./)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Check your device setup' })).toBeVisible();
+  });
+
+  // tableRef: statistics-behaviour #P23
   test('no queries yet: one card with the setup link', async ({ page }) => {
     const empty = createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:50:00Z' });
     await setup(page, { logs: false, stats: true }, empty);
     await page.goto('/statistics');
     await expect(page.getByRole('heading', { name: 'No queries counted yet' })).toBeVisible();
-    await expect(page.getByText(/Counts appear about 15 minutes after the first query/)).toBeVisible();
+    await expect(page.getByText(/No queries have reached this profile since .*\. If your devices should be using it, check the device setup\./)).toBeVisible();
     await page.getByRole('link', { name: 'Check your device setup' }).click();
     await expect(page).toHaveURL(/\/setup$/);
   });

@@ -220,16 +220,83 @@ describe('Statistics page data states', () => {
         expect(await screen.findByTestId('stats-availability')).toHaveTextContent('Statistics on · kept for 30 days');
     });
 
-    it('no queries yet: one card with the 15 minute note and the setup link', async () => {
-        // tableRef: statistics-behaviour #P5, #U2
+    it('no queries yet: one card with the setup link once the first counts are overdue', async () => {
+        // tableRef: statistics-behaviour #P23, #U2
         const user = userEvent.setup();
         statsGet.mockResolvedValue({ data: createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:50:00Z' }) });
         mount(mk('S'));
         expect(await screen.findByRole('heading', { name: 'No queries counted yet' })).toBeInTheDocument();
-        expect(screen.getByText(/Counts appear about 15 minutes after the first query\./)).toBeInTheDocument();
+        expect(screen.getByText(/^No queries have reached this profile since .*\. If your devices should be using it, check the device setup\.$/)).toBeInTheDocument();
         expect(screen.queryByLabelText(/^Total queries:/)).not.toBeInTheDocument();
         await user.click(screen.getByRole('link', { name: 'Check your device setup' }));
         expect(screen.getByText('Setup page')).toBeInTheDocument();
+    });
+
+    it('collecting: names the expected time and says the page updates by itself', async () => {
+        // tableRef: statistics-behaviour #P5, #P24
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            vi.setSystemTime(new Date('2026-10-06T14:53:30Z'));
+            statsGet.mockResolvedValue({ data: createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:53:00Z' }) });
+            mount(mk('S'));
+            expect(await screen.findByRole('heading', { name: 'Collecting statistics' })).toBeInTheDocument();
+            const expected = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(Date.parse('2026-10-06T15:01:00Z'));
+            expect(screen.getByText(/^Statistics are on since .*\. To protect your privacy, modDNS counts queries in 15-minute blocks, never one by one, so the first counts appear at about /)).toHaveTextContent(`about ${expected}. This page updates by itself.`);
+            expect(screen.getByRole('link', { name: 'Check your device setup' })).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('collecting: one silent refetch after the boundary, then the no-queries card when still empty', async () => {
+        // tableRef: statistics-behaviour #K10, #P5, #P23
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            vi.setSystemTime(new Date('2026-10-06T14:53:30Z'));
+            statsGet.mockResolvedValue({ data: createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:53:00Z' }) });
+            mount(mk('S'));
+            expect(await screen.findByRole('heading', { name: 'Collecting statistics' })).toBeInTheDocument();
+            expect(statsGet).toHaveBeenCalledTimes(1);
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(7 * 60_000);
+            });
+            expect(statsGet).toHaveBeenCalledTimes(1);
+
+            // boundary 15:00 + 90 s
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(60_000);
+            });
+            expect(statsGet).toHaveBeenCalledTimes(2);
+            expect(screen.getByRole('heading', { name: 'Collecting statistics' })).toBeInTheDocument();
+
+            // boundary + 1 min flush + 2 min grace has passed
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(120_000);
+            });
+            expect(await screen.findByRole('heading', { name: 'No queries counted yet' })).toBeInTheDocument();
+            expect(statsGet).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('collecting: the refetch that finds counts swaps the card for the data', async () => {
+        // tableRef: statistics-behaviour #K10
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+            vi.setSystemTime(new Date('2026-10-06T14:53:30Z'));
+            statsGet.mockResolvedValueOnce({ data: createStatsResponse({ empty: true, points: 4, enabledAt: '2026-10-06T14:53:00Z' }) });
+            statsGet.mockResolvedValue({ data: createStatsResponse({ points: 8, enabledAt: '2026-10-06T14:53:00Z' }) });
+            mount(mk('S'));
+            expect(await screen.findByRole('heading', { name: 'Collecting statistics' })).toBeInTheDocument();
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(9 * 60_000);
+            });
+            expect(await screen.findByLabelText(/^Total queries:/)).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('empty range: one card and a button for the next longer view', async () => {

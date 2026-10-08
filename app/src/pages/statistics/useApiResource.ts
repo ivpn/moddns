@@ -23,7 +23,7 @@ export function useApiResource<T>(
     scope: string | null,
     key: string | null,
     fetcher: () => Promise<T>,
-): ResourceState<T> & { reload: () => void } {
+): ResourceState<T> & { reload: () => void; refetch: () => void } {
     const [state, setState] = useState<ResourceState<T>>({ status: "idle", data: null, refreshing: false, errorStatus: null });
     const keyRef = useRef(key);
     keyRef.current = key;
@@ -76,5 +76,9 @@ export function useApiResource<T>(
         void run(keyRef.current, false);
     }, [run]);
 
-    return { ...state, reload };
+    const refetch = useCallback(() => {
+        if (keyRef.current) void run(keyRef.current, true);
+    }, [run]);
+
+    return { ...state, reload, refetch };
 }

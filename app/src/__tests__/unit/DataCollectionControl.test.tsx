@@ -334,7 +334,7 @@ describe('DataCollectionControl', () => {
         await user.click(radio('Query logs'));
         expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
         await user.click(within(screen.getByRole('radiogroup', { name: 'Retention period' })).getByLabelText('1 week'));
-        expect(screen.getByText('modDNS will record each query for 1 week and keep counts per device for 30 days.')).toBeInTheDocument();
+        expect(screen.getByText('modDNS will record each query for 1 week and keep counts per device for 30 days. The first counts appear at the next quarter hour.')).toBeInTheDocument();
         await user.click(saveBtn());
         expect(patch).toHaveBeenCalledWith('p1', {
             updates: [
