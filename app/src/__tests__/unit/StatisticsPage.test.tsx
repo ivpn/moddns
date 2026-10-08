@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import Statistics from '@/pages/statistics/Statistics';
@@ -38,7 +38,7 @@ const statsDelete = api.Client.statisticsApi.apiV1ProfilesIdStatisticsDelete as 
 
 type Cfg = 'OFF' | 'S' | 'SL' | 'SL-dom' | 'SL-ip' | 'L';
 
-function mk(cfg: Cfg, id = 'p1', logsRetention = '1d'): ModelProfile {
+function mk(cfg: Cfg, id = 'p1', logsRetention = '1d', statsRetention: string = '30d'): ModelProfile {
     const logsOn = cfg !== 'OFF' && cfg !== 'S';
     const statsOn = cfg !== 'OFF' && cfg !== 'L';
     return {
@@ -53,7 +53,7 @@ function mk(cfg: Cfg, id = 'p1', logsRetention = '1d'): ModelProfile {
                 log_clients_ips: cfg === 'SL-ip' ? false : logsOn,
                 retention: logsRetention,
             },
-            statistics: { enabled: statsOn, retention: '30d' },
+            statistics: { enabled: statsOn, retention: statsRetention },
         },
     } as unknown as ModelProfile;
 }
@@ -389,13 +389,6 @@ describe('Statistics page data states', () => {
         expect(await screen.findByTestId('stats-counts-skeleton')).toBeInTheDocument();
     });
 
-    it('clamp caption replaces the range caption when retention shortens the view', async () => {
-        // tableRef: statistics-behaviour #P11
-        statsGet.mockResolvedValue({ data: createStatsResponse({ points: 30, bucketSeconds: 86400, timespan: 'LAST_3_MONTHS' }) });
-        mount(mk('S'), '/statistics?range=3m');
-        expect(await screen.findByTestId('stats-range-caption')).toHaveTextContent(/^Statistics are kept for 30 days, so this view shows /);
-    });
-
     it('captions the logs window when log retention is shorter than the view', async () => {
         // tableRef: statistics-behaviour #P18
         mount(mk('SL', 'p1', '1h'));
@@ -434,11 +427,60 @@ describe('Statistics page picker and fetching', () => {
         expect(statsGet).toHaveBeenCalledWith('p1', 'LAST_7_DAYS');
     });
 
-    it('exposes seven named segments in a radiogroup', async () => {
-        // tableRef: statistics-behaviour #K1
-        mount(mk('S'));
+    const pills = async () => {
         const group = await screen.findByRole('radiogroup', { name: 'Time range' });
-        expect(within(group).getAllByRole('radio')).toHaveLength(7);
+        return within(group).getAllByRole('radio').map(r => r.getAttribute('aria-label'));
+    };
+
+    it('offers only the views the retention covers, hidden and not disabled', async () => {
+        // tableRef: statistics-behaviour #K11, #K1
+        const base = ['Last 3 hours', 'Last 6 hours', 'Last 24 hours', 'Last 7 days', 'Last 30 days'];
+        const { unmount } = mount(mk('S'));
+        expect(await pills()).toEqual(base);
+        unmount();
+        mount(mk('S', 'p1', '1d', '90d'));
+        expect(await pills()).toEqual([...base, 'Last 3 months']);
+        cleanup();
+        mount(mk('S', 'p1', '1d', '1y'));
+        expect(await pills()).toEqual([...base, 'Last 3 months', 'Last 12 months']);
+        cleanup();
+        mount(mk('S', 'p1', '1d', ''));
+        expect(await pills()).toEqual(base);
+    });
+
+    it('reads a view the retention hides as the longest offered one and corrects the URL', async () => {
+        // tableRef: statistics-behaviour #K2, #K11
+        mount(mk('S'), '/statistics?range=12m');
+        expect(await screen.findByRole('radio', { name: 'Last 30 days' })).toBeChecked();
+        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d'));
+        expect(statsGet).toHaveBeenLastCalledWith('p1', 'LAST_MONTH');
+        expect(statsGet).not.toHaveBeenCalledWith('p1', 'LAST_YEAR');
+    });
+
+    it('lowering the retention on a removed view switches to the longest offered one; raising adds the views', async () => {
+        // tableRef: statistics-behaviour #K11, #P11
+        mount(mk('S', 'p1', '1d', '1y'), '/statistics?range=12m');
+        expect(await screen.findByRole('radio', { name: 'Last 12 months' })).toBeChecked();
+        act(() => {
+            const low = mk('S', 'p1', '1d', '30d');
+            useAppStore.setState({ activeProfile: low, profiles: [low] });
+        });
+        expect(await screen.findByRole('radio', { name: 'Last 30 days' })).toBeChecked();
+        expect(screen.queryByRole('radio', { name: 'Last 12 months' })).not.toBeInTheDocument();
+        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d'));
+        act(() => {
+            const high = mk('S', 'p1', '1d', '1y');
+            useAppStore.setState({ activeProfile: high, profiles: [high] });
+        });
+        expect(await screen.findByRole('radio', { name: 'Last 12 months' })).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Last 3 months' })).toBeInTheDocument();
+    });
+
+    it('has no clamp caption: the range caption is always the plain one', async () => {
+        // tableRef: statistics-behaviour #P11
+        statsGet.mockResolvedValue({ data: createStatsResponse({ points: 30, bucketSeconds: 86400, timespan: 'LAST_MONTH' }) });
+        mount(mk('S'), '/statistics?range=30d');
+        expect(await screen.findByTestId('stats-range-caption')).not.toHaveTextContent(/are kept for/);
     });
 
     it('fetches statistics on a range change with the mapped timespans', async () => {

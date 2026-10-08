@@ -1,14 +1,14 @@
 import { cn } from "@/lib/utils";
 import ToggleGroup from "@/components/general/ToggleGroup";
-import { RANGES, type RangeKey } from "./ranges";
+import type { RangeDef, RangeKey } from "./ranges";
 import { mutedText } from "./primitives";
 
 /** K1: pills at every width; segments are at least 44 px tall and wide on touch. */
-export function RangePicker({ value, onChange, disabled }: { value: RangeKey; onChange: (k: RangeKey) => void; disabled?: boolean }) {
+export function RangePicker({ ranges, value, onChange, disabled }: { ranges: RangeDef[]; value: RangeKey; onChange: (k: RangeKey) => void; disabled?: boolean }) {
     return (
         <ToggleGroup
             ariaLabel="Time range"
-            options={RANGES.map(r => ({ value: r.key, label: r.key, ariaLabel: r.label }))}
+            options={ranges.map(r => ({ value: r.key, label: r.key, ariaLabel: r.label }))}
             value={value}
             // Radix reports "" when the selected pill is pressed again.
             onChange={v => v && onChange(v as RangeKey)}
@@ -21,11 +21,13 @@ export function RangePicker({ value, onChange, disabled }: { value: RangeKey; on
 }
 
 export function StatsToolbar({
+    ranges,
     range,
     onRange,
     caption,
     trailing,
 }: {
+    ranges: RangeDef[];
     range: RangeKey;
     onRange: (k: RangeKey) => void;
     caption: string | null;
@@ -35,7 +37,7 @@ export function StatsToolbar({
     return (
         <div className="flex flex-col gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <RangePicker value={range} onChange={onRange} />
+                <RangePicker ranges={ranges} value={range} onChange={onRange} />
                 {trailing}
             </div>
             {caption && (

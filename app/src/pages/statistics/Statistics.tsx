@@ -13,10 +13,10 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
-import { countsState, expectedFirstCounts, isClamped, normalizeStats, type StatsData } from "./derive";
+import { countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
-import { LOGS_TIMESPAN, STATS_TIMESPAN, parseRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
-import { formatDateTime, formatRangeCaption, formatUtcDay, browserOffsetsFromUtc } from "./time";
+import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
+import { formatDateTime, formatRangeCaption } from "./time";
 import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId } from "./groups";
 import { StatsToolbar } from "./StatsToolbar";
@@ -85,7 +85,9 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const { isRestricted } = useSubscriptionGuard();
     const laNoteId = useId();
     const [params, setParams] = useSearchParams();
-    const range = parseRange(params.get("range"));
+    const retention = profileStatsRetention(profile);
+    const range = resolveRange(params.get("range"), retention);
+    const offered = useMemo(() => offeredRanges(retention), [retention]);
 
     const setRange = useCallback(
         (k: RangeKey) =>
@@ -100,6 +102,11 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             ),
         [setParams],
     );
+    // K2: a view the retention no longer offers is corrected in the URL without a message.
+    const askedRange = params.get("range");
+    useEffect(() => {
+        if (askedRange && parseRange(askedRange) !== range) setRange(range);
+    }, [askedRange, range, setRange]);
 
     const pid = profile?.profile_id ?? null;
     const cfg = fromProfile(profile);
@@ -109,7 +116,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const ipsOn = logsOn && !!profile?.settings?.logs?.log_clients_ips;
 
     const [reload, setReload] = useState(0);
-    const retention = profileStatsRetention(profile);
     // A retention change or a history deletion invalidates the server cache (J46), so refetch.
     const stats = useApiResource<StatsData>(pid, pid && statsOn ? `${pid}|${range}|${retention}|${reload}` : null, async () => {
         const res = await api.Client.statisticsApi.apiV1ProfilesIdStatisticsGet(pid as string, STATS_TIMESPAN[range]);
@@ -181,12 +187,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const caption = useMemo(() => {
         const d = countsOn && stats.status === "ready" ? stats.data : null;
         if (!d || d.toMs <= d.fromMs) return null;
-        if (isClamped(d, range)) {
-            const span =
-                d.bucketSeconds >= 86400 ? `${formatUtcDay(d.fromMs)} - ${formatUtcDay(d.toMs)}` : `${formatDateTime(d.fromMs)} - ${formatDateTime(d.toMs)}`;
-            const utc = d.bucketSeconds >= 86400 && browserOffsetsFromUtc() ? " Days are UTC days." : "";
-            return `Statistics are kept for ${statsRetentionWords(d.retention)}, so this view shows ${span}.${utc}`;
-        }
         return formatRangeCaption(d.fromMs, d.toMs, d.bucketSeconds);
     }, [countsOn, stats.status, stats.data, range]);
 
@@ -210,6 +210,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             ) : (
                 <div className="flex flex-col gap-6 w-full min-w-0">
                     <StatsToolbar
+                        ranges={offered}
                         range={range}
                         onRange={setRange}
                         caption={caption}
