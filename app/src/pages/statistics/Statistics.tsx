@@ -167,7 +167,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const statsData = stats.status === "ready" ? stats.data : null;
 
     return (
-        <div className="flex flex-col w-full items-start gap-6 py-6 pt-8 md:p-8 min-w-0 bg-[var(--shadcn-ui-app-background)]">
+        <div className="flex flex-col w-full items-start gap-6 py-6 pt-8 md:p-8 min-w-0 bg-[var(--shadcn-ui-app-background)] [&_button:not(:disabled)]:cursor-pointer [&_select:not(:disabled)]:cursor-pointer">
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <p className={cn("text-sm md:text-base leading-5 md:leading-6", mutedText)}>
