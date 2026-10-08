@@ -5,6 +5,8 @@ import { Check, OctagonX } from "lucide-react";
 export interface ToggleOption {
     value: string;
     label: string;
+    ariaLabel?: string;
+    id?: string;
     icon?: "check" | "octagon-x" | React.ReactNode;
     selected?: boolean;
 }
@@ -16,6 +18,9 @@ export interface ToggleGroupProps {
     variant?: "outline" | "default";
     className?: string;
     itemClassName?: string;
+    disabled?: boolean;
+    /** Id of the element naming the group; exposes it as a radiogroup. */
+    labelledBy?: string;
     groupProps?: React.ComponentProps<typeof UIToggleGroup>;
     itemProps?: Partial<React.ComponentProps<typeof UIToggleGroupItem>>;
 }
@@ -53,13 +58,18 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
     variant = "default",
     className = "",
     itemClassName = "",
+    disabled,
+    labelledBy,
     groupProps = {},
     itemProps = {},
 }) => {
     return (
         <UIToggleGroup
             type="single"
-            aria-label="Toggle Group"
+            aria-label={labelledBy ? undefined : "Toggle Group"}
+            aria-labelledby={labelledBy}
+            role={labelledBy ? "radiogroup" : undefined}
+            disabled={disabled}
             variant={variant}
             className={`
                 p-px !rounded-full gap-0
@@ -86,7 +96,8 @@ const ToggleGroup: React.FC<ToggleGroupProps> = ({
                     <UIToggleGroupItem
                         key={option.value}
                         value={option.value}
-                        aria-label={option.label}
+                        id={option.id}
+                        aria-label={option.ariaLabel ?? option.label}
                         className={`
                             cursor-pointer
                             flex flex-row items-center justify-center
