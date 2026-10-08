@@ -7,6 +7,7 @@ interface Cfg {
   logs: boolean;
   stats: boolean;
   retention?: string;
+  statsRetention?: string;
   ips?: boolean;
 }
 
@@ -17,7 +18,7 @@ function profileFor(c: Cfg) {
     name: 'Default',
     settings: {
       logs: { enabled: c.logs, log_domains: true, log_clients_ips: c.ips ?? false, retention: c.retention ?? '1h' },
-      statistics: { enabled: c.stats, retention: '30d' },
+      statistics: { enabled: c.stats, retention: c.statsRetention ?? '30d' },
       custom_rules: [],
     },
   };
@@ -155,7 +156,7 @@ test.describe('@statistics Statistics page', () => {
     await expect(group).toBeVisible();
     await expect(group.getByRole('radio', { name: 'Last 30 days' })).toBeChecked();
     const boxes = await group.getByRole('radio').evaluateAll(els => els.map(e => e.getBoundingClientRect()));
-    expect(boxes).toHaveLength(7);
+    expect(boxes).toHaveLength(5);
     for (const b of boxes) {
       expect(b.width).toBeGreaterThanOrEqual(43.5);
       expect(b.height).toBeGreaterThanOrEqual(43.5);
@@ -167,6 +168,27 @@ test.describe('@statistics Statistics page', () => {
     await group.getByText('7d').click();
     await expect(page).toHaveURL(/\/statistics$/);
   });
+  // tableRef: statistics-behaviour #K11, #K2
+  test('K11: the picker offers only the views the retention covers and corrects a hidden view in the URL', async ({ page }) => {
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics?range=12m');
+    const group = page.getByRole('radiogroup', { name: 'Time range' });
+    await expect(group.getByRole('radio')).toHaveCount(5);
+    await expect(group.getByRole('radio', { name: 'Last 30 days' })).toBeChecked();
+    await expect(group.getByRole('radio', { name: 'Last 3 months' })).toHaveCount(0);
+    await expect(page).toHaveURL(/range=30d$/);
+  });
+
+  // tableRef: statistics-behaviour #K11
+  test('K11: a one-year retention offers all seven views', async ({ page }) => {
+    await setup(page, { logs: false, stats: true, statsRetention: '1y' });
+    await page.goto('/statistics?range=12m');
+    const group = page.getByRole('radiogroup', { name: 'Time range' });
+    await expect(group.getByRole('radio')).toHaveCount(7);
+    await expect(group.getByRole('radio', { name: 'Last 12 months' })).toBeChecked();
+    await expect(page).toHaveURL(/range=12m$/);
+  });
+
   // tableRef: statistics-behaviour #K2
   test('the retention select stretches across the width on mobile with the menu button at the end', { tag: '@mobile' }, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
