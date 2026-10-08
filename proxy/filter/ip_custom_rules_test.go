@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"net"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -70,7 +71,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionAllow,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -84,7 +85,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -98,7 +99,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionAllow,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -172,7 +173,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -195,7 +196,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -209,7 +210,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{
@@ -223,7 +224,7 @@ func TestIPFilterCustomRules(t *testing.T) {
 			expectedResult: &model.StageResult{
 				Decision: model.DecisionBlock,
 				Tier:     TierCustomRules,
-				Reasons:  []string{model.FilterReasonCustomRules},
+				Reasons:  []string{filterreasons.CustomRules},
 			},
 		},
 		{

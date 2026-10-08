@@ -200,3 +200,13 @@ func TestStatisticsRetention_StoredValuesAreStable(t *testing.T) {
 	assert.Equal(t, StatisticsRetention("90d"), StatisticsRetention90d)
 	assert.Equal(t, StatisticsRetention("1y"), StatisticsRetention1y)
 }
+
+// specRef: proxy-statistics-behaviour.md #Y12
+func TestReasonClass_StoredValuesAreStable(t *testing.T) {
+	assert.Equal(t, ReasonClass("blocklist"), ReasonClassBlocklist)
+	assert.Equal(t, ReasonClass("service"), ReasonClassService)
+	assert.Equal(t, ReasonClass("custom_rule"), ReasonClassCustomRule)
+	assert.Equal(t, ReasonClass("rebinding"), ReasonClassRebinding)
+	assert.Equal(t, ReasonClass("default_rule"), ReasonClassDefaultRule)
+	assert.Equal(t, ReasonClass("other"), ReasonClassOther)
+}

@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -81,14 +82,14 @@ func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.Reque
 	}
 	if allowMatched || blockMatched {
 		result.Tier = TierCustomRules
-		result.Reasons = []string{model.FilterReasonCustomRules, model.FilterReasonCnameUncloaking}
+		result.Reasons = []string{filterreasons.CustomRules, filterreasons.CnameUncloaking}
 		if allowMatched {
 			result.Decision = model.DecisionAllow
 		} else {
 			result.Decision = model.DecisionBlock
 		}
 		reqCtx.Logger.Debug().
-			Str("reasons", model.FilterReasonCustomRules+","+model.FilterReasonCnameUncloaking).
+			Str("reasons", filterreasons.CustomRules+","+filterreasons.CnameUncloaking).
 			Str("decision", string(result.Decision)).
 			Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype]).
 			Msg("CNAME target matched custom rule")
@@ -104,17 +105,17 @@ func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.Reque
 			continue
 		}
 		e := reqCtx.Logger.Debug().
-			Str("reasons", model.FilterReasonBlocklists+","+model.FilterReasonCnameUncloaking).
+			Str("reasons", filterreasons.Blocklists+","+filterreasons.CnameUncloaking).
 			Str("blocklist", match.blocklistID).
 			Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
 		reqCtx.AddDomain(e, dctx.Req.Question[0].Name).Msg("CNAME target blocked")
 		result.Decision = model.DecisionBlock
 		result.Tier = TierBlocklists
-		result.Reasons = append(result.Reasons, model.FilterReasonBlocklistPrefix+match.blocklistID)
+		result.Reasons = append(result.Reasons, filterreasons.BlocklistPrefix+match.blocklistID)
 		if match.viaParent {
-			result.Reasons = append(result.Reasons, model.FilterReasonBlocklistsSubdomains)
+			result.Reasons = append(result.Reasons, filterreasons.BlocklistsSubdomains)
 		}
-		result.Reasons = append(result.Reasons, model.FilterReasonCnameUncloaking)
+		result.Reasons = append(result.Reasons, filterreasons.CnameUncloaking)
 		return result, nil
 	}
 	return result, nil

@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strings"
 	"sync"
 
@@ -99,7 +100,7 @@ func (f *DomainFilter) filterServiceDomains(ctx context.Context, reqCtx *request
 		candidate := strings.Join(parts[i:], ".")
 		if svcID, ok := domainMap[candidate]; ok {
 			result.Decision = model.DecisionBlock
-			result.Reasons = append(result.Reasons, model.FilterReasonServices, model.FilterReasonServicePrefix+svcID)
+			result.Reasons = append(result.Reasons, filterreasons.Services, filterreasons.ServicePrefix+svcID)
 			return result, nil
 		}
 	}
