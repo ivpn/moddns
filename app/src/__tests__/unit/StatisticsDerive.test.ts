@@ -10,7 +10,7 @@ import {
 } from '@/pages/statistics/derive';
 import { statsRetentionWords } from '@/components/data-collection/model';
 import { LOGS_TIMESPAN, RANGES, STATS_TIMESPAN, logsWindowCaption, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
-import { formatBucketTick, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
+import { axisTicks, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
 import { createStatsResponse } from '../mocks/statisticsMocks';
 
 describe('ranges', () => {
@@ -193,11 +193,133 @@ describe('labels', () => {
         expect(bucketUnitWord(86400)).toBe('daily');
         expect(formatRangeCaption(Date.UTC(2026, 8, 29, 15), Date.UTC(2026, 9, 6, 15), 3600)).toMatch(/ · hourly$/);
     });
+});
 
-    it('labels daily ticks by UTC date regardless of the browser zone', () => {
+describe('axisTicks', () => {
+    const every = (startMs: number, count: number, stepMs: number) => Array.from({ length: count }, (_, i) => startMs + i * stepMs);
+    const QUARTER = 15 * 60_000;
+    const HOUR = 3_600_000;
+    const DAY = 86_400_000;
+    const hm = (ms: number) => new Date(ms).getHours() * 60 + new Date(ms).getMinutes();
+
+    it('3h: every 30 minutes on the local clock', () => {
         // tableRef: statistics-behaviour #K6
-        expect(formatBucketTick(Date.UTC(2026, 8, 30, 0), 86400)).toBe(
-            new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(Date.UTC(2026, 8, 30)),
-        );
+        const ts = every(new Date(2026, 9, 8, 10, 0).getTime(), 12, QUARTER);
+        const t = axisTicks('3h', ts);
+        expect(t.map(x => hm(x.ts))).toEqual([600, 630, 660, 690, 720, 750]);
+        expect(t[0].label).toBe(new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(ts[0]));
+    });
+
+    it('6h: every hour', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(new Date(2026, 9, 8, 6, 0).getTime(), 24, QUARTER);
+        expect(axisTicks('6h', ts).map(x => hm(x.ts))).toEqual([360, 420, 480, 540, 600, 660]);
+    });
+
+    it('24h: every 3 hours, the date at local midnight', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(new Date(2026, 9, 7, 18, 0).getTime(), 24, HOUR);
+        const t = axisTicks('24h', ts);
+        expect(t.map(x => new Date(x.ts).getHours())).toEqual([18, 21, 0, 3, 6, 9, 12, 15]);
+        const midnight = t.find(x => new Date(x.ts).getHours() === 0)!;
+        expect(midnight.label).toBe(new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(midnight.ts));
+        expect(t[0].label).toBe(new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(t[0].ts));
+    });
+
+    it('7d: every local midnight labelled weekday and day', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(new Date(2026, 9, 1, 12, 0).getTime(), 7 * 24, HOUR);
+        const t = axisTicks('7d', ts);
+        expect(t).toHaveLength(7);
+        expect(t.every(x => new Date(x.ts).getHours() === 0)).toBe(true);
+        expect(t[0].label).toBe(new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' }).format(t[0].ts));
+    });
+
+    const fmtDay = (ms: number, year = false) =>
+        new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: year ? 'numeric' : undefined, timeZone: 'UTC' }).format(ms);
+
+    it('a 30-day span has 6 to 10 labels on desktop and at least 4 at 375px', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(Date.UTC(2026, 8, 9), 30, DAY);
+        const desktop = axisTicks('30d', ts, 950);
+        expect(desktop.length).toBeGreaterThanOrEqual(6);
+        expect(desktop.length).toBeLessThanOrEqual(10);
+        const phone = axisTicks('30d', ts, 309);
+        expect(phone.length).toBeGreaterThanOrEqual(4);
+        expect(phone.length).toBeLessThanOrEqual(5);
+        expect(desktop[0].label).toBe(fmtDay(Date.UTC(2026, 8, 9)));
+    });
+
+    it('day steps count from the first bucket on UTC days', () => {
+        // tableRef: statistics-behaviour #K6
+        const t = axisTicks('30d', every(Date.UTC(2026, 8, 9), 30, DAY), 950);
+        const gaps = t.slice(1).map((x, i) => (x.ts - t[i].ts) / DAY);
+        expect(new Set(gaps).size).toBe(1);
+        expect(t[0].ts).toBe(Date.UTC(2026, 8, 9));
+    });
+
+    it('a 12m view clamped to 30 days behaves like the 30d view', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(Date.UTC(2026, 8, 9), 30, DAY);
+        expect(axisTicks('12m', ts, 950)).toEqual(axisTicks('30d', ts, 950));
+        expect(axisTicks('3m', ts, 309)).toEqual(axisTicks('30d', ts, 309));
+    });
+
+    it('a 90-day span steps by Mondays or more and keeps 4 or more labels', () => {
+        // tableRef: statistics-behaviour #K6
+        const t = axisTicks('3m', every(Date.UTC(2026, 6, 11), 90, DAY), 950);
+        expect(t.length).toBeGreaterThanOrEqual(6);
+        expect(t.length).toBeLessThanOrEqual(10);
+        expect(t.every(x => new Date(x.ts).getUTCDay() === 1)).toBe(true);
+        expect(axisTicks('3m', every(Date.UTC(2026, 6, 11), 90, DAY), 309).length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('a full year uses month starts with the full year, never a two-digit year', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(Date.UTC(2025, 9, 9), 365, DAY);
+        const t = axisTicks('12m', ts, 950);
+        expect(t.length).toBeGreaterThanOrEqual(6);
+        expect(t.length).toBeLessThanOrEqual(10);
+        expect(t.every(x => new Date(x.ts).getUTCDate() === 1)).toBe(true);
+        expect(t.every(x => /\b20\d\d\b/.test(x.label))).toBe(true);
+        expect(t[0].label).toBe(new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(t[0].ts));
+        expect(axisTicks('12m', ts, 309).length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('shows the year on the first label and on Jan 1 when the span crosses a year', () => {
+        // tableRef: statistics-behaviour #K6
+        const t = axisTicks('30d', every(Date.UTC(2026, 11, 18), 30, DAY), 950);
+        expect(t[0].label).toBe(fmtDay(t[0].ts, true));
+        const jan = t.find(x => x.ts === Date.UTC(2027, 0, 1));
+        if (jan) expect(jan.label).toBe(fmtDay(jan.ts, true));
+        expect(t.some(x => new Date(x.ts).getUTCFullYear() === 2027)).toBe(true);
+        const noCross = axisTicks('30d', every(Date.UTC(2026, 8, 9), 30, DAY), 950);
+        expect(noCross.every(x => !/2026/.test(x.label))).toBe(true);
+    });
+
+    it('short spans keep one label per day', () => {
+        // tableRef: statistics-behaviour #K6
+        expect(axisTicks('30d', every(Date.UTC(2026, 9, 6), 3, DAY), 950)).toHaveLength(3);
+        expect(axisTicks('30d', [], 950)).toEqual([]);
+    });
+
+    it('keeps at most every other tick on narrow screens', () => {
+        // tableRef: statistics-behaviour #K6
+        const ts = every(new Date(2026, 9, 8, 6, 0).getTime(), 24, QUARTER);
+        expect(axisTicks('6h', ts, 300).map(x => hm(x.ts))).toEqual([360, 480, 600]);
+    });
+
+    it('labels daily ticks by UTC date whatever the process timezone', () => {
+        // tableRef: statistics-behaviour #K6
+        const before = process.env.TZ;
+        process.env.TZ = 'Pacific/Auckland';
+        try {
+            const t = axisTicks('30d', every(Date.UTC(2026, 8, 9), 30, DAY), 950);
+            expect(t[0].ts).toBe(Date.UTC(2026, 8, 9));
+            expect(t[0].label).toBe(new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(Date.UTC(2026, 8, 9)));
+        } finally {
+            if (before === undefined) delete process.env.TZ;
+            else process.env.TZ = before;
+        }
     });
 });

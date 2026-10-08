@@ -1,10 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, CartesianGrid, ComposedChart, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { formatAxisCount, formatCount } from "@/lib/formatStats";
 import { buildBuckets, countingSince, type Bucket, type StatsData } from "../derive";
 import { rangeDef, type RangeKey } from "../ranges";
-import { bucketUnitWord, formatBucketLabel, formatBucketTick, formatDateTime } from "../time";
+import { axisTicks, bucketUnitWord, formatBucketLabel, formatDateTime } from "../time";
 import { PanelShell, StatsTable, mutedText } from "../primitives";
 import { cn } from "@/lib/utils";
 import { ENTRANCE_MS, useChartEntrance } from "../useChartEntrance";
@@ -69,6 +69,19 @@ function SeriesTooltip({ active, payload, bucketSeconds }: { active?: boolean; p
     );
 }
 
+/** The element's width in px; undefined until measured or where ResizeObserver is missing. */
+function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined {
+    const [width, setWidth] = useState<number | undefined>(undefined);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || typeof ResizeObserver === "undefined") return;
+        const ro = new ResizeObserver(() => setWidth(el.clientWidth > 0 ? el.clientWidth : undefined));
+        ro.observe(el);
+        return () => ro.disconnect();
+    });
+    return width;
+}
+
 export function SeriesPanel({ data, range, busy }: { data: StatsData; range: RangeKey; busy?: boolean }) {
     const buckets = useMemo(() => buildBuckets(data), [data]);
     const rows = useMemo(() => toRows(buckets), [buckets]);
@@ -77,6 +90,10 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
     const unitPlural = unit === "daily" ? "days" : unit === "hourly" ? "hours" : "15-minute buckets";
     const summary = chartSummary(data, buckets, range);
     const animate = useChartEntrance(`${data.bucketSeconds}:${Math.round((data.toMs - data.fromMs) / 3_600_000)}`);
+    const chartBox = useRef<HTMLDivElement>(null);
+    const width = useWidth(chartBox);
+    const ticks = useMemo(() => axisTicks(range, rows.map(r => r.ts), width), [range, rows, width]);
+    const tickLabels = useMemo(() => new Map(ticks.map(t => [t.ts, t.label])), [ticks]);
     const markerTs = since !== null ? rows.find(r => r.all !== null || r.allTail !== null)?.ts : undefined;
 
     return (
@@ -127,7 +144,7 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                     In progress
                                 </span>
                             </div>
-                            <div role="group" aria-roledescription="chart" aria-label={summary}>
+                            <div ref={chartBox} role="group" aria-roledescription="chart" aria-label={summary}>
                                 <ChartContainer config={config} className="aspect-auto h-[200px] md:h-[280px] w-full">
                                     <ComposedChart accessibilityLayer data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                                         <CartesianGrid vertical={false} stroke="var(--stats-grid)" />
@@ -135,10 +152,11 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                             dataKey="ts"
                                             tickLine={false}
                                             axisLine={{ stroke: "var(--stats-axis)" }}
-                                            minTickGap={28}
-                                            interval="preserveStartEnd"
+                                            padding={{ left: 0, right: 24 }}
+                                            ticks={ticks.map(t => t.ts)}
+                                            interval={0}
                                             tick={{ fill: "var(--stats-axis)" }}
-                                            tickFormatter={(ts: number) => formatBucketTick(ts, data.bucketSeconds, range === "12m")}
+                                            tickFormatter={(ts: number) => tickLabels.get(ts) ?? ""}
                                         />
                                         <YAxis
                                             width={40}
