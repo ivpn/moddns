@@ -8,7 +8,7 @@ import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
-import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
+import QuickRuleSheet, { type QuickRuleAction } from "@/components/custom-rules/QuickRuleSheet";
 import { consolidateLogs, toSingletonGroup } from "@/lib/consolidateLogs";
 import { computeNewQueryLogs } from "@/lib/queryLogsDiff";
 import { refreshIntervalMsFor, type RefreshIntervalKey } from "@/lib/consts";
