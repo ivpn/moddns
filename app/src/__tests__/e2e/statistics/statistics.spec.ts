@@ -183,6 +183,31 @@ test.describe('@statistics Statistics page', () => {
     await expect(page.getByRole('radio', { name: 'Last 3 hours' })).toBeChecked();
   });
 
+  // tableRef: statistics-behaviour #P25, #P26, #X10
+  test('P25: a quick rule from a blocked-domain row opens the sheet, adds the rule and tags the row', async ({ page }) => {
+    await setup(page, { logs: true, stats: true });
+    let posted: unknown = null;
+    await page.route(/\/api\/v1\/profiles\/p1\/custom_rules\/batch/i, r => {
+      posted = r.request().postDataJSON();
+      return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ created: [{ value: '*.ads.example.com' }], skipped: [] }) });
+    });
+    await page.goto('/statistics');
+    const card = page.getByRole('region', { name: 'Top blocked domains' });
+    const button = card.getByRole('button', { name: 'Create a custom rule for ads.example.com' });
+    await expect(button).toBeVisible();
+    await button.click();
+    const sheet = page.getByRole('dialog', { name: 'Add custom rule' });
+    await expect(sheet.getByRole('radio', { name: 'Allow domain' })).toHaveAttribute('data-state', 'on');
+    await sheet.getByRole('button', { name: 'Add to Allowlist' }).click();
+    await expect(page.getByText(/added to the Allowlist\./)).toBeVisible();
+    await expect(page.getByText('Past queries still count here - new queries follow the rule.')).toBeVisible();
+    await expect(sheet).toHaveCount(0);
+    await expect(card.getByText('Rule added')).toBeVisible();
+    await expect(button).toBeFocused();
+    expect((posted as { action: string }).action).toBe('allow');
+    await expectNoHorizontalOverflow(page);
+  });
+
   // tableRef: statistics-behaviour #K11, #K2
   test('K11: the picker offers only the views the retention covers and corrects a hidden view in the URL', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
