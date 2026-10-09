@@ -39,7 +39,7 @@ function dialogCopy(p: Pending): { title: string; body: string; confirm: string;
     return p.kind === "raise"
         ? {
               title: `Keep statistics for ${words}?`,
-              body: `modDNS will keep this profile's query counts per device for up to ${words}. No domains or addresses are stored. You can lower this or delete the history at any time.`,
+              body: `modDNS will keep this profile's query counts for up to ${words}. Query logs are not affected. You can lower this or delete the history at any time.`,
               confirm: `Keep for ${words}`,
               busy: "Saving…",
               red: false,

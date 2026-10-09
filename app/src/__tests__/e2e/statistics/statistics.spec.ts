@@ -276,6 +276,7 @@ test.describe('@statistics Statistics page', () => {
     await select.selectOption('1y');
     const dialog = page.getByRole('dialog', { name: 'Keep statistics for 1 year?' });
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
+    await expect(dialog).toContainText("modDNS will keep this profile's query counts for up to 1 year. Query logs are not affected.");
     await dialog.getByRole('button', { name: 'Keep for 1 year' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(select).toHaveValue('1y');
