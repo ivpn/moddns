@@ -39,9 +39,9 @@ interface QuickRuleSheetProps {
     /** Called after a rule was created, before the sheet closes. */
     onCreated?: (rule: { value: string; action: QuickRuleAction }) => void;
     /** Adds a description and an action button to the success toast. */
-    successToast?: { description: string; action: { label: string; onClick: () => void } };
+    successToast?: (rule: { value: string; action: QuickRuleAction }) => { description: string; action: { label: string; onClick: () => void } };
     /** Replaces the inline error for a value that already has a rule. */
-    duplicateNotice?: (value: string) => ReactNode;
+    duplicateNotice?: (value: string, action: QuickRuleAction) => ReactNode;
     /** Where focus goes when the sheet closes; defaults to the dialog's own trigger logic. */
     returnFocusTo?: RefObject<HTMLElement | null>;
 }
@@ -108,7 +108,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction, onCreated, 
                 setActiveProfile(updated.data);
                 toast.success(
                     `${normalized} added to the ${ACTION_LABEL[action]}.`,
-                    successToast ? { description: successToast.description, action: successToast.action } : undefined,
+                    successToast ? successToast({ value: normalized, action }) : undefined,
                 );
                 onCreated?.({ value: normalized, action });
                 onOpenChange(false);
@@ -246,7 +246,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction, onCreated, 
                         </p>
                         {duplicateNotice && duplicateValue && (
                             <p className="text-xs text-[var(--tailwind-colors-rose-400)]" role="alert">
-                                {duplicateNotice(duplicateValue)}
+                                {duplicateNotice(duplicateValue, action)}
                             </p>
                         )}
                         {inputError && (

@@ -53,7 +53,7 @@ function profile(subdomains: 'include' | 'exact' = 'exact'): ModelProfile {
 
 function Probe() {
     const l = useLocation();
-    return <div data-testid="loc">{l.pathname}</div>;
+    return <div data-testid="loc">{l.pathname + l.search}</div>;
 }
 
 function mount(p = profile()) {
@@ -186,7 +186,20 @@ describe('quick rules on the top domain lists', () => {
         expect(blocked.getByText('ads.example.com')).toBeInTheDocument();
         await waitFor(() => expect(button).toHaveFocus());
         options.action.onClick();
-        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/custom-rules'));
+        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/custom-rules?list=allowlist'));
+    });
+
+    it('opens the Denylist tab after a block rule from the resolved card, in the toast and the duplicate link', async () => {
+        // tableRef: statistics-behaviour #P26
+        const user = userEvent.setup();
+        mount();
+        const { toast } = await import('sonner');
+        await user.click(ruleButton(await card('Top resolved domains'), 'example.org'));
+        await user.click(await screen.findByRole('button', { name: 'Add to Denylist' }));
+        await waitFor(() => expect(toast.success).toHaveBeenCalled());
+        const [, options] = (toast.success as unknown as Mock).mock.calls[0];
+        options.action.onClick();
+        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/custom-rules?list=denylist'));
     });
 
     it('keeps the sheet open with an inline notice and a link when the rule already exists', async () => {
@@ -198,7 +211,7 @@ describe('quick rules on the top domain lists', () => {
         await user.click(await screen.findByRole('button', { name: 'Add to Allowlist' }));
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent('A custom rule for ads.example.com already exists. Edit it in Custom rules.');
-        expect(within(alert).getByRole('link', { name: 'Custom rules' })).toHaveAttribute('href', '/custom-rules');
+        expect(within(alert).getByRole('link', { name: 'Custom rules' })).toHaveAttribute('href', '/custom-rules?list=allowlist');
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         const { toast } = await import('sonner');
         expect(toast.success).not.toHaveBeenCalled();

@@ -28,3 +28,12 @@ export function normalizeRuleValue(value: string): string | null {
     }
     return trimmed;
 }
+
+export type RuleList = "denylist" | "allowlist";
+
+/** The `?list=` value of the Custom rules page; anything else opens the denylist. */
+export function parseRuleList(value: string | null | undefined): RuleList {
+    return value === "allowlist" ? "allowlist" : "denylist";
+}
+
+export const customRulesPath = (list: RuleList): string => `/custom-rules?list=${list}`;

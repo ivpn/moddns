@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, type JSX } from "react";
 import AlertCard from "@/components/general/AlertCard";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import CustomRulesSearch from "@/pages/custom_rules/Search";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
@@ -19,6 +19,7 @@ import type { RequestsUpdateProfileCustomRuleBody, RequestsCustomRuleGroupUpdate
 import { RequestsCustomRuleGroupUpdateOperationEnum as GroupOp } from "@/api/client/api";
 import CustomRulesExportLimitBanner from "@/pages/custom_rules/CustomRulesExportLimitBanner";
 import { formatApiError } from "@/lib/apiError";
+import { parseRuleList } from "@/pages/custom_rules/utils";
 
 type RuleTab = "denylist" | "allowlist";
 
@@ -43,7 +44,8 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
     const customRulesAlertDismissed = useAppStore((state) => state.customRulesAlertDismissed);
     const setCustomRulesAlertDismissed = useAppStore((state) => state.setCustomRulesAlertDismissed);
     const [showSearch, setShowSearch] = useState(false);
-    const [activeTab, setActiveTab] = useState<RuleTab>("denylist");
+    const [params] = useSearchParams();
+    const [activeTab, setActiveTab] = useState<RuleTab>(() => parseRuleList(params.get("list")));
     const [loading, setLoading] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
