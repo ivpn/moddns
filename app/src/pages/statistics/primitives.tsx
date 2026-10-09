@@ -1,5 +1,5 @@
 import React, { useId, useState } from "react";
-import { ChartColumn, Table2 } from "lucide-react";
+import { ChartColumn, ChartLine, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LIMITED_ACCESS_TEXT } from "@/components/data-collection/model";
@@ -30,54 +30,96 @@ export function GroupHeading({ children, caption }: { children: React.ReactNode;
     );
 }
 
-export type PanelView = "chart" | "table";
+export type PanelView = "chart" | "bars" | "table";
 
-export function ViewToggle({ title, view, onChange }: { title: string; view: PanelView; onChange: (v: PanelView) => void }) {
-    const btn = (v: PanelView, label: string, Icon: typeof Table2) => (
-        <button
-            type="button"
-            aria-pressed={view === v}
-            title={label}
-            onClick={() => onChange(v)}
-            className={cn(
-                "inline-flex items-center justify-center cursor-pointer min-h-11 min-w-11 lg:min-h-8 lg:min-w-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
-                view === v
-                    ? "bg-[var(--tailwind-colors-rdns-600)]/15 text-[var(--tailwind-colors-rdns-600)]"
-                    : cn("hover:bg-muted", mutedText),
-            )}
-        >
-            <Icon className="w-4 h-4" aria-hidden />
-            <span className="sr-only">{label}</span>
-        </button>
-    );
+export interface ViewOption {
+    view: PanelView;
+    label: string;
+    Icon: typeof Table2;
+}
+
+const CHART_TABLE: ViewOption[] = [
+    { view: "chart", label: "Chart", Icon: ChartColumn },
+    { view: "table", label: "Table", Icon: Table2 },
+];
+
+/** X3: "Queries over time" offers Line, Bars and Table. */
+export const LINE_BARS_TABLE: ViewOption[] = [
+    { view: "chart", label: "Line", Icon: ChartLine },
+    { view: "bars", label: "Bars", Icon: ChartColumn },
+    { view: "table", label: "Table", Icon: Table2 },
+];
+
+export function ViewToggle({
+    title,
+    view,
+    onChange,
+    options = CHART_TABLE,
+}: {
+    title: string;
+    view: PanelView;
+    onChange: (v: PanelView) => void;
+    options?: ViewOption[];
+}) {
     return (
         <div
             role="group"
             aria-label={`${title} view`}
             className="flex items-center overflow-hidden rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] [&>button+button]:border-l [&>button+button]:border-[var(--tailwind-colors-slate-light-300)] dark:[&>button+button]:border-[var(--tailwind-colors-slate-600)]"
         >
-            {btn("chart", "Chart", ChartColumn)}
-            {btn("table", "Table", Table2)}
+            {options.map(({ view: v, label, Icon }) => (
+                <button
+                    key={v}
+                    type="button"
+                    aria-pressed={view === v}
+                    title={label}
+                    onClick={() => onChange(v)}
+                    className={cn(
+                        "inline-flex items-center justify-center cursor-pointer min-h-11 min-w-11 lg:min-h-8 lg:min-w-8 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
+                        view === v
+                            ? "bg-[var(--tailwind-colors-rdns-600)]/15 text-[var(--tailwind-colors-rdns-600)]"
+                            : cn("hover:bg-muted", mutedText),
+                    )}
+                >
+                    <Icon className="w-4 h-4" aria-hidden />
+                    <span className="sr-only">{label}</span>
+                </button>
+            ))}
         </div>
     );
 }
 
-/** X1, X3: a labelled section with a per-panel Chart | Table toggle. */
+/** The chosen view per remembered panel, for the rest of the browser session (X3). */
+const rememberedViews = new Map<string, PanelView>();
+
+/** Forgets the remembered views (tests). */
+export const resetRememberedViews = () => rememberedViews.clear();
+
+/** X1, X3: a labelled section with a per-panel view toggle (Chart | Table unless `options` says otherwise). */
 export function PanelShell({
     title,
     toggle = true,
     defaultView = "chart",
+    options,
+    rememberAs,
     className,
     children,
 }: {
     title: string;
     toggle?: boolean;
     defaultView?: PanelView;
+    options?: ViewOption[];
+    /** Keeps the chosen view across remounts for the session. */
+    rememberAs?: string;
     className?: string;
     children: (view: PanelView) => React.ReactNode;
 }) {
     const id = useId();
-    const [view, setView] = useState<PanelView>(defaultView);
+    const [view, setView] = useState<PanelView>(() => (rememberAs && rememberedViews.get(rememberAs)) || defaultView);
+    const choose = (v: PanelView) => {
+        if (rememberAs) rememberedViews.set(rememberAs, v);
+        setView(v);
+    };
     return (
         <StatsCard className={className}>
             <section aria-labelledby={id} className="flex flex-col gap-4 min-w-0">
@@ -85,7 +127,7 @@ export function PanelShell({
                     <h3 id={id} className={cn("font-semibold text-base leading-6", titleText)}>
                         {title}
                     </h3>
-                    {toggle && <ViewToggle title={title} view={view} onChange={setView} />}
+                    {toggle && <ViewToggle title={title} view={view} onChange={choose} options={options} />}
                 </div>
                 {children(view)}
             </section>
