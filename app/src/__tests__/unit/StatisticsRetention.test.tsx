@@ -68,7 +68,7 @@ describe('RetentionControl', () => {
         await user.selectOptions(select(), '1y');
         const dialog = await screen.findByRole('dialog', { name: 'Keep statistics for 1 year?' });
         expect(select().value).toBe('1y');
-        expect(within(dialog).getByText(/modDNS will keep this profile's query counts per device for up to 1 year\. No domains or addresses are stored\./)).toBeInTheDocument();
+        expect(within(dialog).getByText("modDNS will keep this profile's query counts for up to 1 year. Query logs are not affected. You can lower this or delete the history at any time.")).toBeInTheDocument();
         expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
         expect(patch).not.toHaveBeenCalled();
         await user.click(within(dialog).getByRole('button', { name: 'Keep for 1 year' }));
