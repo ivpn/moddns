@@ -206,6 +206,9 @@ test.describe('@statistics Statistics page', () => {
     await expect(button).toBeFocused();
     expect((posted as { action: string }).action).toBe('allow');
     await expectNoHorizontalOverflow(page);
+    await page.getByRole('button', { name: 'View rules' }).click();
+    await expect(page).toHaveURL(/\/custom-rules\?list=allowlist$/);
+    await expect(page.getByRole('tab', { name: 'Allowlist' })).toHaveAttribute('data-state', 'active');
   });
 
   // tableRef: statistics-behaviour #K11, #K2
