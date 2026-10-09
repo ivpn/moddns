@@ -16,8 +16,8 @@ import {
 } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { formatAxisCount, formatCount } from "@/lib/formatStats";
-import { buildBuckets, countingSince, type Bucket, type StatsData } from "../derive";
-import { rangeDef, type RangeKey } from "../ranges";
+import { buildBuckets, countingSince, shorterViewForStart, type Bucket, type StatsData } from "../derive";
+import { rangeDef, type RangeDef, type RangeKey } from "../ranges";
 import { axisTicks, bucketUnitWord, formatBucketLabel, formatDateTime } from "../time";
 import { PanelShell, StatsTable, mutedText } from "../primitives";
 import { cn } from "@/lib/utils";
@@ -52,6 +52,11 @@ function toRows(buckets: Bucket[]): Row[] {
             inProgress: b.inProgress,
         };
     });
+}
+
+/** P9: with one or two buckets a line has nothing to draw, so each bucket gets a dot. */
+export function fewBuckets(count: number): false | { r: number } {
+    return count > 0 && count <= 2 ? { r: 3 } : false;
 }
 
 export function chartSummary(data: StatsData, buckets: Bucket[], range: RangeKey): string {
@@ -139,12 +144,23 @@ function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined 
     return width;
 }
 
-export function SeriesPanel({ data, range, busy }: { data: StatsData; range: RangeKey; busy?: boolean }) {
+export function SeriesPanel({
+    data,
+    range,
+    busy,
+    offered,
+    onRange,
+}: {
+    data: StatsData;
+    range: RangeKey;
+    busy?: boolean;
+    offered?: RangeDef[];
+    onRange?: (k: RangeKey) => void;
+}) {
     const buckets = useMemo(() => buildBuckets(data), [data]);
     const rows = useMemo(() => toRows(buckets), [buckets]);
     const since = countingSince(data);
     const unit = bucketUnitWord(data.bucketSeconds);
-    const unitPlural = unit === "daily" ? "days" : unit === "hourly" ? "hours" : "15-minute buckets";
     const summary = chartSummary(data, buckets, range);
     const animate = useChartEntrance(`${data.bucketSeconds}:${Math.round((data.toMs - data.fromMs) / 3_600_000)}`);
     const chartBox = useRef<HTMLDivElement>(null);
@@ -157,6 +173,8 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
     const ticks = useMemo(() => axisTicks(range, rows.map(r => r.ts), width), [range, rows, width]);
     const tickLabels = useMemo(() => new Map(ticks.map(t => [t.ts, t.label])), [ticks]);
     const markerTs = since !== null ? rows.find(r => r.all !== null || r.allTail !== null)?.ts : undefined;
+    const dot = fewBuckets(rows.filter(r => r.all !== null || r.allTail !== null).length);
+    const shorter = shorterViewForStart(data, range, offered ?? []);
 
     return (
         <PanelShell title="Queries over time" className={cn(busy && "opacity-60")}>
@@ -164,7 +182,19 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                 <>
                     {since !== null && (
                         <p className={cn("text-[13px]", mutedText)}>
-                            Counting since {formatDateTime(since)}. Earlier {unitPlural} are blank, not zero.
+                            Counting since {formatDateTime(since)}.
+                            {shorter && onRange && (
+                                <>
+                                    {" "}
+                                    <button
+                                        type="button"
+                                        className="underline text-[var(--tailwind-colors-rdns-600)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+                                        onClick={() => onRange(shorter)}
+                                    >
+                                        Show {rangeDef(shorter).words}
+                                    </button>
+                                </>
+                            )}
                         </p>
                     )}
                     {view === "table" ? (
@@ -246,10 +276,10 @@ export function SeriesPanel({ data, range, busy }: { data: StatsData; range: Ran
                                                 label={{ value: "Statistics on", position: "insideTopLeft", fill: "var(--stats-axis)", fontSize: 11 }}
                                             />
                                         )}
-                                        <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
                                         <AxisHoverLabel pointerX={pointerX} bucketSeconds={data.bucketSeconds} />
                                     </ComposedChart>
                                 </ChartContainer>
