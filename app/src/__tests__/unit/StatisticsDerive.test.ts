@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     buildBuckets,
+    shorterViewForStart,
     countingSince,
     countsState,
     deviceLabel,
@@ -66,16 +67,24 @@ describe('normalizeStats', () => {
 });
 
 describe('buildBuckets', () => {
-    it('turns points before the enabling instant into gaps, not zeros', () => {
+    it('keeps the full view and turns points before the start into gaps, not zeros', () => {
         // tableRef: statistics-behaviour #P9
-        const raw = createStatsResponse({ points: 6, enabledAt: '2026-10-06T13:20:00Z' });
-        const d = normalizeStats(raw);
+        const d = normalizeStats(createStatsResponse({ points: 6, enabledAt: '2026-10-06T13:20:00Z' }));
         const b = buildBuckets(d);
-        const nulls = b.filter(x => x.total === null).length;
-        expect(nulls).toBeGreaterThan(0);
+        expect(b).toHaveLength(d.series.length);
         expect(b[0].total).toBeNull();
+        expect(b.filter(x => x.total === null).length).toBeGreaterThan(0);
         expect(b[b.length - 1].total).not.toBeNull();
         expect(countingSince(d)).toBe(Date.parse('2026-10-06T13:20:00Z'));
+    });
+
+    it('uses history_deleted_at as the start when it is later than enabled_at', () => {
+        // tableRef: statistics-behaviour #P9
+        const raw = { ...createStatsResponse({ points: 8, enabledAt: '2026-09-14T09:12:00Z' }), history_deleted_at: '2026-10-06T14:10:00Z' };
+        const d = normalizeStats(raw);
+        const firstCounted = buildBuckets(d).find(x => x.total !== null)!;
+        expect(firstCounted.ts).toBe(Date.parse('2026-10-06T14:00:00Z'));
+        expect(buildBuckets(d)).toHaveLength(8);
     });
 
     it('marks the not-yet-flushed tail as in progress', () => {
@@ -330,5 +339,59 @@ describe('offeredRanges and resolveRange', () => {
         expect(resolveRange('12m', '1y')).toBe('12m');
         expect(resolveRange('bogus', '30d')).toBe('7d');
         expect(resolveRange(null, '1y')).toBe('7d');
+    });
+});
+
+describe('shorterViewForStart', () => {
+    const offered = RANGES.filter(r => r.seconds <= 30 * 86400);
+    const d = (enabledAt: string, points = 168) => normalizeStats(createStatsResponse({ points, enabledAt }));
+
+    it('points at the shortest offered view that still contains the start, only under a quarter', () => {
+        // tableRef: statistics-behaviour #P9
+        expect(shorterViewForStart(d('2026-10-06T14:20:00Z'), '7d', offered)).toBe('3h');
+        expect(shorterViewForStart(d('2026-10-06T10:00:00Z'), '7d', offered)).toBe('6h');
+        expect(shorterViewForStart(d('2026-10-05T20:00:00Z'), '7d', offered)).toBe('24h');
+        expect(shorterViewForStart(d('2026-10-04T15:00:00Z'), '7d', offered)).toBeNull();
+    });
+
+    it('offers nothing without a start inside the view or without a shorter view', () => {
+        // tableRef: statistics-behaviour #P9
+        expect(shorterViewForStart(d('2026-09-01T00:00:00Z'), '7d', offered)).toBeNull();
+        expect(shorterViewForStart(d('2026-10-06T14:20:00Z'), '3h', offered)).toBeNull();
+    });
+});
+
+describe('axis tick minimum', () => {
+    const every = (startMs: number, count: number, stepMs: number) => Array.from({ length: count }, (_, i) => startMs + i * stepMs);
+    const HOUR = 3_600_000;
+
+    it('7d falls back from midnights to finer steps when the span is short', () => {
+        // tableRef: statistics-behaviour #K12
+        const short = every(new Date(2026, 9, 8, 9, 0).getTime(), 10, HOUR);
+        const t = axisTicks('7d', short, 950);
+        expect(t.length).toBeGreaterThanOrEqual(3);
+        const usual = axisTicks('7d', every(new Date(2026, 9, 1, 12, 0).getTime(), 168, HOUR), 950);
+        expect(usual.every(x => new Date(x.ts).getHours() === 0)).toBe(true);
+    });
+
+    it('24h falls back from 3 hours to 1 hour', () => {
+        // tableRef: statistics-behaviour #K12
+        const t = axisTicks('24h', every(new Date(2026, 9, 8, 9, 0).getTime(), 4, HOUR), 950);
+        expect(t.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('3h and 6h fall back to quarter hours', () => {
+        // tableRef: statistics-behaviour #K12
+        const q = every(new Date(2026, 9, 8, 10, 0).getTime(), 4, 900_000);
+        expect(axisTicks('3h', q, 950).length).toBeGreaterThanOrEqual(3);
+        expect(axisTicks('6h', q, 950).length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('never returns fewer than two labels for two or more buckets, also on narrow screens', () => {
+        // tableRef: statistics-behaviour #K12
+        const two = every(new Date(2026, 9, 8, 9, 0).getTime(), 2, HOUR);
+        for (const r of ['3h', '6h', '24h', '7d'] as const) expect(axisTicks(r, two, 309).length).toBeGreaterThanOrEqual(2);
+        for (const r of ['30d', '3m', '12m'] as const) expect(axisTicks(r, [Date.UTC(2026, 9, 5), Date.UTC(2026, 9, 6)], 309)).toHaveLength(2);
+        expect(axisTicks('7d', every(new Date(2026, 9, 8, 9, 0).getTime(), 12, HOUR), 309).length).toBeGreaterThanOrEqual(3);
     });
 });

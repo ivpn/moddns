@@ -65,6 +65,14 @@ export interface AxisTick {
 /** Rough rendered label widths, enough to decide how many ticks fit. */
 const TICK_LABEL_PX: Record<RangeKey, number> = { "3h": 64, "6h": 64, "24h": 64, "7d": 52, "30d": 50, "3m": 50, "12m": 64 };
 
+/** Sub-day tick steps in minutes of the local day, usual step first (K12). */
+const SUBDAY_STEPS: Record<"3h" | "6h" | "24h" | "7d", number[]> = {
+    "3h": [30, 15],
+    "6h": [60, 30, 15],
+    "24h": [180, 60],
+    "7d": [1440, 360, 180, 60],
+};
+
 const utcDay = (ms: number) => new Date(ms).getUTCDay();
 const utcDate = (ms: number) => new Date(ms).getUTCDate();
 
@@ -139,31 +147,26 @@ function dailyTicks(tsList: number[], widthPx: number): AxisTick[] {
  */
 export function axisTicks(range: RangeKey, tsList: number[], widthPx?: number): AxisTick[] {
     if (range === "30d" || range === "3m" || range === "12m") return dailyTicks(tsList, widthPx ?? 1000);
-    const local = (ms: number) => new Date(ms);
+    if (tsList.length === 0) return [];
+    // K12: the usual step first; when it leaves fewer than three labels, the next finer one.
+    const minutes = (ts: number) => new Date(ts).getHours() * 60 + new Date(ts).getMinutes();
+    const label = (ts: number): string => {
+        const midnight = minutes(ts) === 0;
+        if (midnight && range === "7d") return fmt("wd", { weekday: "short", day: "numeric" }).format(ts);
+        if (midnight && range === "24h") return fmt("md", { month: "short", day: "numeric" }).format(ts);
+        return formatClock(ts);
+    };
+    const steps = SUBDAY_STEPS[range];
+    const want = Math.min(3, tsList.length);
     let ticks: AxisTick[] = [];
-    for (const ts of tsList) {
-        const d = local(ts);
-        const onHour = d.getMinutes() === 0;
-        switch (range) {
-            case "3h":
-                if (d.getMinutes() % 30 === 0) ticks.push({ ts, label: formatClock(ts) });
-                break;
-            case "6h":
-                if (onHour) ticks.push({ ts, label: formatClock(ts) });
-                break;
-            case "24h":
-                if (onHour && d.getHours() % 3 === 0) {
-                    ticks.push({ ts, label: d.getHours() === 0 ? fmt("md", { month: "short", day: "numeric" }).format(ts) : formatClock(ts) });
-                }
-                break;
-            case "7d":
-                if (onHour && d.getHours() === 0) ticks.push({ ts, label: fmt("wd", { weekday: "short", day: "numeric" }).format(ts) });
-                break;
-        }
+    for (const step of steps) {
+        ticks = tsList.filter(ts => minutes(ts) % step === 0).map(ts => ({ ts, label: label(ts) }));
+        if (ticks.length >= want) break;
     }
     if (widthPx !== undefined && ticks.length > 1) {
         const fit = Math.max(1, Math.floor((widthPx - 40) / (TICK_LABEL_PX[range] + 8)));
-        const step = Math.max(Math.ceil(ticks.length / fit), widthPx < 520 ? 2 : 1);
+        let step = Math.max(Math.ceil(ticks.length / fit), widthPx < 520 ? 2 : 1);
+        while (step > 1 && Math.ceil(ticks.length / step) < Math.min(3, ticks.length)) step--;
         ticks = ticks.filter((_, i) => i % step === 0);
     }
     return ticks;

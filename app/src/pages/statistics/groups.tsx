@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { LOGS_RETENTION_WORDS } from "@/components/data-collection/model";
 import { countsState, expectedFirstCounts, type StatsData } from "./derive";
-import { logsWindowCaption, nextLongerRange, rangeDef, type RangeKey } from "./ranges";
+import { logsWindowCaption, nextLongerRange, rangeDef, type RangeDef, type RangeKey } from "./ranges";
 import { formatDateTime, formatExpected } from "./time";
 import { GateAction, GroupHeading, LimitedAccessNote, MessageCard, StatsCard, mutedText } from "./primitives";
 import { KpiCards } from "./panels/KpiCards";
@@ -100,6 +100,7 @@ export interface CountsGroupProps extends GateProps {
     stats: ResourceState<StatsData> & { reload: () => void };
     range: RangeKey;
     onRange: (k: RangeKey) => void;
+    offered: RangeDef[];
     lastSeen: Map<string, number> | null;
     emptyHeadingRef: React.Ref<HTMLHeadingElement>;
     /** Clock for the collecting / no-queries-yet switch (P5, P23). */
@@ -174,7 +175,7 @@ export function CountsGroup(p: CountsGroupProps) {
                     data-testid="stats-counts-data"
                 >
                     <KpiCards data={d} />
-                    <SeriesPanel data={d} range={range} />
+                    <SeriesPanel data={d} range={range} offered={p.offered} onRange={p.onRange} />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <ReasonsPanel data={d} range={range} />
                         <ProtocolsPanel data={d} range={range} />

@@ -168,6 +168,21 @@ test.describe('@statistics Statistics page', () => {
     await group.getByText('7d').click();
     await expect(page).toHaveURL(/\/statistics$/);
   });
+  // tableRef: statistics-behaviour #P9, #K12
+  test('P9: a young window keeps the full axis with the start marker, a dot, and a link to a shorter view', { tag: '@desktop' }, async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 1200 });
+    await setup(page, { logs: false, stats: true }, createStatsResponse({ points: 168, enabledAt: '2026-10-06T14:20:00Z' }));
+    await page.goto('/statistics');
+    const panel = page.getByRole('region', { name: 'Queries over time' });
+    await expect(panel.getByText(/^Counting since [^.]*\./)).toBeVisible();
+    await expect(panel.getByText('Statistics on', { exact: true })).toBeVisible();
+    await expect(panel.locator('.recharts-dot').first()).toBeVisible();
+    expect(await panel.locator('.recharts-xAxis .recharts-cartesian-axis-tick').count()).toBeGreaterThanOrEqual(3);
+    await panel.getByRole('button', { name: 'Show last 3 hours' }).click();
+    await expect(page).toHaveURL(/range=3h$/);
+    await expect(page.getByRole('radio', { name: 'Last 3 hours' })).toBeChecked();
+  });
+
   // tableRef: statistics-behaviour #K11, #K2
   test('K11: the picker offers only the views the retention covers and corrects a hidden view in the URL', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
