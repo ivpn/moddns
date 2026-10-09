@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import api from '@/api/api';
@@ -49,8 +48,9 @@ function seed(p: ModelProfile) {
     useAppStore.setState({ activeProfile: p, profiles: [p], subscriptionStatus: null });
 }
 
-const radio = (name: RegExp | string) => screen.getByRole('radio', { name });
-const saveBtn = () => screen.getByRole('button', { name: /^(Save|Saving|Turn on|Turn off|Save changes)/ });
+const box = (name: 'Statistics' | 'Query logs') => screen.getByRole('checkbox', { name });
+const saveBtn = () => screen.getByRole('button', { name: /^(Save|Saving|Turn on|Turn off|Save changes|Keep for)/ });
+const group = (name: string) => screen.getByRole('radiogroup', { name });
 const discardBtn = () => screen.getByRole('button', { name: 'Discard' });
 
 beforeEach(() => {
@@ -59,35 +59,45 @@ beforeEach(() => {
 });
 
 describe('DataCollectionControl', () => {
-    it('shows the saved level and an idle action row with disabled Save and Discard', () => {
-        // tableRef: statistics-behaviour #T21
+    it('shows the saved sources and an idle action row with disabled Save and Discard', () => {
+        // tableRef: statistics-behaviour #T21, #L2
         const p = mk('p1', 'stats');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        expect(radio('Statistics')).toBeChecked();
+        expect(box('Statistics')).toBeChecked();
+        expect(box('Query logs')).not.toBeChecked();
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
         expect(saveBtn()).toBeDisabled();
         expect(saveBtn()).toHaveTextContent('Save');
         expect(discardBtn()).toBeDisabled();
     });
 
-    it('renders the level descriptions with the live logs retention', () => {
-        // tableRef: statistics-behaviour #C2..C4
+    it('renders the card descriptions with the live logs retention and the Off status line', () => {
+        // tableRef: statistics-behaviour #C2..C4, #L1, #L9
         const p = mk('p1', 'off', { retention: '1w' });
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        expect(screen.getByText("Nothing is stored about this profile's queries.")).toBeInTheDocument();
+        expect(screen.getByTestId('data-collection-status')).toHaveTextContent("Off · Nothing is stored about this profile's queries.");
         expect(screen.getByText('Query counts per device, kept for 30 days. No domains or IP addresses.')).toBeInTheDocument();
         expect(screen.getByText(/kept for 1 week\. Client IP addresses only if you turn them on\./)).toBeInTheDocument();
     });
 
-    it('stages a level change without sending anything and shows the note and label', async () => {
+    it('names the saved sources in the status line', () => {
+        // tableRef: statistics-behaviour #L9, #C2
+        const p = mk('p1', 'logs', { retention: '1d' });
+        (p.settings.statistics as unknown as { retention: string }).retention = '90d';
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        expect(screen.getByTestId('data-collection-status')).toHaveTextContent('Collecting now:Statistics · 90 daysQuery logs · 1 day');
+    });
+
+    it('stages a source change without sending anything and shows the note and label', async () => {
         // tableRef: statistics-behaviour #T20, #T21, #C7
         const user = userEvent.setup();
         const p = mk('p1', 'off');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         expect(patch).not.toHaveBeenCalled();
         expect(screen.getByText(/modDNS will start counting this profile's queries per device and keep the counts for 30 days/)).toBeInTheDocument();
         expect(saveBtn()).toHaveTextContent('Turn on statistics');
@@ -95,14 +105,14 @@ describe('DataCollectionControl', () => {
         expect(discardBtn()).toBeEnabled();
     });
 
-    it('never writes while arrow keys move through the radio group', async () => {
+    it('never writes while arrow keys move through a pill group', async () => {
         // tableRef: statistics-behaviour #T20
         const user = userEvent.setup();
-        const p = mk('p1', 'off');
+        const p = mk('p1', 'stats');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        radio('Off').focus();
-        await user.keyboard('{ArrowDown}{ArrowDown}');
+        within(group('Statistics Retention period')).getByLabelText('30 days').focus();
+        await user.keyboard('{ArrowRight}{ArrowRight}');
         expect(patch).not.toHaveBeenCalled();
     });
 
@@ -112,9 +122,9 @@ describe('DataCollectionControl', () => {
         const p = mk('p1', 'off');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(discardBtn());
-        expect(radio('Off')).toBeChecked();
+        expect(box('Statistics')).not.toBeChecked();
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
@@ -128,7 +138,7 @@ describe('DataCollectionControl', () => {
         patch.mockReturnValue(new Promise(r => (resolve = r)));
         const onSaved = vi.fn();
         render(<DataCollectionControl profile={p} onSaved={onSaved} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
 
         expect(patch).toHaveBeenCalledTimes(1);
@@ -138,10 +148,10 @@ describe('DataCollectionControl', () => {
                 { operation: 'replace', path: '/settings/logs/enabled', value: false },
             ],
         });
-        // No optimistic UI: busy, controls disabled, saved level not yet changed.
+        // No optimistic UI: busy, controls disabled, saved state not yet changed.
         expect(saveBtn()).toHaveTextContent('Saving…');
-        expect(screen.getByRole('radiogroup')).toHaveAttribute('aria-busy', 'true');
-        expect(radio('Off')).toBeDisabled();
+        expect(screen.getByRole('group', { name: 'Data collection' })).toHaveAttribute('aria-busy', 'true');
+        expect(box('Statistics')).toBeDisabled();
         expect(useAppStore.getState().activeProfile).toBe(p);
 
         resolve({ status: 200, data: updated });
@@ -157,7 +167,7 @@ describe('DataCollectionControl', () => {
         const p = mk('p1', 'stats');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Off'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         const dialog = await screen.findByRole('dialog', { name: 'Turn off statistics?' });
         expect(within(dialog).getByText(/All statistics for this profile will be permanently deleted\. This action cannot be undone\./)).toBeInTheDocument();
@@ -165,20 +175,20 @@ describe('DataCollectionControl', () => {
         expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     });
 
-    it('Cancel closes the dialog, resets to saved and focuses the checked radio', async () => {
+    it('Cancel closes the dialog, resets to saved and focuses the touched source', async () => {
         // tableRef: statistics-behaviour #T22
         const user = userEvent.setup();
-        const p = mk('p1', 'stats');
+        const p = mk('p1', 'logs');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Off'));
+        await user.click(box('Query logs'));
         await user.click(saveBtn());
-        const dialog = await screen.findByRole('dialog');
+        const dialog = await screen.findByRole('dialog', { name: 'Turn off query logs?' });
         await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
         expect(patch).not.toHaveBeenCalled();
-        expect(radio('Statistics')).toBeChecked();
-        await waitFor(() => expect(radio('Statistics')).toHaveFocus());
+        expect(box('Query logs')).toBeChecked();
+        await waitFor(() => expect(box('Query logs')).toHaveFocus());
     });
 
     it('confirming sends the PATCH and shows "Deleting…" while pending', async () => {
@@ -190,7 +200,8 @@ describe('DataCollectionControl', () => {
         let resolve!: (v: unknown) => void;
         patch.mockReturnValue(new Promise(r => (resolve = r)));
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Off'));
+        await user.click(box('Statistics'));
+        await user.click(box('Query logs'));
         await user.click(saveBtn());
         const dialog = await screen.findByRole('dialog', { name: 'Turn off data collection?' });
         await user.click(within(dialog).getByRole('button', { name: 'Turn off and delete' }));
@@ -215,7 +226,7 @@ describe('DataCollectionControl', () => {
         patch.mockRejectedValue({ response: { data: { detail: 'Redis unavailable' } } });
         get.mockResolvedValueOnce({ status: 200, data: p }).mockResolvedValueOnce({ status: 200, data: committed });
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         await waitFor(() => expect(get).toHaveBeenCalledWith('p1'));
         expect(toast.error).toHaveBeenCalledWith(
@@ -233,22 +244,24 @@ describe('DataCollectionControl', () => {
         const b = mk('b', 'off');
         seed(a);
         const { rerender } = render(<DataCollectionControl profile={a} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         rerender(<DataCollectionControl profile={b} />);
-        expect(radio('Off')).toBeChecked();
+        expect(box('Statistics')).not.toBeChecked();
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
-    it('under Query logs shows the checkbox, domains, IPs and retention (all placement)', () => {
-        // tableRef: statistics-behaviour #D1, #C5, #C6
+    it('both cards show their sub-options when checked (all placement)', () => {
+        // tableRef: statistics-behaviour #D1, #L6, #C5, #C6
         const p = mk('p1', 'logs');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
-        expect(screen.getByText('Counts per device for 30 days. No domains or addresses.')).toBeInTheDocument();
+        expect(box('Statistics')).toBeChecked();
+        expect(box('Query logs')).toBeChecked();
+        expect(screen.getByText('How long counts are kept. Charts can go back this far.')).toBeInTheDocument();
+        expect(within(group('Statistics Retention period')).getAllByRole('radio').map(r => r.textContent)).toEqual(['30 D', '90 D', '1 Y']);
         expect(screen.getByRole('radiogroup', { name: 'Log domains' })).toBeInTheDocument();
         expect(screen.getByRole('radiogroup', { name: 'Log client IP addresses' })).toBeInTheDocument();
-        expect(screen.getByRole('radiogroup', { name: 'Retention period' })).toBeInTheDocument();
+        expect(group('Query logs Retention period')).toBeInTheDocument();
         expect(screen.getByTestId('retention-info-trigger')).toBeInTheDocument();
     });
 
@@ -260,30 +273,31 @@ describe('DataCollectionControl', () => {
         render(<DataCollectionControl profile={p} />);
         const domains = screen.getByRole('radiogroup', { name: 'Log domains' });
         expect(within(domains).getAllByRole('radio').map(r => r.textContent)).toEqual(['Disable', 'Enable']);
-        expect(within(screen.getByRole('radiogroup', { name: 'Retention period' })).getAllByRole('radio').map(r => r.textContent))
+        expect(within(group('Query logs Retention period')).getAllByRole('radio').map(r => r.textContent))
             .toEqual(['1 H', '6 H', '1 D', '1 W', '1 M']);
         await user.click(within(domains).getByLabelText('Enable'));
         expect(within(domains).getByLabelText('Enable')).toHaveAttribute('aria-checked', 'true');
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
-    it('renders logs-only with the checkbox unchecked and does not repair it', () => {
-        // tableRef: statistics-behaviour #L5
+    it('renders logs-only with only Query logs checked and does not repair it', () => {
+        // tableRef: statistics-behaviour #L5, #L4
         const p = mk('p1', 'logsOnly');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        expect(radio('Query logs')).toBeChecked();
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).not.toBeChecked();
+        expect(box('Query logs')).toBeChecked();
+        expect(box('Statistics')).not.toBeChecked();
+        expect(screen.queryByRole('radiogroup', { name: 'Statistics Retention period' })).not.toBeInTheDocument();
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
-    it('unchecking "Also keep statistics" is a T9 deleting change', async () => {
+    it('unchecking Statistics while logs stay on is a T9 deleting change', async () => {
         // tableRef: statistics-behaviour #T9, #C11
         const user = userEvent.setup();
         const p = mk('p1', 'logs');
         seed(p);
         render(<DataCollectionControl profile={p} />);
-        await user.click(screen.getByRole('checkbox', { name: 'Also keep statistics' }));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         expect(await screen.findByRole('dialog', { name: 'Stop keeping statistics?' })).toBeInTheDocument();
     });
@@ -331,9 +345,9 @@ describe('DataCollectionControl', () => {
         seed(p);
         patch.mockResolvedValue({ status: 200, data: updated });
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Query logs'));
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
-        await user.click(within(screen.getByRole('radiogroup', { name: 'Retention period' })).getByLabelText('1 week'));
+        await user.click(box('Query logs'));
+        expect(box('Statistics')).toBeChecked();
+        await user.click(within(group('Query logs Retention period')).getByLabelText('1 week'));
         expect(screen.getByText('modDNS will record each query for 1 week and keep counts per device for 30 days. The first counts appear at the next quarter hour.')).toBeInTheDocument();
         await user.click(saveBtn());
         expect(patch).toHaveBeenCalledWith('p1', {
@@ -353,39 +367,52 @@ describe('DataCollectionControl', () => {
         render(<DataCollectionControl profile={p} />);
         expect(screen.getByText("Data collection can't be changed in limited access mode. You can still clear query logs.")).toBeVisible();
         for (const r of screen.getAllByRole('radio')) expect(r).toBeDisabled();
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeDisabled();
+        expect(box('Statistics')).toBeDisabled();
+        expect(box('Query logs')).toBeDisabled();
         expect(saveBtn()).toBeDisabled();
         expect(discardBtn()).toBeDisabled();
         expect(screen.queryByText('No unsaved changes.')).not.toBeInTheDocument();
     });
 
-    it('Off hero placement: Statistics pre-selected, Save bar shows T1, only the checkbox as sub-option', async () => {
-        // tableRef: statistics-behaviour #D2
-        const user = userEvent.setup();
+    it('Off hero placement: only the Statistics card, pre-checked with its retention, Save bar shows T1', () => {
+        // tableRef: statistics-behaviour #D2, #T16
         const p = mk('p1', 'off');
         seed(p);
         render(
             <DataCollectionControl
                 profile={p}
-                subOptions="keep"
-                initialPending={{ level: 'stats', keep: true }}
-                keepFooter={<a href="/settings">More options in Settings</a>}
+                sources="stats"
+                initialPending={{ stats: true }}
+                footer={<a href="/settings">More options in Settings</a>}
             />,
         );
-        expect(radio('Statistics')).toBeChecked();
+        expect(box('Statistics')).toBeChecked();
+        expect(screen.queryByRole('checkbox', { name: 'Query logs' })).not.toBeInTheDocument();
+        expect(group('Statistics Retention period')).toBeInTheDocument();
         expect(saveBtn()).toHaveTextContent('Turn on statistics');
-        await user.click(radio('Query logs'));
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
-        expect(screen.queryByRole('radiogroup', { name: 'Log domains' })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'More options in Settings' })).toBeInTheDocument();
     });
 
-    it('focuses the requested option on mount', async () => {
+    it('focuses the requested source on mount', async () => {
         // tableRef: statistics-behaviour #D4
-        const p = mk('p1', 'stats');
+        const p = mk('p1', 'logsOnly');
         seed(p);
-        render(<DataCollectionControl profile={p} initialPending={{ level: 'logs', keep: true }} initialFocus="keep" />);
-        await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toHaveFocus());
+        render(<DataCollectionControl profile={p} initialPending={{ stats: true }} initialFocus="stats" />);
+        await waitFor(() => expect(box('Statistics')).toHaveFocus());
+    });
+
+    it('the deep link focuses the checked statistics retention pill, or the checkbox while statistics are off', async () => {
+        // tableRef: statistics-behaviour #S4
+        const p = mk('p1', 'stats');
+        (p.settings.statistics as unknown as { retention: string }).retention = '90d';
+        seed(p);
+        const { unmount } = render(<DataCollectionControl profile={p} initialFocus="stats-retention" />);
+        await waitFor(() => expect(within(group('Statistics Retention period')).getByLabelText('90 days')).toHaveFocus());
+        unmount();
+        const off = mk('p1', 'off');
+        seed(off);
+        render(<DataCollectionControl profile={off} initialFocus="stats-retention" />);
+        await waitFor(() => expect(box('Statistics')).toHaveFocus());
     });
     it('re-reads the profile before saving and applies nothing when it changed elsewhere', async () => {
         // tableRef: statistics-behaviour #T27, #C20
@@ -395,17 +422,17 @@ describe('DataCollectionControl', () => {
         seed(p);
         get.mockResolvedValue({ status: 200, data: server });
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         await waitFor(() => expect(useAppStore.getState().activeProfile).toBe(server));
         expect(get).toHaveBeenCalledWith('p1');
         expect(patch).not.toHaveBeenCalled();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByText('This setting was changed elsewhere. Review it and try again.')).toBeInTheDocument();
-        expect(radio('Query logs')).toBeChecked();
-        await waitFor(() => expect(radio('Query logs')).toHaveFocus());
+        expect(box('Query logs')).toBeChecked();
+        await waitFor(() => expect(box('Statistics')).toHaveFocus());
         // Cleared on the next pending change.
-        await user.click(radio('Off'));
+        await user.click(box('Query logs'));
         expect(screen.queryByText('This setting was changed elsewhere. Review it and try again.')).not.toBeInTheDocument();
     });
 
@@ -417,9 +444,9 @@ describe('DataCollectionControl', () => {
         let resolve!: (v: unknown) => void;
         get.mockReturnValue(new Promise(r => (resolve = r)));
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
-        expect(screen.getByRole('radiogroup')).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('group', { name: 'Data collection' })).toHaveAttribute('aria-busy', 'true');
         expect(saveBtn()).toBeDisabled();
         resolve({ status: 200, data: p });
         await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
@@ -432,7 +459,7 @@ describe('DataCollectionControl', () => {
         seed(p);
         get.mockResolvedValue({ status: 200, data: mk('p1', 'stats') });
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Off'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         expect(await screen.findByRole('dialog', { name: 'Turn off statistics?' })).toBeInTheDocument();
         expect(screen.queryByText('This setting was changed elsewhere. Review it and try again.')).not.toBeInTheDocument();
@@ -446,22 +473,24 @@ describe('DataCollectionControl', () => {
         get.mockRejectedValue(new Error('network'));
         patch.mockResolvedValue({ status: 200, data: mk('p1', 'stats') });
         render(<DataCollectionControl profile={p} />);
-        await user.click(radio('Statistics'));
+        await user.click(box('Statistics'));
         await user.click(saveBtn());
         await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
         expect(toast.error).not.toHaveBeenCalled();
     });
-    it('uses the profile\'s live statistics retention in the level descriptions and notes', async () => {
-        // tableRef: statistics-behaviour #C3, #C5, #C7
+    it('uses the pending statistics retention in the card description and notes', async () => {
+        // tableRef: statistics-behaviour #C3, #C7
         const user = userEvent.setup();
         const p = mk('p1', 'off');
         (p.settings.statistics as unknown as { retention: string }).retention = '1y';
         seed(p);
         render(<DataCollectionControl profile={p} />);
         expect(screen.getByText('Query counts per device, kept for 1 year. No domains or IP addresses.')).toBeInTheDocument();
-        await user.click(radio('Query logs'));
-        expect(screen.getByText('Counts per device for 1 year. No domains or addresses.')).toBeInTheDocument();
+        await user.click(box('Query logs'));
         expect(screen.getByText(/keep counts per device for 1 year\./)).toBeInTheDocument();
+        await user.click(within(group('Statistics Retention period')).getByLabelText('90 days'));
+        expect(screen.getByText('Query counts per device, kept for 90 days. No domains or IP addresses.')).toBeInTheDocument();
+        expect(screen.getByText(/keep counts per device for 90 days\./)).toBeInTheDocument();
     });
 
     it('treats a missing statistics retention as 30 days', () => {
@@ -472,45 +501,106 @@ describe('DataCollectionControl', () => {
         expect(screen.getByText(/Query counts per device, kept for 30 days\./)).toBeInTheDocument();
     });
 
-    it('Settings shows a read-only retention line under Statistics that links to the Statistics page', () => {
-        // tableRef: statistics-behaviour #S4, #D1
-        const p = mk('p1', 'stats');
-        (p.settings.statistics as unknown as { retention: string }).retention = '90d';
+    it('checking Query logs from Off also checks Statistics with a hint; unchecking it gives logs only', async () => {
+        // tableRef: statistics-behaviour #L8, #C22, #T2, #T3
+        const user = userEvent.setup();
+        const p = mk('p1', 'off');
         seed(p);
-        render(
-            <MemoryRouter>
-                <DataCollectionControl profile={p} retentionLine />
-            </MemoryRouter>,
-        );
-        expect(screen.getByText(/Counts kept for/)).toHaveTextContent('Counts kept for 90 days · Change on the Statistics page');
-        expect(screen.getByRole('link', { name: 'Change on the Statistics page' })).toHaveAttribute('href', '/statistics');
+        render(<DataCollectionControl profile={p} />);
+        await user.click(box('Query logs'));
+        expect(box('Statistics')).toBeChecked();
+        expect(screen.getByText('Checked with query logs. Uncheck Statistics to keep query logs only.')).toBeInTheDocument();
+        expect(saveBtn()).toHaveTextContent('Turn on statistics and query logs');
+        await user.click(box('Statistics'));
+        expect(screen.queryByText(/Checked with query logs/)).not.toBeInTheDocument();
+        expect(saveBtn()).toHaveTextContent('Turn on query logs');
+        expect(screen.getByText('modDNS will record each query for 1 hour. No counts are kept.')).toBeInTheDocument();
     });
 
-    it('Settings shows the line under "Also keep statistics" when it is saved and checked', () => {
-        // tableRef: statistics-behaviour #S4, #D1
-        const p = mk('p1', 'logs');
+    it('unchecking Query logs again returns Statistics to its saved state', async () => {
+        // tableRef: statistics-behaviour #L8
+        const user = userEvent.setup();
+        const p = mk('p1', 'off');
         seed(p);
-        render(
-            <MemoryRouter>
-                <DataCollectionControl profile={p} retentionLine />
-            </MemoryRouter>,
-        );
-        expect(screen.getByRole('link', { name: 'Change on the Statistics page' })).toBeInTheDocument();
+        render(<DataCollectionControl profile={p} />);
+        await user.click(box('Query logs'));
+        await user.click(box('Query logs'));
+        expect(box('Statistics')).not.toBeChecked();
+        expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
-    it('does not show the line without the Settings flag or when statistics are off', () => {
-        // tableRef: statistics-behaviour #S4
+    it('checking Query logs with statistics already on changes only that card', async () => {
+        // tableRef: statistics-behaviour #L8, #T5
+        const user = userEvent.setup();
         const p = mk('p1', 'stats');
         seed(p);
-        const { unmount } = render(<DataCollectionControl profile={p} />);
-        expect(screen.queryByText(/Counts kept for/)).not.toBeInTheDocument();
-        unmount();
-        const off = mk('p1', 'off');
-        render(
-            <MemoryRouter>
-                <DataCollectionControl profile={off} retentionLine />
-            </MemoryRouter>,
-        );
-        expect(screen.queryByText(/Counts kept for/)).not.toBeInTheDocument();
+        render(<DataCollectionControl profile={p} />);
+        await user.click(box('Query logs'));
+        expect(box('Statistics')).toBeChecked();
+        expect(screen.queryByText(/Checked with query logs/)).not.toBeInTheDocument();
+        expect(saveBtn()).toHaveTextContent('Turn on query logs');
+    });
+
+    it('starts with the L8 hint when a placement opens it with both checked from Off', () => {
+        // tableRef: statistics-behaviour #D3, #L8
+        const p = mk('p1', 'off');
+        seed(p);
+        render(<DataCollectionControl profile={p} initialPending={{ logs: true, stats: true }} />);
+        expect(screen.getByText('Checked with query logs. Uncheck Statistics to keep query logs only.')).toBeInTheDocument();
+    });
+
+    it('raising the statistics retention saves one PATCH without a dialog', async () => {
+        // tableRef: statistics-behaviour #T14, #C23, #S1
+        const user = userEvent.setup();
+        const p = mk('p1', 'stats');
+        const updated = mk('p1', 'stats');
+        (updated.settings.statistics as unknown as { retention: string }).retention = '1y';
+        seed(p);
+        patch.mockResolvedValue({ status: 200, data: updated });
+        render(<DataCollectionControl profile={p} />);
+        await user.click(within(group('Statistics Retention period')).getByLabelText('1 year'));
+        expect(screen.getByText("modDNS will keep this profile's counts for up to 1 year.")).toBeInTheDocument();
+        expect(saveBtn()).toHaveTextContent('Keep for 1 year');
+        await user.click(saveBtn());
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(patch).toHaveBeenCalledWith('p1', {
+            updates: [{ operation: 'replace', path: '/settings/statistics/retention', value: '1y' }],
+        });
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Statistics are now kept for 1 year.'));
+    });
+
+    it('lowering the statistics retention shows the hint and confirms before deleting older counts', async () => {
+        // tableRef: statistics-behaviour #T15, #C24
+        const user = userEvent.setup();
+        const p = mk('p1', 'stats');
+        (p.settings.statistics as unknown as { retention: string }).retention = '1y';
+        seed(p);
+        patch.mockResolvedValue({ status: 200, data: mk('p1', 'stats') });
+        render(<DataCollectionControl profile={p} />);
+        await user.click(within(group('Statistics Retention period')).getByLabelText('30 days'));
+        expect(screen.getByText('Counts older than 30 days will be deleted when you save.')).toBeInTheDocument();
+        await user.click(saveBtn());
+        const dialog = await screen.findByRole('dialog', { name: 'Keep statistics for 30 days?' });
+        expect(patch).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole('button', { name: 'Delete older counts' }));
+        expect(patch).toHaveBeenCalledWith('p1', {
+            updates: [{ operation: 'replace', path: '/settings/statistics/retention', value: '30d' }],
+        });
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Statistics are now kept for 30 days. Older counts deleted.'));
+    });
+
+    it('a retention change made elsewhere counts as stale', async () => {
+        // tableRef: statistics-behaviour #T27
+        const user = userEvent.setup();
+        const p = mk('p1', 'stats');
+        const server = mk('p1', 'stats');
+        (server.settings.statistics as unknown as { retention: string }).retention = '90d';
+        seed(p);
+        get.mockResolvedValue({ status: 200, data: server });
+        render(<DataCollectionControl profile={p} />);
+        await user.click(within(group('Statistics Retention period')).getByLabelText('1 year'));
+        await user.click(saveBtn());
+        await waitFor(() => expect(screen.getByText('This setting was changed elsewhere. Review it and try again.')).toBeInTheDocument());
+        expect(patch).not.toHaveBeenCalled();
     });
 });

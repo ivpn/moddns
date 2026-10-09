@@ -25,11 +25,11 @@ export function StatsHero({ profile, onSaved }: { profile: ModelProfile; onSaved
                 <div className="w-full max-w-xl">
                     <DataCollectionControl
                         profile={profile}
-                        subOptions="keep"
+                        sources="stats"
                         labelledBy={headingId}
-                        initialPending={{ level: "stats", keep: true }}
+                        initialPending={{ stats: true }}
                         onSaved={onSaved}
-                        keepFooter={
+                        footer={
                             <Link
                                 to="/settings"
                                 className="text-sm underline text-[var(--tailwind-colors-rdns-600)] min-h-11 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] rounded"
