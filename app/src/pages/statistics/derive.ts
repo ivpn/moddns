@@ -3,7 +3,9 @@
 // Source of truth: docs/specs/statistics-behaviour.md Sections P, K, X.
 
 import type { ModelStatisticsResponse } from "@/api/client";
-import type { RangeKey } from "./ranges";
+import { rangeDef, type RangeKey } from "./ranges";
+
+const rangeSeconds = (k: RangeKey) => rangeDef(k).seconds;
 
 export const REASON_CLASSES = [
     { key: "blocklist", label: "Blocklists", cat: 1 },
@@ -102,7 +104,7 @@ export const FLUSH_LAG_MS = 15 * 60 * 1000;
 
 export interface Bucket {
     ts: number;
-    /** null before statistics were enabled (P9): a gap, not a zero. */
+    /** null before counting started (P9): a gap, not a zero. */
     total: number | null;
     blocked: number | null;
     dnssec: number | null;
@@ -110,11 +112,12 @@ export interface Bucket {
     inProgress: boolean;
 }
 
+/** P9: points before the bucket containing the start of counting are gaps (null), not zeros. */
 export function buildBuckets(d: StatsData): Bucket[] {
     const width = d.bucketSeconds * 1000;
-    const enabledFloor = d.enabledAt !== null && width > 0 ? Math.floor(d.enabledAt / width) * width : null;
+    const startFloor = d.enabledAt !== null && width > 0 ? Math.floor(d.enabledAt / width) * width : null;
     return d.series.map(p => {
-        const gap = enabledFloor !== null && p.ts < enabledFloor;
+        const gap = startFloor !== null && p.ts < startFloor;
         return {
             ts: p.ts,
             total: gap ? null : p.total,
@@ -123,6 +126,20 @@ export function buildBuckets(d: StatsData): Bucket[] {
             inProgress: !gap && p.ts + width > d.toMs - FLUSH_LAG_MS,
         };
     });
+}
+
+/**
+ * P9: the shortest offered view that still contains the start of counting, when the counted part is
+ * under a quarter of the current view and a shorter view exists; else null.
+ */
+export function shorterViewForStart(d: StatsData, current: RangeKey, offered: { key: RangeKey; seconds: number }[]): RangeKey | null {
+    const since = countingSince(d);
+    if (since === null) return null;
+    const counted = d.toMs - since;
+    const viewSpan = rangeSeconds(current) * 1000;
+    if (counted >= viewSpan / 4) return null;
+    const fit = offered.find(r => r.seconds * 1000 >= counted);
+    return fit && fit.seconds * 1000 < viewSpan ? fit.key : null;
 }
 
 /** P9: the first bucket that counts, when statistics were enabled inside the view. */

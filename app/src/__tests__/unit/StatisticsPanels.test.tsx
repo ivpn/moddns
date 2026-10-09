@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { normalizeStats } from '@/pages/statistics/derive';
 import { KpiCards } from '@/pages/statistics/panels/KpiCards';
-import { SeriesPanel, chartSummary } from '@/pages/statistics/panels/SeriesPanel';
+import { SeriesPanel, chartSummary, fewBuckets } from '@/pages/statistics/panels/SeriesPanel';
+import { RANGES } from '@/pages/statistics/ranges';
 import { ReasonsPanel } from '@/pages/statistics/panels/ReasonsPanel';
 import { ProtocolsPanel } from '@/pages/statistics/panels/ProtocolsPanel';
 import { DevicesPanel } from '@/pages/statistics/panels/DevicesPanel';
@@ -77,20 +78,48 @@ describe('SeriesPanel', () => {
         expect(rows[1]).toHaveTextContent('(in progress)');
     });
 
-    it('omits the gap before statistics were enabled from the table and says so', async () => {
+    it('keeps the full view with gaps, omits the gap rows from the table and says when counting started', async () => {
         // tableRef: statistics-behaviour #P9
         const user = userEvent.setup();
         const gap = normalizeStats(createStatsResponse({ points: 8, enabledAt: '2026-10-06T13:20:00Z' }));
         render(<SeriesPanel data={gap} range="24h" />);
-        expect(screen.getByText(/Counting since .*Earlier hours are blank, not zero\./)).toBeInTheDocument();
+        expect(screen.getByText(/^Counting since [^.]*\.$/)).toBeInTheDocument();
+        expect(screen.queryByText(/are blank/)).not.toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Table' }));
         expect(within(screen.getByRole('table')).getAllByRole('row').length).toBeLessThan(9);
+    });
+
+    it('offers a shorter view when the counted part is under a quarter, and switches to it', async () => {
+        // tableRef: statistics-behaviour #P9
+        const user = userEvent.setup();
+        const onRange = vi.fn();
+        const young = normalizeStats(createStatsResponse({ points: 168, enabledAt: '2026-10-06T14:20:00Z' }));
+        render(<SeriesPanel data={young} range="7d" offered={RANGES} onRange={onRange} />);
+        await user.click(screen.getByRole('button', { name: 'Show last 3 hours' }));
+        expect(onRange).toHaveBeenCalledWith('3h');
+    });
+
+    it('offers no link when the counted part is a quarter of the view or more', () => {
+        // tableRef: statistics-behaviour #P9
+        const older = normalizeStats(createStatsResponse({ points: 168, enabledAt: '2026-10-04T15:00:00Z' }));
+        render(<SeriesPanel data={older} range="7d" offered={RANGES} onRange={() => {}} />);
+        expect(screen.queryByRole('button', { name: /^Show last/ })).not.toBeInTheDocument();
     });
 
     it('reduces opacity while a new range loads', () => {
         // tableRef: statistics-behaviour #P14
         const { container } = render(<SeriesPanel data={data} range="7d" busy />);
         expect(container.querySelector('.opacity-60')).not.toBeNull();
+    });
+});
+
+describe('fewBuckets', () => {
+    it('adds dots for one or two buckets only', () => {
+        // tableRef: statistics-behaviour #P9
+        expect(fewBuckets(1)).toEqual({ r: 3 });
+        expect(fewBuckets(2)).toEqual({ r: 3 });
+        expect(fewBuckets(3)).toBe(false);
+        expect(fewBuckets(0)).toBe(false);
     });
 });
 

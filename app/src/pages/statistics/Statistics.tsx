@@ -240,6 +240,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         stats={stats}
                         range={range}
                         onRange={setRange}
+                        offered={offered}
                         lastSeen={lastSeen}
                         emptyHeadingRef={emptyHeading}
                         now={now}
