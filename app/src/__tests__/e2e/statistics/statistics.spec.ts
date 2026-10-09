@@ -11,6 +11,13 @@ interface Cfg {
   ips?: boolean;
 }
 
+const rangeTrigger = (page: Page) => page.getByRole('button', { name: /^Time range: / });
+
+async function pickRange(page: Page, label: string) {
+  await rangeTrigger(page).click();
+  await page.getByRole('menuitemradio', { name: label, exact: true }).click();
+}
+
 function profileFor(c: Cfg) {
   return {
     id: 'p1',
@@ -55,7 +62,7 @@ test.describe('@statistics Statistics page', () => {
     await setup(page, { logs: false, stats: false });
     await page.goto('/statistics');
     await expect(page.getByRole('heading', { name: 'Statistics are off' })).toBeVisible();
-    await expect(page.getByRole('radiogroup', { name: 'Time range' })).toHaveCount(0);
+    await expect(rangeTrigger(page)).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Counts' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Turn on statistics' })).toBeEnabled();
     await expectNoHorizontalOverflow(page);
@@ -85,7 +92,7 @@ test.describe('@statistics Statistics page', () => {
     await expect(page.getByRole('heading', { name: 'Top blocked domains' })).toBeVisible();
 
     await page.getByTestId('main-navigation').getByRole('button', { name: 'Settings' }).click();
-    await page.getByRole('radio', { name: 'Statistics', exact: true }).check({ force: true });
+    await page.getByRole('checkbox', { name: 'Query logs', exact: true }).click();
     await page.getByRole('button', { name: 'Save changes' }).click();
     await page.getByRole('dialog', { name: 'Turn off query logs?' }).getByRole('button', { name: 'Delete logs' }).click();
     await expect(page.getByText('No unsaved changes.')).toBeVisible();
@@ -148,26 +155,53 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #K1, #K2
-  test('the picker fits at 375px with 44px segments and follows the URL', { tag: '@mobile' }, async ({ page }) => {
+  test('the range dropdown fits at 375px with 44px targets and follows the URL', { tag: '@mobile' }, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics?range=30d');
-    const group = page.getByRole('radiogroup', { name: 'Time range' });
-    await expect(group).toBeVisible();
-    await expect(group.getByRole('radio', { name: 'Last 30 days' })).toBeChecked();
-    const boxes = await group.getByRole('radio').evaluateAll(els => els.map(e => e.getBoundingClientRect()));
-    expect(boxes).toHaveLength(5);
-    for (const b of boxes) {
-      expect(b.width).toBeGreaterThanOrEqual(43.5);
-      expect(b.height).toBeGreaterThanOrEqual(43.5);
+    const trigger = rangeTrigger(page);
+    await expect(trigger).toHaveAccessibleName('Time range: Last 30 days');
+    await expect(trigger).toHaveText('Last 30 days');
+    const t = (await trigger.boundingBox())!;
+    expect(t.height).toBeGreaterThanOrEqual(43.5);
+    expect(t.width).toBeGreaterThan(250);
+    const menuButton = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
+    expect(menuButton.x).toBeGreaterThan(t.x + t.width);
+    expect(menuButton.x + menuButton.width).toBeLessThanOrEqual(375);
+    // Availability line first, the controls under it.
+    const line = (await page.getByTestId('stats-availability').boundingBox())!;
+    expect(line.y + line.height).toBeLessThanOrEqual(t.y);
+    await expectNoHorizontalOverflow(page);
+
+    await trigger.click();
+    const items = page.getByRole('menuitemradio');
+    await expect(items).toHaveCount(7);
+    // offsetHeight ignores the menu's zoom-in transform while it opens.
+    for (const b of await items.evaluateAll(els => els.map(e => ({ height: (e as HTMLElement).offsetHeight, right: e.getBoundingClientRect().right })))) {
+      expect(b.height).toBeGreaterThanOrEqual(44);
       expect(b.right).toBeLessThanOrEqual(375);
     }
-    await expectNoHorizontalOverflow(page);
-    await group.getByText('24h').click();
+    await page.getByRole('menuitemradio', { name: 'Last 24 hours' }).click();
     await expect(page).toHaveURL(/range=24h$/);
-    await group.getByText('7d').click();
+    await pickRange(page, 'Last 7 days');
     await expect(page).toHaveURL(/\/statistics$/);
   });
+
+  // tableRef: statistics-behaviour #K1, #K5, #P13
+  test('the toolbar puts the availability line left and the range, menu and caption right', { tag: '@desktop' }, async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    const line = (await page.getByTestId('stats-availability').boundingBox())!;
+    const trigger = (await rangeTrigger(page).boundingBox())!;
+    const menu = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
+    const caption = (await page.getByTestId('stats-range-caption').boundingBox())!;
+    expect(line.x + line.width).toBeLessThanOrEqual(trigger.x);
+    expect(menu.x).toBeGreaterThan(trigger.x + trigger.width);
+    expect(caption.y).toBeGreaterThanOrEqual(trigger.y + trigger.height);
+    expect(Math.abs(caption.x + caption.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
+  });
+
   // tableRef: statistics-behaviour #P9, #K12
   test('P9: a young window keeps the full axis with the start marker, a dot, and a link to a shorter view', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 1200 });
@@ -180,7 +214,7 @@ test.describe('@statistics Statistics page', () => {
     expect(await panel.locator('.recharts-xAxis .recharts-cartesian-axis-tick').count()).toBeGreaterThanOrEqual(3);
     await panel.getByRole('button', { name: 'Show last 3 hours' }).click();
     await expect(page).toHaveURL(/range=3h$/);
-    await expect(page.getByRole('radio', { name: 'Last 3 hours' })).toBeChecked();
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 3 hours');
   });
 
   // tableRef: statistics-behaviour #P25, #P26, #X10
@@ -231,40 +265,41 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #K11, #K2
-  test('K11: the picker offers only the views the retention covers and corrects a hidden view in the URL', async ({ page }) => {
+  test('K11: views the retention does not cover are disabled with the reason, and a hidden view in the URL is corrected', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics?range=12m');
-    const group = page.getByRole('radiogroup', { name: 'Time range' });
-    await expect(group.getByRole('radio')).toHaveCount(5);
-    await expect(group.getByRole('radio', { name: 'Last 30 days' })).toBeChecked();
-    await expect(group.getByRole('radio', { name: 'Last 3 months' })).toHaveCount(0);
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 30 days');
     await expect(page).toHaveURL(/range=30d$/);
+    await rangeTrigger(page).click();
+    await expect(page.getByRole('menuitemradio')).toHaveCount(7);
+    const months = page.getByRole('menuitemradio', { name: /Last 3 months/ });
+    await expect(months).toHaveAttribute('aria-disabled', 'true');
+    await expect(months).toContainText('Needs statistics kept for 90 days');
+    await expect(page.getByRole('menuitemradio', { name: /Last 12 months/ })).toContainText('Needs statistics kept for 1 year');
+    const retentionItem = page.getByRole('menuitem', { name: 'Change retention…' });
+    await expect(retentionItem).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(retentionItem).toHaveCSS('color', 'rgb(18, 164, 149)');
+    // Lines up with the view labels, which leave room for the selected-item dot.
+    const viewPadding = await page.getByRole('menuitemradio', { name: 'Last 7 days' }).evaluate(e => getComputedStyle(e).paddingLeft);
+    await expect(retentionItem).toHaveCSS('padding-left', viewPadding);
+    await retentionItem.click();
+    const dialog = page.getByRole('dialog', { name: 'Data collection' });
+    await expect(dialog.getByRole('radiogroup', { name: 'Statistics Retention period' }).getByRole('radio', { name: '30 days' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(rangeTrigger(page)).toBeFocused();
   });
 
   // tableRef: statistics-behaviour #K11
-  test('K11: a one-year retention offers all seven views', async ({ page }) => {
+  test('K11: a one-year retention enables all seven views and needs no Settings link', async ({ page }) => {
     await setup(page, { logs: false, stats: true, statsRetention: '1y' });
     await page.goto('/statistics?range=12m');
-    const group = page.getByRole('radiogroup', { name: 'Time range' });
-    await expect(group.getByRole('radio')).toHaveCount(7);
-    await expect(group.getByRole('radio', { name: 'Last 12 months' })).toBeChecked();
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 12 months');
+    await rangeTrigger(page).click();
+    await expect(page.getByRole('menuitemradio')).toHaveCount(7);
+    await expect(page.locator('[role="menuitemradio"][aria-disabled="true"]')).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Change retention…' })).toHaveCount(0);
     await expect(page).toHaveURL(/range=12m$/);
-  });
-
-  // tableRef: statistics-behaviour #K2
-  test('the retention select stretches across the width on mobile with the menu button at the end', { tag: '@mobile' }, async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await setup(page, { logs: false, stats: true });
-    await page.goto('/statistics');
-    const select = page.getByLabel('Kept for');
-    const menu = page.getByRole('button', { name: 'More statistics actions' });
-    await expect(select).toBeVisible();
-    const [s, m] = await Promise.all([select.boundingBox(), menu.boundingBox()]);
-    expect(s!.height).toBeGreaterThanOrEqual(43.5);
-    expect(s!.width).toBeGreaterThan(200);
-    expect(m!.x).toBeGreaterThan(s!.x + s!.width);
-    expect(m!.x + m!.width).toBeGreaterThan(375 - 40);
-    await expectNoHorizontalOverflow(page);
   });
 
   // tableRef: statistics-behaviour #X9
@@ -286,19 +321,28 @@ test.describe('@statistics Statistics page', () => {
     await expect(label).toHaveCount(0);
   });
 
-  // tableRef: statistics-behaviour #U7, #S1
-  test('U7: raising retention asks for confirmation and keeps the choice', async ({ page }) => {
+  // tableRef: statistics-behaviour #U7, #S2, #T14, #P13, #D4
+  test('U7: Change opens the retention in a dialog; raising it enables the longer views in place', async ({ page }) => {
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics');
-    const select = page.getByLabel('Kept for');
-    await expect(select).toHaveValue('30d');
-    await select.selectOption('1y');
-    const dialog = page.getByRole('dialog', { name: 'Keep statistics for 1 year?' });
-    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused();
-    await expect(dialog).toContainText("modDNS will keep this profile's query counts for up to 1 year. Query logs are not affected.");
+    const line = page.getByTestId('stats-availability');
+    await expect(line).toContainText('kept for 30 days · Change');
+    const change = line.getByRole('button', { name: 'Change how long statistics are kept' });
+    await expect(change).toHaveCSS('color', 'rgb(18, 164, 149)');
+    await expect(change).toHaveCSS('text-decoration-line', 'underline');
+    await change.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Data collection' });
+    const pills = dialog.getByRole('radiogroup', { name: 'Statistics Retention period' });
+    await expect(pills.getByRole('radio', { name: '30 days' })).toBeFocused();
+    await pills.getByRole('radio', { name: '1 year' }).click();
+    await expect(dialog.getByText("modDNS will keep this profile's counts for up to 1 year.")).toBeVisible();
     await dialog.getByRole('button', { name: 'Keep for 1 year' }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(select).toHaveValue('1y');
+    await expect(page).toHaveURL(/\/statistics$/);
+
+    await pickRange(page, 'Last 12 months');
+    await expect(page).toHaveURL(/range=12m$/);
     await expectNoHorizontalOverflow(page);
   });
 

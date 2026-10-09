@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 8, 2026';
+const FAQ_LAST_UPDATED = 'October 9, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -575,21 +575,19 @@ export default function FAQ(): JSX.Element {
                     question="Do you log my DNS queries?"
                     answer={
                         <div>
-                            <p>Not unless you choose to. Data collection is off by default for every profile, and you set it per profile in Settings under Data collection:</p>
+                            <p>Not unless you choose to. Data collection is off by default for every profile. In Settings under Data collection you can turn on statistics, query logs, or both:</p>
                             <br />
-                            • <strong>Off</strong> - nothing is stored about this profile's queries.
+                            • <strong>Statistics</strong> - query counts per device, kept for 30 days by default, or for 90 days or 1 year if you choose. No domains and no IP addresses are stored.
                             <br />
-                            • <strong>Statistics</strong> - query counts per device, kept for 30 days by default; you can keep them for 90 days or 1 year on the Statistics page. No domains and no IP addresses are stored.
-                            <br />
-                            • <strong>Query logs</strong> - a record of each query (time, device, domain, result), kept for the retention period you choose, from 1 hour to 1 month. Client IP addresses are stored only if you turn that on. You can also keep statistics alongside query logs.
+                            • <strong>Query logs</strong> - a record of each query (time, device, domain, result), kept for the retention period you choose, from 1 hour to 1 month. Client IP addresses are stored only if you turn that on.
                             <br /><br />
-                            <p>Turning a level off permanently deletes what it stored; the deletion completes within an hour. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
+                            <p>Turning either off permanently deletes what it stored; the deletion completes within an hour. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
                         </div>
                     }
                 />
                 <FAQItem
                     question="What is the Statistics page?"
-                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days by default; you can keep them for 90 days or 1 year on the Statistics page. There you can also choose Delete statistics history to remove all counts and start again. The page also shows your most queried domains and clients if you have turned on query logs."
+                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days by default; you can keep them for 90 days or 1 year in Settings under Data collection. From the menu on the Statistics page, or in Settings, you can also choose Delete statistics history to remove all counts and start again. The page also shows your most queried domains and clients if you have turned on query logs."
                 />
                 <FAQItem
                     question="Should I use Statistics or Query logs?"

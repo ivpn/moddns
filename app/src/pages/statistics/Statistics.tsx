@@ -19,8 +19,7 @@ import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange,
 import { formatDateTime, formatRangeCaption } from "./time";
 import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId } from "./groups";
-import { StatsToolbar } from "./StatsToolbar";
-import { RetentionControl } from "./RetentionControl";
+import { StatsActions, StatsToolbar } from "./StatsToolbar";
 import { StatsHero } from "./StatsHero";
 import { mutedText } from "./primitives";
 import { cn } from "@/lib/utils";
@@ -36,11 +35,15 @@ interface StatisticsProps {
 
 const LIST_LIMIT = 10;
 
-const GATE_DIALOG: Record<GateId, { focus: InitialFocus; pending: Partial<DataCollectionState> }> = {
-    stats: { focus: "keep", pending: { level: "logs", keep: true } },
-    logs: { focus: "level-logs", pending: { level: "logs", keep: true } },
-    domains: { focus: "domains", pending: { level: "logs", domains: true } },
-    ips: { focus: "ips", pending: { level: "logs", ips: true } },
+type DialogId = GateId | "retention";
+
+// D4
+const GATE_DIALOG: Record<DialogId, { focus: InitialFocus; pending: Partial<DataCollectionState> }> = {
+    retention: { focus: "stats-retention", pending: {} },
+    stats: { focus: "stats", pending: { stats: true } },
+    logs: { focus: "logs", pending: { logs: true } },
+    domains: { focus: "domains", pending: { logs: true, domains: true } },
+    ips: { focus: "ips", pending: { logs: true, ips: true } },
 };
 
 function asDomains(raw: unknown): DomainItem[] {
@@ -155,7 +158,18 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const countsOn = statsOn && !serverOff;
     const anyCollection = countsOn || logsOn;
 
-    const [gate, setGate] = useState<GateId | null>(null);
+    const [gate, setGate] = useState<DialogId | null>(null);
+    // The dialog unmounts on close, so Radix can't return focus; the page does it.
+    const dialogReturn = useRef<HTMLElement | null>(null);
+    const openDialog = useCallback((id: DialogId, returnTo?: HTMLElement | null) => {
+        dialogReturn.current = returnTo ?? (document.activeElement as HTMLElement | null);
+        setGate(id);
+    }, []);
+    const closeDialog = () => {
+        setGate(null);
+        const el = dialogReturn.current;
+        requestAnimationFrame(() => el?.isConnected && el.focus());
+    };
     const emptyHeading = useRef<HTMLHeadingElement>(null);
     const [focusEmpty, setFocusEmpty] = useState(false);
     useEffect(() => {
@@ -210,13 +224,35 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             ) : (
                 <div className="flex flex-col gap-6 w-full min-w-0">
                     <StatsToolbar
-                        ranges={offered}
+                        offered={offered}
                         range={range}
                         onRange={setRange}
+                        onChangeRetention={trigger => openDialog("retention", trigger)}
                         caption={caption}
+                        leading={
+                            countsOn &&
+                            statsData && (
+                                <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
+                                    <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
+                                    <span>
+                                        {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}
+                                        kept for {statsRetentionWords(statsData.retention)} ·{" "}
+                                        <button
+                                            type="button"
+                                            aria-haspopup="dialog"
+                                            aria-label="Change how long statistics are kept"
+                                            onClick={() => openDialog("retention")}
+                                            className="underline underline-offset-2 whitespace-nowrap text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-800)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+                                        >
+                                            Change
+                                        </button>
+                                    </span>
+                                </p>
+                            )
+                        }
                         trailing={
                             countsOn && (
-                                <RetentionControl
+                                <StatsActions
                                     profile={profile}
                                     onHistoryDeleted={() => {
                                         setReload(n => n + 1);
@@ -226,15 +262,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                             )
                         }
                     />
-                    {countsOn && statsData && (
-                        <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
-                            <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
-                            <span>
-                                {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}
-                                kept for {statsRetentionWords(statsData.retention)}
-                            </span>
-                        </p>
-                    )}
                     <CountsGroup
                         statsOn={countsOn}
                         stats={stats}
@@ -246,7 +273,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         now={now}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
-                        onGate={setGate}
+                        onGate={openDialog}
                     />
                     <LogsGroup
                         logsOn={logsOn}
@@ -261,7 +288,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         profileId={pid}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
-                        onGate={setGate}
+                        onGate={openDialog}
                     />
                 </div>
             )}
@@ -269,7 +296,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             {gate && (
                 <DataCollectionDialog
                     open
-                    onOpenChange={open => !open && setGate(null)}
+                    onOpenChange={open => !open && closeDialog()}
                     profile={profile}
                     initialPending={GATE_DIALOG[gate].pending}
                     initialFocus={GATE_DIALOG[gate].focus}

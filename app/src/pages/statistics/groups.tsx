@@ -123,7 +123,7 @@ export function CountsGroup(p: CountsGroupProps) {
                 icon={<ChartColumn className="w-6 h-6" />}
                 title="Counts are off"
                 text="Query logs are on without statistics, so nothing is counted."
-                action="Also keep statistics"
+                action="Turn on statistics"
             />
         );
     } else if (stats.status === "error") {
