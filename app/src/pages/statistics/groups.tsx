@@ -1,5 +1,6 @@
 import { ChartColumn, List, SearchX } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,8 @@ import { DomainsPanel, type DomainItem } from "./panels/DomainsPanel";
 import { BlocklistsPanel, type BlocklistItem } from "./panels/BlocklistsPanel";
 import { ClientsPanel, type ClientItem } from "./panels/ClientsPanel";
 import type { ResourceState } from "./useApiResource";
+import QuickRuleSheet, { type QuickRuleAction } from "@/components/custom-rules/QuickRuleSheet";
+import { LIMITED_ACCESS_TOOLTIP, type QuickRuleApi } from "./QuickRuleButton";
 
 export type GateId = "stats" | "logs" | "domains" | "ips";
 
@@ -206,6 +209,8 @@ export interface LogsGroupProps extends GateProps {
     resolved: ListState<DomainItem>;
     clients: ListState<ClientItem>;
     blocklists: ListState<BlocklistItem>;
+    /** The active profile: a switch closes the quick rule sheet. */
+    profileId: string;
 }
 
 function ListSlot<T>({ state, what, children }: { state: ListState<T>; what: string; children: (items: T[]) => React.ReactNode }) {
@@ -220,7 +225,61 @@ function ListSlot<T>({ state, what, children }: { state: ListState<T>; what: str
     );
 }
 
+/** Domains a rule was added for in this browser session, keyed by profile and domain (P26). */
+const addedRules = new Set<string>();
+
+/** Forgets the session tags (tests). */
+export const resetQuickRuleSession = () => addedRules.clear();
+
+function useQuickRules(profileId: string, restricted: boolean, laNoteId: string) {
+    const navigate = useNavigate();
+    const [sheet, setSheet] = useState<{ domain: string; action: QuickRuleAction } | null>(null);
+    const [, bump] = useState(0);
+    const trigger = useRef<HTMLElement | null>(null);
+
+    useEffect(() => setSheet(null), [profileId]);
+
+    const api: QuickRuleApi = {
+        restricted,
+        describedBy: `${laNoteId}-quick-rule`,
+        open: (domain, action, el) => {
+            if (restricted) return;
+            trigger.current = el;
+            setSheet({ domain, action });
+        },
+        isAdded: domain => addedRules.has(`${profileId}|${domain}`),
+    };
+    const element = (
+        <QuickRuleSheet
+            open={sheet !== null}
+            onOpenChange={open => !open && setSheet(null)}
+            domain={sheet?.domain}
+            defaultAction={sheet?.action}
+            returnFocusTo={trigger}
+            onCreated={() => {
+                if (sheet) addedRules.add(`${profileId}|${sheet.domain}`);
+                bump(n => n + 1);
+            }}
+            successToast={{
+                description: "Past queries still count here - new queries follow the rule.",
+                action: { label: "View rules", onClick: () => navigate("/custom-rules") },
+            }}
+            duplicateNotice={value => (
+                <>
+                    A custom rule for {value} already exists. Edit it in{" "}
+                    <Link to="/custom-rules" className="underline">
+                        Custom rules
+                    </Link>
+                    .
+                </>
+            )}
+        />
+    );
+    return { api, element };
+}
+
 export function LogsGroup(p: LogsGroupProps) {
+    const quick = useQuickRules(p.profileId, p.restricted, p.laNoteId);
     const caption = p.logsOn ? logsWindowCaption(p.range, p.logsRetention) : null;
     const retentionWords = LOGS_RETENTION_WORDS[(p.logsRetention as keyof typeof LOGS_RETENTION_WORDS) ?? "1h"] ?? "1 hour";
     let body: React.ReactNode;
@@ -242,10 +301,10 @@ export function LogsGroup(p: LogsGroupProps) {
                 {p.domainsOn ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <ListSlot state={p.blocked} what="top blocked domains">
-                            {items => <DomainsPanel kind="blocked" items={items} range={p.range} windowWords={retentionWords} />}
+                            {items => <DomainsPanel kind="blocked" items={items} range={p.range} windowWords={retentionWords} quickRule={quick.api} />}
                         </ListSlot>
                         <ListSlot state={p.resolved} what="top resolved domains">
-                            {items => <DomainsPanel kind="resolved" items={items} range={p.range} windowWords={retentionWords} />}
+                            {items => <DomainsPanel kind="resolved" items={items} range={p.range} windowWords={retentionWords} quickRule={quick.api} />}
                         </ListSlot>
                     </div>
                 ) : (
@@ -283,6 +342,16 @@ export function LogsGroup(p: LogsGroupProps) {
         <div className="flex flex-col gap-4" data-testid="stats-logs-group">
             <GroupHeading caption={caption}>From query logs</GroupHeading>
             {body}
+            {p.logsOn && p.domainsOn && (
+                <>
+                    {p.restricted && (
+                        <span id={quick.api.describedBy} className="sr-only">
+                            {LIMITED_ACCESS_TOOLTIP}
+                        </span>
+                    )}
+                    {quick.element}
+                </>
+            )}
         </div>
     );
 }

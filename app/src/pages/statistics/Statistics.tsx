@@ -258,6 +258,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         resolved={resolved}
                         clients={clients}
                         blocklists={blocklists}
+                        profileId={pid}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
                         onGate={setGate}
