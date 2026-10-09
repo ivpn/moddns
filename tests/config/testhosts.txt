@@ -10,6 +10,8 @@
 # IP-phase custom-rule tests (test_ip_custom_rules.py, test_custom_rules.py)
 # assume this exact AAAA — pinned so they don't depend on live external DNS.
 2001:41d0:701:1100::29c8 ipv6-test.com
+# default_rule = block allow rules for SERVER_ALLOWED_DOMAINS (test_default_rule_allowed_domains.py).
+104.18.74.240 app.ivpndns.net
 # DNS rebinding protection tests — public names deliberately mapped to private IPs
 # so the proxy IP-phase rebinding filter can be exercised deterministically (A only;
 # IPv6/CGNAT/NAT64 are covered by Go unit tests in proxy/filter/rebinding_test.go).

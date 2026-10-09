@@ -26,7 +26,7 @@ vi.mock("@/api/api", () => ({
     },
 }));
 
-vi.mock("@/pages/logs/QuickRuleSheet", () => ({
+vi.mock("@/components/custom-rules/QuickRuleSheet", () => ({
     __esModule: true,
     default: ({ open, defaultAction }: { open: boolean; defaultAction: string }) => (
         <div data-testid="quick-rule-sheet" data-open={open} data-default-action={defaultAction} />

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -202,6 +204,122 @@ func (r *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId 
 	return results, nil
 }
 
+// GetQueryLogTopDomains returns the profile's most frequent domains with the
+// given status inside the timespan window, count desc then domain asc. The
+// $group must unpack every bucket in the window (dns_request.domain is a
+// measurement field, so no index can serve it).
+func (r *QueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error) {
+	start := time.Now()
+	match := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+		{Key: "status", Value: status},
+		{Key: "dns_request.domain", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
+	}
+	results := make([]model.QueryLogTopDomain, 0)
+	if err := r.topGroup(ctx, retention, match, "$dns_request.domain", limit, &results); err != nil {
+		return nil, err
+	}
+	r.warnIfSlow(ctx, "Query log top domains fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// GetQueryLogTopClients returns the profile's most frequent client IPs inside
+// the timespan window, count desc then ip asc. Same cost profile as
+// GetQueryLogTopDomains.
+func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error) {
+	start := time.Now()
+	match := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+		{Key: "client_ip", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
+	}
+	results := make([]model.QueryLogTopClient, 0)
+	if err := r.topGroup(ctx, retention, match, "$client_ip", limit, &results); err != nil {
+		return nil, err
+	}
+	r.warnIfSlow(ctx, "Query log top clients fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// topBlocklistsPipeline counts the profile's blocked rows since from once per
+// "blocklist: <id>" reason token, count desc then token asc. Sorting on the full
+// token equals sorting on the id: every token shares the prefix.
+func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pipeline {
+	prefix := bson.D{{Key: "$regex", Value: "^" + regexp.QuoteMeta(filterreasons.BlocklistPrefix)}}
+	return mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.D{
+			{Key: "profile_id", Value: profileId},
+			{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: from}}},
+			{Key: "status", Value: model.QueryLogStatusBlocked},
+		}}},
+		bson.D{{Key: "$unwind", Value: "$reasons"}},
+		bson.D{{Key: "$match", Value: bson.D{{Key: "reasons", Value: prefix}}}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$reasons"},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
+		bson.D{{Key: "$limit", Value: limit}},
+	}
+}
+
+// GetQueryLogTopBlocklists returns the blocklists that blocked the profile's
+// queries most often inside the timespan window. A row matched by several lists
+// counts once for each. Same cost profile as GetQueryLogTopDomains.
+func (r *QueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
+	start := time.Now()
+	from := time.Now().Add(-time.Duration(timespanHours) * time.Hour)
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, topBlocklistsPipeline(profileId, from, limit))
+	if err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Token string `bson:"_id"`
+		Count int64  `bson:"count"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	results := make([]model.QueryLogTopBlocklist, len(rows))
+	for i, row := range rows {
+		results[i] = model.QueryLogTopBlocklist{BlocklistID: strings.TrimPrefix(row.Token, filterreasons.BlocklistPrefix), Count: row.Count}
+	}
+	r.warnIfSlow(ctx, "Query log top blocklists fetch took too long", retention, len(results), start)
+	return results, nil
+}
+
+// topGroup counts documents matching match per groupExpr, ordered count desc
+// then key asc, and decodes the first limit rows into out.
+func (r *QueryLogsRepository) topGroup(ctx context.Context, retention model.Retention, match bson.D, groupExpr string, limit int, out any) error {
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: match}},
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: groupExpr},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
+		bson.D{{Key: "$limit", Value: limit}},
+	}
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, pipeline)
+	if err != nil {
+		return err
+	}
+	return cursor.All(ctx, out)
+}
+
+// warnIfSlow logs durations and counts only; domains and IPs are sensitive.
+func (r *QueryLogsRepository) warnIfSlow(ctx context.Context, msg string, retention model.Retention, resultCount int, start time.Time) {
+	if duration := time.Since(start); duration > slowQueryThreshold {
+		log.Ctx(ctx).Warn().
+			Bool("slow", true).
+			Str("retention", string(retention)).
+			Int("result_count", resultCount).
+			Dur("duration", duration).
+			Msg(msg)
+	}
+}
+
 func buildSortSpec(sortBy string) bson.D {
 	switch sortBy {
 	case "domain":
@@ -233,6 +351,45 @@ func (r *QueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId str
 	}
 
 	return nil
+}
+
+// ListQueryLogProfileIDs groups on the metaField, which time-series collections answer
+// from the buckets without unpacking measurements.
+func (r *QueryLogsRepository) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	group := bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$profile_id"}}}}
+	pipeline := mongo.Pipeline{group}
+	for _, name := range queryLogsCollectionNames()[1:] {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$unionWith", Value: bson.D{
+			primitive.E{Key: "coll", Value: name},
+			primitive.E{Key: "pipeline", Value: bson.A{group}},
+		}}})
+	}
+	pipeline = append(pipeline, bson.D{primitive.E{Key: "$group", Value: bson.D{primitive.E{Key: "_id", Value: "$_id"}}}})
+
+	cursor, err := r.queryLogsCollOneHour.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rows []struct {
+		ID string `bson:"_id"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if row.ID != "" {
+			ids = append(ids, row.ID)
+		}
+	}
+	return ids, nil
+}
+
+// queryLogsCollectionNames lists the retention collections, the 1h one first.
+func queryLogsCollectionNames() []string {
+	return []string{queryLogsCollOneHour, queryLogsCollSixHours, queryLogsCollOneDay, queryLogsCollOneWeek, queryLogsCollOneMonth}
 }
 
 func (r *QueryLogsRepository) getCollObject(retention model.Retention) *mongo.Collection {

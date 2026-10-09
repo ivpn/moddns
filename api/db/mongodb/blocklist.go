@@ -31,19 +31,9 @@ func NewBlocklistRepository(client *mongo.Client, dbName, collectionName string)
 
 // Get returns blocklists from the blocklists collection
 func (r *BlocklistRepository) Get(ctx context.Context, filter map[string]any, sortBy string) ([]*model.Blocklist, error) {
-	filterBson := bson.D{}
-	defaultVal, exists := filter["default"]
-	if exists {
-		isDefault, err := cast.ToBoolE(defaultVal)
-		if err != nil {
-			return nil, err
-		}
-		filterBson = bson.D{primitive.E{Key: "default", Value: isDefault}}
-	}
-
-	blocklistVal, exists := filter["blocklist_id"]
-	if exists {
-		filterBson = bson.D{primitive.E{Key: "blocklist_id", Value: blocklistVal}}
+	filterBson, err := buildBlocklistFilter(filter)
+	if err != nil {
+		return nil, err
 	}
 
 	sortSpec := buildBlocklistSortSpec(sortBy)
@@ -60,6 +50,26 @@ func (r *BlocklistRepository) Get(ctx context.Context, filter map[string]any, so
 	}
 
 	return blocklists, nil
+}
+
+// buildBlocklistFilter maps the filter keys "default", "blocklist_id" and
+// "blocklist_ids" (a []string, matched with $in); a later key replaces an earlier one.
+func buildBlocklistFilter(filter map[string]any) (bson.D, error) {
+	filterBson := bson.D{}
+	if defaultVal, exists := filter["default"]; exists {
+		isDefault, err := cast.ToBoolE(defaultVal)
+		if err != nil {
+			return nil, err
+		}
+		filterBson = bson.D{primitive.E{Key: "default", Value: isDefault}}
+	}
+	if blocklistVal, exists := filter["blocklist_id"]; exists {
+		filterBson = bson.D{primitive.E{Key: "blocklist_id", Value: blocklistVal}}
+	}
+	if ids, exists := filter["blocklist_ids"]; exists {
+		filterBson = bson.D{primitive.E{Key: "blocklist_id", Value: bson.D{{Key: "$in", Value: ids}}}}
+	}
+	return filterBson, nil
 }
 
 func buildBlocklistSortSpec(sortBy string) bson.D {

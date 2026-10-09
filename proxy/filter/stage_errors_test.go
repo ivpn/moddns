@@ -12,6 +12,7 @@ package filter
 import (
 	"context"
 	"errors"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"sync"
 	"testing"
 
@@ -262,25 +263,25 @@ func TestApplyDefaultRule_ReadsRequestContext_NoCacheCall(t *testing.T) {
 	}
 
 	t.Run("stage direct", func(t *testing.T) {
-		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK}), stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{defaultRuleSetting: RULE_BLOCK}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionBlock, res.Decision)
 		assert.Equal(t, TierDefaultRule, res.Tier)
-		assert.Contains(t, res.Reasons, DEFAULT_RULE)
+		assert.Contains(t, res.Reasons, filterreasons.DefaultRule)
 	})
 
 	t.Run("stage direct allow", func(t *testing.T) {
-		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{DEFAULT_RULE: RULE_ALLOW}), stageErrDomainDctx("anything.example.com"))
+		res, err := f.applyDefaultRule(context.Background(), noBlocklists(map[string]string{defaultRuleSetting: RULE_ALLOW}), stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.DecisionNone, res.Decision)
 	})
 
 	t.Run("through Execute", func(t *testing.T) {
-		reqCtx := noBlocklists(map[string]string{DEFAULT_RULE: RULE_BLOCK})
+		reqCtx := noBlocklists(map[string]string{defaultRuleSetting: RULE_BLOCK})
 		err := f.Execute(context.Background(), reqCtx, stageErrDomainDctx("anything.example.com"))
 		require.NoError(t, err)
 		assert.Equal(t, model.StatusBlocked, reqCtx.FilterResult.Status)
-		assert.Contains(t, reqCtx.FilterResult.Reasons, DEFAULT_RULE)
+		assert.Contains(t, reqCtx.FilterResult.Reasons, filterreasons.DefaultRule)
 	})
 }
 
@@ -305,7 +306,7 @@ func TestFilterPath_OnlyBlocklistMembershipHitsStore(t *testing.T) {
 	domainFilter := NewDomainFilter(nil, mockCache, staticCatalog{cat: googleCatalogWithASN(asn)})
 	ipFilter := NewIPFilter(nil, mockCache, staticCatalog{cat: googleCatalogWithASN(asn)}, staticASNLookup{asn: asn + 1}, nil, nil)
 
-	reqCtx := stageErrReqCtx(t, profileID, map[string]string{SUBDOMAINS_RULE: RULE_BLOCK})
+	reqCtx := stageErrReqCtx(t, profileID, map[string]string{subdomainsRuleSetting: RULE_BLOCK})
 	reqCtx.Blocklists = blocklists
 	reqCtx.BlockedServices = []string{"google"}
 	reqCtx.CustomRules = []map[string]string{

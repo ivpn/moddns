@@ -1,0 +1,17 @@
+[
+  {
+    "drop": "statistics_15min"
+  },
+  {
+    "drop": "statistics_1h"
+  },
+  {
+    "drop": "statistics_1d_30d"
+  },
+  {
+    "drop": "statistics_1d_90d"
+  },
+  {
+    "drop": "statistics_1d_1y"
+  }
+]

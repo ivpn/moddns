@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"; // Blocked status pill + outcome-
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ReasonBadges } from "@/components/ui/ReasonBadges";
-import { cn, INTERACTIVE_CARD } from "@/lib/utils";
+import { cn, INTERACTIVE_CARD, stripTrailingDot } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
 import { outcomePairs, hasUnansweredMember } from "@/lib/formatOutcome";
@@ -45,7 +45,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     const isConsolidated = count > 1;
     // If domain logging is disabled, dns_request.domain may be absent. Provide a placeholder.
     const rawDomain = log.dns_request?.domain;
-    const normalizedDomain = rawDomain ? rawDomain.replace(/\.$/, "") : undefined;
+    const normalizedDomain = rawDomain ? stripTrailingDot(rawDomain) : undefined;
     const displayDomain = normalizedDomain ?? rawDomain;
     const quickRuleAvailable = Boolean(normalizedDomain);
     const isBlocked = log.status === "blocked";

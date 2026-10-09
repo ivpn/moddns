@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 25, 2026';
+const FAQ_LAST_UPDATED = 'October 9, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -386,8 +386,8 @@ export default function FAQ(): JSX.Element {
                                     <tr key={row.hostname}>
                                         <td className={`${TABLE_CELL_CLASS} whitespace-nowrap`}>{row.city}</td>
                                         <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.hostname}</td>
-                                        <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv4 ?? '—'}</td>
-                                        {showIpv6Column && <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv6 ?? '—'}</td>}
+                                        <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv4 ?? '-'}</td>
+                                        {showIpv6Column && <td className={`${TABLE_CELL_CLASS} font-mono whitespace-nowrap`}>{row.ipv6 ?? '-'}</td>}
                                     </tr>
                                 ))}
                             </tbody>
@@ -471,7 +471,7 @@ export default function FAQ(): JSX.Element {
 
     const whatAreDNSStamps = (
         <div className="space-y-2">
-            <p>A DNS Stamp is a single string starting with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> that bundles everything a client needs to reach a resolver — its IP address, port, protocol (DoH, DoT, DoQ), hostname for TLS, URL path, and properties such as DNSSEC support. Instead of typing each field separately, you paste one string and the client unpacks the rest.</p>
+            <p>A DNS Stamp is a single string starting with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> that bundles everything a client needs to reach a resolver - its IP address, port, protocol (DoH, DoT, DoQ), hostname for TLS, URL path, and properties such as DNSSEC support. Instead of typing each field separately, you paste one string and the client unpacks the rest.</p>
             <p>Stamps were originally introduced by the DNSCrypt project, but today most encrypted-DNS clients understand them regardless of the underlying protocol. For the full format definition, see <a href="https://dnscrypt.info/stamps-specifications/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt.info/stamps-specifications</code></a>.</p>
         </div>
     );
@@ -487,14 +487,14 @@ export default function FAQ(): JSX.Element {
 
     const dnsStampsCompatibleClients = (
         <div className="space-y-2">
-            <p>Almost all stamp-aware clients accept the <strong>DoH stamp</strong>. The DoT and DoQ stamps are part of the <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> specification but are far less widely adopted — at the time of writing, only AdGuard's ecosystem parses them.</p>
+            <p>Almost all stamp-aware clients accept the <strong>DoH stamp</strong>. The DoT and DoQ stamps are part of the <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> specification but are far less widely adopted - at the time of writing, only AdGuard's ecosystem parses them.</p>
             <ul className="list-disc pl-5 space-y-1">
-                <li><strong>DoH stamp</strong> — works with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, AdGuard Home, AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code>, UniFi Network DNS Shield, Intra (Android), and Pi-hole via an embedded dnscrypt-proxy</li>
-                <li><strong>DoT stamp</strong> — AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only. Everything else (Stubby, Unbound, systemd-resolved, MikroTik, OpenWrt's <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https-dns-proxy</code>) configures DoT by hostname + port directly, not via a stamp.</li>
-                <li><strong>DoQ stamp</strong> — same as DoT: AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only.</li>
+                <li><strong>DoH stamp</strong> - works with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, AdGuard Home, AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code>, UniFi Network DNS Shield, Intra (Android), and Pi-hole via an embedded dnscrypt-proxy</li>
+                <li><strong>DoT stamp</strong> - AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only. Everything else (Stubby, Unbound, systemd-resolved, MikroTik, OpenWrt's <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https-dns-proxy</code>) configures DoT by hostname + port directly, not via a stamp.</li>
+                <li><strong>DoQ stamp</strong> - same as DoT: AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only.</li>
             </ul>
-            <p>A common point of confusion: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> accepts only DoH, DNSCrypt, and ODoH stamps — feeding it a DoT or DoQ stamp returns an "Unsupported protocol" error.</p>
-            <p>If your device only exposes hostname, port, and path fields separately, you don't need a stamp — follow the platform-specific guide under <strong>Setup</strong> instead.</p>
+            <p>A common point of confusion: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> accepts only DoH, DNSCrypt, and ODoH stamps - feeding it a DoT or DoQ stamp returns an "Unsupported protocol" error.</p>
+            <p>If your device only exposes hostname, port, and path fields separately, you don't need a stamp - follow the platform-specific guide under <strong>Setup</strong> instead.</p>
         </div>
     );
 
@@ -506,14 +506,14 @@ export default function FAQ(): JSX.Element {
                 <li><strong>DoT</strong> stamps → connection uses TLS directly</li>
                 <li><strong>DoQ</strong> stamps → connection uses QUIC, which negotiates TLS 1.3 in its handshake</li>
             </ul>
-            <p>All three protocols encrypt every DNS query end-to-end between your client and modDNS. Using a stamp gives you the same encrypted transport you'd get by typing the resolver details by hand — it's just easier to copy and paste.</p>
+            <p>All three protocols encrypt every DNS query end-to-end between your client and modDNS. Using a stamp gives you the same encrypted transport you'd get by typing the resolver details by hand - it's just easier to copy and paste.</p>
         </div>
     );
 
     const whyNoDNSCryptStamp = (
         <div className="space-y-2">
             <p>The DNSCrypt protocol is a separate encrypted-DNS wire format that predates DoH/DoT/DoQ. modDNS doesn't currently run a DNSCrypt server, so issuing a DNSCrypt-protocol stamp would point clients at a service that doesn't exist.</p>
-            <p>The DoH, DoT, and DoQ stamps we provide give you equivalent end-to-end encryption (all TLS-based). If you specifically use <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, configure it with the DoH stamp — that client supports DoH but not DoT/DoQ stamps. For DoT/DoQ stamps, AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> are the most common consumers.</p>
+            <p>The DoH, DoT, and DoQ stamps we provide give you equivalent end-to-end encryption (all TLS-based). If you specifically use <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, configure it with the DoH stamp - that client supports DoH but not DoT/DoQ stamps. For DoT/DoQ stamps, AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> are the most common consumers.</p>
         </div>
     );
 
@@ -521,7 +521,7 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <p>Yes. In the DNS Stamps tab, expand <strong>Advanced options</strong> and enter a label in the <strong>Device label</strong> field (for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">Living Room</code>). The three stamps refresh automatically a moment after you stop typing.</p>
             <p>The label is embedded in the DoH URL path and in the DoT/DoQ TLS hostname, exactly as described in the Device Identification section above. Generate one stamp per device, paste it into that device's client, and your Query Logs will tag each entry with that label.</p>
-            <p>The same character and length rules apply as for any device identifier — see <em>"What are the rules for device identifiers?"</em> in the Device Identification section.</p>
+            <p>The same character and length rules apply as for any device identifier - see <em>"What are the rules for device identifiers?"</em> in the Device Identification section.</p>
         </div>
     );
 
@@ -569,13 +569,29 @@ export default function FAQ(): JSX.Element {
             <FAQSection title="Privacy" globalToggleSignal={toggleSignal} globalToggleState={toggleState}>
                 <FAQItem
                     question="How does modDNS protect my privacy?"
-                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and provides detailed query logs (default: off) so you can monitor what's being blocked."
+                    answer="By blocking known tracking domains, advertising networks, and malicious websites, using curated and custom blocklists, fewer data points about your online activities can be collected by privacy-invasive companies and information brokers. It also supports DNSSEC for additional security and offers two optional ways to monitor what's being blocked: statistics (counts only) and query logs, both off by default."
                 />
                 <FAQItem
                     question="Do you log my DNS queries?"
                     answer={
-                        <p>Query logging is optional, off by default. When enabled, retention period is controlled by you, with logs available for review in your dashboard under the Query Logs tab. If query logs are turned off, we don't retain any information on your use of modDNS other than basic account information. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
+                        <div>
+                            <p>Not unless you choose to. Data collection is off by default for every profile. In Settings under Data collection you can turn on statistics, query logs, or both:</p>
+                            <br />
+                            • <strong>Statistics</strong> - query counts per device, kept for 30 days by default, or for 90 days or 1 year if you choose. No domains and no IP addresses are stored.
+                            <br />
+                            • <strong>Query logs</strong> - a record of each query (time, device, domain, result), kept for the retention period you choose, from 1 hour to 1 month. Client IP addresses are stored only if you turn that on.
+                            <br /><br />
+                            <p>Turning either off permanently deletes what it stored; the deletion completes within an hour. Review our <span onClick={() => navigate('/privacy')} className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] cursor-pointer">Privacy Policy</span> for more information.</p>
+                        </div>
                     }
+                />
+                <FAQItem
+                    question="What is the Statistics page?"
+                    answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days by default; you can keep them for 90 days or 1 year in Settings under Data collection. From the menu on the Statistics page, or in Settings, you can also choose Delete statistics history to remove all counts and start again. The page also shows your most queried domains and clients if you have turned on query logs."
+                />
+                <FAQItem
+                    question="Should I use Statistics or Query logs?"
+                    answer="Use Statistics when you want counts without a history: how busy and how blocked a profile is, per device, without recording which sites were visited. Use Query logs when you need to see individual queries, for example to find out why a site is blocked or broken. Query logs are kept only for the short retention period you pick, and you can turn them off again at any time."
                 />
                 <FAQItem
                     question="Does modDNS use QNAME minimisation?"
@@ -621,9 +637,9 @@ export default function FAQ(): JSX.Element {
                         <div>
                             modDNS access follows your IVPN subscription. When it lapses, your account moves through reduced-access states rather than being switched off immediately:
                             <br /><br />
-                            • <strong>Limited Access</strong> — DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings, logs and analytics are unavailable).
+                            • <strong>Limited Access</strong> - DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings and data collection settings). Whatever data collection is already on keeps running, and you can still view statistics and clear query logs.
                             <br />
-                            • <strong>Inactive</strong> — DNS resolution stops for your profiles and only account export and deletion remain available.
+                            • <strong>Inactive</strong> - DNS resolution stops for your profiles and only account export and deletion remain available.
                             <br /><br />
                             In every case you regain full access by adding time to your IVPN account and re-syncing.
                         </div>
@@ -631,11 +647,11 @@ export default function FAQ(): JSX.Element {
                 />
                 <FAQItem
                     question="What is Limited Access mode?"
-                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules or profile settings, and logs and analytics are unavailable. To regain full access, add time to your IVPN account."
+                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules, profile settings or what modDNS collects. Data collection that is already on keeps running, and you can still view statistics and clear query logs. To regain full access, add time to your IVPN account."
                 />
                 <FAQItem
                     question="Why is my account Inactive?"
-                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. Your account is not deleted — it stays recoverable."
+                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. Your account is not deleted - it stays recoverable."
                 />
                 <FAQItem
                     question="How do I restore access to an inactive account?"
@@ -704,17 +720,17 @@ export default function FAQ(): JSX.Element {
                             <br />
                             • Maximum length: <strong>16 characters</strong> (default). Anything longer is silently truncated.
                             <br />
-                            • Shorter names (1–16 chars) are used as-is.
+                            • Shorter names (1-16 chars) are used as-is.
                             <br /><br />
                             <strong>Characters</strong>
                             <br />
-                            • Letters (a–z, A–Z), digits (0–9), spaces and hyphens are accepted in input.
+                            • Letters (a-z, A-Z), digits (0-9), spaces and hyphens are accepted in input.
                             <br />
                             • Apostrophes and other punctuation are stripped during normalization (e.g. Bob's iPhone → stored as <code>bobs iphone</code>). You may still include them in the DoH URL (e.g. <code>Bob%27s%20iPhone</code>) but they won't appear in logs.
                             <br />
                             • For DoT/DoQ, spaces are represented as <code>--</code> in the hostname ("Home Router" → <code>home--router</code>).
                             <br />
-                            • Characters outside a–z, A–Z, 0–9, space, hyphen are removed for DoT/DoQ hostnames.
+                            • Characters outside a-z, A-Z, 0-9, space, hyphen are removed for DoT/DoQ hostnames.
                             <br /><br />
                             <strong>Normalization</strong>
                             <br />

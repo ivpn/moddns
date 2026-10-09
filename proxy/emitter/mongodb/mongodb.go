@@ -18,6 +18,7 @@ type MongoDB struct {
 	client   *mongo.Client
 	*QueryLogsRepository
 	*ServiceStatisticsRepository
+	*StatisticsRepository
 }
 
 // NewMongoDB creates a new MongoDB instance
@@ -42,5 +43,6 @@ func (db *MongoDB) RegisterRepositories() error {
 		log.Error().Err(err).Msg("Failed to create service statistics repository")
 		return err
 	}
+	db.StatisticsRepository = NewStatisticsRepository(db.client, db.dbConfig.Name)
 	return nil
 }

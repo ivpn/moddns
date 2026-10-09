@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestStatsCollector(t *testing.T, emitter *mocks.Emitter, batchSize int, freq time.Duration) *ServiceStatisticsCollector {
+func newTestStatsCollector(t *testing.T, emitter *mocks.Emitter, batchSize int, freq time.Duration) *StatisticsCollector {
 	t.Helper()
-	return &ServiceStatisticsCollector{
+	return &StatisticsCollector{
 		Type:      model.TYPE_STATISTICS,
 		BatchSize: batchSize,
 		Frequency: freq,
@@ -29,7 +29,7 @@ func evt(q model.Queries) model.EventStatistics {
 }
 
 // specRef: proxy-statistics-behaviour.md #Y5 #Y6
-func TestServiceStatisticsCollector_SumsEventsIntoHourDocuments(t *testing.T) {
+func TestStatisticsCollector_SumsEventsIntoHourDocuments(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
 	clock := time.Date(2026, 9, 17, 13, 58, 30, 0, time.UTC)
@@ -60,7 +60,7 @@ func TestServiceStatisticsCollector_SumsEventsIntoHourDocuments(t *testing.T) {
 }
 
 // specRef: proxy-statistics-behaviour.md #Y8
-func TestServiceStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
+func TestStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
 	c.Now = func() time.Time { return time.Date(2026, 9, 17, 13, 10, 0, 0, time.UTC) }
@@ -74,13 +74,13 @@ func TestServiceStatisticsCollector_FlushResetsAccumulator(t *testing.T) {
 	}
 	c.flush("test")
 
-	assert.Empty(t, c.buckets)
-	assert.Zero(t, c.counter)
+	assert.Empty(t, c.fleet.buckets)
+	assert.Zero(t, c.fleet.events)
 	c.flush("test") // nothing pending: no emit (the mock would fail on a second call)
 }
 
 // specRef: proxy-statistics-behaviour.md #Y8
-func TestServiceStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *testing.T) {
+func TestStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 2, 50*time.Millisecond)
 
@@ -122,7 +122,7 @@ func TestServiceStatisticsCollector_Collect_FlushesOnBatchSizeAndInterval(t *tes
 }
 
 // specRef: proxy-statistics-behaviour.md #Y9
-func TestServiceStatisticsCollector_EmitErrorDropsBatchAndContinues(t *testing.T) {
+func TestStatisticsCollector_EmitErrorDropsBatchAndContinues(t *testing.T) {
 	emitter := mocks.NewEmitter(t)
 	c := newTestStatsCollector(t, emitter, 100, time.Minute)
 	c.Now = func() time.Time { return time.Date(2026, 9, 17, 13, 10, 0, 0, time.UTC) }
@@ -130,7 +130,7 @@ func TestServiceStatisticsCollector_EmitErrorDropsBatchAndContinues(t *testing.T
 	emitter.On("EmitServiceStatistics", mock.Anything, mock.Anything).Return(assert.AnError).Once()
 	c.add(evt(model.Queries{Total: 1}))
 	assert.NotPanics(t, func() { c.flush("test") })
-	assert.Empty(t, c.buckets, "a failed batch is dropped, not retried")
+	assert.Empty(t, c.fleet.buckets, "a failed batch is dropped, not retried")
 
 	emitter.On("EmitServiceStatistics", mock.Anything, mock.MatchedBy(func(batch []model.ServiceStatistics) bool {
 		return len(batch) == 1 && batch[0].Queries.Total == 1

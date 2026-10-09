@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"net"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -10,10 +11,6 @@ import (
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
-)
-
-const (
-	REASON_SERVICES = "services"
 )
 
 type ServicesCatalogGetter interface {
@@ -84,9 +81,9 @@ func (f *IPFilter) filterServices(ctx context.Context, reqCtx *requestcontext.Re
 	}
 
 	result.Decision = model.DecisionBlock
-	result.Reasons = append(result.Reasons, REASON_SERVICES)
+	result.Reasons = append(result.Reasons, filterreasons.Services)
 	for id := range matchedServices {
-		result.Reasons = append(result.Reasons, "service: "+id)
+		result.Reasons = append(result.Reasons, filterreasons.ServicePrefix+id)
 	}
 	return result, nil
 }

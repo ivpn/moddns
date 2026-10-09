@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { GlobeIcon, ShieldIcon, ListIcon, FilterX, Menu } from "lucide-react";
+import { ChartColumn, ShieldIcon, ListIcon, FilterX, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { routePreload } from "@/App";
 
@@ -8,9 +8,9 @@ interface BottomNavProps {
 }
 
 const navItems = [
-  { icon: GlobeIcon, label: "Setup", path: "/setup" },
   { icon: ShieldIcon, label: "Blocklists", path: "/blocklists" },
   { icon: FilterX, label: "Rules", path: "/custom-rules" },
+  { icon: ChartColumn, label: "Statistics", path: "/statistics" },
   { icon: ListIcon, label: "Logs", path: "/query-logs" },
 ];
 

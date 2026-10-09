@@ -122,3 +122,33 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
     return r.continue();
   });
 }
+
+export interface StatisticsMockOptions {
+  /** Response for GET /profiles/{id}/statistics; omit for a statistics-off answer. */
+  statistics?: unknown;
+  top?: { blocked?: unknown; resolved?: unknown };
+  clients?: unknown;
+  blocklists?: unknown;
+  devices?: unknown;
+}
+
+/**
+ * Routes for the Statistics page. Call AFTER registerMocks so they win over its catch-all
+ * (later registrations take precedence in Playwright).
+ */
+export async function registerStatisticsMocks(page: Page, opts: StatisticsMockOptions = {}) {
+  const json = (r: Route, body: unknown) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/statistics/i, (r: Route) =>
+    json(r, opts.statistics ?? { enabled: false, series: [], devices: [] }));
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/top/i, (r: Route) => {
+    const kind = new URL(r.request().url()).searchParams.get('kind');
+    return json(r, (kind === 'blocked' ? opts.top?.blocked : opts.top?.resolved) ?? { enabled: true, items: [] });
+  });
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/clients/i, (r: Route) =>
+    json(r, opts.clients ?? { enabled: true, items: [] }));
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/blocklists/i, (r: Route) =>
+    json(r, opts.blocklists ?? { enabled: true, items: [] }));
+  if (opts.devices) {
+    await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/devices/i, (r: Route) => json(r, opts.devices));
+  }
+}

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/mock"
@@ -238,7 +240,7 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
 
 					// Mock cache call for saving profile settings
-					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
+					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(nil)
 				}
 
 				if tt.repoGetError == nil && tt.idGenError == nil {
@@ -1304,27 +1306,25 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 			expectProfile:        false,
 		},
 		{
-			name:      "Cache update fails but profile is still returned",
+			name:      "Cache update fails and the error is returned",
 			profileID: "profile123",
 			accountID: "account123",
 			updates: []model.ProfileUpdate{
 				{
 					Operation: model.UpdateOperationReplace,
-					Path:      "/name",
-					Value:     "Updated Profile",
+					Path:      "/settings/logs/enabled",
+					Value:     true,
 				},
 			},
 			existingProfile: &model.Profile{
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Original Profile",
-				Settings:  &model.ProfileSettings{},
+				Settings:  &model.ProfileSettings{Logs: &model.LogsSettings{}},
 			},
-			shouldMockDuplicates: true,
-			existingProfiles:     []model.Profile{},
-			cacheError:           errors.New("cache error"),
-			expectedError:        "cache error",
-			expectProfile:        false, // Cache error prevents profile from being returned
+			cacheError:    errors.New("cache error"),
+			expectedError: "cache error",
+			expectProfile: false, // Cache error prevents profile from being returned
 		},
 
 		// Edge case: unknown update paths (should be ignored)
@@ -1472,14 +1472,10 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 
 					// Mock the update and cache operations
 					if tt.repoUpdateError != nil {
-						suite.mockProfileRepo.On("Update", context.Background(), tt.profileID, mock.AnythingOfType("*model.Profile")).Return(tt.repoUpdateError)
+						suite.mockProfileRepo.On("UpdateFields", context.Background(), tt.profileID, mock.AnythingOfType("repository.ProfileFieldsUpdate")).Return(nil, nil, tt.repoUpdateError).Maybe()
 					} else {
-						suite.mockProfileRepo.On("Update", context.Background(), tt.profileID, mock.AnythingOfType("*model.Profile")).Return(nil)
-						if tt.cacheError != nil {
-							suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), false).Return(tt.cacheError)
-						} else {
-							suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), false).Return(nil)
-						}
+						suite.mockProfileRepo.On("UpdateFields", context.Background(), tt.profileID, mock.AnythingOfType("repository.ProfileFieldsUpdate")).Return(tt.existingProfile, tt.existingProfile, nil).Maybe()
+						suite.mockCache.On("SetProfileSettingsFields", context.Background(), tt.profileID, mock.Anything).Return(tt.cacheError).Maybe()
 					}
 				}
 			}
@@ -1510,6 +1506,7 @@ func (suite *ProfileTestSuite) TestUpdateProfile() {
 }
 
 // TestDeleteProfile tests the DeleteProfile method
+// specRef: api-endpoint-behaviour.md G5, J7
 func (suite *ProfileTestSuite) TestDeleteProfile() {
 	tests := []struct {
 		name             string
@@ -1582,6 +1579,7 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockCache.ExpectedCalls = nil
 			suite.mockQueryLogsRepo.ExpectedCalls = nil
+			suite.mockStatisticsRepo.ExpectedCalls = nil
 
 			if tt.repoGetError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoGetError)
@@ -1605,6 +1603,9 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 
 						// Mock QueryLogs service deletion
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
+
+						// Mock statistics deletion (api-endpoint-behaviour.md J7)
+						suite.mockStatisticsRepo.On("DeleteProfileStatistics", mock.Anything, tt.profileID, (*time.Time)(nil)).Return(int64(0), nil)
 
 						// Mock cache deletion
 						if tt.cacheError != nil {
@@ -1976,6 +1977,7 @@ func (suite *ProfileTestSuite) TestDownloadProfileQueryLogs() {
 }
 
 // TestGetStatistics tests the GetStatistics method
+// specRef: api-endpoint-behaviour.md J4, J42
 func (suite *ProfileTestSuite) TestGetStatistics() {
 	tests := []struct {
 		name            string
@@ -1986,7 +1988,9 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 		repoError       error
 		statsError      error
 		expectedError   string
-		expectedStats   []model.StatisticsAggregated
+		expectedStats   *model.StatisticsAggregate
+		wantEnabled     bool
+		wantTotal       int64
 	}{
 		{
 			name:      "Successfully get statistics",
@@ -1997,10 +2001,23 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "",
-			expectedStats: []model.StatisticsAggregated{
-				{Total: 600}, // 100 blocked + 500 processed = 600 total
+			expectedStats: &model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 600}},
+			wantEnabled:   true,
+			wantTotal:     600,
+		},
+		{
+			name:      "Statistics disabled answers zero without querying",
+			profileID: "profile123",
+			accountID: "account123",
+			timespan:  "LAST_1_DAY",
+			existingProfile: &model.Profile{
+				ProfileId: "profile123",
+				AccountId: "account123",
+				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: false}},
 			},
 		},
 		{
@@ -2020,6 +2037,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account456", // Different account
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			expectedError: "not found",
 		},
@@ -2032,6 +2050,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				ProfileId: "profile123",
 				AccountId: "account123",
 				Name:      "Test Profile",
+				Settings:  &model.ProfileSettings{Statistics: &model.StatisticsSettings{Enabled: true}},
 			},
 			statsError:    errors.New("stats error"),
 			expectedError: "stats error",
@@ -2049,11 +2068,11 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 			} else if tt.existingProfile != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(tt.existingProfile, nil)
 
-				if tt.existingProfile.AccountId == tt.accountID {
+				if tt.existingProfile.AccountId == tt.accountID && tt.existingProfile.Settings.Statistics.Enabled {
 					if tt.statsError != nil {
-						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(nil, tt.statsError)
+						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("model.StatisticsTier"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Duration")).Return(nil, tt.statsError)
 					} else {
-						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("int")).Return(tt.expectedStats, nil)
+						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("model.StatisticsTier"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Duration")).Return(tt.expectedStats, nil)
 					}
 				}
 			}
@@ -2068,7 +2087,10 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				suite.Nil(stats)
 			} else {
 				suite.NoError(err)
-				suite.Equal(tt.expectedStats, stats)
+				suite.Require().NotNil(stats)
+				suite.Equal(tt.wantEnabled, stats.Enabled)
+				suite.Equal(tt.wantTotal, stats.Totals.Total)
+				suite.Equal(tt.timespan, stats.Timespan)
 			}
 		})
 	}
@@ -2147,6 +2169,7 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
 						// Deleting logs invalidates the cached device list (best-effort).
 						suite.mockCache.On("Del", context.Background(), "query_log_devices:"+tt.profileID).Return(nil)
+						suite.mockCache.On("Del", context.Background(), mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs:") })).Return(nil)
 					}
 				}
 			}

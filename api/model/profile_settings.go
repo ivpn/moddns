@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Profile default-rule values (the fallback action when no rule matches). The
@@ -38,6 +39,15 @@ func (s ProfileSettings) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a)
 }
 
+// MarshalJSON renders an empty or unknown retention as 30d, which is how the proxy and
+// the reads treat it (api-endpoint-behaviour.md J49). Storage (bson, Redis) is unchanged.
+func (s StatisticsSettings) MarshalJSON() ([]byte, error) {
+	type alias StatisticsSettings
+	a := alias(s)
+	a.Retention = a.Retention.OrDefault()
+	return json.Marshal(a)
+}
+
 // NewSettings creates a new, empty settings object
 func NewSettings() *ProfileSettings {
 	return &ProfileSettings{
@@ -64,7 +74,8 @@ func NewSettings() *ProfileSettings {
 			Retention:     RetentionOneHour,
 		},
 		Statistics: &StatisticsSettings{
-			Enabled: false,
+			Enabled:   false,
+			Retention: StatisticsRetention30d,
 		},
 		CustomRules:      make([]*CustomRule, 0),
 		CustomRuleGroups: CustomRuleGroups{},
@@ -77,6 +88,12 @@ func NewSettings() *ProfileSettings {
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
+	// When statistics were last turned on (UTC). Absent while statistics are off.
+	EnabledAt *time.Time `json:"enabled_at,omitempty" bson:"enabled_at,omitempty" redis:"-"` // not written to Redis, not exported (F19)
+	// Last "Delete statistics history" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).
+	HistoryDeletedAt *time.Time `json:"history_deleted_at,omitempty" bson:"history_deleted_at,omitempty" redis:"-"`
+	// No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).
+	Retention StatisticsRetention `json:"retention" bson:"retention" redis:"retention" enums:"30d,90d,1y"`
 }
 
 type LogsSettings struct {

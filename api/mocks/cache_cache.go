@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -373,16 +374,16 @@ func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) RunAndReturn(r
 }
 
 // CreateOrUpdateProfileSettings provides a mock function for the type Cachecache
-func (_mock *Cachecache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
-	ret := _mock.Called(ctx, settings, rollback)
+func (_mock *Cachecache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings) error {
+	ret := _mock.Called(ctx, settings)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrUpdateProfileSettings")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.ProfileSettings, bool) error); ok {
-		r0 = returnFunc(ctx, settings, rollback)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.ProfileSettings) error); ok {
+		r0 = returnFunc(ctx, settings)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -397,12 +398,11 @@ type Cachecache_CreateOrUpdateProfileSettings_Call struct {
 // CreateOrUpdateProfileSettings is a helper method to define mock.On call
 //   - ctx context.Context
 //   - settings *model.ProfileSettings
-//   - rollback bool
-func (_e *Cachecache_Expecter) CreateOrUpdateProfileSettings(ctx interface{}, settings interface{}, rollback interface{}) *Cachecache_CreateOrUpdateProfileSettings_Call {
-	return &Cachecache_CreateOrUpdateProfileSettings_Call{Call: _e.mock.On("CreateOrUpdateProfileSettings", ctx, settings, rollback)}
+func (_e *Cachecache_Expecter) CreateOrUpdateProfileSettings(ctx interface{}, settings interface{}) *Cachecache_CreateOrUpdateProfileSettings_Call {
+	return &Cachecache_CreateOrUpdateProfileSettings_Call{Call: _e.mock.On("CreateOrUpdateProfileSettings", ctx, settings)}
 }
 
-func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx context.Context, settings *model.ProfileSettings, rollback bool)) *Cachecache_CreateOrUpdateProfileSettings_Call {
+func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx context.Context, settings *model.ProfileSettings)) *Cachecache_CreateOrUpdateProfileSettings_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -412,14 +412,9 @@ func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(*model.ProfileSettings)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -430,7 +425,7 @@ func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) Return(err error) *Cach
 	return _c
 }
 
-func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) RunAndReturn(run func(ctx context.Context, settings *model.ProfileSettings, rollback bool) error) *Cachecache_CreateOrUpdateProfileSettings_Call {
+func (_c *Cachecache_CreateOrUpdateProfileSettings_Call) RunAndReturn(run func(ctx context.Context, settings *model.ProfileSettings) error) *Cachecache_CreateOrUpdateProfileSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1150,6 +1145,69 @@ func (_c *Cachecache_Set_Call) Return(err error) *Cachecache_Set_Call {
 }
 
 func (_c *Cachecache_Set_Call) RunAndReturn(run func(context1 context.Context, s string, v any, duration time.Duration) error) *Cachecache_Set_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetProfileSettingsFields provides a mock function for the type Cachecache
+func (_mock *Cachecache) SetProfileSettingsFields(ctx context.Context, profileId string, fields []cache.SettingsField) error {
+	ret := _mock.Called(ctx, profileId, fields)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetProfileSettingsFields")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []cache.SettingsField) error); ok {
+		r0 = returnFunc(ctx, profileId, fields)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Cachecache_SetProfileSettingsFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetProfileSettingsFields'
+type Cachecache_SetProfileSettingsFields_Call struct {
+	*mock.Call
+}
+
+// SetProfileSettingsFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - fields []cache.SettingsField
+func (_e *Cachecache_Expecter) SetProfileSettingsFields(ctx interface{}, profileId interface{}, fields interface{}) *Cachecache_SetProfileSettingsFields_Call {
+	return &Cachecache_SetProfileSettingsFields_Call{Call: _e.mock.On("SetProfileSettingsFields", ctx, profileId, fields)}
+}
+
+func (_c *Cachecache_SetProfileSettingsFields_Call) Run(run func(ctx context.Context, profileId string, fields []cache.SettingsField)) *Cachecache_SetProfileSettingsFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []cache.SettingsField
+		if args[2] != nil {
+			arg2 = args[2].([]cache.SettingsField)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Cachecache_SetProfileSettingsFields_Call) Return(err error) *Cachecache_SetProfileSettingsFields_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Cachecache_SetProfileSettingsFields_Call) RunAndReturn(run func(ctx context.Context, profileId string, fields []cache.SettingsField) error) *Cachecache_SetProfileSettingsFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

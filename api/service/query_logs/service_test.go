@@ -10,6 +10,7 @@ import (
 
 	"github.com/ivpn/dns/api/db/mongodb"
 	"github.com/ivpn/dns/api/model"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -23,6 +24,7 @@ type stubQueryLogsRepository struct {
 	getCalls    int
 	deleteCalls int
 	lastSort    string
+	lastHours   int
 }
 
 func (s *stubQueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error) {
@@ -35,9 +37,31 @@ func (s *stubQueryLogsRepository) GetQueryLogDevices(ctx context.Context, profil
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours, limit int) ([]model.QueryLogTopDomain, error) {
+	s.getCalls++
+	s.lastHours = timespanHours
+	return nil, nil
+}
+
+func (s *stubQueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopClient, error) {
+	s.getCalls++
+	s.lastHours = timespanHours
+	return nil, nil
+}
+
+func (s *stubQueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
+	s.getCalls++
+	s.lastHours = timespanHours
+	return nil, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil
+}
+
+func (s *stubQueryLogsRepository) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	return nil, nil
 }
 
 // TestGetProfileQueryLogsInvalidTimespan validates that an invalid timespan string short-circuits
@@ -71,6 +95,36 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 	}
 }
 
+// specRef: api-endpoint-behaviour.md J20, J21, J24 — the top lists accept the 3 h and 6 h windows; J1 does not.
+func TestTopTimespans(t *testing.T) {
+	for ts, hours := range map[string]int{
+		model.LAST_3_HOURS: 3, model.LAST_6_HOURS: 6, model.LAST_1_HOUR: 1, model.LAST_12_HOURS: 12,
+		model.LAST_1_DAY: 24, model.LAST_7_DAYS: 168, model.LAST_MONTH: 720,
+	} {
+		t.Run(ts, func(t *testing.T) {
+			repo := &stubQueryLogsRepository{}
+			svc := NewQueryLogsService(repo)
+			_, err := svc.GetProfileQueryLogTopDomains(context.Background(), "p", model.RetentionOneDay, ts, model.QueryLogTopKindBlocked, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+			repo.lastHours = 0
+			_, err = svc.GetProfileQueryLogTopClients(context.Background(), "p", model.RetentionOneDay, ts, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+			repo.lastHours = 0
+			_, err = svc.GetProfileQueryLogTopBlocklists(context.Background(), "p", model.RetentionOneDay, ts, 10)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours)
+		})
+	}
+	for _, ts := range []string{model.LAST_3_HOURS, model.LAST_6_HOURS} {
+		repo := &stubQueryLogsRepository{}
+		_, err := NewQueryLogsService(repo).GetProfileQueryLogs(context.Background(), "p", model.RetentionOneDay, "all", ts, "", "", "created", 1, 10)
+		require.Error(t, err, "J1 keeps its enum")
+		require.Zero(t, repo.getCalls)
+	}
+}
+
 func TestGetProfileQueryLogsSortForwarded(t *testing.T) {
 	mockRepo := &stubQueryLogsRepository{}
 	svc := NewQueryLogsService(mockRepo)
@@ -101,7 +155,7 @@ type QueryLogsServiceSuite struct {
 func (s *QueryLogsServiceSuite) SetupSuite() {
 	ctx := context.Background()
 
-	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:7.0.8")
+	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:8.0.9")
 	username := firstNonEmpty(os.Getenv("TEST_MONGO_USERNAME"), "testuser")
 	password := firstNonEmpty(os.Getenv("TEST_MONGO_PASSWORD"), "testpass")
 	authSource := firstNonEmpty(os.Getenv("DB_AUTH_SOURCE"), "admin")
@@ -336,6 +390,104 @@ func (s *QueryLogsServiceSuite) TestGetProfileQueryLogDevices() {
 	}
 }
 
+// insertTopDocs inserts one log document per (domain, status, client_ip, age) row.
+func (s *QueryLogsServiceSuite) insertTopDocs(profileID string, rows ...[4]any) {
+	now := time.Now()
+	docs := make([]any, 0, len(rows))
+	for _, r := range rows {
+		docs = append(docs, bson.D{
+			{Key: "timestamp", Value: now.Add(-r[3].(time.Duration))},
+			{Key: "profile_id", Value: profileID},
+			{Key: "device_id", Value: "d"},
+			{Key: "status", Value: r[1]},
+			{Key: "reasons", Value: bson.A{}},
+			{Key: "dns_request", Value: bson.D{{Key: "domain", Value: r[0]}, {Key: "query_type", Value: "A"}, {Key: "response_code", Value: "NOERROR"}, {Key: "dnssec", Value: false}}},
+			{Key: "client_ip", Value: r[2]},
+			{Key: "protocol", Value: "udp"},
+		})
+	}
+	_, err := s.collMap[model.RetentionOneWeek].InsertMany(context.Background(), docs)
+	s.Require().NoError(err)
+}
+
+// TestGetProfileQueryLogTopDomains verifies grouping per status, count desc
+// then domain asc, the limit, the timespan floor, empty-domain exclusion and
+// profile isolation.
+// tableRef: api-endpoint-behaviour #J20
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopDomains() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-domains-profile"
+	s.insertTopDocs(pid,
+		[4]any{"b.com", "blocked", "1.1.1.1", 1 * h}, [4]any{"b.com", "blocked", "1.1.1.1", 2 * h}, [4]any{"b.com", "blocked", "1.1.1.1", 3 * h},
+		[4]any{"a.com", "blocked", "1.1.1.1", 1 * h}, [4]any{"a.com", "blocked", "1.1.1.1", 2 * h}, [4]any{"a.com", "blocked", "1.1.1.1", 3 * h}, // ties with b.com: a before b
+		[4]any{"c.com", "blocked", "1.1.1.1", 1 * h},
+		[4]any{"old.com", "blocked", "1.1.1.1", 30 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 31 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 32 * h}, [4]any{"old.com", "blocked", "1.1.1.1", 33 * h}, // outside LAST_1_DAY
+		[4]any{"", "blocked", "1.1.1.1", 1 * h}, // empty domain skipped
+		[4]any{"ok.com", "processed", "1.1.1.1", 1 * h}, [4]any{"ok.com", "processed", "1.1.1.1", 2 * h},
+		[4]any{"unavail.com", "unavailable", "1.1.1.1", 1 * h},
+	)
+	s.insertTopDocs("someone-else", [4]any{"a.com", "blocked", "9.9.9.9", 1 * h}, [4]any{"a.com", "blocked", "9.9.9.9", 1 * h})
+
+	blocked, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "a.com", Count: 3}, {Domain: "b.com", Count: 3}, {Domain: "c.com", Count: 1}}, blocked)
+
+	limited, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 2)
+	s.Require().NoError(err)
+	s.Equal(blocked[:2], limited)
+
+	week, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_7_DAYS, model.QueryLogTopKindBlocked, 1)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "old.com", Count: 4}}, week)
+
+	resolved, err := s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, model.QueryLogTopKindResolved, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopDomain{{Domain: "ok.com", Count: 2}}, resolved)
+
+	none, err := s.service.GetProfileQueryLogTopDomains(ctx, "no-such-profile", retention, model.LAST_1_DAY, model.QueryLogTopKindBlocked, 50)
+	s.Require().NoError(err)
+	s.NotNil(none)
+	s.Empty(none)
+
+	_, err = s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, model.LAST_1_DAY, "bogus", 50)
+	s.ErrorIs(err, ErrInvalidTopKind)
+	_, err = s.service.GetProfileQueryLogTopDomains(ctx, pid, retention, "NOPE", model.QueryLogTopKindBlocked, 50)
+	s.Error(err)
+}
+
+// TestGetProfileQueryLogTopClients verifies grouping by client IP across
+// statuses, count desc then ip asc, the limit, the timespan floor and profile
+// isolation.
+// tableRef: api-endpoint-behaviour #J21
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopClients() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-clients-profile"
+	s.insertTopDocs(pid,
+		[4]any{"x.com", "blocked", "203.0.113.7", 1 * h}, [4]any{"x.com", "processed", "203.0.113.7", 2 * h}, [4]any{"y.com", "processed", "203.0.113.7", 3 * h},
+		[4]any{"x.com", "processed", "198.51.100.2", 1 * h}, [4]any{"x.com", "processed", "198.51.100.2", 2 * h}, [4]any{"x.com", "processed", "198.51.100.2", 3 * h}, // ties: 198.* before 203.*
+		[4]any{"x.com", "processed", "2001:db8::1", 1 * h},
+		[4]any{"x.com", "processed", "192.0.2.9", 40 * h}, [4]any{"x.com", "processed", "192.0.2.9", 41 * h}, [4]any{"x.com", "processed", "192.0.2.9", 42 * h}, [4]any{"x.com", "processed", "192.0.2.9", 43 * h}, // outside LAST_1_DAY
+		[4]any{"x.com", "processed", "", 1 * h}, // empty ip skipped
+	)
+	s.insertTopDocs("someone-else", [4]any{"x.com", "processed", "203.0.113.7", 1 * h})
+
+	got, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopClient{{IP: "198.51.100.2", Count: 3}, {IP: "203.0.113.7", Count: 3}, {IP: "2001:db8::1", Count: 1}}, got)
+
+	limited, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_1_DAY, 1)
+	s.Require().NoError(err)
+	s.Equal(got[:1], limited)
+
+	week, err := s.service.GetProfileQueryLogTopClients(ctx, pid, retention, model.LAST_7_DAYS, 1)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopClient{{IP: "192.0.2.9", Count: 4}}, week)
+}
+
 // TestDeleteProfileQueryLogs ensures removal from all retention collections.
 func (s *QueryLogsServiceSuite) TestDeleteProfileQueryLogs() {
 	ctx := context.Background()
@@ -383,4 +535,67 @@ func (s *QueryLogsServiceSuite) TestSearchRegexInjection() {
 
 func TestQueryLogsServiceSuite(t *testing.T) {
 	suite.Run(t, new(QueryLogsServiceSuite))
+}
+
+// insertReasonDocs inserts one log document per (status, reasons, age) row.
+func (s *QueryLogsServiceSuite) insertReasonDocs(profileID string, rows ...[3]any) {
+	now := time.Now()
+	docs := make([]any, 0, len(rows))
+	for _, r := range rows {
+		docs = append(docs, bson.D{
+			{Key: "timestamp", Value: now.Add(-r[2].(time.Duration))},
+			{Key: "profile_id", Value: profileID},
+			{Key: "status", Value: r[0]},
+			{Key: "reasons", Value: r[1]},
+			{Key: "dns_request", Value: bson.D{{Key: "domain", Value: "x.com"}}},
+		})
+	}
+	_, err := s.collMap[model.RetentionOneWeek].InsertMany(context.Background(), docs)
+	s.Require().NoError(err)
+}
+
+// TestGetProfileQueryLogTopBlocklists verifies one count per blocklist token of
+// a blocked row, other reasons and statuses ignored, count desc then id asc,
+// the limit, the timespan floor and profile isolation.
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsServiceSuite) TestGetProfileQueryLogTopBlocklists() {
+	ctx := context.Background()
+	retention := model.RetentionOneWeek
+	h := time.Hour
+	pid := "top-blocklists-profile"
+	both := bson.A{"blocklists", "blocklist: hagezi_pro", "blocklist: oisd"}
+	s.insertReasonDocs(pid,
+		[3]any{"blocked", both, 1 * h}, [3]any{"blocked", both, 2 * h}, // counted once per list
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: oisd"}, 3 * h},
+		[3]any{"blocked", bson.A{"blocklists_subdomains_rule", "blocklist: adguard"}, 1 * h},
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: zz_list"}, 1 * h}, [3]any{"blocked", bson.A{"blocklists", "blocklist: zz_list"}, 2 * h}, // ties with hagezi_pro: id asc
+		[3]any{"blocked", bson.A{"services", "service: google"}, 1 * h},
+		[3]any{"blocked", bson.A{"custom_rules"}, 1 * h},
+		[3]any{"blocked", bson.A{}, 1 * h},
+		[3]any{"processed", bson.A{"blocklist: oisd"}, 1 * h},
+		[3]any{"blocked", bson.A{"blocklists", "blocklist: old"}, 30 * h}, // outside LAST_1_DAY
+	)
+	s.insertReasonDocs("someone-else", [3]any{"blocked", bson.A{"blocklist: oisd"}, 1 * h})
+
+	got, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.Equal([]model.QueryLogTopBlocklist{
+		{BlocklistID: "oisd", Count: 3}, {BlocklistID: "hagezi_pro", Count: 2}, {BlocklistID: "zz_list", Count: 2}, {BlocklistID: "adguard", Count: 1},
+	}, got)
+
+	limited, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_1_DAY, 2)
+	s.Require().NoError(err)
+	s.Equal(got[:2], limited)
+
+	week, err := s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, model.LAST_7_DAYS, 50)
+	s.Require().NoError(err)
+	s.Contains(week, model.QueryLogTopBlocklist{BlocklistID: "old", Count: 1})
+
+	none, err := s.service.GetProfileQueryLogTopBlocklists(ctx, "no-such-profile", retention, model.LAST_1_DAY, 50)
+	s.Require().NoError(err)
+	s.NotNil(none)
+	s.Empty(none)
+
+	_, err = s.service.GetProfileQueryLogTopBlocklists(ctx, pid, retention, "NOPE", 50)
+	s.Error(err)
 }

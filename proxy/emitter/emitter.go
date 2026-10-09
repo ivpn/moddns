@@ -13,6 +13,7 @@ import (
 type Emitter interface {
 	EmitQueryLogs(ctx context.Context, data []model.EventQueryLog) error
 	EmitServiceStatistics(ctx context.Context, data []model.ServiceStatistics) error
+	EmitStatistics(ctx context.Context, data []model.Statistics) error
 	Disconnect() error
 }
 

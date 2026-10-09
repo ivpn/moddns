@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { ShieldBan, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,14 @@ interface QuickRuleSheetProps {
     onOpenChange: (next: boolean) => void;
     domain?: string;
     defaultAction?: QuickRuleAction;
+    /** Called after a rule was created, before the sheet closes. */
+    onCreated?: (rule: { value: string; action: QuickRuleAction }) => void;
+    /** Adds a description and an action button to the success toast. */
+    successToast?: (rule: { value: string; action: QuickRuleAction }) => { description: string; action: { label: string; onClick: () => void } };
+    /** Replaces the inline error for a value that already has a rule. */
+    duplicateNotice?: (value: string, action: QuickRuleAction) => ReactNode;
+    /** Where focus goes when the sheet closes; defaults to the dialog's own trigger logic. */
+    returnFocusTo?: RefObject<HTMLElement | null>;
 }
 
 const iconClasses = "h-4 w-4";
@@ -46,11 +54,12 @@ function prefillDomain(raw: string, mode: "include" | "exact"): string {
     return `*.${stripped}`;
 }
 
-const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRuleSheetProps) => {
+const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction, onCreated, successToast, duplicateNotice, returnFocusTo }: QuickRuleSheetProps) => {
     const [action, setAction] = useState<QuickRuleAction>("denylist");
     const [domainValue, setDomainValue] = useState(domain ?? "");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [inputError, setInputError] = useState<string | null>(null);
+    const [duplicateValue, setDuplicateValue] = useState<string | null>(null);
     const { isDesktop } = useScreenDetector();
 
     const activeProfile = useAppStore((state) => state.activeProfile);
@@ -63,6 +72,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
         const subdomainsRule = activeProfile?.settings?.privacy?.custom_rules_subdomains_rule ?? "include";
         setDomainValue(domain ? prefillDomain(domain, subdomainsRule) : "");
         setInputError(null);
+        setDuplicateValue(null);
     }, [activeProfile, defaultAction, domain, open]);
 
     const disabled = useMemo(() => !domainValue.trim() || isSubmitting, [domainValue, isSubmitting]);
@@ -80,6 +90,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
 
         setIsSubmitting(true);
         setInputError(null);
+        setDuplicateValue(null);
         try {
             const response = await api.Client.profilesApi.apiV1ProfilesIdCustomRulesBatchPost(
                 activeProfile.profile_id,
@@ -95,13 +106,21 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
             if (createdCount > 0) {
                 const updated = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
                 setActiveProfile(updated.data);
-                toast.success(`${normalized} added to the ${ACTION_LABEL[action]}.`);
+                toast.success(
+                    `${normalized} added to the ${ACTION_LABEL[action]}.`,
+                    successToast ? successToast({ value: normalized, action }) : undefined,
+                );
+                onCreated?.({ value: normalized, action });
                 onOpenChange(false);
                 return;
             }
 
             if (skipped.length > 0) {
                 const first = skipped[0];
+                if (duplicateNotice && first?.reason === "duplicate_existing") {
+                    setDuplicateValue(normalized);
+                    return;
+                }
                 setInputError(first?.message ?? "Unable to add this entry.");
                 toast.warning("Review the highlighted entry before trying again.");
                 return;
@@ -159,6 +178,13 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
             <SheetContent
                 side="right"
                 className="max-w-[480px] w-full border-l border-[var(--tailwind-colors-slate-800)] bg-[var(--variable-collection-surface)] p-0 gap-0"
+                onCloseAutoFocus={event => {
+                    const target = returnFocusTo?.current;
+                    if (target) {
+                        event.preventDefault();
+                        target.focus();
+                    }
+                }}
             >
                 <SheetHeader className="gap-1 px-6 pt-6 pb-2 text-left">
                     <SheetTitle>Add custom rule</SheetTitle>
@@ -218,6 +244,11 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction }: QuickRule
                         <p className="text-xs text-[var(--tailwind-colors-slate-500)]">
                             Applies to {profileDisplayName}.
                         </p>
+                        {duplicateNotice && duplicateValue && (
+                            <p className="text-xs text-[var(--tailwind-colors-rose-400)]" role="alert">
+                                {duplicateNotice(duplicateValue, action)}
+                            </p>
+                        )}
                         {inputError && (
                             <p className="text-xs text-[var(--tailwind-colors-rose-400)]" role="alert">
                                 {inputError}

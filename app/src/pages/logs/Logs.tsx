@@ -8,7 +8,7 @@ import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
-import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
+import QuickRuleSheet, { type QuickRuleAction } from "@/components/custom-rules/QuickRuleSheet";
 import { consolidateLogs, toSingletonGroup } from "@/lib/consolidateLogs";
 import { computeNewQueryLogs } from "@/lib/queryLogsDiff";
 import { refreshIntervalMsFor, type RefreshIntervalKey } from "@/lib/consts";
@@ -685,13 +685,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 <div className="flex flex-col items-start gap-3 md:gap-4 relative flex-1 self-stretch w-full grow min-w-0 overflow-x-hidden">
                     <div className="flex flex-col items-start gap-2 relative flex-1 self-stretch w-full grow rounded-md min-w-0 overflow-x-hidden">
                         {!logsEnabled && (
-                            <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
-                                <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
-                                    <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
-                                        <LogsNotActive profile={activeProfile ?? profiles[0]} />
-                                    </div>
-                                </div>
-                            </div>
+                            <LogsNotActive profile={activeProfile ?? profiles[0]} />
                         )}
                         {logsEnabled && logs.length === 0 && !loading && !error && (
                             <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent" data-testid="logs-empty-state">

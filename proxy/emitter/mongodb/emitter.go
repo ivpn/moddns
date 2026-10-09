@@ -39,6 +39,10 @@ func (e *MongoDBEmitter) EmitServiceStatistics(ctx context.Context, data []model
 	return e.DB.AddBatch(ctx, data)
 }
 
+func (e *MongoDBEmitter) EmitStatistics(ctx context.Context, data []model.Statistics) error {
+	return e.DB.InsertStatistics(ctx, data)
+}
+
 func (e *MongoDBEmitter) Disconnect() error {
 	return e.DB.Disconnect()
 }

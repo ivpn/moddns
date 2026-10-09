@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -785,6 +786,150 @@ func (_c *Db_DeleteProfileById_Call) Return(err error) *Db_DeleteProfileById_Cal
 }
 
 func (_c *Db_DeleteProfileById_Call) RunAndReturn(run func(ctx context.Context, profileId string) error) *Db_DeleteProfileById_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteProfileStatistics provides a mock function for the type Db
+func (_mock *Db) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, before)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatistics")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, before)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, before)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, before)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_DeleteProfileStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatistics'
+type Db_DeleteProfileStatistics_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - before *time.Time
+func (_e *Db_Expecter) DeleteProfileStatistics(ctx interface{}, profileId interface{}, before interface{}) *Db_DeleteProfileStatistics_Call {
+	return &Db_DeleteProfileStatistics_Call{Call: _e.mock.On("DeleteProfileStatistics", ctx, profileId, before)}
+}
+
+func (_c *Db_DeleteProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, before *time.Time)) *Db_DeleteProfileStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *time.Time
+		if args[2] != nil {
+			arg2 = args[2].(*time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatistics_Call) Return(n int64, err error) *Db_DeleteProfileStatistics_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, before *time.Time) (int64, error)) *Db_DeleteProfileStatistics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteProfileStatisticsThrough provides a mock function for the type Db
+func (_mock *Db) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatisticsThrough")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, at)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_DeleteProfileStatisticsThrough_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatisticsThrough'
+type Db_DeleteProfileStatisticsThrough_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatisticsThrough is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - at time.Time
+func (_e *Db_Expecter) DeleteProfileStatisticsThrough(ctx interface{}, profileId interface{}, at interface{}) *Db_DeleteProfileStatisticsThrough_Call {
+	return &Db_DeleteProfileStatisticsThrough_Call{Call: _e.mock.On("DeleteProfileStatisticsThrough", ctx, profileId, at)}
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *Db_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) Return(n int64, err error) *Db_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Db_DeleteProfileStatisticsThrough_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (int64, error)) *Db_DeleteProfileStatisticsThrough_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2497,27 +2642,27 @@ func (_c *Db_GetProfileById_Call) RunAndReturn(run func(ctx context.Context, pro
 }
 
 // GetProfileStatistics provides a mock function for the type Db
-func (_mock *Db) GetProfileStatistics(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error) {
-	ret := _mock.Called(ctx, profileId, timespan)
+func (_mock *Db) GetProfileStatistics(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error) {
+	ret := _mock.Called(ctx, profileId, tier, from, to, bucket)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProfileStatistics")
 	}
 
-	var r0 []model.StatisticsAggregated
+	var r0 *model.StatisticsAggregate
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]model.StatisticsAggregated, error)); ok {
-		return returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) (*model.StatisticsAggregate, error)); ok {
+		return returnFunc(ctx, profileId, tier, from, to, bucket)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []model.StatisticsAggregated); ok {
-		r0 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) *model.StatisticsAggregate); ok {
+		r0 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.StatisticsAggregated)
+			r0 = ret.Get(0).(*model.StatisticsAggregate)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) error); ok {
+		r1 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2532,12 +2677,15 @@ type Db_GetProfileStatistics_Call struct {
 // GetProfileStatistics is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - timespan int
-func (_e *Db_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, timespan interface{}) *Db_GetProfileStatistics_Call {
-	return &Db_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, timespan)}
+//   - tier model.StatisticsTier
+//   - from time.Time
+//   - to time.Time
+//   - bucket time.Duration
+func (_e *Db_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, tier interface{}, from interface{}, to interface{}, bucket interface{}) *Db_GetProfileStatistics_Call {
+	return &Db_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, tier, from, to, bucket)}
 }
 
-func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan int)) *Db_GetProfileStatistics_Call {
+func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration)) *Db_GetProfileStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2547,25 +2695,40 @@ func (_c *Db_GetProfileStatistics_Call) Run(run func(ctx context.Context, profil
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 model.StatisticsTier
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(model.StatisticsTier)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		var arg4 time.Time
+		if args[4] != nil {
+			arg4 = args[4].(time.Time)
+		}
+		var arg5 time.Duration
+		if args[5] != nil {
+			arg5 = args[5].(time.Duration)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
+			arg4,
+			arg5,
 		)
 	})
 	return _c
 }
 
-func (_c *Db_GetProfileStatistics_Call) Return(statisticsAggregateds []model.StatisticsAggregated, err error) *Db_GetProfileStatistics_Call {
-	_c.Call.Return(statisticsAggregateds, err)
+func (_c *Db_GetProfileStatistics_Call) Return(statisticsAggregate *model.StatisticsAggregate, err error) *Db_GetProfileStatistics_Call {
+	_c.Call.Return(statisticsAggregate, err)
 	return _c
 }
 
-func (_c *Db_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error)) *Db_GetProfileStatistics_Call {
+func (_c *Db_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error)) *Db_GetProfileStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2634,6 +2797,142 @@ func (_c *Db_GetProfilesByAccountId_Call) Return(profiles []model.Profile, err e
 }
 
 func (_c *Db_GetProfilesByAccountId_Call) RunAndReturn(run func(ctx context.Context, accountId string) ([]model.Profile, error)) *Db_GetProfilesByAccountId_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfilesLogsEnabled provides a mock function for the type Db
+func (_mock *Db) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesLogsEnabled")
+	}
+
+	var r0 map[string]bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]bool, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]bool); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetProfilesLogsEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesLogsEnabled'
+type Db_GetProfilesLogsEnabled_Call struct {
+	*mock.Call
+}
+
+// GetProfilesLogsEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *Db_Expecter) GetProfilesLogsEnabled(ctx interface{}, profileIds interface{}) *Db_GetProfilesLogsEnabled_Call {
+	return &Db_GetProfilesLogsEnabled_Call{Call: _e.mock.On("GetProfilesLogsEnabled", ctx, profileIds)}
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) Run(run func(ctx context.Context, profileIds []string)) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) Return(stringToBool map[string]bool, err error) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(stringToBool, err)
+	return _c
+}
+
+func (_c *Db_GetProfilesLogsEnabled_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]bool, error)) *Db_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfilesStatisticsSettings provides a mock function for the type Db
+func (_mock *Db) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesStatisticsSettings")
+	}
+
+	var r0 map[string]*model.StatisticsSettings
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]*model.StatisticsSettings, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]*model.StatisticsSettings); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]*model.StatisticsSettings)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetProfilesStatisticsSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesStatisticsSettings'
+type Db_GetProfilesStatisticsSettings_Call struct {
+	*mock.Call
+}
+
+// GetProfilesStatisticsSettings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *Db_Expecter) GetProfilesStatisticsSettings(ctx interface{}, profileIds interface{}) *Db_GetProfilesStatisticsSettings_Call {
+	return &Db_GetProfilesStatisticsSettings_Call{Call: _e.mock.On("GetProfilesStatisticsSettings", ctx, profileIds)}
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) Run(run func(ctx context.Context, profileIds []string)) *Db_GetProfilesStatisticsSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) Return(stringToStatisticsSettings map[string]*model.StatisticsSettings, err error) *Db_GetProfilesStatisticsSettings_Call {
+	_c.Call.Return(stringToStatisticsSettings, err)
+	return _c
+}
+
+func (_c *Db_GetProfilesStatisticsSettings_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)) *Db_GetProfilesStatisticsSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2708,6 +3007,270 @@ func (_c *Db_GetQueryLogDevices_Call) Return(queryLogDevices []model.QueryLogDev
 }
 
 func (_c *Db_GetQueryLogDevices_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error)) *Db_GetQueryLogDevices_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetQueryLogTopBlocklists provides a mock function for the type Db
+func (_mock *Db) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int) ([]model.QueryLogTopBlocklist, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespanHours, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQueryLogTopBlocklists")
+	}
+
+	var r0 []model.QueryLogTopBlocklist
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int, int) ([]model.QueryLogTopBlocklist, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespanHours, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int, int) []model.QueryLogTopBlocklist); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespanHours, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopBlocklist)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, int, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespanHours, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetQueryLogTopBlocklists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQueryLogTopBlocklists'
+type Db_GetQueryLogTopBlocklists_Call struct {
+	*mock.Call
+}
+
+// GetQueryLogTopBlocklists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespanHours int
+//   - limit int
+func (_e *Db_Expecter) GetQueryLogTopBlocklists(ctx interface{}, profileId interface{}, retention interface{}, timespanHours interface{}, limit interface{}) *Db_GetQueryLogTopBlocklists_Call {
+	return &Db_GetQueryLogTopBlocklists_Call{Call: _e.mock.On("GetQueryLogTopBlocklists", ctx, profileId, retention, timespanHours, limit)}
+}
+
+func (_c *Db_GetQueryLogTopBlocklists_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int)) *Db_GetQueryLogTopBlocklists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopBlocklists_Call) Return(queryLogTopBlocklists []model.QueryLogTopBlocklist, err error) *Db_GetQueryLogTopBlocklists_Call {
+	_c.Call.Return(queryLogTopBlocklists, err)
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopBlocklists_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int) ([]model.QueryLogTopBlocklist, error)) *Db_GetQueryLogTopBlocklists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetQueryLogTopClients provides a mock function for the type Db
+func (_mock *Db) GetQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int) ([]model.QueryLogTopClient, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespanHours, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQueryLogTopClients")
+	}
+
+	var r0 []model.QueryLogTopClient
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int, int) ([]model.QueryLogTopClient, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespanHours, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int, int) []model.QueryLogTopClient); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespanHours, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopClient)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, int, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespanHours, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetQueryLogTopClients_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQueryLogTopClients'
+type Db_GetQueryLogTopClients_Call struct {
+	*mock.Call
+}
+
+// GetQueryLogTopClients is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespanHours int
+//   - limit int
+func (_e *Db_Expecter) GetQueryLogTopClients(ctx interface{}, profileId interface{}, retention interface{}, timespanHours interface{}, limit interface{}) *Db_GetQueryLogTopClients_Call {
+	return &Db_GetQueryLogTopClients_Call{Call: _e.mock.On("GetQueryLogTopClients", ctx, profileId, retention, timespanHours, limit)}
+}
+
+func (_c *Db_GetQueryLogTopClients_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int)) *Db_GetQueryLogTopClients_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopClients_Call) Return(queryLogTopClients []model.QueryLogTopClient, err error) *Db_GetQueryLogTopClients_Call {
+	_c.Call.Return(queryLogTopClients, err)
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopClients_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int, limit int) ([]model.QueryLogTopClient, error)) *Db_GetQueryLogTopClients_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetQueryLogTopDomains provides a mock function for the type Db
+func (_mock *Db) GetQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours int, limit int) ([]model.QueryLogTopDomain, error) {
+	ret := _mock.Called(ctx, profileId, retention, status, timespanHours, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQueryLogTopDomains")
+	}
+
+	var r0 []model.QueryLogTopDomain
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, int) ([]model.QueryLogTopDomain, error)); ok {
+		return returnFunc(ctx, profileId, retention, status, timespanHours, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, string, int, int) []model.QueryLogTopDomain); ok {
+		r0 = returnFunc(ctx, profileId, retention, status, timespanHours, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.QueryLogTopDomain)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, string, int, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, status, timespanHours, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetQueryLogTopDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQueryLogTopDomains'
+type Db_GetQueryLogTopDomains_Call struct {
+	*mock.Call
+}
+
+// GetQueryLogTopDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - status string
+//   - timespanHours int
+//   - limit int
+func (_e *Db_Expecter) GetQueryLogTopDomains(ctx interface{}, profileId interface{}, retention interface{}, status interface{}, timespanHours interface{}, limit interface{}) *Db_GetQueryLogTopDomains_Call {
+	return &Db_GetQueryLogTopDomains_Call{Call: _e.mock.On("GetQueryLogTopDomains", ctx, profileId, retention, status, timespanHours, limit)}
+}
+
+func (_c *Db_GetQueryLogTopDomains_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours int, limit int)) *Db_GetQueryLogTopDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopDomains_Call) Return(queryLogTopDomains []model.QueryLogTopDomain, err error) *Db_GetQueryLogTopDomains_Call {
+	_c.Call.Return(queryLogTopDomains, err)
+	return _c
+}
+
+func (_c *Db_GetQueryLogTopDomains_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, status string, timespanHours int, limit int) ([]model.QueryLogTopDomain, error)) *Db_GetQueryLogTopDomains_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2968,6 +3531,130 @@ func (_c *Db_GetSubscriptionByAccountId_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// ListQueryLogProfileIDs provides a mock function for the type Db
+func (_mock *Db) ListQueryLogProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListQueryLogProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_ListQueryLogProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListQueryLogProfileIDs'
+type Db_ListQueryLogProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListQueryLogProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ListQueryLogProfileIDs(ctx interface{}) *Db_ListQueryLogProfileIDs_Call {
+	return &Db_ListQueryLogProfileIDs_Call{Call: _e.mock.On("ListQueryLogProfileIDs", ctx)}
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) Run(run func(ctx context.Context)) *Db_ListQueryLogProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) Return(strings []string, err error) *Db_ListQueryLogProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Db_ListQueryLogProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Db_ListQueryLogProfileIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListStatisticsProfileIDs provides a mock function for the type Db
+func (_mock *Db) ListStatisticsProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListStatisticsProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_ListStatisticsProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListStatisticsProfileIDs'
+type Db_ListStatisticsProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListStatisticsProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Db_Expecter) ListStatisticsProfileIDs(ctx interface{}) *Db_ListStatisticsProfileIDs_Call {
+	return &Db_ListStatisticsProfileIDs_Call{Call: _e.mock.On("ListStatisticsProfileIDs", ctx)}
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) Run(run func(ctx context.Context)) *Db_ListStatisticsProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) Return(strings []string, err error) *Db_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Db_ListStatisticsProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Db_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MarkSubscriptionRetired provides a mock function for the type Db
 func (_mock *Db) MarkSubscriptionRetired(ctx context.Context, subscriptionID uuid.UUID, when time.Time) error {
 	ret := _mock.Called(ctx, subscriptionID, when)
@@ -3071,6 +3758,84 @@ func (_c *Db_Migrate_Call) Return(err error) *Db_Migrate_Call {
 }
 
 func (_c *Db_Migrate_Call) RunAndReturn(run func() error) *Db_Migrate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MoveProfileDailyStatistics provides a mock function for the type Db
+func (_mock *Db) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
+	ret := _mock.Called(ctx, profileId, to, since)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveProfileDailyStatistics")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) (int, error)); ok {
+		return returnFunc(ctx, profileId, to, since)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) int); ok {
+		r0 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsRetention, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_MoveProfileDailyStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveProfileDailyStatistics'
+type Db_MoveProfileDailyStatistics_Call struct {
+	*mock.Call
+}
+
+// MoveProfileDailyStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - to model.StatisticsRetention
+//   - since time.Time
+func (_e *Db_Expecter) MoveProfileDailyStatistics(ctx interface{}, profileId interface{}, to interface{}, since interface{}) *Db_MoveProfileDailyStatistics_Call {
+	return &Db_MoveProfileDailyStatistics_Call{Call: _e.mock.On("MoveProfileDailyStatistics", ctx, profileId, to, since)}
+}
+
+func (_c *Db_MoveProfileDailyStatistics_Call) Run(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time)) *Db_MoveProfileDailyStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.StatisticsRetention
+		if args[2] != nil {
+			arg2 = args[2].(model.StatisticsRetention)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_MoveProfileDailyStatistics_Call) Return(n int, err error) *Db_MoveProfileDailyStatistics_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Db_MoveProfileDailyStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error)) *Db_MoveProfileDailyStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3609,37 +4374,46 @@ func (_c *Db_SetNotified_Call) RunAndReturn(run func(ctx context.Context, subscr
 	return _c
 }
 
-// Update provides a mock function for the type Db
-func (_mock *Db) Update(ctx context.Context, profileId string, profile *model.Profile) error {
-	ret := _mock.Called(ctx, profileId, profile)
+// SetStatisticsHistoryDeletedAt provides a mock function for the type Db
+func (_mock *Db) SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error) {
+	ret := _mock.Called(ctx, profileId, at)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Update")
+		panic("no return value specified for SetStatisticsHistoryDeletedAt")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.Profile) error); ok {
-		r0 = returnFunc(ctx, profileId, profile)
-	} else {
-		r0 = ret.Error(0)
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (bool, error)); ok {
+		return returnFunc(ctx, profileId, at)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) bool); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// Db_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type Db_Update_Call struct {
+// Db_SetStatisticsHistoryDeletedAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetStatisticsHistoryDeletedAt'
+type Db_SetStatisticsHistoryDeletedAt_Call struct {
 	*mock.Call
 }
 
-// Update is a helper method to define mock.On call
+// SetStatisticsHistoryDeletedAt is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - profile *model.Profile
-func (_e *Db_Expecter) Update(ctx interface{}, profileId interface{}, profile interface{}) *Db_Update_Call {
-	return &Db_Update_Call{Call: _e.mock.On("Update", ctx, profileId, profile)}
+//   - at time.Time
+func (_e *Db_Expecter) SetStatisticsHistoryDeletedAt(ctx interface{}, profileId interface{}, at interface{}) *Db_SetStatisticsHistoryDeletedAt_Call {
+	return &Db_SetStatisticsHistoryDeletedAt_Call{Call: _e.mock.On("SetStatisticsHistoryDeletedAt", ctx, profileId, at)}
 }
 
-func (_c *Db_Update_Call) Run(run func(ctx context.Context, profileId string, profile *model.Profile)) *Db_Update_Call {
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *Db_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3649,9 +4423,9 @@ func (_c *Db_Update_Call) Run(run func(ctx context.Context, profileId string, pr
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 *model.Profile
+		var arg2 time.Time
 		if args[2] != nil {
-			arg2 = args[2].(*model.Profile)
+			arg2 = args[2].(time.Time)
 		}
 		run(
 			arg0,
@@ -3662,12 +4436,12 @@ func (_c *Db_Update_Call) Run(run func(ctx context.Context, profileId string, pr
 	return _c
 }
 
-func (_c *Db_Update_Call) Return(err error) *Db_Update_Call {
-	_c.Call.Return(err)
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) Return(b bool, err error) *Db_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *Db_Update_Call) RunAndReturn(run func(ctx context.Context, profileId string, profile *model.Profile) error) *Db_Update_Call {
+func (_c *Db_SetStatisticsHistoryDeletedAt_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (bool, error)) *Db_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3994,6 +4768,88 @@ func (_c *Db_UpdateDeletionCode_Call) Return(err error) *Db_UpdateDeletionCode_C
 }
 
 func (_c *Db_UpdateDeletionCode_Call) RunAndReturn(run func(ctx context.Context, accountId string, code string, expiresAt time.Time) error) *Db_UpdateDeletionCode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateFields provides a mock function for the type Db
+func (_mock *Db) UpdateFields(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
+	ret := _mock.Called(ctx, profileId, upd)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFields")
+	}
+
+	var r0 *model.Profile
+	var r1 *model.Profile
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)); ok {
+		return returnFunc(ctx, profileId, upd)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r0 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r1 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, repository.ProfileFieldsUpdate) error); ok {
+		r2 = returnFunc(ctx, profileId, upd)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Db_UpdateFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFields'
+type Db_UpdateFields_Call struct {
+	*mock.Call
+}
+
+// UpdateFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - upd repository.ProfileFieldsUpdate
+func (_e *Db_Expecter) UpdateFields(ctx interface{}, profileId interface{}, upd interface{}) *Db_UpdateFields_Call {
+	return &Db_UpdateFields_Call{Call: _e.mock.On("UpdateFields", ctx, profileId, upd)}
+}
+
+func (_c *Db_UpdateFields_Call) Run(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate)) *Db_UpdateFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 repository.ProfileFieldsUpdate
+		if args[2] != nil {
+			arg2 = args[2].(repository.ProfileFieldsUpdate)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_UpdateFields_Call) Return(before *model.Profile, after *model.Profile, err error) *Db_UpdateFields_Call {
+	_c.Call.Return(before, after, err)
+	return _c
+}
+
+func (_c *Db_UpdateFields_Call) RunAndReturn(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)) *Db_UpdateFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -17,17 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, StrictBool
 from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.model_query_log_top_client import ModelQueryLogTopClient
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelStatisticsAggregated(BaseModel):
+class ModelQueryLogTopClients(BaseModel):
     """
-    ModelStatisticsAggregated
+    ModelQueryLogTopClients
     """ # noqa: E501
-    total: Optional[StrictInt] = Field(default=None, description="Note: \"total\" needs to be the same as in the repository mongo query")
-    __properties: ClassVar[List[str]] = ["total"]
+    enabled: Optional[StrictBool] = None
+    items: Optional[List[ModelQueryLogTopClient]] = None
+    __properties: ClassVar[List[str]] = ["enabled", "items"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -47,7 +49,7 @@ class ModelStatisticsAggregated(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelStatisticsAggregated from a JSON string"""
+        """Create an instance of ModelQueryLogTopClients from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -68,11 +70,18 @@ class ModelStatisticsAggregated(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in items (list)
+        _items = []
+        if self.items:
+            for _item_items in self.items:
+                if _item_items:
+                    _items.append(_item_items.to_dict())
+            _dict['items'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelStatisticsAggregated from a dict"""
+        """Create an instance of ModelQueryLogTopClients from a dict"""
         if obj is None:
             return None
 
@@ -80,7 +89,8 @@ class ModelStatisticsAggregated(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "total": obj.get("total")
+            "enabled": obj.get("enabled"),
+            "items": [ModelQueryLogTopClient.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None
         })
         return _obj
 
