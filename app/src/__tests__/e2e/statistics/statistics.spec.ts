@@ -211,6 +211,25 @@ test.describe('@statistics Statistics page', () => {
     await expect(page.getByRole('tab', { name: 'Allowlist' })).toHaveAttribute('data-state', 'active');
   });
 
+  // tableRef: statistics-behaviour #X3, #X9
+  test('X3: Queries over time switches between Line, Bars and Table; bars overlay blocked and keep the axis label', { tag: '@desktop' }, async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 1200 });
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    const panel = page.getByRole('region', { name: 'Queries over time' });
+    await expect(panel.getByRole('button', { name: 'Line' })).toHaveAttribute('aria-pressed', 'true');
+    await expect(panel.getByTestId('bar-bucket')).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Bars' }).click();
+    await expect(panel.getByTestId('bar-bucket').first()).toBeVisible();
+    await expect(panel.getByTestId('bar-in-progress')).toHaveCount(1);
+    const box = (await panel.locator('svg.recharts-surface').first().boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 8);
+    await expect(page.getByTestId('axis-hover-label')).toHaveCount(1);
+    await panel.getByRole('button', { name: 'Table' }).click();
+    await expect(panel.getByRole('table')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   // tableRef: statistics-behaviour #K11, #K2
   test('K11: the picker offers only the views the retention covers and corrects a hidden view in the URL', async ({ page }) => {
     await setup(page, { logs: false, stats: true });

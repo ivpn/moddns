@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { normalizeStats } from '@/pages/statistics/derive';
 import { KpiCards } from '@/pages/statistics/panels/KpiCards';
-import { SeriesPanel, chartSummary, fewBuckets } from '@/pages/statistics/panels/SeriesPanel';
+import { BucketColumn, SeriesPanel, chartSummary, fewBuckets } from '@/pages/statistics/panels/SeriesPanel';
+import { resetRememberedViews } from '@/pages/statistics/primitives';
 import { RANGES } from '@/pages/statistics/ranges';
 import { ReasonsPanel } from '@/pages/statistics/panels/ReasonsPanel';
 import { ProtocolsPanel } from '@/pages/statistics/panels/ProtocolsPanel';
@@ -56,7 +57,31 @@ describe('KpiCards', () => {
     });
 });
 
+beforeEach(() => resetRememberedViews());
+
 describe('SeriesPanel', () => {
+    it('offers Line, Bars and Table with Line as the default, remembered for the session', async () => {
+        // tableRef: statistics-behaviour #X3
+        const user = userEvent.setup();
+        const first = render(<SeriesPanel data={data} range="7d" />);
+        const group = screen.getByRole('group', { name: 'Queries over time view' });
+        expect(within(group).getAllByRole('button').map(b => b.getAttribute('title'))).toEqual(['Line', 'Bars', 'Table']);
+        expect(within(group).getByRole('button', { name: 'Line' })).toHaveAttribute('aria-pressed', 'true');
+        await user.click(within(group).getByRole('button', { name: 'Bars' }));
+        expect(within(group).getByRole('button', { name: 'Bars' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('group', { name: /^Queries over the last 7 days/ })).toBeInTheDocument();
+        first.unmount();
+        render(<SeriesPanel data={data} range="7d" />);
+        expect(screen.getByRole('button', { name: 'Bars' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('keeps Chart and Table on the other panels', () => {
+        // tableRef: statistics-behaviour #X3
+        render(<ReasonsPanel data={data} range="7d" />);
+        const group = screen.getByRole('group', { name: 'Blocked by reason view' });
+        expect(within(group).getAllByRole('button').map(b => b.getAttribute('title'))).toEqual(['Chart', 'Table']);
+    });
+
     it('labels the chart with a computed summary', () => {
         // tableRef: statistics-behaviour #X2
         render(<SeriesPanel data={data} range="7d" />);
@@ -120,6 +145,47 @@ describe('fewBuckets', () => {
         expect(fewBuckets(2)).toEqual({ r: 3 });
         expect(fewBuckets(3)).toBe(false);
         expect(fewBuckets(0)).toBe(false);
+    });
+});
+
+describe('BucketColumn', () => {
+    const row = (over: Record<string, unknown>) => ({ ts: 0, all: null, blocked: null, allTail: null, blockedTail: null, barAll: 100, barBlocked: 25, inProgress: false, ...over });
+    const draw = (payload: ReturnType<typeof row>, width = 30) =>
+        render(
+            <svg>
+                <BucketColumn x={10} y={20} width={width} height={80} payload={payload as never} />
+            </svg>,
+        );
+
+    it('overlays the blocked share inside the same column, proportional to it', () => {
+        // tableRef: statistics-behaviour #X3
+        const { container } = draw(row({}));
+        const rects = container.querySelectorAll('rect');
+        expect(rects).toHaveLength(2);
+        expect(rects[0].getAttribute('x')).toBe(rects[1].getAttribute('x'));
+        expect(rects[0].getAttribute('height')).toBe('80');
+        expect(rects[1].getAttribute('height')).toBe('20');
+        expect(rects[1].getAttribute('y')).toBe('80');
+        expect(rects[1].getAttribute('fill')).toBe('var(--stats-blocked)');
+        expect(rects[0].getAttribute('fill')).toBe('var(--stats-all)');
+        expect(screen.getByTestId('bar-bucket')).toBeInTheDocument();
+    });
+
+    it('draws the in-progress bucket lighter with a dashed outline', () => {
+        // tableRef: statistics-behaviour #X3, #P10
+        draw(row({ inProgress: true }));
+        const g = screen.getByTestId('bar-in-progress');
+        const all = g.querySelector('rect')!;
+        expect(Number(all.getAttribute('fill-opacity'))).toBeLessThan(0.55);
+        expect(all.getAttribute('stroke-dasharray')).toBeTruthy();
+    });
+
+    it('draws nothing for an empty bucket, no red without blocks, and keeps thin columns visible', () => {
+        // tableRef: statistics-behaviour #X3, #P9
+        expect(draw(row({ barAll: 0, barBlocked: 0 })).container.querySelectorAll('rect')).toHaveLength(0);
+        expect(draw(row({ barBlocked: 0 })).container.querySelectorAll('rect')).toHaveLength(1);
+        const thin = draw(row({}), 0.3).container.querySelector('rect')!;
+        expect(Number(thin.getAttribute('width'))).toBeGreaterThanOrEqual(1);
     });
 });
 

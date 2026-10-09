@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Area,
+    Bar,
     CartesianGrid,
     ComposedChart,
     ReferenceLine,
@@ -19,7 +20,7 @@ import { formatAxisCount, formatCount } from "@/lib/formatStats";
 import { buildBuckets, countingSince, shorterViewForStart, type Bucket, type StatsData } from "../derive";
 import { rangeDef, type RangeDef, type RangeKey } from "../ranges";
 import { axisTicks, bucketUnitWord, formatBucketLabel, formatDateTime } from "../time";
-import { PanelShell, StatsTable, mutedText } from "../primitives";
+import { LINE_BARS_TABLE, PanelShell, StatsTable, mutedText } from "../primitives";
 import { cn } from "@/lib/utils";
 import { ENTRANCE_MS, useChartEntrance } from "../useChartEntrance";
 import { AXIS_BAND_HEIGHT, HOVER_LABEL_HEIGHT, HOVER_STRIP_HEIGHT, axisLabelBox } from "../axisHover";
@@ -36,6 +37,9 @@ interface Row {
     /** The in-progress tail, drawn dashed; it also holds the last closed point so the lines join. */
     allTail: number | null;
     blockedTail: number | null;
+    /** Column heights for the Bars view: the bucket's own counts, in progress or not. */
+    barAll: number | null;
+    barBlocked: number | null;
     inProgress: boolean;
 }
 
@@ -49,6 +53,8 @@ function toRows(buckets: Bucket[]): Row[] {
             blocked: b.inProgress ? null : b.blocked,
             allTail: inTail ? b.total : null,
             blockedTail: inTail ? b.blocked : null,
+            barAll: b.total,
+            barBlocked: b.blocked,
             inProgress: b.inProgress,
         };
     });
@@ -66,6 +72,31 @@ export function chartSummary(data: StatsData, buckets: Bucket[], range: RangeKey
     return peak && (peak.total ?? 0) > 0
         ? `${base}; busiest ${bucketUnitWord(data.bucketSeconds) === "daily" ? "day" : "bucket"} ${formatBucketLabel(peak.ts, data.bucketSeconds)} with ${formatCount(peak.total ?? 0)}`
         : base;
+}
+
+/** X3: one bucket as a column: all queries in slate with the blocked share overlaid in red. */
+export function BucketColumn({ x = 0, y = 0, width = 0, height = 0, payload }: { x?: number; y?: number; width?: number; height?: number; payload?: Row }) {
+    const all = payload?.barAll ?? 0;
+    if (!payload || all <= 0) return null;
+    const w = Math.max(width, 1);
+    const h = Math.max(height, 1);
+    const blocked = payload.barBlocked ?? 0;
+    const bh = blocked > 0 ? Math.min(h, Math.max(1, (h * blocked) / all)) : 0;
+    return (
+        <g data-testid={payload.inProgress ? "bar-in-progress" : "bar-bucket"}>
+            <rect
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                fill="var(--stats-all)"
+                fillOpacity={payload.inProgress ? 0.2 : 0.55}
+                stroke={payload.inProgress ? "var(--stats-all)" : undefined}
+                strokeDasharray={payload.inProgress ? "3 2" : undefined}
+            />
+            {bh > 0 && <rect x={x} y={y + h - bh} width={w} height={bh} fill="var(--stats-blocked)" fillOpacity={payload.inProgress ? 0.45 : 1} />}
+        </g>
+    );
 }
 
 function SeriesTooltip({ active, payload, bucketSeconds }: { active?: boolean; payload?: { payload: Row }[]; bucketSeconds: number }) {
@@ -93,7 +124,7 @@ function SeriesTooltip({ active, payload, bucketSeconds }: { active?: boolean; p
  * X9: a cursor and a label pinned on the time axis at the hovered bucket. Follows the value tooltip
  * (pointer over the plot, keyboard, tap) and, below the plot, the pointer's own position.
  */
-function AxisHoverLabel({ pointerX, bucketSeconds }: { pointerX: number | null; bucketSeconds: number }) {
+function AxisHoverLabel({ pointerX, bucketSeconds, columns }: { pointerX: number | null; bucketSeconds: number; columns: number[] | null }) {
     const plot = usePlotArea();
     const scale = useXAxisScale();
     const snap = useXAxisInverseDataSnapScale();
@@ -107,7 +138,12 @@ function AxisHoverLabel({ pointerX, bucketSeconds }: { pointerX: number | null; 
         const v = snap?.(pointerX);
         if (typeof v === "number") ts = v;
     }
-    const cx = ts === undefined ? undefined : scale(ts);
+    const left = ts === undefined ? undefined : scale(ts);
+    // Columns sit in bands that start at scale(ts); points of the line chart sit on it.
+    const second = columns && columns.length > 1 ? scale(columns[1]) : undefined;
+    const first = columns ? scale(columns[0]) : undefined;
+    const band = columns ? (second !== undefined && first !== undefined ? second - first : plot.width) : 0;
+    const cx = left === undefined ? undefined : left + band / 2;
     if (ts === undefined || cx === undefined) return null;
     const text = formatBucketLabel(ts, bucketSeconds);
     const box = axisLabelBox(cx, text, 0, chartWidth ?? plot.x + plot.width);
@@ -177,7 +213,7 @@ export function SeriesPanel({
     const shorter = shorterViewForStart(data, range, offered ?? []);
 
     return (
-        <PanelShell title="Queries over time" className={cn(busy && "opacity-60")}>
+        <PanelShell title="Queries over time" options={LINE_BARS_TABLE} rememberAs="queries-over-time" className={cn(busy && "opacity-60")}>
             {view => (
                 <>
                     {since !== null && (
@@ -223,18 +259,37 @@ export function SeriesPanel({
                     ) : (
                         <>
                             <div aria-hidden className={cn("flex flex-wrap gap-x-4 gap-y-1 text-[13px]", mutedText)}>
-                                <span className="flex items-center gap-1.5">
-                                    <i className="inline-block w-4 border-t-2" style={{ borderColor: "var(--stats-all)" }} />
-                                    All queries
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                    <i className="inline-block w-4 border-t-2" style={{ borderColor: "var(--stats-blocked)" }} />
-                                    Blocked
-                                </span>
-                                <span className="flex items-center gap-1.5">
-                                    <i className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: "var(--stats-axis)" }} />
-                                    In progress
-                                </span>
+                                {view === "bars" ? (
+                                    <>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-3 h-3 rounded-sm" style={{ background: "var(--stats-all)", opacity: 0.55 }} />
+                                            All queries
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-3 h-3 rounded-sm" style={{ background: "var(--stats-blocked)" }} />
+                                            Blocked
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-3 h-3 rounded-sm border border-dashed" style={{ borderColor: "var(--stats-axis)" }} />
+                                            In progress
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-4 border-t-2" style={{ borderColor: "var(--stats-all)" }} />
+                                            All queries
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-4 border-t-2" style={{ borderColor: "var(--stats-blocked)" }} />
+                                            Blocked
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <i className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: "var(--stats-axis)" }} />
+                                            In progress
+                                        </span>
+                                    </>
+                                )}
                             </div>
                             <div
                                 ref={chartBox}
@@ -246,7 +301,7 @@ export function SeriesPanel({
                                 onPointerLeave={e => e.pointerType === "mouse" && setPointerX(null)}
                             >
                                 <ChartContainer config={config} className="aspect-auto h-[224px] md:h-[304px] w-full">
-                                    <ComposedChart accessibilityLayer data={rows} margin={{ top: 8, right: 8, bottom: HOVER_STRIP_HEIGHT, left: 0 }}>
+                                    <ComposedChart accessibilityLayer data={rows} barCategoryGap="10%" margin={{ top: 8, right: 8, bottom: HOVER_STRIP_HEIGHT, left: 0 }}>
                                         <CartesianGrid vertical={false} stroke="var(--stats-grid)" />
                                         <XAxis
                                             dataKey="ts"
@@ -276,11 +331,17 @@ export function SeriesPanel({
                                                 label={{ value: "Statistics on", position: "insideTopLeft", fill: "var(--stats-axis)", fontSize: 11 }}
                                             />
                                         )}
-                                        <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
-                                        <AxisHoverLabel pointerX={pointerX} bucketSeconds={data.bucketSeconds} />
+                                        {view === "bars" ? (
+                                            <Bar dataKey="barAll" shape={<BucketColumn />} maxBarSize={28} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                        ) : (
+                                            <>
+                                            <Area dataKey="all" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                            <Area dataKey="blocked" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" strokeWidth={1.5} dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                            <Area dataKey="allTail" type="monotone" stroke="var(--stats-all)" fill="var(--stats-all-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                            <Area dataKey="blockedTail" type="monotone" stroke="var(--stats-blocked)" fill="var(--stats-blocked-fill)" fillOpacity={0.5} strokeWidth={1.5} strokeDasharray="4 3" dot={dot} isAnimationActive={animate} animationDuration={ENTRANCE_MS} animationEasing="ease-out" />
+                                            </>
+                                        )}
+                                        <AxisHoverLabel pointerX={pointerX} bucketSeconds={data.bucketSeconds} columns={view === "bars" ? rows.map(r => r.ts) : null} />
                                     </ComposedChart>
                                 </ChartContainer>
                             </div>
