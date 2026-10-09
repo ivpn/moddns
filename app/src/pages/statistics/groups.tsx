@@ -20,6 +20,7 @@ import { ClientsPanel, type ClientItem } from "./panels/ClientsPanel";
 import type { ResourceState } from "./useApiResource";
 import QuickRuleSheet, { type QuickRuleAction } from "@/components/custom-rules/QuickRuleSheet";
 import { LIMITED_ACCESS_TOOLTIP, type QuickRuleApi } from "./QuickRuleButton";
+import { customRulesPath } from "@/pages/custom_rules/utils";
 
 export type GateId = "stats" | "logs" | "domains" | "ips";
 
@@ -260,14 +261,14 @@ function useQuickRules(profileId: string, restricted: boolean, laNoteId: string)
                 if (sheet) addedRules.add(`${profileId}|${sheet.domain}`);
                 bump(n => n + 1);
             }}
-            successToast={{
+            successToast={rule => ({
                 description: "Past queries still count here - new queries follow the rule.",
-                action: { label: "View rules", onClick: () => navigate("/custom-rules") },
-            }}
-            duplicateNotice={value => (
+                action: { label: "View rules", onClick: () => navigate(customRulesPath(rule.action)) },
+            })}
+            duplicateNotice={(value, action) => (
                 <>
                     A custom rule for {value} already exists. Edit it in{" "}
-                    <Link to="/custom-rules" className="underline">
+                    <Link to={customRulesPath(action)} className="underline">
                         Custom rules
                     </Link>
                     .
