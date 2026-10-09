@@ -96,6 +96,8 @@ export function PanelShell({
 export interface TableColumn {
     label: string;
     align?: "right";
+    /** The header text is read by screen readers only (an actions column). */
+    srOnly?: boolean;
 }
 
 export function StatsTable({
@@ -124,14 +126,14 @@ export function StatsTable({
                                 scope="col"
                                 className={cn("py-2 pr-3 font-medium", mutedText, c.align === "right" ? "text-right" : "text-left")}
                             >
-                                {c.label}
+                                {c.srOnly ? <span className="sr-only">{c.label}</span> : c.label}
                             </th>
                         ))}
                     </tr>
                 </thead>
                 <tbody>
                     {rows.map((cells, i) => (
-                        <tr key={i} className="border-b border-[var(--tailwind-colors-slate-600)]/40 last:border-0">
+                        <tr key={i} className="group border-b border-[var(--tailwind-colors-slate-600)]/40 last:border-0">
                             {cells.map((cell, j) => (
                                 <td key={j} className={cn("py-2 pr-3", titleText, columns[j]?.align === "right" && "text-right")}>
                                     {cell}
@@ -154,6 +156,8 @@ export interface BarRow {
     /** A red segment inside the bar (devices). */
     blocked?: number;
     meta: React.ReactNode;
+    /** A control at the end of the row, before the text (for example a quick-rule button). */
+    action?: React.ReactNode;
 }
 
 /**
@@ -184,9 +188,16 @@ export function BarList({
         <>
             <ul className="flex flex-col gap-3">
                 {shown.map(r => (
-                    <li key={r.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center">
+                    <li key={r.id} className="group grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center">
                         <span className={cn("min-w-0 truncate text-sm flex items-center gap-2", titleText)}>{r.label}</span>
-                        <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
+                        {r.action ? (
+                            <span className="flex items-center justify-end gap-1">
+                                {r.action}
+                                <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
+                            </span>
+                        ) : (
+                            <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
+                        )}
                         <span
                             aria-hidden
                             data-testid="bar-row"
