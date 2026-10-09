@@ -1,10 +1,14 @@
 import React, { useId, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import api from "@/api/api";
 import type { ModelProfile } from "@/api/client";
 import { DataCollectionControl } from "@/components/data-collection/DataCollectionControl";
+import { useDeleteStatisticsHistory } from "@/components/data-collection/DeleteStatisticsHistory";
+import { DATA_COLLECTION_ANCHOR, STALE_TEXT } from "@/components/data-collection/model";
+import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import {
     Dialog,
     DialogContent,
@@ -20,6 +24,11 @@ interface QueryLogsSectionProps {
 
 const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) => {
     const headingId = useId();
+    // S4: /settings#data-collection lands on the statistics retention.
+    const deepLinked = useLocation().hash === `#${DATA_COLLECTION_ANCHOR}`;
+    const { isRestricted } = useSubscriptionGuard();
+    const statsOn = !!activeProfile.settings?.statistics?.enabled;
+    const history = useDeleteStatisticsHistory(activeProfile);
     const [showClearDialog, setShowClearDialog] = useState(false);
     const [clearLoading, setClearLoading] = useState(false);
 
@@ -37,7 +46,7 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) =>
     };
 
     return (
-        <Card className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
+        <Card id={DATA_COLLECTION_ANCHOR} className="scroll-mt-6 w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
             <CardContent>
                 <div className="flex flex-col items-start gap-6 w-full">
                     <div className="flex items-center gap-2 w-full">
@@ -52,7 +61,11 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) =>
                         Choose what modDNS keeps about this profile's DNS queries. Off by default.
                     </p>
 
-                    <DataCollectionControl profile={activeProfile} labelledBy={headingId} retentionLine />
+                    <DataCollectionControl
+                        profile={activeProfile}
+                        labelledBy={headingId}
+                        initialFocus={deepLinked ? "stats-retention" : undefined}
+                    />
 
                     {/* Download (GET) and Clear (DELETE on logs) are allowed in limited access at API level */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
@@ -108,7 +121,23 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) =>
                         >
                             <span className="text-white">Clear query logs</span>
                         </Button>
+                        {statsOn && (
+                            <Button
+                                variant="outline"
+                                className="h-auto min-h-11 lg:min-h-0 px-2 py-1.5 border-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
+                                disabled={isRestricted || history.busy}
+                                onClick={() => void history.request()}
+                            >
+                                Delete statistics history
+                            </Button>
+                        )}
                     </div>
+                    {history.stale && (
+                        <p aria-live="polite" className="text-sm leading-5 text-[var(--tailwind-colors-slate-200)]">
+                            {STALE_TEXT}
+                        </p>
+                    )}
+                    {history.dialog}
                 </div>
             </CardContent>
 

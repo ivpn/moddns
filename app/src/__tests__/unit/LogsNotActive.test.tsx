@@ -44,22 +44,26 @@ describe('LogsNotActive', () => {
         renderIt(profile(false));
         expect(screen.getByRole('heading', { name: 'Query logs are off' })).toBeInTheDocument();
         expect(screen.getByText('Nothing is stored for this profile. Turn on query logs to see each query here.')).toBeInTheDocument();
-        expect(screen.getByRole('radio', { name: 'Query logs' })).toBeChecked();
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
-        expect(screen.getByRole('button', { name: 'Turn on query logs' })).toBeEnabled();
+        expect(screen.getByRole('checkbox', { name: 'Query logs' })).toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'Statistics' })).toBeChecked();
+        expect(screen.getByText('Checked with query logs. Uncheck Statistics to keep query logs only.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Turn on statistics and query logs' })).toBeEnabled();
     });
 
-    it('says statistics are on when they are', () => {
+    it('says statistics are on when they are and stages only Query logs', () => {
         // tableRef: statistics-behaviour #D3, #U2
         renderIt(profile(true));
         expect(screen.getByText('Statistics are on for this profile. Turn on query logs to see each query.')).toBeInTheDocument();
+        expect(screen.queryByText(/Checked with query logs/)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Turn on query logs' })).toBeEnabled();
     });
 
     it('offers all sub-options', () => {
         // tableRef: statistics-behaviour #D3
         renderIt(profile(false));
         expect(screen.getByRole('radiogroup', { name: 'Log domains' })).toBeInTheDocument();
-        expect(screen.getByRole('radiogroup', { name: 'Retention period' })).toBeInTheDocument();
+        expect(screen.getByRole('radiogroup', { name: 'Query logs Retention period' })).toBeInTheDocument();
+        expect(screen.getByRole('radiogroup', { name: 'Statistics Retention period' })).toBeInTheDocument();
     });
 
     it('reaches Settings with the keyboard', async () => {
