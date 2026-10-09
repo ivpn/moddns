@@ -95,6 +95,11 @@ beforeEach(() => {
 });
 
 const headings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
+const rangeTrigger = (label?: string) => screen.findByRole('button', { name: label ? `Time range: ${label}` : /^Time range: / });
+async function pickRange(user: ReturnType<typeof userEvent.setup>, label: string) {
+    await user.click(await rangeTrigger());
+    await user.click(await screen.findByRole('menuitemradio', { name: label }));
+}
 
 describe('Statistics page configurations', () => {
     it('describes the page without assuming any settings', async () => {
@@ -108,14 +113,13 @@ describe('Statistics page configurations', () => {
         mount(mk('OFF'));
         expect(await screen.findByRole('heading', { name: 'Statistics are off' })).toBeInTheDocument();
         expect(screen.getByText('Nothing is stored for this profile.')).toBeInTheDocument();
-        expect(screen.queryByRole('radiogroup', { name: 'Time range' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Time range/ })).not.toBeInTheDocument();
         expect(screen.queryByText('Counts')).not.toBeInTheDocument();
-        expect(screen.getByRole('radio', { name: 'Statistics' })).toBeChecked();
+        expect(screen.getByRole('checkbox', { name: 'Statistics' })).toBeChecked();
+        expect(screen.queryByRole('checkbox', { name: 'Query logs' })).not.toBeInTheDocument();
+        expect(screen.getByRole('radiogroup', { name: 'Statistics Retention period' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on statistics' })).toBeEnabled();
         expect(statsGet).not.toHaveBeenCalled();
-        await userEvent.setup().click(screen.getByRole('radio', { name: 'Query logs' }));
-        expect(screen.getByRole('checkbox', { name: 'Also keep statistics' })).toBeChecked();
-        expect(screen.queryByRole('radiogroup', { name: 'Log domains' })).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'More options in Settings' })).toBeInTheDocument();
     });
 
@@ -170,7 +174,7 @@ describe('Statistics page configurations', () => {
         mount(mk('L'));
         expect(await screen.findByRole('heading', { name: 'Counts are off' })).toBeInTheDocument();
         expect(screen.getByText('Query logs are on without statistics, so nothing is counted.')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Also keep statistics' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Turn on statistics' })).toBeEnabled();
         expect(await screen.findByRole('heading', { name: 'Top blocked domains' })).toBeInTheDocument();
         expect(screen.queryByTestId('stats-availability')).not.toBeInTheDocument();
         expect(statsGet).not.toHaveBeenCalled();
@@ -313,7 +317,7 @@ describe('Statistics page data states', () => {
         expect(await screen.findByRole('heading', { name: 'No queries in the last 24 hours.' })).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Show last 7 days' }));
         expect(screen.getByTestId('loc')).toHaveTextContent('/statistics');
-        expect(screen.getByRole('radio', { name: 'Last 7 days' })).toBeChecked();
+        expect(await rangeTrigger('Last 7 days')).toBeInTheDocument();
     });
 
     it('zero blocked: cards show zeros and the reasons panel says so', async () => {
@@ -369,7 +373,7 @@ describe('Statistics page data states', () => {
         await screen.findByLabelText(/^Total queries:/);
         let resolve!: (v: unknown) => void;
         statsGet.mockReturnValue(new Promise(r => (resolve = r)));
-        await user.click(screen.getByRole('radio', { name: 'Last 24 hours' }));
+        await pickRange(user, 'Last 24 hours');
         const group = await screen.findByTestId('stats-counts-data');
         expect(group).toHaveAttribute('aria-busy', 'true');
         expect(group).toHaveClass('opacity-60');
@@ -414,44 +418,72 @@ describe('Statistics page picker and fetching', () => {
         await screen.findByLabelText(/^Total queries:/);
         expect(screen.getByTestId('loc')).toHaveTextContent('/statistics');
         expect(screen.getByTestId('loc')).not.toHaveTextContent('range');
-        await user.click(screen.getByRole('radio', { name: 'Last 30 days' }));
+        await pickRange(user, 'Last 30 days');
         expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d');
-        await user.click(screen.getByRole('radio', { name: 'Last 7 days' }));
+        await pickRange(user, 'Last 7 days');
         expect(screen.getByTestId('loc')).not.toHaveTextContent('range');
     });
 
     it('reads an invalid range as 7d', async () => {
         // tableRef: statistics-behaviour #K2
         mount(mk('S'), '/statistics?range=bogus');
-        expect(await screen.findByRole('radio', { name: 'Last 7 days' })).toBeChecked();
+        expect(await rangeTrigger('Last 7 days')).toBeInTheDocument();
         expect(statsGet).toHaveBeenCalledWith('p1', 'LAST_7_DAYS');
     });
 
-    const pills = async () => {
-        const group = await screen.findByRole('radiogroup', { name: 'Time range' });
-        return within(group).getAllByRole('radio').map(r => r.getAttribute('aria-label'));
+    /** Open the range menu and list its views as "label" or "label (disabled: reason)". */
+    const views = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(await rangeTrigger());
+        const menu = await screen.findByRole('menu', { name: /^Time range/ });
+        const list = within(menu)
+            .getAllByRole('menuitemradio')
+            .map(i => {
+                const [label, reason] = Array.from(i.querySelectorAll(':scope > span:not([aria-hidden]), :scope > span')).map(e => e.textContent ?? '').filter(Boolean);
+                return i.hasAttribute('data-disabled') ? `${label || i.textContent} (disabled: ${reason ?? ''})` : (i.textContent ?? '');
+            });
+        const settings = within(menu).queryByRole('menuitem', { name: 'Change retention…' });
+        await user.keyboard('{Escape}');
+        return { list, settings };
     };
 
-    it('offers only the views the retention covers, hidden and not disabled', async () => {
+    it('lists every view, with the ones the retention does not cover disabled with the reason', async () => {
         // tableRef: statistics-behaviour #K11, #K1
+        const user = userEvent.setup();
         const base = ['Last 3 hours', 'Last 6 hours', 'Last 24 hours', 'Last 7 days', 'Last 30 days'];
-        const { unmount } = mount(mk('S'));
-        expect(await pills()).toEqual(base);
-        unmount();
+        const m3 = 'Last 3 months (disabled: Needs statistics kept for 90 days)';
+        const y1 = 'Last 12 months (disabled: Needs statistics kept for 1 year)';
+        mount(mk('S'));
+        let v = await views(user);
+        expect(v.list).toEqual([...base, m3, y1]);
+        expect(v.settings).toHaveAttribute('aria-haspopup', 'dialog');
+        cleanup();
         mount(mk('S', 'p1', '1d', '90d'));
-        expect(await pills()).toEqual([...base, 'Last 3 months']);
+        v = await views(user);
+        expect(v.list).toEqual([...base, 'Last 3 months', y1]);
         cleanup();
         mount(mk('S', 'p1', '1d', '1y'));
-        expect(await pills()).toEqual([...base, 'Last 3 months', 'Last 12 months']);
+        v = await views(user);
+        expect(v.list).toEqual([...base, 'Last 3 months', 'Last 12 months']);
+        expect(v.settings).toBeNull();
         cleanup();
         mount(mk('S', 'p1', '1d', ''));
-        expect(await pills()).toEqual(base);
+        v = await views(user);
+        expect(v.list).toEqual([...base, m3, y1]);
     });
 
-    it('reads a view the retention hides as the longest offered one and corrects the URL', async () => {
+    it('a disabled view cannot be selected', async () => {
+        // tableRef: statistics-behaviour #K11
+        const user = userEvent.setup();
+        mount(mk('S'));
+        await user.click(await rangeTrigger('Last 7 days'));
+        const item = await screen.findByRole('menuitemradio', { name: /Last 12 months/ });
+        expect(item).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('reads a view the retention does not cover as the longest offered one and corrects the URL', async () => {
         // tableRef: statistics-behaviour #K2, #K11
         mount(mk('S'), '/statistics?range=12m');
-        expect(await screen.findByRole('radio', { name: 'Last 30 days' })).toBeChecked();
+        expect(await rangeTrigger('Last 30 days')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d'));
         expect(statsGet).toHaveBeenLastCalledWith('p1', 'LAST_MONTH');
         expect(statsGet).not.toHaveBeenCalledWith('p1', 'LAST_YEAR');
@@ -459,21 +491,21 @@ describe('Statistics page picker and fetching', () => {
 
     it('lowering the retention on a removed view switches to the longest offered one; raising adds the views', async () => {
         // tableRef: statistics-behaviour #K11, #P11
+        const user = userEvent.setup();
         mount(mk('S', 'p1', '1d', '1y'), '/statistics?range=12m');
-        expect(await screen.findByRole('radio', { name: 'Last 12 months' })).toBeChecked();
+        expect(await rangeTrigger('Last 12 months')).toBeInTheDocument();
         act(() => {
             const low = mk('S', 'p1', '1d', '30d');
             useAppStore.setState({ activeProfile: low, profiles: [low] });
         });
-        expect(await screen.findByRole('radio', { name: 'Last 30 days' })).toBeChecked();
-        expect(screen.queryByRole('radio', { name: 'Last 12 months' })).not.toBeInTheDocument();
+        expect(await rangeTrigger('Last 30 days')).toBeInTheDocument();
         await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d'));
         act(() => {
             const high = mk('S', 'p1', '1d', '1y');
             useAppStore.setState({ activeProfile: high, profiles: [high] });
         });
-        expect(await screen.findByRole('radio', { name: 'Last 12 months' })).toBeInTheDocument();
-        expect(screen.getByRole('radio', { name: 'Last 3 months' })).toBeInTheDocument();
+        await pickRange(user, 'Last 12 months');
+        expect(await rangeTrigger('Last 12 months')).toBeInTheDocument();
     });
 
     it('has no clamp caption: the range caption is always the plain one', async () => {
@@ -488,7 +520,7 @@ describe('Statistics page picker and fetching', () => {
         const user = userEvent.setup();
         mount(mk('SL'));
         await screen.findByRole('heading', { name: 'Top clients' });
-        await user.click(screen.getByRole('radio', { name: 'Last 3 hours' }));
+        await pickRange(user, 'Last 3 hours');
         await waitFor(() => expect(statsGet).toHaveBeenLastCalledWith('p1', 'LAST_3_HOURS'));
         await waitFor(() => expect(topGet).toHaveBeenCalledWith('p1', 'blocked', 'LAST_3_HOURS', 10));
         expect(clientsGet).toHaveBeenLastCalledWith('p1', 'LAST_3_HOURS', 10);
@@ -502,7 +534,7 @@ describe('Statistics page picker and fetching', () => {
         let slow!: (v: unknown) => void;
         statsGet.mockImplementationOnce(() => new Promise(r => (slow = r)));
         mount(mk('S'));
-        await user.click(await screen.findByRole('radio', { name: 'Last 24 hours' }));
+        await pickRange(user, 'Last 24 hours');
         await screen.findByLabelText(/^Total queries:/);
         await act(async () => slow({ data: createStatsResponse({ points: 5 }) }));
         const total = createStatsResponse({ points: 48 }).totals.total;
@@ -524,17 +556,32 @@ describe('Statistics page gate actions and limited access', () => {
         mount(mk('S'));
         await user.click(await screen.findByRole('button', { name: 'Turn on query logs' }));
         const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
-        await waitFor(() => expect(within(dialog).getByRole('radio', { name: 'Query logs' })).toHaveFocus());
+        await waitFor(() => expect(within(dialog).getByRole('checkbox', { name: 'Query logs' })).toHaveFocus());
+        expect(within(dialog).getByRole('checkbox', { name: 'Query logs' })).toBeChecked();
         expect(api.Client.profilesApi.apiV1ProfilesIdPatch).not.toHaveBeenCalled();
     });
 
-    it('G-STATS focuses "Also keep statistics"', async () => {
+    it('closing a gate dialog returns focus to the gate button', async () => {
         // tableRef: statistics-behaviour #D4
         const user = userEvent.setup();
+        mount(mk('S'));
+        const gate = await screen.findByRole('button', { name: 'Turn on query logs' });
+        await user.click(gate);
+        await screen.findByRole('dialog', { name: 'Data collection' });
+        await user.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        await waitFor(() => expect(gate).toHaveFocus());
+    });
+
+    it('G-STATS checks Statistics and focuses it', async () => {
+        // tableRef: statistics-behaviour #D4, #P4
+        const user = userEvent.setup();
         mount(mk('L'));
-        await user.click(await screen.findByRole('button', { name: 'Also keep statistics' }));
+        await user.click(await screen.findByRole('button', { name: 'Turn on statistics' }));
         const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
-        await waitFor(() => expect(within(dialog).getByRole('checkbox', { name: 'Also keep statistics' })).toHaveFocus());
+        await waitFor(() => expect(within(dialog).getByRole('checkbox', { name: 'Statistics' })).toHaveFocus());
+        expect(within(dialog).getByRole('checkbox', { name: 'Statistics' })).toBeChecked();
+        expect(within(dialog).getByRole('button', { name: 'Turn on statistics' })).toBeEnabled();
     });
 
     it('G-DOM and G-IP focus the matching sub-option', async () => {
@@ -562,7 +609,7 @@ describe('Statistics page gate actions and limited access', () => {
         mount(mk('OFF'));
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
         await screen.findByRole('heading', { name: 'Statistics are off' });
-        expect(screen.getByRole('radio', { name: 'Statistics' })).toBeDisabled();
+        expect(screen.getByRole('checkbox', { name: 'Statistics' })).toBeDisabled();
         expect(screen.getByText(/can't be changed in limited access mode/)).toBeVisible();
     });
 });
@@ -581,31 +628,60 @@ describe('Statistics page accessibility structure', () => {
 });
 
 describe('Statistics page retention', () => {
-    it('shows the Kept for control and menu whenever statistics are on', async () => {
-        // tableRef: statistics-behaviour #S1
-        mount(mk('S'));
-        expect(await screen.findByLabelText('Kept for')).toHaveValue('30d');
-        expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeInTheDocument();
-    });
-
-    it('hides it when statistics are off', async () => {
-        // tableRef: statistics-behaviour #S1
-        mount(mk('L'));
-        await screen.findByRole('heading', { name: 'Counts are off' });
-        expect(screen.queryByLabelText('Kept for')).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'More statistics actions' })).not.toBeInTheDocument();
-    });
-
-    it('refetches statistics after the retention changes', async () => {
-        // tableRef: statistics-behaviour #S1
+    it('has no retention control of its own; "Change" opens the shared control on the retention', async () => {
+        // tableRef: statistics-behaviour #S2, #P13, #D4
         const user = userEvent.setup();
-        const updated = mk('S');
-        (updated.settings.statistics as unknown as { retention: string }).retention = '1y';
+        mount(mk('S'));
+        const line = await screen.findByTestId('stats-availability');
+        expect(line).toHaveTextContent(/kept for 30 days · Change$/);
+        expect(screen.queryByLabelText('Kept for')).not.toBeInTheDocument();
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeInTheDocument();
+        const change = within(line).getByRole('button', { name: 'Change how long statistics are kept' });
+        expect(change).toHaveAttribute('aria-haspopup', 'dialog');
+        await user.click(change);
+        const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
+        const pills = within(dialog).getByRole('radiogroup', { name: 'Statistics Retention period' });
+        await waitFor(() => expect(within(pills).getByLabelText('30 days')).toHaveFocus());
+        expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
+        expect(api.Client.profilesApi.apiV1ProfilesIdPatch).not.toHaveBeenCalled();
+    });
+
+    it('"Change retention…" in the range menu opens the same dialog; a raise there enables the longer views', async () => {
+        // tableRef: statistics-behaviour #K11, #S2, #T14, #U7
+        const user = userEvent.setup();
+        const updated = mk('S', 'p1', '1d', '1y');
         (api.Client.profilesApi.apiV1ProfilesIdPatch as unknown as Mock).mockResolvedValue({ status: 200, data: updated });
         profileGet.mockResolvedValue({ data: mk('S') });
         mount(mk('S'));
-        await user.selectOptions(await screen.findByLabelText('Kept for'), '1y');
-        await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Keep for 1 year' }));
+        await user.click(await rangeTrigger('Last 7 days'));
+        await user.click(await screen.findByRole('menuitem', { name: 'Change retention…' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
+        const pills = within(dialog).getByRole('radiogroup', { name: 'Statistics Retention period' });
+        await waitFor(() => expect(within(pills).getByLabelText('30 days')).toHaveFocus());
+        await user.click(within(pills).getByLabelText('1 year'));
+        await user.click(within(dialog).getByRole('button', { name: 'Keep for 1 year' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        await pickRange(user, 'Last 12 months');
+        expect(await rangeTrigger('Last 12 months')).toBeInTheDocument();
+    });
+
+    it('hides the menu when statistics are off', async () => {
+        // tableRef: statistics-behaviour #S3
+        mount(mk('L'));
+        await screen.findByRole('heading', { name: 'Counts are off' });
+        expect(screen.queryByRole('button', { name: 'More statistics actions' })).not.toBeInTheDocument();
+        expect(await rangeTrigger()).toBeInTheDocument();
+    });
+
+    it('refetches statistics after the retention changes elsewhere', async () => {
+        // tableRef: statistics-behaviour #K11
+        mount(mk('S'));
+        await screen.findByLabelText(/^Total queries:/);
+        act(() => {
+            const updated = mk('S', 'p1', '1d', '1y');
+            useAppStore.setState({ activeProfile: updated, profiles: [updated] });
+        });
         await waitFor(() => expect(statsGet).toHaveBeenCalledTimes(2));
     });
 

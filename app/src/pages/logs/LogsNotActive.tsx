@@ -42,7 +42,7 @@ export const Frame = ({ profile }: { profile: ModelProfile }): JSX.Element => {
                     <DataCollectionControl
                         profile={profile}
                         labelledBy={headingId}
-                        initialPending={{ level: "logs", keep: true }}
+                        initialPending={{ logs: true, stats: true }}
                         onSaved={focusPageHeading}
                     />
                 </div>
