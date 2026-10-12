@@ -19,11 +19,13 @@ export function StatsCard({ className, ...props }: React.ComponentProps<"div">) 
     );
 }
 
-export function GroupHeading({ children, caption }: { children: React.ReactNode; caption?: React.ReactNode }) {
+/** P18: `scope` names the window the group covers and is part of the heading's accessible name. */
+export function GroupHeading({ children, scope, caption }: { children: React.ReactNode; scope?: string; caption?: React.ReactNode }) {
     return (
         <div className="flex flex-col gap-1">
             <h2 className="font-['Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base uppercase tracking-wide leading-4">
                 {children}
+                {scope && <span className={cn("font-sans font-normal normal-case tracking-normal text-sm", mutedText)}>{` · ${scope}`}</span>}
             </h2>
             {caption && <p className={cn("text-[13px] leading-[18px]", mutedText)}>{caption}</p>}
         </div>

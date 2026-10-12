@@ -12,7 +12,7 @@ const items = [
 describe('DomainsPanel', () => {
     it.each(['blocked', 'resolved'] as const)('opens the %s list in table view with Chart one toggle away', async kind => {
         // tableRef: statistics-behaviour #X7
-        render(<DomainsPanel kind={kind} items={items} range="7d" windowWords="1 week" />);
+        render(<DomainsPanel kind={kind} items={items} scopeIn="in the last 24 hours" />);
         expect(screen.getByRole('table')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
         await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
@@ -26,7 +26,7 @@ describe('DomainsPanel trailing dot', () => {
 
     it('shows names without the root dot in the table and the chart', async () => {
         // tableRef: statistics-behaviour #X7
-        render(<DomainsPanel kind="blocked" items={dotted} range="7d" windowWords="1 week" />);
+        render(<DomainsPanel kind="blocked" items={dotted} scopeIn="in the last 24 hours" />);
         expect(screen.getByRole('cell', { name: 'example.com' })).toBeInTheDocument();
         expect(screen.queryByText('example.com.')).not.toBeInTheDocument();
         await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
