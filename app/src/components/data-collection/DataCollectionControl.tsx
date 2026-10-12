@@ -31,6 +31,7 @@ import {
     STATS_RETENTION_OPTIONS,
     buildUpdates,
     fromProfile,
+    statsHeld,
     statsRetentionWords,
     transitionFor,
     type DataCollectionState,
@@ -231,7 +232,7 @@ function Inner({
 
     const logsWords = LOGS_RETENTION_WORDS[pending.retention];
     const statsWords = statsRetentionWords(pending.statsRetention);
-    const transition = transitionFor(saved, pending);
+    const transition = transitionFor(saved, pending, statsHeld(profile, Date.now()));
     const disabled = isRestricted || saving;
     const idle = !transition || isRestricted;
     const showLogs = sources === "all";
@@ -359,8 +360,10 @@ function Inner({
             return;
         }
         setSaving(false);
-        if (transition.dialog) setConfirm(transition);
-        else void commit(transition);
+        // C25 from the profile just read: whether a lowering deletes anything decides the dialog.
+        const t = transitionFor(saved, pending, statsHeld(fresh ?? profile, Date.now())) ?? transition;
+        if (t.dialog) setConfirm(t);
+        else void commit(t);
     };
 
     const cancelConfirm = () => {
@@ -373,7 +376,7 @@ function Inner({
 
     const domainHint = saved.logs && saved.domains && !pending.domains;
     const ipHint = saved.logs && saved.ips && !pending.ips;
-    const lowerHint = transition?.retention === "lower";
+    const lowerHint = transition?.retention === "lower" && !transition.nothingOlder;
 
     const onOff: PillOption<string>[] = [
         { value: "false", label: "Disable", icon: "octagon-x" },
@@ -431,7 +434,7 @@ function Inner({
                                             Retention period
                                         </div>
                                         <div className={subDesc}>How long counts are kept. Charts can go back this far.</div>
-                                        {lowerHint && <Hint>{`Counts older than ${statsWords} will be deleted when you save.`}</Hint>}
+                                        {lowerHint && <Hint>{`Counts older than ${statsWords} will be deleted when you save.${transition?.lost ? ` ${transition.lost}` : ""}`}</Hint>}
                                     </div>
                                     <PillGroup
                                         checkedId={ids.statsRet}
@@ -572,7 +575,7 @@ function Inner({
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <p aria-live="polite" className={cn(muted, "flex gap-1.5 min-h-5")}>
+                <p aria-live="polite" className={cn(muted, "flex gap-1.5 min-h-5 max-sm:empty:min-h-0 max-sm:empty:-mb-3")}>
                     {!isRestricted && transition?.note ? (
                         <>
                             <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />

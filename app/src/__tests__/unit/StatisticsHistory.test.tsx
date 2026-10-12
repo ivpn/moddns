@@ -50,6 +50,17 @@ beforeEach(() => {
 });
 
 describe('Delete statistics history', () => {
+    it('says how much the history delete removes', async () => {
+        // tableRef: statistics-behaviour #S3, #C25
+        const user = userEvent.setup();
+        const p = mk();
+        (p.settings!.statistics as Record<string, unknown>).enabled_at = new Date(Date.now() - 3 * 86_400_000 - 60_000).toISOString();
+        mount(p);
+        await openDelete(user);
+        const dialog = await screen.findByRole('dialog', { name: 'Delete statistics history?' });
+        expect(within(dialog).getByText(/^All statistics for this profile will be permanently deleted\. The counts go back to .+ \(3 days\)\. Statistics stay on and counting starts again now\. This action cannot be undone\.$/)).toBeInTheDocument();
+    });
+
     it('deletes the history from the menu after a destructive confirmation', async () => {
         // tableRef: statistics-behaviour #S3
         const user = userEvent.setup();
