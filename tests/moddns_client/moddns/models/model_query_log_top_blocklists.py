@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_query_log_top_blocklist import ModelQueryLogTopBlocklist
 from typing import Optional, Set
@@ -27,9 +27,10 @@ class ModelQueryLogTopBlocklists(BaseModel):
     """
     ModelQueryLogTopBlocklists
     """ # noqa: E501
+    covered_from: Optional[StrictStr] = Field(default=None, description="CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).")
     enabled: Optional[StrictBool] = None
     items: Optional[List[ModelQueryLogTopBlocklist]] = None
-    __properties: ClassVar[List[str]] = ["enabled", "items"]
+    __properties: ClassVar[List[str]] = ["covered_from", "enabled", "items"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -89,6 +90,7 @@ class ModelQueryLogTopBlocklists(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "covered_from": obj.get("covered_from"),
             "enabled": obj.get("enabled"),
             "items": [ModelQueryLogTopBlocklist.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None
         })
