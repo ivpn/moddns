@@ -444,13 +444,8 @@ func appendedCustomRules(after *model.Profile, candidates []*model.CustomRule) [
 func (p *ProfileService) applyPatchOperations(ctx context.Context, profile *model.Profile, accountId string, updates []model.ProfileUpdate) ([]string, error) {
 	var touched []string
 	for _, update := range updates {
-		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
-		internalValue, err := cast.ToStringMapE(update.Value)
-		if err != nil {
-			log.Ctx(ctx).Trace().Msg("Failed to cast value to string map")
-		} else {
-			update.Value = internalValue["value"]
-		}
+		update.Value = update.Unwrapped()
+		var err error
 
 		if strings.Contains(update.Path, "/settings/logs/") {
 			err = p.handleQueryLogsSettingsUpdate(profile, update.Path, update)
