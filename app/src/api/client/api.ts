@@ -1337,6 +1337,12 @@ export interface ModelQueryLogTopBlocklist {
  */
 export interface ModelQueryLogTopBlocklists {
     /**
+     * CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+     * @type {string}
+     * @memberof ModelQueryLogTopBlocklists
+     */
+    'covered_from'?: string;
+    /**
      * 
      * @type {boolean}
      * @memberof ModelQueryLogTopBlocklists
@@ -1393,6 +1399,12 @@ export interface ModelQueryLogTopClient {
  */
 export interface ModelQueryLogTopClients {
     /**
+     * CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+     * @type {string}
+     * @memberof ModelQueryLogTopClients
+     */
+    'covered_from'?: string;
+    /**
      * 
      * @type {boolean}
      * @memberof ModelQueryLogTopClients
@@ -1430,6 +1442,12 @@ export interface ModelQueryLogTopDomain {
  * @interface ModelQueryLogTopDomains
  */
 export interface ModelQueryLogTopDomains {
+    /**
+     * CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+     * @type {string}
+     * @memberof ModelQueryLogTopDomains
+     */
+    'covered_from'?: string;
     /**
      * 
      * @type {boolean}
@@ -6834,7 +6852,7 @@ export class ProfileApi extends BaseAPI {
 export const QueryLogsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -6878,7 +6896,7 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top clients
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
@@ -7093,7 +7111,7 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
             };
         },
         /**
-         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top domains
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
@@ -7154,7 +7172,7 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = QueryLogsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7169,7 +7187,7 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top clients
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
@@ -7243,7 +7261,7 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top domains
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
@@ -7269,7 +7287,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
     const localVarFp = QueryLogsApiFp(configuration)
     return {
         /**
-         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+         * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top blocklists
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7281,7 +7299,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
             return localVarFp.apiV1ProfilesIdLogsBlocklistsGet(id, timespan, limit, options).then((request) => request(axios, basePath));
         },
         /**
-         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+         * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top clients
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
@@ -7340,7 +7358,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
             return localVarFp.apiV1ProfilesIdLogsGet(id, page, limit, status, timespan, deviceId, search, sortBy, options).then((request) => request(axios, basePath));
         },
         /**
-         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+         * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
          * @summary Get profile top domains
          * @param {string} id Profile ID
          * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank
@@ -7363,7 +7381,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
  */
 export class QueryLogsApi extends BaseAPI {
     /**
-     * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+     * Blocklists that blocked the most queries in the profile\'s query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
      * @summary Get profile top blocklists
      * @param {string} id Profile ID
      * @param {ApiV1ProfilesIdLogsBlocklistsGetTimespanEnum} [timespan] specify timespan for query
@@ -7377,7 +7395,7 @@ export class QueryLogsApi extends BaseAPI {
     }
 
     /**
-     * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+     * Most frequent client IPs in the profile\'s query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
      * @summary Get profile top clients
      * @param {string} id Profile ID
      * @param {ApiV1ProfilesIdLogsClientsGetTimespanEnum} [timespan] specify timespan for query
@@ -7446,7 +7464,7 @@ export class QueryLogsApi extends BaseAPI {
     }
 
     /**
-     * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+     * Most frequent blocked or resolved domains in the profile\'s query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
      * @summary Get profile top domains
      * @param {string} id Profile ID
      * @param {ApiV1ProfilesIdLogsTopGetKindEnum} kind which domains to rank

@@ -1904,7 +1904,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.",
+                "description": "Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
                 "produces": [
                     "application/json"
                 ],
@@ -1987,7 +1987,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.",
+                "description": "Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
                 "produces": [
                     "application/json"
                 ],
@@ -2174,7 +2174,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.",
+                "description": "Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
                 "produces": [
                     "application/json"
                 ],
@@ -4217,6 +4217,10 @@ const docTemplate = `{
         "model.QueryLogTopBlocklists": {
             "type": "object",
             "properties": {
+                "covered_from": {
+                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -4251,6 +4255,10 @@ const docTemplate = `{
         "model.QueryLogTopClients": {
             "type": "object",
             "properties": {
+                "covered_from": {
+                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -4276,6 +4284,10 @@ const docTemplate = `{
         "model.QueryLogTopDomains": {
             "type": "object",
             "properties": {
+                "covered_from": {
+                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
