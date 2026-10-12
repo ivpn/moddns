@@ -4,6 +4,7 @@ import { describe, test, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import QueryLogsSection from '@/pages/settings/QueryLogsSection';
 import type { ModelProfile } from '@/api/client';
+import { useAppStore } from '@/store/general';
 
 vi.mock('@/api/api', () => ({
     default: {
@@ -27,6 +28,18 @@ const profile = {
 } as unknown as ModelProfile;
 
 describe('QueryLogsSection', () => {
+    test('keeps Clear query logs and Delete statistics history available under limited access', () => {
+        // tableRef: statistics-behaviour #S5
+        useAppStore.setState({ subscriptionStatus: 'limited_access' });
+        try {
+            render(<MemoryRouter><QueryLogsSection activeProfile={profile} /></MemoryRouter>);
+            expect(screen.getByRole('button', { name: 'Clear query logs' })).toBeEnabled();
+            expect(screen.getByRole('button', { name: 'Delete statistics history' })).toBeEnabled();
+        } finally {
+            useAppStore.setState({ subscriptionStatus: null });
+        }
+    });
+
     test('renders the Data collection heading, intro and Download / Clear actions', () => {
         // tableRef: statistics-behaviour #D1, #C1
         render(<MemoryRouter><QueryLogsSection activeProfile={profile} /></MemoryRouter>);

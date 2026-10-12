@@ -1,4 +1,4 @@
-import { useId, useRef } from "react";
+import { useRef } from "react";
 import { ChevronDown, EllipsisVertical, Trash2 } from "lucide-react";
 import type { ModelProfile } from "@/api/client";
 import { cn } from "@/lib/utils";
@@ -13,9 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDeleteStatisticsHistory } from "@/components/data-collection/DeleteStatisticsHistory";
 import { STALE_TEXT, STATS_RETENTION_OPTIONS } from "@/components/data-collection/model";
-import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import { RANGES, type RangeDef, type RangeKey } from "./ranges";
-import { LimitedAccessNote, mutedText, titleText } from "./primitives";
+import { mutedText, titleText } from "./primitives";
 
 const DAY = 86400;
 const trigger = cn(
@@ -105,8 +104,6 @@ export function RangePicker({
 
 /** S3: the ⋮ menu with "Delete statistics history". */
 export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProfile; onHistoryDeleted: () => void }) {
-    const { isRestricted } = useSubscriptionGuard();
-    const noteId = useId();
     const menuRef = useRef<HTMLButtonElement>(null);
     const history = useDeleteStatisticsHistory(profile, {
         onDeleted: onHistoryDeleted,
@@ -120,8 +117,7 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
                         type="button"
                         ref={menuRef}
                         aria-label="More statistics actions"
-                        aria-describedby={isRestricted ? noteId : undefined}
-                        disabled={isRestricted || history.busy}
+                        disabled={history.busy}
                         className={cn(trigger, "flex-none min-w-11 md:min-w-9")}
                     >
                         <EllipsisVertical className="w-4 h-4" aria-hidden />
@@ -135,11 +131,6 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
                 </DropdownMenuContent>
             </DropdownMenu>
             {history.dialog}
-            {isRestricted && (
-                <div className="basis-full">
-                    <LimitedAccessNote id={noteId} />
-                </div>
-            )}
             {history.stale && (
                 <p role="status" className={cn("basis-full text-[13px] leading-[18px] sm:text-right", mutedText)}>
                     {STALE_TEXT}

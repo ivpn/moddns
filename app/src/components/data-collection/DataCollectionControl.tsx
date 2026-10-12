@@ -23,6 +23,7 @@ import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import { useAppStore } from "@/store/general";
 import { cn } from "@/lib/utils";
 import {
+    CUT_OFF_TEXT,
     LIMITED_ACCESS_TEXT,
     LOGS_RETENTION_OPTIONS,
     LOGS_RETENTION_WORDS,
@@ -55,6 +56,8 @@ export interface DataCollectionControlProps {
     footer?: React.ReactNode;
     onSaved?: (profile: ModelProfile, transition: Transition) => void;
     className?: string;
+    /** Show the limited-access / cut-off reason (C18, C26); off where the placement states it once (D5). */
+    restrictionNote?: boolean;
 }
 
 const muted = "text-sm leading-5 text-[var(--tailwind-colors-slate-200)] break-words";
@@ -212,14 +215,21 @@ function Inner({
     footer,
     onSaved,
     className,
+    restrictionNote = true,
 }: DataCollectionControlProps) {
     const uid = useId();
-    const { isRestricted } = useSubscriptionGuard();
+    const { isRestricted, isLimited } = useSubscriptionGuard();
+    // L10: limited access and cut-off accounts can only turn sources off (G27).
+    const offOnly = isRestricted;
     const setActiveProfile = useAppStore(s => s.setActiveProfile);
     const setProfiles = useAppStore(s => s.setProfiles);
 
     const saved = fromProfile(profile);
-    const [pending, setPending] = useState<DataCollectionState>(() => ({ ...saved, ...initialPending }));
+    const [staged, setPending] = useState<DataCollectionState>(() => ({ ...saved, ...initialPending }));
+    // L10: derived on every render, because the subscription status can arrive after a turn-on was staged.
+    const pending: DataCollectionState = offOnly
+        ? { ...saved, stats: saved.stats && staged.stats, logs: saved.logs && staged.logs }
+        : staged;
     // L8: Statistics checked along with Query logs from Off; the hint shows until the user touches Statistics.
     const [autoChecked, setAutoChecked] = useState(
         () => !saved.stats && !saved.logs && !!initialPending?.logs && initialPending?.stats !== false,
@@ -233,8 +243,8 @@ function Inner({
     const logsWords = LOGS_RETENTION_WORDS[pending.retention];
     const statsWords = statsRetentionWords(pending.statsRetention);
     const transition = transitionFor(saved, pending, statsHeld(profile, Date.now()));
-    const disabled = isRestricted || saving;
-    const idle = !transition || isRestricted;
+    const disabled = offOnly || saving;
+    const idle = !transition;
     const showLogs = sources === "all";
 
     const ids = {
@@ -300,8 +310,9 @@ function Inner({
     };
 
     const writeProfile = (updated: ModelProfile) => {
-        setActiveProfile(updated);
-        const { profiles } = useAppStore.getState();
+        // Account preferences lists every profile (D5); saving one must not switch the active one.
+        const { profiles, activeProfile } = useAppStore.getState();
+        if (!activeProfile || activeProfile.profile_id === updated.profile_id) setActiveProfile(updated);
         setProfiles(profiles.map(p => (p.profile_id === updated.profile_id ? updated : p)));
     };
 
@@ -340,7 +351,7 @@ function Inner({
     };
 
     const onSave = async () => {
-        if (!transition || disabled) return;
+        if (!transition || saving) return;
         setSaving(true);
         let fresh: ModelProfile | null = null;
         try {
@@ -385,13 +396,13 @@ function Inner({
 
     return (
         <div className={cn("flex flex-col gap-4 w-full", className)} data-testid="data-collection-control">
-            {isRestricted && (
+            {isRestricted && restrictionNote && (
                 <div
                     id={`${uid}-la`}
                     className="flex gap-2 rounded-md border border-[var(--tailwind-colors-slate-600)] p-3 text-sm text-[var(--tailwind-colors-slate-50)]"
                 >
                     <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
-                    <p>{LIMITED_ACCESS_TEXT}</p>
+                    <p>{isLimited ? LIMITED_ACCESS_TEXT : CUT_OFF_TEXT}</p>
                 </div>
             )}
 
@@ -411,7 +422,7 @@ function Inner({
                 role="group"
                 aria-labelledby={labelledBy}
                 aria-label={labelledBy ? undefined : "Data collection"}
-                aria-describedby={isRestricted ? `${uid}-la` : undefined}
+                aria-describedby={isRestricted && restrictionNote ? `${uid}-la` : undefined}
                 aria-busy={saving || undefined}
                 className={cn("flex flex-col gap-2", saving && "opacity-70")}
             >
@@ -420,8 +431,8 @@ function Inner({
                     title="Statistics"
                     description={`Query counts per device, kept for ${statsWords}. No domains or IP addresses.`}
                     checked={pending.stats}
-                    disabled={disabled}
-                    restricted={isRestricted}
+                    disabled={saving || (offOnly && !saved.stats)}
+                    restricted={offOnly && !saved.stats}
                     badge={badgeFor(saved.stats, pending.stats, !!transition)}
                     onCheckedChange={toggleStats}
                 >
@@ -460,8 +471,8 @@ function Inner({
                         title="Query logs"
                         description={`A record of each query (time, device, domain, result), kept for ${logsWords}. Client IP addresses only if you turn them on.`}
                         checked={pending.logs}
-                        disabled={disabled}
-                        restricted={isRestricted}
+                        disabled={saving || (offOnly && !saved.logs)}
+                        restricted={offOnly && !saved.logs}
                         badge={badgeFor(saved.logs, pending.logs, !!transition)}
                         onCheckedChange={toggleLogs}
                     >
@@ -576,12 +587,12 @@ function Inner({
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <p aria-live="polite" className={cn(muted, "flex gap-1.5 min-h-5 max-sm:empty:min-h-0 max-sm:empty:-mb-3")}>
-                    {!isRestricted && transition?.note ? (
+                    {transition?.note ? (
                         <>
                             <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
                             <span>{transition.note}</span>
                         </>
-                    ) : !isRestricted && !transition ? (
+                    ) : !transition ? (
                         <span>No unsaved changes.</span>
                     ) : null}
                 </p>
