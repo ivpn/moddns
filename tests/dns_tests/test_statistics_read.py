@@ -14,7 +14,7 @@ import asyncio
 import ipaddress
 import math
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
@@ -251,7 +251,7 @@ class TestLogsTopAndClients:
     @pytest.mark.asyncio
     async def test_top_domains_and_clients_follow_the_log_gates(self, user, mongo_db):
         """specRef: api-endpoint-behaviour #J20 #J21 #J22 #J23 — counts per domain
-        (blocked vs resolved) and per client IP ordered by count and limited; each
+        (blocked vs resolved) and per client IP ordered by count and limited; covered_from to the minute; each
         endpoint is gated by logs.enabled plus log_domains / log_clients_ips; GeoIP
         enrichment of a public IP, nulls for private ones."""
         pid = user.new_profile("read-logs")
@@ -308,6 +308,10 @@ class TestLogsTopAndClients:
         assert blocked["enabled"] is True
         assert [(i["domain"].rstrip("."), i["count"]) for i in blocked["items"]] == [
             (BLOCK_A, 3), (BLOCK_B, 2), (BLOCK_C, 1)]
+        # J20: covered_from is the oldest row in the window, to the minute; every row here is recent.
+        covered = datetime.fromisoformat(blocked["covered_from"].replace("Z", "+00:00"))
+        assert covered.second == 0 and covered.microsecond == 0
+        assert timedelta(0) <= datetime.now(timezone.utc) - covered < timedelta(hours=1)
 
         limited = _get_json(user, f"{pid}/logs/top", timespan=LOG_TIMESPAN, kind="blocked", limit=2)
         assert [(i["domain"].rstrip("."), i["count"]) for i in limited["items"]] == [

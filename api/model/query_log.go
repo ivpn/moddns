@@ -75,6 +75,8 @@ type QueryLogTopDomain struct {
 type QueryLogTopDomains struct {
 	Enabled bool                `json:"enabled"`
 	Items   []QueryLogTopDomain `json:"items"`
+	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+	CoveredFrom *time.Time `json:"covered_from,omitempty"`
 }
 
 // QueryLogTopClient is one row of the top-clients list. ASN, ASOrg and Country
@@ -92,6 +94,8 @@ type QueryLogTopClient struct {
 type QueryLogTopClients struct {
 	Enabled bool                `json:"enabled"`
 	Items   []QueryLogTopClient `json:"items"`
+	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+	CoveredFrom *time.Time `json:"covered_from,omitempty"`
 }
 
 // QueryLogTopBlocklist is one row of the top-blocklists list: the blocked
@@ -107,4 +111,6 @@ type QueryLogTopBlocklist struct {
 type QueryLogTopBlocklists struct {
 	Enabled bool                   `json:"enabled"`
 	Items   []QueryLogTopBlocklist `json:"items"`
+	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
+	CoveredFrom *time.Time `json:"covered_from,omitempty"`
 }
