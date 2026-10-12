@@ -72,7 +72,7 @@ const subTitle =
     "[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words";
 const subDesc = "text-sm leading-5 text-[var(--tailwind-colors-slate-200)] break-words";
 const subRow = "flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full";
-const subText = "flex flex-col items-start gap-2 min-w-0 max-w-full";
+const subText = "flex flex-col items-start gap-0.5 min-w-0 max-w-full";
 const subBlock = "flex flex-col gap-5 border-t border-[var(--tailwind-colors-slate-600)] mx-3 sm:mx-4 py-4 sm:pl-[30px]";
 
 function PillGroup<T extends string>({
@@ -530,7 +530,7 @@ function Inner({
                                                     aria-label="Retention period information"
                                                     data-testid="retention-info-trigger"
                                                     className={cn(
-                                                        "min-w-10 min-h-10 flex items-center justify-center rounded text-[var(--tailwind-colors-slate-300)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors",
+                                                        "min-w-10 min-h-10 -my-3 flex items-center justify-center rounded text-[var(--tailwind-colors-slate-300)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors",
                                                         focusRing,
                                                     )}
                                                 >
@@ -562,7 +562,7 @@ function Inner({
                 )}
             </div>
 
-            <p aria-live="polite" className={cn(muted, "flex gap-1.5 min-h-5")} data-testid="data-collection-stale">
+            <p aria-live="polite" className={cn(muted, "flex gap-1.5 empty:-mb-4")} data-testid="data-collection-stale">
                 {stale && stale === pending && (
                     <>
                         <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
