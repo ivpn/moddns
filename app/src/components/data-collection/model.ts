@@ -36,6 +36,10 @@ export interface Transition {
     dialog?: { title: string; body: string; confirm: string };
     /** Statistics retention raised (T14) or lowered (T15) in the same save. */
     retention?: "raise" | "lower";
+    /** Lowering that deletes counts: how many (C25), for the inline hint. */
+    lost?: string;
+    /** Lowering with no count older than the new retention yet: nothing is deleted (T15). */
+    nothingOlder?: boolean;
 }
 
 export const LOGS_RETENTION_WORDS: Record<LogsRetention, string> = {
@@ -121,6 +125,80 @@ function logsSubOptionsChanged(saved: DataCollectionState, pending: DataCollecti
 }
 
 const UNDONE = "This action cannot be undone.";
+const DAY_MS = 86_400_000;
+
+/** What the stored counts cover (C25): the oldest count, and the first daily bucket the server keeps. */
+export interface StatsHeld {
+    nowMs: number;
+    oldestMs: number;
+    firstDayMs: number;
+}
+
+const parseTime = (v: unknown): number | null => {
+    const t = typeof v === "string" ? Date.parse(v) : NaN;
+    return Number.isNaN(t) ? null : t;
+};
+const floorDay = (ms: number) => Math.floor(ms / DAY_MS) * DAY_MS;
+
+/** C25: null without a counting start, which keeps the general copy. */
+export function statsHeld(profile: ModelProfile | null | undefined, nowMs: number): StatsHeld | null {
+    const s = profile?.settings?.statistics;
+    if (!s?.enabled) return null;
+    const enabledAt = parseTime(s.enabled_at);
+    const deletedAt = parseTime(s.history_deleted_at);
+    if (enabledAt === null && deletedAt === null) return null;
+    const limit = nowMs - statsDays(normalizeStatsRetention(s.retention)) * DAY_MS;
+    // J53: the daily bucket holding a history delete also held older counts, so it is gone too.
+    const afterDelete = deletedAt !== null && (enabledAt === null || deletedAt > enabledAt);
+    const start = afterDelete ? deletedAt : enabledAt!;
+    const startDay = afterDelete ? floorDay(deletedAt) + DAY_MS : floorDay(enabledAt!);
+    return { nowMs, oldestMs: Math.max(start, limit), firstDayMs: Math.max(startDay, floorDay(limit)) };
+}
+
+const days = (n: number) => `${n} ${n === 1 ? "day" : "days"}`;
+
+function localDate(ms: number, nowMs: number): string {
+    const sameYear = new Date(ms).getFullYear() === new Date(nowMs).getFullYear();
+    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: sameYear ? undefined : "numeric" }).format(ms);
+}
+
+function localTime(ms: number, nowMs: number): string {
+    const clock: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
+    const today = new Date(ms).toDateString() === new Date(nowMs).toDateString();
+    return new Intl.DateTimeFormat(undefined, today ? clock : { month: "short", day: "numeric", ...clock }).format(ms);
+}
+
+const utcDate = (ms: number) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(ms);
+
+/** C25: every stored count, for turning statistics off. */
+export function heldSentence(h: StatsHeld): string {
+    const n = Math.floor((h.nowMs - h.oldestMs) / DAY_MS);
+    return n < 1 ? `The counts go back to ${localTime(h.oldestMs, h.nowMs)}.` : `The counts go back to ${localDate(h.oldestMs, h.nowMs)} (${days(n)}).`;
+}
+
+/** C25: the sentence goes after the first one. */
+export function afterFirstSentence(body: string, sentence: string): string {
+    const i = body.indexOf(". ");
+    return i < 0 ? `${body} ${sentence}` : `${body.slice(0, i + 1)} ${sentence}${body.slice(i + 1)}`;
+}
+
+/** C25: the daily buckets a lowering deletes (J50: before floor_day(now - N)); null when there are none. */
+function lostSentence(h: StatsHeld, keepDays: number): string | null {
+    const cutoff = floorDay(h.nowMs - keepDays * DAY_MS);
+    const n = Math.round((cutoff - h.firstDayMs) / DAY_MS);
+    if (n < 1) return null;
+    const first = utcDate(h.firstDayMs);
+    return n === 1 ? `That is 1 day of counts, ${first}.` : `That is ${days(n)} of counts, from ${first} to ${utcDate(cutoff - DAY_MS)}.`;
+}
+
+/** C25: turning statistics off deletes every stored count. */
+const DELETES_STATS = ["T4", "T6", "T7", "T9"];
+
+function withHeld(t: Transition | null, h: StatsHeld | null | undefined): Transition | null {
+    if (!t?.dialog || !h || !DELETES_STATS.includes(t.id)) return t;
+    return { ...t, dialog: { ...t.dialog, body: afterFirstSentence(t.dialog.body, heldSentence(h)) } };
+}
+
 const FIRST = " The first counts appear at the next quarter hour.";
 
 function stateTransition(from: StateKey, to: StateKey, logsWords: string, statsWords: string): Transition | null {
@@ -244,13 +322,17 @@ function stateTransition(from: StateKey, to: StateKey, logsWords: string, statsW
     }
 }
 
-export function transitionFor(saved: DataCollectionState, pending: DataCollectionState): Transition | null {
+/** `held` (statsHeld) adds how much a deleting change loses (C25); without it the copy stays general. */
+export function transitionFor(saved: DataCollectionState, pending: DataCollectionState, held?: StatsHeld | null): Transition | null {
     const logsWords = LOGS_RETENTION_WORDS[pending.retention];
     const statsWords = statsRetentionWords(pending.statsRetention);
     const retention = retentionChange(saved, pending);
     const logsSubs = logsSubOptionsChanged(saved, pending);
+    const lost = retention === "lower" && held ? lostSentence(held, statsDays(pending.statsRetention)) : null;
+    const nothingOlder = retention === "lower" && !!held && lost === null;
+    const keepNote = `No counts are older than ${statsWords} yet, so nothing is deleted.`;
 
-    let t = stateTransition(stateKey(saved), stateKey(pending), logsWords, statsWords);
+    let t = withHeld(stateTransition(stateKey(saved), stateKey(pending), logsWords, statsWords), held);
     if (!t) {
         if (retention === "raise" && !logsSubs) {
             return {
@@ -262,16 +344,17 @@ export function transitionFor(saved: DataCollectionState, pending: DataCollectio
             };
         }
         if (retention === "lower" && !logsSubs) {
+            if (nothingOlder) {
+                return { id: "T15", label: `Keep for ${statsWords}`, toast: `Statistics are now kept for ${statsWords}.`, note: keepNote, retention, nothingOlder };
+            }
+            const body = `Counts older than ${statsWords} will be permanently deleted. ${lost ? `${lost} ` : ""}${UNDONE}`;
             return {
                 id: "T15",
                 label: "Save changes",
                 toast: `Statistics are now kept for ${statsWords}. Older counts deleted.`,
-                dialog: {
-                    title: `Keep statistics for ${statsWords}?`,
-                    body: `Counts older than ${statsWords} will be permanently deleted. ${UNDONE}`,
-                    confirm: "Delete older counts",
-                },
+                dialog: { title: `Keep statistics for ${statsWords}?`, body, confirm: "Delete older counts" },
                 retention,
+                ...(lost ? { lost } : {}),
             };
         }
         if (!retention && !logsSubs) return null;
@@ -280,11 +363,14 @@ export function transitionFor(saved: DataCollectionState, pending: DataCollectio
     if (retention === "raise") {
         const note = `modDNS will keep this profile's counts for up to ${statsWords}.`;
         t = { ...t, note: t.note ? `${t.note} ${note}` : note, retention };
+    } else if (nothingOlder) {
+        t = t.dialog ? { ...t, retention, nothingOlder } : { ...t, note: t.note ? `${t.note} ${keepNote}` : keepNote, retention, nothingOlder };
     } else if (retention === "lower") {
-        const older = `Counts older than ${statsWords} will be permanently deleted.`;
+        const older = `Counts older than ${statsWords} will be permanently deleted.${lost ? ` ${lost}` : ""}`;
         t = {
             ...t,
             retention,
+            ...(lost ? { lost } : {}),
             dialog: t.dialog
                 ? { ...t.dialog, body: t.dialog.body.replace(UNDONE, `${older} ${UNDONE}`) }
                 : { title: `Keep statistics for ${statsWords}?`, body: `${older} ${UNDONE}`, confirm: "Delete older counts" },

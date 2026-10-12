@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
 import { useAppStore } from "@/store/general";
+import { afterFirstSentence, heldSentence, statsHeld } from "./model";
+
+const BODY = "All statistics for this profile will be permanently deleted. Statistics stay on and counting starts again now. This action cannot be undone.";
 
 /** DELETE /profiles/{id}/statistics (204). */
 async function deleteStatisticsHistory(profileId: string): Promise<void> {
@@ -27,6 +30,7 @@ export function useDeleteStatisticsHistory(
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [stale, setStale] = useState(false);
+    const [body, setBody] = useState(BODY);
     const savedEnabled = !!profile.settings?.statistics?.enabled;
 
     const writeProfile = (p: ModelProfile) => {
@@ -50,6 +54,9 @@ export function useDeleteStatisticsHistory(
             setStale(true);
             return;
         }
+        // C25, measured when the dialog opens.
+        const held = statsHeld(fresh ?? profile, Date.now());
+        setBody(held ? afterFirstSentence(BODY, heldSentence(held)) : BODY);
         setOpen(true);
     };
 
@@ -91,7 +98,7 @@ export function useDeleteStatisticsHistory(
                     </DialogTitle>
                 </DialogHeader>
                 <DialogDescription className="px-6 pt-2 pb-0 text-sm tracking-[-0.35px] leading-[19.6px] text-[var(--tailwind-colors-slate-50)]">
-                    All statistics for this profile will be permanently deleted. Statistics stay on and counting starts again now. This action cannot be undone.
+                    {body}
                 </DialogDescription>
                 <DialogActions>
                     <Button variant="cancel" size="lg" className="flex-1 min-w-32 font-medium" disabled={busy} onClick={() => close(false)}>
