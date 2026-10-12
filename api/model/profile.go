@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/ivpn/dns/api/internal/idgen"
+	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -66,4 +67,13 @@ type ProfileUpdate struct {
 	Operation string `json:"operation" validate:"required,oneof=remove add replace move copy"`
 	Path      string `json:"path" validate:"required,oneof=/name /settings/statistics/enabled /settings/statistics/retention /settings/logs/enabled /settings/logs/log_clients_ips /settings/logs/log_domains /settings/logs/retention /settings/privacy/default_rule /settings/privacy/blocklists_subdomains_rule /settings/privacy/custom_rules_subdomains_rule /settings/security/dnssec/enabled /settings/security/dnssec/send_do_bit /settings/security/rebinding_protection/enabled /settings/advanced/recursor"`
 	Value     any    `json:"value" validate:"required"`
+}
+
+// Unwrapped returns Value, or the "value" key when Value is a map: the generated
+// Python client sends a value wrapped as {"value": x}.
+func (u ProfileUpdate) Unwrapped() any {
+	if m, err := cast.ToStringMapE(u.Value); err == nil {
+		return m["value"]
+	}
+	return u.Value
 }

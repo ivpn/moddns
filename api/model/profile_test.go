@@ -89,3 +89,12 @@ func TestExportedCustomRuleGroups_MaxMatchesCanonicalConst(t *testing.T) {
 			field, got, ExportedCustomRuleGroupsLimit)
 	}
 }
+
+// specRef: api-endpoint-behaviour.md G27 — the Python client sends a value wrapped as {"value": x}; the service and the subscription guard read it the same way.
+func TestProfileUpdateUnwrapped(t *testing.T) {
+	assert.Equal(t, false, ProfileUpdate{Value: false}.Unwrapped())
+	assert.Equal(t, false, ProfileUpdate{Value: map[string]any{"value": false}}.Unwrapped())
+	assert.Equal(t, "30d", ProfileUpdate{Value: map[string]any{"value": "30d"}}.Unwrapped())
+	assert.Nil(t, ProfileUpdate{Value: map[string]any{"other": true}}.Unwrapped())
+	assert.Equal(t, "x", ProfileUpdate{Value: "x"}.Unwrapped())
+}
