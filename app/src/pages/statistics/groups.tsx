@@ -144,12 +144,12 @@ export function CountsGroup(p: CountsGroupProps) {
                 >
                     <p className={cn("text-sm", mutedText)}>
                         {collecting
-                            ? `${start ? `Statistics are on since ${start}. ` : ""}To protect your privacy, modDNS counts queries in 15-minute blocks, never one by one, so the first counts appear at about ${formatExpected(expected.displayMs, p.now)}. This page updates by itself.`
+                            ? `${start ? `Statistics are on since ${start}. ` : ""}To protect your privacy, modDNS counts queries in 15-minute blocks that start on the quarter hour (:00, :15, :30, :45), never one by one, so the first counts appear at about ${formatExpected(expected.displayMs, p.now)}. This page updates by itself.`
                             : `No queries have reached this profile${start ? ` since ${start}` : ""}. If your devices should be using it, check the device setup.`}
                     </p>
                     <Link
                         to="/setup"
-                        className="text-sm underline text-[var(--tailwind-colors-rdns-600)] min-h-11 inline-flex items-center self-start rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+                        className="text-sm !underline !text-[var(--tailwind-colors-rdns-600)] min-h-11 inline-flex items-center self-start rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
                     >
                         Check your device setup
                     </Link>
@@ -287,7 +287,7 @@ function useQuickRules(profileId: string, restricted: boolean, laNoteId: string)
             duplicateNotice={(value, action) => (
                 <>
                     A custom rule for {value} already exists. Edit it in{" "}
-                    <Link to={customRulesPath(action)} className="underline">
+                    <Link to={customRulesPath(action)} className="!underline">
                         Custom rules
                     </Link>
                     .
