@@ -644,18 +644,20 @@ describe('Statistics page gate actions and limited access', () => {
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
         expect(await screen.findByLabelText(/^Total queries:/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on query logs' })).toBeDisabled();
-        for (const note of screen.getAllByText("Data collection can't be changed in limited access mode. You can still clear query logs.")) {
+        for (const note of screen.getAllByText("In limited access mode you can turn data collection off and delete what is stored, but not turn it on or change it.")) {
             expect(note).toBeVisible();
         }
     });
 
-    it('under limited access the hero control is disabled with the reason visible', async () => {
-        // tableRef: statistics-behaviour #P16
+    it('under limited access the hero cannot turn statistics on, and stages nothing', async () => {
+        // tableRef: statistics-behaviour #P16, #L10
         mount(mk('OFF'));
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
         await screen.findByRole('heading', { name: 'Statistics are off' });
         expect(screen.getByRole('checkbox', { name: 'Statistics' })).toBeDisabled();
-        expect(screen.getByText(/can't be changed in limited access mode/)).toBeVisible();
+        expect(screen.getByRole('checkbox', { name: 'Statistics' })).not.toBeChecked();
+        expect(screen.getByText(/In limited access mode you can turn data collection off/)).toBeVisible();
+        expect(screen.queryByRole('button', { name: 'Turn on statistics' })).not.toBeInTheDocument();
     });
 });
 

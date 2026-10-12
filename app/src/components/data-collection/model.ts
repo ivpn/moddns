@@ -80,7 +80,9 @@ export function profileStatsRetention(profile: ModelProfile | null | undefined):
 }
 
 export const LIMITED_ACCESS_TEXT =
-    "Data collection can't be changed in limited access mode. You can still clear query logs.";
+    "In limited access mode you can turn data collection off and delete what is stored, but not turn it on or change it.";
+/** C26: inactive and pending_delete accounts (only Account preferences is reachable). */
+export const CUT_OFF_TEXT = "Your account can't change data collection now. You can still turn it off and delete what is stored.";
 export const STALE_TEXT = "This setting was changed elsewhere. Review it and try again.";
 
 /** S4: `/settings#data-collection` lands on the statistics retention. */
@@ -383,11 +385,16 @@ function replace(path: ModelProfileUpdatePathEnum, value: boolean | string): Mod
     return { operation: ModelProfileUpdateOperationEnum.Replace, path, value: value as unknown as object };
 }
 
-/** One PATCH body: both enabled paths on a state change, plus the staged sub-options of the checked cards (T preamble, L6). */
+/**
+ * One PATCH body: the enabled paths that change, plus the staged sub-options of the checked cards
+ * (T preamble, L6). A turn-off then carries only false values, which every subscription state accepts (G27).
+ */
 export function buildUpdates(saved: DataCollectionState, pending: DataCollectionState): ModelProfileUpdate[] {
     const updates: ModelProfileUpdate[] = [];
-    if (stateKey(saved) !== stateKey(pending)) {
+    if (pending.stats !== saved.stats) {
         updates.push(replace(ModelProfileUpdatePathEnum.SettingsStatisticsEnabled, pending.stats));
+    }
+    if (pending.logs !== saved.logs) {
         updates.push(replace(ModelProfileUpdatePathEnum.SettingsLogsEnabled, pending.logs));
     }
     if (pending.stats && pending.statsRetention !== saved.statsRetention) {
