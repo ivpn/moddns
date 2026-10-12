@@ -637,7 +637,7 @@ export default function FAQ(): JSX.Element {
                         <div>
                             modDNS access follows your IVPN subscription. When it lapses, your account moves through reduced-access states rather than being switched off immediately:
                             <br /><br />
-                            • <strong>Limited Access</strong> - DNS keeps resolving with your current settings, but changes are locked (blocklists, custom rules, profile settings and data collection settings). Whatever data collection is already on keeps running, and you can still view statistics and clear query logs.
+                            • <strong>Limited Access</strong> - DNS keeps resolving with your current settings, but blocklists, custom rules and profile settings are locked, and data collection can't be turned on. Whatever data collection is already on keeps running until you turn it off. You can still view statistics, turn statistics or query logs off, clear query logs and delete statistics history.
                             <br />
                             • <strong>Inactive</strong> - DNS resolution stops for your profiles and only account export and deletion remain available.
                             <br /><br />
@@ -647,11 +647,11 @@ export default function FAQ(): JSX.Element {
                 />
                 <FAQItem
                     question="What is Limited Access mode?"
-                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules, profile settings or what modDNS collects. Data collection that is already on keeps running, and you can still view statistics and clear query logs. To regain full access, add time to your IVPN account."
+                    answer="Your modDNS account is in limited access mode when your IVPN subscription has lapsed. DNS continues to resolve with your existing settings, but you can't change blocklists, custom rules or profile settings, or turn data collection on. Data collection that is already on keeps running until you turn it off. You can still view statistics, turn statistics or query logs off, clear query logs and delete statistics history. To regain full access, add time to your IVPN account."
                 />
                 <FAQItem
                     question="Why is my account Inactive?"
-                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. Your account is not deleted - it stays recoverable."
+                    answer="An account becomes inactive after roughly 14 days in limited access mode, or immediately if your IVPN plan no longer includes modDNS (for example, after a downgrade to the Standard plan). While inactive, DNS resolution is stopped for your profiles and most of the dashboard is unavailable. You can still turn data collection off and delete stored statistics and query logs in Account preferences. Your account is not deleted - it stays recoverable."
                 />
                 <FAQItem
                     question="How do I restore access to an inactive account?"

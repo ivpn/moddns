@@ -128,7 +128,7 @@ describe('DataCollectionControl', () => {
         expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
     });
 
-    it('saves a non-deleting change as one PATCH with both enabled paths, writes the returned profile and toasts', async () => {
+    it('saves a non-deleting change as one PATCH with the enabled path that changes, writes the returned profile and toasts', async () => {
         // tableRef: statistics-behaviour #T1, #T23, #T24, #C16
         const user = userEvent.setup();
         const p = mk('p1', 'off');
@@ -145,7 +145,6 @@ describe('DataCollectionControl', () => {
         expect(patch).toHaveBeenCalledWith('p1', {
             updates: [
                 { operation: 'replace', path: '/settings/statistics/enabled', value: true },
-                { operation: 'replace', path: '/settings/logs/enabled', value: false },
             ],
         });
         // No optimistic UI: busy, controls disabled, saved state not yet changed.
@@ -396,19 +395,50 @@ describe('DataCollectionControl', () => {
         });
     });
 
-    it('disables everything under limited access and shows the reason as visible text', async () => {
-        // tableRef: statistics-behaviour #C18, #T21
+    it('under limited access only turning a source off is possible, and the PATCH carries just that path', async () => {
+        // tableRef: statistics-behaviour #L10, #C18, #T9
+        const user = userEvent.setup();
         const p = mk('p1', 'logs');
         seed(p);
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
+        patch.mockResolvedValue({ status: 200, data: mk('p1', 'logsOnly') });
         render(<DataCollectionControl profile={p} />);
-        expect(screen.getByText("Data collection can't be changed in limited access mode. You can still clear query logs.")).toBeVisible();
+        expect(screen.getByText("In limited access mode you can turn data collection off and delete what is stored, but not turn it on or change it.")).toBeVisible();
         for (const r of screen.getAllByRole('radio')) expect(r).toBeDisabled();
-        expect(box('Statistics')).toBeDisabled();
-        expect(box('Query logs')).toBeDisabled();
+        expect(box('Statistics')).toBeEnabled();
+        expect(box('Query logs')).toBeEnabled();
         expect(saveBtn()).toBeDisabled();
-        expect(discardBtn()).toBeDisabled();
-        expect(screen.queryByText('No unsaved changes.')).not.toBeInTheDocument();
+        await user.click(box('Statistics'));
+        await user.click(saveBtn());
+        const dialog = await screen.findByRole('dialog', { name: 'Stop keeping statistics?' });
+        await user.click(within(dialog).getByRole('button', { name: 'Delete statistics' }));
+        await waitFor(() => expect(patch).toHaveBeenCalledWith('p1', {
+            updates: [{ operation: 'replace', path: '/settings/statistics/enabled', value: false }],
+        }));
+    });
+
+    it('under limited access a source that is off cannot be turned on, and a staged turn-on is ignored', () => {
+        // tableRef: statistics-behaviour #L10
+        const p = mk('p1', 'stats');
+        seed(p);
+        useAppStore.setState({ subscriptionStatus: 'limited_access' });
+        render(<DataCollectionControl profile={p} initialPending={{ logs: true }} />);
+        expect(box('Query logs')).not.toBeChecked();
+        expect(box('Query logs')).toBeDisabled();
+        expect(box('Statistics')).toBeEnabled();
+        expect(screen.getByText('No unsaved changes.')).toBeInTheDocument();
+    });
+
+    it('while cut off the control is in the same turn-off-only mode with its own reason', () => {
+        // tableRef: statistics-behaviour #L10, #D5
+        const p = mk('p1', 'logs');
+        seed(p);
+        useAppStore.setState({ subscriptionStatus: 'inactive' });
+        render(<DataCollectionControl profile={p} />);
+        expect(screen.getByText("Your account can't change data collection now. You can still turn it off and delete what is stored.")).toBeVisible();
+        expect(box('Statistics')).toBeEnabled();
+        expect(box('Query logs')).toBeEnabled();
+        for (const r of screen.getAllByRole('radio')) expect(r).toBeDisabled();
     });
 
     it('Off hero placement: only the Statistics card, pre-checked with its retention, Save bar shows T1', () => {
