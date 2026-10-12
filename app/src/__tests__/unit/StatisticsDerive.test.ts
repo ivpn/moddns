@@ -7,10 +7,15 @@ import {
     deviceLabel,
     expectedFirstCounts,
     normalizeStats,
+    countsScope,
+    logsScope,
+    logsReachBeforeCounts,
+    scopeIn,
+    scopeTitle,
 } from '@/pages/statistics/derive';
 import { statsRetentionWords } from '@/components/data-collection/model';
-import { LOGS_TIMESPAN, RANGES, offeredRanges, resolveRange, STATS_TIMESPAN, logsWindowCaption, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
-import { axisTicks, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
+import { LOGS_TIMESPAN, RANGES, offeredRanges, resolveRange, STATS_TIMESPAN, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
+import { axisTicks, formatDateTime, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
 import { createStatsResponse } from '../mocks/statisticsMocks';
 
 describe('ranges', () => {
@@ -43,13 +48,6 @@ describe('ranges', () => {
             '3h': 'LAST_3_HOURS', '6h': 'LAST_6_HOURS', '24h': 'LAST_1_DAY', '7d': 'LAST_7_DAYS',
             '30d': 'LAST_MONTH', '3m': 'LAST_MONTH', '12m': 'LAST_MONTH',
         });
-    });
-
-    it('captions the logs window only when retention is shorter than the view', () => {
-        // tableRef: statistics-behaviour #P18
-        expect(logsWindowCaption('7d', '1h')).toBe('From the last 1 hour of query logs');
-        expect(logsWindowCaption('3h', '1d')).toBeNull();
-        expect(logsWindowCaption('30d', '1m')).toBeNull();
     });
 
     it('suggests the next longer view', () => {
@@ -393,5 +391,60 @@ describe('axis tick minimum', () => {
         for (const r of ['3h', '6h', '24h', '7d'] as const) expect(axisTicks(r, two, 309).length).toBeGreaterThanOrEqual(2);
         for (const r of ['30d', '3m', '12m'] as const) expect(axisTicks(r, [Date.UTC(2026, 9, 5), Date.UTC(2026, 9, 6)], 309)).toHaveLength(2);
         expect(axisTicks('7d', every(new Date(2026, 9, 8, 9, 0).getTime(), 12, HOUR), 309).length).toBeGreaterThanOrEqual(3);
+    });
+});
+
+describe('group scopes', () => {
+    const NOW = Date.parse('2026-10-12T12:00:00Z');
+    const H = 3600_000;
+    const D = 24 * H;
+
+    it('names the logs window as the shorter of the view and the logs retention', () => {
+        // tableRef: statistics-behaviour #P18
+        const words = (range: Parameters<typeof logsScope>[0], retention: string | undefined) => scopeTitle(logsScope(range, retention, null, NOW));
+        expect(words('7d', '1h')).toBe('Last hour');
+        expect(words('24h', '6h')).toBe('Last 6 hours');
+        expect(words('7d', '1d')).toBe('Last 24 hours');
+        expect(words('3h', '1d')).toBe('Last 3 hours');
+        expect(words('7d', '1w')).toBe('Last 7 days');
+        expect(words('30d', '1m')).toBe('Last 30 days');
+        expect(words('12m', '1m')).toBe('Last 30 days');
+        expect(words('7d', undefined)).toBe('Last hour');
+    });
+
+    it('says since when the oldest log row starts well inside the logs window', () => {
+        // tableRef: statistics-behaviour #P18
+        expect(logsScope('7d', '1w', NOW - 7 * D + H, NOW)).toEqual({ kind: 'last', words: 'last 7 days' });
+        const at = NOW - 2 * D;
+        expect(logsScope('7d', '1w', at, NOW)).toEqual({ kind: 'since', at });
+        expect(logsScope('7d', '1h', NOW - 58 * 60_000, NOW).kind).toBe('last');
+        expect(logsScope('7d', '1h', NOW - 30 * 60_000, NOW).kind).toBe('since');
+    });
+
+    it('phrases a scope as a title and inside a sentence', () => {
+        // tableRef: statistics-behaviour #P18, #P27
+        expect(scopeTitle({ kind: 'last', words: 'last hour' })).toBe('Last hour');
+        expect(scopeIn({ kind: 'last', words: 'last hour' })).toBe('in the last hour');
+        const at = NOW - 2 * D;
+        expect(scopeTitle({ kind: 'since', at })).toBe(`Since ${formatDateTime(at)}`);
+        expect(scopeIn({ kind: 'since', at })).toBe(`since ${formatDateTime(at)}`);
+    });
+
+    it('names the counts window as the view, or since counting started inside it', () => {
+        // tableRef: statistics-behaviour #P18
+        expect(scopeTitle(countsScope('7d', null))).toBe('Last 7 days');
+        const before = normalizeStats(createStatsResponse({ points: 48 }));
+        expect(scopeTitle(countsScope('7d', before))).toBe('Last 7 days');
+        const inside = normalizeStats(createStatsResponse({ points: 48, enabledAt: '2026-10-06T03:00:00Z' }));
+        expect(countsScope('7d', inside)).toEqual({ kind: 'since', at: Date.parse('2026-10-06T03:00:00Z') });
+    });
+
+    it('flags logs that reach further back than statistics', () => {
+        // tableRef: statistics-behaviour #P28
+        const start = NOW - D;
+        expect(logsReachBeforeCounts('7d', '1w', NOW - 3 * D, start)).toBe(true);
+        expect(logsReachBeforeCounts('7d', '1w', start - H, start)).toBe(false);
+        expect(logsReachBeforeCounts('7d', '1w', null, start)).toBe(false);
+        expect(logsReachBeforeCounts('7d', '1w', NOW - 3 * D, null)).toBe(false);
     });
 });

@@ -12,18 +12,18 @@ export interface ClientItem {
 
 const isp = (c: ClientItem) => (c.asOrg ? (c.asn ? `${c.asOrg} (AS${c.asn})` : c.asOrg) : "-");
 
-export function ClientsPanel({ items, windowWords }: { items: ClientItem[]; windowWords: string }) {
+export function ClientsPanel({ items, scopeIn }: { items: ClientItem[]; scopeIn: string }) {
     const noGeo = items.length > 0 && items.every(c => !c.asOrg && !c.asn && !c.country);
     return (
         <PanelShell title="Top clients" toggle={false}>
             {() =>
                 items.length === 0 ? (
-                    <p className={cn("text-sm", mutedText)}>No client addresses in this range.</p>
+                    <p className={cn("text-sm", mutedText)}>{`No client addresses ${scopeIn}.`}</p>
                 ) : (
                     <>
                         <div className="hidden sm:block">
                             <StatsTable
-                                caption={`Client addresses seen in the ${windowWords} of query logs`}
+                                caption={`Top clients, from query logs ${scopeIn}`}
                                 columns={[{ label: "IP address" }, { label: "Queries", align: "right" }, { label: "ISP (ASN)" }, { label: "Country" }]}
                                 rows={items.map(c => [<span key="ip" className="font-mono">{c.ip}</span>, formatCount(c.count), isp(c), c.country ?? "-"])}
                             />

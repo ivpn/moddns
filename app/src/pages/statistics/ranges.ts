@@ -81,26 +81,3 @@ export const LOGS_TIMESPAN: Record<RangeKey, (typeof LogsTimespan)[keyof typeof 
     "3m": LogsTimespan.Month,
     "12m": LogsTimespan.Month,
 };
-
-const LOGS_RETENTION_SECONDS: Record<string, number> = {
-    "1h": 3600,
-    "6h": 6 * 3600,
-    "1d": DAY,
-    "1w": 7 * DAY,
-    "1m": 30 * DAY,
-};
-
-const LOGS_RETENTION_PHRASE: Record<string, string> = {
-    "1h": "1 hour",
-    "6h": "6 hours",
-    "1d": "1 day",
-    "1w": "1 week",
-    "1m": "1 month",
-};
-
-/** P18: the phrase to show when the logs window is shorter than the view, else null. */
-export function logsWindowCaption(range: RangeKey, logsRetention: string | undefined): string | null {
-    const secs = LOGS_RETENTION_SECONDS[logsRetention ?? ""];
-    if (!secs || secs >= rangeDef(range).seconds) return null;
-    return `From the last ${LOGS_RETENTION_PHRASE[logsRetention as string]} of query logs`;
-}

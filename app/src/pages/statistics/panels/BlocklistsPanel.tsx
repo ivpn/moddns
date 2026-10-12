@@ -1,7 +1,6 @@
 import { formatCount } from "@/lib/formatStats";
 import { cn } from "@/lib/utils";
 import { BarList, PanelShell, StatsTable, mutedText } from "../primitives";
-import { rangeDef, type RangeKey } from "../ranges";
 
 export interface BlocklistItem {
     id: string;
@@ -14,24 +13,23 @@ const MULTI_LIST_NOTE = "A query blocked by several lists counts once for each."
 
 export function BlocklistsPanel({
     items,
-    range,
-    windowWords,
+    scopeIn,
 }: {
     items: BlocklistItem[];
-    range: RangeKey;
-    windowWords: string;
+    /** P27: "in the last hour" / "since …". */
+    scopeIn: string;
 }) {
     const nameOf = (b: BlocklistItem) => b.name || b.id;
     return (
         <PanelShell title="Top blocklists" toggle={items.length > 0} defaultView="table">
             {view =>
                 items.length === 0 ? (
-                    <p className={cn("text-sm", mutedText)}>No blocked queries in this range.</p>
+                    <p className={cn("text-sm", mutedText)}>{`No queries blocked by a blocklist ${scopeIn}.`}</p>
                 ) : (
                     <>
                         {view === "table" ? (
                             <StatsTable
-                                caption={`Top blocklists, ${windowWords} of query logs (${rangeDef(range).words})`}
+                                caption={`Top blocklists, from query logs ${scopeIn}`}
                                 columns={[{ label: "#" }, { label: "Blocklist" }, { label: "Queries", align: "right" }]}
                                 rows={items.map((b, i) => [String(i + 1), <span key="n" className="break-words">{nameOf(b)}</span>, formatCount(b.count)])}
                             />

@@ -12,7 +12,7 @@ const items = [
 describe('BlocklistsPanel', () => {
     it('opens in table view with Chart one toggle away', async () => {
         // tableRef: statistics-behaviour #X7
-        render(<BlocklistsPanel items={items} range="7d" windowWords="1 week" />);
+        render(<BlocklistsPanel items={items} scopeIn="in the last 7 days" />);
         expect(screen.getByRole('table')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Table' })).toHaveAttribute('aria-pressed', 'true');
         await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
@@ -22,25 +22,31 @@ describe('BlocklistsPanel', () => {
 
     it('ranks lists by their API name, falls back to the id when the name is missing, and states the multi-list counting', () => {
         // tableRef: statistics-behaviour #P22
-        render(<BlocklistsPanel items={items} range="7d" windowWords="1 week" />);
+        render(<BlocklistsPanel items={items} scopeIn="in the last 7 days" />);
         expect(screen.getByRole('heading', { name: 'Top blocklists' })).toBeInTheDocument();
         expect(screen.getByText('Hagezi Pro')).toBeInTheDocument();
         expect(screen.getByText('unknown-list')).toBeInTheDocument();
         expect(screen.getByText('A query blocked by several lists counts once for each.')).toBeInTheDocument();
     });
 
+    it('captions the table with the logs scope', () => {
+        // tableRef: statistics-behaviour #P27
+        render(<BlocklistsPanel items={items} scopeIn="in the last 7 days" />);
+        expect(screen.getByText('Top blocklists, from query logs in the last 7 days')).toBeInTheDocument();
+    });
+
     it('the table view carries a count per list', () => {
         // tableRef: statistics-behaviour #P22
-        render(<BlocklistsPanel items={items} range="7d" windowWords="1 week" />);
+        render(<BlocklistsPanel items={items} scopeIn="in the last 7 days" />);
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Blocklist' })).toBeInTheDocument();
         expect(within(table).getByRole('row', { name: /Hagezi Pro/ })).toHaveTextContent((1200).toLocaleString());
     });
 
     it('shows text and no toggle when nothing was blocked', () => {
-        // tableRef: statistics-behaviour #P22, #P21
-        render(<BlocklistsPanel items={[]} range="7d" windowWords="1 week" />);
-        expect(screen.getByText('No blocked queries in this range.')).toBeInTheDocument();
+        // tableRef: statistics-behaviour #P22, #P21, #P27
+        render(<BlocklistsPanel items={[]} scopeIn="in the last 7 days" />);
+        expect(screen.getByText('No queries blocked by a blocklist in the last 7 days.')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Table' })).not.toBeInTheDocument();
         expect(screen.queryByRole('table')).not.toBeInTheDocument();
     });

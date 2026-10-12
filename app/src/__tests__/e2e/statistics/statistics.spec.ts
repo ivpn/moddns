@@ -88,7 +88,8 @@ test.describe('@statistics Statistics page', () => {
     test.skip(isMobile, 'settings flow is exercised on desktop');
     await setup(page, { logs: true, stats: true, retention: '1h', ips: true });
     await page.goto('/statistics');
-    await expect(page.getByText('From the last 1 hour of query logs')).toBeVisible();
+    // tableRef: statistics-behaviour #P18
+    await expect(page.getByRole('heading', { level: 2, name: 'From query logs · Last hour' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Top blocked domains' })).toBeVisible();
 
     await page.getByTestId('main-navigation').getByRole('button', { name: 'Settings' }).click();

@@ -4,6 +4,7 @@
 
 import type { ModelStatisticsResponse } from "@/api/client";
 import { rangeDef, type RangeKey } from "./ranges";
+import { formatDateTime } from "./time";
 
 const rangeSeconds = (k: RangeKey) => rangeDef(k).seconds;
 
@@ -199,4 +200,53 @@ export function expectedFirstCounts(range: RangeKey, enabledAt: number | null, h
     }
     const displayMs = boundaryMs + FLUSH_TICK_MS;
     return { boundaryMs, displayMs, collectingUntilMs: displayMs + COLLECTING_GRACE_MS };
+}
+
+/** P18: the window a group's numbers cover. */
+export type Scope = { kind: "last"; words: string } | { kind: "since"; at: number };
+
+const LOGS_RETENTION_WINDOW: Record<string, { seconds: number; words: string }> = {
+    "1h": { seconds: 3600, words: "last hour" },
+    "6h": { seconds: 6 * 3600, words: "last 6 hours" },
+    "1d": { seconds: 86400, words: "last 24 hours" },
+    "1w": { seconds: 7 * 86400, words: "last 7 days" },
+    "1m": { seconds: 30 * 86400, words: "last 30 days" },
+};
+
+/** P18: the shorter of the view and the logs retention; an unknown retention reads as 1 hour. */
+function logsWindow(range: RangeKey, logsRetention: string | undefined): { seconds: number; words: string } {
+    const kept = LOGS_RETENTION_WINDOW[logsRetention ?? ""] ?? LOGS_RETENTION_WINDOW["1h"];
+    const view = rangeDef(range);
+    return kept.seconds < view.seconds ? kept : { seconds: view.seconds, words: view.words };
+}
+
+/** P18: how far a start may sit inside the logs window before the scope says "since". */
+const toleranceMs = (windowSeconds: number) => (windowSeconds * 1000) / 12;
+
+/** P18: the logs group scope; `coveredFrom` is the oldest log row in the window (J20). */
+export function logsScope(range: RangeKey, logsRetention: string | undefined, coveredFrom: number | null, nowMs: number): Scope {
+    const w = logsWindow(range, logsRetention);
+    const start = nowMs - w.seconds * 1000;
+    return coveredFrom !== null && coveredFrom > start + toleranceMs(w.seconds) ? { kind: "since", at: coveredFrom } : { kind: "last", words: w.words };
+}
+
+/** P18: the counts group scope: the view, or since counting started inside it (P9). */
+export function countsScope(range: RangeKey, d: StatsData | null): Scope {
+    const since = d ? countingSince(d) : null;
+    return since !== null ? { kind: "since", at: since } : { kind: "last", words: rangeDef(range).words };
+}
+
+/** P28: the logs start before statistics started counting inside the view. */
+export function logsReachBeforeCounts(range: RangeKey, logsRetention: string | undefined, coveredFrom: number | null, countsStart: number | null): boolean {
+    if (coveredFrom === null || countsStart === null) return false;
+    return coveredFrom < countsStart - toleranceMs(logsWindow(range, logsRetention).seconds);
+}
+
+export function scopeTitle(s: Scope): string {
+    return s.kind === "last" ? s.words.charAt(0).toUpperCase() + s.words.slice(1) : `Since ${formatDateTime(s.at)}`;
+}
+
+/** P27: the scope inside a sentence. */
+export function scopeIn(s: Scope): string {
+    return s.kind === "last" ? `in the ${s.words}` : `since ${formatDateTime(s.at)}`;
 }
