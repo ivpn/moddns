@@ -254,7 +254,7 @@ describe('Statistics page data states', () => {
             mount(mk('S'));
             expect(await screen.findByRole('heading', { name: 'Collecting statistics' })).toBeInTheDocument();
             const expected = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(Date.parse('2026-10-06T15:01:00Z'));
-            expect(screen.getByText(/^Statistics are on since .*\. To protect your privacy, modDNS counts queries in 15-minute blocks, never one by one, so the first counts appear at about /)).toHaveTextContent(`about ${expected}. This page updates by itself.`);
+            expect(screen.getByText(/^Statistics are on since .*\. To protect your privacy, modDNS counts queries in 15-minute blocks that start on the quarter hour \(:00, :15, :30, :45\), never one by one, so the first counts appear at about /)).toHaveTextContent(`about ${expected}. This page updates by itself.`);
             expect(screen.getByRole('link', { name: 'Check your device setup' })).toBeInTheDocument();
         } finally {
             vi.useRealTimers();

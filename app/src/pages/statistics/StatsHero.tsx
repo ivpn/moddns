@@ -32,7 +32,7 @@ export function StatsHero({ profile, onSaved }: { profile: ModelProfile; onSaved
                         footer={
                             <Link
                                 to="/settings"
-                                className="text-sm underline text-[var(--tailwind-colors-rdns-600)] min-h-11 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] rounded"
+                                className="text-sm !underline !text-[var(--tailwind-colors-rdns-600)] min-h-11 inline-flex items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] rounded"
                             >
                                 More options in Settings
                             </Link>
