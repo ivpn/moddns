@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const slowQueryThreshold = 300 * time.Millisecond
@@ -240,6 +241,27 @@ func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profile
 	}
 	r.warnIfSlow(ctx, "Query log top clients fetch took too long", retention, len(results), start)
 	return results, nil
+}
+
+// GetQueryLogCoveredFrom returns the timestamp of the profile's oldest row in
+// the timespan window, truncated to the minute, or nil when the window is empty.
+func (r *QueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error) {
+	filter := bson.D{
+		{Key: "profile_id", Value: profileId},
+		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+	}
+	opts := options.FindOne().SetSort(bson.D{{Key: "timestamp", Value: 1}}).SetProjection(bson.D{{Key: "timestamp", Value: 1}})
+	var row struct {
+		Timestamp time.Time `bson:"timestamp"`
+	}
+	if err := r.getCollObject(retention).FindOne(ctx, filter, opts).Decode(&row); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	covered := row.Timestamp.UTC().Truncate(time.Minute)
+	return &covered, nil
 }
 
 // topBlocklistsPipeline counts the profile's blocked rows since from once per

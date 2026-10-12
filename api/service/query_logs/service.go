@@ -3,6 +3,7 @@ package querylogs
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
@@ -81,6 +82,15 @@ func (q *QueryLogsService) GetProfileQueryLogTopBlocklists(ctx context.Context, 
 		return nil, err
 	}
 	return q.QueryLogsRepository.GetQueryLogTopBlocklists(ctx, profileId, retention, hours, limit)
+}
+
+// GetProfileQueryLogCoveredFrom returns when the profile's oldest log row inside timespan was written.
+func (q *QueryLogsService) GetProfileQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespan string) (*time.Time, error) {
+	hours, err := model.NewTopTimespan(timespan)
+	if err != nil {
+		return nil, err
+	}
+	return q.QueryLogsRepository.GetQueryLogCoveredFrom(ctx, profileId, retention, hours)
 }
 
 func (q *QueryLogsService) DeleteProfileQueryLogs(ctx context.Context, profileId string) error {

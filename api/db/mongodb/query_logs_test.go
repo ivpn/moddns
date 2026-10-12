@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ivpn/dns/api/model"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -137,6 +138,44 @@ func (s *QueryLogsRepositorySuite) TestGetQueryLogTopBlocklists_UsesMetaTimeInde
 	got, err := s.repo.GetQueryLogTopBlocklists(context.Background(), "p3", "1d", 6, 50)
 	s.Require().NoError(err)
 	s.Empty(got, "processed rows without reasons count for nothing")
+}
+
+func (s *QueryLogsRepositorySuite) insertAt(coll, profileId string, ts ...time.Time) {
+	docs := make([]any, 0, len(ts))
+	for _, t := range ts {
+		docs = append(docs, bson.D{
+			{Key: "timestamp", Value: t},
+			{Key: "profile_id", Value: profileId},
+			{Key: "status", Value: "blocked"},
+		})
+	}
+	_, err := s.db.Collection(coll).InsertMany(context.Background(), docs)
+	s.Require().NoError(err)
+}
+
+// specRef: api-endpoint-behaviour.md J20 — covered_from is the oldest row of the profile inside the window, to the minute.
+func (s *QueryLogsRepositorySuite) TestGetQueryLogCoveredFrom() {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	oldest := now.Add(-5*time.Hour - 30*time.Second)
+	s.insertAt(queryLogsCollOneWeek, "p1", now.Add(-time.Minute), oldest, now.Add(-2*time.Hour))
+	s.insertAt(queryLogsCollOneWeek, "p1", now.Add(-30*time.Hour))    // before a 24 h window
+	s.insertAt(queryLogsCollOneWeek, "other", now.Add(-20*time.Hour)) // another profile
+	s.insertAt(queryLogsCollOneDay, "p1", now.Add(-23*time.Hour))     // another retention collection
+
+	got, err := s.repo.GetQueryLogCoveredFrom(ctx, "p1", model.RetentionOneWeek, 24)
+	s.Require().NoError(err)
+	s.Require().NotNil(got)
+	s.True(oldest.Truncate(time.Minute).Equal(*got), "want %v, got %v", oldest.Truncate(time.Minute), *got)
+
+	got, err = s.repo.GetQueryLogCoveredFrom(ctx, "p1", model.RetentionOneWeek, 48)
+	s.Require().NoError(err)
+	s.Require().NotNil(got)
+	s.True(now.Add(-30*time.Hour).Truncate(time.Minute).Equal(*got), "a longer window reaches the older row")
+
+	got, err = s.repo.GetQueryLogCoveredFrom(ctx, "nobody", model.RetentionOneWeek, 24)
+	s.Require().NoError(err)
+	s.Nil(got, "no rows in the window")
 }
 
 // specRef: api-endpoint-behaviour.md J12, J13 — deleting a profile's logs empties every retention collection.
