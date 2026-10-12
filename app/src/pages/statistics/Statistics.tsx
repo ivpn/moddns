@@ -13,12 +13,12 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
-import { countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
+import { countingSince, countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
 import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
 import { formatDateTime, formatRangeCaption } from "./time";
 import { useApiResource } from "./useApiResource";
-import { CountsGroup, LogsGroup, type GateId } from "./groups";
+import { CountsGroup, LogsGroup, type GateId, type LogsList } from "./groups";
 import { StatsActions, StatsToolbar } from "./StatsToolbar";
 import { StatsHero } from "./StatsHero";
 import { mutedText } from "./primitives";
@@ -45,6 +45,17 @@ const GATE_DIALOG: Record<DialogId, { focus: InitialFocus; pending: Partial<Data
     domains: { focus: "domains", pending: { logs: true, domains: true } },
     ips: { focus: "ips", pending: { logs: true, ips: true } },
 };
+
+/** J20 `covered_from`; absent or unparsable reads as null. */
+function coveredFrom(raw: unknown): number | null {
+    const v = (raw as { covered_from?: unknown })?.covered_from;
+    const t = typeof v === "string" ? Date.parse(v) : NaN;
+    return Number.isNaN(t) ? null : t;
+}
+
+function asList<R, T>(raw: R, parse: (raw: R) => T[]): LogsList<T> {
+    return { items: parse(raw), coveredFrom: coveredFrom(raw) };
+}
 
 function asDomains(raw: unknown): DomainItem[] {
     const items = (raw as { items?: unknown })?.items;
@@ -126,17 +137,17 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     });
 
     const logsTimespan = LOGS_TIMESPAN[range];
-    const blocked = useApiResource<DomainItem[]>(pid, pid && domainsOn ? `${pid}|${range}|b` : null, async () =>
-        asDomains((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "blocked", logsTimespan, LIST_LIMIT)).data),
+    const blocked = useApiResource<LogsList<DomainItem>>(pid, pid && domainsOn ? `${pid}|${range}|b` : null, async () =>
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "blocked", logsTimespan, LIST_LIMIT)).data, asDomains),
     );
-    const resolved = useApiResource<DomainItem[]>(pid, pid && domainsOn ? `${pid}|${range}|r` : null, async () =>
-        asDomains((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "resolved", logsTimespan, LIST_LIMIT)).data),
+    const resolved = useApiResource<LogsList<DomainItem>>(pid, pid && domainsOn ? `${pid}|${range}|r` : null, async () =>
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet(pid as string, "resolved", logsTimespan, LIST_LIMIT)).data, asDomains),
     );
-    const clients = useApiResource<ClientItem[]>(pid, pid && ipsOn ? `${pid}|${range}|c` : null, async () =>
-        asClients((await api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet(pid as string, logsTimespan, LIST_LIMIT)).data),
+    const clients = useApiResource<LogsList<ClientItem>>(pid, pid && ipsOn ? `${pid}|${range}|c` : null, async () =>
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet(pid as string, logsTimespan, LIST_LIMIT)).data, asClients),
     );
-    const blocklists = useApiResource<BlocklistItem[]>(pid, pid && logsOn ? `${pid}|${range}|bl` : null, async () =>
-        asBlocklists((await api.Client.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet(pid as string, logsTimespan, LIST_LIMIT)).data),
+    const blocklists = useApiResource<LogsList<BlocklistItem>>(pid, pid && logsOn ? `${pid}|${range}|bl` : null, async () =>
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet(pid as string, logsTimespan, LIST_LIMIT)).data, asBlocklists),
     );
     // Once per profile: `last_seen` does not depend on the range and the endpoint is slow and rate-limited.
     const devices = useApiResource<Map<string, number>>(pid, pid && logsOn ? `${pid}|devices` : null, async () =>
@@ -286,6 +297,8 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         clients={clients}
                         blocklists={blocklists}
                         profileId={pid}
+                        countsStart={countsOn && statsData ? countingSince(statsData) : null}
+                        now={Date.now()}
                         restricted={isRestricted}
                         laNoteId={laNoteId}
                         onGate={openDialog}

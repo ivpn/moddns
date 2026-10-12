@@ -1,6 +1,5 @@
 import { formatCount } from "@/lib/formatStats";
 import { BarList, PanelShell, StatsTable, mutedText } from "../primitives";
-import { rangeDef, type RangeKey } from "../ranges";
 import { stripTrailingDot } from "@/lib/utils";
 import { QuickRuleButton, RuleAddedTag, type QuickRuleApi } from "../QuickRuleButton";
 
@@ -12,14 +11,13 @@ export interface DomainItem {
 export function DomainsPanel({
     kind,
     items,
-    range,
-    windowWords,
+    scopeIn,
     quickRule,
 }: {
     kind: "blocked" | "resolved";
     items: DomainItem[];
-    range: RangeKey;
-    windowWords: string;
+    /** P27: "in the last hour" / "since …". */
+    scopeIn: string;
     quickRule?: QuickRuleApi;
 }) {
     const ruleAction = kind === "blocked" ? "allowlist" : "denylist";
@@ -29,10 +27,10 @@ export function DomainsPanel({
         <PanelShell title={title} toggle={items.length > 0} defaultView="table">
             {view =>
                 items.length === 0 ? (
-                    <p className={`text-sm ${mutedText}`}>{`No ${kind} domains in this range.`}</p>
+                    <p className={`text-sm ${mutedText}`}>{`No ${kind} domains ${scopeIn}.`}</p>
                 ) : view === "table" ? (
                     <StatsTable
-                        caption={`${title}, ${windowWords} of query logs (${rangeDef(range).words})`}
+                        caption={`${title}, from query logs ${scopeIn}`}
                         columns={[{ label: "#" }, { label: "Domain" }, { label: "Queries", align: "right" }, ...(quickRule ? [{ label: "Actions", srOnly: true }] : [])]}
                         rows={items.map((d, i) => [
                             String(i + 1),
