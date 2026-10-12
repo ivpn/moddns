@@ -283,6 +283,18 @@ func TestFilterCNAME(t *testing.T) {
 			expectNoCacheCalls: true,
 			wantDecision:       model.DecisionNone,
 		},
+		{
+			name:            "U15 — default_rule block, QNAME allowed, clean CDN target: None",
+			tableRef:        "F/U15",
+			response:        buildCNAMEChainResponse("api.allowed.example", dns.TypeA, []string{"edge.cdn.example"}, "1.2.3.4"),
+			blocklists:      []string{},
+			privacySettings: map[string]string{defaultRuleSetting: RULE_BLOCK},
+			customHashes:    []string{"h1"},
+			customRules: map[string]map[string]string{
+				"h1": {"action": ACTION_ALLOW, "value": "allowed.example", "syntax": "domain"},
+			},
+			wantDecision: model.DecisionNone,
+		},
 	}
 
 	for _, tt := range tests {
@@ -352,8 +364,12 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 		name          string
 		tableRef      string
 		domainResults []model.StageResult
-		wantStatus    model.Status
-		wantContains  []string
+		// chain defaults to a single blocklisted target when nil.
+		chain           []string
+		privacySettings map[string]string
+		wantStatus      model.Status
+		wantContains    []string
+		wantNotContains []string
 	}{
 		{
 			name:         "U2 — CNAME target on blocklist, no domain opinion → Blocked",
@@ -367,6 +383,19 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			domainResults: []model.StageResult{domainAllowResult()},
 			wantStatus:    model.StatusProcessed,
 			wantContains:  []string{filterreasons.CustomRules},
+		},
+		{
+			name:     "U15 — default_rule block + QNAME custom Allow, clean CDN target → Processed",
+			tableRef: "F/U15",
+			domainResults: []model.StageResult{
+				{Decision: model.DecisionBlock, Tier: TierDefaultRule, Reasons: []string{filterreasons.DefaultRule}},
+				domainAllowResult(),
+			},
+			chain:           []string{"edge.cdn.example"},
+			privacySettings: map[string]string{defaultRuleSetting: RULE_BLOCK},
+			wantStatus:      model.StatusProcessed,
+			wantContains:    []string{filterreasons.CustomRules},
+			wantNotContains: []string{filterreasons.CnameUncloaking},
 		},
 	}
 
@@ -384,11 +413,16 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 
 			reqCtx := newTestReqCtx(t, profileID)
 			reqCtx.Blocklists = []string{blocklistID}
+			reqCtx.PrivacySettings = tt.privacySettings
 			reqCtx.PartialFilteringResults = append(
 				reqCtx.PartialFilteringResults, tt.domainResults...,
 			)
 
-			res := buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, []string{"tracker.evil.net"}, "1.2.3.4")
+			chain := tt.chain
+			if chain == nil {
+				chain = []string{"tracker.evil.net"}
+			}
+			res := buildCNAMEChainResponse("metrics.shop.example", dns.TypeA, chain, "1.2.3.4")
 			req := new(dns.Msg)
 			req.SetQuestion("metrics.shop.example.", dns.TypeA)
 			dnsCtx := &proxy.DNSContext{Req: req, Res: res}
@@ -398,6 +432,9 @@ func TestIPFilter_CrossPhase_CNAMEUncloaking(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, reqCtx.FilterResult.Status, "tableRef %s", tt.tableRef)
 			for _, r := range tt.wantContains {
 				assert.Contains(t, reqCtx.FilterResult.Reasons, r, "tableRef %s", tt.tableRef)
+			}
+			for _, r := range tt.wantNotContains {
+				assert.NotContains(t, reqCtx.FilterResult.Reasons, r, "tableRef %s", tt.tableRef)
 			}
 		})
 	}
