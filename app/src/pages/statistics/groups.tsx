@@ -4,9 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { LOGS_RETENTION_WORDS } from "@/components/data-collection/model";
-import { countsState, expectedFirstCounts, type StatsData } from "./derive";
-import { logsWindowCaption, nextLongerRange, rangeDef, type RangeDef, type RangeKey } from "./ranges";
+import { countsScope, countsState, expectedFirstCounts, logsReachBeforeCounts, logsScope, scopeIn, scopeTitle, type StatsData } from "./derive";
+import { nextLongerRange, rangeDef, type RangeDef, type RangeKey } from "./ranges";
 import { formatDateTime, formatExpected } from "./time";
 import { GateAction, GroupHeading, LimitedAccessNote, MessageCard, StatsCard, mutedText } from "./primitives";
 import { KpiCards } from "./panels/KpiCards";
@@ -190,15 +189,32 @@ export function CountsGroup(p: CountsGroupProps) {
         }
     }
 
+    const scope = p.statsOn ? scopeTitle(countsScope(range, stats.status === "ready" ? stats.data : null)) : undefined;
     return (
         <div className="flex flex-col gap-4" data-testid="stats-counts-group">
-            <GroupHeading>Counts</GroupHeading>
+            <GroupHeading scope={scope}>Counts</GroupHeading>
             {body}
         </div>
     );
 }
 
-export type ListState<T> = ResourceState<T[]> & { reload: () => void };
+/** A logs top list with when the oldest log row in its window was written (J20 `covered_from`). */
+export interface LogsList<T> {
+    items: T[];
+    coveredFrom: number | null;
+}
+
+export type ListState<T> = ResourceState<LogsList<T>> & { reload: () => void };
+
+/** P18: the earliest `covered_from` across the loaded lists. */
+function earliestCoveredFrom(lists: ListState<unknown>[]): number | null {
+    let out: number | null = null;
+    for (const l of lists) {
+        const t = l.status === "ready" ? (l.data?.coveredFrom ?? null) : null;
+        if (t !== null && (out === null || t < out)) out = t;
+    }
+    return out;
+}
 
 export interface LogsGroupProps extends GateProps {
     logsOn: boolean;
@@ -212,6 +228,9 @@ export interface LogsGroupProps extends GateProps {
     blocklists: ListState<BlocklistItem>;
     /** The active profile: a switch closes the quick rule sheet. */
     profileId: string;
+    /** P28: when statistics started counting inside the view, else null. */
+    countsStart: number | null;
+    now: number;
 }
 
 function ListSlot<T>({ state, what, children }: { state: ListState<T>; what: string; children: (items: T[]) => React.ReactNode }) {
@@ -221,7 +240,7 @@ function ListSlot<T>({ state, what, children }: { state: ListState<T>; what: str
     if (state.status !== "ready" || !state.data) return <PanelSkeleton />;
     return (
         <div className={cn("transition-opacity", state.refreshing && "opacity-60")} aria-busy={state.refreshing || undefined}>
-            {children(state.data)}
+            {children(state.data.items)}
         </div>
     );
 }
@@ -281,8 +300,13 @@ function useQuickRules(profileId: string, restricted: boolean, laNoteId: string)
 
 export function LogsGroup(p: LogsGroupProps) {
     const quick = useQuickRules(p.profileId, p.restricted, p.laNoteId);
-    const caption = p.logsOn ? logsWindowCaption(p.range, p.logsRetention) : null;
-    const retentionWords = LOGS_RETENTION_WORDS[(p.logsRetention as keyof typeof LOGS_RETENTION_WORDS) ?? "1h"] ?? "1 hour";
+    const coveredFrom = earliestCoveredFrom([p.blocked, p.resolved, p.clients, p.blocklists] as ListState<unknown>[]);
+    const scope = logsScope(p.range, p.logsRetention, coveredFrom, p.now);
+    const within = scopeIn(scope);
+    const reachNote =
+        p.logsOn && p.countsStart !== null && logsReachBeforeCounts(p.range, p.logsRetention, coveredFrom, p.countsStart)
+            ? `Query logs reach further back than statistics, which count since ${formatDateTime(p.countsStart)}.`
+            : null;
     let body: React.ReactNode;
 
     if (!p.logsOn) {
@@ -302,10 +326,10 @@ export function LogsGroup(p: LogsGroupProps) {
                 {p.domainsOn ? (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <ListSlot state={p.blocked} what="top blocked domains">
-                            {items => <DomainsPanel kind="blocked" items={items} range={p.range} windowWords={retentionWords} quickRule={quick.api} />}
+                            {items => <DomainsPanel kind="blocked" items={items} scopeIn={within} quickRule={quick.api} />}
                         </ListSlot>
                         <ListSlot state={p.resolved} what="top resolved domains">
-                            {items => <DomainsPanel kind="resolved" items={items} range={p.range} windowWords={retentionWords} quickRule={quick.api} />}
+                            {items => <DomainsPanel kind="resolved" items={items} scopeIn={within} quickRule={quick.api} />}
                         </ListSlot>
                     </div>
                 ) : (
@@ -319,11 +343,11 @@ export function LogsGroup(p: LogsGroupProps) {
                     />
                 )}
                 <ListSlot state={p.blocklists} what="top blocklists">
-                    {items => <BlocklistsPanel items={items} range={p.range} windowWords={retentionWords} />}
+                    {items => <BlocklistsPanel items={items} scopeIn={within} />}
                 </ListSlot>
                 {p.ipsOn ? (
                     <ListSlot state={p.clients} what="top clients">
-                        {items => <ClientsPanel items={items} windowWords={retentionWords} />}
+                        {items => <ClientsPanel items={items} scopeIn={within} />}
                     </ListSlot>
                 ) : (
                     <Gate
@@ -341,7 +365,9 @@ export function LogsGroup(p: LogsGroupProps) {
 
     return (
         <div className="flex flex-col gap-4" data-testid="stats-logs-group">
-            <GroupHeading caption={caption}>From query logs</GroupHeading>
+            <GroupHeading scope={p.logsOn ? scopeTitle(scope) : undefined} caption={reachNote}>
+                From query logs
+            </GroupHeading>
             {body}
             {p.logsOn && p.domainsOn && (
                 <>

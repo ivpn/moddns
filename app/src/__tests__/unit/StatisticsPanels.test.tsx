@@ -274,23 +274,23 @@ describe('DomainsPanel', () => {
     it('lists domains with counts and a table view', async () => {
         // tableRef: statistics-behaviour #X3
         const user = userEvent.setup();
-        render(<DomainsPanel kind="blocked" items={topBlocked.items} range="7d" windowWords="1 hour" />);
+        render(<DomainsPanel kind="blocked" items={topBlocked.items} scopeIn="in the last hour" />);
         expect(screen.getByText('ads.example.com')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Table' }));
         expect(screen.getByRole('table')).toBeInTheDocument();
-        expect(screen.getByText(/Top blocked domains, 1 hour of query logs/)).toBeInTheDocument();
+        expect(screen.getByText('Top blocked domains, from query logs in the last hour')).toBeInTheDocument();
     });
 
     it('says so instead of drawing an empty list', () => {
-        // tableRef: statistics-behaviour #P21
-        render(<DomainsPanel kind="blocked" items={[]} range="7d" windowWords="1 hour" />);
-        expect(screen.getByText('No blocked domains in this range.')).toBeInTheDocument();
+        // tableRef: statistics-behaviour #P21, #P27
+        render(<DomainsPanel kind="blocked" items={[]} scopeIn="in the last hour" />);
+        expect(screen.getByText('No blocked domains in the last hour.')).toBeInTheDocument();
     });
 });
 
 describe('ClientsPanel', () => {
     it('renders IP, queries, ISP and country', () => {
-        render(<ClientsPanel items={[{ ip: '203.0.113.7', count: 300, asn: 64500, asOrg: 'Example ISP', country: 'PL' }]} windowWords="1 day" />);
+        render(<ClientsPanel items={[{ ip: '203.0.113.7', count: 300, asn: 64500, asOrg: 'Example ISP', country: 'PL' }]} scopeIn="in the last 24 hours" />);
         const table = screen.getAllByRole('table', { hidden: true })[0];
         expect(within(table).getByText('Example ISP (AS64500)')).toBeInTheDocument();
         expect(within(table).getByText('PL')).toBeInTheDocument();
@@ -299,7 +299,7 @@ describe('ClientsPanel', () => {
 
     it('shows hyphens and a footnote when GeoIP data is missing', () => {
         // tableRef: statistics-behaviour #P19
-        render(<ClientsPanel items={[{ ip: '198.51.100.2', count: 5, asn: null, asOrg: null, country: null }]} windowWords="1 day" />);
+        render(<ClientsPanel items={[{ ip: '198.51.100.2', count: 5, asn: null, asOrg: null, country: null }]} scopeIn="in the last 24 hours" />);
         expect(screen.getByText('ISP and country unavailable')).toBeInTheDocument();
         expect(screen.getAllByText('-').length).toBeGreaterThanOrEqual(2);
         expect(topClients.items.length).toBe(2);

@@ -7,6 +7,7 @@ import Statistics from '@/pages/statistics/Statistics';
 import { useAppStore } from '@/store/general';
 import api from '@/api/api';
 import type { ModelProfile } from '@/api/client';
+import { formatDateTime } from '@/pages/statistics/time';
 import { createStatsResponse, devicesList, topBlocked, topBlocklists, topClients, topResolved } from '../mocks/statisticsMocks';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -94,7 +95,8 @@ beforeEach(() => {
     blocklistsGet.mockResolvedValue({ data: topBlocklists });
 });
 
-const headings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
+const headings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent?.split(' · ')[0]);
+const fullHeadings = () => screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
 const rangeTrigger = (label?: string) => screen.findByRole('button', { name: label ? `Time range: ${label}` : /^Time range: / });
 async function pickRange(user: ReturnType<typeof userEvent.setup>, label: string) {
     await user.click(await rangeTrigger());
@@ -202,9 +204,10 @@ describe('Top blocklists panel', () => {
 
     it('shows the empty text when no queries were blocked', async () => {
         // tableRef: statistics-behaviour #P22
+        // tableRef: statistics-behaviour #P27
         blocklistsGet.mockResolvedValue({ data: { enabled: true, items: [] } });
         mount(mk('SL'));
-        expect(await screen.findByText('No blocked queries in this range.')).toBeInTheDocument();
+        expect(await screen.findByText('No queries blocked by a blocklist in the last 24 hours.')).toBeInTheDocument();
     });
 
     it('is not requested while query logs are off', async () => {
@@ -393,10 +396,52 @@ describe('Statistics page data states', () => {
         expect(await screen.findByTestId('stats-counts-skeleton')).toBeInTheDocument();
     });
 
-    it('captions the logs window when log retention is shorter than the view', async () => {
+    it('names the window each group covers in its heading', async () => {
         // tableRef: statistics-behaviour #P18
         mount(mk('SL', 'p1', '1h'));
-        expect(await screen.findByText('From the last 1 hour of query logs')).toBeInTheDocument();
+        await screen.findByRole('region', { name: 'Top blocklists' });
+        await waitFor(() => expect(fullHeadings()).toEqual(['Counts · Last 7 days', 'From query logs · Last hour']));
+        expect(screen.getByRole('heading', { level: 2, name: 'From query logs · Last hour' })).toBeInTheDocument();
+    });
+
+    it('says since when the logs start inside their window', async () => {
+        // tableRef: statistics-behaviour #P18
+        const at = new Date(Date.now() - 2 * 86_400_000);
+        at.setSeconds(0, 0);
+        blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: at.toISOString() } });
+        mount(mk('SL', 'p1', '1w'));
+        expect(await screen.findByRole('heading', { level: 2, name: `From query logs · Since ${formatDateTime(at.getTime())}` })).toBeInTheDocument();
+    });
+
+    it('takes the earliest covered_from across the loaded lists', async () => {
+        // tableRef: statistics-behaviour #P18
+        const early = new Date(Date.now() - 3 * 86_400_000);
+        early.setSeconds(0, 0);
+        const late = new Date(Date.now() - 86_400_000);
+        late.setSeconds(0, 0);
+        blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: late.toISOString() } });
+        clientsGet.mockResolvedValue({ data: { ...topClients, covered_from: early.toISOString() } });
+        mount(mk('SL', 'p1', '1w'));
+        expect(await screen.findByRole('heading', { level: 2, name: `From query logs · Since ${formatDateTime(early.getTime())}` })).toBeInTheDocument();
+    });
+
+    it('says when query logs reach further back than statistics', async () => {
+        // tableRef: statistics-behaviour #P28
+        const start = '2026-10-06T03:00:00Z';
+        statsGet.mockResolvedValue({ data: createStatsResponse({ points: 48, enabledAt: start }) });
+        blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: '2026-10-01T08:00:00Z' } });
+        mount(mk('SL', 'p1', '1w'));
+        const note = `Query logs reach further back than statistics, which count since ${formatDateTime(Date.parse(start))}.`;
+        expect(await screen.findByText(note)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: `Counts · Since ${formatDateTime(Date.parse(start))}` })).toBeInTheDocument();
+    });
+
+    it('says nothing about reach when statistics cover the logs', async () => {
+        // tableRef: statistics-behaviour #P28
+        blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: '2026-10-01T08:00:00Z' } });
+        mount(mk('SL', 'p1', '1w'));
+        await screen.findByRole('region', { name: 'Top blocklists' });
+        expect(screen.queryByText(/Query logs reach further back/)).not.toBeInTheDocument();
     });
 
     it('store says on but the API says off: renders OFF and revalidates the profile once', async () => {
