@@ -280,7 +280,7 @@ class TestLogsTopAndClients:
         real_logged = 3 + 2 + 1 + 2
 
         # Three log rows from a public client IP the GeoIP stubs know (8.8.8.8).
-        retention = user.get_profile(pid).settings.logs.retention
+        retention = user.get_profile(pid).settings.logs.retention.value
         for _ in range(3):
             mongo_db[f"query_logs_{retention}"].insert_one({
                 "timestamp": datetime.now(timezone.utc),
