@@ -2937,6 +2937,86 @@ func (_c *Db_GetProfilesStatisticsSettings_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// GetQueryLogCoveredFrom provides a mock function for the type Db
+func (_mock *Db) GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error) {
+	ret := _mock.Called(ctx, profileId, retention, timespanHours)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetQueryLogCoveredFrom")
+	}
+
+	var r0 *time.Time
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int) (*time.Time, error)); ok {
+		return returnFunc(ctx, profileId, retention, timespanHours)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, int) *time.Time); ok {
+		r0 = returnFunc(ctx, profileId, retention, timespanHours)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*time.Time)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, int) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, timespanHours)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Db_GetQueryLogCoveredFrom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetQueryLogCoveredFrom'
+type Db_GetQueryLogCoveredFrom_Call struct {
+	*mock.Call
+}
+
+// GetQueryLogCoveredFrom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - timespanHours int
+func (_e *Db_Expecter) GetQueryLogCoveredFrom(ctx interface{}, profileId interface{}, retention interface{}, timespanHours interface{}) *Db_GetQueryLogCoveredFrom_Call {
+	return &Db_GetQueryLogCoveredFrom_Call{Call: _e.mock.On("GetQueryLogCoveredFrom", ctx, profileId, retention, timespanHours)}
+}
+
+func (_c *Db_GetQueryLogCoveredFrom_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int)) *Db_GetQueryLogCoveredFrom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Db_GetQueryLogCoveredFrom_Call) Return(time1 *time.Time, err error) *Db_GetQueryLogCoveredFrom_Call {
+	_c.Call.Return(time1, err)
+	return _c
+}
+
+func (_c *Db_GetQueryLogCoveredFrom_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error)) *Db_GetQueryLogCoveredFrom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetQueryLogDevices provides a mock function for the type Db
 func (_mock *Db) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
 	ret := _mock.Called(ctx, profileId, retention)
