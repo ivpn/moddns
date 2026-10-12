@@ -5,6 +5,7 @@ import {
     normalizeStatsRetention,
     profileStatsRetention,
     stateKey,
+    statsHeld,
     statsRetentionWords,
     transitionFor,
     type DataCollectionState,
@@ -300,5 +301,95 @@ describe('statistics retention changes', () => {
         expect(t?.id).toBe('T1');
         expect(t?.dialog).toBeUndefined();
         expect(t?.note).toContain('keep the counts for 90 days');
+    });
+});
+
+describe('how much a deleting change loses', () => {
+    // tableRef: statistics-behaviour #C25
+    const NOW = Date.parse('2026-10-12T12:00:00Z');
+    const localDay = (iso: string) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(Date.parse(iso));
+    const utcDay = (iso: string) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(Date.parse(iso));
+    const held = (statistics: object) => statsHeld(profile({ enabled: false }, { enabled: true, ...statistics }), NOW);
+    const kept = (r: DataCollectionState['statsRetention']) => ({ ...states.S1, statsRetention: r });
+
+    it('turning statistics off names the days of counts since counting started', () => {
+        // tableRef: statistics-behaviour #C25, #C8
+        const h = held({ retention: '1y', enabled_at: '2026-06-03T09:30:00Z' });
+        expect(transitionFor(states.S1, states.S0, h)?.dialog?.body).toBe(
+            `All statistics for this profile will be permanently deleted. The counts go back to ${localDay('2026-06-03T09:30:00Z')} (131 days). This action cannot be undone.`,
+        );
+        // tableRef: statistics-behaviour #C25, #C9, #C11, #C13
+        for (const [from, to] of [['S2', 'S0'], ['S2', 'S3'], ['S1', 'S3']] as const) {
+            // tableRef: statistics-behaviour #C25
+            expect(transitionFor(states[from], states[to], h)?.dialog?.body).toContain(`The counts go back to ${localDay('2026-06-03T09:30:00Z')} (131 days).`);
+        }
+    });
+
+    it('starts at the retention limit when counting began earlier', () => {
+        // tableRef: statistics-behaviour #C25
+        const h = held({ retention: '30d', enabled_at: '2026-01-03T09:30:00Z' });
+        expect(transitionFor(states.S1, states.S0, h)?.dialog?.body).toContain(`The counts go back to ${localDay('2026-09-12T12:00:00Z')} (30 days).`);
+    });
+
+    it('under a day it names the start time', () => {
+        // tableRef: statistics-behaviour #C25
+        const h = held({ retention: '30d', enabled_at: '2026-10-12T11:50:00Z' });
+        expect(transitionFor(states.S1, states.S0, h)?.dialog?.body).toMatch(/deleted\. The counts go back to [^(]+\. This action cannot be undone\.$/);
+    });
+
+    it('a change that deletes no statistics says nothing about counts', () => {
+        // tableRef: statistics-behaviour #C25, #C10, #C12
+        const h = held({ retention: '1y', enabled_at: '2026-06-03T09:30:00Z' });
+        expect(transitionFor(states.S2, states.S1, h)?.dialog?.body).not.toContain('counts go back');
+        expect(transitionFor(states.S3, states.S0, h)?.dialog?.body).not.toContain('counts go back');
+    });
+
+    it('lowering names the UTC days it deletes, as the server does', () => {
+        // tableRef: statistics-behaviour #C25, #C24, #T15
+        const h = held({ retention: '1y', enabled_at: '2026-06-03T09:30:00Z' });
+        expect(transitionFor(kept('1y'), kept('30d'), h)?.dialog?.body).toBe(
+            `Counts older than 30 days will be permanently deleted. That is 101 days of counts, from ${utcDay('2026-06-03T00:00:00Z')} to ${utcDay('2026-09-11T00:00:00Z')}. This action cannot be undone.`,
+        );
+        expect(transitionFor(kept('1y'), kept('30d'), h)?.lost).toBe(
+            `That is 101 days of counts, from ${utcDay('2026-06-03T00:00:00Z')} to ${utcDay('2026-09-11T00:00:00Z')}.`,
+        );
+    });
+
+    it('after a history delete the first stored day is the day after it', () => {
+        // tableRef: statistics-behaviour #C25, #J53
+        const h = held({ retention: '1y', enabled_at: '2026-01-01T00:00:00Z', history_deleted_at: '2026-06-03T09:30:00Z' });
+        expect(transitionFor(kept('1y'), kept('30d'), h)?.dialog?.body).toContain(`That is 100 days of counts, from ${utcDay('2026-06-04T00:00:00Z')} to `);
+    });
+
+    it('one day reads in the singular', () => {
+        // tableRef: statistics-behaviour #C25
+        const h = held({ retention: '1y', enabled_at: '2026-09-11T20:00:00Z' });
+        expect(transitionFor(kept('1y'), kept('30d'), h)?.dialog?.body).toContain(`That is 1 day of counts, ${utcDay('2026-09-11T00:00:00Z')}.`);
+    });
+
+    it('lowering when no count is older than the new retention deletes nothing and asks nothing', () => {
+        // tableRef: statistics-behaviour #T15, #C25
+        const h = held({ retention: '1y', enabled_at: '2026-09-20T09:30:00Z' });
+        const t = transitionFor(kept('1y'), kept('30d'), h);
+        expect(t).toMatchObject({
+            id: 'T15',
+            label: 'Keep for 30 days',
+            toast: 'Statistics are now kept for 30 days.',
+            note: 'No counts are older than 30 days yet, so nothing is deleted.',
+            retention: 'lower',
+        });
+        expect(t?.dialog).toBeUndefined();
+        expect(t?.lost).toBeUndefined();
+        const withDialog = transitionFor({ ...states.S2, statsRetention: '1y' }, { ...states.S1, statsRetention: '30d' }, h);
+        expect(withDialog?.dialog?.body).toBe('All query logs for this profile will be permanently deleted. Statistics stay on. This action cannot be undone.');
+        const withNote = transitionFor({ ...states.S1, statsRetention: '1y' }, { ...states.S2, statsRetention: '30d' }, h);
+        expect(withNote?.dialog).toBeUndefined();
+        expect(withNote?.note).toBe('modDNS will also record each query for 1 hour. No counts are older than 30 days yet, so nothing is deleted.');
+    });
+
+    it('without a counting start the copy stays general', () => {
+        // tableRef: statistics-behaviour #C25
+        expect(held({ retention: '1y' })).toBeNull();
+        expect(statsHeld(profile({ enabled: false }, { enabled: false, enabled_at: '2026-06-03T09:30:00Z' }), NOW)).toBeNull();
     });
 });
