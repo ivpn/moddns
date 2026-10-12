@@ -102,14 +102,16 @@ describe('Delete statistics history', () => {
         await waitFor(() => expect(screen.getByRole('button', { name: 'More statistics actions' })).toHaveFocus());
     });
 
-    it('is disabled under limited access with the reason visible', () => {
-        // tableRef: statistics-behaviour #S5, #C18
+    it('stays available under limited access', async () => {
+        // tableRef: statistics-behaviour #S5
+        const user = userEvent.setup();
         useAppStore.setState({ subscriptionStatus: 'limited_access' });
         const p = mk();
         useAppStore.setState({ activeProfile: p, profiles: [p] });
         render(<StatsActions profile={p} onHistoryDeleted={vi.fn()} />);
-        expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeDisabled();
-        expect(screen.getByText(/can't be changed in limited access mode/)).toBeVisible();
+        expect(screen.getByRole('button', { name: 'More statistics actions' })).toBeEnabled();
+        await openDelete(user);
+        expect(await screen.findByRole('dialog', { name: 'Delete statistics history?' })).toBeInTheDocument();
     });
 });
 

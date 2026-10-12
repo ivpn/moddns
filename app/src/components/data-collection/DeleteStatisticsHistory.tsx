@@ -34,8 +34,9 @@ export function useDeleteStatisticsHistory(
     const savedEnabled = !!profile.settings?.statistics?.enabled;
 
     const writeProfile = (p: ModelProfile) => {
-        setActiveProfile(p);
-        setProfiles(useAppStore.getState().profiles.map(x => (x.profile_id === p.profile_id ? p : x)));
+        const { profiles, activeProfile } = useAppStore.getState();
+        if (!activeProfile || activeProfile.profile_id === p.profile_id) setActiveProfile(p);
+        setProfiles(profiles.map(x => (x.profile_id === p.profile_id ? p : x)));
     };
 
     // S6: a stale tab must not confirm a delete against a state the server no longer holds.

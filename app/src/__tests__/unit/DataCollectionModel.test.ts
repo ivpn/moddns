@@ -139,19 +139,18 @@ describe('buildUpdates', () => {
     const asPairs = (a: DataCollectionState, b: DataCollectionState) =>
         buildUpdates(a, b).map(u => [u.path, u.value]);
 
-    it('writes both enabled paths on a state change', () => {
+    it('writes only the enabled paths that change', () => {
         // tableRef: statistics-behaviour #T1
-        expect(asPairs(states.S0, states.S1)).toEqual([
-            ['/settings/statistics/enabled', true],
-            ['/settings/logs/enabled', false],
-        ]);
+        expect(asPairs(states.S0, states.S1)).toEqual([['/settings/statistics/enabled', true]]);
         // tableRef: statistics-behaviour #T7
         expect(asPairs(states.S2, states.S0)).toEqual([
             ['/settings/statistics/enabled', false],
             ['/settings/logs/enabled', false],
         ]);
-        // tableRef: statistics-behaviour #T9
-        expect(asPairs(states.S2, states.S3)).toEqual([
+        // tableRef: statistics-behaviour #T9 — a turn-off never carries the source that stays on (G27)
+        expect(asPairs(states.S2, states.S3)).toEqual([['/settings/statistics/enabled', false]]);
+        // tableRef: statistics-behaviour #T6
+        expect(asPairs(states.S1, states.S3)).toEqual([
             ['/settings/statistics/enabled', false],
             ['/settings/logs/enabled', true],
         ]);
@@ -184,7 +183,6 @@ describe('buildUpdates', () => {
         // tableRef: statistics-behaviour #T16, #L6
         expect(asPairs(states.S0, { ...states.S1, statsRetention: '1y' })).toEqual([
             ['/settings/statistics/enabled', true],
-            ['/settings/logs/enabled', false],
             ['/settings/statistics/retention', '1y'],
         ]);
     });
