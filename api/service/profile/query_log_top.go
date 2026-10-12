@@ -52,27 +52,43 @@ func (p *ProfileService) invalidateQueryLogTopCache(ctx context.Context, profile
 	}
 }
 
-// cachedTop returns the cached list for key, or false on a miss, a cache error
-// or an undecodable value.
-func cachedTop[T any](ctx context.Context, p *ProfileService, key string) ([]T, bool) {
+// topEntry is a cached top list with the covered_from computed alongside it (J23).
+type topEntry[T any] struct {
+	Items       []T        `json:"items"`
+	CoveredFrom *time.Time `json:"covered_from"`
+}
+
+// cachedTop returns the cached entry for key, or false on a miss, a cache error
+// or a value in any other shape.
+func cachedTop[T any](ctx context.Context, p *ProfileService, key string) (topEntry[T], bool) {
+	var entry topEntry[T]
 	raw, err := p.Cache.Get(ctx, key)
 	if err != nil || raw == "" {
+		return entry, false
+	}
+	if json.Unmarshal([]byte(raw), &entry) != nil || entry.Items == nil {
+		return topEntry[T]{}, false
+	}
+	return entry, true
+}
+
+// fetchCoveredFrom answers nil on a failed lookup; the lists still answer.
+func (p *ProfileService) fetchCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespan string) (*time.Time, bool) {
+	covered, err := p.QueryLogsService.GetProfileQueryLogCoveredFrom(ctx, profileId, retention, timespan)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to read query log coverage")
 		return nil, false
 	}
-	var items []T
-	if json.Unmarshal([]byte(raw), &items) != nil {
-		return nil, false
-	}
-	return items, true
+	return covered, true
 }
 
 // storeTop caches a non-empty list: an empty one would pin "nothing" for the
 // TTL on a fresh profile whose first rows are still in the collector batch.
-func storeTop[T any](ctx context.Context, p *ProfileService, key string, items []T) {
-	if len(items) == 0 {
+func storeTop[T any](ctx context.Context, p *ProfileService, key string, entry topEntry[T]) {
+	if len(entry.Items) == 0 {
 		return
 	}
-	raw, err := json.Marshal(items)
+	raw, err := json.Marshal(entry)
 	if err != nil {
 		return
 	}
@@ -95,21 +111,25 @@ func (p *ProfileService) GetProfileQueryLogTop(ctx context.Context, accountId, p
 	}
 
 	key := queryLogTopCacheKey(kind, profileId, timespan)
-	items, ok := cachedTop[model.QueryLogTopDomain](ctx, p, key)
+	entry, ok := cachedTop[model.QueryLogTopDomain](ctx, p, key)
 	if !ok {
-		items, err = p.QueryLogsService.GetProfileQueryLogTopDomains(ctx, profileId, logs.Retention, timespan, kind, queryLogTopFetchLimit)
+		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopDomains(ctx, profileId, logs.Retention, timespan, kind, queryLogTopFetchLimit)
 		if err != nil {
 			return nil, err
 		}
-		storeTop(ctx, p, key, items)
+		var covered bool
+		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
+			storeTop(ctx, p, key, entry)
+		}
 	}
+	items := entry.Items
 	if len(items) > limit {
 		items = items[:limit]
 	}
 	if items == nil {
 		items = []model.QueryLogTopDomain{}
 	}
-	return &model.QueryLogTopDomains{Enabled: true, Items: items}, nil
+	return &model.QueryLogTopDomains{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom}, nil
 }
 
 // GetProfileQueryLogClients returns the most frequent client IPs in the
@@ -127,14 +147,18 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 	}
 
 	key := queryLogTopCacheKey(queryLogClientsKind, profileId, timespan)
-	items, ok := cachedTop[model.QueryLogTopClient](ctx, p, key)
+	entry, ok := cachedTop[model.QueryLogTopClient](ctx, p, key)
 	if !ok {
-		items, err = p.QueryLogsService.GetProfileQueryLogTopClients(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
+		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopClients(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
 		if err != nil {
 			return nil, err
 		}
-		storeTop(ctx, p, key, items)
+		var covered bool
+		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
+			storeTop(ctx, p, key, entry)
+		}
 	}
+	items := entry.Items
 	if len(items) > limit {
 		items = items[:limit]
 	}
@@ -146,7 +170,7 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 		}
 		out[i] = model.QueryLogTopClient{IP: it.IP, Count: it.Count, ASN: info.ASN, ASOrg: info.ASOrg, Country: info.Country}
 	}
-	return &model.QueryLogTopClients{Enabled: true, Items: out}, nil
+	return &model.QueryLogTopClients{Enabled: true, Items: out, CoveredFrom: entry.CoveredFrom}, nil
 }
 
 // GetProfileQueryLogBlocklists returns the blocklists that blocked the most
@@ -163,15 +187,19 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 	}
 
 	key := queryLogTopCacheKey(queryLogBlocklistKind, profileId, timespan)
-	items, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, key)
+	entry, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, key)
 	if !ok {
-		items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
+		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
 		if err != nil {
 			return nil, err
 		}
-		p.nameBlocklists(ctx, items)
-		storeTop(ctx, p, key, items)
+		p.nameBlocklists(ctx, entry.Items)
+		var covered bool
+		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
+			storeTop(ctx, p, key, entry)
+		}
 	}
+	items := entry.Items
 	if len(items) > limit {
 		items = items[:limit]
 	}
@@ -183,7 +211,7 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 	if items == nil {
 		items = []model.QueryLogTopBlocklist{}
 	}
-	return &model.QueryLogTopBlocklists{Enabled: true, Items: items}, nil
+	return &model.QueryLogTopBlocklists{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom}, nil
 }
 
 // nameBlocklists sets each item's catalogue name with one lookup. An id missing

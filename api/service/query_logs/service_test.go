@@ -55,6 +55,11 @@ func (s *stubQueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, 
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error) {
+	s.lastHours = timespanHours
+	return nil, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil
@@ -95,7 +100,7 @@ func TestGetProfileQueryLogsInvalidTimespan(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J20, J21, J24 — the top lists accept the 3 h and 6 h windows; J1 does not.
+// specRef: api-endpoint-behaviour.md J20, J21, J24 — the top lists and their covered_from accept the 3 h and 6 h windows; J1 does not.
 func TestTopTimespans(t *testing.T) {
 	for ts, hours := range map[string]int{
 		model.LAST_3_HOURS: 3, model.LAST_6_HOURS: 6, model.LAST_1_HOUR: 1, model.LAST_12_HOURS: 12,
@@ -115,8 +120,14 @@ func TestTopTimespans(t *testing.T) {
 			_, err = svc.GetProfileQueryLogTopBlocklists(context.Background(), "p", model.RetentionOneDay, ts, 10)
 			require.NoError(t, err)
 			require.Equal(t, hours, repo.lastHours)
+			repo.lastHours = 0
+			_, err = svc.GetProfileQueryLogCoveredFrom(context.Background(), "p", model.RetentionOneDay, ts)
+			require.NoError(t, err)
+			require.Equal(t, hours, repo.lastHours, "covered_from reads the same window")
 		})
 	}
+	_, err := NewQueryLogsService(&stubQueryLogsRepository{}).GetProfileQueryLogCoveredFrom(context.Background(), "p", model.RetentionOneDay, "LAST_YEAR")
+	require.Error(t, err, "covered_from takes the top-list enum")
 	for _, ts := range []string{model.LAST_3_HOURS, model.LAST_6_HOURS} {
 		repo := &stubQueryLogsRepository{}
 		_, err := NewQueryLogsService(repo).GetProfileQueryLogs(context.Background(), "p", model.RetentionOneDay, "all", ts, "", "", "created", 1, 10)

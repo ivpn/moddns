@@ -14,6 +14,11 @@ import (
 	"github.com/ivpn/dns/api/model"
 )
 
+// topCovered is the covered_from the repository reports in these tests (J20).
+var topCovered = time.Date(2026, 10, 12, 8, 0, 0, 0, time.UTC)
+
+const topCoveredJSON = `"covered_from":"2026-10-12T08:00:00Z"`
+
 type stubEnricher map[string]geoip.Info
 
 func (s stubEnricher) Lookup(ip string) geoip.Info { return s[ip] }
@@ -63,12 +68,26 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		// Retention and kind forwarded; the fetch size is the cached maximum, not the request limit.
 		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).Return(repoItems, nil)
-		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).Return(nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
+		var cached []byte
+		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).
+			Run(func(args mock.Arguments) { cached = args.Get(2).([]byte) }).Return(nil)
 
 		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 2)
 		suite.NoError(err)
 		suite.True(got.Enabled)
 		suite.Equal(repoItems[:2], got.Items)
+		suite.Require().NotNil(got.CoveredFrom)
+		suite.True(topCovered.Equal(*got.CoveredFrom))
+		// tableRef: api-endpoint-behaviour #J23
+		var entry struct {
+			Items       []model.QueryLogTopDomain `json:"items"`
+			CoveredFrom *time.Time                `json:"covered_from"`
+		}
+		suite.Require().NoError(json.Unmarshal(cached, &entry))
+		suite.Equal(repoItems, entry.Items, "the full list is cached")
+		suite.Require().NotNil(entry.CoveredFrom, "covered_from is cached with the list")
+		suite.True(topCovered.Equal(*entry.CoveredFrom))
 	})
 
 	suite.Run("kind resolved maps to processed status and its own key", func() {
@@ -76,6 +95,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, "logs:resolved:profile123:LAST_7_DAYS").Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "processed", 168, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
 		suite.mockCache.On("Set", ctx, "logs:resolved:profile123:LAST_7_DAYS", mock.Anything, 5*time.Minute).Return(nil)
 
 		_, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "resolved", 10)
@@ -85,12 +105,44 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 	suite.Run("hit skips the aggregation and still honours the limit", func() {
 		suite.resetTopMocks()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, key).Return(`[{"domain":"a.com","count":9},{"domain":"b.com","count":5}]`, nil)
+		suite.mockCache.On("Get", ctx, key).Return(`{"items":[{"domain":"a.com","count":9},{"domain":"b.com","count":5}],`+topCoveredJSON+`}`, nil)
 
 		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 1)
 		suite.NoError(err)
 		suite.Equal([]model.QueryLogTopDomain{{Domain: "a.com", Count: 9}}, got.Items)
+		suite.Require().NotNil(got.CoveredFrom, "covered_from comes from the cache entry")
+		suite.True(topCovered.Equal(*got.CoveredFrom))
 		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogTopDomains", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogCoveredFrom", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	// tableRef: api-endpoint-behaviour #J23
+	suite.Run("a cache entry in the bare-list shape reads as a miss", func() {
+		suite.resetTopMocks()
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, key).Return(`[{"domain":"a.com","count":9}]`, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
+		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).Return(nil)
+
+		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 10)
+		suite.NoError(err)
+		suite.Equal(repoItems, got.Items)
+		suite.NotNil(got.CoveredFrom)
+	})
+
+	suite.Run("a failed covered_from lookup answers null and is not cached", func() {
+		suite.resetTopMocks()
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
+		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(nil, errors.New("boom"))
+
+		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 10)
+		suite.NoError(err)
+		suite.Equal(repoItems, got.Items)
+		suite.Nil(got.CoveredFrom)
+		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
 	suite.Run("empty result is returned as [] and never cached", func() {
@@ -98,12 +150,14 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).Return(nil, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
 
 		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 10)
 		suite.NoError(err)
 		suite.True(got.Enabled)
 		suite.NotNil(got.Items)
 		suite.Empty(got.Items)
+		suite.NotNil(got.CoveredFrom, "other rows can cover the window with no blocked domain")
 		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 	})
 
@@ -160,6 +214,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogClients() {
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopClients", ctx, "profile123", model.RetentionOneDay, 24, 50).
 			Return([]model.QueryLogTopClient{{IP: "8.8.8.8", Count: 40}, {IP: "203.0.113.7", Count: 3}}, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneDay, 24).Return(&topCovered, nil)
 		var cached []byte
 		suite.mockCache.On("Set", ctx, key, mock.Anything, 5*time.Minute).
 			Run(func(args mock.Arguments) { cached = args.Get(2).([]byte) }).Return(nil)
@@ -174,25 +229,29 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogClients() {
 		suite.Nil(got.Items[1].ASN)
 		suite.Nil(got.Items[1].ASOrg)
 		suite.Nil(got.Items[1].Country)
+		suite.Require().NotNil(got.CoveredFrom)
+		suite.True(topCovered.Equal(*got.CoveredFrom))
+		suite.Contains(string(cached), topCoveredJSON)
 		suite.False(strings.Contains(string(cached), "GOOGLE") || strings.Contains(string(cached), "15169"), "cache must hold counts only")
 	})
 
 	suite.Run("hit is enriched with the current databases and trimmed to the limit", func() {
 		suite.resetTopMocks()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, key).Return(`[{"ip":"8.8.8.8","count":40,"asn":null,"as_org":null,"country":null},{"ip":"203.0.113.7","count":3,"asn":null,"as_org":null,"country":null}]`, nil)
+		suite.mockCache.On("Get", ctx, key).Return(`{"items":[{"ip":"8.8.8.8","count":40,"asn":null,"as_org":null,"country":null},{"ip":"203.0.113.7","count":3,"asn":null,"as_org":null,"country":null}],`+topCoveredJSON+`}`, nil)
 
 		got, err := suite.service.GetProfileQueryLogClients(ctx, "account123", "profile123", model.LAST_1_DAY, 1)
 		suite.NoError(err)
 		suite.Len(got.Items, 1)
 		suite.Equal(&cc, got.Items[0].Country)
+		suite.NotNil(got.CoveredFrom)
 	})
 
 	suite.Run("no enricher wired leaves the fields null", func() {
 		suite.service.SetClientEnricher(nil)
 		suite.resetTopMocks()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, key).Return(`[{"ip":"8.8.8.8","count":40}]`, nil)
+		suite.mockCache.On("Get", ctx, key).Return(`{"items":[{"ip":"8.8.8.8","count":40}],"covered_from":null}`, nil)
 
 		got, err := suite.service.GetProfileQueryLogClients(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
 		suite.NoError(err)
@@ -205,6 +264,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogClients() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopClients", ctx, "profile123", model.RetentionOneDay, 24, 50).Return(nil, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneDay, 24).Return(nil, nil)
 
 		got, err := suite.service.GetProfileQueryLogClients(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
 		suite.NoError(err)
@@ -282,6 +342,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(bare), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneDay, 24, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneDay, 24).Return(&topCovered, nil)
 		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(catalog, nil)
 		cachedSet()
 
@@ -298,6 +359,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 24).Return(&topCovered, nil)
 		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(catalog, nil).Once()
 		raw := cachedSet()
 
@@ -305,9 +367,15 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.NoError(err)
 		suite.True(got.Enabled)
 		suite.Equal(named[:2], got.Items)
-		var cached []model.QueryLogTopBlocklist
+		suite.Require().NotNil(got.CoveredFrom)
+		suite.True(topCovered.Equal(*got.CoveredFrom))
+		var cached struct {
+			Items       []model.QueryLogTopBlocklist `json:"items"`
+			CoveredFrom *time.Time                   `json:"covered_from"`
+		}
 		suite.Require().NoError(json.Unmarshal([]byte(*raw), &cached))
-		suite.Equal(named, cached, "the cached list carries the names")
+		suite.Equal(named, cached.Items, "the cached list carries the names")
+		suite.NotNil(cached.CoveredFrom)
 	})
 
 	suite.Run("catalog error falls back to the id and still answers", func() {
@@ -315,6 +383,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 24).Return(&topCovered, nil)
 		suite.mockBlocklistRepo.On("Get", ctx, catalogFilter, "updated").Return(nil, errors.New("mongo down"))
 		cachedSet()
 
@@ -330,11 +399,12 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 	suite.Run("hit skips both lookups, honours the limit and names a nameless row by its id", func() {
 		reset()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, key).Return(`[{"blocklist_id":"oisd","name":"OISD Big","count":9},{"blocklist_id":"hagezi_pro","count":5}]`, nil)
+		suite.mockCache.On("Get", ctx, key).Return(`{"items":[{"blocklist_id":"oisd","name":"OISD Big","count":9},{"blocklist_id":"hagezi_pro","count":5}],`+topCoveredJSON+`}`, nil)
 
 		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 2)
 		suite.NoError(err)
 		suite.Equal([]model.QueryLogTopBlocklist{{BlocklistID: "oisd", Name: "OISD Big", Count: 9}, {BlocklistID: "hagezi_pro", Name: "hagezi_pro", Count: 5}}, got.Items)
+		suite.NotNil(got.CoveredFrom)
 		suite.mockQueryLogsRepo.AssertNotCalled(suite.T(), "GetQueryLogTopBlocklists", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 		suite.mockBlocklistRepo.AssertNotCalled(suite.T(), "Get", mock.Anything, mock.Anything, mock.Anything)
 	})
@@ -344,6 +414,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
 		suite.mockCache.On("Get", ctx, key).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopBlocklists", ctx, "profile123", model.RetentionOneWeek, 24, 50).Return(nil, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 24).Return(nil, nil)
 
 		got, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
 		suite.NoError(err)

@@ -99,7 +99,7 @@ func topLimitParam(c *fiber.Ctx) int {
 }
 
 // @Summary Get profile top domains
-// @Description Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only.
+// @Description Most frequent blocked or resolved domains in the profile's query logs (current retention window). Returns enabled=false with no items unless logs and domain logging are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
 // @Tags QueryLogs
 // @Produce json
 // @Security ApiKeyAuth
@@ -138,7 +138,7 @@ func (s *APIServer) getProfileQueryLogTop() fiber.Handler {
 }
 
 // @Summary Get profile top clients
-// @Description Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on.
+// @Description Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
 // @Tags QueryLogs
 // @Produce json
 // @Security ApiKeyAuth
@@ -175,7 +175,7 @@ func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
 }
 
 // @Summary Get profile top blocklists
-// @Description Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only.
+// @Description Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.
 // @Tags QueryLogs
 // @Produce json
 // @Security ApiKeyAuth
