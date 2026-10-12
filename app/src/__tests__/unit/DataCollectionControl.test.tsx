@@ -175,6 +175,43 @@ describe('DataCollectionControl', () => {
         expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     });
 
+    it('says how much turning statistics off deletes', async () => {
+        // tableRef: statistics-behaviour #C25, #C8
+        const user = userEvent.setup();
+        const p = mk('p1', 'stats');
+        (p.settings!.statistics as Record<string, unknown>).enabled_at = new Date(Date.now() - 10 * 86_400_000 - 3_600_000).toISOString();
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        await user.click(box('Statistics'));
+        await user.click(saveBtn());
+        const dialog = await screen.findByRole('dialog', { name: 'Turn off statistics?' });
+        expect(within(dialog).getByText(/^All statistics for this profile will be permanently deleted\. The counts go back to .+ \(10 days\)\. This action cannot be undone\.$/)).toBeInTheDocument();
+    });
+
+    it('lowering the retention names the deleted days in the hint, and with nothing older skips the dialog', async () => {
+        // tableRef: statistics-behaviour #C24, #C25, #T15
+        const user = userEvent.setup();
+        const old = mk('p1', 'stats');
+        Object.assign(old.settings!.statistics as Record<string, unknown>, { retention: '1y', enabled_at: new Date(Date.now() - 100 * 86_400_000).toISOString() });
+        seed(old);
+        const { unmount } = render(<DataCollectionControl profile={old} />);
+        await user.click(screen.getByRole('radio', { name: '30 days' }));
+        expect(screen.getByRole('note')).toHaveTextContent(/^Counts older than 30 days will be deleted when you save\. That is \d+ days of counts, from .+ to .+\.$/);
+        unmount();
+
+        const fresh = mk('p1', 'stats');
+        Object.assign(fresh.settings!.statistics as Record<string, unknown>, { retention: '1y', enabled_at: new Date(Date.now() - 5 * 86_400_000).toISOString() });
+        seed(fresh);
+        patch.mockResolvedValue({ status: 200, data: fresh });
+        render(<DataCollectionControl profile={fresh} />);
+        await user.click(screen.getByRole('radio', { name: '30 days' }));
+        expect(screen.queryByRole('note')).not.toBeInTheDocument();
+        expect(screen.getByText('No counts are older than 30 days yet, so nothing is deleted.')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Keep for 30 days' }));
+        await waitFor(() => expect(patch).toHaveBeenCalled());
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
     it('Cancel closes the dialog, resets to saved and focuses the touched source', async () => {
         // tableRef: statistics-behaviour #T22
         const user = userEvent.setup();
