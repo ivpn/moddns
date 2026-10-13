@@ -222,3 +222,11 @@ h1 {
     background: #000;
   }
 }
+
+/* Radix keeps a closing overlay mounted until its exit animation ends; with reduced motion there
+   is none, so it unmounts at once (Media Queries Level 5, prefers-reduced-motion). */
+@media (prefers-reduced-motion: reduce) {
+  [data-state] {
+    animation: none !important;
+  }
+}
