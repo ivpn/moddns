@@ -38,7 +38,8 @@ func newTransitionsHarness(t *testing.T) *transitionsHarness {
 		statsRepo: mocks.NewStatisticsRepository(t),
 		cache:     mocks.NewCachecache(t),
 	}
-	statsSvc := statistics.NewStatisticsService(h.statsRepo)
+	// The retention move runs inline so its effects are visible when UpdateProfile returns.
+	statsSvc := statistics.NewStatisticsService(h.statsRepo, statistics.WithBackground(func(f func()) { f() }))
 	h.svc = profile.NewProfileService(config.ServerConfig{}, config.ServiceConfig{}, h.profiles, mocks.NewAccountRepository(t),
 		nil, nil, statsSvc, nil, h.cache, mocks.NewGeneratoridgen(t), validator.New())
 	h.svc.SetClock(func() time.Time { return fixedNow })
