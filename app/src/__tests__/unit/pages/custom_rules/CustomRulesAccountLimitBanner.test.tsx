@@ -58,6 +58,19 @@ describe('CustomRulesAccountLimitBanner', () => {
         expect(screen.getByText(/custom rules used across all profiles/)).toBeInTheDocument();
     });
 
+    it('keeps the account total after rules change on one profile and the user switches to another', () => {
+        const a = profileWith('a', 6000);
+        const b = profileWith('b', 4000);
+        setState(a, [a, b]);
+        // A rule mutation stores the refetched profile; switching then picks b from the list.
+        useAppStore.getState().setActiveProfile(profileWith('a', 5990));
+        useAppStore.getState().setActiveProfile(useAppStore.getState().profiles.find(p => p.profile_id === 'b')!);
+        render(<CustomRulesAccountLimitBanner />);
+        expect(
+            screen.getByText(`${(9990).toLocaleString()} of ${(10000).toLocaleString()} custom rules used across all profiles.`),
+        ).toBeInTheDocument();
+    });
+
     it('warns at the cap that new rules are refused until some are removed', () => {
         const active = profileWith('a', 6000);
         setState(active, [active, profileWith('b', 4000)]);
