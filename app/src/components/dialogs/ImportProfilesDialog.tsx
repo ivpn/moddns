@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { importErrorMessage, isReauthError } from '@/lib/importExportErrors';
 import API from '@/api/api';
 import type { ModelExportEnvelope } from '@/api/client/api';
+import { importedCollection } from '@/components/data-collection/model';
 
 export interface ImportProfilesDialogProps {
     open: boolean;
@@ -144,6 +145,14 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
     const selectedIndices = selectedIds.map(id => parseInt(id, 10));
     const selectedCount = selectedIndices.length;
     const wouldExceedCap = currentProfileCount + selectedCount > MAX_PROFILES;
+    // I26: the selected profiles that start collecting data as soon as they are imported.
+    const collecting = parsedPayload
+        ? [...selectedIndices].sort((a, b) => a - b).flatMap(i => {
+              const p = parsedPayload.profiles[i];
+              const what = p ? importedCollection(p.settings) : null;
+              return what ? [{ index: i, name: p.name, what }] : [];
+          })
+        : [];
     const remaining = MAX_PROFILES - currentProfileCount;
 
     const isReauthComplete =
@@ -495,6 +504,26 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                                 </div>
                             )}
 
+                            {collecting.length > 0 && (
+                                <div
+                                    data-testid="import-data-collection-warning"
+                                    role="note"
+                                    className="flex items-start gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3"
+                                >
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400" aria-hidden />
+                                    <div className="space-y-2 text-sm text-yellow-800 dark:text-yellow-200">
+                                        <p className="font-semibold">Data collection starts on import</p>
+                                        <p>These profiles start collecting as soon as they are imported. You can turn it off in each profile's Settings.</p>
+                                        <ul className="list-disc space-y-1 pl-5">
+                                            {collecting.map(c => (
+                                                <li key={c.index}>
+                                                    <span className="font-semibold">{c.name}</span>: {c.what}.
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
                             {/* Reauth */}
                             {renderReauthSection()}
                         </DialogBody>
