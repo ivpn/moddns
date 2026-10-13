@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
@@ -238,6 +239,25 @@ func (h *transitionsHarness) expectDelete(t *testing.T, existing *model.Profile,
 	h.profiles.On("DeleteProfileById", mock.Anything, existing.ProfileId).Return(deleteErr)
 	qlRepo.On("DeleteQueryLogs", mock.Anything, existing.ProfileId).Return(nil).Maybe()
 	h.cache.On("DeleteProfileSettings", mock.Anything, existing.ProfileId).Return(nil).Maybe()
+	h.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+}
+
+// specRef: api-endpoint-behaviour.md J7, J23, J5 — deleting a profile also drops the caches built from its query logs.
+func TestDeleteProfile_InvalidatesQueryLogCaches(t *testing.T) {
+	h := newTransitionsHarness(t)
+	deleted := map[string]bool{}
+	h.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).
+		Run(func(args mock.Arguments) { deleted[args.String(1)] = true }).Return(nil)
+	h.expectDelete(t, statsProfile(false, nil), nil)
+	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
+
+	require.NoError(t, h.svc.DeleteProfile(context.Background(), "account123", "profile123", true))
+	assert.True(t, deleted["query_log_devices:profile123"])
+	for _, kind := range []string{"blocked", "resolved", "clients", "blocklists"} {
+		for _, ts := range []string{"LAST_1_HOUR", "LAST_3_HOURS", "LAST_6_HOURS", "LAST_12_HOURS", "LAST_1_DAY", "LAST_7_DAYS", "LAST_MONTH"} {
+			assert.True(t, deleted["logs:"+kind+":profile123:"+ts], kind+" "+ts)
+		}
+	}
 }
 
 // specRef: api-endpoint-behaviour.md J7 — profile deletion purges the profile's statistics.

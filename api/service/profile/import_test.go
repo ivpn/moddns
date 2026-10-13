@@ -1166,6 +1166,7 @@ func TestImport_Rollback_EvictsCacheForCreatedProfiles(t *testing.T) {
 		Return(nil).Once()
 	env.cache.On("DeleteProfileSettings", mock.Anything, "created-id-1").
 		Return(nil).Once()
+	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, minimalEnvelope(2), ptr("secret"), nil, nil)
@@ -1210,6 +1211,7 @@ func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
 	env.cache.On("DeleteProfileSettings", mock.Anything, "a").Return(assert.AnError).Once()
 	env.profileRepo.On("DeleteProfileById", mock.Anything, "b").Return(nil).Once()
 	env.cache.On("DeleteProfileSettings", mock.Anything, "b").Return(nil).Once()
+	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, minimalEnvelope(3), ptr("secret"), nil, nil)

@@ -208,8 +208,10 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	})
 
 	eg.Go(func() (err error) {
-		// delete query logs
-		return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+		// delete query logs, then the caches derived from them whether or not the delete succeeded
+		err = p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+		p.invalidateQueryLogCaches(ctx, profileId)
+		return err
 	})
 
 	eg.Go(func() (err error) {
