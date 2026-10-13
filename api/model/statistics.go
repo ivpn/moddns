@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/ivpn/dns/libs/statistics"
@@ -34,13 +35,12 @@ func (r StatisticsRetention) Window() time.Duration { return r.lib().Window() }
 // MarshalBinary lets go-redis write the value; it has no fallback for named strings.
 func (r StatisticsRetention) MarshalBinary() ([]byte, error) { return []byte(r), nil }
 
-// Timespans accepted by the statistics read endpoint; the logs endpoints keep
-// their own enum (timespan.go).
+// Statistics names of the shared timespans (timespan.go, StatisticsTimespanSet).
 const (
-	StatisticsLast3Hours  = "LAST_3_HOURS"
-	StatisticsLast6Hours  = "LAST_6_HOURS"
-	StatisticsLast3Months = "LAST_3_MONTHS"
-	StatisticsLastYear    = "LAST_YEAR"
+	StatisticsLast3Hours  = LAST_3_HOURS
+	StatisticsLast6Hours  = LAST_6_HOURS
+	StatisticsLast3Months = LAST_3_MONTHS
+	StatisticsLastYear    = LAST_YEAR
 
 	// StatisticsDefaultTimespan applies when the query parameter is absent.
 	StatisticsDefaultTimespan = LAST_7_DAYS
@@ -81,7 +81,7 @@ var statisticsTimespans = map[string]StatisticsTimespanSpec{
 
 // StatisticsTimespans lists the accepted timespans.
 func StatisticsTimespans() []string {
-	return []string{StatisticsLast3Hours, StatisticsLast6Hours, LAST_1_DAY, LAST_7_DAYS, LAST_MONTH, StatisticsLast3Months, StatisticsLastYear}
+	return slices.Clone(StatisticsTimespanSet)
 }
 
 // NewStatisticsTimespan resolves a statistics timespan.
@@ -104,23 +104,30 @@ func StatisticsRetentions() []StatisticsRetention {
 
 // StatisticsRetentionWindow resolves a retention setting; an empty or unknown
 // value reads as 30d.
-func StatisticsRetentionWindow(r StatisticsRetention) (string, time.Duration) {
-	return string(r.OrDefault()), r.Window()
+func StatisticsRetentionWindow(r StatisticsRetention) (StatisticsRetention, time.Duration) {
+	return r.OrDefault(), r.Window()
 }
 
+// StatisticsTotals sums the window's queries.
 type StatisticsTotals struct {
-	Total   int64 `json:"total"`
+	// Queries counted.
+	Total int64 `json:"total"`
+	// Queries blocked.
 	Blocked int64 `json:"blocked"`
-	Dnssec  int64 `json:"dnssec"`
+	// Answers carrying the DNSSEC authenticated-data (AD) flag.
+	Dnssec int64 `json:"dnssec"`
 }
 
+// StatisticsPoint is one point of the series.
 type StatisticsPoint struct {
+	// Start of the point's bucket (UTC); the bucket spans bucket_seconds.
 	Ts      time.Time `json:"ts"`
 	Total   int64     `json:"total"`
 	Blocked int64     `json:"blocked"`
 	Dnssec  int64     `json:"dnssec"`
 }
 
+// StatisticsReasons counts blocked queries by the class of rule that decided the block.
 type StatisticsReasons struct {
 	Blocklist   int64 `json:"blocklist"`
 	Service     int64 `json:"service"`
@@ -130,13 +137,17 @@ type StatisticsReasons struct {
 	Other       int64 `json:"other"`
 }
 
+// StatisticsProtocols counts queries by encrypted transport; plain DNS is not counted, so the
+// protocols need not add up to totals.total.
 type StatisticsProtocols struct {
 	DoH int64 `json:"doh"`
 	DoT int64 `json:"dot"`
 	DoQ int64 `json:"doq"`
 }
 
+// StatisticsDevice counts one device's queries over the window.
 type StatisticsDevice struct {
+	// The device id as sent by the client; "" for queries without one, "_other" for the folded rest.
 	DeviceID string `json:"device_id"`
 	Total    int64  `json:"total"`
 	Blocked  int64  `json:"blocked"`
@@ -154,18 +165,31 @@ type StatisticsAggregate struct {
 
 // StatisticsResponse is the body of GET /profiles/{id}/statistics.
 type StatisticsResponse struct {
-	Enabled   bool       `json:"enabled"`
+	// Whether statistics are collected; when false every count is zero and series and devices are empty.
+	Enabled bool `json:"enabled"`
+	// When statistics were last turned on (UTC); null while they are off.
 	EnabledAt *time.Time `json:"enabled_at"`
-	// Last "Delete statistics history" (J53); null while off or never deleted.
-	HistoryDeletedAt *time.Time          `json:"history_deleted_at"`
-	Retention        string              `json:"retention"`
-	Timespan         string              `json:"timespan"`
-	From             time.Time           `json:"from"`
-	To               time.Time           `json:"to"`
-	BucketSeconds    int                 `json:"bucket_seconds"`
-	Totals           StatisticsTotals    `json:"totals"`
-	Series           []StatisticsPoint   `json:"series"`
-	Reasons          StatisticsReasons   `json:"reasons"`
-	Protocols        StatisticsProtocols `json:"protocols"`
-	Devices          []StatisticsDevice  `json:"devices"`
+	// When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.
+	HistoryDeletedAt *time.Time `json:"history_deleted_at"` // J53
+	// How long the profile's daily statistics are kept; the window never reaches further back.
+	Retention StatisticsRetention `json:"retention" enums:"30d,90d,1y"`
+	// The requested timespan.
+	Timespan string `json:"timespan"`
+	// Start of the window (UTC, inclusive), aligned to bucket_seconds.
+	From time.Time `json:"from"`
+	// End of the window (UTC, exclusive): the time of the request.
+	To time.Time `json:"to"`
+	// Width of each series point in seconds.
+	BucketSeconds int `json:"bucket_seconds"`
+	// Sums over the window.
+	Totals StatisticsTotals `json:"totals"`
+	// One point per bucket in [from, to), oldest first, zero-filled.
+	Series []StatisticsPoint `json:"series"`
+	// Blocked queries by the class of rule that decided the block.
+	Reasons StatisticsReasons `json:"reasons"`
+	// Queries by encrypted transport (plain DNS not counted).
+	Protocols StatisticsProtocols `json:"protocols"`
+	// Per-device counts, total descending then device_id ascending. At most 100 entries: past
+	// that the 99 largest are kept and the rest is folded into one "_other" entry.
+	Devices []StatisticsDevice `json:"devices"`
 }

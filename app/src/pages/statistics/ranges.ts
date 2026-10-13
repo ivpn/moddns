@@ -4,7 +4,7 @@
 
 import { STATS_RETENTION_OPTIONS, type StatsRetention } from "@/components/data-collection/model";
 import {
-    ApiV1ProfilesIdLogsTopGetTimespanEnum as LogsTimespan,
+    ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum as LogsTimespan,
     ApiV1ProfilesIdStatisticsGetTimespanEnum as StatsTimespan,
 } from "@/api/client";
 

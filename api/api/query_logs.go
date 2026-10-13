@@ -112,23 +112,22 @@ func topLimitParam(c *fiber.Ctx) int {
 // @Failure 404 {object} ErrResponse
 // @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
-// @Router /api/v1/profiles/{id}/logs/top [get]
+// @Router /api/v1/profiles/{id}/logs/top/domains [get]
 func (s *APIServer) getProfileQueryLogTop() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		params := requests.QueryLogsTopQueryParams{
-			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Timespan: c.Query("timespan", model.QueryLogsTopDefaultTimespan),
 			Kind:     c.Query("kind", ""),
 			Limit:    topLimitParam(c),
 		}
 		if err := s.Validator.Validator.Struct(params); err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+			return validationFailed(c, params, err)
 		}
 
 		accountId := auth.GetAccountID(c)
 		top, err := s.Service.GetProfileQueryLogTop(c.UserContext(), accountId, profileId, params.Timespan, params.Kind, params.Limit)
 		if err != nil {
-			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogTop.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogTop.Error())
 		}
 
@@ -150,22 +149,21 @@ func (s *APIServer) getProfileQueryLogTop() fiber.Handler {
 // @Failure 404 {object} ErrResponse
 // @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
-// @Router /api/v1/profiles/{id}/logs/clients [get]
+// @Router /api/v1/profiles/{id}/logs/top/clients [get]
 func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		params := requests.QueryLogsClientsQueryParams{
-			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Timespan: c.Query("timespan", model.QueryLogsTopDefaultTimespan),
 			Limit:    topLimitParam(c),
 		}
 		if err := s.Validator.Validator.Struct(params); err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+			return validationFailed(c, params, err)
 		}
 
 		accountId := auth.GetAccountID(c)
 		clients, err := s.Service.GetProfileQueryLogClients(c.UserContext(), accountId, profileId, params.Timespan, params.Limit)
 		if err != nil {
-			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogClients.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogClients.Error())
 		}
 
@@ -187,22 +185,21 @@ func (s *APIServer) getProfileQueryLogClients() fiber.Handler {
 // @Failure 404 {object} ErrResponse
 // @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
-// @Router /api/v1/profiles/{id}/logs/blocklists [get]
+// @Router /api/v1/profiles/{id}/logs/top/blocklists [get]
 func (s *APIServer) getProfileQueryLogBlocklists() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		profileId := c.Params("id")
 		params := requests.QueryLogsBlocklistsQueryParams{
-			Timespan: c.Query("timespan", model.LAST_1_DAY),
+			Timespan: c.Query("timespan", model.QueryLogsTopDefaultTimespan),
 			Limit:    topLimitParam(c),
 		}
 		if err := s.Validator.Validator.Struct(params); err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+			return validationFailed(c, params, err)
 		}
 
 		accountId := auth.GetAccountID(c)
 		blocklists, err := s.Service.GetProfileQueryLogBlocklists(c.UserContext(), accountId, profileId, params.Timespan, params.Limit)
 		if err != nil {
-			log.Ctx(c.UserContext()).Error().Err(err).Msg(ErrFailedToGetQueryLogBlocklists.Error())
 			return HandleError(c, err, ErrFailedToGetQueryLogBlocklists.Error())
 		}
 

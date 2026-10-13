@@ -259,9 +259,9 @@ func (s *APIServer) RegisterRoutes() {
 	// Query logs endpoints
 	profiles.Get("/:id/logs", middleware.NewLimit(500, 1*time.Minute), s.getProfileQueryLogs())
 	profiles.Get("/:id/logs/devices", middleware.NewLimit(20, 1*time.Minute), s.getProfileQueryLogDevices())
-	profiles.Get("/:id/logs/top", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogTop())
-	profiles.Get("/:id/logs/clients", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogClients())
-	profiles.Get("/:id/logs/blocklists", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogBlocklists())
+	profiles.Get("/:id/logs/top/domains", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogTop())
+	profiles.Get("/:id/logs/top/clients", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogClients())
+	profiles.Get("/:id/logs/top/blocklists", middleware.NewLimit(60, 1*time.Minute), s.getProfileQueryLogBlocklists())
 	profiles.Get("/:id/logs/download", middleware.NewLimit(20, 1*time.Minute), s.downloadProfileQueryLogs())
 	profiles.Delete("/:id/logs", middleware.NewLimit(20, 1*time.Minute), s.deleteProfileQueryLogs())
 

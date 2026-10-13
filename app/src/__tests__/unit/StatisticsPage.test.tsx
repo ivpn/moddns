@@ -16,9 +16,9 @@ vi.mock('@/api/api', () => ({
         Client: {
             statisticsApi: { apiV1ProfilesIdStatisticsGet: vi.fn(), apiV1ProfilesIdStatisticsDelete: vi.fn() },
             queryLogsApi: {
-                apiV1ProfilesIdLogsTopGet: vi.fn(),
-                apiV1ProfilesIdLogsClientsGet: vi.fn(),
-                apiV1ProfilesIdLogsBlocklistsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopDomainsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopClientsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopBlocklistsGet: vi.fn(),
                 apiV1ProfilesIdLogsDevicesGet: vi.fn(),
             },
             blocklistsApi: { apiV1BlocklistsGet: vi.fn() },
@@ -29,9 +29,9 @@ vi.mock('@/api/api', () => ({
 
 type Mock = ReturnType<typeof vi.fn>;
 const statsGet = api.Client.statisticsApi.apiV1ProfilesIdStatisticsGet as unknown as Mock;
-const topGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopGet as unknown as Mock;
-const clientsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsClientsGet as unknown as Mock;
-const blocklistsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet as unknown as Mock;
+const topGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet as unknown as Mock;
+const clientsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopClientsGet as unknown as Mock;
+const blocklistsGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsTopBlocklistsGet as unknown as Mock;
 const catalogGet = api.Client.blocklistsApi.apiV1BlocklistsGet as unknown as Mock;
 const devicesGet = api.Client.queryLogsApi.apiV1ProfilesIdLogsDevicesGet as unknown as Mock;
 const profileGet = api.Client.profilesApi.apiV1ProfilesIdGet as unknown as Mock;

@@ -596,3 +596,44 @@ func (suite *ProfileTestSuite) TestQueryLogTopConcurrentMissesShareOneAggregatio
 	}
 	suite.mockQueryLogsRepo.AssertNumberOfCalls(suite.T(), "GetQueryLogTopDomains", 1)
 }
+
+// tableRef: api-endpoint-behaviour #J20
+// tableRef: api-endpoint-behaviour #J21
+// tableRef: api-endpoint-behaviour #J24
+// An open gate echoes the timespan read and the logs retention it was read from; a closed gate
+// keeps the exact {"enabled":false,"items":[]} body.
+func (suite *ProfileTestSuite) TestQueryLogTopEchoesWindow() {
+	ctx := context.Background()
+	on := &model.LogsSettings{Enabled: true, LogDomains: true, LogClientsIPs: true, Retention: model.RetentionOneDay}
+	hit := func() {
+		suite.resetTopMocks()
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs:") })).Return(`{"items":[],"covered_from":null}`, nil)
+	}
+
+	hit()
+	d, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_MONTH, "blocked", 10)
+	suite.Require().NoError(err)
+	suite.Equal(model.LAST_MONTH, d.Timespan)
+	suite.Equal(model.RetentionOneDay, d.Retention)
+
+	hit()
+	c, err := suite.service.GetProfileQueryLogClients(ctx, "account123", "profile123", model.LAST_3_HOURS, 10)
+	suite.Require().NoError(err)
+	suite.Equal(model.LAST_3_HOURS, c.Timespan)
+	suite.Equal(model.RetentionOneDay, c.Retention)
+
+	hit()
+	b, err := suite.service.GetProfileQueryLogBlocklists(ctx, "account123", "profile123", model.LAST_1_DAY, 10)
+	suite.Require().NoError(err)
+	suite.Equal(model.LAST_1_DAY, b.Timespan)
+	suite.Equal(model.RetentionOneDay, b.Retention)
+
+	suite.resetTopMocks()
+	suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(&model.LogsSettings{Retention: model.RetentionOneDay}), nil)
+	closed, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_MONTH, "blocked", 10)
+	suite.Require().NoError(err)
+	raw, err := json.Marshal(closed)
+	suite.Require().NoError(err)
+	suite.JSONEq(`{"enabled":false,"items":[]}`, string(raw))
+}

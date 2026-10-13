@@ -158,7 +158,7 @@ func (p *ProfileService) GetProfileQueryLogTop(ctx context.Context, accountId, p
 	if items == nil {
 		items = []model.QueryLogTopDomain{}
 	}
-	return &model.QueryLogTopDomains{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom}, nil
+	return &model.QueryLogTopDomains{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom, Timespan: timespan, Retention: logs.Retention}, nil
 }
 
 // GetProfileQueryLogClients returns the most frequent client IPs in the
@@ -199,7 +199,7 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 		}
 		out[i] = model.QueryLogTopClient{IP: it.IP, Count: it.Count, ASN: info.ASN, ASOrg: info.ASOrg, Country: info.Country}
 	}
-	return &model.QueryLogTopClients{Enabled: true, Items: out, CoveredFrom: entry.CoveredFrom}, nil
+	return &model.QueryLogTopClients{Enabled: true, Items: out, CoveredFrom: entry.CoveredFrom, Timespan: timespan, Retention: logs.Retention}, nil
 }
 
 // GetProfileQueryLogBlocklists returns the blocklists that blocked the most
@@ -240,7 +240,7 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 	if items == nil {
 		items = []model.QueryLogTopBlocklist{}
 	}
-	return &model.QueryLogTopBlocklists{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom}, nil
+	return &model.QueryLogTopBlocklists{Enabled: true, Items: items, CoveredFrom: entry.CoveredFrom, Timespan: timespan, Retention: logs.Retention}, nil
 }
 
 // nameBlocklists sets each item's catalogue name with one lookup. An id missing
