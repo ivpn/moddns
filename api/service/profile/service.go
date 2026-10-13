@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 )
 
 // ServicesCatalogReader is a narrow interface for looking up service IDs in the
@@ -65,6 +66,8 @@ type ProfileService struct {
 	// clientEnricher adds ASN and country to the top-clients list; nil leaves
 	// those fields null (see SetClientEnricher).
 	clientEnricher ClientEnricher
+	// topFlight lets concurrent misses of one top-list cache key share one aggregation.
+	topFlight singleflight.Group
 
 	// now is the clock; nil means time.Now (see SetClock).
 	now func() time.Time

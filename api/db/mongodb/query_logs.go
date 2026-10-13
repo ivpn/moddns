@@ -264,6 +264,12 @@ func (r *QueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, profil
 	return &covered, nil
 }
 
+// queryLogTopAggregateOptions bounds a top-list aggregation on the server: it unpacks every bucket
+// in the window, and the request context is not cancelled when the client goes away.
+func queryLogTopAggregateOptions() *options.AggregateOptions {
+	return options.Aggregate().SetMaxTime(15 * time.Second)
+}
+
 // topBlocklistsPipeline counts the profile's blocked rows since from once per
 // "blocklist: <id>" reason token, count desc then token asc. Sorting on the full
 // token equals sorting on the id: every token shares the prefix.
@@ -292,7 +298,7 @@ func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pi
 func (r *QueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
 	start := time.Now()
 	from := time.Now().Add(-time.Duration(timespanHours) * time.Hour)
-	cursor, err := r.getCollObject(retention).Aggregate(ctx, topBlocklistsPipeline(profileId, from, limit))
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, topBlocklistsPipeline(profileId, from, limit), queryLogTopAggregateOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +329,7 @@ func (r *QueryLogsRepository) topGroup(ctx context.Context, retention model.Rete
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
 		bson.D{{Key: "$limit", Value: limit}},
 	}
-	cursor, err := r.getCollObject(retention).Aggregate(ctx, pipeline)
+	cursor, err := r.getCollObject(retention).Aggregate(ctx, pipeline, queryLogTopAggregateOptions())
 	if err != nil {
 		return err
 	}
