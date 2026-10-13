@@ -168,7 +168,13 @@ func statisticsReadPipeline(colls []string, profileId string, from, to time.Time
 		{Key: "totals", Value: bson.A{facetGroup(nil, "total", "blocked", "dnssec")}},
 		{Key: "reasons", Value: bson.A{facetGroup(nil, "blocklist", "service", "custom_rule", "rebinding", "default_rule", "other")}},
 		{Key: "protocols", Value: bson.A{facetGroup(nil, "doh", "dot", "doq")}},
-		{Key: "devices", Value: bson.A{facetGroup("$_id.device", "total", "blocked"), bson.D{{Key: "$sort", Value: bson.D{{Key: "total", Value: -1}, {Key: "_id", Value: 1}}}}}},
+		// One more than the response keeps, so the fold knows a longer list exists; the rest is
+		// recovered from totals (J44).
+		{Key: "devices", Value: bson.A{
+			facetGroup("$_id.device", "total", "blocked"),
+			bson.D{{Key: "$sort", Value: bson.D{{Key: "total", Value: -1}, {Key: "_id", Value: 1}}}},
+			bson.D{{Key: "$limit", Value: model.StatisticsMaxDevices + 1}},
+		}},
 	}}})
 }
 
