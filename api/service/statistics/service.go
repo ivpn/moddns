@@ -123,6 +123,11 @@ func (s *StatisticsService) MoveBestEffort(ctx context.Context, profileId string
 	})
 }
 
+// InvalidateReadCache drops the profile's cached statistics answers; a failure is only logged.
+func (s *StatisticsService) InvalidateReadCache(ctx context.Context, profileId string) {
+	s.invalidate(ctx, profileId)
+}
+
 // PurgeProfile deletes all of the profile's statistics.
 func (s *StatisticsService) PurgeProfile(ctx context.Context, profileId string) error {
 	_, err := s.StatisticsRepository.DeleteProfileStatistics(ctx, profileId, nil)

@@ -3,18 +3,21 @@ package cache
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
-	"github.com/ivpn/dns/api/model"
 	"github.com/redis/go-redis/v9"
 )
 
 // StatisticsReadTTL bounds how stale a cached statistics answer can be.
 const StatisticsReadTTL = 60 * time.Second
 
-// StatisticsReadKey is the key of a profile's cached answer for a timespan.
-func StatisticsReadKey(profileId, timespan string) string {
-	return "statistics:read:" + profileId + ":" + timespan
+// statisticsReadScope namespaces the generation counter of the statistics read cache.
+const statisticsReadScope = "statistics:read"
+
+// StatisticsReadKey is the key of a profile's cached answer for a timespan under a generation.
+func StatisticsReadKey(profileId string, gen int64, timespan string) string {
+	return statisticsReadScope + ":" + profileId + ":g" + strconv.FormatInt(gen, 10) + ":" + timespan
 }
 
 // StatisticsReadCache stores the JSON answers of the statistics read endpoint.
@@ -27,9 +30,15 @@ func NewStatisticsReadCache(base CacheBase) *StatisticsReadCache {
 	return &StatisticsReadCache{base: base}
 }
 
+// Generation returns the profile's current generation; read it before querying and pass it to
+// GetStatistics and SetStatistics.
+func (c *StatisticsReadCache) Generation(ctx context.Context, profileId string) (int64, error) {
+	return Generation(ctx, c.base, statisticsReadScope, profileId)
+}
+
 // GetStatistics returns the cached answer; found is false on a miss.
-func (c *StatisticsReadCache) GetStatistics(ctx context.Context, profileId, timespan string) ([]byte, bool, error) {
-	val, err := c.base.Get(ctx, StatisticsReadKey(profileId, timespan))
+func (c *StatisticsReadCache) GetStatistics(ctx context.Context, profileId, timespan string, gen int64) ([]byte, bool, error) {
+	val, err := c.base.Get(ctx, StatisticsReadKey(profileId, gen, timespan))
 	if errors.Is(err, redis.Nil) {
 		return nil, false, nil
 	}
@@ -39,18 +48,12 @@ func (c *StatisticsReadCache) GetStatistics(ctx context.Context, profileId, time
 	return []byte(val), true, nil
 }
 
-func (c *StatisticsReadCache) SetStatistics(ctx context.Context, profileId, timespan string, payload []byte) error {
-	return c.base.Set(ctx, StatisticsReadKey(profileId, timespan), payload, StatisticsReadTTL)
+func (c *StatisticsReadCache) SetStatistics(ctx context.Context, profileId, timespan string, gen int64, payload []byte) error {
+	return c.base.Set(ctx, StatisticsReadKey(profileId, gen, timespan), payload, StatisticsReadTTL)
 }
 
-// InvalidateStatistics deletes the answer of every timespan; the key space is
-// the fixed timespan list, so no key scan is needed. Every key is attempted.
+// InvalidateStatistics moves the profile to a new generation: every answer cached so far, and
+// any still being computed, is never read again and expires on its TTL.
 func (c *StatisticsReadCache) InvalidateStatistics(ctx context.Context, profileId string) error {
-	var errs []error
-	for _, timespan := range model.StatisticsTimespans() {
-		if err := c.base.Del(ctx, StatisticsReadKey(profileId, timespan)); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
+	return BumpGeneration(ctx, c.base, statisticsReadScope, profileId)
 }

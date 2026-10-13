@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"os"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/mocks"
@@ -1610,10 +1611,10 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 						// Mock cache deletion
 						if tt.cacheError != nil {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(tt.cacheError)
-							suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+							suite.mockCache.On("Incr", mock.Anything, cache.GenerationKey("logs", tt.profileID), cache.GenerationTTL).Return(int64(1), nil).Maybe()
 						} else {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(nil)
-							suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+							suite.mockCache.On("Incr", mock.Anything, cache.GenerationKey("logs", tt.profileID), cache.GenerationTTL).Return(int64(1), nil).Maybe()
 						}
 					}
 				}
@@ -2169,9 +2170,8 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogs() {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(tt.deleteError)
 					} else {
 						suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), tt.profileID).Return(nil)
-						// Deleting logs invalidates the cached device list (best-effort).
-						suite.mockCache.On("Del", context.Background(), "query_log_devices:"+tt.profileID).Return(nil)
-						suite.mockCache.On("Del", context.Background(), mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs:") })).Return(nil)
+						// Deleting logs retires the caches built from them in one step (J23).
+						suite.mockCache.On("Incr", context.Background(), cache.GenerationKey("logs", tt.profileID), cache.GenerationTTL).Return(int64(1), nil).Once()
 					}
 				}
 			}
@@ -2201,7 +2201,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		Name:      "Test Profile",
 		Settings:  &model.ProfileSettings{Logs: &model.LogsSettings{Retention: model.RetentionOneWeek}},
 	}
-	cacheKey := "query_log_devices:profile123"
+	cacheKey := "query_log_devices:profile123:g0"
 	repoDevices := []model.QueryLogDevice{{DeviceId: "laptop"}, {DeviceId: "phone"}}
 
 	suite.Run("cache miss aggregates and stores", func() {
@@ -2212,6 +2212,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		suite.mockCache.Calls = nil
 
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("", redis.Nil)
 		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
 		// Retention must be forwarded from the profile settings.
 		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return(repoDevices, nil)
@@ -2230,6 +2231,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		suite.mockCache.Calls = nil
 
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("", redis.Nil)
 		suite.mockCache.On("Get", ctx, cacheKey).Return(`[{"device_id":"laptop","last_seen":"0001-01-01T00:00:00Z"}]`, nil)
 
 		devices, err := suite.service.GetProfileQueryLogDevices(ctx, "account123", "profile123")
@@ -2247,6 +2249,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		suite.mockCache.Calls = nil
 
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("", redis.Nil)
 		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return([]model.QueryLogDevice{}, nil)
 
@@ -2266,6 +2269,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogDevices() {
 		suite.mockCache.Calls = nil
 
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(owned, nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("", redis.Nil)
 		suite.mockCache.On("Get", ctx, cacheKey).Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogDevices", ctx, "profile123", model.RetentionOneWeek).Return(nil, errors.New("aggregation failed"))
 
