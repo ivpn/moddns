@@ -245,7 +245,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	case ErrUnauthorized:
 		resp.Error = err.Error()
 		return c.Status(401).JSON(resp)
-	case profile.ErrQueryLogsRateLimited:
+	case profile.ErrQueryLogsRateLimited, profile.ErrStatisticsRateLimited:
 		resp.Error = err.Error()
 		return c.Status(429).JSON(resp)
 	default:
