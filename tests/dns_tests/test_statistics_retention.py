@@ -136,6 +136,10 @@ class TestStatisticsRetention:
 
         _set_retention(user, pid, "30d")
 
+        # The move runs in the background after the PATCH answers (J50).
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and _docs(mongo_db, pid, "statistics_1d_1y"):
+            await asyncio.sleep(0.5)
         assert _docs(mongo_db, pid, "statistics_1d_1y") == {}
         after = _docs(mongo_db, pid, "statistics_1d_30d")
         assert old not in after
