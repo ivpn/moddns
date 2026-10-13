@@ -7,6 +7,7 @@
 import {
     ModelProfileUpdateOperationEnum,
     ModelProfileUpdatePathEnum,
+    type ModelExportedSettings,
     type ModelProfile,
     type ModelProfileUpdate,
 } from "@/api/client";
@@ -412,4 +413,21 @@ export function buildUpdates(saved: DataCollectionState, pending: DataCollection
         }
     }
     return updates;
+}
+
+/**
+ * I26: what an imported profile starts collecting, or null. Mirrors the import mapping: statistics
+ * always start at 30 days (F20); absent log options are off and an unknown retention is 1 hour.
+ */
+export function importedCollection(settings: ModelExportedSettings | undefined): string | null {
+    const parts: string[] = [];
+    if (settings?.statistics?.enabled) parts.push(`query counts per device, kept for ${statsRetentionWords("30d")}`);
+    const logs = settings?.logs;
+    if (logs?.enabled) {
+        const fields = [logs.logDomains && "domain", logs.logClientsIPs && "client IP address"].filter(Boolean);
+        const retention = logs.retention && logs.retention in LOGS_RETENTION_WORDS ? (logs.retention as LogsRetention) : "1h";
+        const withFields = fields.length ? ` with its ${fields.join(" and ")}` : "";
+        parts.push(`a record of each query${withFields}, kept for ${LOGS_RETENTION_WORDS[retention]}`);
+    }
+    return parts.length ? parts.join("; ") : null;
 }
