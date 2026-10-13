@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -263,11 +264,14 @@ func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountI
 		return nil, err
 	}
 
-	cacheKey := queryLogDevicesCachePrefix + profileId
-	if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
-		var cached []model.QueryLogDevice
-		if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
-			return cached, nil
+	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
+	cacheKey := queryLogDevicesCachePrefix + profileId + ":g" + strconv.FormatInt(gen, 10)
+	if cacheable {
+		if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
+			var cached []model.QueryLogDevice
+			if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
+				return cached, nil
+			}
 		}
 	}
 
@@ -278,7 +282,7 @@ func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountI
 	// Never cache an empty list: a fresh profile queried before the collector's
 	// first flush would otherwise pin "no devices" for the whole TTL. Empty-window
 	// aggregations are cheap — there are no buckets to unpack.
-	if len(devices) > 0 {
+	if cacheable && len(devices) > 0 {
 		if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
 			if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
 				log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
@@ -356,13 +360,28 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 	return nil
 }
 
-// invalidateQueryLogCaches drops every cache derived from the profile's query logs so it
-// cannot outlive the data (best-effort; TTL bounds a miss).
-func (p *ProfileService) invalidateQueryLogCaches(ctx context.Context, profileId string) {
-	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
-		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
+// queryLogsCacheScope namespaces the generation counter of every cache derived from a profile's
+// query logs (the J5 devices list and the J23 top lists).
+const queryLogsCacheScope = "logs"
+
+// queryLogsCacheGeneration returns the generation a read of the query-log caches uses; false
+// (cache skipped both ways) when it cannot be read, since a guessed generation could serve
+// an answer computed before a purge.
+func (p *ProfileService) queryLogsCacheGeneration(ctx context.Context, profileId string) (int64, bool) {
+	gen, err := cache.Generation(ctx, p.Cache, queryLogsCacheScope, profileId)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("query logs: cache generation unreadable; reading from the database")
+		return 0, false
 	}
-	p.invalidateQueryLogTopCache(ctx, profileId)
+	return gen, true
+}
+
+// invalidateQueryLogCaches moves the profile's query-log caches to a new generation, so no answer
+// computed before now is read again, even one still being written (best-effort; TTL bounds a miss).
+func (p *ProfileService) invalidateQueryLogCaches(ctx context.Context, profileId string) {
+	if err := cache.BumpGeneration(ctx, p.Cache, queryLogsCacheScope, profileId); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to invalidate query log caches")
+	}
 }
 
 // UpdateProfile validates every operation against the stored profile, then writes the
@@ -516,6 +535,7 @@ const (
 	pathStatisticsEnabled   = "/settings/statistics/enabled"
 	pathStatisticsRetention = "/settings/statistics/retention"
 	pathLogsEnabled         = "/settings/logs/enabled"
+	pathLogsRetention       = "/settings/logs/retention"
 	pathDefaultRule         = "/settings/privacy/default_rule"
 )
 
@@ -529,14 +549,14 @@ type patchField struct {
 }
 
 var patchFields = map[string]patchField{
-	"/name":                                           {field: "name", value: func(p *model.Profile) any { return p.Name }},
-	pathStatisticsEnabled:                             {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
-	pathStatisticsRetention:                           {"settings.statistics.retention", "statistics", "retention", func(p *model.Profile) any { return p.Settings.Statistics.Retention }},
-	pathLogsEnabled:                                   {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
-	"/settings/logs/log_clients_ips":                  {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
-	"/settings/logs/log_domains":                      {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
-	"/settings/logs/retention":                        {"settings.logs.retention", "logs", "retention", func(p *model.Profile) any { return p.Settings.Logs.Retention }},
-	pathDefaultRule:                                   {"settings.privacy.default_rule", "privacy", "default_rule", func(p *model.Profile) any { return p.Settings.Privacy.DefaultRule }},
+	"/name":                          {field: "name", value: func(p *model.Profile) any { return p.Name }},
+	pathStatisticsEnabled:            {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
+	pathStatisticsRetention:          {"settings.statistics.retention", "statistics", "retention", func(p *model.Profile) any { return p.Settings.Statistics.Retention }},
+	pathLogsEnabled:                  {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
+	"/settings/logs/log_clients_ips": {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
+	"/settings/logs/log_domains":     {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
+	pathLogsRetention:                {"settings.logs.retention", "logs", "retention", func(p *model.Profile) any { return p.Settings.Logs.Retention }},
+	pathDefaultRule:                  {"settings.privacy.default_rule", "privacy", "default_rule", func(p *model.Profile) any { return p.Settings.Privacy.DefaultRule }},
 	"/settings/privacy/blocklists_subdomains_rule":    {"settings.privacy.blocklists_subdomains_rule", "privacy", "blocklists_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.BlocklistsSubdomainsRule }},
 	"/settings/privacy/custom_rules_subdomains_rule":  {"settings.privacy.custom_rules_subdomains_rule", "privacy", "custom_rules_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.CustomRulesSubdomainsRule }},
 	"/settings/security/dnssec/enabled":               {"settings.security.dnssec.enabled", "security:dnssec", "enabled", func(p *model.Profile) any { return p.Settings.Security.DNSSECSettings.Enabled }},
@@ -547,8 +567,9 @@ var patchFields = map[string]patchField{
 
 // settingsSnapshot is the part of the settings whose transitions have side effects.
 type settingsSnapshot struct {
-	statistics  *model.StatisticsSettings
-	logsEnabled bool
+	statistics    *model.StatisticsSettings
+	logsEnabled   bool
+	logsRetention model.Retention
 }
 
 func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
@@ -560,7 +581,10 @@ func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
 		c := *s.Statistics
 		snap.statistics = &c
 	}
-	snap.logsEnabled = s.Logs != nil && s.Logs.Enabled
+	if s.Logs != nil {
+		snap.logsEnabled = s.Logs.Enabled
+		snap.logsRetention = s.Logs.Retention
+	}
 	return snap
 }
 
@@ -583,6 +607,9 @@ func (s settingsSnapshot) patched(touched []string, patch *model.ProfileSettings
 	if slices.Contains(touched, pathLogsEnabled) {
 		out.logsEnabled = patch.Logs.Enabled
 	}
+	if slices.Contains(touched, pathLogsRetention) {
+		out.logsRetention = patch.Logs.Retention
+	}
 	return out
 }
 
@@ -603,11 +630,18 @@ func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId
 	if before.statisticsEnabled() && !after.statisticsEnabled() {
 		p.StatisticsService.PurgeBestEffort(ctx, profileId)
 	}
+	if after.statisticsEnabled() && after.statistics.Retention.Window() != before.statisticsRetention().Window() {
+		// Cached answers carry the old retention label and window (J46).
+		p.StatisticsService.InvalidateReadCache(ctx, profileId)
+	}
 	if after.statisticsEnabled() && after.statistics.Retention.Window() < before.statisticsRetention().Window() {
 		p.StatisticsService.MoveBestEffort(ctx, profileId, after.statistics.Retention)
 	}
 	if before.logsEnabled && !after.logsEnabled {
 		p.purgeQueryLogsBestEffort(ctx, profileId)
+	} else if before.logsRetention != after.logsRetention {
+		// The caches were computed from the previous retention's collection (J23).
+		p.invalidateQueryLogCaches(ctx, profileId)
 	}
 }
 

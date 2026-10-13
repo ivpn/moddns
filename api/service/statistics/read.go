@@ -10,22 +10,26 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ReadCache is the cache-aside store of GetProfileStatistics answers. Entries
-// are keyed by profile and timespan and expire on their own (api/cache).
+// ReadCache is the cache-aside store of GetProfileStatistics answers. Entries are keyed by
+// profile, generation and timespan and expire on their own (api/cache).
 type ReadCache interface {
-	GetStatistics(ctx context.Context, profileId, timespan string) (payload []byte, found bool, err error)
-	SetStatistics(ctx context.Context, profileId, timespan string, payload []byte) error
-	// InvalidateStatistics drops every timespan's entry of the profile.
+	// Generation returns the profile's current generation; a read uses the value it saw
+	// before querying for both its lookup and its write.
+	Generation(ctx context.Context, profileId string) (int64, error)
+	GetStatistics(ctx context.Context, profileId, timespan string, gen int64) (payload []byte, found bool, err error)
+	SetStatistics(ctx context.Context, profileId, timespan string, gen int64, payload []byte) error
+	// InvalidateStatistics moves the profile to a new generation.
 	InvalidateStatistics(ctx context.Context, profileId string) error
 }
 
 type noopReadCache struct{}
 
-func (noopReadCache) GetStatistics(context.Context, string, string) ([]byte, bool, error) {
+func (noopReadCache) Generation(context.Context, string) (int64, error) { return 0, nil }
+func (noopReadCache) GetStatistics(context.Context, string, string, int64) ([]byte, bool, error) {
 	return nil, false, nil
 }
-func (noopReadCache) SetStatistics(context.Context, string, string, []byte) error { return nil }
-func (noopReadCache) InvalidateStatistics(context.Context, string) error          { return nil }
+func (noopReadCache) SetStatistics(context.Context, string, string, int64, []byte) error { return nil }
+func (noopReadCache) InvalidateStatistics(context.Context, string) error                 { return nil }
 
 // WithReadCache enables the cache-aside layer of GetProfileStatistics.
 func WithReadCache(c ReadCache) Option {
@@ -83,8 +87,11 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 	resp.EnabledAt = settings.EnabledAt
 	resp.HistoryDeletedAt = settings.HistoryDeletedAt
 
-	if cached := s.readCached(ctx, profileId, timespan); cached != nil {
-		return cached, nil
+	gen, cacheable := s.cacheGeneration(ctx, profileId)
+	if cacheable {
+		if cached := s.readCached(ctx, profileId, timespan, gen); cached != nil {
+			return cached, nil
+		}
 	}
 
 	queryFrom := keepSince(from, settings.HistoryDeletedAt, spec.Bucket)
@@ -103,8 +110,8 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 	resp.Devices = FoldDevices(agg.Devices)
 
 	// An empty answer is not cached so a freshly enabled profile shows its first buckets at once.
-	if resp.Totals.Total > 0 {
-		s.writeCached(ctx, profileId, timespan, resp)
+	if cacheable && resp.Totals.Total > 0 {
+		s.writeCached(ctx, profileId, timespan, gen, resp)
 	}
 	return resp, nil
 }
@@ -125,8 +132,19 @@ func keepSince(from time.Time, deletedAt *time.Time, bucket time.Duration) time.
 	return from
 }
 
-func (s *StatisticsService) readCached(ctx context.Context, profileId, timespan string) *model.StatisticsResponse {
-	payload, found, err := s.cache.GetStatistics(ctx, profileId, timespan)
+// cacheGeneration returns the generation the read uses; false (cache skipped both ways) when it
+// cannot be read, since a guessed generation could serve an answer from before a purge.
+func (s *StatisticsService) cacheGeneration(ctx context.Context, profileId string) (int64, bool) {
+	gen, err := s.cache.Generation(ctx, profileId)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("statistics: cache generation unreadable; reading from the database")
+		return 0, false
+	}
+	return gen, true
+}
+
+func (s *StatisticsService) readCached(ctx context.Context, profileId, timespan string, gen int64) *model.StatisticsResponse {
+	payload, found, err := s.cache.GetStatistics(ctx, profileId, timespan, gen)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("statistics: cache read failed; reading from the database")
 		return nil
@@ -142,13 +160,13 @@ func (s *StatisticsService) readCached(ctx context.Context, profileId, timespan 
 	return &resp
 }
 
-func (s *StatisticsService) writeCached(ctx context.Context, profileId, timespan string, resp *model.StatisticsResponse) {
+func (s *StatisticsService) writeCached(ctx context.Context, profileId, timespan string, gen int64, resp *model.StatisticsResponse) {
 	payload, err := json.Marshal(resp)
 	if err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("statistics: cache entry not encoded")
 		return
 	}
-	if err := s.cache.SetStatistics(ctx, profileId, timespan, payload); err != nil {
+	if err := s.cache.SetStatistics(ctx, profileId, timespan, gen, payload); err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("statistics: cache write failed")
 	}
 }
