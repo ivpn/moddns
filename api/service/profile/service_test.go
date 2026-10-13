@@ -2065,6 +2065,7 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 			// Reset mock expectations for each test case
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockStatisticsRepo.ExpectedCalls = nil
+			suite.mockCache.ExpectedCalls = nil
 
 			if tt.repoError != nil {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(nil, tt.repoError)
@@ -2072,6 +2073,9 @@ func (suite *ProfileTestSuite) TestGetStatistics() {
 				suite.mockProfileRepo.On("GetProfileById", context.Background(), tt.profileID).Return(tt.existingProfile, nil)
 
 				if tt.existingProfile.AccountId == tt.accountID && tt.existingProfile.Settings.Statistics.Enabled {
+					// The read reaches the database, so it counts against the account's limit (J45).
+					suite.mockCache.On("Incr", mock.Anything, "rate_limits:"+tt.accountID+":statistics", time.Minute).Return(int64(1), nil).Maybe()
+					suite.mockCache.On("Get", mock.Anything, "rate_limits:"+tt.accountID+":statistics").Return("1", nil).Maybe()
 					if tt.statsError != nil {
 						suite.mockStatisticsRepo.On("GetProfileStatistics", context.Background(), tt.profileID, mock.AnythingOfType("model.StatisticsTier"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Duration")).Return(nil, tt.statsError)
 					} else {

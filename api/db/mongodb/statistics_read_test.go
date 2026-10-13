@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -144,6 +145,31 @@ func (s *StatisticsRepositorySuite) TestGetProfileStatistics_PointWidthsMatchGoT
 			s.Equal(want[p.Ts], p.Total, "%s point %s", tc.bucket, p.Ts)
 		}
 	}
+}
+
+// specRef: api-endpoint-behaviour.md J44 - the devices facet is capped in the aggregation: one entry
+// more than the response keeps, ranked total desc then id asc, so the fold can tell a longer list
+// apart and the facet document stays small whatever the device count.
+func (s *StatisticsRepositorySuite) TestGetProfileStatistics_CapsDevices() {
+	ctx := context.Background()
+	from := time.Date(2026, 10, 5, 0, 0, 0, 0, time.UTC)
+	docs := make([]any, 0, 150)
+	for i := range 150 {
+		docs = append(docs, bson.D{
+			{Key: "bucket_start", Value: from},
+			{Key: "meta", Value: bson.D{{Key: "profile_id", Value: "p1"}, {Key: "device_id", Value: fmt.Sprintf("d%03d", i)}}},
+			{Key: "total", Value: 1000 - i}, {Key: "blocked", Value: 1},
+		})
+	}
+	_, err := s.client.Database(s.dbName).Collection(statisticsColl1h).InsertMany(ctx, docs)
+	s.Require().NoError(err)
+
+	got, err := s.repo.GetProfileStatistics(ctx, "p1", model.StatisticsTier1H, from, from.Add(time.Hour), time.Hour)
+	s.Require().NoError(err)
+	s.Len(got.Devices, model.StatisticsMaxDevices+1)
+	s.Equal("d000", got.Devices[0].DeviceID)
+	s.Equal(fmt.Sprintf("d%03d", model.StatisticsMaxDevices), got.Devices[model.StatisticsMaxDevices].DeviceID)
+	s.EqualValues(150, got.Totals.Blocked, "totals still cover every device")
 }
 
 // specRef: api-endpoint-behaviour.md J4, J42 — nothing in range is an empty aggregate.
