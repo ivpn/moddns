@@ -25,7 +25,10 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure'
+    video: 'retain-on-failure',
+    // Open/close animations wait on rendered frames, which WebKit stops producing under CI load;
+    // reduced motion removes them (index.css), so a closed dialog leaves the page at once.
+    contextOptions: { reducedMotion: 'reduce' }
   },
   webServer: {
     command: 'npm run ci',
