@@ -1611,8 +1611,10 @@ func (suite *ProfileTestSuite) TestDeleteProfile() {
 						// Mock cache deletion
 						if tt.cacheError != nil {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(tt.cacheError)
+							suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 						} else {
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), tt.profileID).Return(nil)
+							suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 						}
 					}
 				}
