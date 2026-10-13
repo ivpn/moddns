@@ -427,3 +427,36 @@ func TestDeleteStatisticsHistory_DeleteFailure(t *testing.T) {
 
 	require.Error(t, h.svc.DeleteStatisticsHistory(context.Background(), "account123", "profile123"))
 }
+
+// specRef: api-endpoint-behaviour.md J4, J45 - statistics reads that reach the database count
+// against a per-account limit; over it the read is refused with ErrStatisticsRateLimited.
+func TestGetStatistics_AccountMissLimit(t *testing.T) {
+	const key = "rate_limits:account123:statistics"
+	for _, tc := range []struct {
+		name  string
+		count string
+		want  error
+	}{
+		{name: "under the limit", count: "1"},
+		{name: "over the limit", count: "61", want: profile.ErrStatisticsRateLimited},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTransitionsHarness(t)
+			h.profiles.On("GetProfileById", mock.Anything, "profile123").Return(statsProfile(true, nil), nil)
+			h.cache.On("Incr", mock.Anything, key, time.Minute).Return(int64(1), nil).Once()
+			h.cache.On("Get", mock.Anything, key).Return(tc.count, nil).Once()
+			if tc.want == nil {
+				h.statsRepo.On("GetProfileStatistics", mock.Anything, "profile123", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&model.StatisticsAggregate{}, nil).Once()
+			}
+
+			_, err := h.svc.GetStatistics(context.Background(), "account123", "profile123", model.LAST_1_DAY)
+			if tc.want != nil {
+				require.ErrorIs(t, err, tc.want)
+				h.statsRepo.AssertNotCalled(t, "GetProfileStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}

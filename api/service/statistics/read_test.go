@@ -316,25 +316,26 @@ func TestFoldDevices(t *testing.T) {
 	}
 
 	t.Run("under the cap is only sorted", func(t *testing.T) {
-		got := statistics.FoldDevices([]model.StatisticsDevice{
+		in := []model.StatisticsDevice{
 			{DeviceID: "b", Total: 5}, {DeviceID: "", Total: 9}, {DeviceID: "a", Total: 5}, {DeviceID: "c", Total: 1},
-		})
+		}
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Equal(t, []string{"", "a", "b", "c"}, deviceIDs(got))
 	})
 	t.Run("empty input is an empty non-nil list", func(t *testing.T) {
-		got := statistics.FoldDevices(nil)
+		got := statistics.FoldDevices(nil, model.StatisticsTotals{})
 		require.NotNil(t, got)
 		require.Empty(t, got)
 	})
 	t.Run("exactly 100 is untouched", func(t *testing.T) {
 		in := many(100)
-		got := statistics.FoldDevices(in)
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Len(t, got, 100)
 		require.NotContains(t, deviceIDs(got), "_other")
 	})
 	t.Run("101 devices fold the two smallest into _other", func(t *testing.T) {
 		in := many(101)
-		got := statistics.FoldDevices(in)
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Len(t, got, 100)
 		require.Contains(t, deviceIDs(got), "_other")
 		require.NotContains(t, deviceIDs(got), "d099")
@@ -354,7 +355,7 @@ func TestFoldDevices(t *testing.T) {
 	})
 	t.Run("an existing _other is merged, not duplicated", func(t *testing.T) {
 		in := append(many(150), model.StatisticsDevice{DeviceID: "_other", Total: 7, Blocked: 3})
-		got := statistics.FoldDevices(in)
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Len(t, got, 100)
 		n := 0
 		for _, id := range deviceIDs(got) {
@@ -369,17 +370,30 @@ func TestFoldDevices(t *testing.T) {
 		require.Equal(t, wantB, gotB)
 	})
 	t.Run("a lone _other under the cap is an ordinary entry", func(t *testing.T) {
-		got := statistics.FoldDevices([]model.StatisticsDevice{{DeviceID: "_other", Total: 1}, {DeviceID: "x", Total: 2}})
+		in := []model.StatisticsDevice{{DeviceID: "_other", Total: 1}, {DeviceID: "x", Total: 2}}
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Equal(t, []string{"x", "_other"}, deviceIDs(got))
 	})
 	t.Run("the empty id survives the fold when it ranks high enough", func(t *testing.T) {
 		in := append(many(120), model.StatisticsDevice{DeviceID: "", Total: 5000})
-		got := statistics.FoldDevices(in)
+		got := statistics.FoldDevices(in, totalsOf(in))
 		require.Len(t, got, 100)
 		require.Contains(t, deviceIDs(got), "")
 	})
+	t.Run("a list cut by the repository folds the unseen tail from the totals", func(t *testing.T) {
+		all := many(150)
+		cut := all[:model.StatisticsMaxDevices+1]
+		got := statistics.FoldDevices(cut, totalsOf(all))
+		require.Len(t, got, 100)
+		require.NotContains(t, deviceIDs(got), "d099")
+		wantT, wantB := sumTotals(all)
+		gotT, gotB := sumTotals(got)
+		require.Equal(t, wantT, gotT, "_other carries everything outside the 99 kept")
+		require.Equal(t, wantB, gotB)
+	})
 	t.Run("result order is total desc then id asc", func(t *testing.T) {
-		got := statistics.FoldDevices(many(130))
+		in := many(130)
+		got := statistics.FoldDevices(in, totalsOf(in))
 		for i := 1; i < len(got); i++ {
 			require.False(t, got[i].Total > got[i-1].Total, "row %d out of order", i)
 			if got[i].Total == got[i-1].Total {
@@ -387,6 +401,16 @@ func TestFoldDevices(t *testing.T) {
 			}
 		}
 	})
+}
+
+// totalsOf sums a complete device list, as the totals facet does.
+func totalsOf(ds []model.StatisticsDevice) model.StatisticsTotals {
+	var t model.StatisticsTotals
+	for _, d := range ds {
+		t.Total += d.Total
+		t.Blocked += d.Blocked
+	}
+	return t
 }
 
 func deviceIDs(ds []model.StatisticsDevice) []string {
@@ -405,7 +429,7 @@ func TestGetProfileStatistics_FoldsDevices(t *testing.T) {
 		devs = append(devs, model.StatisticsDevice{DeviceID: fmt.Sprintf("d%03d", i), Total: 1})
 	}
 	repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(&model.StatisticsAggregate{Devices: devs}, nil)
+		Return(&model.StatisticsAggregate{Devices: devs, Totals: totalsOf(devs)}, nil)
 	got, err := readService(t, repo, nil).GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
 	require.NoError(t, err)
 	require.Len(t, got.Devices, 100)
@@ -464,6 +488,35 @@ func TestGetProfileStatistics_GenerationErrorSkipsTheCache(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 5, got.Totals.Total)
 	require.Zero(t, cache.gets+cache.sets)
+}
+
+// specRef: api-endpoint-behaviour.md J45 - the miss guard runs only when the database would be
+// queried; its error is returned before any query.
+func TestGetProfileStatistics_MissGuard(t *testing.T) {
+	refused := errors.New("refused")
+	t.Run("a miss is refused before the query", func(t *testing.T) {
+		repo := mocks.NewStatisticsRepository(t)
+		calls := 0
+		_, err := readService(t, repo, newFakeReadCache()).GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings(),
+			statistics.WithMissGuard(func() error { calls++; return refused }))
+		require.ErrorIs(t, err, refused)
+		require.Equal(t, 1, calls)
+	})
+	t.Run("a hit and a disabled profile skip the guard", func(t *testing.T) {
+		repo := mocks.NewStatisticsRepository(t)
+		repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(&model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 5}}, nil).Once()
+		svc := readService(t, repo, newFakeReadCache())
+		calls := 0
+		guard := statistics.WithMissGuard(func() error { calls++; return nil })
+		_, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings(), guard)
+		require.NoError(t, err)
+		_, err = svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings(), guard)
+		require.NoError(t, err)
+		_, err = svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, stats(false, nil), guard)
+		require.NoError(t, err)
+		require.Equal(t, 1, calls, "only the first, uncached read counts")
+	})
 }
 
 // specRef: api-endpoint-behaviour.md J45 — an empty answer is never cached.

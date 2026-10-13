@@ -41,6 +41,19 @@ func WithClock(now func() time.Time) Option {
 	return func(s *StatisticsService) { s.now = now }
 }
 
+// ReadOption adjusts one GetProfileStatistics call.
+type ReadOption func(*readOptions)
+
+type readOptions struct {
+	missGuard func() error
+}
+
+// WithMissGuard runs guard just before the database would be queried (never on a cache hit or
+// for a disabled profile); its error is returned and nothing is queried.
+func WithMissGuard(guard func() error) ReadOption {
+	return func(o *readOptions) { o.missGuard = guard }
+}
+
 // statisticsRetention is the retention window the read is clamped to (J41, J48).
 func statisticsRetention(settings *model.StatisticsSettings) (string, time.Duration) {
 	if settings == nil {
@@ -61,7 +74,11 @@ func ComputeWindow(now time.Time, spec model.StatisticsTimespanSpec, retention t
 // GetProfileStatistics answers GET /profiles/{id}/statistics (spec rows J4, J40-J45).
 // settings are the profile's current statistics settings; with statistics off
 // nothing is queried or cached.
-func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId, timespan string, settings *model.StatisticsSettings) (*model.StatisticsResponse, error) {
+func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId, timespan string, settings *model.StatisticsSettings, opts ...ReadOption) (*model.StatisticsResponse, error) {
+	var o readOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	spec, err := model.NewStatisticsTimespan(timespan)
 	if err != nil {
 		return nil, err
@@ -99,6 +116,11 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 		resp.Series = fillSeries(nil, from, to, spec.Bucket)
 		return resp, nil
 	}
+	if o.missGuard != nil {
+		if err := o.missGuard(); err != nil {
+			return nil, err
+		}
+	}
 	agg, err := s.StatisticsRepository.GetProfileStatistics(ctx, profileId, spec.Tier, queryFrom, to, spec.Bucket)
 	if err != nil {
 		return nil, err
@@ -107,7 +129,7 @@ func (s *StatisticsService) GetProfileStatistics(ctx context.Context, profileId,
 	resp.Reasons = agg.Reasons
 	resp.Protocols = agg.Protocols
 	resp.Series = fillSeries(agg.Series, from, to, spec.Bucket)
-	resp.Devices = FoldDevices(agg.Devices)
+	resp.Devices = FoldDevices(agg.Devices, agg.Totals)
 
 	// An empty answer is not cached so a freshly enabled profile shows its first buckets at once.
 	if cacheable && resp.Totals.Total > 0 {
@@ -196,9 +218,11 @@ func fillSeries(sparse []model.StatisticsPoint, from, to time.Time, bucket time.
 }
 
 // FoldDevices orders devices by total (desc) then id and, past
-// model.StatisticsMaxDevices entries, folds the smallest ones, together with any
-// existing overflow sentinel, into a single model.StatisticsOtherDeviceID entry.
-func FoldDevices(devices []model.StatisticsDevice) []model.StatisticsDevice {
+// model.StatisticsMaxDevices entries, keeps the largest ones other than
+// model.StatisticsOtherDeviceID and folds everything else into that entry. The
+// list may be cut short by the repository, so the folded entry is all minus what
+// is kept, all being the totals over every device.
+func FoldDevices(devices []model.StatisticsDevice, all model.StatisticsTotals) []model.StatisticsDevice {
 	out := make([]model.StatisticsDevice, len(devices))
 	copy(out, devices)
 	sortDevices(out)
@@ -206,15 +230,14 @@ func FoldDevices(devices []model.StatisticsDevice) []model.StatisticsDevice {
 		return out
 	}
 
-	other := model.StatisticsDevice{DeviceID: model.StatisticsOtherDeviceID}
+	other := model.StatisticsDevice{DeviceID: model.StatisticsOtherDeviceID, Total: all.Total, Blocked: all.Blocked}
 	kept := make([]model.StatisticsDevice, 0, model.StatisticsMaxDevices)
 	for _, d := range out {
 		if d.DeviceID != model.StatisticsOtherDeviceID && len(kept) < model.StatisticsMaxDevices-1 {
 			kept = append(kept, d)
-			continue
+			other.Total -= d.Total
+			other.Blocked -= d.Blocked
 		}
-		other.Total += d.Total
-		other.Blocked += d.Blocked
 	}
 	kept = append(kept, other)
 	sortDevices(kept)

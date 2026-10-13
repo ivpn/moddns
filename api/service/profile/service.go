@@ -42,6 +42,13 @@ type ServicesCatalogReader interface {
 const queryLogsRateLimitMax = 120
 const queryLogsRateLimitWindow = time.Minute
 
+// statisticsMissLimit bounds the statistics reads one account may send to the database per
+// minute, across all its profiles; cached answers are not counted (J45).
+const (
+	statisticsMissLimit  = 60
+	statisticsMissWindow = time.Minute
+)
+
 // Cache-aside for the distinct-device aggregation (unindexable full-window
 // bucket unpack — see api-endpoint-behaviour #J5).
 const queryLogDevicesCachePrefix = "query_log_devices:"
@@ -317,7 +324,17 @@ func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId
 	if profile.Settings != nil {
 		settings = profile.Settings.Statistics
 	}
-	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan, settings)
+	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan, settings, statistics.WithMissGuard(func() error {
+		limiter := utils.IDLimiter{Cache: p.Cache, Label: "rate_limits", ID: accountId + ":statistics", Max: statisticsMissLimit, Exp: statisticsMissWindow}
+		if err := limiter.Tick(); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msg("failed to tick statistics limiter")
+			return nil
+		}
+		if !limiter.IsAllowed() {
+			return ErrStatisticsRateLimited
+		}
+		return nil
+	}))
 }
 
 // DeleteStatisticsHistory deletes all of the profile's statistics and keeps statistics as
