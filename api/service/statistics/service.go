@@ -19,8 +19,12 @@ const (
 
 	// RetentionMoveLockPrefix namespaces the per-profile retention-move locks in Redis.
 	RetentionMoveLockPrefix = "statistics:retention-move:"
-	// Longer than one move is allowed to run (reconcileProfileTimeout).
-	retentionMoveLockTTL = 2 * time.Minute
+	// RetentionMoveDeadline bounds the move a PATCH starts. Local measurement: ~25k documents/s;
+	// a profile's daily documents are far fewer than one deadline's worth even at a tenth of that.
+	RetentionMoveDeadline = 10 * time.Minute
+	// RetentionMoveLockTTL outlives the longest move (RetentionMoveDeadline, reconcileProfileTimeout)
+	// plus the undo of its last batch, so no second mover can take the lock mid-batch.
+	RetentionMoveLockTTL = 11 * time.Minute
 )
 
 // ProfileStatisticsReader loads the statistics settings of many profiles at once.
@@ -36,6 +40,7 @@ type StatisticsService struct {
 	profiles             ProfileStatisticsReader
 	cache                ReadCache
 	moveLocker           *dislock.Locker
+	background           func(func())
 	now                  func() time.Time
 	reconcileProfileTime time.Duration
 	reconcileRunTime     time.Duration
@@ -47,6 +52,11 @@ type Option func(*StatisticsService)
 // WithProfiles supplies the profile lookup ReconcileStatistics needs.
 func WithProfiles(profiles ProfileStatisticsReader) Option {
 	return func(s *StatisticsService) { s.profiles = profiles }
+}
+
+// WithBackground replaces how MoveBestEffort starts its background move (a goroutine by default).
+func WithBackground(run func(func())) Option {
+	return func(s *StatisticsService) { s.background = run }
 }
 
 // WithReconcileTimeouts overrides the per-profile bound and the whole-run bound of
@@ -62,6 +72,7 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 	s := &StatisticsService{
 		StatisticsRepository: db,
 		cache:                noopReadCache{},
+		background:           func(f func()) { go f() },
 		now:                  time.Now,
 		reconcileProfileTime: reconcileProfileTimeout,
 		reconcileRunTime:     reconcileDeadline,
@@ -87,7 +98,7 @@ func (s *StatisticsService) MoveToRetention(ctx context.Context, profileId strin
 
 func (s *StatisticsService) moveToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int, error) {
 	if s.moveLocker != nil {
-		lock, err := s.moveLocker.TryLock(ctx, profileId, retentionMoveLockTTL)
+		lock, err := s.moveLocker.TryLock(ctx, profileId, RetentionMoveLockTTL)
 		if errors.Is(err, dislock.ErrNotAcquired) {
 			return 0, nil
 		}
@@ -100,12 +111,16 @@ func (s *StatisticsService) moveToRetention(ctx context.Context, profileId strin
 	return s.StatisticsRepository.MoveProfileDailyStatistics(ctx, profileId, retention.OrDefault(), since)
 }
 
-// MoveBestEffort is the immediate move on lowering the retention; the next
-// statistics reconcile repeats it for anything left.
+// MoveBestEffort starts the move on lowering the retention in the background, so the PATCH does
+// not wait for it; the next statistics reconcile repeats it for anything left.
 func (s *StatisticsService) MoveBestEffort(ctx context.Context, profileId string, retention model.StatisticsRetention) {
-	if _, err := s.MoveToRetention(ctx, profileId, retention); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("statistics: retention move failed; the next statistics reconcile retries it")
-	}
+	moveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), RetentionMoveDeadline)
+	s.background(func() {
+		defer cancel()
+		if _, err := s.MoveToRetention(moveCtx, profileId, retention); err != nil {
+			log.Ctx(moveCtx).Error().Err(err).Msg("statistics: retention move failed; the next statistics reconcile retries it")
+		}
+	})
 }
 
 // PurgeProfile deletes all of the profile's statistics.

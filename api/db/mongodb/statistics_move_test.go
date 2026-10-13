@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -145,4 +146,68 @@ func (s *StatisticsRepositorySuite) TestDeleteProfileStatisticsThrough_CeilsPerT
 	s.Require().NoError(err)
 	s.EqualValues(2, deleted, "the 15min and 1h documents before the boundary")
 	s.Equal([]time.Time{d(30, 0, 0)}, s.starts(statisticsColl1d30d, "p1"), "a bucket starting exactly at the instant is kept")
+}
+
+// specRef: api-endpoint-behaviour.md J50 - a batch's source delete is bounded to the batch's
+// bucket_start range: with only `_id $in` the bucket filter cannot narrow the profile index scan
+// (bucket _ids carry no measurement _id), so every bucket of the profile would be examined per
+// batch. Other profiles are present so the planner sees a realistic choice.
+func (s *StatisticsRepositorySuite) TestMoveBatchDelete_ExaminesOnlyTheBatchRange() {
+	ctx := context.Background()
+	day := time.Now().UTC().Truncate(24 * time.Hour)
+	var docs []any
+	add := func(profileID, device string, start time.Time) {
+		docs = append(docs, bson.D{
+			{Key: "bucket_start", Value: start},
+			{Key: "meta", Value: bson.D{{Key: "profile_id", Value: profileID}, {Key: "device_id", Value: device}}},
+			{Key: "total", Value: int64(1)},
+		})
+	}
+	const days = 120
+	for i := range days {
+		start := day.Add(-time.Duration(i) * 24 * time.Hour)
+		for _, dev := range []string{"a", "b", "c"} {
+			for range 4 {
+				add("p1", dev, start)
+			}
+		}
+		for o := range 200 {
+			add(fmt.Sprintf("other%d", o), "x", start)
+		}
+	}
+	coll := s.client.Database(s.dbName).Collection(statisticsColl1d1y)
+	_, err := coll.InsertMany(ctx, docs)
+	s.Require().NoError(err)
+
+	cur, err := coll.Find(ctx, bson.D{{Key: "meta.profile_id", Value: "p1"}}, moveBatchFindOptions(100))
+	s.Require().NoError(err)
+	var batch []bson.D
+	s.Require().NoError(cur.All(ctx, &batch))
+	ids, lo, hi := moveBatchBounds(batch)
+
+	var out bson.M
+	s.Require().NoError(s.client.Database(s.dbName).RunCommand(ctx, bson.D{
+		{Key: "explain", Value: bson.D{{Key: "delete", Value: statisticsColl1d1y}, {Key: "deletes", Value: bson.A{
+			bson.D{{Key: "q", Value: moveBatchFilter("p1", ids, lo, hi)}, {Key: "limit", Value: 0}}}}}},
+		{Key: "verbosity", Value: "executionStats"}}).Decode(&out))
+	stats := out["executionStats"].(bson.M)
+	plan, err := bson.MarshalExtJSON(out["queryPlanner"].(bson.M)["winningPlan"], false, false)
+	s.Require().NoError(err)
+
+	profileBuckets := days * 3
+	s.Contains(string(plan), profileIndexName, "the batch delete must use the profile index: %s", plan)
+	s.Less(toInt(stats["totalDocsExamined"]), profileBuckets/4,
+		"the batch delete examined %v of the profile's %d buckets", stats["totalDocsExamined"], profileBuckets)
+}
+
+func toInt(v any) int {
+	switch n := v.(type) {
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	}
+	return -1
 }
