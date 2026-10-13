@@ -129,6 +129,10 @@ class TestStatisticsRetention:
         await _traffic(user, pid, 3)
         await restart_proxy(user)
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        # The reconcile (every 5 s here) deletes daily buckets older than enabled_at (J8), so the
+        # inserted history needs statistics to have been on since before it.
+        mongo_db.profiles.update_one(
+            {"profile_id": pid}, {"$set": {"settings.statistics.enabled_at": today - timedelta(days=365)}})
         old = _insert_day(mongo_db, pid, "statistics_1d_1y", today - timedelta(days=200), 50)
         recent = _insert_day(mongo_db, pid, "statistics_1d_1y", today - timedelta(days=10), 5)
         before = _docs(mongo_db, pid, "statistics_1d_1y")
