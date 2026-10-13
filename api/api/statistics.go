@@ -16,6 +16,8 @@ import (
 // @Param        timespan		   query     string  false  "specify timespan for query" Enums(LAST_3_HOURS,LAST_6_HOURS,LAST_1_DAY,LAST_7_DAYS,LAST_MONTH,LAST_3_MONTHS,LAST_YEAR) default(LAST_7_DAYS)
 // @Success 200 {object} model.StatisticsResponse
 // @Failure 400 {object} ErrResponse
+// @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/profiles/{id}/statistics [get]
 func (s *APIServer) getStatistics() fiber.Handler {
@@ -25,9 +27,8 @@ func (s *APIServer) getStatistics() fiber.Handler {
 		queryParams := requests.StatisticsQueryParams{
 			Timespan: c.Query("timespan", model.StatisticsDefaultTimespan),
 		}
-		err := s.Validator.Validator.Struct(queryParams)
-		if err != nil {
-			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		if err := s.Validator.Validator.Struct(queryParams); err != nil {
+			return validationFailed(c, queryParams, err)
 		}
 
 		accountId := auth.GetAccountID(c)
@@ -47,8 +48,8 @@ func (s *APIServer) getStatistics() fiber.Handler {
 // @Security ApiKeyAuth
 // @Param id path string true "Profile ID"
 // @Success 204
-// @Failure 400 {object} ErrResponse
 // @Failure 404 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/profiles/{id}/statistics [delete]
 func (s *APIServer) deleteStatisticsHistory() fiber.Handler {

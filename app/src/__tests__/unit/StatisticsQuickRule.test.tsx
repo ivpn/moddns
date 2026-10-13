@@ -16,9 +16,9 @@ vi.mock('@/api/api', () => ({
         Client: {
             statisticsApi: { apiV1ProfilesIdStatisticsGet: vi.fn(), apiV1ProfilesIdStatisticsDelete: vi.fn() },
             queryLogsApi: {
-                apiV1ProfilesIdLogsTopGet: vi.fn(),
-                apiV1ProfilesIdLogsClientsGet: vi.fn(),
-                apiV1ProfilesIdLogsBlocklistsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopDomainsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopClientsGet: vi.fn(),
+                apiV1ProfilesIdLogsTopBlocklistsGet: vi.fn(),
                 apiV1ProfilesIdLogsDevicesGet: vi.fn(),
             },
             blocklistsApi: { apiV1BlocklistsGet: vi.fn() },
@@ -30,9 +30,9 @@ vi.mock('@/api/api', () => ({
 type Mock = ReturnType<typeof vi.fn>;
 const c = api.Client;
 const statsGet = c.statisticsApi.apiV1ProfilesIdStatisticsGet as unknown as Mock;
-const topGet = c.queryLogsApi.apiV1ProfilesIdLogsTopGet as unknown as Mock;
-const clientsGet = c.queryLogsApi.apiV1ProfilesIdLogsClientsGet as unknown as Mock;
-const blocklistsGet = c.queryLogsApi.apiV1ProfilesIdLogsBlocklistsGet as unknown as Mock;
+const topGet = c.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet as unknown as Mock;
+const clientsGet = c.queryLogsApi.apiV1ProfilesIdLogsTopClientsGet as unknown as Mock;
+const blocklistsGet = c.queryLogsApi.apiV1ProfilesIdLogsTopBlocklistsGet as unknown as Mock;
 const devicesGet = c.queryLogsApi.apiV1ProfilesIdLogsDevicesGet as unknown as Mock;
 const profileGet = c.profilesApi.apiV1ProfilesIdGet as unknown as Mock;
 const batchPost = c.profilesApi.apiV1ProfilesIdCustomRulesBatchPost as unknown as Mock;

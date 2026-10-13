@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -26,9 +26,9 @@ class ModelStatisticsTotals(BaseModel):
     """
     ModelStatisticsTotals
     """ # noqa: E501
-    blocked: Optional[StrictInt] = None
-    dnssec: Optional[StrictInt] = None
-    total: Optional[StrictInt] = None
+    blocked: Optional[StrictInt] = Field(default=None, description="Queries blocked.")
+    dnssec: Optional[StrictInt] = Field(default=None, description="Answers carrying the DNSSEC authenticated-data (AD) flag.")
+    total: Optional[StrictInt] = Field(default=None, description="Queries counted.")
     __properties: ClassVar[List[str]] = ["blocked", "dnssec", "total"]
 
     model_config = ConfigDict(

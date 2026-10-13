@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,7 +27,7 @@ class ModelStatisticsDevice(BaseModel):
     ModelStatisticsDevice
     """ # noqa: E501
     blocked: Optional[StrictInt] = None
-    device_id: Optional[StrictStr] = None
+    device_id: Optional[StrictStr] = Field(default=None, description="The device id as sent by the client; \"\" for queries without one, \"_other\" for the folded rest.")
     total: Optional[StrictInt] = None
     __properties: ClassVar[List[str]] = ["blocked", "device_id", "total"]
 

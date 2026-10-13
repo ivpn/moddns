@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/reauth"
+	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/account"
@@ -252,4 +255,61 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Error = errMsg
 		return c.Status(500).JSON(resp)
 	}
+}
+
+// validationFailed answers 400 "validation failed" with one "<field> <rule>" detail per rejected
+// field of params, in field order. A non-validation error answers like ErrInvalidRequestBody.
+func validationFailed(c *fiber.Ctx, params any, err error) error {
+	var verrs validator.ValidationErrors
+	if !errors.As(err, &verrs) {
+		return HandleError(c, ErrInvalidRequestBody, err.Error())
+	}
+	details := make([]string, 0, len(verrs))
+	for _, fe := range verrs {
+		details = append(details, validationDetail(params, fe))
+	}
+	return HandleError(c, ErrValidationFailed, ErrValidationFailed.Error(), details...)
+}
+
+// validationDetail states the rule a field broke in the terms of the API: the accepted values,
+// or the accepted integer range read from the field's validate tag.
+func validationDetail(params any, fe validator.FieldError) string {
+	field := fe.Field()
+	if set, ok := intvldtr.TimespanTags[fe.Tag()]; ok {
+		return field + " must be one of: " + set.String()
+	}
+	switch fe.Tag() {
+	case "oneof":
+		return field + " must be one of: " + strings.Join(strings.Fields(fe.Param()), ", ")
+	case "required":
+		return field + " is required"
+	case "min", "max":
+		if lo, hi, ok := intRange(params, fe.StructField()); ok {
+			return field + " must be an integer between " + lo + " and " + hi
+		}
+		return field + " must be " + fe.Tag() + " " + fe.Param()
+	}
+	return field + " is invalid"
+}
+
+// intRange returns the min and max of a struct field's validate tag.
+func intRange(params any, structField string) (lo, hi string, ok bool) {
+	t := reflect.TypeOf(params)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	f, found := t.FieldByName(structField)
+	if !found {
+		return "", "", false
+	}
+	for _, rule := range strings.Split(f.Tag.Get("validate"), ",") {
+		k, v, _ := strings.Cut(rule, "=")
+		switch k {
+		case "min":
+			lo = v
+		case "max":
+			hi = v
+		}
+	}
+	return lo, hi, lo != "" && hi != ""
 }

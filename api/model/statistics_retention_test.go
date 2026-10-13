@@ -39,3 +39,11 @@ func TestStatisticsSettingsJSONNormalisesRetention(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, StatisticsRetention(""), s.Retention, "marshalling does not mutate the settings")
 }
+
+// specRef: api-endpoint-behaviour.md J42, J49 - enabled_at and history_deleted_at are always present
+// in the settings JSON, null when unset, as in the statistics response.
+func TestStatisticsSettingsJSON_TimestampsAlwaysPresent(t *testing.T) {
+	raw, err := json.Marshal(StatisticsSettings{Enabled: false})
+	require.NoError(t, err)
+	require.JSONEq(t, `{"enabled":false,"enabled_at":null,"history_deleted_at":null,"retention":"30d"}`, string(raw))
+}

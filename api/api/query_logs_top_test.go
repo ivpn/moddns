@@ -25,7 +25,7 @@ func (s *QueryLogsAPIShortSuite) TestTopDomainsDefaultsAndBody() {
 	want := &model.QueryLogTopDomains{Enabled: true, Items: []model.QueryLogTopDomain{{Domain: "example.com", Count: 12}}}
 	s.svc.On("GetProfileQueryLogTop", mock.Anything, qlAccID, qlProfile, model.LAST_1_DAY, "blocked", 10).Return(want, nil)
 
-	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top?kind=blocked")
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/domains?kind=blocked")
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 	var got model.QueryLogTopDomains
 	require.NoError(s.T(), json.NewDecoder(resp.Body).Decode(&got))
@@ -41,7 +41,7 @@ func (s *QueryLogsAPIShortSuite) TestTopDomainsRejectsBadParams() {
 		"?kind=blocked&limit=51",       // above range
 		"?kind=blocked&timespan=LAST_", // unknown timespan
 	} {
-		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top" + q)
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/domains" + q)
 		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
 	}
 }
@@ -49,7 +49,7 @@ func (s *QueryLogsAPIShortSuite) TestTopDomainsRejectsBadParams() {
 // tableRef: api-endpoint-behaviour #J20
 func (s *QueryLogsAPIShortSuite) TestTopDomainsForeignProfileIsNotFound() {
 	s.svc.On("GetProfileQueryLogTop", mock.Anything, qlAccID, qlProfile, model.LAST_1_DAY, "resolved", 50).Return(nil, dbErrors.ErrProfileNotFound)
-	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top?kind=resolved&limit=50")
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/domains?kind=resolved&limit=50")
 	assert.Equal(s.T(), http.StatusNotFound, resp.StatusCode)
 }
 
@@ -62,7 +62,7 @@ func (s *QueryLogsAPIShortSuite) TestClientsDefaultsAndNullEnrichment() {
 	}}
 	s.svc.On("GetProfileQueryLogClients", mock.Anything, qlAccID, qlProfile, "LAST_7_DAYS", 10).Return(want, nil)
 
-	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/clients?timespan=LAST_7_DAYS")
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/clients?timespan=LAST_7_DAYS")
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 	var raw struct {
 		Enabled bool             `json:"enabled"`
@@ -82,7 +82,7 @@ func (s *QueryLogsAPIShortSuite) TestClientsDefaultsAndNullEnrichment() {
 // tableRef: api-endpoint-behaviour #J21
 func (s *QueryLogsAPIShortSuite) TestClientsRejectsBadParams() {
 	for _, q := range []string{"?limit=0", "?limit=51", "?timespan=nope"} {
-		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/clients" + q)
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/clients" + q)
 		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
 	}
 }
@@ -92,7 +92,7 @@ func (s *QueryLogsAPIShortSuite) TestClientsRejectsBadParams() {
 // tableRef: api-endpoint-behaviour #J21
 // tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestTopAndClientsRejectNonNumericAndOutOfRangeLimit() {
-	for _, ep := range []string{"/logs/top?kind=blocked&", "/logs/clients?", "/logs/blocklists?"} {
+	for _, ep := range []string{"/logs/top/domains?kind=blocked&", "/logs/top/clients?", "/logs/top/blocklists?"} {
 		for _, l := range []string{"x", "", "1.5", "0", "-1", "51", "99999999999999999999"} {
 			resp := s.get("/api/v1/profiles/" + qlProfile + ep + "limit=" + l)
 			assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, ep+"limit="+l)
@@ -106,15 +106,15 @@ func (s *QueryLogsAPIShortSuite) TestTopAndClientsRejectNonNumericAndOutOfRangeL
 func (s *QueryLogsAPIShortSuite) TestTopAndClientsAcceptShortTimespans() {
 	for _, ts := range []string{"LAST_3_HOURS", "LAST_6_HOURS"} {
 		s.svc.On("GetProfileQueryLogTop", mock.Anything, qlAccID, qlProfile, ts, "blocked", 10).Return(&model.QueryLogTopDomains{Enabled: true}, nil).Once()
-		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top?kind=blocked&timespan=" + ts)
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/domains?kind=blocked&timespan=" + ts)
 		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
 
 		s.svc.On("GetProfileQueryLogClients", mock.Anything, qlAccID, qlProfile, ts, 10).Return(&model.QueryLogTopClients{Enabled: true}, nil).Once()
-		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/clients?timespan=" + ts)
+		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/top/clients?timespan=" + ts)
 		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
 
 		s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, ts, 10).Return(&model.QueryLogTopBlocklists{Enabled: true}, nil).Once()
-		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists?timespan=" + ts)
+		resp = s.get("/api/v1/profiles/" + qlProfile + "/logs/top/blocklists?timespan=" + ts)
 		assert.Equal(s.T(), http.StatusOK, resp.StatusCode, ts)
 	}
 }
@@ -133,7 +133,7 @@ func (s *QueryLogsAPIShortSuite) TestBlocklistsDefaultsAndBody() {
 	want := &model.QueryLogTopBlocklists{Enabled: true, Items: []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Name: "OISD Big", Count: 7}}}
 	s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, "LAST_1_DAY", 10).Return(want, nil)
 
-	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists")
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/blocklists")
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 	var raw struct {
 		Enabled bool             `json:"enabled"`
@@ -151,7 +151,7 @@ func (s *QueryLogsAPIShortSuite) TestBlocklistsDefaultsAndBody() {
 // tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestBlocklistsRejectsBadParams() {
 	for _, q := range []string{"?limit=0", "?limit=51", "?timespan=nope", "?timespan=LAST_YEAR"} {
-		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists" + q)
+		resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/blocklists" + q)
 		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
 	}
 }
@@ -159,6 +159,35 @@ func (s *QueryLogsAPIShortSuite) TestBlocklistsRejectsBadParams() {
 // tableRef: api-endpoint-behaviour #J24
 func (s *QueryLogsAPIShortSuite) TestBlocklistsForeignProfileIsNotFound() {
 	s.svc.On("GetProfileQueryLogBlocklists", mock.Anything, qlAccID, qlProfile, "LAST_1_DAY", 50).Return(nil, dbErrors.ErrProfileNotFound)
-	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/blocklists?limit=50")
+	resp := s.get("/api/v1/profiles/" + qlProfile + "/logs/top/blocklists?limit=50")
 	assert.Equal(s.T(), http.StatusNotFound, resp.StatusCode)
+}
+
+// tableRef: api-endpoint-behaviour #J20
+// tableRef: api-endpoint-behaviour #J21
+// tableRef: api-endpoint-behaviour #J24
+func (s *QueryLogsAPIShortSuite) TestTopListsLiveUnderLogsTop() {
+	for _, old := range []string{"/logs/top?kind=blocked", "/logs/clients", "/logs/blocklists"} {
+		resp := s.get("/api/v1/profiles/" + qlProfile + old)
+		assert.NotEqual(s.T(), http.StatusOK, resp.StatusCode, old)
+	}
+}
+
+// tableRef: api-endpoint-behaviour #J20
+// A rejected parameter answers "validation failed" with one "<param> <rule>" detail each.
+func (s *QueryLogsAPIShortSuite) TestTopListsValidationDetails() {
+	for q, want := range map[string][]string{
+		"/logs/top/domains?kind=blocked&limit=x":  {"limit must be an integer between 1 and 50"},
+		"/logs/top/clients?limit=51":              {"limit must be an integer between 1 and 50"},
+		"/logs/top/domains?kind=other":            {"kind must be one of: blocked, resolved"},
+		"/logs/top/blocklists?timespan=LAST_YEAR": {"timespan must be one of: LAST_1_HOUR, LAST_3_HOURS, LAST_6_HOURS, LAST_12_HOURS, LAST_1_DAY, LAST_7_DAYS, LAST_MONTH"},
+		"/logs/top/domains?timespan=nope&limit=0": {"timespan must be one of: LAST_1_HOUR, LAST_3_HOURS, LAST_6_HOURS, LAST_12_HOURS, LAST_1_DAY, LAST_7_DAYS, LAST_MONTH", "kind must be one of: blocked, resolved", "limit must be an integer between 1 and 50"},
+	} {
+		resp := s.get("/api/v1/profiles/" + qlProfile + q)
+		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
+		var body ErrResponse
+		require.NoError(s.T(), json.NewDecoder(resp.Body).Decode(&body), q)
+		assert.Equal(s.T(), "validation failed", body.Error, q)
+		assert.Equal(s.T(), want, body.Details, q)
+	}
 }

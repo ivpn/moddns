@@ -1,7 +1,7 @@
 """End-to-end checks for the statistics read endpoints.
 
 GET /profiles/{id}/statistics aggregates the consented per-profile tiers;
-GET /profiles/{id}/logs/top and /logs/clients aggregate the query logs behind
+GET /profiles/{id}/logs/top/domains and /logs/top/clients aggregate the query logs behind
 the logs.enabled + log_domains / log_clients_ips gates. Traffic is real: DoH
 and DoT queries through the proxy, with a proxy restart forcing the bucket
 flush (see test_consented_statistics.py). Plain ``requests`` with the session
@@ -230,23 +230,23 @@ class TestLogsTopAndClients:
         """specRef: api-endpoint-behaviour #J20 — kind is required and limited to
         blocked|resolved; limit is 1..50; timespan must be in the logs enum."""
         pid = user.new_profile("read-top-params")
-        assert _get(user, f"{pid}/logs/top").status_code == 400
-        assert _get(user, f"{pid}/logs/top", kind="allowed").status_code == 400
+        assert _get(user, f"{pid}/logs/top/domains").status_code == 400
+        assert _get(user, f"{pid}/logs/top/domains", kind="allowed").status_code == 400
         for limit in (0, 51, -1):
-            assert _get(user, f"{pid}/logs/top", kind="blocked", limit=limit).status_code == 400
-        assert _get(user, f"{pid}/logs/top", kind="blocked", timespan="LAST_YEAR").status_code == 400
+            assert _get(user, f"{pid}/logs/top/domains", kind="blocked", limit=limit).status_code == 400
+        assert _get(user, f"{pid}/logs/top/domains", kind="blocked", timespan="LAST_YEAR").status_code == 400
         for limit in (1, 50):
-            assert _get(user, f"{pid}/logs/top", kind="blocked", limit=limit).status_code == 200
+            assert _get(user, f"{pid}/logs/top/domains", kind="blocked", limit=limit).status_code == 200
         # Default timespan is LAST_1_DAY; the gate is closed here so the body is the closed shape.
-        assert _get_json(user, f"{pid}/logs/top", kind="resolved") == {"enabled": False, "items": []}
-        assert _get(user, f"{pid}/logs/clients", limit=0).status_code == 400
+        assert _get_json(user, f"{pid}/logs/top/domains", kind="resolved") == {"enabled": False, "items": []}
+        assert _get(user, f"{pid}/logs/top/clients", limit=0).status_code == 400
 
     def test_non_numeric_limit_is_rejected(self, user):
         """specRef: api-endpoint-behaviour #J20 #J21 — anything but an integer in
         1..50 is 400, including a non-numeric value."""
         pid = user.new_profile("read-limit-x")
-        assert _get(user, f"{pid}/logs/top", kind="blocked", limit="x").status_code == 400
-        assert _get(user, f"{pid}/logs/clients", limit="x").status_code == 400
+        assert _get(user, f"{pid}/logs/top/domains", kind="blocked", limit="x").status_code == 400
+        assert _get(user, f"{pid}/logs/top/clients", limit="x").status_code == 400
 
     @pytest.mark.asyncio
     async def test_top_domains_and_clients_follow_the_log_gates(self, user, mongo_db):
@@ -262,9 +262,9 @@ class TestLogsTopAndClients:
         assert is_resolved(await user.wait_for(pid, RESOLVABLE_TEST_DOMAIN, A, is_resolved))
 
         # Gates closed by default: logging is off.
-        assert _get_json(user, f"{pid}/logs/top", timespan=LOG_TIMESPAN, kind="blocked") == {
+        assert _get_json(user, f"{pid}/logs/top/domains", timespan=LOG_TIMESPAN, kind="blocked") == {
             "enabled": False, "items": []}
-        assert _get_json(user, f"{pid}/logs/clients", timespan=LOG_TIMESPAN)["enabled"] is False
+        assert _get_json(user, f"{pid}/logs/top/clients", timespan=LOG_TIMESPAN)["enabled"] is False
 
         user.patch_setting(pid, "/settings/logs/enabled", True)
         user.patch_setting(pid, "/settings/logs/log_domains", True)
@@ -301,11 +301,13 @@ class TestLogsTopAndClients:
         await asyncio.sleep(LOGS_FLUSH_WAIT_S)
 
         blocked = await self._poll(
-            user, f"{pid}/logs/top",
+            user, f"{pid}/logs/top/domains",
             lambda b: [i["count"] for i in b.get("items", [])] == [3, 2, 1],
             timespan=LOG_TIMESPAN, kind="blocked",
         )
         assert blocked["enabled"] is True
+        # J20: an open gate echoes the timespan read and the logs retention it was read from.
+        assert (blocked["timespan"], blocked["retention"]) == (LOG_TIMESPAN, retention)
         assert [(i["domain"].rstrip("."), i["count"]) for i in blocked["items"]] == [
             (BLOCK_A, 3), (BLOCK_B, 2), (BLOCK_C, 1)]
         # J20: covered_from is the oldest row in the window, to the minute; every row here is recent.
@@ -313,12 +315,12 @@ class TestLogsTopAndClients:
         assert covered.second == 0 and covered.microsecond == 0
         assert timedelta(0) <= datetime.now(timezone.utc) - covered < timedelta(hours=1)
 
-        limited = _get_json(user, f"{pid}/logs/top", timespan=LOG_TIMESPAN, kind="blocked", limit=2)
+        limited = _get_json(user, f"{pid}/logs/top/domains", timespan=LOG_TIMESPAN, kind="blocked", limit=2)
         assert [(i["domain"].rstrip("."), i["count"]) for i in limited["items"]] == [
             (BLOCK_A, 3), (BLOCK_B, 2)]
 
         resolved = await self._poll(
-            user, f"{pid}/logs/top",
+            user, f"{pid}/logs/top/domains",
             lambda b: any(i["domain"].rstrip(".") == RESOLVABLE_TEST_DOMAIN and i["count"] == 2
                           for i in b.get("items", [])),
             timespan=LOG_TIMESPAN, kind="resolved",
@@ -331,7 +333,7 @@ class TestLogsTopAndClients:
         assert keys == sorted(keys), "count desc, then domain asc"
 
         clients = await self._poll(
-            user, f"{pid}/logs/clients",
+            user, f"{pid}/logs/top/clients",
             lambda b: sum(i["count"] for i in b.get("items", [])) == real_logged + 3,
             timespan=LOG_TIMESPAN,
         )
@@ -350,16 +352,16 @@ class TestLogsTopAndClients:
             assert (item["asn"], item["as_org"], item["country"]) == (None, None, None)
         keys = [(-i["count"], i["ip"]) for i in clients["items"]]
         assert keys == sorted(keys), "count desc, then ip asc"
-        assert len(_get_json(user, f"{pid}/logs/clients", timespan=LOG_TIMESPAN, limit=1)["items"]) == 1
+        assert len(_get_json(user, f"{pid}/logs/top/clients", timespan=LOG_TIMESPAN, limit=1)["items"]) == 1
 
         # Gates: each endpoint closes on its own toggle.
         user.patch_setting(pid, "/settings/logs/log_domains", False)
         await asyncio.sleep(SETTINGS_SETTLE_S)
-        assert _get_json(user, f"{pid}/logs/top", timespan=LOG_TIMESPAN, kind="blocked") == {
+        assert _get_json(user, f"{pid}/logs/top/domains", timespan=LOG_TIMESPAN, kind="blocked") == {
             "enabled": False, "items": []}
-        assert _get_json(user, f"{pid}/logs/clients", timespan=LOG_TIMESPAN)["enabled"] is True
+        assert _get_json(user, f"{pid}/logs/top/clients", timespan=LOG_TIMESPAN)["enabled"] is True
 
         user.patch_setting(pid, "/settings/logs/log_clients_ips", False)
         await asyncio.sleep(SETTINGS_SETTLE_S)
-        assert _get_json(user, f"{pid}/logs/clients", timespan=LOG_TIMESPAN) == {
+        assert _get_json(user, f"{pid}/logs/top/clients", timespan=LOG_TIMESPAN) == {
             "enabled": False, "items": []}
