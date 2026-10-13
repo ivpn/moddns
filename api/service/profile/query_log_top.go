@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ivpn/dns/api/internal/geoip"
+	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
 )
@@ -16,6 +17,13 @@ import (
 const (
 	queryLogTopCachePrefix = "logs:"
 	queryLogTopCacheTTL    = 5 * time.Minute
+	// An empty list is cached briefly: finding "nothing" still unpacks every bucket in the
+	// window, while a fresh profile's first rows show within this.
+	queryLogTopEmptyCacheTTL = 30 * time.Second
+	// queryLogTopMissLimit bounds the aggregations (cache misses) one account may start per
+	// minute across all its profiles; a page load misses at most four keys per timespan.
+	queryLogTopMissLimit  = 40
+	queryLogTopMissWindow = time.Minute
 	// queryLogTopFetchLimit is the list size cached per key; a request's limit
 	// is applied on read so one entry serves every limit.
 	queryLogTopFetchLimit = 50
@@ -70,19 +78,52 @@ func (p *ProfileService) fetchCoveredFrom(ctx context.Context, profileId string,
 	return covered, true
 }
 
-// storeTop caches a non-empty list: an empty one would pin "nothing" for the
-// TTL on a fresh profile whose first rows are still in the collector batch.
+// storeTop caches a list for the full TTL, or an empty one for queryLogTopEmptyCacheTTL.
 func storeTop[T any](ctx context.Context, p *ProfileService, cacheable bool, key string, entry topEntry[T]) {
-	if !cacheable || len(entry.Items) == 0 {
+	if !cacheable {
 		return
+	}
+	ttl := queryLogTopCacheTTL
+	if len(entry.Items) == 0 {
+		// Stored as [] so the entry reads back as a hit (cachedTop rejects null).
+		entry.Items, ttl = []T{}, queryLogTopEmptyCacheTTL
 	}
 	raw, err := json.Marshal(entry)
 	if err != nil {
 		return
 	}
-	if err := p.Cache.Set(ctx, key, raw, queryLogTopCacheTTL); err != nil {
+	if err := p.Cache.Set(ctx, key, raw, ttl); err != nil {
 		log.Ctx(ctx).Warn().Err(err).Msg("failed to cache query log top list")
 	}
+}
+
+// loadTop returns the cached entry for key or computes it with fetch. A computation counts
+// against the account's miss limit, and concurrent misses of one key on this instance share
+// a single computation. fetch reports whether its entry may be cached.
+func loadTop[T any](ctx context.Context, p *ProfileService, accountId string, cacheable bool, key string, fetch func() (topEntry[T], bool, error)) (topEntry[T], error) {
+	if entry, ok := cachedTop[T](ctx, p, cacheable, key); ok {
+		return entry, nil
+	}
+	limiter := utils.IDLimiter{Cache: p.Cache, Label: "rate_limits", ID: accountId + ":query_logs_top", Max: queryLogTopMissLimit, Exp: queryLogTopMissWindow}
+	if err := limiter.Tick(); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to tick query log top limiter")
+	} else if !limiter.IsAllowed() {
+		return topEntry[T]{}, ErrQueryLogsRateLimited
+	}
+	v, err, _ := p.topFlight.Do(key, func() (any, error) {
+		entry, storable, err := fetch()
+		if err != nil {
+			return nil, err
+		}
+		if storable {
+			storeTop(ctx, p, cacheable, key, entry)
+		}
+		return entry, nil
+	})
+	if err != nil {
+		return topEntry[T]{}, err
+	}
+	return v.(topEntry[T]), nil
 }
 
 // GetProfileQueryLogTop returns the most frequent blocked or resolved domains
@@ -100,16 +141,15 @@ func (p *ProfileService) GetProfileQueryLogTop(ctx context.Context, accountId, p
 
 	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
 	key := queryLogTopCacheKey(kind, profileId, gen, timespan)
-	entry, ok := cachedTop[model.QueryLogTopDomain](ctx, p, cacheable, key)
-	if !ok {
-		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopDomains(ctx, profileId, logs.Retention, timespan, kind, queryLogTopFetchLimit)
-		if err != nil {
-			return nil, err
+	entry, err := loadTop(ctx, p, accountId, cacheable, key, func() (entry topEntry[model.QueryLogTopDomain], covered bool, err error) {
+		if entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopDomains(ctx, profileId, logs.Retention, timespan, kind, queryLogTopFetchLimit); err != nil {
+			return entry, false, err
 		}
-		var covered bool
-		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, cacheable, key, entry)
-		}
+		entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan)
+		return entry, covered, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	items := entry.Items
 	if len(items) > limit {
@@ -137,16 +177,15 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 
 	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
 	key := queryLogTopCacheKey(queryLogClientsKind, profileId, gen, timespan)
-	entry, ok := cachedTop[model.QueryLogTopClient](ctx, p, cacheable, key)
-	if !ok {
-		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopClients(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
-		if err != nil {
-			return nil, err
+	entry, err := loadTop(ctx, p, accountId, cacheable, key, func() (entry topEntry[model.QueryLogTopClient], covered bool, err error) {
+		if entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopClients(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit); err != nil {
+			return entry, false, err
 		}
-		var covered bool
-		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, cacheable, key, entry)
-		}
+		entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan)
+		return entry, covered, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	items := entry.Items
 	if len(items) > limit {
@@ -178,17 +217,16 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 
 	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
 	key := queryLogTopCacheKey(queryLogBlocklistKind, profileId, gen, timespan)
-	entry, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, cacheable, key)
-	if !ok {
-		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
-		if err != nil {
-			return nil, err
+	entry, err := loadTop(ctx, p, accountId, cacheable, key, func() (entry topEntry[model.QueryLogTopBlocklist], covered bool, err error) {
+		if entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit); err != nil {
+			return entry, false, err
 		}
 		p.nameBlocklists(ctx, entry.Items)
-		var covered bool
-		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, cacheable, key, entry)
-		}
+		entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan)
+		return entry, covered, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	items := entry.Items
 	if len(items) > limit {
