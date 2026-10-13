@@ -37,9 +37,75 @@ func (_m *ReadCachestatistics) EXPECT() *ReadCachestatistics_Expecter {
 	return &ReadCachestatistics_Expecter{mock: &_m.Mock}
 }
 
+// Generation provides a mock function for the type ReadCachestatistics
+func (_mock *ReadCachestatistics) Generation(ctx context.Context, profileId string) (int64, error) {
+	ret := _mock.Called(ctx, profileId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Generation")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return returnFunc(ctx, profileId)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = returnFunc(ctx, profileId)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, profileId)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ReadCachestatistics_Generation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Generation'
+type ReadCachestatistics_Generation_Call struct {
+	*mock.Call
+}
+
+// Generation is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+func (_e *ReadCachestatistics_Expecter) Generation(ctx interface{}, profileId interface{}) *ReadCachestatistics_Generation_Call {
+	return &ReadCachestatistics_Generation_Call{Call: _e.mock.On("Generation", ctx, profileId)}
+}
+
+func (_c *ReadCachestatistics_Generation_Call) Run(run func(ctx context.Context, profileId string)) *ReadCachestatistics_Generation_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ReadCachestatistics_Generation_Call) Return(n int64, err error) *ReadCachestatistics_Generation_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *ReadCachestatistics_Generation_Call) RunAndReturn(run func(ctx context.Context, profileId string) (int64, error)) *ReadCachestatistics_Generation_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetStatistics provides a mock function for the type ReadCachestatistics
-func (_mock *ReadCachestatistics) GetStatistics(ctx context.Context, profileId string, timespan string) ([]byte, bool, error) {
-	ret := _mock.Called(ctx, profileId, timespan)
+func (_mock *ReadCachestatistics) GetStatistics(ctx context.Context, profileId string, timespan string, gen int64) ([]byte, bool, error) {
+	ret := _mock.Called(ctx, profileId, timespan, gen)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStatistics")
@@ -48,23 +114,23 @@ func (_mock *ReadCachestatistics) GetStatistics(ctx context.Context, profileId s
 	var r0 []byte
 	var r1 bool
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]byte, bool, error)); ok {
-		return returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int64) ([]byte, bool, error)); ok {
+		return returnFunc(ctx, profileId, timespan, gen)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []byte); ok {
-		r0 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int64) []byte); ok {
+		r0 = returnFunc(ctx, profileId, timespan, gen)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) bool); ok {
-		r1 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, int64) bool); ok {
+		r1 = returnFunc(ctx, profileId, timespan, gen)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
-		r2 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string, int64) error); ok {
+		r2 = returnFunc(ctx, profileId, timespan, gen)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -80,11 +146,12 @@ type ReadCachestatistics_GetStatistics_Call struct {
 //   - ctx context.Context
 //   - profileId string
 //   - timespan string
-func (_e *ReadCachestatistics_Expecter) GetStatistics(ctx interface{}, profileId interface{}, timespan interface{}) *ReadCachestatistics_GetStatistics_Call {
-	return &ReadCachestatistics_GetStatistics_Call{Call: _e.mock.On("GetStatistics", ctx, profileId, timespan)}
+//   - gen int64
+func (_e *ReadCachestatistics_Expecter) GetStatistics(ctx interface{}, profileId interface{}, timespan interface{}, gen interface{}) *ReadCachestatistics_GetStatistics_Call {
+	return &ReadCachestatistics_GetStatistics_Call{Call: _e.mock.On("GetStatistics", ctx, profileId, timespan, gen)}
 }
 
-func (_c *ReadCachestatistics_GetStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan string)) *ReadCachestatistics_GetStatistics_Call {
+func (_c *ReadCachestatistics_GetStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan string, gen int64)) *ReadCachestatistics_GetStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -98,10 +165,15 @@ func (_c *ReadCachestatistics_GetStatistics_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 int64
+		if args[3] != nil {
+			arg3 = args[3].(int64)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -112,7 +184,7 @@ func (_c *ReadCachestatistics_GetStatistics_Call) Return(payload []byte, found b
 	return _c
 }
 
-func (_c *ReadCachestatistics_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan string) ([]byte, bool, error)) *ReadCachestatistics_GetStatistics_Call {
+func (_c *ReadCachestatistics_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan string, gen int64) ([]byte, bool, error)) *ReadCachestatistics_GetStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -175,16 +247,16 @@ func (_c *ReadCachestatistics_InvalidateStatistics_Call) RunAndReturn(run func(c
 }
 
 // SetStatistics provides a mock function for the type ReadCachestatistics
-func (_mock *ReadCachestatistics) SetStatistics(ctx context.Context, profileId string, timespan string, payload []byte) error {
-	ret := _mock.Called(ctx, profileId, timespan, payload)
+func (_mock *ReadCachestatistics) SetStatistics(ctx context.Context, profileId string, timespan string, gen int64, payload []byte) error {
+	ret := _mock.Called(ctx, profileId, timespan, gen, payload)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetStatistics")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []byte) error); ok {
-		r0 = returnFunc(ctx, profileId, timespan, payload)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int64, []byte) error); ok {
+		r0 = returnFunc(ctx, profileId, timespan, gen, payload)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -200,12 +272,13 @@ type ReadCachestatistics_SetStatistics_Call struct {
 //   - ctx context.Context
 //   - profileId string
 //   - timespan string
+//   - gen int64
 //   - payload []byte
-func (_e *ReadCachestatistics_Expecter) SetStatistics(ctx interface{}, profileId interface{}, timespan interface{}, payload interface{}) *ReadCachestatistics_SetStatistics_Call {
-	return &ReadCachestatistics_SetStatistics_Call{Call: _e.mock.On("SetStatistics", ctx, profileId, timespan, payload)}
+func (_e *ReadCachestatistics_Expecter) SetStatistics(ctx interface{}, profileId interface{}, timespan interface{}, gen interface{}, payload interface{}) *ReadCachestatistics_SetStatistics_Call {
+	return &ReadCachestatistics_SetStatistics_Call{Call: _e.mock.On("SetStatistics", ctx, profileId, timespan, gen, payload)}
 }
 
-func (_c *ReadCachestatistics_SetStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan string, payload []byte)) *ReadCachestatistics_SetStatistics_Call {
+func (_c *ReadCachestatistics_SetStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan string, gen int64, payload []byte)) *ReadCachestatistics_SetStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -219,15 +292,20 @@ func (_c *ReadCachestatistics_SetStatistics_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 []byte
+		var arg3 int64
 		if args[3] != nil {
-			arg3 = args[3].([]byte)
+			arg3 = args[3].(int64)
+		}
+		var arg4 []byte
+		if args[4] != nil {
+			arg4 = args[4].([]byte)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -238,7 +316,7 @@ func (_c *ReadCachestatistics_SetStatistics_Call) Return(err error) *ReadCachest
 	return _c
 }
 
-func (_c *ReadCachestatistics_SetStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan string, payload []byte) error) *ReadCachestatistics_SetStatistics_Call {
+func (_c *ReadCachestatistics_SetStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan string, gen int64, payload []byte) error) *ReadCachestatistics_SetStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -78,6 +78,8 @@ func TestUpdateProfile_WritesOnlyTouchedFields(t *testing.T) {
 		{Hash: "security:dnssec", Field: "send_do_bit", Value: true},
 		{Hash: "logs", Field: "retention", Value: model.Retention("1w")},
 	}).Return(nil).Once()
+	// The logs retention change retires the query-log caches (J23).
+	h.cache.On("Incr", mock.Anything, cache.GenerationKey("logs", "profile123"), cache.GenerationTTL).Return(int64(1), nil).Once()
 
 	got, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{
 		replaceOp("/settings/security/dnssec/send_do_bit", true),

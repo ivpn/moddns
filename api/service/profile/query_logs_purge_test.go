@@ -4,25 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/profile"
 	querylogs "github.com/ivpn/dns/api/service/query_logs"
 )
 
-// withQueryLogs attaches a mocked query-logs repository and accepts any cache deletion.
+// withQueryLogs attaches a mocked query-logs repository and accepts any cache generation bump.
 func withQueryLogs(t *testing.T, h *transitionsHarness) *mocks.QueryLogsRepository {
 	t.Helper()
 	ql := mocks.NewQueryLogsRepository(t)
 	h.svc.QueryLogsService = querylogs.NewQueryLogsService(ql)
-	h.cache.On("Del", mock.Anything, mock.Anything).Return(nil).Maybe()
+	h.cache.On("Incr", mock.Anything, mock.Anything, cache.GenerationTTL).Return(int64(1), nil).Maybe()
 	return ql
 }
 
@@ -36,25 +36,60 @@ func logsToggle(v bool) model.ProfileUpdate {
 	return model.ProfileUpdate{Operation: model.UpdateOperationReplace, Path: "/settings/logs/enabled", Value: v}
 }
 
-// deletedKeys returns the cache keys deleted for the profile.
-func deletedKeys(h *transitionsHarness, profileId string) []string {
-	var keys []string
+// generationBumps counts the bumps of the profile's query-log cache generation.
+func generationBumps(h *transitionsHarness, profileId string) int {
+	n := 0
 	for _, c := range h.cache.Calls {
-		if c.Method == "Del" {
-			if k := c.Arguments.String(1); strings.HasSuffix(k, ":"+profileId) || strings.Contains(k, ":"+profileId+":") {
-				keys = append(keys, k)
-			}
+		if c.Method == "Incr" && c.Arguments.String(1) == cache.GenerationKey("logs", profileId) {
+			n++
 		}
 	}
-	return keys
+	return n
 }
 
+// requireLogCachesInvalidated checks the profile's query-log caches moved to a new generation
+// once, which retires the devices list and every top list at once (J23).
 func requireLogCachesInvalidated(t *testing.T, h *transitionsHarness, profileId string) {
 	t.Helper()
-	keys := deletedKeys(h, profileId)
-	require.Contains(t, keys, "query_log_devices:"+profileId)
-	require.Contains(t, keys, "logs:blocked:"+profileId+":LAST_1_DAY")
-	require.Contains(t, keys, "logs:clients:"+profileId+":LAST_1_DAY")
+	require.Equal(t, 1, generationBumps(h, profileId))
+	h.cache.AssertNotCalled(t, "Del", mock.Anything, mock.Anything)
+}
+
+func logsRetentionOp(v string) model.ProfileUpdate {
+	return model.ProfileUpdate{Operation: model.UpdateOperationReplace, Path: "/settings/logs/retention", Value: v}
+}
+
+// specRef: api-endpoint-behaviour.md J23, G22 - a logs retention change retires the query-log caches
+// once (they were computed from the previous retention's collection); an unchanged retention does
+// not, and a PATCH that also turns logs off invalidates only through the purge.
+func TestUpdateProfile_LogsRetentionChangeInvalidatesCaches(t *testing.T) {
+	cases := []struct {
+		name      string
+		stored    model.Retention
+		ops       []model.ProfileUpdate
+		wantBumps int
+		wantPurge bool
+	}{
+		{name: "changed", stored: model.RetentionOneDay, ops: []model.ProfileUpdate{logsRetentionOp("1w")}, wantBumps: 1},
+		{name: "unchanged", stored: model.RetentionOneWeek, ops: []model.ProfileUpdate{logsRetentionOp("1w")}},
+		{name: "changed and turned off", stored: model.RetentionOneDay, ops: []model.ProfileUpdate{logsRetentionOp("1w"), logsToggle(false)}, wantBumps: 1, wantPurge: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTransitionsHarness(t)
+			ql := withQueryLogs(t, h)
+			p := logsProfile(true)
+			p.Settings.Logs.Retention = tc.stored
+			h.expectPersist(p)
+			if tc.wantPurge {
+				ql.On("DeleteQueryLogs", mock.Anything, "profile123").Return(nil).Once()
+			}
+
+			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", tc.ops)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantBumps, generationBumps(h, "profile123"))
+		})
+	}
 }
 
 // specRef: api-endpoint-behaviour.md J12, G8 — turning logs off deletes them from every retention
@@ -180,7 +215,7 @@ func TestPurgeUnconsentedQueryLogs_AppliesRulePerProfile(t *testing.T) {
 	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 3, Purged: 2}, res)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "on")
 	requireLogCachesInvalidated(t, h, "off")
-	require.Empty(t, deletedKeys(h, "on"))
+	require.Zero(t, generationBumps(h, "on"))
 }
 
 // specRef: api-endpoint-behaviour.md J14 — profile lookups are batched.

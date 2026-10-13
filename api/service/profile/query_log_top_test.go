@@ -7,7 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/ivpn/dns/api/cache"
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/geoip"
@@ -33,13 +36,15 @@ func (suite *ProfileTestSuite) resetTopMocks() {
 	suite.mockCache.ExpectedCalls = nil
 	suite.mockQueryLogsRepo.Calls = nil
 	suite.mockCache.Calls = nil
+	// No generation stored yet: entries are read and written under generation 0.
+	suite.mockCache.On("Get", mock.Anything, cache.GenerationKey("logs", "profile123")).Return("", redis.Nil).Maybe()
 }
 
 // tableRef: api-endpoint-behaviour #J20
 func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 	ctx := context.Background()
 	on := &model.LogsSettings{Enabled: true, LogDomains: true, Retention: model.RetentionOneWeek}
-	key := "logs:blocked:profile123:LAST_7_DAYS"
+	key := "logs:blocked:profile123:g0:LAST_7_DAYS"
 	repoItems := []model.QueryLogTopDomain{{Domain: "a.com", Count: 9}, {Domain: "b.com", Count: 5}, {Domain: "c.com", Count: 1}}
 
 	suite.Run("gate off answers enabled=false without cache or query", func() {
@@ -93,10 +98,10 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 	suite.Run("kind resolved maps to processed status and its own key", func() {
 		suite.resetTopMocks()
 		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
-		suite.mockCache.On("Get", ctx, "logs:resolved:profile123:LAST_7_DAYS").Return("", errors.New("redis: nil"))
+		suite.mockCache.On("Get", ctx, "logs:resolved:profile123:g0:LAST_7_DAYS").Return("", errors.New("redis: nil"))
 		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "processed", 168, 50).Return(repoItems, nil)
 		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
-		suite.mockCache.On("Set", ctx, "logs:resolved:profile123:LAST_7_DAYS", mock.Anything, 5*time.Minute).Return(nil)
+		suite.mockCache.On("Set", ctx, "logs:resolved:profile123:g0:LAST_7_DAYS", mock.Anything, 5*time.Minute).Return(nil)
 
 		_, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "resolved", 10)
 		suite.NoError(err)
@@ -185,7 +190,7 @@ func (suite *ProfileTestSuite) TestGetProfileQueryLogTop() {
 func (suite *ProfileTestSuite) TestGetProfileQueryLogClients() {
 	ctx := context.Background()
 	on := &model.LogsSettings{Enabled: true, LogClientsIPs: true, Retention: model.RetentionOneDay}
-	key := "logs:clients:profile123:LAST_1_DAY"
+	key := "logs:clients:profile123:g0:LAST_1_DAY"
 	asn, org, cc := uint32(15169), "GOOGLE", "US"
 	suite.service.SetClientEnricher(stubEnricher{"8.8.8.8": {ASN: &asn, ASOrg: &org, Country: &cc}})
 	defer suite.service.SetClientEnricher(nil)
@@ -281,25 +286,60 @@ func (suite *ProfileTestSuite) TestDeleteProfileQueryLogsInvalidatesTopCache() {
 	suite.resetTopMocks()
 	suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(&model.LogsSettings{Retention: model.RetentionOneDay}), nil)
 	suite.mockQueryLogsRepo.On("DeleteQueryLogs", ctx, "profile123").Return(nil)
-	deleted := map[string]bool{}
-	suite.mockCache.On("Del", ctx, mock.AnythingOfType("string")).
-		Run(func(args mock.Arguments) { deleted[args.String(1)] = true }).Return(nil)
+	suite.mockCache.On("Incr", ctx, cache.GenerationKey("logs", "profile123"), cache.GenerationTTL).Return(int64(1), nil).Once()
 
 	suite.NoError(suite.service.DeleteProfileQueryLogs(ctx, "account123", "profile123"))
 
-	for _, kind := range []string{"blocked", "resolved", "clients", "blocklists"} {
-		for _, ts := range []string{"LAST_1_HOUR", "LAST_3_HOURS", "LAST_6_HOURS", "LAST_12_HOURS", "LAST_1_DAY", "LAST_7_DAYS", "LAST_MONTH"} {
-			suite.True(deleted["logs:"+kind+":profile123:"+ts], kind+" "+ts)
-		}
-	}
-	suite.True(deleted["query_log_devices:profile123"])
+	// One bump retires the devices list and every top list; no per-key deletes (J23).
+	suite.mockCache.AssertNotCalled(suite.T(), "Del", mock.Anything, mock.Anything)
+}
+
+// tableRef: api-endpoint-behaviour #J23
+func (suite *ProfileTestSuite) TestQueryLogTopCacheGeneration() {
+	ctx := context.Background()
+	on := &model.LogsSettings{Enabled: true, LogDomains: true, Retention: model.RetentionOneWeek}
+	repoItems := []model.QueryLogTopDomain{{Domain: "a.com", Count: 9}}
+
+	suite.Run("a list whose query started before a purge is written under the old generation", func() {
+		suite.resetTopMocks()
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("2", nil).Once()
+		suite.mockCache.On("Get", ctx, "logs:blocked:profile123:g2:LAST_7_DAYS").Return("", redis.Nil)
+		// A purge on another instance bumps the generation while the aggregation runs.
+		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).
+			Run(func(mock.Arguments) {
+				suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("3", nil)
+			}).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
+		suite.mockCache.On("Set", ctx, "logs:blocked:profile123:g2:LAST_7_DAYS", mock.Anything, 5*time.Minute).Return(nil).Once()
+
+		_, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 10)
+		suite.NoError(err)
+		suite.mockCache.AssertNumberOfCalls(suite.T(), "Set", 1)
+	})
+
+	suite.Run("an unreadable generation skips the cache both ways", func() {
+		suite.resetTopMocks()
+		suite.mockCache.ExpectedCalls = nil
+		suite.mockProfileRepo.On("GetProfileById", ctx, "profile123").Return(suite.topProfile(on), nil)
+		suite.mockCache.On("Get", ctx, cache.GenerationKey("logs", "profile123")).Return("", errors.New("redis down")).Once()
+		suite.mockQueryLogsRepo.On("GetQueryLogTopDomains", ctx, "profile123", model.RetentionOneWeek, "blocked", 168, 50).Return(repoItems, nil)
+		suite.mockQueryLogsRepo.On("GetQueryLogCoveredFrom", ctx, "profile123", model.RetentionOneWeek, 168).Return(&topCovered, nil)
+
+		got, err := suite.service.GetProfileQueryLogTop(ctx, "account123", "profile123", model.LAST_7_DAYS, "blocked", 10)
+		suite.NoError(err)
+		suite.Equal(repoItems, got.Items)
+		suite.mockCache.AssertNumberOfCalls(suite.T(), "Get", 1)
+		suite.mockCache.AssertNotCalled(suite.T(), "Set", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
 }
 
 // tableRef: api-endpoint-behaviour #J24
 // tableRef: api-endpoint-behaviour #J23
 func (suite *ProfileTestSuite) TestGetProfileQueryLogBlocklists() {
 	ctx := context.Background()
-	key := "logs:blocklists:profile123:LAST_1_DAY"
+	key := "logs:blocklists:profile123:g0:LAST_1_DAY"
 	repoItems := []model.QueryLogTopBlocklist{{BlocklistID: "oisd", Count: 9}, {BlocklistID: "hagezi_pro", Count: 5}, {BlocklistID: "gone", Count: 1}}
 	catalogFilter := map[string]any{"blocklist_ids": []string{"oisd", "hagezi_pro", "gone"}}
 	catalog := []*model.Blocklist{{BlocklistID: "hagezi_pro", Name: "Hagezi Pro"}, {BlocklistID: "oisd", Name: "OISD Big"}}
