@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/db/repository"
@@ -29,6 +30,22 @@ type transitionsHarness struct {
 	profiles  *mocks.ProfileRepository
 	statsRepo *mocks.StatisticsRepository
 	cache     *mocks.Cachecache
+	readCache *countingReadCache
+}
+
+// countingReadCache is a statistics.ReadCache that never hits and counts invalidations.
+type countingReadCache struct{ invalidations int }
+
+func (*countingReadCache) Generation(context.Context, string) (int64, error) { return 0, nil }
+func (*countingReadCache) GetStatistics(context.Context, string, string, int64) ([]byte, bool, error) {
+	return nil, false, nil
+}
+func (*countingReadCache) SetStatistics(context.Context, string, string, int64, []byte) error {
+	return nil
+}
+func (c *countingReadCache) InvalidateStatistics(context.Context, string) error {
+	c.invalidations++
+	return nil
 }
 
 func newTransitionsHarness(t *testing.T) *transitionsHarness {
@@ -37,9 +54,10 @@ func newTransitionsHarness(t *testing.T) *transitionsHarness {
 		profiles:  mocks.NewProfileRepository(t),
 		statsRepo: mocks.NewStatisticsRepository(t),
 		cache:     mocks.NewCachecache(t),
+		readCache: &countingReadCache{},
 	}
 	// The retention move runs inline so its effects are visible when UpdateProfile returns.
-	statsSvc := statistics.NewStatisticsService(h.statsRepo, statistics.WithBackground(func(f func()) { f() }))
+	statsSvc := statistics.NewStatisticsService(h.statsRepo, statistics.WithBackground(func(f func()) { f() }), statistics.WithReadCache(h.readCache))
 	h.svc = profile.NewProfileService(config.ServerConfig{}, config.ServiceConfig{}, h.profiles, mocks.NewAccountRepository(t),
 		nil, nil, statsSvc, nil, h.cache, mocks.NewGeneratoridgen(t), validator.New())
 	h.svc.SetClock(func() time.Time { return fixedNow })
@@ -166,6 +184,7 @@ func TestUpdateProfile_UnrelatedPatchLeavesStatistics(t *testing.T) {
 	h := newTransitionsHarness(t)
 	at := time.Now().Add(-time.Hour).Truncate(time.Second)
 	h.expectPersist(statsProfile(true, &at))
+	h.cache.On("Incr", mock.Anything, cache.GenerationKey("logs", "profile123"), cache.GenerationTTL).Return(int64(1), nil).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123",
 		[]model.ProfileUpdate{{Operation: model.UpdateOperationReplace, Path: "/settings/logs/retention", Value: "1d"}})
@@ -240,25 +259,17 @@ func (h *transitionsHarness) expectDelete(t *testing.T, existing *model.Profile,
 	h.profiles.On("DeleteProfileById", mock.Anything, existing.ProfileId).Return(deleteErr)
 	qlRepo.On("DeleteQueryLogs", mock.Anything, existing.ProfileId).Return(nil).Maybe()
 	h.cache.On("DeleteProfileSettings", mock.Anything, existing.ProfileId).Return(nil).Maybe()
-	h.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+	h.cache.On("Incr", mock.Anything, mock.Anything, cache.GenerationTTL).Return(int64(1), nil).Maybe()
 }
 
 // specRef: api-endpoint-behaviour.md J7, J23, J5 — deleting a profile also drops the caches built from its query logs.
 func TestDeleteProfile_InvalidatesQueryLogCaches(t *testing.T) {
 	h := newTransitionsHarness(t)
-	deleted := map[string]bool{}
-	h.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).
-		Run(func(args mock.Arguments) { deleted[args.String(1)] = true }).Return(nil)
 	h.expectDelete(t, statsProfile(false, nil), nil)
 	h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
 
 	require.NoError(t, h.svc.DeleteProfile(context.Background(), "account123", "profile123", true))
-	assert.True(t, deleted["query_log_devices:profile123"])
-	for _, kind := range []string{"blocked", "resolved", "clients", "blocklists"} {
-		for _, ts := range []string{"LAST_1_HOUR", "LAST_3_HOURS", "LAST_6_HOURS", "LAST_12_HOURS", "LAST_1_DAY", "LAST_7_DAYS", "LAST_MONTH"} {
-			assert.True(t, deleted["logs:"+kind+":profile123:"+ts], kind+" "+ts)
-		}
-	}
+	assert.Equal(t, 1, generationBumps(h, "profile123"))
 }
 
 // specRef: api-endpoint-behaviour.md J7 — profile deletion purges the profile's statistics.
@@ -340,6 +351,35 @@ func TestUpdateProfile_StatisticsRetentionTransitions(t *testing.T) {
 			if tc.wantMove == "" {
 				h.statsRepo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			}
+		})
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J46, J51 - any change of an enabled profile's retention drops
+// its cached statistics answers at once (their retention label and window are stale); lowering
+// also drops them again when the move ends.
+func TestUpdateProfile_StatisticsRetentionChangeInvalidatesReadCache(t *testing.T) {
+	cases := []struct {
+		name    string
+		read    *model.Profile
+		op      string
+		wantInv int
+	}{
+		{name: "raising", read: retentionProfile(true, "30d"), op: "1y", wantInv: 1},
+		{name: "lowering", read: retentionProfile(true, "1y"), op: "90d", wantInv: 2},
+		{name: "unchanged", read: retentionProfile(true, "90d"), op: "90d"},
+		{name: "empty stored to 30d is unchanged", read: retentionProfile(true, ""), op: "30d"},
+		{name: "disabled profile", read: retentionProfile(false, "30d"), op: "1y"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTransitionsHarness(t)
+			h.expectPersist(tc.read)
+			h.statsRepo.On("MoveProfileDailyStatistics", mock.Anything, "profile123", mock.Anything, mock.Anything).Return(0, nil).Maybe()
+
+			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{retentionOp(tc.op)})
+			require.NoError(t, err)
+			require.Equal(t, tc.wantInv, h.readCache.invalidations)
 		})
 	}
 }

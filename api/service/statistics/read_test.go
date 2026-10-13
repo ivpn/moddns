@@ -18,36 +18,53 @@ import (
 
 var readNow = utc(2026, 10, 5, 12, 7, 31)
 
-// fakeReadCache is an in-memory statistics.ReadCache that records its traffic.
+// fakeReadCache is an in-memory statistics.ReadCache that records its traffic. Entries are keyed
+// "<profile>|g<generation>|<timespan>"; an invalidation bumps the profile's generation.
 type fakeReadCache struct {
-	mu                       sync.Mutex
-	data                     map[string][]byte
-	gets, sets               int
-	invalidated              []string
-	getErr, setErr, invalErr error
+	mu                               sync.Mutex
+	data                             map[string][]byte
+	gens                             map[string]int64
+	gets, sets                       int
+	invalidated                      []string
+	genErr, getErr, setErr, invalErr error
 }
 
-func newFakeReadCache() *fakeReadCache { return &fakeReadCache{data: map[string][]byte{}} }
+func newFakeReadCache() *fakeReadCache {
+	return &fakeReadCache{data: map[string][]byte{}, gens: map[string]int64{}}
+}
 
-func (f *fakeReadCache) GetStatistics(_ context.Context, profileID, timespan string) ([]byte, bool, error) {
+func fakeKey(profileID string, gen int64, timespan string) string {
+	return fmt.Sprintf("%s|g%d|%s", profileID, gen, timespan)
+}
+
+func (f *fakeReadCache) Generation(_ context.Context, profileID string) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.genErr != nil {
+		return 0, f.genErr
+	}
+	return f.gens[profileID], nil
+}
+
+func (f *fakeReadCache) GetStatistics(_ context.Context, profileID, timespan string, gen int64) ([]byte, bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.gets++
 	if f.getErr != nil {
 		return nil, false, f.getErr
 	}
-	b, ok := f.data[profileID+"|"+timespan]
+	b, ok := f.data[fakeKey(profileID, gen, timespan)]
 	return b, ok, nil
 }
 
-func (f *fakeReadCache) SetStatistics(_ context.Context, profileID, timespan string, payload []byte) error {
+func (f *fakeReadCache) SetStatistics(_ context.Context, profileID, timespan string, gen int64, payload []byte) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sets++
 	if f.setErr != nil {
 		return f.setErr
 	}
-	f.data[profileID+"|"+timespan] = payload
+	f.data[fakeKey(profileID, gen, timespan)] = payload
 	return nil
 }
 
@@ -55,6 +72,9 @@ func (f *fakeReadCache) InvalidateStatistics(_ context.Context, profileID string
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.invalidated = append(f.invalidated, profileID)
+	if f.invalErr == nil {
+		f.gens[profileID]++
+	}
 	return f.invalErr
 }
 
@@ -402,7 +422,7 @@ func TestGetProfileStatistics_CachesNonEmptyAnswers(t *testing.T) {
 	first, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
 	require.NoError(t, err)
 	require.Equal(t, 1, cache.sets)
-	require.Contains(t, cache.data, "p1|LAST_1_DAY")
+	require.Contains(t, cache.data, "p1|g0|LAST_1_DAY")
 
 	second, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
 	require.NoError(t, err)
@@ -410,6 +430,40 @@ func TestGetProfileStatistics_CachesNonEmptyAnswers(t *testing.T) {
 	require.True(t, second.From.Equal(first.From))
 	require.Len(t, second.Series, len(first.Series))
 
+}
+
+// specRef: api-endpoint-behaviour.md J46 - an answer whose query started before an invalidation
+// (a history delete or a disable landing mid-query) is never served afterwards.
+func TestGetProfileStatistics_AnswerComputedBeforeInvalidationIsNotServed(t *testing.T) {
+	repo := mocks.NewStatisticsRepository(t)
+	cache := newFakeReadCache()
+	svc := readService(t, repo, cache)
+	repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Run(func(mock.Arguments) { require.NoError(t, cache.InvalidateStatistics(context.Background(), "p1")) }).
+		Return(&model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 5}}, nil).Once()
+	repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&model.StatisticsAggregate{}, nil).Once()
+
+	_, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
+	require.NoError(t, err)
+	after, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
+	require.NoError(t, err)
+	require.Zero(t, after.Totals.Total, "the pre-invalidation answer must not be served")
+}
+
+// specRef: api-endpoint-behaviour.md J45 - an unreadable generation skips the cache both ways.
+func TestGetProfileStatistics_GenerationErrorSkipsTheCache(t *testing.T) {
+	repo := mocks.NewStatisticsRepository(t)
+	repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(&model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 5}}, nil).Once()
+	cache := newFakeReadCache()
+	cache.genErr = errors.New("redis down")
+	svc := readService(t, repo, cache)
+
+	got, err := svc.GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
+	require.NoError(t, err)
+	require.EqualValues(t, 5, got.Totals.Total)
+	require.Zero(t, cache.gets+cache.sets)
 }
 
 // specRef: api-endpoint-behaviour.md J45 — an empty answer is never cached.
@@ -446,7 +500,7 @@ func TestGetProfileStatistics_CorruptCacheEntryIsIgnored(t *testing.T) {
 	repo.On("GetProfileStatistics", mock.Anything, "p1", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(&model.StatisticsAggregate{Totals: model.StatisticsTotals{Total: 5}}, nil).Once()
 	cache := newFakeReadCache()
-	cache.data["p1|LAST_1_DAY"] = []byte("{not json")
+	cache.data["p1|g0|LAST_1_DAY"] = []byte("{not json")
 
 	got, err := readService(t, repo, cache).GetProfileStatistics(context.Background(), "p1", model.LAST_1_DAY, enabledSettings())
 	require.NoError(t, err)

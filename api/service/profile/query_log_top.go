@@ -3,6 +3,7 @@ package profile
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/ivpn/dns/api/internal/geoip"
@@ -22,11 +23,6 @@ const (
 	queryLogBlocklistKind = "blocklists"
 )
 
-var (
-	queryLogTopTimespans = []string{model.LAST_1_HOUR, model.LAST_3_HOURS, model.LAST_6_HOURS, model.LAST_12_HOURS, model.LAST_1_DAY, model.LAST_7_DAYS, model.LAST_MONTH}
-	queryLogTopKinds     = []string{model.QueryLogTopKindBlocked, model.QueryLogTopKindResolved, queryLogClientsKind, queryLogBlocklistKind}
-)
-
 // ClientEnricher resolves a client IP to ASN and country; *geoip.Enricher
 // satisfies it.
 type ClientEnricher interface {
@@ -37,19 +33,8 @@ type ClientEnricher interface {
 // enricher leaves the enrichment fields null.
 func (p *ProfileService) SetClientEnricher(e ClientEnricher) { p.clientEnricher = e }
 
-func queryLogTopCacheKey(kind, profileId, timespan string) string {
-	return queryLogTopCachePrefix + kind + ":" + profileId + ":" + timespan
-}
-
-// invalidateQueryLogTopCache drops every cached top list of the profile.
-func (p *ProfileService) invalidateQueryLogTopCache(ctx context.Context, profileId string) {
-	for _, kind := range queryLogTopKinds {
-		for _, timespan := range queryLogTopTimespans {
-			if err := p.Cache.Del(ctx, queryLogTopCacheKey(kind, profileId, timespan)); err != nil {
-				log.Ctx(ctx).Warn().Err(err).Msg("failed to invalidate query log top cache")
-			}
-		}
-	}
+func queryLogTopCacheKey(kind, profileId string, gen int64, timespan string) string {
+	return queryLogTopCachePrefix + kind + ":" + profileId + ":g" + strconv.FormatInt(gen, 10) + ":" + timespan
 }
 
 // topEntry is a cached top list with the covered_from computed alongside it (J23).
@@ -58,10 +43,13 @@ type topEntry[T any] struct {
 	CoveredFrom *time.Time `json:"covered_from"`
 }
 
-// cachedTop returns the cached entry for key, or false on a miss, a cache error
-// or a value in any other shape.
-func cachedTop[T any](ctx context.Context, p *ProfileService, key string) (topEntry[T], bool) {
+// cachedTop returns the cached entry for key, or false on a miss, a cache error,
+// a value in any other shape or an unknown generation (cacheable false).
+func cachedTop[T any](ctx context.Context, p *ProfileService, cacheable bool, key string) (topEntry[T], bool) {
 	var entry topEntry[T]
+	if !cacheable {
+		return entry, false
+	}
 	raw, err := p.Cache.Get(ctx, key)
 	if err != nil || raw == "" {
 		return entry, false
@@ -84,8 +72,8 @@ func (p *ProfileService) fetchCoveredFrom(ctx context.Context, profileId string,
 
 // storeTop caches a non-empty list: an empty one would pin "nothing" for the
 // TTL on a fresh profile whose first rows are still in the collector batch.
-func storeTop[T any](ctx context.Context, p *ProfileService, key string, entry topEntry[T]) {
-	if len(entry.Items) == 0 {
+func storeTop[T any](ctx context.Context, p *ProfileService, cacheable bool, key string, entry topEntry[T]) {
+	if !cacheable || len(entry.Items) == 0 {
 		return
 	}
 	raw, err := json.Marshal(entry)
@@ -110,8 +98,9 @@ func (p *ProfileService) GetProfileQueryLogTop(ctx context.Context, accountId, p
 		return &model.QueryLogTopDomains{Items: []model.QueryLogTopDomain{}}, nil
 	}
 
-	key := queryLogTopCacheKey(kind, profileId, timespan)
-	entry, ok := cachedTop[model.QueryLogTopDomain](ctx, p, key)
+	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
+	key := queryLogTopCacheKey(kind, profileId, gen, timespan)
+	entry, ok := cachedTop[model.QueryLogTopDomain](ctx, p, cacheable, key)
 	if !ok {
 		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopDomains(ctx, profileId, logs.Retention, timespan, kind, queryLogTopFetchLimit)
 		if err != nil {
@@ -119,7 +108,7 @@ func (p *ProfileService) GetProfileQueryLogTop(ctx context.Context, accountId, p
 		}
 		var covered bool
 		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, key, entry)
+			storeTop(ctx, p, cacheable, key, entry)
 		}
 	}
 	items := entry.Items
@@ -146,8 +135,9 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 		return &model.QueryLogTopClients{Items: []model.QueryLogTopClient{}}, nil
 	}
 
-	key := queryLogTopCacheKey(queryLogClientsKind, profileId, timespan)
-	entry, ok := cachedTop[model.QueryLogTopClient](ctx, p, key)
+	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
+	key := queryLogTopCacheKey(queryLogClientsKind, profileId, gen, timespan)
+	entry, ok := cachedTop[model.QueryLogTopClient](ctx, p, cacheable, key)
 	if !ok {
 		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopClients(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
 		if err != nil {
@@ -155,7 +145,7 @@ func (p *ProfileService) GetProfileQueryLogClients(ctx context.Context, accountI
 		}
 		var covered bool
 		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, key, entry)
+			storeTop(ctx, p, cacheable, key, entry)
 		}
 	}
 	items := entry.Items
@@ -186,8 +176,9 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 		return &model.QueryLogTopBlocklists{Items: []model.QueryLogTopBlocklist{}}, nil
 	}
 
-	key := queryLogTopCacheKey(queryLogBlocklistKind, profileId, timespan)
-	entry, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, key)
+	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
+	key := queryLogTopCacheKey(queryLogBlocklistKind, profileId, gen, timespan)
+	entry, ok := cachedTop[model.QueryLogTopBlocklist](ctx, p, cacheable, key)
 	if !ok {
 		entry.Items, err = p.QueryLogsService.GetProfileQueryLogTopBlocklists(ctx, profileId, logs.Retention, timespan, queryLogTopFetchLimit)
 		if err != nil {
@@ -196,7 +187,7 @@ func (p *ProfileService) GetProfileQueryLogBlocklists(ctx context.Context, accou
 		p.nameBlocklists(ctx, entry.Items)
 		var covered bool
 		if entry.CoveredFrom, covered = p.fetchCoveredFrom(ctx, profileId, logs.Retention, timespan); covered {
-			storeTop(ctx, p, key, entry)
+			storeTop(ctx, p, cacheable, key, entry)
 		}
 	}
 	items := entry.Items
