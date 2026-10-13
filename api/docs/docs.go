@@ -1897,172 +1897,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/profiles/{id}/logs/blocklists": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "QueryLogs"
-                ],
-                "summary": "Get profile top blocklists",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Profile ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "LAST_1_HOUR",
-                            "LAST_3_HOURS",
-                            "LAST_6_HOURS",
-                            "LAST_12_HOURS",
-                            "LAST_1_DAY",
-                            "LAST_7_DAYS",
-                            "LAST_MONTH"
-                        ],
-                        "type": "string",
-                        "default": "LAST_1_DAY",
-                        "description": "specify timespan for query",
-                        "name": "timespan",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "number of items",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.QueryLogTopBlocklists"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "429": {
-                        "description": "Too Many Requests",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/profiles/{id}/logs/clients": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "QueryLogs"
-                ],
-                "summary": "Get profile top clients",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Profile ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "enum": [
-                            "LAST_1_HOUR",
-                            "LAST_3_HOURS",
-                            "LAST_6_HOURS",
-                            "LAST_12_HOURS",
-                            "LAST_1_DAY",
-                            "LAST_7_DAYS",
-                            "LAST_MONTH"
-                        ],
-                        "type": "string",
-                        "default": "LAST_1_DAY",
-                        "description": "specify timespan for query",
-                        "name": "timespan",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 50,
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "number of items",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/model.QueryLogTopClients"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "429": {
-                        "description": "Too Many Requests",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/api.ErrResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/profiles/{id}/logs/devices": {
             "get": {
                 "security": [
@@ -2167,7 +2001,173 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/profiles/{id}/logs/top": {
+        "/api/v1/profiles/{id}/logs/top/blocklists": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Blocklists that blocked the most queries in the profile's query logs (current retention window), by blocklist id with its catalogue name (the id when the list is not in the catalogue). A query matched by several blocklists counts once for each, so counts can sum to more than the blocked total. Returns enabled=false with no items unless logs are on. Counts only. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile top blocklists",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "LAST_1_HOUR",
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
+                            "LAST_12_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH"
+                        ],
+                        "type": "string",
+                        "default": "LAST_1_DAY",
+                        "description": "specify timespan for query",
+                        "name": "timespan",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "number of items",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.QueryLogTopBlocklists"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/logs/top/clients": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Most frequent client IPs in the profile's query logs (current retention window), enriched with ASN, AS organisation and country (null when unknown). Returns enabled=false with no items unless logs and client IP logging are on. covered_from is when the oldest log row in the window was written (to the minute), absent without rows.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "QueryLogs"
+                ],
+                "summary": "Get profile top clients",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Profile ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "LAST_1_HOUR",
+                            "LAST_3_HOURS",
+                            "LAST_6_HOURS",
+                            "LAST_12_HOURS",
+                            "LAST_1_DAY",
+                            "LAST_7_DAYS",
+                            "LAST_MONTH"
+                        ],
+                        "type": "string",
+                        "default": "LAST_1_DAY",
+                        "description": "specify timespan for query",
+                        "name": "timespan",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 50,
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "number of items",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.QueryLogTopClients"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profiles/{id}/logs/top/domains": {
             "get": {
                 "security": [
                     {
@@ -2434,6 +2434,18 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -2466,14 +2478,14 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content"
                     },
-                    "400": {
-                        "description": "Bad Request",
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -4218,7 +4230,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "covered_from": {
-                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "description": "When the oldest log row in the window was written (UTC, to the minute); absent without rows.",
                     "type": "string"
                 },
                 "enabled": {
@@ -4229,6 +4241,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.QueryLogTopBlocklist"
                     }
+                },
+                "retention": {
+                    "description": "The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Retention"
+                        }
+                    ]
+                },
+                "timespan": {
+                    "description": "The timespan read; absent when enabled is false.",
+                    "type": "string"
                 }
             }
         },
@@ -4256,7 +4280,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "covered_from": {
-                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "description": "When the oldest log row in the window was written (UTC, to the minute); absent without rows.",
                     "type": "string"
                 },
                 "enabled": {
@@ -4267,6 +4291,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.QueryLogTopClient"
                     }
+                },
+                "retention": {
+                    "description": "The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Retention"
+                        }
+                    ]
+                },
+                "timespan": {
+                    "description": "The timespan read; absent when enabled is false.",
+                    "type": "string"
                 }
             }
         },
@@ -4285,7 +4321,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "covered_from": {
-                    "description": "CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).",
+                    "description": "When the oldest log row in the window was written (UTC, to the minute); absent without rows.",
                     "type": "string"
                 },
                 "enabled": {
@@ -4296,6 +4332,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/model.QueryLogTopDomain"
                     }
+                },
+                "retention": {
+                    "description": "The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Retention"
+                        }
+                    ]
+                },
+                "timespan": {
+                    "description": "The timespan read; absent when enabled is false.",
+                    "type": "string"
                 }
             }
         },
@@ -4345,6 +4393,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "device_id": {
+                    "description": "The device id as sent by the client; \"\" for queries without one, \"_other\" for the folded rest.",
                     "type": "string"
                 },
                 "total": {
@@ -4365,6 +4414,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "ts": {
+                    "description": "Start of the point's bucket (UTC); the bucket spans bucket_seconds.",
                     "type": "string"
                 }
             }
@@ -4410,50 +4460,83 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "bucket_seconds": {
+                    "description": "Width of each series point in seconds.",
                     "type": "integer"
                 },
                 "devices": {
+                    "description": "Per-device counts, total descending then device_id ascending. At most 100 entries: past\nthat the 99 largest are kept and the rest is folded into one \"_other\" entry.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/model.StatisticsDevice"
                     }
                 },
                 "enabled": {
+                    "description": "Whether statistics are collected; when false every count is zero and series and devices are empty.",
                     "type": "boolean"
                 },
                 "enabled_at": {
+                    "description": "When statistics were last turned on (UTC); null while they are off.",
                     "type": "string"
                 },
                 "from": {
+                    "description": "Start of the window (UTC, inclusive), aligned to bucket_seconds.",
                     "type": "string"
                 },
                 "history_deleted_at": {
-                    "description": "Last \"Delete statistics history\" (J53); null while off or never deleted.",
+                    "description": "When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.",
                     "type": "string"
                 },
                 "protocols": {
-                    "$ref": "#/definitions/model.StatisticsProtocols"
+                    "description": "Queries by encrypted transport (plain DNS not counted).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.StatisticsProtocols"
+                        }
+                    ]
                 },
                 "reasons": {
-                    "$ref": "#/definitions/model.StatisticsReasons"
+                    "description": "Blocked queries by the class of rule that decided the block.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.StatisticsReasons"
+                        }
+                    ]
                 },
                 "retention": {
-                    "type": "string"
+                    "description": "How long the profile's daily statistics are kept; the window never reaches further back.",
+                    "enum": [
+                        "30d",
+                        "90d",
+                        "1y"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.StatisticsRetention"
+                        }
+                    ]
                 },
                 "series": {
+                    "description": "One point per bucket in [from, to), oldest first, zero-filled.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/model.StatisticsPoint"
                     }
                 },
                 "timespan": {
+                    "description": "The requested timespan.",
                     "type": "string"
                 },
                 "to": {
+                    "description": "End of the window (UTC, exclusive): the time of the request.",
                     "type": "string"
                 },
                 "totals": {
-                    "$ref": "#/definitions/model.StatisticsTotals"
+                    "description": "Sums over the window.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.StatisticsTotals"
+                        }
+                    ]
                 }
             }
         },
@@ -4477,18 +4560,19 @@ const docTemplate = `{
             ],
             "properties": {
                 "enabled": {
+                    "description": "Whether DNS statistics are collected for the profile.",
                     "type": "boolean"
                 },
                 "enabled_at": {
-                    "description": "When statistics were last turned on (UTC). Absent while statistics are off.",
+                    "description": "When statistics were last turned on (UTC); null while they are off.",
                     "type": "string"
                 },
                 "history_deleted_at": {
-                    "description": "Last \"Delete statistics history\" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).",
+                    "description": "When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.",
                     "type": "string"
                 },
                 "retention": {
-                    "description": "No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).",
+                    "description": "How long daily statistics are kept.",
                     "enum": [
                         "30d",
                         "90d",
@@ -4506,12 +4590,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "blocked": {
+                    "description": "Queries blocked.",
                     "type": "integer"
                 },
                 "dnssec": {
+                    "description": "Answers carrying the DNSSEC authenticated-data (AD) flag.",
                     "type": "integer"
                 },
                 "total": {
+                    "description": "Queries counted.",
                     "type": "integer"
                 }
             }

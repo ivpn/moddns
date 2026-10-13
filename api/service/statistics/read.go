@@ -55,7 +55,7 @@ func WithMissGuard(guard func() error) ReadOption {
 }
 
 // statisticsRetention is the retention window the read is clamped to (J41, J48).
-func statisticsRetention(settings *model.StatisticsSettings) (string, time.Duration) {
+func statisticsRetention(settings *model.StatisticsSettings) (model.StatisticsRetention, time.Duration) {
 	if settings == nil {
 		return model.StatisticsRetentionWindow("")
 	}

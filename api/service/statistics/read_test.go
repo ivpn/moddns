@@ -126,7 +126,7 @@ func TestGetProfileStatistics_TimespanBuckets(t *testing.T) {
 			require.Equal(t, tt.bucketSecs, got.BucketSeconds)
 			require.True(t, got.From.Equal(tt.from), "from=%s", got.From)
 			require.True(t, got.To.Equal(readNow), "to=%s", got.To)
-			require.Equal(t, "30d", got.Retention)
+			require.Equal(t, model.StatisticsRetention30d, got.Retention)
 			require.Len(t, got.Series, tt.points)
 			require.True(t, got.Series[0].Ts.Equal(tt.from))
 			step := time.Duration(tt.bucketSecs) * time.Second
@@ -163,7 +163,7 @@ func TestGetProfileStatistics_ClampsToProfileRetention(t *testing.T) {
 
 			got, err := readService(t, repo, nil).GetProfileStatistics(context.Background(), "p1", model.StatisticsLastYear, settings)
 			require.NoError(t, err)
-			require.Equal(t, tc.label, got.Retention)
+			require.Equal(t, model.StatisticsRetention(tc.label), got.Retention)
 			require.True(t, got.From.Equal(tc.from), "from=%s", got.From)
 			require.Len(t, got.Series, tc.points)
 		})
@@ -261,7 +261,7 @@ func TestGetProfileStatistics_DisabledAnswersWithoutQuerying(t *testing.T) {
 			require.Nil(t, got.EnabledAt)
 			require.Equal(t, "LAST_7_DAYS", got.Timespan)
 			require.Equal(t, 3600, got.BucketSeconds)
-			require.Equal(t, "30d", got.Retention)
+			require.Equal(t, model.StatisticsRetention30d, got.Retention)
 			require.True(t, got.From.Equal(utc(2026, 9, 28, 12, 0, 0)))
 			require.True(t, got.To.Equal(readNow))
 			require.NotNil(t, got.Series)

@@ -52,11 +52,11 @@ describe('scrubTransaction', () => {
             request: { url: 'https://app.example.test/statistics?device_id=d1' },
             spans: [
                 {
-                    description: 'GET /api/v1/profiles/p1/logs/top?kind=blocked',
+                    description: 'GET /api/v1/profiles/p1/logs/top/domains?kind=blocked',
                     span_id: 's',
                     trace_id: 't',
                     start_timestamp: 0,
-                    data: { url: 'https://api.example.test/api/v1/profiles/p1/logs/top', 'http.query': '?device_id=d1' },
+                    data: { url: 'https://api.example.test/api/v1/profiles/p1/logs/top/domains', 'http.query': '?device_id=d1' },
                 },
             ],
             breadcrumbs: [{ category: 'fetch', data: { url: '/api/v1/profiles/p1' } }],
@@ -67,7 +67,7 @@ describe('scrubTransaction', () => {
         expect(text).not.toContain('p1');
         expect(text).not.toContain('"d1"');
         expect(out.transaction).toBe('/api/v1/profiles/:profile_id/statistics');
-        expect(out.spans?.[0].description).toBe('GET /api/v1/profiles/:profile_id/logs/top?kind=blocked');
+        expect(out.spans?.[0].description).toBe('GET /api/v1/profiles/:profile_id/logs/top/domains?kind=blocked');
     });
 });
 

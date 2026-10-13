@@ -23,6 +23,7 @@ from moddns.models.model_statistics_device import ModelStatisticsDevice
 from moddns.models.model_statistics_point import ModelStatisticsPoint
 from moddns.models.model_statistics_protocols import ModelStatisticsProtocols
 from moddns.models.model_statistics_reasons import ModelStatisticsReasons
+from moddns.models.model_statistics_retention import ModelStatisticsRetention
 from moddns.models.model_statistics_totals import ModelStatisticsTotals
 from typing import Optional, Set
 from typing_extensions import Self
@@ -31,19 +32,19 @@ class ModelStatisticsResponse(BaseModel):
     """
     ModelStatisticsResponse
     """ # noqa: E501
-    bucket_seconds: Optional[StrictInt] = None
-    devices: Optional[List[ModelStatisticsDevice]] = None
-    enabled: Optional[StrictBool] = None
-    enabled_at: Optional[StrictStr] = None
-    var_from: Optional[StrictStr] = Field(default=None, alias="from")
-    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Last \"Delete statistics history\" (J53); null while off or never deleted.")
-    protocols: Optional[ModelStatisticsProtocols] = None
-    reasons: Optional[ModelStatisticsReasons] = None
-    retention: Optional[StrictStr] = None
-    series: Optional[List[ModelStatisticsPoint]] = None
-    timespan: Optional[StrictStr] = None
-    to: Optional[StrictStr] = None
-    totals: Optional[ModelStatisticsTotals] = None
+    bucket_seconds: Optional[StrictInt] = Field(default=None, description="Width of each series point in seconds.")
+    devices: Optional[List[ModelStatisticsDevice]] = Field(default=None, description="Per-device counts, total descending then device_id ascending. At most 100 entries: past that the 99 largest are kept and the rest is folded into one \"_other\" entry.")
+    enabled: Optional[StrictBool] = Field(default=None, description="Whether statistics are collected; when false every count is zero and series and devices are empty.")
+    enabled_at: Optional[StrictStr] = Field(default=None, description="When statistics were last turned on (UTC); null while they are off.")
+    var_from: Optional[StrictStr] = Field(default=None, description="Start of the window (UTC, inclusive), aligned to bucket_seconds.", alias="from")
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.")
+    protocols: Optional[ModelStatisticsProtocols] = Field(default=None, description="Queries by encrypted transport (plain DNS not counted).")
+    reasons: Optional[ModelStatisticsReasons] = Field(default=None, description="Blocked queries by the class of rule that decided the block.")
+    retention: Optional[ModelStatisticsRetention] = Field(default=None, description="How long the profile's daily statistics are kept; the window never reaches further back.")
+    series: Optional[List[ModelStatisticsPoint]] = Field(default=None, description="One point per bucket in [from, to), oldest first, zero-filled.")
+    timespan: Optional[StrictStr] = Field(default=None, description="The requested timespan.")
+    to: Optional[StrictStr] = Field(default=None, description="End of the window (UTC, exclusive): the time of the request.")
+    totals: Optional[ModelStatisticsTotals] = Field(default=None, description="Sums over the window.")
     __properties: ClassVar[List[str]] = ["bucket_seconds", "devices", "enabled", "enabled_at", "from", "history_deleted_at", "protocols", "reasons", "retention", "series", "timespan", "to", "totals"]
 
     model_config = ConfigDict(

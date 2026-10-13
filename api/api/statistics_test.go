@@ -80,7 +80,7 @@ func (s *StatisticsAPISuite) TestDefaultTimespan() {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J40 — the four statistics timespans pass through to the service.
+// specRef: api-endpoint-behaviour.md J40 — the seven statistics timespans pass through to the service.
 func (s *StatisticsAPISuite) TestAcceptedTimespans() {
 	for _, ts := range model.StatisticsTimespans() {
 		s.SetupTest()
@@ -97,6 +97,33 @@ func (s *StatisticsAPISuite) TestRejectedTimespans() {
 		resp := s.get("?timespan=" + ts)
 		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, ts)
 		s.svc.AssertNotCalled(s.T(), "GetStatistics")
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J40 - a rejected timespan names the accepted values.
+func (s *StatisticsAPISuite) TestRejectedTimespanDetails() {
+	resp := s.get("?timespan=LAST_1_HOUR")
+	assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode)
+	var body ErrResponse
+	require.NoError(s.T(), json.NewDecoder(resp.Body).Decode(&body))
+	assert.Equal(s.T(), "validation failed", body.Error)
+	assert.Equal(s.T(), []string{"timespan must be one of: LAST_3_HOURS, LAST_6_HOURS, LAST_1_DAY, LAST_7_DAYS, LAST_MONTH, LAST_3_MONTHS, LAST_YEAR"}, body.Details)
+}
+
+// specRef: api-endpoint-behaviour.md J4 - a profile of another account (or none) is 404, a
+// service failure 500.
+func (s *StatisticsAPISuite) TestGetErrors() {
+	for _, tc := range []struct {
+		err    error
+		status int
+	}{
+		{dbErrors.ErrProfileNotFound, http.StatusNotFound},
+		{errors.New("boom"), http.StatusInternalServerError},
+	} {
+		s.SetupTest()
+		s.svc.On("GetStatistics", mock.Anything, statAccID, statProfile, "LAST_1_DAY").Return(nil, tc.err).Once()
+		resp := s.get("?timespan=LAST_1_DAY")
+		assert.Equal(s.T(), tc.status, resp.StatusCode, "%v", tc.err)
 	}
 }
 
