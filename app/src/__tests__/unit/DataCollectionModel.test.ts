@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     buildUpdates,
+    importedCollection,
     fromProfile,
     normalizeStatsRetention,
     profileStatsRetention,
@@ -389,5 +390,32 @@ describe('how much a deleting change loses', () => {
         // tableRef: statistics-behaviour #C25
         expect(held({ retention: '1y' })).toBeNull();
         expect(statsHeld(profile({ enabled: false }, { enabled: false, enabled_at: '2026-06-03T09:30:00Z' }), NOW)).toBeNull();
+    });
+});
+
+describe('what an imported profile starts collecting', () => {
+    // tableRef: account-export-import-behaviour #I26
+    it('names statistics with the 30-day import retention and query logs with what they record', () => {
+        expect(importedCollection({ statistics: { enabled: true } })).toBe('query counts per device, kept for 30 days');
+        expect(importedCollection({ logs: { enabled: true, logDomains: true, logClientsIPs: true, retention: '1m' } })).toBe(
+            'a record of each query with its domain and client IP address, kept for 1 month',
+        );
+        expect(importedCollection({ statistics: { enabled: true }, logs: { enabled: true, logDomains: true, retention: '1d' } })).toBe(
+            'query counts per device, kept for 30 days; a record of each query with its domain, kept for 1 day',
+        );
+        expect(importedCollection({ logs: { enabled: true, logClientsIPs: true, retention: '1w' } })).toBe(
+            'a record of each query with its client IP address, kept for 1 week',
+        );
+    });
+
+    it('reads absent options the way the import does: off, and 1 hour for a missing or unknown retention', () => {
+        expect(importedCollection({ logs: { enabled: true } })).toBe('a record of each query, kept for 1 hour');
+        expect(importedCollection({ logs: { enabled: true, retention: 'forever' as never } })).toBe('a record of each query, kept for 1 hour');
+    });
+
+    it('is null when the profile collects nothing', () => {
+        expect(importedCollection({})).toBeNull();
+        expect(importedCollection({ statistics: { enabled: false }, logs: { enabled: false, logClientsIPs: true } })).toBeNull();
+        expect(importedCollection(undefined)).toBeNull();
     });
 });
