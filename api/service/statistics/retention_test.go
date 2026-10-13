@@ -66,13 +66,42 @@ func TestMoveToRetention_SkipsWhenLocked(t *testing.T) {
 	repo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
-// specRef: api-endpoint-behaviour.md J50 — the immediate move is best-effort: an error is only logged.
+// specRef: api-endpoint-behaviour.md J50 - the immediate move runs in the background: MoveBestEffort
+// returns before it starts, the move outlives the caller's context under its own deadline, and an
+// error is only logged.
 func TestMoveBestEffort(t *testing.T) {
 	repo := mocks.NewStatisticsRepository(t)
-	repo.On("MoveProfileDailyStatistics", mock.Anything, "p1", model.StatisticsRetention30d, mock.Anything).Return(0, errors.New("boom")).Once()
-	svc := readService(t, repo, nil)
+	var moveErr error
+	var deadline time.Time
+	var hasDeadline bool
+	repo.On("MoveProfileDailyStatistics", mock.Anything, "p1", model.StatisticsRetention30d, mock.Anything).
+		Run(func(args mock.Arguments) {
+			moveCtx := args.Get(0).(context.Context)
+			moveErr = moveCtx.Err()
+			deadline, hasDeadline = moveCtx.Deadline()
+		}).
+		Return(0, errors.New("boom")).Once()
+	var pending []func()
+	svc := statistics.NewStatisticsService(repo, statistics.WithBackground(func(f func()) { pending = append(pending, f) }))
 	svc.SetRetentionMoveLocker(testLocker(t))
-	svc.MoveBestEffort(context.Background(), "p1", model.StatisticsRetention30d)
+
+	callerCtx, cancel := context.WithCancel(context.Background())
+	svc.MoveBestEffort(callerCtx, "p1", model.StatisticsRetention30d)
+	cancel()
+	repo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	require.Len(t, pending, 1)
+
+	start := time.Now()
+	pending[0]()
+	require.NoError(t, moveErr, "the caller's cancellation does not reach the move")
+	require.True(t, hasDeadline, "the move has a deadline")
+	require.WithinDuration(t, start.Add(statistics.RetentionMoveDeadline), deadline, 5*time.Second)
+}
+
+// specRef: api-endpoint-behaviour.md J50 - the move lock outlives the longest move (and the undo of
+// its last batch), so the reconcile cannot start the same move while one is still running.
+func TestRetentionMoveLockOutlivesTheMove(t *testing.T) {
+	require.GreaterOrEqual(t, statistics.RetentionMoveLockTTL, statistics.RetentionMoveDeadline+time.Minute)
 }
 
 // specRef: api-endpoint-behaviour.md J8, J50 — the hourly reconcile moves daily documents of enabled

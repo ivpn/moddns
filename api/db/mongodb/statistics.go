@@ -313,7 +313,7 @@ func (r *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, p
 func (r *StatisticsRepository) moveCollection(ctx context.Context, source, target *mongo.Collection, profileId string, since time.Time) (int, error) {
 	moved := 0
 	for {
-		cur, err := source.Find(ctx, bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}, options.Find().SetLimit(statisticsMoveBatch))
+		cur, err := source.Find(ctx, bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}, moveBatchFindOptions(statisticsMoveBatch))
 		if err != nil {
 			return moved, err
 		}
@@ -325,23 +325,16 @@ func (r *StatisticsRepository) moveCollection(ctx context.Context, source, targe
 			return moved, nil
 		}
 
-		ids := make(bson.A, 0, len(docs))
+		ids, lo, hi := moveBatchBounds(docs)
 		var keep []any
 		var keepIds bson.A
 		for _, doc := range docs {
-			id := docField(doc, "_id")
-			ids = append(ids, id)
 			if start, ok := docField(doc, "bucket_start").(primitive.DateTime); ok && !start.Time().Before(since) {
 				keep = append(keep, doc)
-				keepIds = append(keepIds, id)
+				keepIds = append(keepIds, docField(doc, "_id"))
 			}
 		}
-		filter := func(in bson.A) bson.D {
-			return bson.D{
-				primitive.E{Key: "meta.profile_id", Value: profileId},
-				primitive.E{Key: "_id", Value: bson.D{primitive.E{Key: "$in", Value: in}}},
-			}
-		}
+		filter := func(in bson.A) bson.D { return moveBatchFilter(profileId, in, lo, hi) }
 		// Undo the copies of a failed batch so a retry cannot count them twice.
 		undo := func(err error) error {
 			if len(keepIds) == 0 {
@@ -364,6 +357,38 @@ func (r *StatisticsRepository) moveCollection(ctx context.Context, source, targe
 			return moved, undo(err)
 		}
 		moved += len(keep)
+	}
+}
+
+// moveBatchFindOptions reads a move batch in bucket_start order, so each batch covers one
+// contiguous time range that moveBatchFilter can bound.
+func moveBatchFindOptions(limit int64) *options.FindOptions {
+	return options.Find().SetSort(bson.D{primitive.E{Key: "bucket_start", Value: 1}}).SetLimit(limit)
+}
+
+// moveBatchBounds returns the batch's _ids and its earliest and latest bucket_start.
+func moveBatchBounds(docs []bson.D) (ids bson.A, lo, hi primitive.DateTime) {
+	ids = make(bson.A, 0, len(docs))
+	for i, doc := range docs {
+		ids = append(ids, docField(doc, "_id"))
+		start, _ := docField(doc, "bucket_start").(primitive.DateTime)
+		if i == 0 || start < lo {
+			lo = start
+		}
+		if i == 0 || start > hi {
+			hi = start
+		}
+	}
+	return ids, lo, hi
+}
+
+// moveBatchFilter selects a batch's documents. The bucket filter derived from `_id $in` cannot
+// narrow the profile index scan, so the bucket_start range bounds it to the batch's buckets.
+func moveBatchFilter(profileId string, ids bson.A, lo, hi primitive.DateTime) bson.D {
+	return bson.D{
+		primitive.E{Key: "meta.profile_id", Value: profileId},
+		primitive.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$gte", Value: lo}, primitive.E{Key: "$lte", Value: hi}}},
+		primitive.E{Key: "_id", Value: bson.D{primitive.E{Key: "$in", Value: ids}}},
 	}
 }
 
