@@ -75,8 +75,12 @@ type QueryLogTopDomain struct {
 type QueryLogTopDomains struct {
 	Enabled bool                `json:"enabled"`
 	Items   []QueryLogTopDomain `json:"items"`
-	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
-	CoveredFrom *time.Time `json:"covered_from,omitempty"`
+	// When the oldest log row in the window was written (UTC, to the minute); absent without rows.
+	CoveredFrom *time.Time `json:"covered_from,omitempty"` // J20
+	// The timespan read; absent when enabled is false.
+	Timespan string `json:"timespan,omitempty"`
+	// The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.
+	Retention Retention `json:"retention,omitempty"`
 }
 
 // QueryLogTopClient is one row of the top-clients list. ASN, ASOrg and Country
@@ -94,8 +98,12 @@ type QueryLogTopClient struct {
 type QueryLogTopClients struct {
 	Enabled bool                `json:"enabled"`
 	Items   []QueryLogTopClient `json:"items"`
-	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
-	CoveredFrom *time.Time `json:"covered_from,omitempty"`
+	// When the oldest log row in the window was written (UTC, to the minute); absent without rows.
+	CoveredFrom *time.Time `json:"covered_from,omitempty"` // J20
+	// The timespan read; absent when enabled is false.
+	Timespan string `json:"timespan,omitempty"`
+	// The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.
+	Retention Retention `json:"retention,omitempty"`
 }
 
 // QueryLogTopBlocklist is one row of the top-blocklists list: the blocked
@@ -111,6 +119,10 @@ type QueryLogTopBlocklist struct {
 type QueryLogTopBlocklists struct {
 	Enabled bool                   `json:"enabled"`
 	Items   []QueryLogTopBlocklist `json:"items"`
-	// CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).
-	CoveredFrom *time.Time `json:"covered_from,omitempty"`
+	// When the oldest log row in the window was written (UTC, to the minute); absent without rows.
+	CoveredFrom *time.Time `json:"covered_from,omitempty"` // J20
+	// The timespan read; absent when enabled is false.
+	Timespan string `json:"timespan,omitempty"`
+	// The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.
+	Retention Retention `json:"retention,omitempty"`
 }

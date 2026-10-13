@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -29,7 +29,7 @@ class ModelStatisticsPoint(BaseModel):
     blocked: Optional[StrictInt] = None
     dnssec: Optional[StrictInt] = None
     total: Optional[StrictInt] = None
-    ts: Optional[StrictStr] = None
+    ts: Optional[StrictStr] = Field(default=None, description="Start of the point's bucket (UTC); the bucket spans bucket_seconds.")
     __properties: ClassVar[List[str]] = ["blocked", "dnssec", "total", "ts"]
 
     model_config = ConfigDict(

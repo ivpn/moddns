@@ -87,13 +87,14 @@ func NewSettings() *ProfileSettings {
 
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
+	// Whether DNS statistics are collected for the profile.
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
-	// When statistics were last turned on (UTC). Absent while statistics are off.
-	EnabledAt *time.Time `json:"enabled_at,omitempty" bson:"enabled_at,omitempty" redis:"-"` // not written to Redis, not exported (F19)
-	// Last "Delete statistics history" while on (UTC); bounds what is kept (J53). Not in Redis, not exported (F21).
-	HistoryDeletedAt *time.Time `json:"history_deleted_at,omitempty" bson:"history_deleted_at,omitempty" redis:"-"`
-	// No omitempty: HSET merges fields, so an omitted value would leave a stale one (J48).
-	Retention StatisticsRetention `json:"retention" bson:"retention" redis:"retention" enums:"30d,90d,1y"`
+	// When statistics were last turned on (UTC); null while they are off.
+	EnabledAt *time.Time `json:"enabled_at" bson:"enabled_at,omitempty" redis:"-"` // server-derived; not in Redis, not exported (F19)
+	// When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.
+	HistoryDeletedAt *time.Time `json:"history_deleted_at" bson:"history_deleted_at,omitempty" redis:"-"` // J53; not in Redis, not exported (F21)
+	// How long daily statistics are kept.
+	Retention StatisticsRetention `json:"retention" bson:"retention" redis:"retention" enums:"30d,90d,1y"` // no omitempty: HSET merges fields, an omitted value would leave a stale one (J48)
 }
 
 type LogsSettings struct {

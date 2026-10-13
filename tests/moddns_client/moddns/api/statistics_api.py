@@ -94,8 +94,8 @@ class StatisticsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
-            '400': "ApiErrResponse",
             '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -164,8 +164,8 @@ class StatisticsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
-            '400': "ApiErrResponse",
             '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -234,8 +234,8 @@ class StatisticsApi:
 
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
-            '400': "ApiErrResponse",
             '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -368,6 +368,8 @@ class StatisticsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
+            '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -441,6 +443,8 @@ class StatisticsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
+            '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -514,6 +518,8 @@ class StatisticsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelStatisticsResponse",
             '400': "ApiErrResponse",
+            '404': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(

@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from moddns.models.model_query_log_top_domain import ModelQueryLogTopDomain
+from moddns.models.model_retention import ModelRetention
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,10 +28,12 @@ class ModelQueryLogTopDomains(BaseModel):
     """
     ModelQueryLogTopDomains
     """ # noqa: E501
-    covered_from: Optional[StrictStr] = Field(default=None, description="CoveredFrom is when the oldest log row in the window was written, to the minute; absent without rows (J20).")
+    covered_from: Optional[StrictStr] = Field(default=None, description="When the oldest log row in the window was written (UTC, to the minute); absent without rows.")
     enabled: Optional[StrictBool] = None
     items: Optional[List[ModelQueryLogTopDomain]] = None
-    __properties: ClassVar[List[str]] = ["covered_from", "enabled", "items"]
+    retention: Optional[ModelRetention] = Field(default=None, description="The logs retention the list was read from: the window never reaches further back. Absent when enabled is false.")
+    timespan: Optional[StrictStr] = Field(default=None, description="The timespan read; absent when enabled is false.")
+    __properties: ClassVar[List[str]] = ["covered_from", "enabled", "items", "retention", "timespan"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,7 +95,9 @@ class ModelQueryLogTopDomains(BaseModel):
         _obj = cls.model_validate({
             "covered_from": obj.get("covered_from"),
             "enabled": obj.get("enabled"),
-            "items": [ModelQueryLogTopDomain.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None
+            "items": [ModelQueryLogTopDomain.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
+            "retention": obj.get("retention"),
+            "timespan": obj.get("timespan")
         })
         return _obj
 
