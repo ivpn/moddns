@@ -37,6 +37,8 @@ export interface Transition {
     dialog?: { title: string; body: string; confirm: string };
     /** Statistics retention raised (T14) or lowered (T15) in the same save. */
     retention?: "raise" | "lower";
+    /** Query logs retention raised (T17) or lowered (T18) in the same save. */
+    logsRetention?: "raise" | "lower";
     /** Lowering that deletes counts: how many (C25), for the inline hint. */
     lost?: string;
     /** Lowering with no count older than the new retention yet: nothing is deleted (T15). */
@@ -50,6 +52,8 @@ export const LOGS_RETENTION_WORDS: Record<LogsRetention, string> = {
     "1w": "1 week",
     "1m": "1 month",
 };
+
+const LOGS_RETENTION_HOURS: Record<LogsRetention, number> = { "1h": 1, "6h": 6, "1d": 24, "1w": 168, "1m": 720 };
 
 export const LOGS_RETENTION_OPTIONS: { value: LogsRetention; label: string }[] = [
     { value: "1h", label: "1 H" },
@@ -120,11 +124,14 @@ function retentionChange(saved: DataCollectionState, pending: DataCollectionStat
     return statsDays(pending.statsRetention) > statsDays(saved.statsRetention) ? "raise" : "lower";
 }
 
-function logsSubOptionsChanged(saved: DataCollectionState, pending: DataCollectionState): boolean {
-    return (
-        pending.logs &&
-        (pending.domains !== saved.domains || pending.ips !== saved.ips || pending.retention !== saved.retention)
-    );
+/** T17 / T18 apply only while query logs stay on; turning them on stores nothing yet (T19). */
+function logsRetentionChange(saved: DataCollectionState, pending: DataCollectionState): "raise" | "lower" | null {
+    if (!saved.logs || !pending.logs || saved.retention === pending.retention) return null;
+    return LOGS_RETENTION_HOURS[pending.retention] > LOGS_RETENTION_HOURS[saved.retention] ? "raise" : "lower";
+}
+
+function logsFieldsChanged(saved: DataCollectionState, pending: DataCollectionState): boolean {
+    return pending.logs && (pending.domains !== saved.domains || pending.ips !== saved.ips);
 }
 
 const UNDONE = "This action cannot be undone.";
@@ -330,7 +337,9 @@ export function transitionFor(saved: DataCollectionState, pending: DataCollectio
     const logsWords = LOGS_RETENTION_WORDS[pending.retention];
     const statsWords = statsRetentionWords(pending.statsRetention);
     const retention = retentionChange(saved, pending);
-    const logsSubs = logsSubOptionsChanged(saved, pending);
+    const logsRetention = logsRetentionChange(saved, pending);
+    // T13 when changes beyond the statistics retention share the save.
+    const logsSubs = logsFieldsChanged(saved, pending) || !!logsRetention;
     const lost = retention === "lower" && held ? lostSentence(held, statsDays(pending.statsRetention)) : null;
     const nothingOlder = retention === "lower" && !!held && lost === null;
     const keepNote = `No counts are older than ${statsWords} yet, so nothing is deleted.`;
@@ -360,6 +369,9 @@ export function transitionFor(saved: DataCollectionState, pending: DataCollectio
                 ...(lost ? { lost } : {}),
             };
         }
+        if (logsRetention && !retention && !logsFieldsChanged(saved, pending)) {
+            return logsRetentionAlone(logsRetention, logsWords);
+        }
         if (!retention && !logsSubs) return null;
         t = { id: "T13", label: "Save changes", toast: "Data collection updated." };
     }
@@ -379,7 +391,51 @@ export function transitionFor(saved: DataCollectionState, pending: DataCollectio
                 : { title: `Keep statistics for ${statsWords}?`, body: `${older} ${UNDONE}`, confirm: "Delete older counts" },
         };
     }
-    return t;
+    return withLogsRetention(t, logsRetention, logsWords);
+}
+
+const logsKeepNote = (logsWords: string) => `modDNS will keep this profile's query logs for up to ${logsWords}.`;
+const logsOlder = (logsWords: string) => `Query logs older than ${logsWords} will be permanently deleted.`;
+
+/** T17 / T18 with nothing else in the save. */
+function logsRetentionAlone(change: "raise" | "lower", logsWords: string): Transition {
+    if (change === "raise") {
+        return {
+            id: "T17",
+            label: `Keep for ${logsWords}`,
+            toast: `Query logs are now kept for ${logsWords}.`,
+            note: logsKeepNote(logsWords),
+            logsRetention: change,
+        };
+    }
+    return {
+        id: "T18",
+        label: "Save changes",
+        toast: `Query logs are now kept for ${logsWords}. Older logs deleted.`,
+        dialog: { title: `Keep query logs for ${logsWords}?`, body: `${logsOlder(logsWords)} ${UNDONE}`, confirm: "Delete older logs" },
+        logsRetention: change,
+    };
+}
+
+/** T17 / T18 added to another change: the raise note, or the lowering sentence in the one dialog. */
+function withLogsRetention(t: Transition, change: "raise" | "lower" | null, logsWords: string): Transition {
+    if (change === "raise") {
+        const note = logsKeepNote(logsWords);
+        return { ...t, note: t.note ? `${t.note} ${note}` : note, logsRetention: change };
+    }
+    if (change !== "lower") return t;
+    const older = logsOlder(logsWords);
+    if (!t.dialog) {
+        return { ...t, logsRetention: change, dialog: { title: `Keep query logs for ${logsWords}?`, body: `${older} ${UNDONE}`, confirm: "Delete older logs" } };
+    }
+    // The statistics lowering made the dialog: name both in it.
+    const both = !stateDialog(t) ? { title: "Delete older counts and logs?", confirm: "Delete older data" } : {};
+    return { ...t, logsRetention: change, dialog: { ...t.dialog, ...both, body: t.dialog.body.replace(UNDONE, `${older} ${UNDONE}`) } };
+}
+
+/** Whether the dialog is a state change's own (T4-T11) rather than one a retention lowering added. */
+function stateDialog(t: Transition): boolean {
+    return /^T([4-9]|1[01])$/.test(t.id);
 }
 
 function replace(path: ModelProfileUpdatePathEnum, value: boolean | string): ModelProfileUpdate {

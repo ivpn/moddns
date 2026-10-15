@@ -10,7 +10,6 @@ import type { ModelProfile } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import ToggleGroup from "@/components/general/ToggleGroup";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
     Dialog,
     DialogContent,
@@ -62,8 +61,6 @@ export interface DataCollectionControlProps {
 
 const muted = "text-sm leading-5 text-[var(--tailwind-colors-slate-200)] break-words";
 const strong = "font-bold text-base leading-5 text-[var(--tailwind-colors-slate-50)] break-words";
-const focusRing =
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--shadcn-ui-app-background)]";
 
 interface PillOption<T extends string> {
     value: T;
@@ -388,6 +385,7 @@ function Inner({
     const domainHint = saved.logs && saved.domains && !pending.domains;
     const ipHint = saved.logs && saved.ips && !pending.ips;
     const lowerHint = transition?.retention === "lower" && !transition.nothingOlder;
+    const logsLowerHint = transition?.logsRetention === "lower";
 
     const onOff: PillOption<string>[] = [
         { value: "false", label: "Disable", icon: "octagon-x" },
@@ -524,37 +522,13 @@ function Inner({
 
                                 <div className={subRow}>
                                     <div className={subText}>
-                                        <div className="flex items-center gap-1">
-                                            <span id={ids.retLabel} className={subTitle}>
-                                                Retention period
-                                            </span>
-                                            <Tooltip
-                                                content={
-                                                    <span>
-                                                        Changing the retention period switches to a new set of query logs. Logs collected under your previous setting remain preserved and become accessible again if you revert to that earlier retention period.
-                                                    </span>
-                                                }
-                                                side="top"
-                                                align="start"
-                                                delay={0}
-                                                maxWidthClassName="max-w-[260px] md:max-w-[300px]"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    aria-label="Retention period information"
-                                                    data-testid="retention-info-trigger"
-                                                    className={cn(
-                                                        "min-w-10 min-h-10 -my-3 flex items-center justify-center rounded text-[var(--tailwind-colors-slate-300)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors",
-                                                        focusRing,
-                                                    )}
-                                                >
-                                                    <Info size={16} strokeWidth={2} />
-                                                </button>
-                                            </Tooltip>
+                                        <div id={ids.retLabel} className={subTitle}>
+                                            Retention period
                                         </div>
                                         <div className={subDesc}>
                                             Choose how long query logs are kept before being automatically deleted.
                                         </div>
+                                        {logsLowerHint && <Hint>{`Query logs older than ${logsWords} will be deleted when you save.`}</Hint>}
                                     </div>
                                     <div className="w-full sm:w-auto md:flex-shrink-0">
                                         <PillGroup

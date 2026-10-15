@@ -298,7 +298,6 @@ describe('DataCollectionControl', () => {
         expect(screen.getByRole('radiogroup', { name: 'Log domains' })).toBeInTheDocument();
         expect(screen.getByRole('radiogroup', { name: 'Log client IP addresses' })).toBeInTheDocument();
         expect(group('Query logs Retention period')).toBeInTheDocument();
-        expect(screen.getByTestId('retention-info-trigger')).toBeInTheDocument();
     });
 
     it('sub-option pills show Enable/Disable and 1 H to 1 M, and re-pressing the selected pill keeps it', async () => {
@@ -654,6 +653,52 @@ describe('DataCollectionControl', () => {
             updates: [{ operation: 'replace', path: '/settings/statistics/retention', value: '30d' }],
         });
         await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Statistics are now kept for 30 days. Older counts deleted.'));
+    });
+
+    it('raising the query logs retention saves one PATCH without a dialog', async () => {
+        // tableRef: statistics-behaviour #T17, #C27
+        const user = userEvent.setup();
+        const p = mk('p1', 'logs');
+        seed(p);
+        patch.mockResolvedValue({ status: 200, data: mk('p1', 'logs', { retention: '1m' }) });
+        render(<DataCollectionControl profile={p} />);
+        await user.click(within(group('Query logs Retention period')).getByLabelText('1 month'));
+        expect(screen.getByText("modDNS will keep this profile's query logs for up to 1 month.")).toBeInTheDocument();
+        expect(saveBtn()).toHaveTextContent('Keep for 1 month');
+        await user.click(saveBtn());
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(patch).toHaveBeenCalledWith('p1', {
+            updates: [{ operation: 'replace', path: '/settings/logs/retention', value: '1m' }],
+        });
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Query logs are now kept for 1 month.'));
+    });
+
+    it('lowering the query logs retention shows the hint and confirms before deleting older logs', async () => {
+        // tableRef: statistics-behaviour #T18, #C28
+        const user = userEvent.setup();
+        const p = mk('p1', 'logs', { retention: '1w' });
+        seed(p);
+        patch.mockResolvedValue({ status: 200, data: mk('p1', 'logs', { retention: '6h' }) });
+        render(<DataCollectionControl profile={p} />);
+        await user.click(within(group('Query logs Retention period')).getByLabelText('6 hours'));
+        expect(screen.getByText('Query logs older than 6 hours will be deleted when you save.')).toBeInTheDocument();
+        await user.click(saveBtn());
+        const dialog = await screen.findByRole('dialog', { name: 'Keep query logs for 6 hours?' });
+        expect(within(dialog).getByText('Query logs older than 6 hours will be permanently deleted. This action cannot be undone.')).toBeInTheDocument();
+        expect(patch).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole('button', { name: 'Delete older logs' }));
+        expect(patch).toHaveBeenCalledWith('p1', {
+            updates: [{ operation: 'replace', path: '/settings/logs/retention', value: '6h' }],
+        });
+        await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Query logs are now kept for 6 hours. Older logs deleted.'));
+    });
+
+    it('has no retention tooltip: changing the retention keeps every stored log visible', () => {
+        // tableRef: statistics-behaviour #C6
+        const p = mk('p1', 'logs');
+        seed(p);
+        render(<DataCollectionControl profile={p} />);
+        expect(screen.queryByRole('button', { name: 'Retention period information' })).not.toBeInTheDocument();
     });
 
     it('a retention change made elsewhere counts as stale', async () => {

@@ -303,6 +303,81 @@ describe('statistics retention changes', () => {
     });
 });
 
+describe('query logs retention changes', () => {
+    const logsKept = (r: DataCollectionState['retention']) => ({ ...states.S3, retention: r });
+
+    it('raising alone is T17: a note, no dialog, labelled by the new value', () => {
+        // tableRef: statistics-behaviour #T17, #C27
+        const t = transitionFor(logsKept('1h'), logsKept('1m'));
+        expect(t).toMatchObject({
+            id: 'T17',
+            label: 'Keep for 1 month',
+            toast: 'Query logs are now kept for 1 month.',
+            note: "modDNS will keep this profile's query logs for up to 1 month.",
+            logsRetention: 'raise',
+        });
+        expect(t?.dialog).toBeUndefined();
+    });
+
+    it('lowering alone is T18 with the destructive dialog', () => {
+        // tableRef: statistics-behaviour #T18, #C28
+        const t = transitionFor(logsKept('1w'), logsKept('1d'));
+        expect(t).toMatchObject({ id: 'T18', label: 'Save changes', toast: 'Query logs are now kept for 1 day. Older logs deleted.', logsRetention: 'lower' });
+        expect(t?.dialog).toEqual({
+            title: 'Keep query logs for 1 day?',
+            body: 'Query logs older than 1 day will be permanently deleted. This action cannot be undone.',
+            confirm: 'Delete older logs',
+        });
+    });
+
+    it('adds the lowering sentence to a state change that has its own dialog', () => {
+        // tableRef: statistics-behaviour #T18
+        const t = transitionFor({ ...states.S2, retention: '1m' }, { ...states.S3, retention: '6h' });
+        expect(t?.id).toBe('T9');
+        expect(t?.dialog?.body).toBe(
+            'All statistics for this profile will be permanently deleted. Query logs stay on. Query logs older than 6 hours will be permanently deleted. This action cannot be undone.',
+        );
+    });
+
+    it('a lowering with a non-deleting change still asks for confirmation', () => {
+        // tableRef: statistics-behaviour #T18
+        const t = transitionFor({ ...states.S3, retention: '1w' }, { ...states.S2, retention: '1h' });
+        expect(t?.id).toBe('T12');
+        expect(t?.dialog?.title).toBe('Keep query logs for 1 hour?');
+    });
+
+    it('lowering both retentions asks once, naming both', () => {
+        // tableRef: statistics-behaviour #T15, #T18
+        const t = transitionFor({ ...states.S2, statsRetention: '1y', retention: '1m' }, { ...states.S2, statsRetention: '30d', retention: '1d' });
+        expect(t).toMatchObject({ id: 'T13', retention: 'lower', logsRetention: 'lower' });
+        expect(t?.dialog).toEqual({
+            title: 'Delete older counts and logs?',
+            body: 'Counts older than 30 days will be permanently deleted. Query logs older than 1 day will be permanently deleted. This action cannot be undone.',
+            confirm: 'Delete older data',
+        });
+    });
+
+    it('with domains or IPs in the same save it reads as T13 with the retention parts', () => {
+        // tableRef: statistics-behaviour #T13, #T17
+        const t = transitionFor(states.S3, { ...states.S3, ips: true, retention: '1w' });
+        expect(t).toMatchObject({ id: 'T13', label: 'Save changes', note: "modDNS will keep this profile's query logs for up to 1 week.", logsRetention: 'raise' });
+    });
+
+    it('a retention staged while Query logs turns on is the plain turn-on, named with the pending value', () => {
+        // tableRef: statistics-behaviour #T19
+        const t = transitionFor(states.S1, { ...states.S2, retention: '1d' });
+        expect(t?.id).toBe('T5');
+        expect(t?.dialog).toBeUndefined();
+        expect(t?.logsRetention).toBeUndefined();
+        expect(t?.note).toBe('modDNS will also record each query for 1 day.');
+    });
+
+    it('ignores a retention staged under an unchecked Query logs card', () => {
+        // tableRef: statistics-behaviour #L6
+        expect(transitionFor(states.S1, { ...states.S1, retention: '1m' })).toBeNull();
+    });
+});
+
 describe('how much a deleting change loses', () => {
     // tableRef: statistics-behaviour #C25
     const NOW = Date.parse('2026-10-12T12:00:00Z');
