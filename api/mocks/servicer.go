@@ -3860,16 +3860,16 @@ func (_c *Servicer_SaveCredential_Call) RunAndReturn(run func(context1 context.C
 }
 
 // SaveSession provides a mock function for the type Servicer
-func (_mock *Servicer) SaveSession(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string) error {
-	ret := _mock.Called(context1, sessionData, s, s1, s2, s3)
+func (_mock *Servicer) SaveSession(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string) error {
+	ret := _mock.Called(context1, sessionData, s, s1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string, string) error); ok {
-		r0 = returnFunc(context1, sessionData, s, s1, s2, s3)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string) error); ok {
+		r0 = returnFunc(context1, sessionData, s, s1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3886,13 +3886,11 @@ type Servicer_SaveSession_Call struct {
 //   - sessionData webauthn.SessionData
 //   - s string
 //   - s1 string
-//   - s2 string
-//   - s3 string
-func (_e *Servicer_Expecter) SaveSession(context1 interface{}, sessionData interface{}, s interface{}, s1 interface{}, s2 interface{}, s3 interface{}) *Servicer_SaveSession_Call {
-	return &Servicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionData, s, s1, s2, s3)}
+func (_e *Servicer_Expecter) SaveSession(context1 interface{}, sessionData interface{}, s interface{}, s1 interface{}) *Servicer_SaveSession_Call {
+	return &Servicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionData, s, s1)}
 }
 
-func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string)) *Servicer_SaveSession_Call {
+func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string)) *Servicer_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3910,21 +3908,11 @@ func (_c *Servicer_SaveSession_Call) Run(run func(context1 context.Context, sess
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
-			arg5,
 		)
 	})
 	return _c
@@ -3935,7 +3923,7 @@ func (_c *Servicer_SaveSession_Call) Return(err error) *Servicer_SaveSession_Cal
 	return _c
 }
 
-func (_c *Servicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string, s2 string, s3 string) error) *Servicer_SaveSession_Call {
+func (_c *Servicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string) error) *Servicer_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

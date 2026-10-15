@@ -23,8 +23,8 @@ func (s *Service) GetSession(ctx context.Context, token string) (model.Session, 
 	return session, exists, nil
 }
 
-func (s *Service) SaveSession(ctx context.Context, session webauthn.SessionData, token string, accID string, purpose string, subID string) error {
-	err := s.Store.SaveSession(ctx, session, token, accID, purpose, subID)
+func (s *Service) SaveSession(ctx context.Context, session webauthn.SessionData, token string, accID string) error {
+	err := s.Store.SaveSession(ctx, session, token, accID)
 	if err != nil {
 		return ErrSaveSession
 	}

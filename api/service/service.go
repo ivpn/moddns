@@ -113,7 +113,7 @@ type PasskeyServicer interface {
 
 type SessionServicer interface {
 	GetSession(context.Context, string) (model.Session, bool, error)
-	SaveSession(context.Context, webauthn.SessionData, string, string, string, string) error
+	SaveSession(context.Context, webauthn.SessionData, string, string) error
 	DeleteSession(context.Context, string) error
 	DeleteSessionsByAccountID(ctx context.Context, accID string) error
 	DeleteSessionsByAccountIDExceptCurrent(ctx context.Context, accID, currentToken string) error

@@ -231,7 +231,7 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 			return nil, "", purpose, fmt.Errorf("failed to generate session token: %w", err)
 		}
 
-		err = s.SaveSession(ctx, sessionData, token, account.ID.Hex(), "", "")
+		err = s.SaveSession(ctx, sessionData, token, account.ID.Hex())
 		if err != nil {
 			return nil, "", purpose, fmt.Errorf("failed to save session: %w", err)
 		}
