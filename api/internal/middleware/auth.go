@@ -21,7 +21,9 @@ func NewAuth(service service.Servicer, cfg *config.APIConfig, filter func(c *fib
 				log.Ctx(c.UserContext()).Err(err).Msg("Failed to get session")
 				return c.SendStatus(fiber.StatusServiceUnavailable)
 			}
-			if ok {
+			// Login sessions never carry a WebAuthn challenge; a stored document that
+			// does is ceremony state, not a login session.
+			if ok && session.SessionData.Challenge == "" {
 				c.Locals(auth.ACCOUNT_ID, session.AccountID)
 				c.Locals(auth.SESSION_TOKEN, sessionToken)
 				return c.Next()

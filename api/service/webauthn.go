@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -15,7 +16,6 @@ import (
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/passkey"
-	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -35,16 +35,10 @@ func (s *Service) BeginRegistration(ctx context.Context, account *model.Account,
 		return nil, "", fmt.Errorf("failed to begin registration: %w", err)
 	}
 
-	// Generate session token
-	token, err := generateToken()
+	// subID is kept so FinishRegistration can forward it to the webhook
+	token, err := s.saveCeremony(ctx, &model.Ceremony{AccountID: account.ID.Hex(), SubID: subID, SessionData: *sessionData})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
-	}
-
-	// Save session (includes subID so FinishRegistration can forward it to the webhook)
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", subID)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to save session: %w", err)
+		return nil, "", err
 	}
 
 	return creation, token, nil
@@ -52,20 +46,19 @@ func (s *Service) BeginRegistration(ctx context.Context, account *model.Account,
 
 // FinishRegistration completes the WebAuthn registration process
 func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
-	// Get session
-	session, exists, err := s.GetSession(ctx, token)
-	if err != nil || !exists {
-		return fmt.Errorf("failed to get session: %w", err)
+	ceremony, err := s.consumeCeremony(ctx, token)
+	if err != nil {
+		return err
 	}
 
 	// Get account
-	account, err := s.Store.GetAccount(ctx, session.AccountID)
+	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
 	if err != nil {
 		return fmt.Errorf("failed to get account: %w", err)
 	}
 
 	// Finish registration
-	credential, err := s.Webauthn.FinishRegistration(account, session.SessionData, httpReq)
+	credential, err := s.Webauthn.FinishRegistration(account, ceremony.SessionData, httpReq)
 	if err != nil {
 		return fmt.Errorf("failed to finish registration: %w", err)
 	}
@@ -82,7 +75,7 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 	}
 
 	// Use the external subID preserved in the session from BeginRegistration
-	if err = s.CompleteRegistration(ctx, account, session.SubID, paSessionID, tokenHash); err != nil {
+	if err = s.CompleteRegistration(ctx, account, ceremony.SubID, paSessionID, tokenHash); err != nil {
 		return fmt.Errorf("failed to complete registration: %w", err)
 	}
 
@@ -125,16 +118,9 @@ func (s *Service) BeginLogin(ctx context.Context, email string) (*protocol.Crede
 		return nil, "", fmt.Errorf("failed to begin login: %w", err)
 	}
 
-	// Generate session token
-	token, err := generateToken()
+	token, err := s.saveCeremony(ctx, &model.Ceremony{AccountID: account.ID.Hex(), SessionData: *sessionData})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
-	}
-
-	// Save session
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", "")
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to save session: %w", err)
+		return nil, "", err
 	}
 
 	return assertion, token, nil
@@ -186,13 +172,9 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", fmt.Errorf("failed to begin reauth login: %w", err)
 	}
 
-	token, err := generateToken()
+	token, err := s.saveCeremony(ctx, &model.Ceremony{AccountID: acc.ID.Hex(), Purpose: purpose, SessionData: *sessionData})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
-	}
-
-	if err = s.SaveSession(ctx, *sessionData, token, acc.ID.Hex(), purpose, ""); err != nil {
-		return nil, "", fmt.Errorf("failed to save reauth session: %w", err)
+		return nil, "", err
 	}
 
 	return options, token, nil
@@ -232,23 +214,14 @@ func (s *Service) FinishReauth(ctx context.Context, tmpToken string, httpReq *ht
 
 // FinishLogin completes the WebAuthn login process
 func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *http.Request, saveSession bool) (*model.Account, string, string, error) {
-	// Get session
-	session, exists, err := s.GetSession(ctx, tmpToken)
-	if err != nil || !exists {
-		return nil, "", "", fmt.Errorf("failed to get session: %w", err)
+	ceremony, err := s.consumeCeremony(ctx, tmpToken)
+	if err != nil {
+		return nil, "", "", err
 	}
-	purpose := session.Purpose
-
-	// Delete the temporary session (log error if deletion fails)
-	defer func() {
-		if err := s.DeleteSession(ctx, tmpToken); err != nil {
-			// best-effort cleanup; log but ignore.
-			log.Ctx(ctx).Err(err).Msg("failed to delete temporary webauthn session")
-		}
-	}()
+	purpose := ceremony.Purpose
 
 	// Get account
-	account, err := s.Store.GetAccount(ctx, session.AccountID)
+	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
 	if err != nil {
 		return nil, "", purpose, fmt.Errorf("failed to get account: %w", err)
 	}
@@ -272,7 +245,7 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 	}
 
 	// Finish login
-	credential, err := s.Webauthn.FinishLogin(user, session.SessionData, httpReq)
+	credential, err := s.Webauthn.FinishLogin(user, ceremony.SessionData, httpReq)
 	if err != nil {
 		return nil, "", purpose, fmt.Errorf("failed to finish login: %w", err)
 	}
@@ -336,16 +309,9 @@ func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (
 		return nil, "", fmt.Errorf("failed to begin add passkey: %w", err)
 	}
 
-	// Generate session token
-	token, err := generateToken()
+	token, err := s.saveCeremony(ctx, &model.Ceremony{AccountID: account.ID.Hex(), SessionData: *sessionData})
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate session token: %w", err)
-	}
-
-	// Save session
-	err = s.SaveSession(ctx, *sessionData, token, account.ID.Hex(), "", "")
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to save session: %w", err)
+		return nil, "", err
 	}
 
 	return creation, token, nil
@@ -353,20 +319,13 @@ func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (
 
 // FinishAddPasskey completes the process of adding a new passkey to an existing account
 func (s *Service) FinishAddPasskey(ctx context.Context, token string, httpReq *http.Request) error {
-	// Get session
-	session, exists, err := s.GetSession(ctx, token)
-	if err != nil || !exists {
-		return fmt.Errorf("failed to get session: %w", err)
+	ceremony, err := s.consumeCeremony(ctx, token)
+	if err != nil {
+		return err
 	}
-	// Delete temporary session (log error if deletion fails)
-	defer func() {
-		if err := s.DeleteSession(ctx, token); err != nil {
-			log.Ctx(ctx).Err(err).Msg("failed to delete add-passkey session")
-		}
-	}()
 
 	// Get account
-	account, err := s.Store.GetAccount(ctx, session.AccountID)
+	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
 	if err != nil {
 		return fmt.Errorf("failed to get account: %w", err)
 	}
@@ -390,7 +349,7 @@ func (s *Service) FinishAddPasskey(ctx context.Context, token string, httpReq *h
 	}
 
 	// Finish registration
-	credential, err := s.Webauthn.FinishRegistration(user, session.SessionData, httpReq)
+	credential, err := s.Webauthn.FinishRegistration(user, ceremony.SessionData, httpReq)
 	if err != nil {
 		return err
 	}
@@ -433,6 +392,32 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 	}
 
 	return nil
+}
+
+// saveCeremony stores the state of a ceremony started by a begin call and returns
+// the token that identifies it.
+func (s *Service) saveCeremony(ctx context.Context, ceremony *model.Ceremony) (string, error) {
+	token, err := generateToken()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ceremony token: %w", err)
+	}
+	if err := s.Cache.SaveCeremony(ctx, token, ceremony, model.CeremonyTimeout); err != nil {
+		return "", fmt.Errorf("failed to save ceremony: %w", err)
+	}
+	return token, nil
+}
+
+// consumeCeremony returns the state saved by a ceremony's begin call. The state is
+// removed as it is read, whether or not the finish call succeeds.
+func (s *Service) consumeCeremony(ctx context.Context, token string) (*model.Ceremony, error) {
+	if token == "" {
+		return nil, errors.New("missing ceremony token")
+	}
+	ceremony, err := s.Cache.ConsumeCeremony(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ceremony: %w", err)
+	}
+	return ceremony, nil
 }
 
 // generateToken generates a secure random token

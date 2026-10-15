@@ -122,7 +122,9 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
-	suite.mockDB.On("SaveSession", mock.Anything, mock.Anything, mock.AnythingOfType("string"), accountID.Hex(), "email_change", "").Return(nil).Once()
+	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
+		return c.AccountID == accountID.Hex() && c.Purpose == "email_change"
+	}), model.CeremonyTimeout).Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
 
@@ -197,7 +199,7 @@ func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
 	server := suite.createServer()
 	accountID := primitive.NewObjectID().Hex()
 
-	suite.mockDB.On("GetSession", mock.Anything, "temp-token").Return(model.Session{}, false, errors.New("db error")).Once()
+	suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(nil, errors.New("cache error")).Once()
 
 	handler := server.finishReauth()
 	app := fiber.New()
@@ -217,5 +219,5 @@ func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
 	suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
 	suite.Equal("Failed to finish reauth", payload["error"])
 
-	suite.mockDB.AssertExpectations(suite.T())
+	suite.mockCache.AssertExpectations(suite.T())
 }
