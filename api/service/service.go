@@ -108,7 +108,7 @@ type PasskeyServicer interface {
 	GetPasskeys(ctx context.Context, account *model.Account) ([]model.Credential, error)
 	// DeletePasskey(ctx context.Context, account *model.Account, credentialID []byte) error
 	BeginReauth(ctx context.Context, purpose, accountID string) (*protocol.CredentialAssertion, string, error)
-	FinishReauth(ctx context.Context, token string, httpReq *http.Request) (*model.Token, error)
+	FinishReauth(ctx context.Context, accountID, token string, httpReq *http.Request) (*model.Token, error)
 }
 
 type SessionServicer interface {

@@ -65,9 +65,9 @@ func newTestWebAuthn(t *testing.T) *webauthn.WebAuthn {
 	return wa
 }
 
-func ceremonyFor(accountID primitive.ObjectID, purpose, subID string) any {
+func ceremonyFor(ceremonyType string, accountID primitive.ObjectID, purpose, subID string) any {
 	return mock.MatchedBy(func(c *model.Ceremony) bool {
-		return c.AccountID == accountID.Hex() && c.Purpose == purpose && c.SubID == subID && c.SessionData.Challenge != ""
+		return c.Type == ceremonyType && c.AccountID == accountID.Hex() && c.Purpose == purpose && c.SubID == subID && c.SessionData.Challenge != ""
 	})
 }
 
@@ -92,7 +92,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginRegistration(ctx, account, "sub-1")
 				return token, err
 			},
-			match: ceremonyFor(account.ID, "", "sub-1"),
+			match: ceremonyFor(model.CeremonyRegistration, account.ID, "", "sub-1"),
 		},
 		{
 			name: "login",
@@ -104,7 +104,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginLogin(ctx, account.Email)
 				return token, err
 			},
-			match: ceremonyFor(account.ID, "", ""),
+			match: ceremonyFor(model.CeremonyLogin, account.ID, "", ""),
 		},
 		{
 			name: "add passkey",
@@ -115,7 +115,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginAddPasskey(ctx, account)
 				return token, err
 			},
-			match: ceremonyFor(account.ID, "", ""),
+			match: ceremonyFor(model.CeremonyAddPasskey, account.ID, "", ""),
 		},
 	}
 
@@ -150,8 +150,8 @@ func TestFinishCeremoniesConsumeStateFromCache(t *testing.T) {
 	}{
 		{"registration", func(svc *Service) error { return svc.FinishRegistration(ctx, "token", nil, "") }},
 		{"login", func(svc *Service) error { _, _, _, err := svc.FinishLogin(ctx, "token", nil, true); return err }},
-		{"add passkey", func(svc *Service) error { return svc.FinishAddPasskey(ctx, "token", nil) }},
-		{"reauth", func(svc *Service) error { _, err := svc.FinishReauth(ctx, "token", nil); return err }},
+		{"add passkey", func(svc *Service) error { return svc.FinishAddPasskey(ctx, "acc-1", "token", nil) }},
+		{"reauth", func(svc *Service) error { _, err := svc.FinishReauth(ctx, "acc-1", "token", nil); return err }},
 	}
 
 	for _, tt := range tests {
