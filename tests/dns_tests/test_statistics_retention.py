@@ -208,7 +208,7 @@ class TestStatisticsRetention:
         quarter = deleted_at.replace(minute=deleted_at.minute - deleted_at.minute % 15, second=0, microsecond=0)
         straggler = _insert_day(mongo_db, pid, TIER_15MIN, quarter, 4)
         later = _insert_day(mongo_db, pid, TIER_15MIN, quarter + timedelta(minutes=15), 1)
-        # STATISTICS_PURGE_INTERVAL is 5s in config/api.env.
+        # STATISTICS_RECONCILE_INTERVAL is 5s in config/api.env.
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline and _docs(mongo_db, pid, TIER_15MIN).get(straggler):
             await asyncio.sleep(2)

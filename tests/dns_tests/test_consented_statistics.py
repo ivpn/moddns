@@ -34,7 +34,7 @@ from libs.statistics_helpers import (
 )
 from pymongo import MongoClient
 
-# STATISTICS_PURGE_INTERVAL is 5s in config/api.env; leave room for Mongo latency.
+# STATISTICS_RECONCILE_INTERVAL is 5s in config/api.env; leave room for Mongo latency.
 PURGE_TIMEOUT_S = 60
 TS_TTL = {
     "statistics_15min": 86400,
