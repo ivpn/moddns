@@ -122,3 +122,25 @@ func NewRetention(retention string) (Retention, error) {
 		return "", ErrInvalidRetention
 	}
 }
+
+// Retentions lists the logs retention values shortest first; each names a query_logs_<value> collection.
+func Retentions() []Retention {
+	return []Retention{RetentionOneHour, RetentionSixHours, RetentionOneDay, RetentionOneWeek, RetentionOneMonth}
+}
+
+// Window is how long the retention keeps a row, the TTL the proxy gives its collection. An empty or
+// unknown value reads as 1h, as the collection reads do.
+func (r Retention) Window() time.Duration {
+	switch r {
+	case RetentionSixHours:
+		return 6 * time.Hour
+	case RetentionOneDay:
+		return 24 * time.Hour
+	case RetentionOneWeek:
+		return 7 * 24 * time.Hour
+	case RetentionOneMonth:
+		return 30 * 24 * time.Hour
+	default:
+		return time.Hour
+	}
+}

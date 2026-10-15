@@ -16,6 +16,9 @@ type QueryLogsRepository interface {
 	// GetQueryLogCoveredFrom returns the timestamp of the profile's oldest row inside the window, or nil.
 	GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error)
 	DeleteQueryLogs(ctx context.Context, profileId string) error
+	// ConformQueryLogs deletes the profile's rows older than now - retention and moves the rest of the
+	// longer collections into the retention's own; it returns the rows moved and deleted.
+	ConformQueryLogs(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int, int64, error)
 	// ListQueryLogProfileIDs returns every profile id present in any retention collection.
 	ListQueryLogProfileIDs(ctx context.Context) ([]string, error)
 }

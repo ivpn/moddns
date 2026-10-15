@@ -605,24 +605,24 @@ func (_c *ProfileRepository_GetProfilesByAccountId_Call) RunAndReturn(run func(c
 	return _c
 }
 
-// GetProfilesLogsEnabled provides a mock function for the type ProfileRepository
-func (_mock *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+// GetProfilesLogsSettings provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) GetProfilesLogsSettings(ctx context.Context, profileIds []string) (map[string]*model.LogsSettings, error) {
 	ret := _mock.Called(ctx, profileIds)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetProfilesLogsEnabled")
+		panic("no return value specified for GetProfilesLogsSettings")
 	}
 
-	var r0 map[string]bool
+	var r0 map[string]*model.LogsSettings
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]bool, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]*model.LogsSettings, error)); ok {
 		return returnFunc(ctx, profileIds)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]bool); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]*model.LogsSettings); ok {
 		r0 = returnFunc(ctx, profileIds)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]bool)
+			r0 = ret.Get(0).(map[string]*model.LogsSettings)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
@@ -633,19 +633,19 @@ func (_mock *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, prof
 	return r0, r1
 }
 
-// ProfileRepository_GetProfilesLogsEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesLogsEnabled'
-type ProfileRepository_GetProfilesLogsEnabled_Call struct {
+// ProfileRepository_GetProfilesLogsSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesLogsSettings'
+type ProfileRepository_GetProfilesLogsSettings_Call struct {
 	*mock.Call
 }
 
-// GetProfilesLogsEnabled is a helper method to define mock.On call
+// GetProfilesLogsSettings is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileIds []string
-func (_e *ProfileRepository_Expecter) GetProfilesLogsEnabled(ctx interface{}, profileIds interface{}) *ProfileRepository_GetProfilesLogsEnabled_Call {
-	return &ProfileRepository_GetProfilesLogsEnabled_Call{Call: _e.mock.On("GetProfilesLogsEnabled", ctx, profileIds)}
+func (_e *ProfileRepository_Expecter) GetProfilesLogsSettings(ctx interface{}, profileIds interface{}) *ProfileRepository_GetProfilesLogsSettings_Call {
+	return &ProfileRepository_GetProfilesLogsSettings_Call{Call: _e.mock.On("GetProfilesLogsSettings", ctx, profileIds)}
 }
 
-func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) Run(run func(ctx context.Context, profileIds []string)) *ProfileRepository_GetProfilesLogsEnabled_Call {
+func (_c *ProfileRepository_GetProfilesLogsSettings_Call) Run(run func(ctx context.Context, profileIds []string)) *ProfileRepository_GetProfilesLogsSettings_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -663,12 +663,12 @@ func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) Return(stringToBool map[string]bool, err error) *ProfileRepository_GetProfilesLogsEnabled_Call {
-	_c.Call.Return(stringToBool, err)
+func (_c *ProfileRepository_GetProfilesLogsSettings_Call) Return(stringToLogsSettings map[string]*model.LogsSettings, err error) *ProfileRepository_GetProfilesLogsSettings_Call {
+	_c.Call.Return(stringToLogsSettings, err)
 	return _c
 }
 
-func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]bool, error)) *ProfileRepository_GetProfilesLogsEnabled_Call {
+func (_c *ProfileRepository_GetProfilesLogsSettings_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]*model.LogsSettings, error)) *ProfileRepository_GetProfilesLogsSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }

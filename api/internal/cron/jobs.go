@@ -285,15 +285,16 @@ func ReconcileStatistics(statsReconciler StatisticsReconciler) {
 	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: statistics reconcile complete")
 }
 
-// PurgeUnconsentedQueryLogs runs one unconsented query-logs sweep (api-endpoint-behaviour.md J14).
-func PurgeUnconsentedQueryLogs(logsPurger UnconsentedQueryLogsPurger) {
+// ReconcileQueryLogs runs one query-logs reconcile (api-endpoint-behaviour.md J14).
+// Logs carry counts only.
+func ReconcileQueryLogs(logsReconciler QueryLogsReconciler) {
 	ctx := context.Background()
-	ctx = log.With().Str("cron_job", "purge-unconsented-query-logs").Logger().WithContext(ctx)
+	ctx = log.With().Str("cron_job", "reconcile-query-logs").Logger().WithContext(ctx)
 
-	res, err := logsPurger.PurgeUnconsentedQueryLogs(ctx)
+	res, err := logsReconciler.ReconcileQueryLogs(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("Cron: unconsented query-logs purge failed")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: query-logs reconcile failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("failed", res.Failed).Msg("Cron: unconsented query-logs purge complete")
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: query-logs reconcile complete")
 }

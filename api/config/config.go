@@ -62,11 +62,10 @@ type ServiceConfig struct {
 	ServicesCatalogReloadEvery time.Duration
 	AnnouncementsURL           string
 	AnnouncementsReloadEvery   time.Duration
-	// StatisticsReconcileInterval is how often the statistics reconcile runs
-	// (env STATISTICS_PURGE_INTERVAL, kept for deployment compatibility).
+	// StatisticsReconcileInterval is how often the statistics reconcile runs.
 	StatisticsReconcileInterval time.Duration
-	// QueryLogsPurgeInterval is how often the unconsented query-logs sweep runs.
-	QueryLogsPurgeInterval time.Duration
+	// QueryLogsReconcileInterval is how often the query-logs reconcile runs.
+	QueryLogsReconcileInterval time.Duration
 	// GeoIP databases enriching the query-log top-clients list; both optional.
 	GeoIPASNFile     string
 	GeoIPCountryFile string
@@ -208,11 +207,11 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	statisticsPurgeInterval, err := parsePositiveDuration("STATISTICS_PURGE_INTERVAL", "1h")
+	statisticsReconcileInterval, err := parsePositiveDuration("STATISTICS_RECONCILE_INTERVAL", "1h")
 	if err != nil {
 		return nil, err
 	}
-	queryLogsPurgeInterval, err := parsePositiveDuration("QUERY_LOGS_PURGE_INTERVAL", "1h")
+	queryLogsReconcileInterval, err := parsePositiveDuration("QUERY_LOGS_RECONCILE_INTERVAL", "1h")
 	if err != nil {
 		return nil, err
 	}
@@ -328,8 +327,8 @@ func New() (*Config, error) {
 			ServicesCatalogReloadEvery:     servicesCatalogReloadEvery,
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
-			StatisticsReconcileInterval:    statisticsPurgeInterval,
-			QueryLogsPurgeInterval:         queryLogsPurgeInterval,
+			StatisticsReconcileInterval:    statisticsReconcileInterval,
+			QueryLogsReconcileInterval:     queryLogsReconcileInterval,
 			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
 			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
 			GeoIPReloadEvery:               geoIPReloadEvery,

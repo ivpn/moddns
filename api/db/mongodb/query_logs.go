@@ -2,6 +2,7 @@ package mongodb
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -68,7 +69,6 @@ func NewQueryLogsRepository(client *mongo.Client, dbName, collectionName string)
 // When pageSize <= 0, all matching logs are returned (no skip/limit applied).
 func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string, retention model.Retention, status string, timespan int, deviceId, search, sortBy string, page, pageSize int) ([]model.QueryLog, error) {
 	start := time.Now()
-	coll := r.getCollObject(retention)
 
 	matchFilter := bson.D{
 		primitive.E{Key: "profile_id", Value: profileId},
@@ -118,17 +118,21 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 		primitive.E{Key: "$sort", Value: sortSpec},
 	}
 
-	pipeline := mongo.Pipeline{matchStage, sortStage}
+	// Each collection returns at most the rows up to the requested page, already in order; the
+	// merged sort then pages over them.
+	branch := mongo.Pipeline{matchStage, sortStage}
+	tail := mongo.Pipeline{sortStage}
 	if pageSize > 0 { // apply pagination only when pageSize is positive
 		if page <= 0 { // normalize page
 			page = 1
 		}
+		branch = append(branch, bson.D{primitive.E{Key: "$limit", Value: page * pageSize}})
 		skipStage := bson.D{primitive.E{Key: "$skip", Value: (page - 1) * pageSize}}
 		limitStage := bson.D{primitive.E{Key: "$limit", Value: pageSize}}
-		pipeline = append(pipeline, skipStage, limitStage)
+		tail = append(tail, skipStage, limitStage)
 	}
 
-	cursor, err := coll.Aggregate(ctx, pipeline)
+	cursor, err := r.aggregateUnion(ctx, profileId, retention, branch, nil, tail)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, errors.ErrAccountNotFound
@@ -159,15 +163,14 @@ func (r *QueryLogsRepository) GetQueryLogs(ctx context.Context, profileId string
 }
 
 // GetQueryLogDevices returns the distinct non-empty device IDs present in the
-// profile's query logs (current retention collection, whole window — the TTL
+// profile's query logs (the collections the retention reads, whole window — the TTL
 // already bounds it), each with its most recent timestamp, sorted by device ID.
 // Aggregation, not Collection.Distinct(): the distinct command is unsupported
 // on time-series collections.
 func (r *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error) {
 	start := time.Now()
-	coll := r.getCollObject(retention)
 
-	pipeline := mongo.Pipeline{
+	branch := mongo.Pipeline{
 		bson.D{primitive.E{Key: "$match", Value: bson.D{
 			primitive.E{Key: "profile_id", Value: profileId},
 			// $nin (not $ne "") also excludes docs where the field is missing.
@@ -177,12 +180,20 @@ func (r *QueryLogsRepository) GetQueryLogDevices(ctx context.Context, profileId 
 			primitive.E{Key: "_id", Value: "$device_id"},
 			primitive.E{Key: "last_seen", Value: bson.D{{Key: "$max", Value: "$timestamp"}}},
 		}}},
+	}
+	merge := mongo.Pipeline{
+		bson.D{primitive.E{Key: "$group", Value: bson.D{
+			primitive.E{Key: "_id", Value: "$_id"},
+			primitive.E{Key: "last_seen", Value: bson.D{{Key: "$max", Value: "$last_seen"}}},
+		}}},
+	}
+	tail := mongo.Pipeline{
 		bson.D{primitive.E{Key: "$sort", Value: bson.D{{Key: "_id", Value: 1}}}},
 		// Safety valve against pathological device counts; ids are ≤36 chars.
 		bson.D{primitive.E{Key: "$limit", Value: 500}},
 	}
 
-	cursor, err := coll.Aggregate(ctx, pipeline)
+	cursor, err := r.aggregateUnion(ctx, profileId, retention, branch, merge, tail)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +229,7 @@ func (r *QueryLogsRepository) GetQueryLogTopDomains(ctx context.Context, profile
 		{Key: "dns_request.domain", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
 	}
 	results := make([]model.QueryLogTopDomain, 0)
-	if err := r.topGroup(ctx, retention, match, "$dns_request.domain", limit, &results); err != nil {
+	if err := r.topGroup(ctx, profileId, retention, match, "$dns_request.domain", limit, &results); err != nil {
 		return nil, err
 	}
 	r.warnIfSlow(ctx, "Query log top domains fetch took too long", retention, len(results), start)
@@ -236,7 +247,7 @@ func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profile
 		{Key: "client_ip", Value: bson.D{{Key: "$nin", Value: bson.A{"", nil}}}},
 	}
 	results := make([]model.QueryLogTopClient, 0)
-	if err := r.topGroup(ctx, retention, match, "$client_ip", limit, &results); err != nil {
+	if err := r.topGroup(ctx, profileId, retention, match, "$client_ip", limit, &results); err != nil {
 		return nil, err
 	}
 	r.warnIfSlow(ctx, "Query log top clients fetch took too long", retention, len(results), start)
@@ -246,21 +257,31 @@ func (r *QueryLogsRepository) GetQueryLogTopClients(ctx context.Context, profile
 // GetQueryLogCoveredFrom returns the timestamp of the profile's oldest row in
 // the timespan window, truncated to the minute, or nil when the window is empty.
 func (r *QueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error) {
-	filter := bson.D{
-		{Key: "profile_id", Value: profileId},
-		{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+	oldest := bson.D{{Key: "$sort", Value: bson.D{{Key: "timestamp", Value: 1}}}}
+	first := bson.D{{Key: "$limit", Value: 1}}
+	branch := mongo.Pipeline{
+		bson.D{{Key: "$match", Value: bson.D{
+			{Key: "profile_id", Value: profileId},
+			{Key: "timestamp", Value: bson.D{{Key: "$gte", Value: time.Now().Add(-time.Duration(timespanHours) * time.Hour)}}},
+		}}},
+		oldest,
+		first,
+		bson.D{{Key: "$project", Value: bson.D{{Key: "timestamp", Value: 1}}}},
 	}
-	opts := options.FindOne().SetSort(bson.D{{Key: "timestamp", Value: 1}}).SetProjection(bson.D{{Key: "timestamp", Value: 1}})
-	var row struct {
-		Timestamp time.Time `bson:"timestamp"`
-	}
-	if err := r.getCollObject(retention).FindOne(ctx, filter, opts).Decode(&row); err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
+	cursor, err := r.aggregateUnion(ctx, profileId, retention, branch, nil, mongo.Pipeline{oldest, first})
+	if err != nil {
 		return nil, err
 	}
-	covered := row.Timestamp.UTC().Truncate(time.Minute)
+	var rows []struct {
+		Timestamp time.Time `bson:"timestamp"`
+	}
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	covered := rows[0].Timestamp.UTC().Truncate(time.Minute)
 	return &covered, nil
 }
 
@@ -270,10 +291,9 @@ func queryLogTopAggregateOptions() *options.AggregateOptions {
 	return options.Aggregate().SetMaxTime(15 * time.Second)
 }
 
-// topBlocklistsPipeline counts the profile's blocked rows since from once per
-// "blocklist: <id>" reason token, count desc then token asc. Sorting on the full
-// token equals sorting on the id: every token shares the prefix.
-func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pipeline {
+// topBlocklistsBranch counts the profile's blocked rows since from in one collection once
+// per "blocklist: <id>" reason token.
+func topBlocklistsBranch(profileId string, from time.Time) mongo.Pipeline {
 	prefix := bson.D{{Key: "$regex", Value: "^" + regexp.QuoteMeta(filterreasons.BlocklistPrefix)}}
 	return mongo.Pipeline{
 		bson.D{{Key: "$match", Value: bson.D{
@@ -287,6 +307,21 @@ func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pi
 			{Key: "_id", Value: "$reasons"},
 			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
 		}}},
+	}
+}
+
+// topCountMerge adds up the per-collection counts of a top list.
+var topCountMerge = mongo.Pipeline{
+	bson.D{{Key: "$group", Value: bson.D{
+		{Key: "_id", Value: "$_id"},
+		{Key: "count", Value: bson.D{{Key: "$sum", Value: "$count"}}},
+	}}},
+}
+
+// topRankTail ranks a top list count desc then key asc. Sorting a blocklist token equals
+// sorting its id: every token shares the prefix.
+func topRankTail(limit int) mongo.Pipeline {
+	return mongo.Pipeline{
 		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
 		bson.D{{Key: "$limit", Value: limit}},
 	}
@@ -298,7 +333,7 @@ func topBlocklistsPipeline(profileId string, from time.Time, limit int) mongo.Pi
 func (r *QueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespanHours, limit int) ([]model.QueryLogTopBlocklist, error) {
 	start := time.Now()
 	from := time.Now().Add(-time.Duration(timespanHours) * time.Hour)
-	cursor, err := r.getCollObject(retention).Aggregate(ctx, topBlocklistsPipeline(profileId, from, limit), queryLogTopAggregateOptions())
+	cursor, err := r.aggregateUnion(ctx, profileId, retention, topBlocklistsBranch(profileId, from), topCountMerge, topRankTail(limit), queryLogTopAggregateOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -319,17 +354,15 @@ func (r *QueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, prof
 
 // topGroup counts documents matching match per groupExpr, ordered count desc
 // then key asc, and decodes the first limit rows into out.
-func (r *QueryLogsRepository) topGroup(ctx context.Context, retention model.Retention, match bson.D, groupExpr string, limit int, out any) error {
-	pipeline := mongo.Pipeline{
+func (r *QueryLogsRepository) topGroup(ctx context.Context, profileId string, retention model.Retention, match bson.D, groupExpr string, limit int, out any) error {
+	branch := mongo.Pipeline{
 		bson.D{{Key: "$match", Value: match}},
 		bson.D{{Key: "$group", Value: bson.D{
 			{Key: "_id", Value: groupExpr},
 			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
 		}}},
-		bson.D{{Key: "$sort", Value: bson.D{{Key: "count", Value: -1}, {Key: "_id", Value: 1}}}},
-		bson.D{{Key: "$limit", Value: limit}},
 	}
-	cursor, err := r.getCollObject(retention).Aggregate(ctx, pipeline, queryLogTopAggregateOptions())
+	cursor, err := r.aggregateUnion(ctx, profileId, retention, branch, topCountMerge, topRankTail(limit), queryLogTopAggregateOptions())
 	if err != nil {
 		return err
 	}
@@ -437,8 +470,173 @@ func (r *QueryLogsRepository) getCollObject(retention model.Retention) *mongo.Co
 	}
 }
 
+// readRetentions are the collections a read covers: the retention's own and every shorter one,
+// which keep rows from before a raise until their TTL (api-endpoint-behaviour.md J56). Longer ones
+// hold only rows a lowering move has not reached yet; reading them could count a batch twice.
+func readRetentions(retention model.Retention) []model.Retention {
+	out := make([]model.Retention, 0, len(model.Retentions()))
+	for _, rt := range model.Retentions() {
+		if rt.Window() <= retention.Window() {
+			out = append(out, rt)
+		}
+	}
+	return out
+}
+
+// aggregateUnion runs branch on every collection the retention reads that holds rows of the
+// profile, then tail. With rows in several collections the branches are merged with $unionWith
+// and merge first; with one, the pipeline is that collection's alone, which keeps the top-list
+// aggregations as fast as a single-collection read.
+func (r *QueryLogsRepository) aggregateUnion(ctx context.Context, profileId string, retention model.Retention, branch, merge, tail mongo.Pipeline, opts ...*options.AggregateOptions) (*mongo.Cursor, error) {
+	read, err := r.populatedReadCollections(ctx, profileId, retention)
+	if err != nil {
+		return nil, err
+	}
+	pipeline := append(mongo.Pipeline{}, branch...)
+	if len(read) > 1 {
+		for _, coll := range read[1:] {
+			pipeline = append(pipeline, bson.D{primitive.E{Key: "$unionWith", Value: bson.D{
+				primitive.E{Key: "coll", Value: coll.Name()},
+				primitive.E{Key: "pipeline", Value: branch},
+			}}})
+		}
+		pipeline = append(pipeline, merge...)
+	}
+	pipeline = append(pipeline, tail...)
+	return read[0].Aggregate(ctx, pipeline, opts...)
+}
+
+// populatedReadCollections returns the collections the retention reads that hold at least one row
+// of the profile, or the retention's own when none does. Each check is one key of the meta+time index.
+func (r *QueryLogsRepository) populatedReadCollections(ctx context.Context, profileId string, retention model.Retention) ([]*mongo.Collection, error) {
+	read := readRetentions(retention)
+	if len(read) == 1 {
+		return []*mongo.Collection{r.getCollObject(read[0])}, nil
+	}
+	out := make([]*mongo.Collection, 0, len(read))
+	opts := options.FindOne().SetProjection(bson.D{primitive.E{Key: "_id", Value: 1}})
+	for _, rt := range read {
+		coll := r.getCollObject(rt)
+		err := coll.FindOne(ctx, bson.D{primitive.E{Key: "profile_id", Value: profileId}}, opts).Err()
+		if err == mongo.ErrNoDocuments {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, coll)
+	}
+	if len(out) == 0 {
+		out = append(out, r.getCollObject(retention))
+	}
+	return out, nil
+}
+
 // unansweredFilter selects the "No answer" class by outcome
 // (query-log-outcomes-behaviour.md C5).
 func unansweredFilter() bson.E {
 	return bson.E{Key: "outcome", Value: bson.D{{Key: "$in", Value: model.UnansweredOutcomes}}}
+}
+
+const (
+	queryLogsMoveBatch       = 1000
+	queryLogsMoveUndoTimeout = 30 * time.Second
+)
+
+// ConformQueryLogs makes the profile's stored rows match the retention (api-endpoint-behaviour.md
+// J54, J13): rows older than now - retention are deleted from every collection, and the rest of the
+// longer collections move unchanged into the retention's own. It returns the rows moved and deleted.
+func (r *QueryLogsRepository) ConformQueryLogs(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int, int64, error) {
+	since := now.Add(-retention.Window())
+	target := r.getCollObject(retention)
+	moved, deleted := 0, int64(0)
+	for _, rt := range model.Retentions() {
+		coll := r.getCollObject(rt)
+		res, err := coll.DeleteMany(ctx, bson.D{
+			primitive.E{Key: "profile_id", Value: profileId},
+			primitive.E{Key: "timestamp", Value: bson.D{primitive.E{Key: "$lt", Value: since}}},
+		})
+		if err != nil {
+			return moved, deleted, err
+		}
+		deleted += res.DeletedCount
+		if rt.Window() <= retention.Window() {
+			continue
+		}
+		n, err := moveQueryLogs(ctx, coll, target, profileId)
+		moved += n
+		if err != nil {
+			return moved, deleted, err
+		}
+	}
+	return moved, deleted, nil
+}
+
+// moveQueryLogs copies then deletes batch by batch: $merge and $out cannot write into a
+// time-series collection.
+func moveQueryLogs(ctx context.Context, source, target *mongo.Collection, profileId string) (int, error) {
+	moved := 0
+	for {
+		opts := options.Find().SetSort(bson.D{primitive.E{Key: "timestamp", Value: 1}}).SetLimit(queryLogsMoveBatch)
+		cur, err := source.Find(ctx, bson.D{primitive.E{Key: "profile_id", Value: profileId}}, opts)
+		if err != nil {
+			return moved, err
+		}
+		var docs []bson.D
+		if err := cur.All(ctx, &docs); err != nil {
+			return moved, err
+		}
+		if len(docs) == 0 {
+			return moved, nil
+		}
+
+		batch := queryLogsBatchFilter(profileId, docs)
+		// Time-series collections do not enforce a unique _id: a batch whose earlier run stopped
+		// between insert and delete already has copies in the target, so replace them.
+		if _, err := target.DeleteMany(ctx, batch); err != nil {
+			return moved, err
+		}
+		undo := func(err error) error {
+			// The batch may have failed on ctx's deadline; the undo must still run.
+			undoCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), queryLogsMoveUndoTimeout)
+			defer cancel()
+			if _, undoErr := target.DeleteMany(undoCtx, batch); undoErr != nil {
+				return stderrors.Join(err, undoErr)
+			}
+			return err
+		}
+		rows := make([]any, len(docs))
+		for i, d := range docs {
+			rows[i] = d
+		}
+		if _, err := target.InsertMany(ctx, rows); err != nil {
+			return moved, undo(err)
+		}
+		if _, err := source.DeleteMany(ctx, batch); err != nil {
+			return moved, undo(err)
+		}
+		moved += len(docs)
+	}
+}
+
+// queryLogsBatchFilter selects a move batch. The timestamp range bounds the profile index scan to
+// the batch's buckets; `_id $in` alone cannot narrow it.
+func queryLogsBatchFilter(profileId string, docs []bson.D) bson.D {
+	ids := make(bson.A, 0, len(docs))
+	var lo, hi primitive.DateTime
+	for i, doc := range docs {
+		ids = append(ids, docField(doc, "_id"))
+		ts, _ := docField(doc, "timestamp").(primitive.DateTime)
+		if i == 0 || ts < lo {
+			lo = ts
+		}
+		if i == 0 || ts > hi {
+			hi = ts
+		}
+	}
+	return bson.D{
+		primitive.E{Key: "profile_id", Value: profileId},
+		primitive.E{Key: "timestamp", Value: bson.D{primitive.E{Key: "$gte", Value: lo}, primitive.E{Key: "$lte", Value: hi}}},
+		primitive.E{Key: "_id", Value: bson.D{primitive.E{Key: "$in", Value: ids}}},
+	}
 }

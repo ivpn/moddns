@@ -79,8 +79,8 @@ type ProfileService struct {
 	// now is the clock; nil means time.Now (see SetClock).
 	now func() time.Time
 
-	// Zero means the defaults (see SetQueryLogsPurgeTimeouts).
-	logsPurgeJobTime, logsPurgeRunTime time.Duration
+	// Zero means the defaults (see SetQueryLogsReconcileTimeouts).
+	logsReconcileJobTime, logsReconcileRunTime time.Duration
 
 	Cache         cache.Cache
 	IdGen         idgen.Generator
@@ -660,8 +660,11 @@ func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId
 	if before.logsEnabled && !after.logsEnabled {
 		p.purgeQueryLogsBestEffort(ctx, profileId)
 	} else if before.logsRetention != after.logsRetention {
-		// The caches were computed from the previous retention's collection (J23).
+		// The caches were computed from the previous retention's collections (J23).
 		p.invalidateQueryLogCaches(ctx, profileId)
+		if after.logsEnabled && after.logsRetention.Window() < before.logsRetention.Window() {
+			p.conformQueryLogsBestEffort(ctx, profileId, after.logsRetention)
+		}
 	}
 }
 

@@ -55,6 +55,10 @@ func (s *stubQueryLogsRepository) GetQueryLogTopBlocklists(ctx context.Context, 
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) ConformQueryLogs(context.Context, string, model.Retention, time.Time) (int, int64, error) {
+	return 0, 0, nil
+}
+
 func (s *stubQueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespanHours int) (*time.Time, error) {
 	s.lastHours = timespanHours
 	return nil, nil

@@ -44,9 +44,9 @@ type ProfileRepository interface {
 	// SetStatisticsHistoryDeletedAt stamps settings.statistics.history_deleted_at when statistics
 	// are on and reports whether they were (api-endpoint-behaviour.md J52).
 	SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error)
-	// GetProfilesLogsEnabled reads only settings.logs.enabled of the given profiles from the
-	// primary. Profiles that do not exist are absent; a missing logs block maps to false.
-	GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error)
+	// GetProfilesLogsSettings reads only settings.logs of the given profiles from the primary.
+	// Profiles that do not exist are absent from the result; a profile with no logs block maps to nil.
+	GetProfilesLogsSettings(ctx context.Context, profileIds []string) (map[string]*model.LogsSettings, error)
 	GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error)
 	// UpdateFields applies upd atomically and returns the profile as stored immediately before
 	// the update and as re-read from the primary after it.

@@ -39,6 +39,90 @@ func (_m *QueryLogsRepository) EXPECT() *QueryLogsRepository_Expecter {
 	return &QueryLogsRepository_Expecter{mock: &_m.Mock}
 }
 
+// ConformQueryLogs provides a mock function for the type QueryLogsRepository
+func (_mock *QueryLogsRepository) ConformQueryLogs(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int, int64, error) {
+	ret := _mock.Called(ctx, profileId, retention, now)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ConformQueryLogs")
+	}
+
+	var r0 int
+	var r1 int64
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, time.Time) (int, int64, error)); ok {
+		return returnFunc(ctx, profileId, retention, now)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, time.Time) int); ok {
+		r0 = returnFunc(ctx, profileId, retention, now)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, time.Time) int64); ok {
+		r1 = returnFunc(ctx, profileId, retention, now)
+	} else {
+		r1 = ret.Get(1).(int64)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, model.Retention, time.Time) error); ok {
+		r2 = returnFunc(ctx, profileId, retention, now)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// QueryLogsRepository_ConformQueryLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConformQueryLogs'
+type QueryLogsRepository_ConformQueryLogs_Call struct {
+	*mock.Call
+}
+
+// ConformQueryLogs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - now time.Time
+func (_e *QueryLogsRepository_Expecter) ConformQueryLogs(ctx interface{}, profileId interface{}, retention interface{}, now interface{}) *QueryLogsRepository_ConformQueryLogs_Call {
+	return &QueryLogsRepository_ConformQueryLogs_Call{Call: _e.mock.On("ConformQueryLogs", ctx, profileId, retention, now)}
+}
+
+func (_c *QueryLogsRepository_ConformQueryLogs_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, now time.Time)) *QueryLogsRepository_ConformQueryLogs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsRepository_ConformQueryLogs_Call) Return(n int, n1 int64, err error) *QueryLogsRepository_ConformQueryLogs_Call {
+	_c.Call.Return(n, n1, err)
+	return _c
+}
+
+func (_c *QueryLogsRepository_ConformQueryLogs_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int, int64, error)) *QueryLogsRepository_ConformQueryLogs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteQueryLogs provides a mock function for the type QueryLogsRepository
 func (_mock *QueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	ret := _mock.Called(ctx, profileId)
