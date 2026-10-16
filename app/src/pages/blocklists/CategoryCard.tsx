@@ -53,7 +53,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 <div className="flex flex-col gap-1">
                     {/* Top row: icon + label + optional badge + switch */}
                     <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 min-w-0 max-w-[70%] md:max-w-[75%] lg:max-w-[80%]">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate" title={label}>
                                     {label}
@@ -85,11 +85,11 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                 </div>
 
                 {/* Bottom row: expand trigger + stats */}
-                <div className="mt-4 flex items-center justify-between text-xs text-[var(--tailwind-colors-slate-200)]">
+                <div className="mt-4 flex items-center justify-between gap-3 text-xs text-[var(--tailwind-colors-slate-200)]">
                     <button
                         type="button"
                         onClick={onExpandToggle}
-                        className="flex items-center gap-1 text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-500)] transition-colors cursor-pointer"
+                        className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-500)] transition-colors cursor-pointer"
                     >
                         <ChevronDown
                             className={`h-3.5 w-3.5 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
@@ -99,12 +99,12 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                         </span>
                     </button>
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className="truncate" title={`${totalEntries} entries`}>
+                        <span className="shrink-0 whitespace-nowrap" title={`${totalEntries} entries`}>
                             {totalEntries} entries
                         </span>
                         {lastUpdated && (
                             <>
-                                <span className="h-3 w-px bg-[var(--tailwind-colors-slate-600)]" />
+                                <span className="hidden sm:inline-block h-3 w-px shrink-0 bg-[var(--tailwind-colors-slate-600)]" />
                                 <span className="truncate hidden sm:inline" title={`Updated ${lastUpdated}`}>
                                     {lastUpdated}
                                 </span>
