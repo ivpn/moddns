@@ -45,4 +45,5 @@ var (
 	// ErrDeleteSession          = "Unable to delete session. Please try again."
 	ErrDeleteCredential = NewPasskeyError("Unable to delete credential. Please try again.")
 	ErrBeginReauth      = NewPasskeyError("Unable to start reauthentication. Please try again.")
+	ErrFinishReauth     = NewPasskeyError("Unable to complete reauthentication. Please try again.")
 )

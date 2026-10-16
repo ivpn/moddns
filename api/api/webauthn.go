@@ -351,7 +351,7 @@ func (s *APIServer) finishReauth() fiber.Handler {
 			return HandleError(c, passkey.ErrFinishLogin, err.Error())
 		}
 
-		reauthToken, err := s.Service.FinishReauth(c.UserContext(), tmpToken, httpReq)
+		reauthToken, err := s.Service.FinishReauth(c.UserContext(), accountId, tmpToken, httpReq)
 		// Finish reauth assertion (authenticates user without creating a session)
 		if err != nil {
 			return HandleError(c, err, "Failed to finish reauth")
@@ -398,7 +398,7 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 			})
 		}
 
-		err = s.Service.FinishAddPasskey(c.UserContext(), tmpToken, httpReq)
+		err = s.Service.FinishAddPasskey(c.UserContext(), accountId, tmpToken, httpReq)
 		if err != nil {
 			return HandleError(c, err, "Failed to finish add passkey")
 		}

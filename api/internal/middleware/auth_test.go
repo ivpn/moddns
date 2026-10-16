@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// specRef: F9
 func TestNewAuth(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -42,6 +44,15 @@ func TestNewAuth(t *testing.T) {
 			expectMock:     true,
 			expectedStatus: fiber.StatusOK,
 			expectNextCall: true,
+		},
+		{
+			name:           "session carrying a WebAuthn challenge returns 401",
+			cookie:         "challenge-token",
+			mockSession:    model.Session{AccountID: "acc-123", Token: "challenge-token", SessionData: webauthn.SessionData{Challenge: "c"}},
+			mockFound:      true,
+			expectMock:     true,
+			expectedStatus: fiber.StatusUnauthorized,
+			expectNextCall: false,
 		},
 		{
 			name:           "session not found returns 401",

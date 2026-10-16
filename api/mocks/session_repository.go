@@ -355,16 +355,16 @@ func (_c *SessionRepository_GetSession_Call) RunAndReturn(run func(ctx context.C
 }
 
 // SaveSession provides a mock function for the type SessionRepository
-func (_mock *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string) error {
-	ret := _mock.Called(ctx, sessionData, token, userID, purpose, subID)
+func (_mock *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error {
+	ret := _mock.Called(ctx, sessionData, token, userID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string, string, string) error); ok {
-		r0 = returnFunc(ctx, sessionData, token, userID, purpose, subID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string) error); ok {
+		r0 = returnFunc(ctx, sessionData, token, userID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -381,13 +381,11 @@ type SessionRepository_SaveSession_Call struct {
 //   - sessionData webauthn.SessionData
 //   - token string
 //   - userID string
-//   - purpose string
-//   - subID string
-func (_e *SessionRepository_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}, purpose interface{}, subID interface{}) *SessionRepository_SaveSession_Call {
-	return &SessionRepository_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID, purpose, subID)}
+func (_e *SessionRepository_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}) *SessionRepository_SaveSession_Call {
+	return &SessionRepository_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID)}
 }
 
-func (_c *SessionRepository_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string)) *SessionRepository_SaveSession_Call {
+func (_c *SessionRepository_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string)) *SessionRepository_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -405,21 +403,11 @@ func (_c *SessionRepository_SaveSession_Call) Run(run func(ctx context.Context, 
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
-			arg5,
 		)
 	})
 	return _c
@@ -430,7 +418,7 @@ func (_c *SessionRepository_SaveSession_Call) Return(err error) *SessionReposito
 	return _c
 }
 
-func (_c *SessionRepository_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string, purpose string, subID string) error) *SessionRepository_SaveSession_Call {
+func (_c *SessionRepository_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error) *SessionRepository_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

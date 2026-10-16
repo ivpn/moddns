@@ -14,8 +14,6 @@ type Session struct {
 	Token       string               `bson:"token" json:"token"`
 	Data        []byte               `bson:"data" json:"-"`
 	SessionData webauthn.SessionData `bson:"-" json:"-"`
-	Purpose     string               `bson:"purpose,omitempty" json:"-"`
-	SubID       string               `bson:"sub_id,omitempty" json:"-"`
 	// ExpiresAt is used as TTL index in mongoDB
 	LastModified time.Time `bson:"last_modified" json:"-"`
 }
