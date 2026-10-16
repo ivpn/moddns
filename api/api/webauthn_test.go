@@ -122,7 +122,9 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
-	suite.mockDB.On("SaveSession", mock.Anything, mock.Anything, mock.AnythingOfType("string"), accountID.Hex(), "email_change", "").Return(nil).Once()
+	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
+		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == "email_change"
+	}), model.CeremonyTimeout).Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
 
@@ -197,7 +199,7 @@ func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
 	server := suite.createServer()
 	accountID := primitive.NewObjectID().Hex()
 
-	suite.mockDB.On("GetSession", mock.Anything, "temp-token").Return(model.Session{}, false, errors.New("db error")).Once()
+	suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(nil, errors.New("cache error")).Once()
 
 	handler := server.finishReauth()
 	app := fiber.New()
@@ -217,5 +219,52 @@ func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
 	suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
 	suite.Equal("Failed to finish reauth", payload["error"])
 
-	suite.mockDB.AssertExpectations(suite.T())
+	suite.mockCache.AssertExpectations(suite.T())
+}
+
+// specRef: F10
+func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAccount() {
+	accountID := primitive.NewObjectID().Hex()
+	otherAccountID := primitive.NewObjectID().Hex()
+
+	tests := []struct {
+		name     string
+		handler  func(*APIServer) fiber.Handler
+		ceremony model.Ceremony
+	}{
+		{"register finish with login state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyLogin}},
+		{"register finish with add-passkey state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyAddPasskey}},
+		{"register finish with untyped state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID}},
+		{"login finish with registration state", (*APIServer).finishLogin, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyRegistration}},
+		{"login finish with reauth state", (*APIServer).finishLogin, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyReauth, Purpose: "email_change"}},
+		{"add-passkey finish with login state", (*APIServer).finishAddPasskey, model.Ceremony{AccountID: accountID, Type: model.CeremonyLogin}},
+		{"add-passkey finish with another account's state", (*APIServer).finishAddPasskey, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyAddPasskey}},
+		{"reauth finish with login state", (*APIServer).finishReauth, model.Ceremony{AccountID: accountID, Type: model.CeremonyLogin}},
+		{"reauth finish with another account's state", (*APIServer).finishReauth, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyReauth, Purpose: "email_change"}},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.SetupTest()
+			server := suite.createServer()
+			ceremony := tt.ceremony
+			suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(&ceremony, nil).Once()
+
+			handler := tt.handler(server)
+			app := fiber.New()
+			app.Post("/", func(c *fiber.Ctx) error {
+				c.Locals(auth.ACCOUNT_ID, accountID)
+				return handler(c)
+			})
+
+			req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{}`)))
+			req.Header.Set("Content-Type", "application/json")
+			req.AddCookie(&http.Cookie{Name: WebAuthnTempCookie, Value: "temp-token"})
+
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			suite.Equal(400, resp.StatusCode)
+			suite.mockCache.AssertExpectations(suite.T())
+		})
+	}
 }

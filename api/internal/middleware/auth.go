@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/rs/zerolog/log"
 )
@@ -21,7 +22,9 @@ func NewAuth(service service.Servicer, cfg *config.APIConfig, filter func(c *fib
 				log.Ctx(c.UserContext()).Err(err).Msg("Failed to get session")
 				return c.SendStatus(fiber.StatusServiceUnavailable)
 			}
-			if ok {
+			// Login sessions never carry a WebAuthn challenge; a stored document that
+			// does is ceremony state, not a login session.
+			if ok && session.SessionData.Challenge == "" {
 				c.Locals(auth.ACCOUNT_ID, session.AccountID)
 				c.Locals(auth.SESSION_TOKEN, sessionToken)
 				return c.Next()
@@ -45,6 +48,10 @@ func NewWebAuthn(cfg config.Config) (*webauthn.WebAuthn, error) {
 		RPDisplayName: cfg.Server.Name,                  // Display Name for your site
 		RPID:          cfg.Server.FQDN,                  // Generally the FQDN for your site
 		RPOrigins:     []string{cfg.API.ApiAllowOrigin}, // The origin URLs allowed for WebAuthn requests
+		Timeouts: webauthn.TimeoutsConfig{
+			Login:        webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
+			Registration: webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
+		},
 	}
 
 	webAuthn, err := webauthn.New(waCfg)
