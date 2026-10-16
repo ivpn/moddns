@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 )
 
 // ServicesCatalogReader is a narrow interface for looking up service IDs in the
@@ -39,6 +41,13 @@ type ServicesCatalogReader interface {
 // Account-based rate limiting for query logs retrieval.
 const queryLogsRateLimitMax = 120
 const queryLogsRateLimitWindow = time.Minute
+
+// statisticsMissLimit bounds the statistics reads one account may send to the database per
+// minute, across all its profiles; cached answers are not counted (J45).
+const (
+	statisticsMissLimit  = 60
+	statisticsMissWindow = time.Minute
+)
 
 // Cache-aside for the distinct-device aggregation (unindexable full-window
 // bucket unpack — see api-endpoint-behaviour #J5).
@@ -61,11 +70,34 @@ type ProfileService struct {
 	// for unit tests that do not exercise the MFA path.
 	MfaVerifier reauth.MfaVerifier
 
+	// clientEnricher adds ASN and country to the top-clients list; nil leaves
+	// those fields null (see SetClientEnricher).
+	clientEnricher ClientEnricher
+	// topFlight lets concurrent misses of one top-list cache key share one aggregation.
+	topFlight singleflight.Group
+
+	// now is the clock; nil means time.Now (see SetClock).
+	now func() time.Time
+
+	// Zero means the defaults (see SetQueryLogsPurgeTimeouts).
+	logsPurgeJobTime, logsPurgeRunTime time.Duration
+
 	Cache         cache.Cache
 	IdGen         idgen.Generator
 	Validate      *validator.Validate
 	ServerConfig  config.ServerConfig
 	ServiceConfig config.ServiceConfig
+}
+
+// SetClock replaces the service clock; tests use it to fix time-derived values.
+func (p *ProfileService) SetClock(now func() time.Time) { p.now = now }
+
+// clock returns the current time in UTC.
+func (p *ProfileService) clock() time.Time {
+	if p.now == nil {
+		return time.Now().UTC()
+	}
+	return p.now().UTC()
 }
 
 // SetMfaVerifier wires the MFA verifier used by the password path of profile
@@ -187,8 +219,17 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 	})
 
 	eg.Go(func() (err error) {
-		// delete query logs
-		return p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+		// delete query logs, then the caches derived from them whether or not the delete succeeded
+		err = p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId)
+		p.invalidateQueryLogCaches(ctx, profileId)
+		return err
+	})
+
+	eg.Go(func() (err error) {
+		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it);
+		// leftovers of a failed purge are removed by the statistics reconcile
+		p.StatisticsService.PurgeBestEffort(ctx, profileId)
+		return nil
 	})
 
 	eg.Go(func() (err error) {
@@ -233,11 +274,14 @@ func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountI
 		return nil, err
 	}
 
-	cacheKey := queryLogDevicesCachePrefix + profileId
-	if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
-		var cached []model.QueryLogDevice
-		if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
-			return cached, nil
+	gen, cacheable := p.queryLogsCacheGeneration(ctx, profileId)
+	cacheKey := queryLogDevicesCachePrefix + profileId + ":g" + strconv.FormatInt(gen, 10)
+	if cacheable {
+		if raw, cacheErr := p.Cache.Get(ctx, cacheKey); cacheErr == nil && raw != "" {
+			var cached []model.QueryLogDevice
+			if jsonErr := json.Unmarshal([]byte(raw), &cached); jsonErr == nil {
+				return cached, nil
+			}
 		}
 	}
 
@@ -248,7 +292,7 @@ func (p *ProfileService) GetProfileQueryLogDevices(ctx context.Context, accountI
 	// Never cache an empty list: a fresh profile queried before the collector's
 	// first flush would otherwise pin "no devices" for the whole TTL. Empty-window
 	// aggregations are cheap — there are no buckets to unpack.
-	if len(devices) > 0 {
+	if cacheable && len(devices) > 0 {
 		if raw, jsonErr := json.Marshal(devices); jsonErr == nil {
 			if cacheErr := p.Cache.Set(ctx, cacheKey, raw, queryLogDevicesCacheTTL); cacheErr != nil {
 				log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to cache query log devices")
@@ -269,14 +313,41 @@ func (p *ProfileService) DownloadProfileQueryLogs(ctx context.Context, accountId
 	return p.QueryLogsService.DownloadProfileQueryLogs(ctx, profileId, profile.Settings.Logs.Retention, page, limit)
 }
 
-// GetProfileStatistics returns profile DNS statistics data
-func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error) {
-	_, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
+// GetStatistics returns the profile's statistics for the timespan; the enabled gate lives in the statistics service.
+func (p *ProfileService) GetStatistics(ctx context.Context, accountId, profileId, timespan string) (*model.StatisticsResponse, error) {
+	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
 	}
 
-	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan)
+	var settings *model.StatisticsSettings
+	if profile.Settings != nil {
+		settings = profile.Settings.Statistics
+	}
+	return p.StatisticsService.GetProfileStatistics(ctx, profileId, timespan, settings, statistics.WithMissGuard(func() error {
+		limiter := utils.IDLimiter{Cache: p.Cache, Label: "rate_limits", ID: accountId + ":statistics", Max: statisticsMissLimit, Exp: statisticsMissWindow}
+		if err := limiter.Tick(); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Msg("failed to tick statistics limiter")
+			return nil
+		}
+		if !limiter.IsAllowed() {
+			return ErrStatisticsRateLimited
+		}
+		return nil
+	}))
+}
+
+// DeleteStatisticsHistory deletes all of the profile's statistics and keeps statistics as
+// they are; on an enabled profile it first stamps the keep-since instant the purge and
+// reads honour (api-endpoint-behaviour.md J52, J53).
+func (p *ProfileService) DeleteStatisticsHistory(ctx context.Context, accountId, profileId string) error {
+	if _, err := p.validateProfileIdAffiliation(ctx, accountId, profileId); err != nil {
+		return err
+	}
+	if _, err := p.ProfileRepository.SetStatisticsHistoryDeletedAt(ctx, profileId, p.clock()); err != nil {
+		return err
+	}
+	return p.StatisticsService.PurgeProfile(ctx, profileId)
 }
 
 // validateProfileIdAffiliation checks whether profile is within the current account profiles list
@@ -305,31 +376,117 @@ func (p *ProfileService) DeleteProfileQueryLogs(ctx context.Context, accountId, 
 	if err := p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId); err != nil {
 		return err
 	}
-
-	// Deleting logs deletes the device list's source — drop the cached copy so
-	// it cannot outlive the data (best-effort; TTL bounds a miss).
-	if cacheErr := p.Cache.Del(ctx, queryLogDevicesCachePrefix+profileId); cacheErr != nil {
-		log.Ctx(ctx).Warn().Err(cacheErr).Msg("failed to invalidate query log devices cache")
-	}
-
+	p.invalidateQueryLogCaches(ctx, profileId)
 	return nil
 }
 
-// UpdateProfile updates profile data
+// queryLogsCacheScope namespaces the generation counter of every cache derived from a profile's
+// query logs (the J5 devices list and the J23 top lists).
+const queryLogsCacheScope = "logs"
+
+// queryLogsCacheGeneration returns the generation a read of the query-log caches uses; false
+// (cache skipped both ways) when it cannot be read, since a guessed generation could serve
+// an answer computed before a purge.
+func (p *ProfileService) queryLogsCacheGeneration(ctx context.Context, profileId string) (int64, bool) {
+	gen, err := cache.Generation(ctx, p.Cache, queryLogsCacheScope, profileId)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("query logs: cache generation unreadable; reading from the database")
+		return 0, false
+	}
+	return gen, true
+}
+
+// invalidateQueryLogCaches moves the profile's query-log caches to a new generation, so no answer
+// computed before now is read again, even one still being written (best-effort; TTL bounds a miss).
+func (p *ProfileService) invalidateQueryLogCaches(ctx context.Context, profileId string) {
+	if err := cache.BumpGeneration(ctx, p.Cache, queryLogsCacheScope, profileId); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Msg("failed to invalidate query log caches")
+	}
+}
+
+// UpdateProfile validates every operation against the stored profile, then writes the
+// touched fields as one atomic update (api-endpoint-behaviour.md G20-G23).
 func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId string, updates []model.ProfileUpdate) (*model.Profile, error) {
 	profile, err := p.validateProfileIdAffiliation(ctx, accountId, profileId)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, update := range updates {
-		// following code is a workaround for the case when the value is a map (openapi-cli-gen converts interface to {} in YAML spec, which is generated in python client as Dict[str, Any])
-		internalValue, err := cast.ToStringMapE(update.Value)
-		if err != nil {
-			log.Ctx(ctx).Trace().Msg("Failed to cast value to string map")
-		} else {
-			update.Value = internalValue["value"]
+	touched, err := p.applyPatchOperations(ctx, profile, accountId, updates)
+	if err != nil {
+		return nil, err
+	}
+	if len(touched) == 0 {
+		return profile, nil
+	}
+
+	upd := repository.ProfileFieldsUpdate{EnabledAtNow: p.clock()}
+	var redisFields []cache.SettingsField
+	for _, path := range touched {
+		f := patchFields[path]
+		value := f.value(profile)
+		upd.Set = append(upd.Set, repository.FieldSet{Field: f.field, Value: value})
+		if f.hash != "" {
+			redisFields = append(redisFields, cache.SettingsField{Hash: f.hash, Field: f.hashField, Value: value})
 		}
+	}
+	if slices.Contains(touched, pathDefaultRule) && profile.Settings.Privacy.DefaultRule == model.DEFAULT_RULE_BLOCK {
+		// TODO: improve after wildcard support is implemented
+		for _, domain := range p.ServerConfig.AllowedDomains {
+			upd.AppendCustomRules = append(upd.AppendCustomRules, &model.CustomRule{
+				ID:     primitive.NewObjectID(),
+				Action: model.ACTION_ALLOW,
+				Value:  domain,
+			})
+		}
+	}
+
+	before, after, err := p.ProfileRepository.UpdateFields(ctx, profileId, upd)
+	if err != nil {
+		return nil, err
+	}
+
+	var cacheErr error
+	if len(redisFields) > 0 {
+		cacheErr = p.Cache.SetProfileSettingsFields(ctx, profileId, redisFields)
+	}
+	// The proxy reads custom rules only from Redis (api-endpoint-behaviour.md G24).
+	if appended := appendedCustomRules(after, upd.AppendCustomRules); len(appended) > 0 {
+		if err := p.Cache.AddCustomRules(ctx, profileId, appended); err != nil && cacheErr == nil {
+			cacheErr = err
+		}
+	}
+
+	// The change is persisted in Mongo either way, so its side effects must run.
+	beforeSnap := snapshotSettings(before.Settings)
+	p.applySettingsTransitions(ctx, profileId, beforeSnap, beforeSnap.patched(touched, profile.Settings))
+	if cacheErr != nil {
+		return nil, cacheErr
+	}
+	return after, nil
+}
+
+// appendedCustomRules returns the candidates the update actually stored, as re-read.
+func appendedCustomRules(after *model.Profile, candidates []*model.CustomRule) []*model.CustomRule {
+	if len(candidates) == 0 || after == nil || after.Settings == nil {
+		return nil
+	}
+	var out []*model.CustomRule
+	for _, rule := range after.Settings.CustomRules {
+		if slices.ContainsFunc(candidates, func(c *model.CustomRule) bool { return c.ID == rule.ID }) {
+			out = append(out, rule)
+		}
+	}
+	return out
+}
+
+// applyPatchOperations validates and applies every operation to profile in memory and
+// returns the paths that replace a value, in first-seen order.
+func (p *ProfileService) applyPatchOperations(ctx context.Context, profile *model.Profile, accountId string, updates []model.ProfileUpdate) ([]string, error) {
+	var touched []string
+	for _, update := range updates {
+		update.Value = update.Unwrapped()
+		var err error
 
 		if strings.Contains(update.Path, "/settings/logs/") {
 			err = p.handleQueryLogsSettingsUpdate(profile, update.Path, update)
@@ -363,6 +520,10 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			}
 		}
 
+		if _, ok := patchFields[update.Path]; ok && update.Operation == model.UpdateOperationReplace && !slices.Contains(touched, update.Path) {
+			touched = append(touched, update.Path)
+		}
+
 		switch update.Path {
 		case "/name":
 			err = p.handleProfileNameUpdate(ctx, profile, accountId, update)
@@ -373,24 +534,6 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 			err = p.handleDefaultRuleUpdate(profile, update)
 			if err != nil {
 				return nil, err
-			}
-
-			if profile.Settings.Privacy.DefaultRule == model.DEFAULT_RULE_BLOCK {
-				// TODO: improve after wildcard support is implemented
-				confguredDomains := make([]string, len(profile.Settings.CustomRules))
-				for _, userRule := range profile.Settings.CustomRules {
-					confguredDomains = append(confguredDomains, userRule.Value)
-				}
-				for _, domain := range p.ServerConfig.AllowedDomains {
-					// whitelist DNS servers domains
-					if !slices.Contains(confguredDomains, domain) {
-						profile.Settings.CustomRules = append(profile.Settings.CustomRules, &model.CustomRule{
-							ID:     primitive.NewObjectID(),
-							Action: model.ACTION_ALLOW,
-							Value:  domain,
-						})
-					}
-				}
 			}
 		case "/settings/privacy/blocklists_subdomains_rule":
 			err = p.handleBlocklistsSubdomainsRuleUpdate(profile, update)
@@ -405,14 +548,121 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		}
 	}
 
-	if err := p.ProfileRepository.Update(ctx, profileId, profile); err != nil {
-		return nil, err
-	}
+	return touched, nil
+}
 
-	if err = p.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
-		return nil, err
+const (
+	pathStatisticsEnabled   = "/settings/statistics/enabled"
+	pathStatisticsRetention = "/settings/statistics/retention"
+	pathLogsEnabled         = "/settings/logs/enabled"
+	pathLogsRetention       = "/settings/logs/retention"
+	pathDefaultRule         = "/settings/privacy/default_rule"
+)
+
+// patchField maps a PATCH path to its stored field and, when the proxy reads it, its
+// Redis settings hash field.
+type patchField struct {
+	field     string
+	hash      string
+	hashField string
+	value     func(*model.Profile) any
+}
+
+var patchFields = map[string]patchField{
+	"/name":                          {field: "name", value: func(p *model.Profile) any { return p.Name }},
+	pathStatisticsEnabled:            {"settings.statistics.enabled", "statistics", "enabled", func(p *model.Profile) any { return p.Settings.Statistics.Enabled }},
+	pathStatisticsRetention:          {"settings.statistics.retention", "statistics", "retention", func(p *model.Profile) any { return p.Settings.Statistics.Retention }},
+	pathLogsEnabled:                  {"settings.logs.enabled", "logs", "enabled", func(p *model.Profile) any { return p.Settings.Logs.Enabled }},
+	"/settings/logs/log_clients_ips": {"settings.logs.log_clients_ips", "logs", "log_clients_ips", func(p *model.Profile) any { return p.Settings.Logs.LogClientsIPs }},
+	"/settings/logs/log_domains":     {"settings.logs.log_domains", "logs", "log_domains", func(p *model.Profile) any { return p.Settings.Logs.LogDomains }},
+	pathLogsRetention:                {"settings.logs.retention", "logs", "retention", func(p *model.Profile) any { return p.Settings.Logs.Retention }},
+	pathDefaultRule:                  {"settings.privacy.default_rule", "privacy", "default_rule", func(p *model.Profile) any { return p.Settings.Privacy.DefaultRule }},
+	"/settings/privacy/blocklists_subdomains_rule":    {"settings.privacy.blocklists_subdomains_rule", "privacy", "blocklists_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.BlocklistsSubdomainsRule }},
+	"/settings/privacy/custom_rules_subdomains_rule":  {"settings.privacy.custom_rules_subdomains_rule", "privacy", "custom_rules_subdomains_rule", func(p *model.Profile) any { return p.Settings.Privacy.CustomRulesSubdomainsRule }},
+	"/settings/security/dnssec/enabled":               {"settings.security.dnssec.enabled", "security:dnssec", "enabled", func(p *model.Profile) any { return p.Settings.Security.DNSSECSettings.Enabled }},
+	"/settings/security/dnssec/send_do_bit":           {"settings.security.dnssec.send_do_bit", "security:dnssec", "send_do_bit", func(p *model.Profile) any { return p.Settings.Security.DNSSECSettings.SendDoBit }},
+	"/settings/security/rebinding_protection/enabled": {"settings.security.rebinding_protection.enabled", "security:rebinding_protection", "enabled", func(p *model.Profile) any { return p.Settings.Security.RebindingProtection.Enabled }},
+	"/settings/advanced/recursor":                     {"settings.advanced.recursor", "advanced", "recursor", func(p *model.Profile) any { return p.Settings.Advanced.Recursor }},
+}
+
+// settingsSnapshot is the part of the settings whose transitions have side effects.
+type settingsSnapshot struct {
+	statistics    *model.StatisticsSettings
+	logsEnabled   bool
+	logsRetention model.Retention
+}
+
+func snapshotSettings(s *model.ProfileSettings) settingsSnapshot {
+	var snap settingsSnapshot
+	if s == nil {
+		return snap
 	}
-	return profile, err
+	if s.Statistics != nil {
+		c := *s.Statistics
+		snap.statistics = &c
+	}
+	if s.Logs != nil {
+		snap.logsEnabled = s.Logs.Enabled
+		snap.logsRetention = s.Logs.Retention
+	}
+	return snap
+}
+
+// patched is the snapshot with this PATCH's values applied to the paths it touched.
+func (s settingsSnapshot) patched(touched []string, patch *model.ProfileSettings) settingsSnapshot {
+	out := s
+	if slices.Contains(touched, pathStatisticsEnabled) || slices.Contains(touched, pathStatisticsRetention) {
+		next := model.StatisticsSettings{}
+		if s.statistics != nil {
+			next = *s.statistics
+		}
+		if slices.Contains(touched, pathStatisticsEnabled) {
+			next.Enabled = patch.Statistics.Enabled
+		}
+		if slices.Contains(touched, pathStatisticsRetention) {
+			next.Retention = patch.Statistics.Retention
+		}
+		out.statistics = &next
+	}
+	if slices.Contains(touched, pathLogsEnabled) {
+		out.logsEnabled = patch.Logs.Enabled
+	}
+	if slices.Contains(touched, pathLogsRetention) {
+		out.logsRetention = patch.Logs.Retention
+	}
+	return out
+}
+
+func (s settingsSnapshot) statisticsRetention() model.StatisticsRetention {
+	if s.statistics == nil {
+		return ""
+	}
+	return s.statistics.Retention
+}
+
+func (s settingsSnapshot) statisticsEnabled() bool {
+	return s.statistics != nil && s.statistics.Enabled
+}
+
+// applySettingsTransitions runs the side effects of a settings change once per
+// PATCH, after the change is persisted, however many paths it touched.
+func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId string, before, after settingsSnapshot) {
+	if before.statisticsEnabled() && !after.statisticsEnabled() {
+		p.StatisticsService.PurgeBestEffort(ctx, profileId)
+	}
+	if after.statisticsEnabled() && after.statistics.Retention.Window() != before.statisticsRetention().Window() {
+		// Cached answers carry the old retention label and window (J46).
+		p.StatisticsService.InvalidateReadCache(ctx, profileId)
+	}
+	if after.statisticsEnabled() && after.statistics.Retention.Window() < before.statisticsRetention().Window() {
+		p.StatisticsService.MoveBestEffort(ctx, profileId, after.statistics.Retention)
+	}
+	if before.logsEnabled && !after.logsEnabled {
+		p.purgeQueryLogsBestEffort(ctx, profileId)
+	} else if before.logsRetention != after.logsRetention {
+		// The caches were computed from the previous retention's collection (J23).
+		p.invalidateQueryLogCaches(ctx, profileId)
+	}
 }
 
 func (p *ProfileService) handleQueryLogsSettingsUpdate(profile *model.Profile, updatePath string, update model.ProfileUpdate) error {
@@ -434,6 +684,8 @@ func (p *ProfileService) handleStatisticsSettingsUpdate(profile *model.Profile, 
 	switch updatePath { // nolint
 	case "/settings/statistics/enabled":
 		return p.updateStatisticsEnabled(profile, update)
+	case pathStatisticsRetention:
+		return p.updateStatisticsRetention(profile, update)
 	}
 
 	return nil
@@ -447,6 +699,22 @@ func (p *ProfileService) updateStatisticsEnabled(profile *model.Profile, update 
 			return err
 		}
 		profile.Settings.Statistics.Enabled = enabled
+	}
+	return nil
+}
+
+func (p *ProfileService) updateStatisticsRetention(profile *model.Profile, update model.ProfileUpdate) error {
+	switch update.Operation { // nolint
+	case model.UpdateOperationReplace:
+		value, err := cast.ToStringE(update.Value)
+		if err != nil {
+			return ErrStatisticsRetentionInvalid
+		}
+		retention := model.StatisticsRetention(value)
+		if !retention.Valid() {
+			return ErrStatisticsRetentionInvalid
+		}
+		profile.Settings.Statistics.Retention = retention
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
@@ -38,28 +39,172 @@ func (_m *StatisticsRepository) EXPECT() *StatisticsRepository_Expecter {
 	return &StatisticsRepository_Expecter{mock: &_m.Mock}
 }
 
+// DeleteProfileStatistics provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) DeleteProfileStatistics(ctx context.Context, profileId string, before *time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, before)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatistics")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, before)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, before)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, before)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_DeleteProfileStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatistics'
+type StatisticsRepository_DeleteProfileStatistics_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - before *time.Time
+func (_e *StatisticsRepository_Expecter) DeleteProfileStatistics(ctx interface{}, profileId interface{}, before interface{}) *StatisticsRepository_DeleteProfileStatistics_Call {
+	return &StatisticsRepository_DeleteProfileStatistics_Call{Call: _e.mock.On("DeleteProfileStatistics", ctx, profileId, before)}
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, before *time.Time)) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *time.Time
+		if args[2] != nil {
+			arg2 = args[2].(*time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) Return(n int64, err error) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, before *time.Time) (int64, error)) *StatisticsRepository_DeleteProfileStatistics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteProfileStatisticsThrough provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, at)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteProfileStatisticsThrough")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, at)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_DeleteProfileStatisticsThrough_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteProfileStatisticsThrough'
+type StatisticsRepository_DeleteProfileStatisticsThrough_Call struct {
+	*mock.Call
+}
+
+// DeleteProfileStatisticsThrough is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - at time.Time
+func (_e *StatisticsRepository_Expecter) DeleteProfileStatisticsThrough(ctx interface{}, profileId interface{}, at interface{}) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+	return &StatisticsRepository_DeleteProfileStatisticsThrough_Call{Call: _e.mock.On("DeleteProfileStatisticsThrough", ctx, profileId, at)}
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 time.Time
+		if args[2] != nil {
+			arg2 = args[2].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) Return(n int64, err error) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_DeleteProfileStatisticsThrough_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (int64, error)) *StatisticsRepository_DeleteProfileStatisticsThrough_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProfileStatistics provides a mock function for the type StatisticsRepository
-func (_mock *StatisticsRepository) GetProfileStatistics(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error) {
-	ret := _mock.Called(ctx, profileId, timespan)
+func (_mock *StatisticsRepository) GetProfileStatistics(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error) {
+	ret := _mock.Called(ctx, profileId, tier, from, to, bucket)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetProfileStatistics")
 	}
 
-	var r0 []model.StatisticsAggregated
+	var r0 *model.StatisticsAggregate
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]model.StatisticsAggregated, error)); ok {
-		return returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) (*model.StatisticsAggregate, error)); ok {
+		return returnFunc(ctx, profileId, tier, from, to, bucket)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []model.StatisticsAggregated); ok {
-		r0 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) *model.StatisticsAggregate); ok {
+		r0 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.StatisticsAggregated)
+			r0 = ret.Get(0).(*model.StatisticsAggregate)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, profileId, timespan)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsTier, time.Time, time.Time, time.Duration) error); ok {
+		r1 = returnFunc(ctx, profileId, tier, from, to, bucket)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,12 +219,15 @@ type StatisticsRepository_GetProfileStatistics_Call struct {
 // GetProfileStatistics is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - timespan int
-func (_e *StatisticsRepository_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, timespan interface{}) *StatisticsRepository_GetProfileStatistics_Call {
-	return &StatisticsRepository_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, timespan)}
+//   - tier model.StatisticsTier
+//   - from time.Time
+//   - to time.Time
+//   - bucket time.Duration
+func (_e *StatisticsRepository_Expecter) GetProfileStatistics(ctx interface{}, profileId interface{}, tier interface{}, from interface{}, to interface{}, bucket interface{}) *StatisticsRepository_GetProfileStatistics_Call {
+	return &StatisticsRepository_GetProfileStatistics_Call{Call: _e.mock.On("GetProfileStatistics", ctx, profileId, tier, from, to, bucket)}
 }
 
-func (_c *StatisticsRepository_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, timespan int)) *StatisticsRepository_GetProfileStatistics_Call {
+func (_c *StatisticsRepository_GetProfileStatistics_Call) Run(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration)) *StatisticsRepository_GetProfileStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -89,25 +237,180 @@ func (_c *StatisticsRepository_GetProfileStatistics_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 model.StatisticsTier
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(model.StatisticsTier)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		var arg4 time.Time
+		if args[4] != nil {
+			arg4 = args[4].(time.Time)
+		}
+		var arg5 time.Duration
+		if args[5] != nil {
+			arg5 = args[5].(time.Duration)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
+			arg4,
+			arg5,
 		)
 	})
 	return _c
 }
 
-func (_c *StatisticsRepository_GetProfileStatistics_Call) Return(statisticsAggregateds []model.StatisticsAggregated, err error) *StatisticsRepository_GetProfileStatistics_Call {
-	_c.Call.Return(statisticsAggregateds, err)
+func (_c *StatisticsRepository_GetProfileStatistics_Call) Return(statisticsAggregate *model.StatisticsAggregate, err error) *StatisticsRepository_GetProfileStatistics_Call {
+	_c.Call.Return(statisticsAggregate, err)
 	return _c
 }
 
-func (_c *StatisticsRepository_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, timespan int) ([]model.StatisticsAggregated, error)) *StatisticsRepository_GetProfileStatistics_Call {
+func (_c *StatisticsRepository_GetProfileStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, tier model.StatisticsTier, from time.Time, to time.Time, bucket time.Duration) (*model.StatisticsAggregate, error)) *StatisticsRepository_GetProfileStatistics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListStatisticsProfileIDs provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) ListStatisticsProfileIDs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListStatisticsProfileIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_ListStatisticsProfileIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListStatisticsProfileIDs'
+type StatisticsRepository_ListStatisticsProfileIDs_Call struct {
+	*mock.Call
+}
+
+// ListStatisticsProfileIDs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *StatisticsRepository_Expecter) ListStatisticsProfileIDs(ctx interface{}) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	return &StatisticsRepository_ListStatisticsProfileIDs_Call{Call: _e.mock.On("ListStatisticsProfileIDs", ctx)}
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) Run(run func(ctx context.Context)) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) Return(strings []string, err error) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *StatisticsRepository_ListStatisticsProfileIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MoveProfileDailyStatistics provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
+	ret := _mock.Called(ctx, profileId, to, since)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveProfileDailyStatistics")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) (int, error)); ok {
+		return returnFunc(ctx, profileId, to, since)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) int); ok {
+		r0 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsRetention, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, to, since)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// StatisticsRepository_MoveProfileDailyStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveProfileDailyStatistics'
+type StatisticsRepository_MoveProfileDailyStatistics_Call struct {
+	*mock.Call
+}
+
+// MoveProfileDailyStatistics is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - to model.StatisticsRetention
+//   - since time.Time
+func (_e *StatisticsRepository_Expecter) MoveProfileDailyStatistics(ctx interface{}, profileId interface{}, to interface{}, since interface{}) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	return &StatisticsRepository_MoveProfileDailyStatistics_Call{Call: _e.mock.On("MoveProfileDailyStatistics", ctx, profileId, to, since)}
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Run(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.StatisticsRetention
+		if args[2] != nil {
+			arg2 = args[2].(model.StatisticsRetention)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Return(n int, err error) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/reauth"
+	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/account"
@@ -21,40 +24,44 @@ import (
 )
 
 var (
-	ErrInvalidRequestBody         = errors.New("invalid request")
-	ErrValidationFailed           = errors.New("validation failed")
-	ErrFailedToRegisterAccount    = errors.New("failed to register account")
-	ErrFailedToUpdateAccount      = errors.New("failed to update account")
-	ErrFailedToDeleteAccount      = errors.New("failed to delete account")
-	ErrFailedToCreateCustomRule   = errors.New("failed to create custom rule")
-	ErrFailedToUpdateCustomRule   = errors.New("failed to update custom rule")
-	ErrFailedToDeleteCustomRule   = errors.New("failed to delete custom rule")
-	ErrFailedToEnableBlocklists   = errors.New("failed to enable blocklists")
-	ErrFailedToDisableBlocklists  = errors.New("failed to disable blocklists")
-	ErrFailedToEnableServices     = errors.New("failed to enable services")
-	ErrFailedToDisableServices    = errors.New("failed to disable services")
-	ErrInvalidBlocklistValue      = errors.New("invalid blocklist value")
-	ErrInvalidServiceValue        = errors.New("invalid service value")
-	ErrResourceNotFound           = errors.New("resource not found")
-	ErrFailedToCreateProfile      = errors.New("failed to create profile")
-	ErrFailedToUpdateProfile      = errors.New("failed to update profile")
-	ErrFailedToGetSubscription    = errors.New("failed to get subscription data")
-	ErrFailedToUpdateSubscription = errors.New("failed to update subscription")
-	ErrFailedToGetQueryLogs       = errors.New("failed to get profile query logs")
-	ErrFailedToGetQueryLogDevices = errors.New("failed to get profile query log devices")
-	ErrFailedToGetStatistics      = errors.New("failed to get profile statistics")
-	ErrFailedToDeleteQueryLogs    = errors.New("failed to delete profile query logs")
-	ErrFailedToGetAccount         = errors.New("failed to get account data")
-	ErrFailedToVerifyEmail        = errors.New("failed to verify email")
-	ErrEmailVerificationRequired  = errors.New("email address not verified")
-	ErrFailedToAddBlocklist       = errors.New("failed to add blocklist")
-	ErrBlocklistAlreadyExists     = errors.New("blocklist with this ID already exists")
-	ErrEmailAlreadyExists         = errors.New("Unable to complete your request. Please try a different email address.")
-	ErrTooManyDetails             = errors.New("too many details passed to HandleError function")
-	ErrFailedToEnable2FA          = errors.New("failed to enable 2FA")
-	ErrFailedToConfirm2FA         = errors.New("failed to confirm 2FA")
-	ErrFailedToDisable2FA         = errors.New("failed to disable 2FA")
-	ErrDisableTotpSuccess         = errors.New("2FA is disabled")
+	ErrInvalidRequestBody            = errors.New("invalid request")
+	ErrValidationFailed              = errors.New("validation failed")
+	ErrFailedToRegisterAccount       = errors.New("failed to register account")
+	ErrFailedToUpdateAccount         = errors.New("failed to update account")
+	ErrFailedToDeleteAccount         = errors.New("failed to delete account")
+	ErrFailedToCreateCustomRule      = errors.New("failed to create custom rule")
+	ErrFailedToUpdateCustomRule      = errors.New("failed to update custom rule")
+	ErrFailedToDeleteCustomRule      = errors.New("failed to delete custom rule")
+	ErrFailedToEnableBlocklists      = errors.New("failed to enable blocklists")
+	ErrFailedToDisableBlocklists     = errors.New("failed to disable blocklists")
+	ErrFailedToEnableServices        = errors.New("failed to enable services")
+	ErrFailedToDisableServices       = errors.New("failed to disable services")
+	ErrInvalidBlocklistValue         = errors.New("invalid blocklist value")
+	ErrInvalidServiceValue           = errors.New("invalid service value")
+	ErrResourceNotFound              = errors.New("resource not found")
+	ErrFailedToCreateProfile         = errors.New("failed to create profile")
+	ErrFailedToUpdateProfile         = errors.New("failed to update profile")
+	ErrFailedToGetSubscription       = errors.New("failed to get subscription data")
+	ErrFailedToUpdateSubscription    = errors.New("failed to update subscription")
+	ErrFailedToGetQueryLogs          = errors.New("failed to get profile query logs")
+	ErrFailedToGetQueryLogDevices    = errors.New("failed to get profile query log devices")
+	ErrFailedToGetQueryLogTop        = errors.New("failed to get profile query log top domains")
+	ErrFailedToGetQueryLogClients    = errors.New("failed to get profile query log clients")
+	ErrFailedToGetQueryLogBlocklists = errors.New("failed to get profile query log blocklists")
+	ErrFailedToGetStatistics         = errors.New("failed to get profile statistics")
+	ErrFailedToDeleteStatistics      = errors.New("failed to delete profile statistics")
+	ErrFailedToDeleteQueryLogs       = errors.New("failed to delete profile query logs")
+	ErrFailedToGetAccount            = errors.New("failed to get account data")
+	ErrFailedToVerifyEmail           = errors.New("failed to verify email")
+	ErrEmailVerificationRequired     = errors.New("email address not verified")
+	ErrFailedToAddBlocklist          = errors.New("failed to add blocklist")
+	ErrBlocklistAlreadyExists        = errors.New("blocklist with this ID already exists")
+	ErrEmailAlreadyExists            = errors.New("Unable to complete your request. Please try a different email address.")
+	ErrTooManyDetails                = errors.New("too many details passed to HandleError function")
+	ErrFailedToEnable2FA             = errors.New("failed to enable 2FA")
+	ErrFailedToConfirm2FA            = errors.New("failed to confirm 2FA")
+	ErrFailedToDisable2FA            = errors.New("failed to disable 2FA")
+	ErrDisableTotpSuccess            = errors.New("2FA is disabled")
 	// ErrTotpRequired                 = errors.New("TOTP is required")
 	ErrInvalidTotpCode              = errors.New("invalid 2FA code")
 	ErrInvalidCustomRuleSyntax      = errors.New("the rule needs to be a valid domain name, IPv4 or IPv6 address, or ASN")
@@ -229,7 +236,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	case dbErrors.ErrAccountNotFound, account.ErrAccountIdMissing, dbErrors.ErrProfileNotFound, dbErrors.ErrCustomRuleNotFound, dbErrors.ErrSubscriptionNotFound:
 		resp.Error = ErrResourceNotFound.Error()
 		return c.Status(404).JSON(resp)
-	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, model.ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
+	case ErrInvalidRequestBody, model.ErrInvalidCustomRuleAction, account.ErrEmailAlreadyVerified, account.ErrPasswordTooSimple, account.ErrEmailNotVerified, account.ErrInvalidVerificationToken, account.ErrTokenExpired, account.ErrPasswordsDoNotMatch, profile.ErrProfileNameAlreadyExists, model.ErrInvalidRetention, profile.ErrProfileNameCannotBeEmpty, profile.ErrDefaultRuleInvalid, profile.ErrStatisticsRetentionInvalid, profile.ErrBlocklistNotFound, profile.ErrProfileNameEmpty, profile.ErrCustomRuleAlreadyExists, ErrInvalidCustomRuleSyntax, model.ErrInvalidCustomRuleSyntax, profile.ErrLastProfileInAccount, profile.ErrMaxProfilesLimitReached, profile.ErrInvalidServiceValue, profile.ErrServiceAlreadyEnabled:
 		resp.Error = badRequestErrorText(err, errMsg)
 		return c.Status(400).JSON(resp)
 	case subscription.ErrSubscriptionScheduledForDeletion:
@@ -241,11 +248,68 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	case ErrUnauthorized:
 		resp.Error = err.Error()
 		return c.Status(401).JSON(resp)
-	case profile.ErrQueryLogsRateLimited:
+	case profile.ErrQueryLogsRateLimited, profile.ErrStatisticsRateLimited:
 		resp.Error = err.Error()
 		return c.Status(429).JSON(resp)
 	default:
 		resp.Error = errMsg
 		return c.Status(500).JSON(resp)
 	}
+}
+
+// validationFailed answers 400 "validation failed" with one "<field> <rule>" detail per rejected
+// field of params, in field order. A non-validation error answers like ErrInvalidRequestBody.
+func validationFailed(c *fiber.Ctx, params any, err error) error {
+	var verrs validator.ValidationErrors
+	if !errors.As(err, &verrs) {
+		return HandleError(c, ErrInvalidRequestBody, err.Error())
+	}
+	details := make([]string, 0, len(verrs))
+	for _, fe := range verrs {
+		details = append(details, validationDetail(params, fe))
+	}
+	return HandleError(c, ErrValidationFailed, ErrValidationFailed.Error(), details...)
+}
+
+// validationDetail states the rule a field broke in the terms of the API: the accepted values,
+// or the accepted integer range read from the field's validate tag.
+func validationDetail(params any, fe validator.FieldError) string {
+	field := fe.Field()
+	if set, ok := intvldtr.TimespanTags[fe.Tag()]; ok {
+		return field + " must be one of: " + set.String()
+	}
+	switch fe.Tag() {
+	case "oneof":
+		return field + " must be one of: " + strings.Join(strings.Fields(fe.Param()), ", ")
+	case "required":
+		return field + " is required"
+	case "min", "max":
+		if lo, hi, ok := intRange(params, fe.StructField()); ok {
+			return field + " must be an integer between " + lo + " and " + hi
+		}
+		return field + " must be " + fe.Tag() + " " + fe.Param()
+	}
+	return field + " is invalid"
+}
+
+// intRange returns the min and max of a struct field's validate tag.
+func intRange(params any, structField string) (lo, hi string, ok bool) {
+	t := reflect.TypeOf(params)
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	f, found := t.FieldByName(structField)
+	if !found {
+		return "", "", false
+	}
+	for _, rule := range strings.Split(f.Tag.Get("validate"), ",") {
+		k, v, _ := strings.Cut(rule, "=")
+		switch k {
+		case "min":
+			lo = v
+		case "max":
+			hi = v
+		}
+	}
+	return lo, hi, lo != "" && hi != ""
 }

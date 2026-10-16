@@ -6,7 +6,9 @@ package mocks
 
 import (
 	"context"
+	"time"
 
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -603,6 +605,142 @@ func (_c *ProfileRepository_GetProfilesByAccountId_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetProfilesLogsEnabled provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesLogsEnabled")
+	}
+
+	var r0 map[string]bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]bool, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]bool); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]bool)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileRepository_GetProfilesLogsEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesLogsEnabled'
+type ProfileRepository_GetProfilesLogsEnabled_Call struct {
+	*mock.Call
+}
+
+// GetProfilesLogsEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *ProfileRepository_Expecter) GetProfilesLogsEnabled(ctx interface{}, profileIds interface{}) *ProfileRepository_GetProfilesLogsEnabled_Call {
+	return &ProfileRepository_GetProfilesLogsEnabled_Call{Call: _e.mock.On("GetProfilesLogsEnabled", ctx, profileIds)}
+}
+
+func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) Run(run func(ctx context.Context, profileIds []string)) *ProfileRepository_GetProfilesLogsEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) Return(stringToBool map[string]bool, err error) *ProfileRepository_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(stringToBool, err)
+	return _c
+}
+
+func (_c *ProfileRepository_GetProfilesLogsEnabled_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]bool, error)) *ProfileRepository_GetProfilesLogsEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfilesStatisticsSettings provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
+	ret := _mock.Called(ctx, profileIds)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfilesStatisticsSettings")
+	}
+
+	var r0 map[string]*model.StatisticsSettings
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (map[string]*model.StatisticsSettings, error)); ok {
+		return returnFunc(ctx, profileIds)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) map[string]*model.StatisticsSettings); ok {
+		r0 = returnFunc(ctx, profileIds)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]*model.StatisticsSettings)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, profileIds)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileRepository_GetProfilesStatisticsSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfilesStatisticsSettings'
+type ProfileRepository_GetProfilesStatisticsSettings_Call struct {
+	*mock.Call
+}
+
+// GetProfilesStatisticsSettings is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileIds []string
+func (_e *ProfileRepository_Expecter) GetProfilesStatisticsSettings(ctx interface{}, profileIds interface{}) *ProfileRepository_GetProfilesStatisticsSettings_Call {
+	return &ProfileRepository_GetProfilesStatisticsSettings_Call{Call: _e.mock.On("GetProfilesStatisticsSettings", ctx, profileIds)}
+}
+
+func (_c *ProfileRepository_GetProfilesStatisticsSettings_Call) Run(run func(ctx context.Context, profileIds []string)) *ProfileRepository_GetProfilesStatisticsSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_GetProfilesStatisticsSettings_Call) Return(stringToStatisticsSettings map[string]*model.StatisticsSettings, err error) *ProfileRepository_GetProfilesStatisticsSettings_Call {
+	_c.Call.Return(stringToStatisticsSettings, err)
+	return _c
+}
+
+func (_c *ProfileRepository_GetProfilesStatisticsSettings_Call) RunAndReturn(run func(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)) *ProfileRepository_GetProfilesStatisticsSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReassignCustomRuleGroup provides a mock function for the type ProfileRepository
 func (_mock *ProfileRepository) ReassignCustomRuleGroup(ctx context.Context, profileId string, action string, from string, to string) error {
 	ret := _mock.Called(ctx, profileId, action, from, to)
@@ -804,37 +942,46 @@ func (_c *ProfileRepository_SetCustomRuleGroups_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
-// Update provides a mock function for the type ProfileRepository
-func (_mock *ProfileRepository) Update(ctx context.Context, profileId string, profile *model.Profile) error {
-	ret := _mock.Called(ctx, profileId, profile)
+// SetStatisticsHistoryDeletedAt provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error) {
+	ret := _mock.Called(ctx, profileId, at)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Update")
+		panic("no return value specified for SetStatisticsHistoryDeletedAt")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.Profile) error); ok {
-		r0 = returnFunc(ctx, profileId, profile)
-	} else {
-		r0 = ret.Error(0)
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) (bool, error)); ok {
+		return returnFunc(ctx, profileId, at)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, time.Time) bool); ok {
+		r0 = returnFunc(ctx, profileId, at)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, at)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ProfileRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type ProfileRepository_Update_Call struct {
+// ProfileRepository_SetStatisticsHistoryDeletedAt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetStatisticsHistoryDeletedAt'
+type ProfileRepository_SetStatisticsHistoryDeletedAt_Call struct {
 	*mock.Call
 }
 
-// Update is a helper method to define mock.On call
+// SetStatisticsHistoryDeletedAt is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - profile *model.Profile
-func (_e *ProfileRepository_Expecter) Update(ctx interface{}, profileId interface{}, profile interface{}) *ProfileRepository_Update_Call {
-	return &ProfileRepository_Update_Call{Call: _e.mock.On("Update", ctx, profileId, profile)}
+//   - at time.Time
+func (_e *ProfileRepository_Expecter) SetStatisticsHistoryDeletedAt(ctx interface{}, profileId interface{}, at interface{}) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
+	return &ProfileRepository_SetStatisticsHistoryDeletedAt_Call{Call: _e.mock.On("SetStatisticsHistoryDeletedAt", ctx, profileId, at)}
 }
 
-func (_c *ProfileRepository_Update_Call) Run(run func(ctx context.Context, profileId string, profile *model.Profile)) *ProfileRepository_Update_Call {
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) Run(run func(ctx context.Context, profileId string, at time.Time)) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -844,9 +991,9 @@ func (_c *ProfileRepository_Update_Call) Run(run func(ctx context.Context, profi
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 *model.Profile
+		var arg2 time.Time
 		if args[2] != nil {
-			arg2 = args[2].(*model.Profile)
+			arg2 = args[2].(time.Time)
 		}
 		run(
 			arg0,
@@ -857,12 +1004,12 @@ func (_c *ProfileRepository_Update_Call) Run(run func(ctx context.Context, profi
 	return _c
 }
 
-func (_c *ProfileRepository_Update_Call) Return(err error) *ProfileRepository_Update_Call {
-	_c.Call.Return(err)
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) Return(b bool, err error) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *ProfileRepository_Update_Call) RunAndReturn(run func(ctx context.Context, profileId string, profile *model.Profile) error) *ProfileRepository_Update_Call {
+func (_c *ProfileRepository_SetStatisticsHistoryDeletedAt_Call) RunAndReturn(run func(ctx context.Context, profileId string, at time.Time) (bool, error)) *ProfileRepository_SetStatisticsHistoryDeletedAt_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -989,6 +1136,88 @@ func (_c *ProfileRepository_UpdateCustomRulesOrder_Call) Return(err error) *Prof
 }
 
 func (_c *ProfileRepository_UpdateCustomRulesOrder_Call) RunAndReturn(run func(ctx context.Context, profileId string, idToOrder map[string]int) error) *ProfileRepository_UpdateCustomRulesOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateFields provides a mock function for the type ProfileRepository
+func (_mock *ProfileRepository) UpdateFields(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
+	ret := _mock.Called(ctx, profileId, upd)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFields")
+	}
+
+	var r0 *model.Profile
+	var r1 *model.Profile
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)); ok {
+		return returnFunc(ctx, profileId, upd)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r0 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, repository.ProfileFieldsUpdate) *model.Profile); ok {
+		r1 = returnFunc(ctx, profileId, upd)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*model.Profile)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, repository.ProfileFieldsUpdate) error); ok {
+		r2 = returnFunc(ctx, profileId, upd)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// ProfileRepository_UpdateFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFields'
+type ProfileRepository_UpdateFields_Call struct {
+	*mock.Call
+}
+
+// UpdateFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - upd repository.ProfileFieldsUpdate
+func (_e *ProfileRepository_Expecter) UpdateFields(ctx interface{}, profileId interface{}, upd interface{}) *ProfileRepository_UpdateFields_Call {
+	return &ProfileRepository_UpdateFields_Call{Call: _e.mock.On("UpdateFields", ctx, profileId, upd)}
+}
+
+func (_c *ProfileRepository_UpdateFields_Call) Run(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate)) *ProfileRepository_UpdateFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 repository.ProfileFieldsUpdate
+		if args[2] != nil {
+			arg2 = args[2].(repository.ProfileFieldsUpdate)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateFields_Call) Return(before *model.Profile, after *model.Profile, err error) *ProfileRepository_UpdateFields_Call {
+	_c.Call.Return(before, after, err)
+	return _c
+}
+
+func (_c *ProfileRepository_UpdateFields_Call) RunAndReturn(run func(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error)) *ProfileRepository_UpdateFields_Call {
 	_c.Call.Return(run)
 	return _c
 }

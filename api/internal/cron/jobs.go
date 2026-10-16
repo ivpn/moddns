@@ -270,3 +270,30 @@ func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionR
 	}
 	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }
+
+// ReconcileStatistics runs one statistics reconcile (api-endpoint-behaviour.md J8, J9).
+// Logs carry counts only.
+func ReconcileStatistics(statsReconciler StatisticsReconciler) {
+	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "reconcile-statistics").Logger().WithContext(ctx)
+
+	res, err := statsReconciler.ReconcileStatistics(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics reconcile failed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: statistics reconcile complete")
+}
+
+// PurgeUnconsentedQueryLogs runs one unconsented query-logs sweep (api-endpoint-behaviour.md J14).
+func PurgeUnconsentedQueryLogs(logsPurger UnconsentedQueryLogsPurger) {
+	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "purge-unconsented-query-logs").Logger().WithContext(ctx)
+
+	res, err := logsPurger.PurgeUnconsentedQueryLogs(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: unconsented query-logs purge failed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("failed", res.Failed).Msg("Cron: unconsented query-logs purge complete")
+}

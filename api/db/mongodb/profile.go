@@ -3,14 +3,17 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 // ProfileRepository is a MongoDB repository for profiles collection
@@ -54,6 +57,103 @@ func (r *ProfileRepository) GetProfileById(ctx context.Context, profileId string
 	return &profile, nil
 }
 
+func (r *ProfileRepository) GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error) {
+	if len(profileIds) == 0 {
+		return map[string]*model.StatisticsSettings{}, nil
+	}
+
+	// Primary read: a lagging secondary must not make a fresh profile look deleted.
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.D{primitive.E{Key: "profile_id", Value: bson.D{primitive.E{Key: "$in", Value: profileIds}}}}
+	projection := bson.D{
+		primitive.E{Key: "profile_id", Value: 1},
+		primitive.E{Key: "settings.statistics", Value: 1},
+	}
+	cursor, err := coll.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []struct {
+		ProfileId string `bson:"profile_id"`
+		Settings  *struct {
+			Statistics *model.StatisticsSettings `bson:"statistics"`
+		} `bson:"settings"`
+	}
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]*model.StatisticsSettings, len(docs))
+	for _, d := range docs {
+		var st *model.StatisticsSettings
+		if d.Settings != nil {
+			st = d.Settings.Statistics
+		}
+		out[d.ProfileId] = st
+	}
+	return out, nil
+}
+
+func (r *ProfileRepository) SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error) {
+	filter := bson.D{
+		primitive.E{Key: "profile_id", Value: profileId},
+		primitive.E{Key: statisticsEnabledField, Value: true},
+	}
+	update := bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: statisticsHistoryDeletedAtField, Value: at.UTC()}}}}
+	res, err := r.profilesCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return false, err
+	}
+	return res.MatchedCount > 0, nil
+}
+
+func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+	if len(profileIds) == 0 {
+		return map[string]bool{}, nil
+	}
+
+	// Primary read: a lagging secondary must not make a fresh profile look deleted.
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.D{primitive.E{Key: "profile_id", Value: bson.D{primitive.E{Key: "$in", Value: profileIds}}}}
+	projection := bson.D{
+		primitive.E{Key: "profile_id", Value: 1},
+		primitive.E{Key: "settings.logs.enabled", Value: 1},
+	}
+	cursor, err := coll.Find(ctx, filter, options.Find().SetProjection(projection))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []struct {
+		ProfileId string `bson:"profile_id"`
+		Settings  *struct {
+			Logs *struct {
+				Enabled bool `bson:"enabled"`
+			} `bson:"logs"`
+		} `bson:"settings"`
+	}
+	if err := cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]bool, len(docs))
+	for _, d := range docs {
+		out[d.ProfileId] = d.Settings != nil && d.Settings.Logs != nil && d.Settings.Logs.Enabled
+	}
+	return out, nil
+}
+
 func (r *ProfileRepository) GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error) {
 	filterBson := bson.D{primitive.E{Key: "account_id", Value: accountId}}
 	cursor, err := r.profilesCollection.Find(ctx, filterBson)
@@ -79,15 +179,88 @@ func (r *ProfileRepository) DeleteProfileById(ctx context.Context, profileId str
 	return nil
 }
 
-func (r *ProfileRepository) Update(ctx context.Context, profileId string, profile *model.Profile) error {
+// UpdateFields applies upd as one pipeline update, so enabled_at and the custom-rule
+// append are evaluated against the stored document they replace.
+func (r *ProfileRepository) UpdateFields(ctx context.Context, profileId string, upd repository.ProfileFieldsUpdate) (*model.Profile, *model.Profile, error) {
 	filterBson := bson.D{primitive.E{Key: "profile_id", Value: profileId}}
-	res, err := r.profilesCollection.ReplaceOne(ctx, filterBson, profile)
-	if err != nil {
-		return err
-	}
-	log.Ctx(ctx).Debug().Int64("count", res.MatchedCount).Msgf("Updated profile")
 
-	return nil
+	set := bson.D{}
+	for _, f := range upd.Set {
+		set = append(set, primitive.E{Key: f.Field, Value: bson.D{primitive.E{Key: "$literal", Value: f.Value}}})
+		if f.Field == statisticsEnabledField {
+			set = append(set,
+				primitive.E{Key: statisticsEnabledAtField, Value: enabledAtExpr(f.Value, upd.EnabledAtNow)},
+				primitive.E{Key: statisticsHistoryDeletedAtField, Value: historyDeletedAtExpr(f.Value)})
+		}
+	}
+	pipeline := mongo.Pipeline{}
+	if len(set) > 0 {
+		pipeline = append(pipeline, bson.D{primitive.E{Key: "$set", Value: set}})
+	}
+	// One stage per rule: fields within a single $set stage all read the input document.
+	for _, rule := range upd.AppendCustomRules {
+		pipeline = append(pipeline, appendCustomRuleIfAbsentStage(rule))
+	}
+	if len(pipeline) == 0 {
+		return nil, nil, fmt.Errorf("profile update has no fields")
+	}
+
+	var before model.Profile
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.Before)
+	if err := r.profilesCollection.FindOneAndUpdate(ctx, filterBson, pipeline, opts).Decode(&before); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil, errors.ErrProfileNotFound
+		}
+		return nil, nil, err
+	}
+
+	coll, err := r.profilesCollection.Clone(options.Collection().SetReadPreference(readpref.Primary()))
+	if err != nil {
+		return nil, nil, err
+	}
+	var after model.Profile
+	if err := coll.FindOne(ctx, filterBson).Decode(&after); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil, errors.ErrProfileNotFound
+		}
+		return nil, nil, err
+	}
+	log.Ctx(ctx).Debug().Int("fields", len(upd.Set)).Msg("Updated profile fields")
+	return &before, &after, nil
+}
+
+const (
+	statisticsEnabledField   = "settings.statistics.enabled"
+	statisticsEnabledAtField = "settings.statistics.enabled_at"
+	// statisticsHistoryDeletedAtField is removed whenever enabled changes value (J53).
+	statisticsHistoryDeletedAtField = "settings.statistics.history_deleted_at"
+)
+
+// enabledAtExpr: set on false->true, removed on true->false, otherwise kept (api-endpoint-behaviour.md G7).
+func enabledAtExpr(enabled any, now time.Time) bson.D {
+	wasEnabled := bson.D{primitive.E{Key: "$eq", Value: bson.A{"$" + statisticsEnabledField, true}}}
+	keep := "$" + statisticsEnabledAtField
+	on, off := bson.A{wasEnabled, keep, now}, bson.A{wasEnabled, "$$REMOVE", keep}
+	branch := off
+	if b, _ := enabled.(bool); b {
+		branch = on
+	}
+	return bson.D{primitive.E{Key: "$cond", Value: branch}}
+}
+
+// historyDeletedAtExpr keeps history_deleted_at only while enabled keeps its value.
+func historyDeletedAtExpr(enabled any) bson.D {
+	unchanged := bson.D{primitive.E{Key: "$eq", Value: bson.A{"$" + statisticsEnabledField, bson.D{primitive.E{Key: "$literal", Value: enabled}}}}}
+	return bson.D{primitive.E{Key: "$cond", Value: bson.A{unchanged, "$" + statisticsHistoryDeletedAtField, "$$REMOVE"}}}
+}
+
+func appendCustomRuleIfAbsentStage(rule *model.CustomRule) bson.D {
+	rules := bson.D{primitive.E{Key: "$ifNull", Value: bson.A{"$settings.custom_rules", bson.A{}}}}
+	values := bson.D{primitive.E{Key: "$ifNull", Value: bson.A{"$settings.custom_rules.value", bson.A{}}}}
+	present := bson.D{primitive.E{Key: "$in", Value: bson.A{bson.D{primitive.E{Key: "$literal", Value: rule.Value}}, values}}}
+	appended := bson.D{primitive.E{Key: "$concatArrays", Value: bson.A{rules, bson.A{bson.D{primitive.E{Key: "$literal", Value: rule}}}}}}
+	return bson.D{primitive.E{Key: "$set", Value: bson.D{primitive.E{Key: "settings.custom_rules",
+		Value: bson.D{primitive.E{Key: "$cond", Value: bson.A{present, rules, appended}}}}}}}
 }
 
 func (r *ProfileRepository) UpdateSettings(ctx context.Context, profileId string, settings *model.ProfileSettings) error {

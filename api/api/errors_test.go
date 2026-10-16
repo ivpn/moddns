@@ -35,6 +35,14 @@ func TestHandleError(t *testing.T) {
 			expectedError:  strconv.ErrSyntax.Error(),
 		},
 		{
+			// specRef: api-endpoint-behaviour.md G26
+			name:           "Invalid statistics retention",
+			err:            profile.ErrStatisticsRetentionInvalid,
+			errMsg:         "Failed to update profile",
+			expectedStatus: 400,
+			expectedError:  profile.ErrStatisticsRetentionInvalid.Error(),
+		},
+		{
 			name:           "Not Found Resources",
 			err:            dbErrors.ErrAccountNotFound,
 			errMsg:         "Resource not found",
