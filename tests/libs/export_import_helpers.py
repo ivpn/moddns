@@ -128,9 +128,9 @@ def build_envelope(
     return env
 
 
-# Mirrors backend model.ExportedCustomRulesLimit: a profile export includes only
-# the first this-many custom rules per profile; import accepts at most this many.
-EXPORTED_CUSTOM_RULES_LIMIT = 1000
+# Mirrors backend model.MaxCustomRulesPerAccount: the total custom rules across
+# all of an account's profiles that create and import accept.
+MAX_CUSTOM_RULES_PER_ACCOUNT = 10000
 
 
 def make_rules(

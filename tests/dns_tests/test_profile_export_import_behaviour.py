@@ -16,7 +16,7 @@ from libs.profile_helpers import (
     TEST_BLOCKLIST_ID,
 )
 from libs.export_import_helpers import (
-    EXPORTED_CUSTOM_RULES_LIMIT,
+    MAX_CUSTOM_RULES_PER_ACCOUNT,
     add_custom_rules_batch,
     build_envelope,
     build_profile,
@@ -453,39 +453,27 @@ class TestCustomRulesExportLimits(ProfileHelpers):
         self.config = get_settings()
         self.api_config = api_config.Configuration(host=self.config.DNS_API_ADDR)
 
-    def test_export_truncates_custom_rules_and_round_trips(self):
-        """A profile with > EXPORTED_CUSTOM_RULES_LIMIT custom rules exports only
-        the first that-many (oldest-first) and reports the trim via the
-        X-modDNS-Export-Truncated header; the truncated export re-imports cleanly.
-        specRef: E20, E21, V10.
+    def _profile_ids(self, cookie):
+        with client.ApiClient(self.api_config) as api_client:
+            account_api = api.AccountApi(api_client)
+            account_api.api_client.default_headers["Cookie"] = cookie
+            return list(account_api.api_v1_accounts_current_get().profiles)
+
+    def test_export_carries_all_custom_rules_and_round_trips(self):
+        """A profile with more than the old 1,000-rule export limit exports every
+        rule, sends no truncation header, and re-imports in full.
+        specRef: E20, V10.
         """
         _, cookie, password, _ = create_account_with_password()
+        rule_count = 1500
 
-        # Seed a profile at the cap via import (DTO max=1000), then push it over
-        # the cap with one batch add. This avoids ~50 rate-limited batch calls
-        # that creating 1000+ rules from scratch would need (20/min limit).
         seed = build_envelope(
-            profiles=[
-                build_profile(
-                    name="trunc_src",
-                    custom_rules=make_rules(EXPORTED_CUSTOM_RULES_LIMIT),
-                )
-            ]
+            profiles=[build_profile(name="full_src", custom_rules=make_rules(rule_count))]
         )
         seed_resp = do_import(cookie, password, seed)
         assert seed_resp.status_code == 200, seed_resp.text
         src_id = seed_resp.json()["createdProfileIds"][0]
 
-        # Add a few more so the profile is over the cap even if a seed rule was
-        # skipped for any reason.
-        over = add_custom_rules_batch(
-            cookie,
-            src_id,
-            [f"over-cap-{i}.example.org" for i in range(5)],
-        )
-        assert over.status_code == 200, over.text
-
-        # Export just that profile; it must be truncated + flagged.
         export_resp = raw_export(
             cookie,
             export_request_body(
@@ -493,37 +481,90 @@ class TestCustomRulesExportLimits(ProfileHelpers):
             ),
         )
         assert export_resp.status_code == 200, export_resp.text
-        assert export_resp.headers.get("X-modDNS-Export-Truncated") == "1", (
-            f"expected truncation header '1', got headers: {dict(export_resp.headers)}"
+        assert "X-modDNS-Export-Truncated" not in export_resp.headers, (
+            f"export must not send a truncation header, got: {dict(export_resp.headers)}"
         )
         envelope = export_resp.json()
         assert len(envelope["profiles"]) == 1
         exported_rules = envelope["profiles"][0]["settings"]["customRules"]
-        assert len(exported_rules) == EXPORTED_CUSTOM_RULES_LIMIT, (
-            f"export must cap at {EXPORTED_CUSTOM_RULES_LIMIT}, got {len(exported_rules)}"
+        assert len(exported_rules) == rule_count, (
+            f"export must carry all {rule_count} rules, got {len(exported_rules)}"
         )
 
-        # Round-trip: the truncated export is a valid import (<= cap).
         reimport = do_import(cookie, password, envelope)
         assert reimport.status_code == 200, reimport.text
         new_id = reimport.json()["createdProfileIds"][0]
         new_profile = _get_profile(self.api_config, cookie, new_id)
-        assert len(new_profile.settings.custom_rules or []) == EXPORTED_CUSTOM_RULES_LIMIT
+        assert len(new_profile.settings.custom_rules or []) == rule_count
 
-    def test_import_rejects_over_cap_custom_rules(self):
-        """Import payload with > EXPORTED_CUSTOM_RULES_LIMIT rules in a profile is
+    def test_import_rejects_profile_over_wire_bound(self):
+        """A single profile with more than MAX_CUSTOM_RULES_PER_ACCOUNT rules is
         rejected by the DTO. specRef: V10."""
         _, cookie, password, _ = create_account_with_password()
         env = build_envelope(
             profiles=[
                 build_profile(
                     name="over_cap",
-                    custom_rules=make_rules(EXPORTED_CUSTOM_RULES_LIMIT + 1),
+                    custom_rules=make_rules(MAX_CUSTOM_RULES_PER_ACCOUNT + 1),
                 )
             ]
         )
         resp = do_import(cookie, password, env)
         assert resp.status_code == 400, resp.text
+        assert "customRules must be at most 10000" in resp.text, resp.text
+
+    def test_import_rejected_when_account_total_exceeds_cap(self):
+        """Existing account rules plus every rule in the payload must stay within
+        the account cap; otherwise the whole import is rejected with no new
+        profiles. specRef: I25, S6."""
+        _, cookie, password, _ = create_account_with_password()
+        seed = build_envelope(
+            profiles=[build_profile(name="seed", custom_rules=make_rules(9000))]
+        )
+        seed_resp = do_import(cookie, password, seed)
+        assert seed_resp.status_code == 200, seed_resp.text
+        profiles_before = self._profile_ids(cookie)
+
+        over = build_envelope(
+            profiles=[
+                build_profile(name="over_a", custom_rules=make_rules(1000, prefix="a")),
+                build_profile(name="over_b", custom_rules=make_rules(1, prefix="b")),
+            ]
+        )
+        resp = do_import(cookie, password, over)
+        assert resp.status_code == 400, resp.text
+        assert "custom rules" in resp.json()["error"], resp.text
+        assert sorted(self._profile_ids(cookie)) == sorted(profiles_before), (
+            "rejected import must not create any profile"
+        )
+
+    def test_create_rejected_when_account_total_at_cap(self):
+        """Creating a rule on any profile is rejected once the account's total
+        across all profiles is at the cap; deleting a profile frees the quota.
+        specRef: I9, I25."""
+        _, cookie, password, _ = create_account_with_password()
+        seed = build_envelope(
+            profiles=[
+                build_profile(name="cap_a", custom_rules=make_rules(6000, prefix="a")),
+                build_profile(name="cap_b", custom_rules=make_rules(4000, prefix="b")),
+            ]
+        )
+        seed_resp = do_import(cookie, password, seed)
+        assert seed_resp.status_code == 200, seed_resp.text
+        id_a, id_b = seed_resp.json()["createdProfileIds"]
+
+        rejected = add_custom_rules_batch(cookie, id_b, ["over-cap.example.org"])
+        assert rejected.status_code == 400, rejected.text
+        assert "per account" in rejected.json()["error"], rejected.text
+
+        with client.ApiClient(self.api_config) as api_client:
+            p = api.ProfileApi(api_client)
+            p.api_client.default_headers["Cookie"] = cookie
+            p.api_v1_profiles_id_delete(id=id_a)
+
+        accepted = add_custom_rules_batch(cookie, id_b, ["over-cap.example.org"])
+        assert accepted.status_code == 200, accepted.text
+        assert len(accepted.json()["created"]) == 1, accepted.text
 
     def test_import_body_over_limit_returns_413(self):
         """An import body exceeding the import route's 5 MB limit is rejected with

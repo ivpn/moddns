@@ -3,6 +3,7 @@ package profile_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -2398,6 +2399,8 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 				Return(existingProfile, nil)
 
 			if !tt.wantSkipped {
+				mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, accountID).
+					Return([]model.Profile{*existingProfile}, nil)
 				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).
 					Return(nil)
 				mockCache.On("AddCustomRules", mock.Anything, profileID, mock.Anything).
@@ -2428,60 +2431,95 @@ func (suite *ProfileTestSuite) TestCreateCustomRulesBulkAutoPrepend() {
 	}
 }
 
-// TestCreateCustomRulesBulkEnforcesPerProfileCap verifies the per-profile
-// custom-rule cap (model.MaxCustomRulesPerProfile) is enforced on create:
-// adding rules that would push a profile over the cap is rejected with
-// ErrMaxCustomRulesReached and nothing is persisted.
-func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerProfileCap() {
+// tableRef: I9
+// TestCreateCustomRulesBulkEnforcesPerAccountCap verifies the account-wide
+// custom-rule cap (model.MaxCustomRulesPerAccount) is enforced on create: the
+// rules of every profile in the account count, so adding a rule that would push
+// the account total over the cap is rejected with ErrMaxCustomRulesReached and
+// nothing is persisted, even on a profile that holds few rules itself.
+func (suite *ProfileTestSuite) TestCreateCustomRulesBulkEnforcesPerAccountCap() {
 	const accountID = "acct-cap"
 	const profileID = "prof-cap"
+	const otherProfileID = "prof-cap-other"
+
+	fillerRules := func(n int, prefix string) []*model.CustomRule {
+		rules := make([]*model.CustomRule, n)
+		for i := range rules {
+			rules[i] = &model.CustomRule{Value: fmt.Sprintf("%s-%d.example.com", prefix, i)}
+		}
+		return rules
+	}
+
+	tests := []struct {
+		name       string
+		targetHas  int
+		otherHas   int
+		wantReject bool
+	}{
+		{name: "account total at cap rejects", targetHas: 6000, otherHas: model.MaxCustomRulesPerAccount - 6000, wantReject: true},
+		{name: "empty profile rejected when other profiles hold the quota", targetHas: 0, otherHas: model.MaxCustomRulesPerAccount, wantReject: true},
+		{name: "account total one below cap accepts", targetHas: 6000, otherHas: model.MaxCustomRulesPerAccount - 6001, wantReject: false},
+	}
 
 	apiVldtr, err := intvldtr.NewAPIValidator()
 	suite.Require().NoError(err)
 
-	mockProfileRepo := mocks.NewProfileRepository(suite.T())
-	mockCache := mocks.NewCachecache(suite.T())
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			mockProfileRepo := mocks.NewProfileRepository(suite.T())
+			mockCache := mocks.NewCachecache(suite.T())
 
-	svc := profile.NewProfileService(
-		suite.serverConfig,
-		suite.serviceConfig,
-		mockProfileRepo,
-		suite.mockAccountRepo,
-		suite.blocklistService,
-		suite.queryLogsService,
-		suite.statisticsService,
-		nil,
-		mockCache,
-		suite.mockIDGen,
-		apiVldtr.Validator,
-	)
+			svc := profile.NewProfileService(
+				suite.serverConfig,
+				suite.serviceConfig,
+				mockProfileRepo,
+				suite.mockAccountRepo,
+				suite.blocklistService,
+				suite.queryLogsService,
+				suite.statisticsService,
+				nil,
+				mockCache,
+				suite.mockIDGen,
+				apiVldtr.Validator,
+			)
 
-	// Profile already holding exactly the cap, so any net-new rule exceeds it.
-	existing := make([]*model.CustomRule, model.MaxCustomRulesPerProfile)
-	for i := range existing {
-		existing[i] = &model.CustomRule{Value: "filler.example.com"}
+			privacy := &model.Privacy{CustomRulesSubdomainsRule: "include", DefaultRule: "allow"}
+			target := model.Profile{
+				ProfileId: profileID,
+				AccountId: accountID,
+				Settings:  &model.ProfileSettings{Privacy: privacy, CustomRules: fillerRules(tt.targetHas, "target")},
+			}
+			other := model.Profile{
+				ProfileId: otherProfileID,
+				AccountId: accountID,
+				Settings:  &model.ProfileSettings{Privacy: privacy, CustomRules: fillerRules(tt.otherHas, "other")},
+			}
+			mockProfileRepo.On("GetProfileById", mock.Anything, profileID).Return(&target, nil)
+			mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, accountID).
+				Return([]model.Profile{target, other}, nil)
+			if !tt.wantReject {
+				mockProfileRepo.On("CreateCustomRules", mock.Anything, profileID, mock.Anything).Return(nil)
+				mockCache.On("AddCustomRules", mock.Anything, profileID, mock.Anything).Return(nil)
+			}
+
+			result, err := svc.CreateCustomRulesBulk(
+				context.Background(), accountID, profileID, "block", []string{"new-unique.example.com"},
+			)
+
+			if tt.wantReject {
+				suite.Require().Error(err)
+				suite.ErrorIs(err, profile.ErrMaxCustomRulesReached)
+				suite.Nil(result)
+				mockProfileRepo.AssertNotCalled(suite.T(), "CreateCustomRules", mock.Anything, mock.Anything, mock.Anything)
+				mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Len(result.Created, 1)
+			mockProfileRepo.AssertExpectations(suite.T())
+			mockCache.AssertExpectations(suite.T())
+		})
 	}
-	existingProfile := &model.Profile{
-		AccountId: accountID,
-		Settings: &model.ProfileSettings{
-			Privacy: &model.Privacy{
-				CustomRulesSubdomainsRule: "include",
-				DefaultRule:               "allow",
-			},
-			CustomRules: existing,
-		},
-	}
-	mockProfileRepo.On("GetProfileById", mock.Anything, profileID).Return(existingProfile, nil)
-
-	result, err := svc.CreateCustomRulesBulk(
-		context.Background(), accountID, profileID, "block", []string{"new-unique.example.com"},
-	)
-
-	suite.Require().Error(err)
-	suite.ErrorIs(err, profile.ErrMaxCustomRulesReached)
-	suite.Nil(result)
-	mockProfileRepo.AssertNotCalled(suite.T(), "CreateCustomRules", mock.Anything, mock.Anything, mock.Anything)
-	mockCache.AssertNotCalled(suite.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
 }
 
 // TestApplyCustomRuleGroupOps_Move (rename) reassigns the action's member rules and

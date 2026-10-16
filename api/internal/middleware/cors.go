@@ -12,8 +12,7 @@ func NewAPICORS(cfg config.APIConfig) fiber.Handler {
 		AllowOrigins:     cfg.ApiAllowOrigin,
 		AllowCredentials: true,
 		// Content-Disposition: mobileconfig short-link + export downloads.
-		// X-modDNS-Export-Truncated: lets the export UI warn when rules were trimmed.
-		ExposeHeaders: "Content-Disposition,X-modDNS-Export-Truncated",
+		ExposeHeaders: "Content-Disposition",
 	})
 }
 

@@ -1027,10 +1027,6 @@ const docTemplate = `{
                             "Pragma": {
                                 "type": "string",
                                 "description": "no-cache"
-                            },
-                            "X-modDNS-Export-Truncated": {
-                                "type": "integer",
-                                "description": "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
                             }
                         }
                     },
@@ -3625,9 +3621,9 @@ const docTemplate = `{
                     ]
                 },
                 "customRules": {
-                    "description": "CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.",
+                    "description": "CustomRules holds the profile's custom filtering rules, bounded by the account-wide cap.",
                     "type": "array",
-                    "maxItems": 1000,
+                    "maxItems": 10000,
                     "items": {
                         "$ref": "#/definitions/model.ExportedCustomRule"
                     }

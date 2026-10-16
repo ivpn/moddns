@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'September 25, 2026';
+const FAQ_LAST_UPDATED = 'October 2, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -779,6 +779,10 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="What types of entries do Custom Rules support?"
                     answer={customRulesSupportedInputs}
+                />
+                <FAQItem
+                    question="Is there a limit on how many custom rules I can add?"
+                    answer="Yes. An account can hold up to 10,000 custom rules in total, counted across all of its profiles; denylist and allowlist entries both count, and there is no separate limit per profile. When your account gets close, the Custom Rules page shows how many rules are in use. New rules, and profile imports that would go over the limit, are refused until you remove some rules from any profile. A profile export always includes every rule."
                 />
                 <FAQItem
                     question="Which rules take precedence (allowlist, denylist, services, blocklists)?"

@@ -58,8 +58,8 @@ type ExportedProfile struct {
 type ExportedSettings struct {
 	Privacy  *ExportedPrivacy  `json:"privacy,omitempty"`
 	Security *ExportedSecurity `json:"security,omitempty"`
-	// CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.
-	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=1000,dive"`
+	// CustomRules holds the profile's custom filtering rules, bounded by the account-wide cap.
+	CustomRules []ExportedCustomRule `json:"customRules,omitempty" validate:"max=10000,dive"`
 	// CustomRuleGroups is the per-list group registry; reuses the storage type
 	// (its json tags define the wire shape). Pointer so an empty registry is
 	// omitted. Round-trips with the rules' `group` field.
