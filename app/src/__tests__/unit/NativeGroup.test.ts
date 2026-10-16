@@ -3,11 +3,13 @@ import {
     isNativeItem,
     nativeCardMatches,
     nativeCardVisible,
+    nativeLogo,
     nativeSummary,
     nativeVendorMatches,
     orderedNativeItems,
 } from "@/pages/blocklists/nativeGroup";
 import type { ModelBlocklist } from "@/api/client/api";
+import { getServiceLogoSrc } from "@/assets/services";
 
 function bl(
     id: string,
@@ -89,6 +91,35 @@ describe("nativeCardVisible", () => {
 
     it("is hidden when there are no native lists", () => {
         expect(nativeCardVisible({ ...base, items: [], filterValue: "all" })).toBe(false);
+    });
+});
+
+// Mirrors blocklists/sources/3rd_party/hagezi_native.json.
+const SOURCE_IDS = [
+    "hagezi_native_amazon",
+    "hagezi_native_apple",
+    "hagezi_native_huawei",
+    "hagezi_native_winoffice",
+    "hagezi_native_samsung",
+    "hagezi_native_tiktok",
+    "hagezi_native_tiktok_extended",
+    "hagezi_native_lgwebos",
+    "hagezi_native_roku",
+    "hagezi_native_vivo",
+    "hagezi_native_oppo_realme",
+    "hagezi_native_xiaomi",
+];
+
+describe("nativeLogo", () => {
+    it.each(SOURCE_IDS)("%s resolves to a logo in both themes", (id) => {
+        const logo = nativeLogo(bl(id, id));
+        expect(logo).toBeDefined();
+        expect(getServiceLogoSrc({ serviceId: logo!.key, isDark: true })).toBeTruthy();
+        expect(getServiceLogoSrc({ serviceId: logo!.key, isDark: false })).toBeTruthy();
+    });
+
+    it("has no logo for unknown lists", () => {
+        expect(nativeLogo(multi)).toBeUndefined();
     });
 });
 

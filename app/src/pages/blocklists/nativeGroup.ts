@@ -12,9 +12,30 @@ import type { ModelBlocklist } from "@/api/client/api";
 
 export const NATIVE_TAG = "native";
 
-export const NATIVE_LABEL = "Native Trackers";
+export const NATIVE_LABEL = "Hagezi Native Trackers";
 export const NATIVE_DESCRIPTION =
-    "Block telemetry built into devices, apps and operating systems, per vendor, without blocking the vendor's services";
+    "Block built-in device and OS telemetry per vendor, without breaking the vendor's services";
+
+// Logo asset key (assets/services) per vendor list. Wordmark-only brands render wider
+// than the square Services-tab logo so the mark stays legible.
+const NATIVE_LOGOS: Record<string, { key: string; wide: boolean }> = {
+    hagezi_native_amazon: { key: "amazon", wide: false },
+    hagezi_native_apple: { key: "apple", wide: false },
+    hagezi_native_huawei: { key: "huawei", wide: false },
+    hagezi_native_winoffice: { key: "microsoft", wide: false },
+    hagezi_native_samsung: { key: "samsung", wide: true },
+    hagezi_native_tiktok: { key: "tiktok", wide: false },
+    hagezi_native_tiktok_extended: { key: "tiktok", wide: false },
+    hagezi_native_lgwebos: { key: "lg", wide: true },
+    hagezi_native_roku: { key: "roku", wide: true },
+    hagezi_native_vivo: { key: "vivo", wide: true },
+    hagezi_native_oppo_realme: { key: "oppo", wide: true },
+    hagezi_native_xiaomi: { key: "xiaomi", wide: false },
+};
+
+export function nativeLogo(bl: ModelBlocklist): { key: string; wide: boolean } | undefined {
+    return NATIVE_LOGOS[bl.blocklist_id];
+}
 
 /** True when a blocklist belongs to the native tracker group. */
 export function isNativeItem(bl: ModelBlocklist): boolean {

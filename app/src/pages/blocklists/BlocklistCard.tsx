@@ -14,6 +14,9 @@ interface BlocklistCardProps {
     switchChecked?: boolean;
     switchDisabled?: boolean;
     homepage?: string;
+    logoSrc?: string;
+    /** Wordmark logos render at a fixed height with variable width instead of a square. */
+    logoWide?: boolean;
 }
 
 const BlocklistCard: React.FC<BlocklistCardProps> = ({
@@ -25,14 +28,27 @@ const BlocklistCard: React.FC<BlocklistCardProps> = ({
     switchChecked,
     switchDisabled,
     homepage,
+    logoSrc,
+    logoWide = false,
 }) => {
     return (
         <Card data-testid="blocklist-card" className="bg-transparent dark:bg-[var(--variable-collection-surface)] p-3 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-[var(--tailwind-primitives-border-radius-rounded)] shadow-sm flex flex-col justify-between h-[196px] lg:h-[180px] w-full overflow-hidden">
             <CardContent className="p-0 flex flex-col justify-between h-full">
                 <div className="flex flex-col gap-1">
                     <div className="flex items-start justify-between gap-2">
-                        <div className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight max-w-[70%] md:max-w-[75%] lg:max-w-[80%] truncate break-words" title={title}>
-                            {title}
+                        <div className="flex items-start gap-2 min-w-0 max-w-[70%] md:max-w-[75%] lg:max-w-[80%]">
+                            {logoSrc ? (
+                                <img
+                                    data-testid="blocklist-logo"
+                                    src={logoSrc}
+                                    alt={`${title} logo`}
+                                    loading="lazy"
+                                    className={`${logoWide ? "h-4 w-auto max-w-[56px]" : "h-5 w-5"} mt-0.5 shrink-0 object-contain`}
+                                />
+                            ) : null}
+                            <div className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate break-words" title={title}>
+                                {title}
+                            </div>
                         </div>
                         <Switch
                             checked={switchChecked}

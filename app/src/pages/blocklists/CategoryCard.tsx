@@ -55,14 +55,14 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2 min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight truncate" title={label}>
+                                <span className="text-tailwind-colors-slate-50 font-semibold text-base leading-tight line-clamp-2 break-words" title={label}>
                                     {label}
+                                    {state !== "none" && (
+                                        <span className="ml-1.5 inline-flex items-center align-middle px-1.5 py-0.5 rounded text-[10px] font-medium leading-none bg-[var(--tailwind-colors-rdns-600)]/15 text-[var(--tailwind-colors-rdns-600)] border border-[var(--tailwind-colors-rdns-600)]/25">
+                                            {enabledLists}/{totalLists}
+                                        </span>
+                                    )}
                                 </span>
-                                {state !== "none" && (
-                                    <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium leading-none bg-[var(--tailwind-colors-rdns-600)]/15 text-[var(--tailwind-colors-rdns-600)] border border-[var(--tailwind-colors-rdns-600)]/25">
-                                        {enabledLists}/{totalLists}
-                                    </span>
-                                )}
                             </div>
                         </div>
                         <Switch

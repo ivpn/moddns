@@ -101,7 +101,7 @@ test.describe('@functional blocklists native trackers group', () => {
     await setup(page);
 
     await expect(nativeCard(page)).toBeVisible();
-    await expect(nativeCard(page)).toContainText('Native Trackers');
+    await expect(nativeCard(page)).toContainText('Hagezi Native Trackers');
     await expect(nativeCard(page)).toContainText('3 lists');
     // Only the four regular mock lists render as top-level cards.
     await expect(page.getByTestId('blocklist-card')).toHaveCount(4);
@@ -135,6 +135,11 @@ test.describe('@functional blocklists native trackers group', () => {
     await nativeCard(page).getByRole('button', { name: /3 lists/ }).click();
     await expect(panelCards(page)).toHaveCount(3);
     await expect(nativeCard(page)).not.toContainText('/3');
+    for (const vendor of ['Apple', 'Microsoft', 'Samsung']) {
+      await expect(
+        panelCards(page).filter({ hasText: vendor }).getByRole('img', { name: `${vendor} logo` })
+      ).toBeVisible();
+    }
 
     await panelCards(page).filter({ hasText: 'Microsoft' }).getByRole('switch').click();
     await expect(nativeCard(page)).toContainText('1/3');
@@ -145,12 +150,12 @@ test.describe('@functional blocklists native trackers group', () => {
     const log = await setup(page);
 
     await nativeCard(page).getByRole('switch').click();
-    await expect(page.getByText('Native Trackers enabled').first()).toBeVisible();
+    await expect(page.getByText('Hagezi Native Trackers enabled').first()).toBeVisible();
     await expect(nativeCard(page)).toContainText('3/3');
     expect(log.posts.map((ids) => [...ids].sort())).toEqual([[...NATIVE_IDS].sort()]);
 
     await nativeCard(page).getByRole('switch').click();
-    await expect(page.getByText('Native Trackers disabled').first()).toBeVisible();
+    await expect(page.getByText('Hagezi Native Trackers disabled').first()).toBeVisible();
     await expect(nativeCard(page)).not.toContainText('/3');
     expect(log.deletes.map((ids) => [...ids].sort())).toEqual([[...NATIVE_IDS].sort()]);
   });

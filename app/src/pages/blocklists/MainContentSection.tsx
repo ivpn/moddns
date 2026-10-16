@@ -48,11 +48,14 @@ import {
     isNativeItem,
     nativeCardMatches,
     nativeCardVisible,
+    nativeLogo,
     nativeSummary,
     nativeVendorMatches,
     orderedNativeItems,
 } from "@/pages/blocklists/nativeGroup";
 import { Radar } from "lucide-react";
+import { getServiceLogoSrc } from "@/assets/services";
+import { useTheme } from "@/components/theme-provider";
 
 const INDIVIDUAL_LISTS = [
     { label: "Hagezi", tag: "hagezi" },
@@ -148,6 +151,7 @@ export default function MainContentSection(): JSX.Element {
     const [filterValue, setFilterValue] = useState("all");
     const [sortValue, setSortValue] = useState<ApiV1BlocklistsGetSortByEnum>(ApiV1BlocklistsGetSortByEnum.Updated);
     const [nativeExpanded, setNativeExpanded] = useState(false);
+    const { theme } = useTheme();
 
     // Get activeProfile from the store
     const activeProfile = useAppStore((state) => state.activeProfile);
@@ -212,7 +216,7 @@ export default function MainContentSection(): JSX.Element {
             setActiveProfile(updatedProfile.data);
             if (groupLabel) {
                 toast.success(`${groupLabel} ${enable ? "enabled" : "disabled"}`, {
-                    description: `All ${groupLabel.toLowerCase()} blocklists have been ${enable ? "enabled" : "disabled"}.`,
+                    description: `All lists in ${groupLabel} have been ${enable ? "enabled" : "disabled"}.`,
                 });
             } else {
                 toast.success(enable ? "Category enabled" : "Category disabled", {
@@ -723,19 +727,24 @@ export default function MainContentSection(): JSX.Element {
                                                     {nativeExpanded && (
                                                         <div className="col-[1/-1]">
                                                             <ExpandPanel expanded categoryLabel={NATIVE_LABEL} categoryIcon={Radar}>
-                                                                {nativePanelItems.map((bl) => (
-                                                                    <BlocklistCard
-                                                                        key={bl.blocklist_id}
-                                                                        title={bl.name}
-                                                                        description={bl.description}
-                                                                        entries={bl.entries}
-                                                                        updated={formatUpdatedRelative(bl.last_modified)}
-                                                                        onSwitchChange={(checked) => handleBlocklistSwitch(bl.blocklist_id, checked)}
-                                                                        switchChecked={enabledBlocklists.includes(bl.blocklist_id)}
-                                                                        switchDisabled={updating === bl.blocklist_id || isRestricted}
-                                                                        homepage={bl.homepage}
-                                                                    />
-                                                                ))}
+                                                                {nativePanelItems.map((bl) => {
+                                                                    const logo = nativeLogo(bl);
+                                                                    return (
+                                                                        <BlocklistCard
+                                                                            key={bl.blocklist_id}
+                                                                            title={bl.name}
+                                                                            description={bl.description}
+                                                                            entries={bl.entries}
+                                                                            updated={formatUpdatedRelative(bl.last_modified)}
+                                                                            onSwitchChange={(checked) => handleBlocklistSwitch(bl.blocklist_id, checked)}
+                                                                            switchChecked={enabledBlocklists.includes(bl.blocklist_id)}
+                                                                            switchDisabled={updating === bl.blocklist_id || isRestricted}
+                                                                            homepage={bl.homepage}
+                                                                            logoSrc={logo && getServiceLogoSrc({ serviceId: logo.key, isDark: theme === "dark" })}
+                                                                            logoWide={logo?.wide}
+                                                                        />
+                                                                    );
+                                                                })}
                                                             </ExpandPanel>
                                                         </div>
                                                     )}
