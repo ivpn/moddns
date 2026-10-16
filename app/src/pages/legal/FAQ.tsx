@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 2, 2026';
+const FAQ_LAST_UPDATED = 'October 16, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -529,7 +529,7 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <p>Yes, both. Put the local resolver in front of modDNS and let it forward every query it does not answer itself.</p>
             <ul className="list-disc pl-5 space-y-1">
-                <li><strong>AdGuard Home</strong> speaks DoH, DoT and DoQ natively. Add <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://dns.moddns.net/dns-query/&lt;profile id&gt;</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">tls://&lt;profile id&gt;.dns.moddns.net</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">quic://&lt;profile id&gt;.dns.moddns.net:853</code> as an upstream, or paste one of your DNS Stamps. Click <strong>Test upstreams</strong> to confirm.</li>
+                <li><strong>AdGuard Home</strong> speaks DoH, DoT and DoQ natively. Add <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://{dnsDomain}/dns-query/&lt;profile id&gt;</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">tls://&lt;profile id&gt;.{dnsDomain}</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">quic://&lt;profile id&gt;.{dnsDomain}:853</code> as an upstream, or paste one of your DNS Stamps. Click <strong>Test upstreams</strong> to confirm.</li>
                 <li><strong>Pi-hole</strong> forwards plain DNS only, so it needs <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> next to it. Configure dnscrypt-proxy with your DoH stamp (the ready-made <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> snippet is on the DNS Stamps tab under <strong>Setup</strong>) and set Pi-hole's upstream to the address dnscrypt-proxy listens on, for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1#5053</code> when <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">listen_addresses</code> in <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> is <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1:5053</code>; the two must match. Pi-hole's guide covers the installation: <a href="https://docs.pi-hole.net/guides/dns/dnscrypt-proxy/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">docs.pi-hole.net/guides/dns/dnscrypt-proxy</code></a>.</li>
             </ul>
             <p>Your profile id is shown on the <strong>Setup</strong> page. To see the resolver as a named device in your query logs, generate the stamp with a device label (see <em>"Can I generate a per-device DNS Stamp?"</em>).</p>
@@ -665,10 +665,10 @@ export default function FAQ(): JSX.Element {
                             For DoH connections, add your device identifier to the URL path:
                             <br /><br />
                             <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">
-                                https://dns.staging.ivpndns.net/dns-query/PROFILE_ID/DEVICE_ID
+                                https://{dnsDomain}/dns-query/PROFILE_ID/DEVICE_ID
                             </code>
                             <br /><br />
-                            Example: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://dns.staging.ivpndns.net/dns-query/8kqr1tbfco/laptop</code>
+                            Example: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://{dnsDomain}/dns-query/8kqr1tbfco/laptop</code>
                             <br /><br />
                             Replace PROFILE_ID with your actual profile ID and DEVICE_ID with a name for your device (e.g., "laptop", "phone", "router").
                         </div>
@@ -681,14 +681,14 @@ export default function FAQ(): JSX.Element {
                             For DoT and DoQ connections, add your device identifier as a subdomain:
                             <br /><br />
                             <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">
-                                DEVICE_ID--PROFILE_ID.dns.staging.ivpndns.net
+                                DEVICE_ID--PROFILE_ID.{dnsDomain}
                             </code>
                             <br /><br />
                             Examples:
                             <br />
-                            • DoT (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">laptop--8kqr1tbfco.dns.staging.ivpndns.net</code>
+                            • DoT (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">laptop--8kqr1tbfco.{dnsDomain}</code>
                             <br />
-                            • DoQ (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone--8kqr1tbfco.dns.staging.ivpndns.net</code>
+                            • DoQ (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone--8kqr1tbfco.{dnsDomain}</code>
                             <br /><br />
                             Replace PROFILE_ID with your actual profile ID and DEVICE_ID with a name for your device.
                         </div>
