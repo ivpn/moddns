@@ -518,7 +518,7 @@ func (s *Server) dnsCheckHandler(dctx *proxy.DNSContext, profileId string, logge
 		}
 
 		if r.Rcode != dns.RcodeSuccess {
-			logger.Error().Err(err).Msg("invalid answer name  after MX query for ")
+			logger.Error().Int("rcode", r.Rcode).Msg("DNS check upstream returned non-success rcode")
 		}
 		// Build a well-formed response. We intentionally DO NOT preserve any EDNS(OPT)
 		// records from the upstream response to avoid leaking upstream/local EDNS0 options
