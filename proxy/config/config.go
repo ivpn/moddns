@@ -239,7 +239,7 @@ func LoadUpstreamConfig(upstreamsEnv, defaultRecursorEnv string) (*UpstreamConfi
 	}
 
 	defaultRecursor := os.Getenv(defaultRecursorEnv)
-	if upstreamStr == "" {
+	if defaultRecursorEnv == "" {
 		return nil, fmt.Errorf("%s not found in environment", defaultRecursorEnv)
 	}
 
