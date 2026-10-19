@@ -11,62 +11,63 @@ import (
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/api/service/passkey"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// expectPasskeyDeleteReauth makes the store hold a valid passkey_delete reauth token for accountID.
-func expectPasskeyDeleteReauth(store *mocks.Db, accountID primitive.ObjectID) {
-	acc := &model.Account{ID: accountID, Tokens: []model.Token{{Type: auth.TokenTypeReauthPasskeyDelete, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}}}
-	store.On("GetAccountById", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
-	store.On("UpdateAccount", mock.Anything, acc).Return(acc, nil).Once()
-}
-
-func TestDeletePasskeyByIDLeavesAuthMethodWhenCredentialsRemain(t *testing.T) {
+// specRef: F8, F8a
+func TestDeletePasskeyByIDKeepsASignInMethod(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	accountID := primitive.NewObjectID()
-	credentialID := primitive.NewObjectID()
+	password := "hash"
+	tests := []struct {
+		name        string
+		password    *string
+		credentials int
+		expectedErr error
+	}{
+		{name: "another passkey remains", credentials: 2},
+		{name: "last passkey, password set", password: &password, credentials: 1},
+		{name: "last passkey, no password", credentials: 1, expectedErr: passkey.ErrLastSignInMethod},
+	}
 
-	store := mocks.NewDb(t)
-	svc := &Service{Store: store}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			accountID := primitive.NewObjectID()
+			credentialID := primitive.NewObjectID()
+			acc := &model.Account{ID: accountID, Password: tt.password, Tokens: []model.Token{
+				{Type: auth.TokenTypeReauthPasskeyDelete, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)},
+			}}
 
-	store.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{AccountID: accountID}, nil).Once()
-	expectPasskeyDeleteReauth(store, accountID)
-	store.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
+			store := mocks.NewDb(t)
+			svc := &Service{Store: store}
+			store.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{AccountID: accountID}, nil).Once()
+			store.On("GetCredentialsCount", mock.Anything, accountID).Return(tt.credentials, nil).Once()
+			store.On("GetAccountById", mock.Anything, accountID.Hex()).Return(acc, nil)
+			if tt.expectedErr == nil {
+				store.On("UpdateAccount", mock.Anything, acc).Return(acc, nil).Once()
+				store.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
+			}
 
-	reauthToken := "reauth-token"
-	err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
-	require.NoError(t, err)
+			reauthToken := "reauth-token"
+			err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
 
-	store.AssertExpectations(t)
-	store.AssertNotCalled(t, "GetCredentials", mock.Anything, mock.Anything)
-	store.AssertNotCalled(t, "GetAccount", mock.Anything, mock.Anything)
-}
-
-func TestDeletePasskeyByIDSkipsAccountUpdateWhenLastCredential(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-	accountID := primitive.NewObjectID()
-	credentialID := primitive.NewObjectID()
-
-	store := mocks.NewDb(t)
-	svc := &Service{Store: store}
-
-	store.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{AccountID: accountID}, nil).Once()
-	expectPasskeyDeleteReauth(store, accountID)
-	store.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
-
-	reauthToken := "reauth-token"
-	err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
-	require.NoError(t, err)
-
-	store.AssertExpectations(t)
-	store.AssertNotCalled(t, "GetCredentials", mock.Anything, mock.Anything)
-	store.AssertNotCalled(t, "GetAccount", mock.Anything, mock.Anything)
+			if tt.expectedErr != nil {
+				require.ErrorIs(t, err, tt.expectedErr)
+				store.AssertNotCalled(t, "UpdateAccount", mock.Anything, mock.Anything)
+				store.AssertNotCalled(t, "DeleteCredentialByID", mock.Anything, mock.Anything, mock.Anything)
+				require.Len(t, acc.Tokens, 1, "a refused deletion must not consume the reauth token")
+				return
+			}
+			require.NoError(t, err)
+			require.Empty(t, acc.Tokens)
+			store.AssertExpectations(t)
+		})
+	}
 }
 
 func newTestWebAuthn(t *testing.T) *webauthn.WebAuthn {

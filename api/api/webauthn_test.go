@@ -24,6 +24,7 @@ import (
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
+	"github.com/ivpn/dns/api/service/passkey"
 )
 
 type WebAuthnAPITestSuite struct {
@@ -415,4 +416,35 @@ func (suite *WebAuthnAPITestSuite) TestDeletePasskeyRequiresVerification() {
 			suite.mockDB.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// specRef: F8a
+func (suite *WebAuthnAPITestSuite) TestDeleteLastPasskeyWithoutPasswordIsRefused() {
+	server := suite.createServer()
+	accountID := primitive.NewObjectID()
+	credentialID := primitive.NewObjectID()
+	acc := &model.Account{ID: accountID, Tokens: []model.Token{{Type: auth.TokenTypeReauthPasskeyDelete, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}}}
+
+	suite.mockDB.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{ID: credentialID, AccountID: accountID}, nil).Once()
+	suite.mockDB.On("GetCredentialsCount", mock.Anything, accountID).Return(1, nil).Once()
+	suite.mockDB.On("GetAccountById", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
+
+	handler := server.deletePasskey()
+	app := fiber.New()
+	app.Delete("/:id", func(c *fiber.Ctx) error {
+		c.Locals(auth.ACCOUNT_ID, accountID.Hex())
+		return handler(c)
+	})
+	req := httptest.NewRequest("DELETE", "/"+credentialID.Hex(), bytes.NewReader([]byte(`{"reauth_token":"reauth-token"}`)))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	suite.Require().NoError(err)
+	suite.Equal(400, resp.StatusCode)
+	payload := make(map[string]any)
+	suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
+	suite.Equal(passkey.ErrLastSignInMethod.Error(), payload["error"])
+	suite.Len(acc.Tokens, 1)
+	suite.mockDB.AssertNotCalled(suite.T(), "DeleteCredentialByID", mock.Anything, mock.Anything, mock.Anything)
+	suite.mockDB.AssertExpectations(suite.T())
 }

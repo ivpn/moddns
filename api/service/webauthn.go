@@ -419,6 +419,10 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 		return fmt.Errorf("credential does not belong to account")
 	}
 
+	if err := s.ensureAnotherSignInMethod(ctx, accountID); err != nil {
+		return err
+	}
+
 	if _, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
 		AccountId:        accountID.Hex(),
 		TokenType:        auth.TokenTypeReauthPasskeyDelete,
@@ -436,6 +440,26 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 		return fmt.Errorf("failed to delete credential: %w", err)
 	}
 
+	return nil
+}
+
+// ensureAnotherSignInMethod refuses removing a passkey that is the account's only way to
+// sign in: the last credential on an account without a password.
+func (s *Service) ensureAnotherSignInMethod(ctx context.Context, accountID primitive.ObjectID) error {
+	count, err := s.Store.GetCredentialsCount(ctx, accountID)
+	if err != nil {
+		return fmt.Errorf("failed to count credentials: %w", err)
+	}
+	if count > 1 {
+		return nil
+	}
+	acc, err := s.Store.GetAccountById(ctx, accountID.Hex())
+	if err != nil {
+		return fmt.Errorf("failed to get account: %w", err)
+	}
+	if acc.Password == nil {
+		return passkey.ErrLastSignInMethod
+	}
 	return nil
 }
 

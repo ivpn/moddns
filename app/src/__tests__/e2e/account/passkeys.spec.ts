@@ -108,4 +108,12 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     expect(captured.reauthPurpose).toBe('passkey_delete');
     expect(captured.deleted?.body).toEqual({ reauth_token: 'reauth-token' });
   });
+
+  // specRef: F8a
+  test('the only passkey of an account without a password cannot be deleted', async ({ page }) => {
+    await setup(page, { ...baseAccount, auth_methods: ['passkey'] });
+
+    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
+    await expect(page.getByText('Set a password or add another passkey before deleting this one.')).toBeVisible();
+  });
 });

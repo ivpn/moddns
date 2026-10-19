@@ -15,6 +15,10 @@ import type { ModelCredential } from "@/api/client/api";
 export default function PasskeySettings() {
     const passkeys = useAppStore(state => state.passkeys);
     const setPasskeys = useAppStore(state => state.setPasskeys);
+    const account = useAppStore(state => state.account);
+    // Matches the API rule: the last passkey of an account without a password is its only sign-in method.
+    const hasPassword = !Array.isArray(account?.auth_methods) || account.auth_methods.length === 0 || account.auth_methods.includes("password");
+    const isOnlySignInMethod = !hasPassword && Array.isArray(passkeys) && passkeys.length <= 1;
     const [loading, setLoading] = useState(false);
     const [registering, setRegistering] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -213,7 +217,7 @@ export default function PasskeySettings() {
 
                                             <Button
                                                 onClick={() => passkey.id && handleDeletePasskey(passkey.id, passkey.id)}
-                                                disabled={deletingId === passkey.id || !passkey.id}
+                                                disabled={deletingId === passkey.id || !passkey.id || isOnlySignInMethod}
                                                 className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
                                             >
                                                 <Trash2 className="h-4 w-4 text-white" />
@@ -221,6 +225,11 @@ export default function PasskeySettings() {
                                             </Button>
                                         </div>
                                     ))}
+                                    {isOnlySignInMethod && (
+                                        <p className="text-xs text-[var(--tailwind-colors-slate-400)]">
+                                            Set a password or add another passkey before deleting this one.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
