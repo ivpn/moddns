@@ -36,3 +36,26 @@ export async function installWebAuthnErrorStub(page: import('@playwright/test').
     navigator.credentials.get = async () => { throw new Error(msg); };
   }, message);
 }
+
+/** Install a success stub for navigator.credentials.create returning a minimal attestation response */
+export async function installWebAuthnCreateStub(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    const enc = new TextEncoder();
+    function buf(str: string) { return enc.encode(str).buffer; }
+    // @ts-expect-error - mocking WebAuthn API
+    navigator.credentials = navigator.credentials || {};
+    // Shape follows what @simplewebauthn/browser's startRegistration() reads.
+    navigator.credentials.create = async () => ({
+      id: 'cred2',
+      rawId: buf('rawId2'),
+      response: {
+        clientDataJSON: buf('clientData'),
+        attestationObject: buf('attestation'),
+        getTransports: () => ['internal'],
+      },
+      type: 'public-key',
+      authenticatorAttachment: 'platform',
+      getClientExtensionResults: () => ({}),
+    });
+  });
+}

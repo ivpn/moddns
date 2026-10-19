@@ -1350,6 +1350,15 @@ definitions:
       value:
         type: string
     type: object
+  requests.WebAuthnAddPasskeyBeginRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      reauth_token:
+        minLength: 1
+        type: string
+    type: object
   requests.WebAuthnReauthBeginRequest:
     properties:
       purpose:
@@ -1359,6 +1368,7 @@ definitions:
         - profile_export
         - profile_import
         - password_set
+        - passkey_add
         type: string
     required:
     - purpose
@@ -3274,7 +3284,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: Add a new passkey to authenticated account
+      description: Add a new passkey to authenticated account. The account owner is
+        verified first with the current password (plus x-mfa-code when TOTP is enabled)
+        or a passkey reauth token issued for the passkey_add purpose.
+      parameters:
+      - description: Verification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.WebAuthnAddPasskeyBeginRequest'
+      - description: MFA OTP code
+        in: header
+        name: x-mfa-code
+        type: string
+      - collectionFormat: csv
+        description: MFA methods
+        in: header
+        items:
+          type: string
+        name: x-mfa-methods
+        type: array
       produces:
       - application/json
       responses:

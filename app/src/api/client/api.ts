@@ -2484,6 +2484,25 @@ export type RequestsUpdateProfileCustomRuleBodyActionEnum = typeof RequestsUpdat
 /**
  * 
  * @export
+ * @interface RequestsWebAuthnAddPasskeyBeginRequest
+ */
+export interface RequestsWebAuthnAddPasskeyBeginRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsWebAuthnAddPasskeyBeginRequest
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsWebAuthnAddPasskeyBeginRequest
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsWebAuthnReauthBeginRequest
  */
 export interface RequestsWebAuthnReauthBeginRequest {
@@ -2500,7 +2519,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     AccountDeletion: 'account_deletion',
     ProfileExport: 'profile_export',
     ProfileImport: 'profile_import',
-    PasswordSet: 'password_set'
+    PasswordSet: 'password_set',
+    PasskeyAdd: 'passkey_add'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3923,12 +3943,17 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
             };
         },
         /**
-         * Add a new passkey to authenticated account
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
+         * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddBeginPost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnPasskeyAddBeginPost: async (body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1WebauthnPasskeyAddBeginPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/passkey/add/begin`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3943,9 +3968,19 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            if (xMfaCode != null) {
+                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
+            }
+            if (xMfaMethods) {
+                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
+                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
+            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4243,13 +4278,16 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Add a new passkey to authenticated account
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
+         * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyAddBeginPost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddBeginPost(options);
+        async apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyAddBeginPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4394,13 +4432,16 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
             return localVarFp.apiV1WebauthnLoginFinishPost(xSessionsRemove, options).then((request) => request(axios, basePath));
         },
         /**
-         * Add a new passkey to authenticated account
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
+         * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddBeginPost(options?: RawAxiosRequestConfig): AxiosPromise<object> {
-            return localVarFp.apiV1WebauthnPasskeyAddBeginPost(options).then((request) => request(axios, basePath));
+        apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<object> {
+            return localVarFp.apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
         },
         /**
          * Complete adding a new passkey to authenticated account
@@ -4529,14 +4570,17 @@ export class AuthenticationApi extends BaseAPI {
     }
 
     /**
-     * Add a new passkey to authenticated account
+     * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
      * @summary Add new passkey
+     * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
+     * @param {string} [xMfaCode] MFA OTP code
+     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnPasskeyAddBeginPost(options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddBeginPost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

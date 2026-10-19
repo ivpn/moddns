@@ -12,6 +12,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
@@ -185,6 +186,7 @@ var reauthTokenTypes = map[string]string{
 	"profile_export":   auth.TokenTypeReauthProfileExport,
 	"profile_import":   auth.TokenTypeReauthProfileImport,
 	"password_set":     auth.TokenTypeReauthPasswordSet,
+	"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
 }
 
 func reauthTokenType(purpose string) (string, bool) {
@@ -298,7 +300,21 @@ func (s *Service) finishAssertion(ctx context.Context, tmpToken, ceremonyType, a
 }
 
 // BeginAddPasskey starts the process of adding a new passkey to an existing account
-func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error) {
+// The account owner must first verify with the current password (plus TOTP when enabled)
+// or a passkey reauth token issued for passkey_add, so a session alone cannot add a credential.
+func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, currentPassword, reauthToken *string, mfa *model.MfaData) (*protocol.CredentialCreation, string, error) {
+	account, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+		AccountId:        accountID,
+		TokenType:        auth.TokenTypeReauthPasskeyAdd,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
 	// Get existing credentials for the account
 	credentials, err := s.GetCredentials(ctx, account.ID)
 	if err != nil {

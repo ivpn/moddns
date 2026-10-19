@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import api from "@/api/api";
 import { addPasskeyToAccount, isWebAuthnSupported } from "@/lib/webauthn";
 import DeletePasskeyDialog from "./DeletePasskeyDialog";
+import AddPasskeyDialog from "./AddPasskeyDialog";
+import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 import { useAppStore } from "@/store/general";
 import type { ModelCredential } from "@/api/client/api";
 
@@ -19,6 +21,7 @@ export default function PasskeySettings() {
     const [webAuthnSupported, setWebAuthnSupported] = useState(false);
 
     // Dialog state
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [passkeyToDelete, setPasskeyToDelete] = useState<{ id: string; name: string } | null>(null);
 
@@ -50,10 +53,11 @@ export default function PasskeySettings() {
         }
     };
 
-    const handleAddPasskey = async () => {
+    const handleAddPasskey = async (verification: IdentityVerification) => {
         try {
             setRegistering(true);
-            await addPasskeyToAccount();
+            await addPasskeyToAccount(verification);
+            setAddDialogOpen(false);
             toast.success("Passkey added successfully.");
 
             // Reload passkeys list
@@ -151,7 +155,7 @@ export default function PasskeySettings() {
 
                         {/* Add new passkey button - right-aligned to match other sections */}
                         <Button
-                            onClick={handleAddPasskey}
+                            onClick={() => setAddDialogOpen(true)}
                             disabled={registering}
                             className="h-auto min-h-11 lg:min-h-0 bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/90 w-full sm:w-auto"
                         >
@@ -226,6 +230,13 @@ export default function PasskeySettings() {
                     </div>
                 </div>
             </CardContent>
+
+            <AddPasskeyDialog
+                open={addDialogOpen}
+                onOpenChange={setAddDialogOpen}
+                onConfirm={handleAddPasskey}
+                loading={registering}
+            />
 
             <DeletePasskeyDialog
                 open={deleteDialogOpen}

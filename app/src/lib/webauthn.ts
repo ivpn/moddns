@@ -13,6 +13,7 @@ import type {
 import api from "@/api/api";
 import type { ApiWebAuthnRegisterBeginRequest, ApiWebAuthnLoginBeginRequest } from "@/api/client";
 import axios from "axios";
+import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 
 /** Shared shape for WebAuthn errors with name, message, and optional Axios-like response */
 interface WebAuthnError extends Error {
@@ -181,9 +182,10 @@ export async function authenticateWithPasskey(
 }
 
 /**
- * Add a new passkey to an authenticated user's account
+ * Add a new passkey to an authenticated user's account, after the owner has verified
+ * with the current password (plus 2FA code) or a passkey reauth token for passkey_add.
  */
-export async function addPasskeyToAccount(): Promise<void> {
+export async function addPasskeyToAccount(verification: IdentityVerification): Promise<void> {
   try {
     // Check WebAuthn support
     if (!browserSupportsWebAuthn()) {
@@ -191,7 +193,12 @@ export async function addPasskeyToAccount(): Promise<void> {
     }
 
     // Begin WebAuthn add passkey process
-    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost();
+    const body = verification.reauthToken
+      ? { reauth_token: verification.reauthToken }
+      : { current_password: verification.currentPassword };
+    const beginResponse = verification.otp
+      ? await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, verification.otp, ['totp'])
+      : await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body);
     
     const options = beginResponse.data;
 
@@ -337,6 +344,14 @@ export async function beginProfileExportReauth(): Promise<string> {
  */
 export async function beginPasswordSetReauth(): Promise<string> {
   return beginReauthForPurpose('password_set');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for adding another passkey.
+ * Returns a short-lived reauth token consumed by the add passkey begin request.
+ */
+export async function beginPasskeyAddReauth(): Promise<string> {
+  return beginReauthForPurpose('passkey_add');
 }
 
 /**

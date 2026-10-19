@@ -111,10 +111,15 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 		{
 			name: "add passkey",
 			setup: func(store *mocks.Db) {
+				verified := *account
+				verified.Tokens = []model.Token{{Type: auth.TokenTypeReauthPasskeyAdd, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}}
+				store.On("GetAccountById", mock.Anything, account.ID.Hex()).Return(&verified, nil).Once()
+				store.On("UpdateAccount", mock.Anything, mock.Anything).Return(&verified, nil).Once()
 				store.On("GetCredentials", mock.Anything, account.ID).Return(credentials, nil).Once()
 			},
 			begin: func(svc *Service) (string, error) {
-				_, token, err := svc.BeginAddPasskey(ctx, account)
+				reauthToken := "reauth-token"
+				_, token, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
 				return token, err
 			},
 			match: ceremonyFor(model.CeremonyAddPasskey, account.ID, "", ""),
@@ -179,6 +184,7 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 		"profile_export":   auth.TokenTypeReauthProfileExport,
 		"profile_import":   auth.TokenTypeReauthProfileImport,
 		"password_set":     auth.TokenTypeReauthPasswordSet,
+		"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
 	}
 	for purpose, want := range tests {
 		got, ok := reauthTokenType(purpose)

@@ -242,10 +242,13 @@ func (s *APIServer) finishLogin() fiber.Handler {
 }
 
 // @Summary Add new passkey
-// @Description Add a new passkey to authenticated account
+// @Description Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
 // @Tags Authentication
 // @Accept json
 // @Produce json
+// @Param body body requests.WebAuthnAddPasskeyBeginRequest true "Verification"
+// @Param x-mfa-code header string false "MFA OTP code"
+// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 200 {object} interface{}
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/add/begin [post]
@@ -256,14 +259,20 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 			return HandleError(c, ErrUnauthorized, "unauthorized")
 		}
 
-		// Get authenticated account
-		account, err := s.Service.GetAccount(c.UserContext(), accountId)
-		if err != nil {
-			return HandleError(c, err, "Failed to get account")
+		var req requests.WebAuthnAddPasskeyBeginRequest
+		if err := c.BodyParser(&req); err != nil {
+			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+		if errs := s.Validator.Validate(req); len(errs) > 0 {
+			tags := make([]string, 0, len(errs))
+			for _, err := range errs {
+				tags = append(tags, err.Tag)
+			}
+			return HandleError(c, ErrValidationFailed, "validation failed", tags...)
 		}
 
 		// Initialize WebAuthn registration ceremony for additional credential
-		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), account)
+		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
 			return HandleError(c, err, "Failed to begin add passkey")
 		}

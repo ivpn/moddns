@@ -238,6 +238,7 @@ Class | Method | HTTP request | Description
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
  - [RequestsUpdateProfileCustomRuleBody](docs/RequestsUpdateProfileCustomRuleBody.md)
+ - [RequestsWebAuthnAddPasskeyBeginRequest](docs/RequestsWebAuthnAddPasskeyBeginRequest.md)
  - [RequestsWebAuthnReauthBeginRequest](docs/RequestsWebAuthnReauthBeginRequest.md)
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)
  - [ResponsesCustomRuleBatchCreated](docs/ResponsesCustomRuleBatchCreated.md)
