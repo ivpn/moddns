@@ -331,6 +331,15 @@ export async function beginProfileExportReauth(): Promise<string> {
 }
 
 /**
+ * Begin and finish passkey-based reauthentication for setting a first password on an
+ * account that signs in with passkeys only.
+ * Returns a short-lived reauth token consumed by the password test operation.
+ */
+export async function beginPasswordSetReauth(): Promise<string> {
+  return beginReauthForPurpose('password_set');
+}
+
+/**
  * Begin and finish passkey-based reauthentication for profile import.
  * Returns a short-lived reauth token consumed by the import request payload.
  */

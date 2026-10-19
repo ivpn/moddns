@@ -395,6 +395,23 @@ func (p *AccountService) GetAccount(ctx context.Context, accountId string) (*mod
 	return account, nil
 }
 
+// verifyPasswordSetReauth consumes the passkey reauth token carried by a password test
+// operation on an account that has no password yet.
+func (a *AccountService) verifyPasswordSetReauth(ctx context.Context, acc *model.Account, value any) error {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return ErrMissingAuthMethod
+	}
+	var verification requests.AccountPasswordSetVerification
+	if err := json.Unmarshal(b, &verification); err != nil || verification.ReauthToken == nil || *verification.ReauthToken == "" {
+		return ErrMissingAuthMethod
+	}
+	return reauth.VerifyOnAccount(ctx, acc, a, reauth.Params{
+		TokenType:   auth.TokenTypeReauthPasswordSet,
+		ReauthToken: verification.ReauthToken,
+	})
+}
+
 // populateAuthMethods derives available authentication methods without persisting them.
 func (a *AccountService) populateAuthMethods(ctx context.Context, acc *model.Account) error {
 	methods := make([]string, 0, 2)
@@ -464,10 +481,7 @@ func (a *AccountService) UpdateAccount(ctx context.Context, accountId string, up
 		}
 		// After iterating, handle collected password updates (enforce test->replace sequence inside handler)
 		if len(passwordUpdates) > 0 {
-			if err := a.MfaCheck(ctx, acc, mfa); err != nil {
-				return err
-			}
-			if err := a.handlePasswordUpdate(acc, passwordUpdates); err != nil {
+			if err := a.handlePasswordUpdate(ctx, acc, passwordUpdates, mfa); err != nil {
 				return err
 			}
 		}
@@ -563,21 +577,38 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 	return nil
 }
 
-func (a *AccountService) handlePasswordUpdate(acc *model.Account, updates []model.AccountUpdate) error {
-	verified := acc.Password == nil
+// handlePasswordUpdate applies JSON-Patch password operations; every replace must follow a
+// successful test. An account with a password tests it (after the MFA check). An account
+// without one tests a passkey reauth token issued for setting a password, so a session
+// alone cannot add a second sign-in method.
+func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Account, updates []model.AccountUpdate, mfa *model.MfaData) error {
+	hasPassword := acc.Password != nil
+	if hasPassword {
+		if err := a.MfaCheck(ctx, acc, mfa); err != nil {
+			return err
+		}
+	}
+	verified := false
 	for _, upd := range updates {
 		switch upd.Operation {
 		case model.UpdateOperationTest:
-			currPass, err := cast.ToStringE(upd.Value)
-			if err != nil {
+			if hasPassword {
+				currPass, err := cast.ToStringE(upd.Value)
+				if err != nil {
+					return err
+				}
+				if !auth.CheckPasswordHash(currPass, *acc.Password) {
+					return ErrInvalidCurrentPassword
+				}
+			} else if err := a.verifyPasswordSetReauth(ctx, acc, upd.Value); err != nil {
 				return err
-			}
-			if acc.Password == nil || !auth.CheckPasswordHash(currPass, *acc.Password) {
-				return ErrInvalidCurrentPassword
 			}
 			verified = true
 		case model.UpdateOperationReplace:
 			if !verified {
+				if !hasPassword {
+					return ErrMissingAuthMethod
+				}
 				return ErrPasswordTestRequired
 			}
 			pass, err := cast.ToStringE(upd.Value)

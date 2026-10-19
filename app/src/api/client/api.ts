@@ -2499,7 +2499,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     EmailChange: 'email_change',
     AccountDeletion: 'account_deletion',
     ProfileExport: 'profile_export',
-    ProfileImport: 'profile_import'
+    ProfileImport: 'profile_import',
+    PasswordSet: 'password_set'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];

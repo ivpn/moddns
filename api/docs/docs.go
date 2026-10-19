@@ -4828,7 +4828,8 @@ const docTemplate = `{
                         "email_change",
                         "account_deletion",
                         "profile_export",
-                        "profile_import"
+                        "profile_import",
+                        "password_set"
                     ]
                 }
             }

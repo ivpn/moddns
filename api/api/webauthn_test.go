@@ -97,7 +97,17 @@ func readResponseBody(t *testing.T, resp *http.Response) []byte {
 	return data
 }
 
+// specRef: F5
 func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
+	for _, purpose := range []string{"email_change", "account_deletion", "profile_export", "profile_import", "password_set"} {
+		suite.Run(purpose, func() {
+			suite.SetupTest()
+			suite.beginReauthSucceeds(purpose)
+		})
+	}
+}
+
+func (suite *WebAuthnAPITestSuite) beginReauthSucceeds(purpose string) {
 	server := suite.createServer()
 	accountID := primitive.NewObjectID()
 
@@ -123,7 +133,7 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
 	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
-		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == "email_change"
+		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == purpose
 	}), model.CeremonyTimeout).Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
@@ -135,7 +145,7 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 		return handler(c)
 	})
 
-	body, _ := json.Marshal(requests.WebAuthnReauthBeginRequest{Purpose: "email_change"})
+	body, _ := json.Marshal(requests.WebAuthnReauthBeginRequest{Purpose: purpose})
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 

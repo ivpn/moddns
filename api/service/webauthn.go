@@ -142,10 +142,7 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", err
 	}
 
-	switch purpose {
-	case "email_change", "account_deletion", "profile_export", "profile_import":
-		// supported purposes
-	default:
+	if _, ok := reauthTokenType(purpose); !ok {
 		return nil, "", fmt.Errorf("unsupported reauth purpose: %s", purpose)
 	}
 
@@ -180,6 +177,21 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 	return options, token, nil
 }
 
+// reauthTokenTypes maps each passkey reauth purpose to the token type that the
+// operation it protects consumes.
+var reauthTokenTypes = map[string]string{
+	"email_change":     auth.TokenTypeReauthEmailChange,
+	"account_deletion": auth.TokenTypeReauthAccountDeletion,
+	"profile_export":   auth.TokenTypeReauthProfileExport,
+	"profile_import":   auth.TokenTypeReauthProfileImport,
+	"password_set":     auth.TokenTypeReauthPasswordSet,
+}
+
+func reauthTokenType(purpose string) (string, bool) {
+	tokenType, ok := reauthTokenTypes[purpose]
+	return tokenType, ok
+}
+
 // FinishReauth completes the WebAuthn reauthentication process and issues a reauth token
 func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, httpReq *http.Request) (*model.Token, error) {
 	acc, purpose, err := s.finishAssertion(ctx, tmpToken, model.CeremonyReauth, accountID, passkey.ErrFinishReauth, httpReq)
@@ -187,17 +199,8 @@ func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, 
 		return nil, err
 	}
 
-	var tokenType string
-	switch purpose {
-	case "email_change":
-		tokenType = auth.TokenTypeReauthEmailChange
-	case "account_deletion":
-		tokenType = auth.TokenTypeReauthAccountDeletion
-	case "profile_export":
-		tokenType = auth.TokenTypeReauthProfileExport
-	case "profile_import":
-		tokenType = auth.TokenTypeReauthProfileImport
-	default:
+	tokenType, ok := reauthTokenType(purpose)
+	if !ok {
 		return nil, account.ErrInvalidReauthToken
 	}
 

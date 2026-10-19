@@ -575,7 +575,7 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			}(),
 		},
 		{
-			name:      "Successful password set when account has no current password",
+			name:      "Password set without verification fails when account has no current password",
 			accountID: "507f1f77bcf86cd799439011",
 			updates: []model.AccountUpdate{
 				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!@#"},
@@ -585,6 +585,7 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 				ID:    primitive.NewObjectID(),
 				Email: "nopass@example.com",
 			},
+			expectedErr: account.ErrMissingAuthMethod,
 		},
 		{
 			name:      "Password update without test fails when current password exists",
@@ -2990,4 +2991,62 @@ func (suite *AccountTestSuite) TestSignupReset_EmptyTokenHashSkips() {
 
 func TestAccountTestSuite(t *testing.T) {
 	suite.Run(t, new(AccountTestSuite))
+}
+
+// specRef: B3a
+func (suite *AccountTestSuite) TestSetFirstPasswordRequiresPasskeyReauth() {
+	const accountID = "507f1f77bcf86cd799439011"
+	const newPassword = "NewStrongPassword123!@#"
+	valid := func(tokenType string) model.Token {
+		return model.Token{Type: tokenType, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}
+	}
+	expired := model.Token{Type: auth.TokenTypeReauthPasswordSet, Value: "reauth-token", ExpiresAt: time.Now().Add(-time.Minute)}
+	setOps := func(testValue any) []model.AccountUpdate {
+		return []model.AccountUpdate{
+			{Operation: "test", Path: "/password", Value: testValue},
+			{Operation: "replace", Path: "/password", Value: newPassword},
+		}
+	}
+
+	tests := []struct {
+		name        string
+		tokens      []model.Token
+		totp        bool
+		updates     []model.AccountUpdate
+		expectedErr error
+	}{
+		{name: "valid password_set token", tokens: []model.Token{valid(auth.TokenTypeReauthPasswordSet)}, updates: setOps(map[string]any{"reauth_token": "reauth-token"})},
+		{name: "valid token, TOTP enabled, no OTP", tokens: []model.Token{valid(auth.TokenTypeReauthPasswordSet)}, totp: true, updates: setOps(map[string]any{"reauth_token": "reauth-token"})},
+		{name: "token issued for another purpose", tokens: []model.Token{valid(auth.TokenTypeReauthEmailChange)}, updates: setOps(map[string]any{"reauth_token": "reauth-token"}), expectedErr: account.ErrInvalidReauthToken},
+		{name: "expired token", tokens: []model.Token{expired}, updates: setOps(map[string]any{"reauth_token": "reauth-token"}), expectedErr: account.ErrReauthTokenExpired},
+		{name: "password string instead of token", updates: setOps("anything"), expectedErr: account.ErrMissingAuthMethod},
+		{name: "replace without test", updates: setOps(nil)[1:], expectedErr: account.ErrMissingAuthMethod},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.mockAccountRepo.ExpectedCalls = nil
+			suite.mockAccountRepo.Calls = nil
+			id, _ := primitive.ObjectIDFromHex(accountID)
+			acc := &model.Account{ID: id, Email: "passkey-only@example.com", Tokens: tt.tokens}
+			acc.MFA.TOTP.Enabled = tt.totp
+			suite.mockAccountRepo.On("GetAccountById", context.Background(), accountID).Return(acc, nil).Once()
+			if tt.expectedErr == nil {
+				suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil).Once()
+			}
+
+			err := suite.service.UpdateAccount(context.Background(), accountID, tt.updates, &model.MfaData{})
+
+			if tt.expectedErr != nil {
+				suite.Require().ErrorIs(err, tt.expectedErr)
+				suite.mockAccountRepo.AssertNotCalled(suite.T(), "UpdateAccount", mock.Anything, mock.Anything)
+				suite.Nil(acc.Password)
+				return
+			}
+			suite.Require().NoError(err)
+			suite.Require().NotNil(acc.Password)
+			suite.True(auth.CheckPasswordHash(newPassword, *acc.Password))
+			suite.Empty(acc.Tokens, "the reauth token is single-use")
+		})
+	}
 }

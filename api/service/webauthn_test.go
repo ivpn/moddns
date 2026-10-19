@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
 
+	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/stretchr/testify/mock"
@@ -165,4 +167,29 @@ func TestFinishCeremoniesConsumeStateFromCache(t *testing.T) {
 			require.Error(t, tt.finish(svc))
 		})
 	}
+}
+
+// specRef: F5
+func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]string{
+		"email_change":     auth.TokenTypeReauthEmailChange,
+		"account_deletion": auth.TokenTypeReauthAccountDeletion,
+		"profile_export":   auth.TokenTypeReauthProfileExport,
+		"profile_import":   auth.TokenTypeReauthProfileImport,
+		"password_set":     auth.TokenTypeReauthPasswordSet,
+	}
+	for purpose, want := range tests {
+		got, ok := reauthTokenType(purpose)
+		require.True(t, ok, purpose)
+		require.Equal(t, want, got, purpose)
+
+		token, err := auth.NewToken(got)
+		require.NoError(t, err, purpose)
+		require.WithinDuration(t, time.Now().Add(5*time.Minute), token.ExpiresAt, 5*time.Second, purpose)
+	}
+
+	_, ok := reauthTokenType("unknown")
+	require.False(t, ok)
 }
