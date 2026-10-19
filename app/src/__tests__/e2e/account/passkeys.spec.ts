@@ -8,10 +8,10 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
   const creationOptions = { publicKey: { challenge: 'abc', rp: { id: 'localhost', name: 'modDNS' }, user: { id: 'dXNlcg', name: 'user@example.com', displayName: 'user@example.com' }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }], timeout: 60000 } };
   const requestOptions = { publicKey: { challenge: 'abc', rpId: 'localhost', timeout: 60000, userVerification: 'preferred', allowCredentials: [] } };
 
-  type Captured = { addBegin: { body: unknown; mfaCode?: string } | null; reauthPurpose: string | null; addFinished: boolean };
+  type Captured = { addBegin: { body: unknown; mfaCode?: string } | null; reauthPurpose: string | null; addFinished: boolean; deleted: { id: string; body: unknown; mfaCode?: string } | null };
 
   async function setup(page: import('@playwright/test').Page, account: Record<string, unknown>): Promise<Captured> {
-    const captured: Captured = { addBegin: null, reauthPurpose: null, addFinished: false };
+    const captured: Captured = { addBegin: null, reauthPurpose: null, addFinished: false, deleted: null };
     await installWebAuthnSuccessStub(page);
     await installWebAuthnCreateStub(page);
     await registerMocks(page, { authenticated: true });
@@ -36,6 +36,11 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
       captured.addFinished = true;
       return route.fulfill({ status: 201, body: '' });
     });
+    await page.route('**/api/v1/webauthn/passkey/p*', route => {
+      if (route.request().method() !== 'DELETE') return route.continue();
+      captured.deleted = { id: route.request().url().split('/').pop() ?? '', body: JSON.parse(route.request().postData() ?? 'null'), mfaCode: route.request().headers()['x-mfa-code'] };
+      return route.fulfill({ status: 204, body: '' });
+    });
     await page.goto('/account-preferences');
     return captured;
   }
@@ -48,7 +53,7 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     const dialog = page.getByRole('dialog', { name: 'Add passkey' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Continue' })).toBeDisabled();
-    await dialog.getByRole('button', { name: 'Password' }).click();
+    await dialog.getByRole('button', { name: 'Password', exact: true }).click();
     await dialog.getByLabel('Current password').fill('CurrentPass123!');
     await dialog.getByRole('button', { name: 'Continue' }).click();
 
@@ -70,5 +75,37 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     expect(captured.reauthPurpose).toBe('passkey_add');
     expect(captured.addBegin?.body).toEqual({ reauth_token: 'reauth-token' });
     expect(captured.addBegin?.mfaCode).toBeUndefined();
+  });
+
+  // specRef: F8
+  test('deleting a passkey asks for the current password and 2FA code first', async ({ page }) => {
+    const captured = await setup(page, { ...baseAccount, auth_methods: ['password', 'passkey'], mfa: { totp: { enabled: true } } });
+
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Delete passkey' });
+    await expect(dialog.getByRole('button', { name: 'Delete passkey' })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Password', exact: true }).click();
+    await dialog.getByLabel('Current password').fill('CurrentPass123!');
+    await dialog.getByLabel('2FA code').fill('123456');
+    await dialog.getByRole('button', { name: 'Delete passkey' }).click();
+
+    await expect.poll(() => captured.deleted).not.toBeNull();
+    expect(captured.deleted).toEqual({ id: 'p1', body: { current_password: 'CurrentPass123!' }, mfaCode: '123456' });
+  });
+
+  // specRef: F8
+  test('deleting a passkey can be confirmed with a passkey', async ({ page }) => {
+    const captured = await setup(page, { ...baseAccount, auth_methods: ['password', 'passkey'] });
+
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Delete passkey' });
+    await dialog.getByRole('button', { name: 'Passkey', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Verify with passkey' }).click();
+    await expect(dialog.getByRole('button', { name: 'Passkey verified' })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete passkey' }).click();
+
+    await expect.poll(() => captured.deleted).not.toBeNull();
+    expect(captured.reauthPurpose).toBe('passkey_delete');
+    expect(captured.deleted?.body).toEqual({ reauth_token: 'reauth-token' });
   });
 });

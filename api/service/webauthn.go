@@ -187,6 +187,7 @@ var reauthTokenTypes = map[string]string{
 	"profile_import":   auth.TokenTypeReauthProfileImport,
 	"password_set":     auth.TokenTypeReauthPasswordSet,
 	"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
+	"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
 }
 
 func reauthTokenType(purpose string) (string, bool) {
@@ -404,7 +405,10 @@ func (s *Service) GetPasskeysForAccount(ctx context.Context, accountID primitive
 }
 
 // DeletePasskeyByID deletes a passkey by its ID, ensuring it belongs to the account
-func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID) error {
+// The account owner must verify with the current password (plus TOTP when enabled) or a
+// passkey reauth token issued for passkey_delete. Ownership is checked first so a token is
+// not consumed by a request that cannot succeed.
+func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID, currentPassword, reauthToken *string, mfa *model.MfaData) error {
 	// Verify the credential belongs to the account before deletion
 	credential, err := s.Store.GetCredentialByID(ctx, credentialID)
 	if err != nil {
@@ -413,6 +417,17 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 
 	if credential.AccountID != accountID {
 		return fmt.Errorf("credential does not belong to account")
+	}
+
+	if _, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+		AccountId:        accountID.Hex(),
+		TokenType:        auth.TokenTypeReauthPasskeyDelete,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	}); err != nil {
+		return err
 	}
 
 	// Delete the credential

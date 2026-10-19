@@ -181,6 +181,24 @@ export async function authenticateWithPasskey(
   }
 }
 
+/** Request body and MFA header arguments carrying a completed identity verification. */
+function verificationRequest(verification: IdentityVerification) {
+  const body = verification.reauthToken
+    ? { reauth_token: verification.reauthToken }
+    : { current_password: verification.currentPassword };
+  const mfa: [string?, string[]?] = verification.otp ? [verification.otp, ['totp']] : [];
+  return { body, mfa };
+}
+
+/**
+ * Delete a passkey after the owner has verified with the current password (plus 2FA code)
+ * or a passkey reauth token for passkey_delete.
+ */
+export async function deletePasskey(id: string, verification: IdentityVerification): Promise<void> {
+  const { body, mfa } = verificationRequest(verification);
+  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, body, ...mfa);
+}
+
 /**
  * Add a new passkey to an authenticated user's account, after the owner has verified
  * with the current password (plus 2FA code) or a passkey reauth token for passkey_add.
@@ -193,12 +211,8 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Begin WebAuthn add passkey process
-    const body = verification.reauthToken
-      ? { reauth_token: verification.reauthToken }
-      : { current_password: verification.currentPassword };
-    const beginResponse = verification.otp
-      ? await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, verification.otp, ['totp'])
-      : await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body);
+    const { body, mfa } = verificationRequest(verification);
+    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, ...mfa);
     
     const options = beginResponse.data;
 
@@ -352,6 +366,14 @@ export async function beginPasswordSetReauth(): Promise<string> {
  */
 export async function beginPasskeyAddReauth(): Promise<string> {
   return beginReauthForPurpose('passkey_add');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for deleting a passkey.
+ * Returns a short-lived reauth token consumed by the delete passkey request.
+ */
+export async function beginPasskeyDeleteReauth(): Promise<string> {
+  return beginReauthForPurpose('passkey_delete');
 }
 
 /**

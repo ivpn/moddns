@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Key, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api/api";
-import { addPasskeyToAccount, isWebAuthnSupported } from "@/lib/webauthn";
+import { addPasskeyToAccount, deletePasskey, isWebAuthnSupported } from "@/lib/webauthn";
 import DeletePasskeyDialog from "./DeletePasskeyDialog";
 import AddPasskeyDialog from "./AddPasskeyDialog";
 import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
@@ -79,16 +79,13 @@ export default function PasskeySettings() {
         setDeleteDialogOpen(true);
     };
 
-    const confirmDeletePasskey = async () => {
+    const confirmDeletePasskey = async (verification: IdentityVerification) => {
         if (!passkeyToDelete) return;
 
         try {
             setDeletingId(passkeyToDelete.id);
-            const response = await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(passkeyToDelete.id);
-
-            if (response.status === 204) {
-                toast.success("Passkey deleted successfully");
-            }
+            await deletePasskey(passkeyToDelete.id, verification);
+            toast.success("Passkey deleted successfully");
 
             // Reload passkeys list
             await loadPasskeys();

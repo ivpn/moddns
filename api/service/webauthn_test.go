@@ -16,6 +16,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// expectPasskeyDeleteReauth makes the store hold a valid passkey_delete reauth token for accountID.
+func expectPasskeyDeleteReauth(store *mocks.Db, accountID primitive.ObjectID) {
+	acc := &model.Account{ID: accountID, Tokens: []model.Token{{Type: auth.TokenTypeReauthPasskeyDelete, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}}}
+	store.On("GetAccountById", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
+	store.On("UpdateAccount", mock.Anything, acc).Return(acc, nil).Once()
+}
+
 func TestDeletePasskeyByIDLeavesAuthMethodWhenCredentialsRemain(t *testing.T) {
 	t.Parallel()
 
@@ -27,15 +34,16 @@ func TestDeletePasskeyByIDLeavesAuthMethodWhenCredentialsRemain(t *testing.T) {
 	svc := &Service{Store: store}
 
 	store.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{AccountID: accountID}, nil).Once()
+	expectPasskeyDeleteReauth(store, accountID)
 	store.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
 
-	err := svc.DeletePasskeyByID(ctx, credentialID, accountID)
+	reauthToken := "reauth-token"
+	err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
 	require.NoError(t, err)
 
 	store.AssertExpectations(t)
 	store.AssertNotCalled(t, "GetCredentials", mock.Anything, mock.Anything)
 	store.AssertNotCalled(t, "GetAccount", mock.Anything, mock.Anything)
-	store.AssertNotCalled(t, "UpdateAccount", mock.Anything, mock.Anything)
 }
 
 func TestDeletePasskeyByIDSkipsAccountUpdateWhenLastCredential(t *testing.T) {
@@ -49,15 +57,16 @@ func TestDeletePasskeyByIDSkipsAccountUpdateWhenLastCredential(t *testing.T) {
 	svc := &Service{Store: store}
 
 	store.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{AccountID: accountID}, nil).Once()
+	expectPasskeyDeleteReauth(store, accountID)
 	store.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
 
-	err := svc.DeletePasskeyByID(ctx, credentialID, accountID)
+	reauthToken := "reauth-token"
+	err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
 	require.NoError(t, err)
 
 	store.AssertExpectations(t)
 	store.AssertNotCalled(t, "GetCredentials", mock.Anything, mock.Anything)
 	store.AssertNotCalled(t, "GetAccount", mock.Anything, mock.Anything)
-	store.AssertNotCalled(t, "UpdateAccount", mock.Anything, mock.Anything)
 }
 
 func newTestWebAuthn(t *testing.T) *webauthn.WebAuthn {
@@ -185,6 +194,7 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 		"profile_import":   auth.TokenTypeReauthProfileImport,
 		"password_set":     auth.TokenTypeReauthPasswordSet,
 		"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
+		"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
 	}
 	for purpose, want := range tests {
 		got, ok := reauthTokenType(purpose)

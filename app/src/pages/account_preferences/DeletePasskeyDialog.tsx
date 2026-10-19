@@ -7,12 +7,15 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
-import { type JSX } from "react";
+import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import { beginPasskeyDeleteReauth } from "@/lib/webauthn";
+import { useAppStore } from "@/store/general";
+import { useCallback, useState, type JSX } from "react";
 
 interface DeletePasskeyDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onConfirm: () => void;
+    onConfirm: (verification: IdentityVerification) => void;
     loading?: boolean;
     passkeyName?: string;
 }
@@ -24,8 +27,11 @@ export default function DeletePasskeyDialog({
     loading = false,
     passkeyName = "passkey",
 }: DeletePasskeyDialogProps): JSX.Element {
+    const account = useAppStore(s => s.account);
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
     const handleConfirm = () => {
-        onConfirm();
+        if (verification) onConfirm(verification);
     };
 
     return (
@@ -39,6 +45,16 @@ export default function DeletePasskeyDialog({
                         Are you sure you want to delete "{passkeyName}"? This action cannot be undone and you will no longer be able to use this passkey to sign in.
                     </DialogDescription>
                 </DialogHeader>
+
+                <div className="px-6 pb-4">
+                    <VerifyIdentityFields
+                        account={account ?? null}
+                        open={open}
+                        beginPasskeyReauth={beginPasskeyDeleteReauth}
+                        onChange={onVerificationChange}
+                        disabled={loading}
+                    />
+                </div>
 
                 <DialogActions>
                     <Button
@@ -55,7 +71,7 @@ export default function DeletePasskeyDialog({
                         size="lg"
                         className="flex-1 min-w-32 bg-[var(--tailwind-colors-red-600)] text-white hover:bg-[var(--tailwind-colors-red-400)]"
                         onClick={handleConfirm}
-                        disabled={loading}
+                        disabled={loading || !verification}
                     >
                         {loading ? "Deleting..." : "Delete passkey"}
                     </Button>

@@ -239,6 +239,7 @@ Class | Method | HTTP request | Description
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
  - [RequestsUpdateProfileCustomRuleBody](docs/RequestsUpdateProfileCustomRuleBody.md)
  - [RequestsWebAuthnAddPasskeyBeginRequest](docs/RequestsWebAuthnAddPasskeyBeginRequest.md)
+ - [RequestsWebAuthnDeletePasskeyRequest](docs/RequestsWebAuthnDeletePasskeyRequest.md)
  - [RequestsWebAuthnReauthBeginRequest](docs/RequestsWebAuthnReauthBeginRequest.md)
  - [ResponsesCreateProfileCustomRulesBatchResponse](docs/ResponsesCreateProfileCustomRulesBatchResponse.md)
  - [ResponsesCustomRuleBatchCreated](docs/ResponsesCustomRuleBatchCreated.md)
