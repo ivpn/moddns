@@ -5,20 +5,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Key, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api/api";
-import { addPasskeyToAccount, isWebAuthnSupported } from "@/lib/webauthn";
+import { addPasskeyToAccount, deletePasskey, isWebAuthnSupported } from "@/lib/webauthn";
 import DeletePasskeyDialog from "./DeletePasskeyDialog";
+import AddPasskeyDialog from "./AddPasskeyDialog";
+import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 import { useAppStore } from "@/store/general";
 import type { ModelCredential } from "@/api/client/api";
 
 export default function PasskeySettings() {
     const passkeys = useAppStore(state => state.passkeys);
     const setPasskeys = useAppStore(state => state.setPasskeys);
+    const account = useAppStore(state => state.account);
+    // Matches the API rule: the last passkey of an account without a password is its only sign-in method.
+    const hasPassword = !Array.isArray(account?.auth_methods) || account.auth_methods.length === 0 || account.auth_methods.includes("password");
+    const isOnlySignInMethod = !hasPassword && Array.isArray(passkeys) && passkeys.length <= 1;
     const [loading, setLoading] = useState(false);
     const [registering, setRegistering] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [webAuthnSupported, setWebAuthnSupported] = useState(false);
 
     // Dialog state
+    const [addDialogOpen, setAddDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [passkeyToDelete, setPasskeyToDelete] = useState<{ id: string; name: string } | null>(null);
 
@@ -50,10 +57,11 @@ export default function PasskeySettings() {
         }
     };
 
-    const handleAddPasskey = async () => {
+    const handleAddPasskey = async (verification: IdentityVerification) => {
         try {
             setRegistering(true);
-            await addPasskeyToAccount();
+            await addPasskeyToAccount(verification);
+            setAddDialogOpen(false);
             toast.success("Passkey added successfully.");
 
             // Reload passkeys list
@@ -75,16 +83,13 @@ export default function PasskeySettings() {
         setDeleteDialogOpen(true);
     };
 
-    const confirmDeletePasskey = async () => {
+    const confirmDeletePasskey = async (verification: IdentityVerification) => {
         if (!passkeyToDelete) return;
 
         try {
             setDeletingId(passkeyToDelete.id);
-            const response = await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(passkeyToDelete.id);
-
-            if (response.status === 204) {
-                toast.success("Passkey deleted successfully");
-            }
+            await deletePasskey(passkeyToDelete.id, verification);
+            toast.success("Passkey deleted successfully");
 
             // Reload passkeys list
             await loadPasskeys();
@@ -151,7 +156,7 @@ export default function PasskeySettings() {
 
                         {/* Add new passkey button - right-aligned to match other sections */}
                         <Button
-                            onClick={handleAddPasskey}
+                            onClick={() => setAddDialogOpen(true)}
                             disabled={registering}
                             className="h-auto min-h-11 lg:min-h-0 bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-600)]/90 w-full sm:w-auto"
                         >
@@ -212,7 +217,7 @@ export default function PasskeySettings() {
 
                                             <Button
                                                 onClick={() => passkey.id && handleDeletePasskey(passkey.id, passkey.id)}
-                                                disabled={deletingId === passkey.id || !passkey.id}
+                                                disabled={deletingId === passkey.id || !passkey.id || isOnlySignInMethod}
                                                 className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
                                             >
                                                 <Trash2 className="h-4 w-4 text-white" />
@@ -220,12 +225,24 @@ export default function PasskeySettings() {
                                             </Button>
                                         </div>
                                     ))}
+                                    {isOnlySignInMethod && (
+                                        <p className="text-xs text-[var(--tailwind-colors-slate-400)]">
+                                            Set a password or add another passkey before deleting this one.
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             </CardContent>
+
+            <AddPasskeyDialog
+                open={addDialogOpen}
+                onOpenChange={setAddDialogOpen}
+                onConfirm={handleAddPasskey}
+                loading={registering}
+            />
 
             <DeletePasskeyDialog
                 open={deleteDialogOpen}

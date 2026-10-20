@@ -12,6 +12,7 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
@@ -142,10 +143,7 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", err
 	}
 
-	switch purpose {
-	case "email_change", "account_deletion", "profile_export", "profile_import":
-		// supported purposes
-	default:
+	if _, ok := reauthTokenType(purpose); !ok {
 		return nil, "", fmt.Errorf("unsupported reauth purpose: %s", purpose)
 	}
 
@@ -180,6 +178,23 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 	return options, token, nil
 }
 
+// reauthTokenTypes maps each passkey reauth purpose to the token type that the
+// operation it protects consumes.
+var reauthTokenTypes = map[string]string{
+	"email_change":     auth.TokenTypeReauthEmailChange,
+	"account_deletion": auth.TokenTypeReauthAccountDeletion,
+	"profile_export":   auth.TokenTypeReauthProfileExport,
+	"profile_import":   auth.TokenTypeReauthProfileImport,
+	"password_set":     auth.TokenTypeReauthPasswordSet,
+	"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
+	"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
+}
+
+func reauthTokenType(purpose string) (string, bool) {
+	tokenType, ok := reauthTokenTypes[purpose]
+	return tokenType, ok
+}
+
 // FinishReauth completes the WebAuthn reauthentication process and issues a reauth token
 func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, httpReq *http.Request) (*model.Token, error) {
 	acc, purpose, err := s.finishAssertion(ctx, tmpToken, model.CeremonyReauth, accountID, passkey.ErrFinishReauth, httpReq)
@@ -187,17 +202,8 @@ func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, 
 		return nil, err
 	}
 
-	var tokenType string
-	switch purpose {
-	case "email_change":
-		tokenType = auth.TokenTypeReauthEmailChange
-	case "account_deletion":
-		tokenType = auth.TokenTypeReauthAccountDeletion
-	case "profile_export":
-		tokenType = auth.TokenTypeReauthProfileExport
-	case "profile_import":
-		tokenType = auth.TokenTypeReauthProfileImport
-	default:
+	tokenType, ok := reauthTokenType(purpose)
+	if !ok {
 		return nil, account.ErrInvalidReauthToken
 	}
 
@@ -295,7 +301,21 @@ func (s *Service) finishAssertion(ctx context.Context, tmpToken, ceremonyType, a
 }
 
 // BeginAddPasskey starts the process of adding a new passkey to an existing account
-func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (*protocol.CredentialCreation, string, error) {
+// The account owner must first verify with the current password (plus TOTP when enabled)
+// or a passkey reauth token issued for passkey_add, so a session alone cannot add a credential.
+func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, currentPassword, reauthToken *string, mfa *model.MfaData) (*protocol.CredentialCreation, string, error) {
+	account, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+		AccountId:        accountID,
+		TokenType:        auth.TokenTypeReauthPasskeyAdd,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+
 	// Get existing credentials for the account
 	credentials, err := s.GetCredentials(ctx, account.ID)
 	if err != nil {
@@ -304,8 +324,10 @@ func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (
 
 	// Convert to WebAuthn credentials
 	webauthnCreds := make([]webauthn.Credential, len(credentials))
+	excluded := make([]protocol.CredentialDescriptor, len(credentials))
 	for i, cred := range credentials {
 		webauthnCreds[i] = cred.ToWebAuthnCredential()
+		excluded[i] = webauthnCreds[i].Descriptor()
 	}
 
 	// Create user object with existing credentials
@@ -314,8 +336,10 @@ func (s *Service) BeginAddPasskey(ctx context.Context, account *model.Account) (
 		Credentials: webauthnCreds,
 	}
 
-	// Begin registration for additional credential
-	creation, sessionData, err := s.Webauthn.BeginRegistration(user)
+	// An authenticator keeps one discoverable credential per (RP ID, user handle) and
+	// replaces it on a new registration (W3C WebAuthn L3 §6.3.2 step 7.4.4). Excluding the
+	// account's credentials makes it refuse instead (§6.3.2 step 3, §5.4).
+	creation, sessionData, err := s.Webauthn.BeginRegistration(user, webauthn.WithExclusions(excluded))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to begin add passkey: %w", err)
 	}
@@ -385,7 +409,10 @@ func (s *Service) GetPasskeysForAccount(ctx context.Context, accountID primitive
 }
 
 // DeletePasskeyByID deletes a passkey by its ID, ensuring it belongs to the account
-func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID) error {
+// The account owner must verify with the current password (plus TOTP when enabled) or a
+// passkey reauth token issued for passkey_delete. Ownership is checked first so a token is
+// not consumed by a request that cannot succeed.
+func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID, currentPassword, reauthToken *string, mfa *model.MfaData) error {
 	// Verify the credential belongs to the account before deletion
 	credential, err := s.Store.GetCredentialByID(ctx, credentialID)
 	if err != nil {
@@ -396,12 +423,47 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 		return fmt.Errorf("credential does not belong to account")
 	}
 
+	if err := s.ensureAnotherSignInMethod(ctx, accountID); err != nil {
+		return err
+	}
+
+	if _, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+		AccountId:        accountID.Hex(),
+		TokenType:        auth.TokenTypeReauthPasskeyDelete,
+		Password:         currentPassword,
+		ReauthToken:      reauthToken,
+		Mfa:              mfa,
+		PersistOnConsume: true,
+	}); err != nil {
+		return err
+	}
+
 	// Delete the credential
 	err = s.DeleteCredentialByID(ctx, credentialID, accountID)
 	if err != nil {
 		return fmt.Errorf("failed to delete credential: %w", err)
 	}
 
+	return nil
+}
+
+// ensureAnotherSignInMethod refuses removing a passkey that is the account's only way to
+// sign in: the last credential on an account without a password.
+func (s *Service) ensureAnotherSignInMethod(ctx context.Context, accountID primitive.ObjectID) error {
+	count, err := s.Store.GetCredentialsCount(ctx, accountID)
+	if err != nil {
+		return fmt.Errorf("failed to count credentials: %w", err)
+	}
+	if count > 1 {
+		return nil
+	}
+	acc, err := s.Store.GetAccountById(ctx, accountID.Hex())
+	if err != nil {
+		return fmt.Errorf("failed to get account: %w", err)
+	}
+	if acc.Password == nil {
+		return passkey.ErrLastSignInMethod
+	}
 	return nil
 }
 

@@ -13,6 +13,7 @@ import type {
 import api from "@/api/api";
 import type { ApiWebAuthnRegisterBeginRequest, ApiWebAuthnLoginBeginRequest } from "@/api/client";
 import axios from "axios";
+import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 
 /** Shared shape for WebAuthn errors with name, message, and optional Axios-like response */
 interface WebAuthnError extends Error {
@@ -180,10 +181,32 @@ export async function authenticateWithPasskey(
   }
 }
 
+const ALREADY_HOLDS_PASSKEY =
+  "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
+
+/** Request body and MFA header arguments carrying a completed identity verification. */
+function verificationRequest(verification: IdentityVerification) {
+  const body = verification.reauthToken
+    ? { reauth_token: verification.reauthToken }
+    : { current_password: verification.currentPassword };
+  const mfa: [string?, string[]?] = verification.otp ? [verification.otp, ['totp']] : [];
+  return { body, mfa };
+}
+
 /**
- * Add a new passkey to an authenticated user's account
+ * Delete a passkey after the owner has verified with the current password (plus 2FA code)
+ * or a passkey reauth token for passkey_delete.
  */
-export async function addPasskeyToAccount(): Promise<void> {
+export async function deletePasskey(id: string, verification: IdentityVerification): Promise<void> {
+  const { body, mfa } = verificationRequest(verification);
+  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, body, ...mfa);
+}
+
+/**
+ * Add a new passkey to an authenticated user's account, after the owner has verified
+ * with the current password (plus 2FA code) or a passkey reauth token for passkey_add.
+ */
+export async function addPasskeyToAccount(verification: IdentityVerification): Promise<void> {
   try {
     // Check WebAuthn support
     if (!browserSupportsWebAuthn()) {
@@ -191,7 +214,8 @@ export async function addPasskeyToAccount(): Promise<void> {
     }
 
     // Begin WebAuthn add passkey process
-    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost();
+    const { body, mfa } = verificationRequest(verification);
+    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, ...mfa);
     
     const options = beginResponse.data;
 
@@ -216,8 +240,9 @@ export async function addPasskeyToAccount(): Promise<void> {
         optionsJSON: webauthnOptions as PublicKeyCredentialCreationOptionsJSON
       });
     } catch (error: unknown) {
+      // The authenticator holds one of the excluded credentials (W3C WebAuthn L3 §6.3.2 step 3).
       if (error instanceof Error && error.name === 'InvalidStateError') {
-        throw new Error('A passkey might already be registered for this device');
+        throw new Error(ALREADY_HOLDS_PASSKEY);
       }
       throw error;
     }
@@ -243,7 +268,7 @@ export async function addPasskeyToAccount(): Promise<void> {
     if (webauthnErr.name === 'NotAllowedError') {
       throw new Error("Passkey addition was cancelled or timed out");
     } else if (webauthnErr.name === 'InvalidStateError') {
-      throw new Error("A passkey is already registered for this account on this device");
+      throw new Error(ALREADY_HOLDS_PASSKEY);
     } else if (webauthnErr.name === 'NotSupportedError') {
       throw new Error("Passkey addition is not supported on this device");
     } else if (webauthnErr.response?.data?.error) {
@@ -328,6 +353,31 @@ export async function beginAccountDeletionReauth(): Promise<string> {
  */
 export async function beginProfileExportReauth(): Promise<string> {
   return beginReauthForPurpose('profile_export');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for setting a first password on an
+ * account that signs in with passkeys only.
+ * Returns a short-lived reauth token consumed by the password test operation.
+ */
+export async function beginPasswordSetReauth(): Promise<string> {
+  return beginReauthForPurpose('password_set');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for adding another passkey.
+ * Returns a short-lived reauth token consumed by the add passkey begin request.
+ */
+export async function beginPasskeyAddReauth(): Promise<string> {
+  return beginReauthForPurpose('passkey_add');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for deleting a passkey.
+ * Returns a short-lived reauth token consumed by the delete passkey request.
+ */
+export async function beginPasskeyDeleteReauth(): Promise<string> {
+  return beginReauthForPurpose('passkey_delete');
 }
 
 /**

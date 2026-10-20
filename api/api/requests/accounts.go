@@ -16,6 +16,12 @@ type AccountEmailUpdate struct {
 	NewEmail        string  `json:"new_email" validate:"required,email"`
 }
 
+// AccountPasswordSetVerification is the value of the password test operation for an account
+// that has no password: a passkey reauth token issued for the password_set purpose.
+type AccountPasswordSetVerification struct {
+	ReauthToken *string `json:"reauth_token"`
+}
+
 // AccountDeletionRequest represents the request to delete an account
 type AccountDeletionRequest struct {
 	DeletionCode    string  `json:"deletion_code" validate:"required"`

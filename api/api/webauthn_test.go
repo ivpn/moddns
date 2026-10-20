@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/config"
@@ -23,6 +24,7 @@ import (
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
+	"github.com/ivpn/dns/api/service/passkey"
 )
 
 type WebAuthnAPITestSuite struct {
@@ -97,7 +99,17 @@ func readResponseBody(t *testing.T, resp *http.Response) []byte {
 	return data
 }
 
+// specRef: F5
 func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
+	for _, purpose := range []string{"email_change", "account_deletion", "profile_export", "profile_import", "password_set", "passkey_add", "passkey_delete"} {
+		suite.Run(purpose, func() {
+			suite.SetupTest()
+			suite.beginReauthSucceeds(purpose)
+		})
+	}
+}
+
+func (suite *WebAuthnAPITestSuite) beginReauthSucceeds(purpose string) {
 	server := suite.createServer()
 	accountID := primitive.NewObjectID()
 
@@ -123,7 +135,7 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
 	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
-		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == "email_change"
+		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == purpose
 	}), model.CeremonyTimeout).Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
@@ -135,7 +147,7 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
 		return handler(c)
 	})
 
-	body, _ := json.Marshal(requests.WebAuthnReauthBeginRequest{Purpose: "email_change"})
+	body, _ := json.Marshal(requests.WebAuthnReauthBeginRequest{Purpose: purpose})
 	req := httptest.NewRequest("POST", "/", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -267,4 +279,172 @@ func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAc
 			suite.mockCache.AssertExpectations(suite.T())
 		})
 	}
+}
+
+// specRef: F3
+func (suite *WebAuthnAPITestSuite) TestBeginAddPasskeyRequiresVerification() {
+	accountID := primitive.NewObjectID()
+	hash, err := bcrypt.GenerateFromPassword([]byte("CurrentPass123!"), bcrypt.MinCost)
+	suite.Require().NoError(err)
+	password := string(hash)
+	freshToken := func(tokenType string) model.Token {
+		return model.Token{Type: tokenType, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}
+	}
+
+	tests := []struct {
+		name     string
+		body     string
+		account  model.Account
+		verified bool
+		mfaCheck bool
+	}{
+		{name: "no verification", body: `{}`, account: model.Account{Password: &password}},
+		{name: "wrong password", body: `{"current_password":"wrong"}`, account: model.Account{Password: &password}, mfaCheck: true},
+		{name: "token for another purpose", body: `{"reauth_token":"reauth-token"}`, account: model.Account{Tokens: []model.Token{freshToken(auth.TokenTypeReauthEmailChange)}}},
+		{name: "current password", body: `{"current_password":"CurrentPass123!"}`, account: model.Account{Password: &password}, verified: true, mfaCheck: true},
+		{name: "passkey_add reauth token", body: `{"reauth_token":"reauth-token"}`, account: model.Account{Tokens: []model.Token{freshToken(auth.TokenTypeReauthPasskeyAdd)}}, verified: true},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.SetupTest()
+			server := suite.createServer()
+			acc := tt.account
+			acc.ID = accountID
+			acc.Email = "user@example.com"
+
+			suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(&acc, nil).Maybe()
+			suite.mockDB.On("GetAccountById", mock.Anything, accountID.Hex()).Return(&acc, nil).Maybe()
+			if tt.mfaCheck {
+				suite.mockServ.On("MfaCheck", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			}
+			if tt.verified {
+				suite.mockDB.On("UpdateAccount", mock.Anything, mock.Anything).Return(&acc, nil).Maybe()
+				suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{}, nil).Once()
+				suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
+					return c.Type == model.CeremonyAddPasskey && c.AccountID == accountID.Hex()
+				}), model.CeremonyTimeout).Return(nil).Once()
+			}
+
+			handler := server.beginAddPasskey()
+			app := fiber.New()
+			app.Post("/", func(c *fiber.Ctx) error {
+				c.Locals(auth.ACCOUNT_ID, accountID.Hex())
+				return handler(c)
+			})
+			req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(tt.body)))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			if tt.verified {
+				suite.Equal(200, resp.StatusCode)
+				suite.Empty(acc.Tokens, "the reauth token is single-use")
+			} else {
+				suite.Equal(400, resp.StatusCode)
+				suite.mockCache.AssertNotCalled(suite.T(), "SaveCeremony", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			}
+			suite.mockServ.AssertExpectations(suite.T())
+			suite.mockDB.AssertExpectations(suite.T())
+			suite.mockCache.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// specRef: F8
+func (suite *WebAuthnAPITestSuite) TestDeletePasskeyRequiresVerification() {
+	accountID := primitive.NewObjectID()
+	credentialID := primitive.NewObjectID()
+	hash, err := bcrypt.GenerateFromPassword([]byte("CurrentPass123!"), bcrypt.MinCost)
+	suite.Require().NoError(err)
+	password := string(hash)
+	freshToken := func(tokenType string) model.Token {
+		return model.Token{Type: tokenType, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}
+	}
+
+	tests := []struct {
+		name     string
+		body     string
+		account  model.Account
+		verified bool
+		mfaCheck bool
+	}{
+		{name: "no verification", body: `{}`, account: model.Account{Password: &password}},
+		{name: "wrong password", body: `{"current_password":"wrong"}`, account: model.Account{Password: &password}, mfaCheck: true},
+		{name: "token for another purpose", body: `{"reauth_token":"reauth-token"}`, account: model.Account{Password: &password, Tokens: []model.Token{freshToken(auth.TokenTypeReauthPasskeyAdd)}}},
+		{name: "current password", body: `{"current_password":"CurrentPass123!"}`, account: model.Account{Password: &password}, verified: true, mfaCheck: true},
+		{name: "passkey_delete reauth token", body: `{"reauth_token":"reauth-token"}`, account: model.Account{Password: &password, Tokens: []model.Token{freshToken(auth.TokenTypeReauthPasskeyDelete)}}, verified: true},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.SetupTest()
+			server := suite.createServer()
+			acc := tt.account
+			acc.ID = accountID
+
+			suite.mockDB.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{ID: credentialID, AccountID: accountID}, nil).Maybe()
+			suite.mockDB.On("GetCredentialsCount", mock.Anything, accountID).Return(2, nil).Maybe()
+			suite.mockDB.On("GetAccountById", mock.Anything, accountID.Hex()).Return(&acc, nil).Maybe()
+			if tt.mfaCheck {
+				suite.mockServ.On("MfaCheck", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			}
+			if tt.verified {
+				suite.mockDB.On("UpdateAccount", mock.Anything, mock.Anything).Return(&acc, nil).Maybe()
+				suite.mockDB.On("DeleteCredentialByID", mock.Anything, credentialID, accountID).Return(nil).Once()
+			}
+
+			handler := server.deletePasskey()
+			app := fiber.New()
+			app.Delete("/:id", func(c *fiber.Ctx) error {
+				c.Locals(auth.ACCOUNT_ID, accountID.Hex())
+				return handler(c)
+			})
+			req := httptest.NewRequest("DELETE", "/"+credentialID.Hex(), bytes.NewReader([]byte(tt.body)))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			if tt.verified {
+				suite.Equal(204, resp.StatusCode)
+				suite.Empty(acc.Tokens, "the reauth token is single-use")
+			} else {
+				suite.Equal(400, resp.StatusCode)
+				suite.mockDB.AssertNotCalled(suite.T(), "DeleteCredentialByID", mock.Anything, mock.Anything, mock.Anything)
+			}
+			suite.mockServ.AssertExpectations(suite.T())
+			suite.mockDB.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// specRef: F8a
+func (suite *WebAuthnAPITestSuite) TestDeleteLastPasskeyWithoutPasswordIsRefused() {
+	server := suite.createServer()
+	accountID := primitive.NewObjectID()
+	credentialID := primitive.NewObjectID()
+	acc := &model.Account{ID: accountID, Tokens: []model.Token{{Type: auth.TokenTypeReauthPasskeyDelete, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)}}}
+
+	suite.mockDB.On("GetCredentialByID", mock.Anything, credentialID).Return(&model.Credential{ID: credentialID, AccountID: accountID}, nil).Once()
+	suite.mockDB.On("GetCredentialsCount", mock.Anything, accountID).Return(1, nil).Once()
+	suite.mockDB.On("GetAccountById", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
+
+	handler := server.deletePasskey()
+	app := fiber.New()
+	app.Delete("/:id", func(c *fiber.Ctx) error {
+		c.Locals(auth.ACCOUNT_ID, accountID.Hex())
+		return handler(c)
+	})
+	req := httptest.NewRequest("DELETE", "/"+credentialID.Hex(), bytes.NewReader([]byte(`{"reauth_token":"reauth-token"}`)))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req)
+	suite.Require().NoError(err)
+	suite.Equal(400, resp.StatusCode)
+	payload := make(map[string]any)
+	suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
+	suite.Equal(passkey.ErrLastSignInMethod.Error(), payload["error"])
+	suite.Len(acc.Tokens, 1)
+	suite.mockDB.AssertNotCalled(suite.T(), "DeleteCredentialByID", mock.Anything, mock.Anything, mock.Anything)
+	suite.mockDB.AssertExpectations(suite.T())
 }

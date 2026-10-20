@@ -24,6 +24,11 @@ vi.mock('@/api/api', () => ({
     }
 }));
 
+const beginPasswordSetReauthMock = vi.fn().mockResolvedValue('reauth-token');
+vi.mock('@/lib/webauthn', () => ({
+    beginPasswordSetReauth: () => beginPasswordSetReauthMock(),
+}));
+
 // Helper to set account state in zustand store
 const setAccountState = (account: Record<string, unknown>) => {
     const setAccount = useAppStore.getState().setAccount;
@@ -90,6 +95,50 @@ describe('UpdatePasswordDialog', () => {
             // With 2FA enabled, patch is called with payload, otp, providers array
             expect(call[1]).toBe('654321');
             expect(Array.isArray(call[2])).toBe(true);
+        });
+    });
+
+    describe('account without a password (passkey only)', () => {
+        beforeEach(() => {
+            beginPasswordSetReauthMock.mockClear();
+            setAccountState({ account_id: 'abc', auth_methods: ['passkey'], mfa: { totp: { enabled: true } } });
+            useAppStore.getState().setPasskeys([{ id: 'p1' }]);
+        });
+
+        it('blocks submission until the passkey is verified', async () => {
+            setAccountState({ account_id: 'abc', auth_methods: ['passkey'], mfa: { totp: { enabled: false } } });
+            render(<UpdatePasswordDialog open={true} onOpenChange={() => { }} />);
+
+            expect(screen.queryByLabelText('Old password')).toBeNull();
+            fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'NewPassword123!' } });
+            fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'NewPassword123!' } });
+            fireEvent.click(screen.getByText('Save change'));
+
+            await waitFor(() => {
+                expect(patchMock).not.toHaveBeenCalled();
+            });
+        });
+
+        it('sends the passkey reauth token as the password test operation, without a 2FA code', async () => {
+            render(<UpdatePasswordDialog open={true} onOpenChange={() => { }} />);
+
+            fireEvent.click(screen.getByText('Verify with passkey'));
+            await waitFor(() => expect(screen.getByText('Passkey verified')).toBeTruthy());
+            expect(screen.queryByLabelText('2FA code')).toBeNull();
+            fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'NewPassword123!' } });
+            fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'NewPassword123!' } });
+            fireEvent.click(screen.getByText('Save change'));
+
+            await waitFor(() => {
+                expect(beginPasswordSetReauthMock).toHaveBeenCalledTimes(1);
+                expect(patchMock).toHaveBeenCalledTimes(1);
+                const call = patchMock.mock.calls[0];
+                expect(call[0].updates).toEqual([
+                    { operation: 'test', path: '/password', value: { reauth_token: 'reauth-token' } },
+                    { operation: 'replace', path: '/password', value: 'NewPassword123!' },
+                ]);
+                expect(call).toHaveLength(1);
+            });
         });
     });
 });

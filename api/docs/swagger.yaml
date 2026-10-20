@@ -1350,6 +1350,24 @@ definitions:
       value:
         type: string
     type: object
+  requests.WebAuthnAddPasskeyBeginRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      reauth_token:
+        minLength: 1
+        type: string
+    type: object
+  requests.WebAuthnDeletePasskeyRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      reauth_token:
+        minLength: 1
+        type: string
+    type: object
   requests.WebAuthnReauthBeginRequest:
     properties:
       purpose:
@@ -1358,6 +1376,9 @@ definitions:
         - account_deletion
         - profile_export
         - profile_import
+        - password_set
+        - passkey_add
+        - passkey_delete
         type: string
     required:
     - purpose
@@ -3252,13 +3273,34 @@ paths:
       - Authentication
   /api/v1/webauthn/passkey/{id}:
     delete:
-      description: Delete a specific passkey
+      consumes:
+      - application/json
+      description: Delete a specific passkey. The account owner is verified first
+        with the current password (plus x-mfa-code when TOTP is enabled) or a passkey
+        reauth token issued for the passkey_delete purpose.
       parameters:
       - description: Credential ID
         in: path
         name: id
         required: true
         type: string
+      - description: Verification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.WebAuthnDeletePasskeyRequest'
+      - description: MFA OTP code
+        in: header
+        name: x-mfa-code
+        type: string
+      - collectionFormat: csv
+        description: MFA methods
+        in: header
+        items:
+          type: string
+        name: x-mfa-methods
+        type: array
       responses:
         "204":
           description: No Content
@@ -3273,7 +3315,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: Add a new passkey to authenticated account
+      description: Add a new passkey to authenticated account. The account owner is
+        verified first with the current password (plus x-mfa-code when TOTP is enabled)
+        or a passkey reauth token issued for the passkey_add purpose.
+      parameters:
+      - description: Verification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.WebAuthnAddPasskeyBeginRequest'
+      - description: MFA OTP code
+        in: header
+        name: x-mfa-code
+        type: string
+      - collectionFormat: csv
+        description: MFA methods
+        in: header
+        items:
+          type: string
+        name: x-mfa-methods
+        type: array
       produces:
       - application/json
       responses:

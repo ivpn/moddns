@@ -32,8 +32,8 @@ class RequestsWebAuthnReauthBeginRequest(BaseModel):
     @field_validator('purpose')
     def purpose_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import']):
-            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import')")
+        if value not in set(['email_change', 'account_deletion', 'profile_export', 'profile_import', 'password_set', 'passkey_add', 'passkey_delete']):
+            raise ValueError("must be one of enum values ('email_change', 'account_deletion', 'profile_export', 'profile_import', 'password_set', 'passkey_add', 'passkey_delete')")
         return value
 
     model_config = ConfigDict(

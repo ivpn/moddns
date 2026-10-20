@@ -2709,7 +2709,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/add/begin": {
             "post": {
-                "description": "Add a new passkey to authenticated account",
+                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2720,6 +2720,33 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Add new passkey",
+                "parameters": [
+                    {
+                        "description": "Verification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.WebAuthnAddPasskeyBeginRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "MFA OTP code",
+                        "name": "x-mfa-code",
+                        "in": "header"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "MFA methods",
+                        "name": "x-mfa-methods",
+                        "in": "header"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2837,7 +2864,10 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/{id}": {
             "delete": {
-                "description": "Delete a specific passkey",
+                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "Authentication"
                 ],
@@ -2849,6 +2879,31 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Verification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.WebAuthnDeletePasskeyRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "MFA OTP code",
+                        "name": "x-mfa-code",
+                        "in": "header"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "MFA methods",
+                        "name": "x-mfa-methods",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -4816,6 +4871,32 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.WebAuthnAddPasskeyBeginRequest": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "requests.WebAuthnDeletePasskeyRequest": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.WebAuthnReauthBeginRequest": {
             "type": "object",
             "required": [
@@ -4828,7 +4909,10 @@ const docTemplate = `{
                         "email_change",
                         "account_deletion",
                         "profile_export",
-                        "profile_import"
+                        "profile_import",
+                        "password_set",
+                        "passkey_add",
+                        "passkey_delete"
                     ]
                 }
             }
