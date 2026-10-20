@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"github.com/ivpn/dns/api/internal/auth"
@@ -209,4 +210,37 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 
 	_, ok := reauthTokenType("unknown")
 	require.False(t, ok)
+}
+
+// specRef: F3b
+func TestBeginAddPasskeyExcludesExistingCredentials(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	account := &model.Account{ID: primitive.NewObjectID(), Email: "user@example.com", Tokens: []model.Token{
+		{Type: auth.TokenTypeReauthPasskeyAdd, Value: "reauth-token", ExpiresAt: time.Now().Add(time.Minute)},
+	}}
+	credentials := []model.Credential{
+		{CredentialID: []byte{0x01}, PublicKey: []byte{0xAA}, Transport: []string{"internal", "hybrid"}},
+		{CredentialID: []byte{0x02}, PublicKey: []byte{0xBB}, Transport: []string{"usb"}},
+	}
+
+	store := mocks.NewDb(t)
+	c := mocks.NewCachecache(t)
+	svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t)}
+	store.On("GetAccountById", mock.Anything, account.ID.Hex()).Return(account, nil).Once()
+	store.On("UpdateAccount", mock.Anything, mock.Anything).Return(account, nil).Once()
+	store.On("GetCredentials", mock.Anything, account.ID).Return(credentials, nil).Once()
+	c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.Anything, model.CeremonyTimeout).Return(nil).Once()
+
+	reauthToken := "reauth-token"
+	creation, _, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+	require.NoError(t, err)
+
+	excluded := creation.Response.CredentialExcludeList
+	require.Len(t, excluded, 2)
+	require.Equal(t, protocol.URLEncodedBase64{0x01}, excluded[0].CredentialID)
+	require.Equal(t, []protocol.AuthenticatorTransport{"internal", "hybrid"}, excluded[0].Transport)
+	require.Equal(t, protocol.URLEncodedBase64{0x02}, excluded[1].CredentialID)
+	require.Equal(t, []protocol.AuthenticatorTransport{"usb"}, excluded[1].Transport)
 }

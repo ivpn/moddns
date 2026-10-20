@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
-import { installWebAuthnCreateStub, installWebAuthnSuccessStub } from '../utils/webauthn';
+import { installWebAuthnCreateExcludedStub, installWebAuthnCreateStub, installWebAuthnSuccessStub } from '../utils/webauthn';
 
 // The navigator.credentials stubs only take effect in Chromium, hence @desktop like the login specs.
 test.describe('Passkey management', { tag: '@desktop' }, () => {
@@ -10,10 +10,12 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
 
   type Captured = { addBegin: { body: unknown; mfaCode?: string } | null; reauthPurpose: string | null; addFinished: boolean; deleted: { id: string; body: unknown; mfaCode?: string } | null };
 
-  async function setup(page: import('@playwright/test').Page, account: Record<string, unknown>): Promise<Captured> {
+  type Page = import('@playwright/test').Page;
+
+  async function setup(page: Page, account: Record<string, unknown>, installCreateStub: (page: Page) => Promise<void> = installWebAuthnCreateStub): Promise<Captured> {
     const captured: Captured = { addBegin: null, reauthPurpose: null, addFinished: false, deleted: null };
     await installWebAuthnSuccessStub(page);
-    await installWebAuthnCreateStub(page);
+    await installCreateStub(page);
     await registerMocks(page, { authenticated: true });
     // Registered after registerMocks: its /api/v1/ catch-all would otherwise answer first.
     await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
@@ -115,5 +117,19 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
 
     await expect(page.getByRole('button', { name: 'Delete', exact: true })).toBeDisabled();
     await expect(page.getByText('Set a password or add another passkey before deleting this one.')).toBeVisible();
+  });
+
+  // specRef: F3b
+  test('adding a passkey from an authenticator that already holds one explains why it was refused', async ({ page }) => {
+    const captured = await setup(page, { ...baseAccount, auth_methods: ['password', 'passkey'] }, installWebAuthnCreateExcludedStub);
+
+    await page.getByRole('button', { name: /Add Passkey/i }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add passkey' });
+    await dialog.getByRole('button', { name: 'Password', exact: true }).click();
+    await dialog.getByLabel('Current password').fill('CurrentPass123!');
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByText('This device or password manager already has a passkey for your account')).toBeVisible();
+    expect(captured.addFinished).toBe(false);
   });
 });

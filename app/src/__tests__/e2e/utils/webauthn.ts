@@ -59,3 +59,12 @@ export async function installWebAuthnCreateStub(page: import('@playwright/test')
     });
   });
 }
+
+/** Install a stub making navigator.credentials.create fail the way an authenticator refuses an excluded credential */
+export async function installWebAuthnCreateExcludedStub(page: import('@playwright/test').Page) {
+  await page.addInitScript(() => {
+    // @ts-expect-error - mocking WebAuthn API
+    navigator.credentials = navigator.credentials || {};
+    navigator.credentials.create = async () => { throw new DOMException('Credential already registered', 'InvalidStateError'); };
+  });
+}

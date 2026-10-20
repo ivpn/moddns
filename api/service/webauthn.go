@@ -324,8 +324,10 @@ func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, current
 
 	// Convert to WebAuthn credentials
 	webauthnCreds := make([]webauthn.Credential, len(credentials))
+	excluded := make([]protocol.CredentialDescriptor, len(credentials))
 	for i, cred := range credentials {
 		webauthnCreds[i] = cred.ToWebAuthnCredential()
+		excluded[i] = webauthnCreds[i].Descriptor()
 	}
 
 	// Create user object with existing credentials
@@ -334,8 +336,10 @@ func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, current
 		Credentials: webauthnCreds,
 	}
 
-	// Begin registration for additional credential
-	creation, sessionData, err := s.Webauthn.BeginRegistration(user)
+	// An authenticator keeps one discoverable credential per (RP ID, user handle) and
+	// replaces it on a new registration (W3C WebAuthn L3 §6.3.2 step 7.4.4). Excluding the
+	// account's credentials makes it refuse instead (§6.3.2 step 3, §5.4).
+	creation, sessionData, err := s.Webauthn.BeginRegistration(user, webauthn.WithExclusions(excluded))
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to begin add passkey: %w", err)
 	}

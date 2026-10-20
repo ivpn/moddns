@@ -181,6 +181,9 @@ export async function authenticateWithPasskey(
   }
 }
 
+const ALREADY_HOLDS_PASSKEY =
+  "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
+
 /** Request body and MFA header arguments carrying a completed identity verification. */
 function verificationRequest(verification: IdentityVerification) {
   const body = verification.reauthToken
@@ -237,8 +240,9 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
         optionsJSON: webauthnOptions as PublicKeyCredentialCreationOptionsJSON
       });
     } catch (error: unknown) {
+      // The authenticator holds one of the excluded credentials (W3C WebAuthn L3 §6.3.2 step 3).
       if (error instanceof Error && error.name === 'InvalidStateError') {
-        throw new Error('A passkey might already be registered for this device');
+        throw new Error(ALREADY_HOLDS_PASSKEY);
       }
       throw error;
     }
@@ -264,7 +268,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     if (webauthnErr.name === 'NotAllowedError') {
       throw new Error("Passkey addition was cancelled or timed out");
     } else if (webauthnErr.name === 'InvalidStateError') {
-      throw new Error("A passkey is already registered for this account on this device");
+      throw new Error(ALREADY_HOLDS_PASSKEY);
     } else if (webauthnErr.name === 'NotSupportedError') {
       throw new Error("Passkey addition is not supported on this device");
     } else if (webauthnErr.response?.data?.error) {
