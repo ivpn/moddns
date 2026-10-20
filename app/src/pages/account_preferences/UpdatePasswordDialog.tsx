@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { useAppStore } from '@/store/general';
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum, type ModelAccountUpdate } from "@/api/client/api";
+import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import { beginPasswordSetReauth } from "@/lib/webauthn";
 
 export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }): JSX.Element {
     const [oldPassword, setOldPassword] = useState("");
@@ -22,6 +24,8 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const [loading, setLoading] = useState(false);
     const [closing, setClosing] = useState(false);
     const [otp, setOtp] = useState("");
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
     const passwordAvailable = useMemo(() => {
@@ -32,7 +36,8 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
         }
         return methods.includes("password");
     }, [account]);
-    const is2FAEnabled = account?.mfa?.totp?.enabled;
+    // An account without a password confirms it's the owner with a passkey instead of a 2FA code.
+    const is2FAEnabled = passwordAvailable && account?.mfa?.totp?.enabled;
 
     useEffect(() => {
         if (!passwordAvailable) {
@@ -44,6 +49,10 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const handleSubmit = async () => {
         if (passwordAvailable && !oldPassword) {
             toast.error("Old password is required.");
+            return;
+        }
+        if (!passwordAvailable && !verification?.reauthToken) {
+            toast.error("Verify with your passkey first.");
             return;
         }
         if (!newPassword || newPassword !== confirmPassword) {
@@ -58,13 +67,13 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
 
         setLoading(true);
         const updates: ModelAccountUpdate[] = [];
-        if (passwordAvailable) {
-            updates.push({
-                operation: ModelAccountUpdateOperationEnum.Test,
-                path: ModelAccountUpdatePathEnum.Password,
-                value: oldPassword as unknown as object,
-            });
-        }
+        updates.push({
+            operation: ModelAccountUpdateOperationEnum.Test,
+            path: ModelAccountUpdatePathEnum.Password,
+            value: passwordAvailable
+                ? oldPassword as unknown as object
+                : { reauth_token: verification!.reauthToken },
+        });
         updates.push({
             operation: ModelAccountUpdateOperationEnum.Replace,
             path: ModelAccountUpdatePathEnum.Password,
@@ -126,6 +135,16 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4 px-6 pb-2">
+                    {!passwordAvailable && (
+                        <VerifyIdentityFields
+                            account={account ?? null}
+                            open={open}
+                            beginPasskeyReauth={beginPasswordSetReauth}
+                            onChange={onVerificationChange}
+                            passkeyOnly
+                            disabled={loading}
+                        />
+                    )}
                     {passwordAvailable && (
                         <div className="space-y-2">
                             <Label
