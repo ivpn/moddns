@@ -396,11 +396,13 @@ describe('Statistics page data states', () => {
         expect(await screen.findByTestId('stats-counts-skeleton')).toBeInTheDocument();
     });
 
-    it('names the window each group covers in its heading', async () => {
-        // tableRef: statistics-behaviour #P18
+    it('names the logs window in its heading and puts the availability line beside Counts', async () => {
+        // tableRef: statistics-behaviour #P18, #P13
         mount(mk('SL', 'p1', '1h'));
         await screen.findByRole('region', { name: 'Top blocklists' });
-        await waitFor(() => expect(fullHeadings()).toEqual(['Counts · Last 7 days', 'From query logs · Last hour']));
+        await waitFor(() => expect(fullHeadings()).toEqual(['Counts', 'From query logs · Last hour']));
+        const counts = screen.getByTestId('stats-counts-group');
+        expect(within(counts).getByTestId('stats-availability')).toHaveTextContent(/^Statistics on since .* · kept for 30 days · Change$/);
         expect(screen.getByRole('heading', { level: 2, name: 'From query logs · Last hour' })).toBeInTheDocument();
     });
 
@@ -433,7 +435,7 @@ describe('Statistics page data states', () => {
         mount(mk('SL', 'p1', '1w'));
         const note = `Query logs reach further back than statistics, which count since ${formatDateTime(Date.parse(start))}.`;
         expect(await screen.findByText(note)).toBeInTheDocument();
-        expect(screen.getByRole('heading', { level: 2, name: `Counts · Since ${formatDateTime(Date.parse(start))}` })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 2, name: 'Counts' })).toBeInTheDocument();
     });
 
     it('says nothing about reach when statistics cover the logs', async () => {

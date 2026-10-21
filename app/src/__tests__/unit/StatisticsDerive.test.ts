@@ -7,7 +7,6 @@ import {
     deviceLabel,
     expectedFirstCounts,
     normalizeStats,
-    countsScope,
     logsScope,
     logsReachBeforeCounts,
     scopeIn,
@@ -427,15 +426,6 @@ describe('group scopes', () => {
         const at = NOW - 2 * D;
         expect(scopeTitle({ kind: 'since', at })).toBe(`Since ${formatDateTime(at)}`);
         expect(scopeIn({ kind: 'since', at })).toBe(`since ${formatDateTime(at)}`);
-    });
-
-    it('names the counts window as the view, or since counting started inside it', () => {
-        // tableRef: statistics-behaviour #P18
-        expect(scopeTitle(countsScope('7d', null))).toBe('Last 7 days');
-        const before = normalizeStats(createStatsResponse({ points: 48 }));
-        expect(scopeTitle(countsScope('7d', before))).toBe('Last 7 days');
-        const inside = normalizeStats(createStatsResponse({ points: 48, enabledAt: '2026-10-06T03:00:00Z' }));
-        expect(countsScope('7d', inside)).toEqual({ kind: 'since', at: Date.parse('2026-10-06T03:00:00Z') });
     });
 
     it('flags logs that reach further back than statistics', () => {
