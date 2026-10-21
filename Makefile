@@ -47,39 +47,24 @@ down_dns: ## Stops the DNS services (both recursors: sdns + knot).
 	-f compose.knot.yml \
 	down
 
-up_dev: ## Starts the services for development purposes.
-	docker compose \
-		-f compose.yml \
-		-f compose.dev.yml \
-		-f compose.redis.yml \
-		-f compose.knot.yml \
-		-f compose.sdns.yml \
-		up -d
-
-down_dev: ## Stops the development services.
-	docker compose \
+DEV_COMPOSE_FILES = \
 	-f compose.yml \
 	-f compose.dev.yml \
 	-f compose.redis.yml \
-	-f compose.sdns.yml \
 	-f compose.knot.yml \
-	down --remove-orphans --timeout 10
+	-f compose.sdns.yml
 
-restart_dev: ## Restarts development services (down + up with proper wait).
-	docker compose \
-	-f compose.dev.yml \
-	-f compose.yml \
-	-f compose.sdns.yml \
-	-f compose.knot.yml \
-	down --remove-orphans --timeout 10
+up_dev: ## Starts the minimal development stack (single Redis, knot); FULL=1 adds Redis replicas + sentinel, sdns and RedisInsight.
+	docker compose $(DEV_COMPOSE_FILES) $(if $(FULL),,-f compose.dev.minimal.yml) up -d
+
+down_dev: ## Stops the development services (minimal or FULL=1).
+	docker compose $(DEV_COMPOSE_FILES) down --remove-orphans
+
+restart_dev: ## Restarts development services (down + up with proper wait); accepts FULL=1.
+	$(MAKE) down_dev
 	@echo "Waiting for network resources to be released..."
 	@sleep 2
-	docker compose \
-		-f compose.yml \
-		-f compose.dev.yml \
-		-f compose.knot.yml \
-		-f compose.sdns.yml \
-		up -d
+	$(MAKE) up_dev
 
 announcements: ## Serves the Announcements dev fixture on the dns network as http://announcements-dev/ (set ANNOUNCEMENTS_URL in api/.env + recreate dnsapi; see README-dev.md).
 	@NET=$$(docker inspect -f '{{range $$k,$$v := .NetworkSettings.Networks}}{{$$k}}{{end}}' dnsapi 2>/dev/null); \
