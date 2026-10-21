@@ -189,18 +189,16 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #K1, #K5, #P13
-  test('the toolbar puts the availability line left and the range, menu and caption right', { tag: '@desktop' }, async ({ page }) => {
+  test('the toolbar puts the availability line left and the range and menu right, with no range caption', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 1000 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics');
     const line = (await page.getByTestId('stats-availability').boundingBox())!;
     const trigger = (await rangeTrigger(page).boundingBox())!;
     const menu = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
-    const caption = (await page.getByTestId('stats-range-caption').boundingBox())!;
     expect(line.x + line.width).toBeLessThanOrEqual(trigger.x);
     expect(menu.x).toBeGreaterThan(trigger.x + trigger.width);
-    expect(caption.y).toBeGreaterThanOrEqual(trigger.y + trigger.height);
-    expect(Math.abs(caption.x + caption.width - (menu.x + menu.width))).toBeLessThanOrEqual(2);
+    await expect(page.getByText(/ · (15-minute|hourly|daily)\b/)).toHaveCount(0);
   });
 
   // tableRef: statistics-behaviour #P9, #K12
