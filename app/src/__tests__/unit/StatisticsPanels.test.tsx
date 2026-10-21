@@ -281,6 +281,15 @@ describe('DomainsPanel', () => {
         expect(screen.getByText('Top blocked domains, from query logs in the last hour')).toBeInTheDocument();
     });
 
+    it('shows every loaded domain in Chart view, without a show more/less toggle', async () => {
+        // tableRef: statistics-behaviour #X7
+        const ten = Array.from({ length: 10 }, (_, i) => ({ domain: `d${i}.example.com`, count: 100 - i }));
+        render(<DomainsPanel kind="resolved" items={ten} scopeIn="in the last hour" />);
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
+        expect(screen.getAllByTestId('bar-row')).toHaveLength(10);
+        expect(screen.queryByRole('button', { name: /^Show / })).not.toBeInTheDocument();
+    });
+
     it('says so instead of drawing an empty list', () => {
         // tableRef: statistics-behaviour #P21, #P27
         render(<DomainsPanel kind="blocked" items={[]} scopeIn="in the last hour" />);

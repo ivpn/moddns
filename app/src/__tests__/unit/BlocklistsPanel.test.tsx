@@ -20,6 +20,15 @@ describe('BlocklistsPanel', () => {
         expect(screen.getAllByTestId('bar-row')).toHaveLength(2);
     });
 
+    it('shows every loaded blocklist in Chart view, without a show more/less toggle', async () => {
+        // tableRef: statistics-behaviour #X7
+        const ten = Array.from({ length: 10 }, (_, i) => ({ id: `list-${i}`, name: `List ${i}`, count: 100 - i }));
+        render(<BlocklistsPanel items={ten} scopeIn="in the last 7 days" />);
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
+        expect(screen.getAllByTestId('bar-row')).toHaveLength(10);
+        expect(screen.queryByRole('button', { name: /^Show / })).not.toBeInTheDocument();
+    });
+
     it('ranks lists by their API name, falls back to the id when the name is missing, and states the multi-list counting', () => {
         // tableRef: statistics-behaviour #P22
         render(<BlocklistsPanel items={items} scopeIn="in the last 7 days" />);
