@@ -15,6 +15,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
 import { useTheme } from "@/components/theme-provider";
+import { PageActionsSlot } from "@/lib/pageActions";
+
 interface HeaderProps {
     showDialogTrigger?: boolean;
     profiles: ModelProfile[];
@@ -30,6 +32,9 @@ interface HeaderProps {
     onRestoreConnectionStatus?: () => void;
 }
 
+/** Separates a page's own view controls from the profile-wide controls after them. */
+const actionsDivider = "pr-3 border-r border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)]";
+
 export default function Header({
     showDialogTrigger = false,
     profiles,
@@ -40,7 +45,9 @@ export default function Header({
     connectionStatusRestoreDisabled = false,
     onRestoreConnectionStatus,
 }: HeaderProps): React.JSX.Element {
-    const { navDesktop } = useScreenDetector();
+    const { navDesktop, width } = useScreenDetector();
+    // Matches the title row's md:hidden: below md the page's actions sit beside the title, from md beside Profile.
+    const actionsInTitleRow = width < 768;
     const navigate = useNavigate();
     const location = useLocation();
     const currentProfile = useAppStore((state) => state.activeProfile);
@@ -87,8 +94,9 @@ export default function Header({
                     )}
                 </div>
 
-                {/* Right: Profile dropdown/Logout button and Settings button */}
+                {/* Right: the page's own view controls, then Profile dropdown/Logout button and Settings button */}
                 <div className="ml-auto flex items-center gap-3 w-auto">
+                    <PageActionsSlot className={actionsDivider} />
                     {showConnectionStatusRestoreButton && (
                         <span
                             title={connectionStatusRestoreDisabled ? "Feature unavailable while your account is inactive" : undefined}
@@ -177,8 +185,9 @@ export default function Header({
                         />
                     )}
                 </div>
-                {/* Right: profile dropdown + menu */}
+                {/* Right: the page's own view controls (from md), profile dropdown + menu */}
                 <div className="flex items-center gap-3 min-w-0 max-w-[70%] justify-end">
+                    {!actionsInTitleRow && <PageActionsSlot className={actionsDivider} />}
                     {showProfileDropdown && (
                         <div className="flex items-center min-w-0">
                             <ProfileDropdown
@@ -196,11 +205,12 @@ export default function Header({
             {currentPageName && (
                 <div
                     data-testid="mobile-header-page-title"
-                    className="md:hidden px-4 sm:px-6 pt-1 pb-2 flex items-center justify-between gap-3"
+                    className="md:hidden px-4 sm:px-6 pt-1 pb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
                 >
                     <h2 data-slot="mobile-page-title" data-page-heading tabIndex={-1} className="font-bold text-[var(--tailwind-colors-slate-50)] text-2xl tracking-tight leading-8 outline-none">
                         {currentPageName}
                     </h2>
+                    {actionsInTitleRow && <PageActionsSlot className="ml-auto" />}
                     {location.pathname === '/blocklists' && (
                         <span
                             title={isRestricted ? "Feature unavailable in limited access mode" : undefined}

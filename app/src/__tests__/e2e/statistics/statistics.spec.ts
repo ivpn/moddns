@@ -156,20 +156,21 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #K1, #K2
-  test('the range dropdown fits at 375px with 44px targets and follows the URL', { tag: '@mobile' }, async ({ page }) => {
+  test('the range dropdown sits beside the page title at 375px with 44px targets and follows the URL', { tag: '@mobile' }, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics?range=30d');
     const trigger = rangeTrigger(page);
     await expect(trigger).toHaveAccessibleName('Time range: Last 30 days');
-    await expect(trigger).toHaveText('Last 30 days');
+    await expect(trigger.getByText('30 days', { exact: true })).toBeVisible();
     const t = (await trigger.boundingBox())!;
     expect(t.height).toBeGreaterThanOrEqual(43.5);
-    expect(t.width).toBeGreaterThan(250);
+    const title = (await page.getByTestId('mobile-header-page-title').getByRole('heading', { name: 'Statistics' }).boundingBox())!;
+    expect(t.x).toBeGreaterThan(title.x + title.width);
+    expect(t.y).toBeLessThan(title.y + title.height);
     const menuButton = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
     expect(menuButton.x).toBeGreaterThan(t.x + t.width);
     expect(menuButton.x + menuButton.width).toBeLessThanOrEqual(375);
-    // The controls first, the availability line under them with the Counts heading.
     const line = (await page.getByTestId('stats-availability').boundingBox())!;
     expect(line.y).toBeGreaterThanOrEqual(t.y + t.height);
     await expectNoHorizontalOverflow(page);
@@ -188,21 +189,91 @@ test.describe('@statistics Statistics page', () => {
     await expect(page).toHaveURL(/\/statistics$/);
   });
 
+  // tableRef: statistics-behaviour #K1
+  for (const width of [320, 820]) {
+    test(`the header controls fit at ${width}px without horizontal overflow`, { tag: '@mobile' }, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await setup(page, { logs: false, stats: true });
+      // "Last 24 hours" is the longest label this profile's 30-day retention offers (K11).
+      await page.goto('/statistics?range=24h');
+      await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+      for (const control of [rangeTrigger(page), page.getByRole('button', { name: 'More statistics actions' })]) {
+        await expect(control).toBeInViewport({ ratio: 1 });
+        // 44px targets below md (K1); the md+ header uses the desktop control height.
+        if (width < 768) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+      }
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
   // tableRef: statistics-behaviour #K1, #K5, #P13
-  test('the toolbar holds the range and menu on the right, the availability line sits beside the Counts heading, with no range caption', { tag: '@desktop' }, async ({ page }) => {
+  test('the range and menu sit in the header before Profile, the availability line beside the Counts heading, with no range caption', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 1000 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics');
+    const header = page.getByTestId('app-header-wrapper');
+    await expect(header.getByTestId('page-actions').getByRole('button', { name: /^Time range: / })).toBeVisible();
     const line = (await page.getByTestId('stats-availability').boundingBox())!;
     const heading = (await page.getByRole('heading', { level: 2, name: 'Counts', exact: true }).boundingBox())!;
+    const title = (await header.getByRole('heading', { name: 'Statistics' }).boundingBox())!;
     const trigger = (await rangeTrigger(page).boundingBox())!;
     const menu = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
+    const profile = (await header.getByRole('combobox').boundingBox())!;
+    expect(trigger.x).toBeGreaterThan(title.x + title.width);
     expect(menu.x).toBeGreaterThan(trigger.x + trigger.width);
-    expect(Math.abs(menu.x + menu.width - 1400)).toBeLessThanOrEqual(64);
+    expect(profile.x).toBeGreaterThan(menu.x + menu.width);
+    expect(Math.abs(trigger.y + trigger.height / 2 - (profile.y + profile.height / 2))).toBeLessThanOrEqual(2);
     expect(line.y).toBeGreaterThanOrEqual(trigger.y + trigger.height);
     expect(line.x).toBeGreaterThan(heading.x + heading.width);
     expect(line.y).toBeLessThan(heading.y + heading.height);
     await expect(page.getByText(/ · (15-minute|hourly|daily)\b/)).toHaveCount(0);
+    // Rendered in the header, outside the page's cursor rule, so the controls carry their own.
+    for (const control of [rangeTrigger(page), page.getByRole('button', { name: 'More statistics actions' })]) {
+      expect(await control.evaluate(el => getComputedStyle(el).cursor)).toBe('pointer');
+    }
+    // Profile highlights on hover the same way as the header controls before it.
+    const hoverBg = async (control: ReturnType<Page['locator']>) => {
+      await control.hover();
+      await page.waitForTimeout(250);
+      return control.evaluate(el => getComputedStyle(el).backgroundColor);
+    };
+    const profileTrigger = header.getByRole('combobox');
+    const restBg = await profileTrigger.evaluate(el => getComputedStyle(el).backgroundColor);
+    const rangeHover = await hoverBg(rangeTrigger(page));
+    const profileHover = await hoverBg(profileTrigger);
+    expect(profileHover).toBe(rangeHover);
+    expect(profileHover).not.toBe(restBg);
+  });
+
+  // tableRef: statistics-behaviour #K13
+  test('K13: the range and menu stay in view while scrolling, and the Profile menu does not cover them where they share its row', async ({ page }) => {
+    await setup(page, { logs: true, stats: true, ips: true });
+    await page.goto('/statistics');
+    await expect(page.getByRole('heading', { name: 'Top clients' })).toBeVisible();
+
+    // scrollTo, not mouse.wheel: the wheel API is unsupported on mobile WebKit.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForFunction(() => window.scrollY > 800);
+    await expect(rangeTrigger(page)).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole('button', { name: 'More statistics actions' })).toBeInViewport({ ratio: 1 });
+    await expectNoHorizontalOverflow(page);
+
+    // The picker still works from down the page.
+    await pickRange(page, 'Last 24 hours');
+    await expect(page).toHaveURL(/range=24h$/);
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+    await expect(rangeTrigger(page)).toBeInViewport();
+
+    // Below md the controls sit in the title row under Profile, so its open list may cover them (K1).
+    if (page.viewportSize()!.width < 768) return;
+    await page.getByTestId('app-header-wrapper').getByRole('combobox').click();
+    const profileMenu = (await page.getByRole('listbox').boundingBox())!;
+    // The open Select hides the rest of the page from the accessibility tree, so measure by attribute.
+    for (const control of [page.getByTestId('stats-range-trigger'), page.locator('[aria-label="More statistics actions"]')]) {
+      const b = (await control.boundingBox())!;
+      const overlaps = b.x < profileMenu.x + profileMenu.width && profileMenu.x < b.x + b.width && b.y < profileMenu.y + profileMenu.height && profileMenu.y < b.y + b.height;
+      expect(overlaps).toBe(false);
+    }
   });
 
   // tableRef: statistics-behaviour #P9, #K12
