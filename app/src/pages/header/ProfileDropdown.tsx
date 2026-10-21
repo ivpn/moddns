@@ -97,7 +97,7 @@ export default function ProfileDropdown({
                     if (selected) setActiveProfile(selected);
                 }}
             >
-                <SelectTrigger className="text-[var(--tailwind-colors-slate-50)] border-[var(--tailwind-colors-slate-600)]">
+                <SelectTrigger className="text-[var(--tailwind-colors-slate-50)] border-[var(--tailwind-colors-slate-600)] hover:bg-muted">
                     <SelectValue placeholder="Select profile">
                         {(() => {
                             if (!currentProfile?.name) return "Select profile";

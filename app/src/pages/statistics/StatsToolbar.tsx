@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { ChevronDown, EllipsisVertical, Trash2 } from "lucide-react";
 import type { ModelProfile } from "@/api/client";
 import { cn } from "@/lib/utils";
+import { PageActions } from "@/lib/pageActions";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,7 +19,7 @@ import { mutedText, titleText } from "./primitives";
 
 const DAY = 86400;
 const trigger = cn(
-    "inline-flex items-center justify-center rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] bg-[var(--shadcn-ui-app-background)] hover:bg-muted min-h-11 md:min-h-9 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] bg-[var(--shadcn-ui-app-background)] hover:bg-muted cursor-pointer min-h-11 md:min-h-9 disabled:opacity-60 disabled:cursor-not-allowed",
     titleText,
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
 );
@@ -55,9 +56,10 @@ export function RangePicker({
                     type="button"
                     aria-label={`Time range: ${current.label}`}
                     data-testid="stats-range-trigger"
-                    className={cn(trigger, "justify-between gap-2 px-3 text-sm font-medium flex-1 sm:flex-none sm:min-w-44")}
+                    className={cn(trigger, "justify-between gap-2 px-3 text-sm font-medium whitespace-nowrap sm:min-w-44")}
                 >
-                    {current.label}
+                    <span className="sm:hidden">{current.label.replace(/^Last /, "")}</span>
+                    <span className="hidden sm:inline">{current.label}</span>
                     <ChevronDown className="w-4 h-4 opacity-70" aria-hidden />
                 </button>
             </DropdownMenuTrigger>
@@ -140,7 +142,7 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
     );
 }
 
-/** K1: time range and the ⋮ menu, right-aligned from `sm`. */
+/** K1: time range and the ⋮ menu, rendered into the app header beside the page title so they stay in view while the page scrolls. */
 export function StatsToolbar({
     offered,
     range,
@@ -156,11 +158,9 @@ export function StatsToolbar({
     trailing?: React.ReactNode;
 }) {
     return (
-        <div className="flex flex-col sm:flex-row sm:justify-end w-full">
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
-                <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
-                {trailing}
-            </div>
-        </div>
+        <PageActions>
+            <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
+            {trailing}
+        </PageActions>
     );
 }

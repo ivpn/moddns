@@ -61,6 +61,7 @@ import { useApiEventHandler } from "@/api/eventHandler";
 import { toast } from "sonner";
 import { authToasts } from "@/lib/authToasts";
 import { subscribe, dispatch, type AppEvent } from '@/lib/eventBus';
+import { PageActionsProvider } from '@/lib/pageActions';
 
 // Desktop layout sizing constants
 const DESKTOP_CONTENT_BASE_WIDTH = 1200;
@@ -527,7 +528,7 @@ function ProtectedLayout() {
   const contentMaxWidth = isDesktop ? DESKTOP_CONTENT_CLAMP : 'min(100%, 1080px)';
 
   return (
-    <>
+    <PageActionsProvider>
       <AppLayout>
         <AccountCutoffGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
@@ -634,7 +635,7 @@ function ProtectedLayout() {
           </div>
         </div>
       )}
-    </>
+    </PageActionsProvider>
   );
 }
 
