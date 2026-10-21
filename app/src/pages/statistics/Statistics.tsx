@@ -15,7 +15,7 @@ import { fromProfile, type DataCollectionState } from "@/components/data-collect
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
 import { countingSince, countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
-import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
+import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, rememberRange, rememberedRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
 import { formatDateTime } from "./time";
 import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId, type LogsList } from "./groups";
@@ -100,7 +100,8 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const laNoteId = useId();
     const [params, setParams] = useSearchParams();
     const retention = profileStatsRetention(profile);
-    const range = resolveRange(params.get("range"), retention);
+    const askedRange = params.get("range");
+    const range = resolveRange(askedRange ?? rememberedRange(), retention);
     const offered = useMemo(() => offeredRanges(retention), [retention]);
 
     const setRange = useCallback(
@@ -116,10 +117,18 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             ),
         [setParams],
     );
-    // K2: a view the retention no longer offers is corrected in the URL without a message.
-    const askedRange = params.get("range");
+    /** K2: a view the user picks is remembered for the session. */
+    const chooseRange = useCallback(
+        (k: RangeKey) => {
+            rememberRange(k);
+            setRange(k);
+        },
+        [setRange],
+    );
+    // K2: a view the retention no longer offers is corrected in the URL without a message, and a
+    // remembered view is written to it, so the URL always names the view shown.
     useEffect(() => {
-        if (askedRange && parseRange(askedRange) !== range) setRange(range);
+        if (askedRange ? parseRange(askedRange) !== range : range !== DEFAULT_RANGE) setRange(range);
     }, [askedRange, range, setRange]);
 
     const pid = profile?.profile_id ?? null;
@@ -231,7 +240,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                     <StatsToolbar
                         offered={offered}
                         range={range}
-                        onRange={setRange}
+                        onRange={chooseRange}
                         onChangeRetention={trigger => openDialog("retention", trigger)}
                         trailing={
                             countsOn && (
@@ -249,7 +258,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         statsOn={countsOn}
                         stats={stats}
                         range={range}
-                        onRange={setRange}
+                        onRange={chooseRange}
                         offered={offered}
                         lastSeen={lastSeen}
                         emptyHeadingRef={emptyHeading}

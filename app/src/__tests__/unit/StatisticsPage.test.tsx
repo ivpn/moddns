@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/general';
 import api from '@/api/api';
 import type { ModelProfile } from '@/api/client';
 import { formatDateTime } from '@/pages/statistics/time';
+import { resetRememberedRange } from '@/pages/statistics/ranges';
 import { createStatsResponse, devicesList, topBlocked, topBlocklists, topClients, topResolved } from '../mocks/statisticsMocks';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -88,6 +89,7 @@ beforeAll(() => {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    resetRememberedRange();
     statsGet.mockResolvedValue({ data: createStatsResponse({ points: 48 }) });
     topGet.mockImplementation(async (_id: string, kind: string) => ({ data: kind === 'blocked' ? topBlocked : topResolved }));
     clientsGet.mockResolvedValue({ data: topClients });
@@ -192,7 +194,7 @@ describe('Top blocklists panel', () => {
         expect(within(panel).getByText('bl-nameless')).toBeInTheDocument();
         expect(catalogGet).not.toHaveBeenCalled();
         expect(within(panel).getByText('A query blocked by several lists counts once for each.')).toBeInTheDocument();
-        expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_7_DAYS', 10);
+        expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_1_DAY', 10);
     });
 
     it('does not depend on log_domains', async () => {
@@ -376,7 +378,7 @@ describe('Statistics page data states', () => {
         await screen.findByLabelText(/^Total queries:/);
         let resolve!: (v: unknown) => void;
         statsGet.mockReturnValue(new Promise(r => (resolve = r)));
-        await pickRange(user, 'Last 24 hours');
+        await pickRange(user, 'Last 7 days');
         const group = await screen.findByTestId('stats-counts-data');
         expect(group).toHaveAttribute('aria-busy', 'true');
         expect(group).toHaveClass('opacity-60');
@@ -411,7 +413,7 @@ describe('Statistics page data states', () => {
         const at = new Date(Date.now() - 2 * 86_400_000);
         at.setSeconds(0, 0);
         blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: at.toISOString() } });
-        mount(mk('SL', 'p1', '1w'));
+        mount(mk('SL', 'p1', '1w'), '/statistics?range=7d');
         expect(await screen.findByRole('heading', { level: 2, name: `From query logs · Since ${formatDateTime(at.getTime())}` })).toBeInTheDocument();
     });
 
@@ -423,7 +425,7 @@ describe('Statistics page data states', () => {
         late.setSeconds(0, 0);
         blocklistsGet.mockResolvedValue({ data: { ...topBlocklists, covered_from: late.toISOString() } });
         clientsGet.mockResolvedValue({ data: { ...topClients, covered_from: early.toISOString() } });
-        mount(mk('SL', 'p1', '1w'));
+        mount(mk('SL', 'p1', '1w'), '/statistics?range=7d');
         expect(await screen.findByRole('heading', { level: 2, name: `From query logs · Since ${formatDateTime(early.getTime())}` })).toBeInTheDocument();
     });
 
@@ -467,15 +469,54 @@ describe('Statistics page picker and fetching', () => {
         expect(screen.getByTestId('loc')).not.toHaveTextContent('range');
         await pickRange(user, 'Last 30 days');
         expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=30d');
-        await pickRange(user, 'Last 7 days');
+        await pickRange(user, 'Last 24 hours');
         expect(screen.getByTestId('loc')).not.toHaveTextContent('range');
     });
 
-    it('reads an invalid range as 7d', async () => {
+    it('reads an invalid range as 24h', async () => {
         // tableRef: statistics-behaviour #K2
         mount(mk('S'), '/statistics?range=bogus');
+        expect(await rangeTrigger('Last 24 hours')).toBeInTheDocument();
+        expect(statsGet).toHaveBeenCalledWith('p1', 'LAST_1_DAY');
+    });
+
+    it('opens on the last picked view for the rest of the session and names it in the URL', async () => {
+        // tableRef: statistics-behaviour #K2
+        const user = userEvent.setup();
+        const first = mount(mk('S'));
+        await pickRange(user, 'Last 7 days');
+        first.unmount();
+
+        mount(mk('S'));
         expect(await rangeTrigger('Last 7 days')).toBeInTheDocument();
-        expect(statsGet).toHaveBeenCalledWith('p1', 'LAST_7_DAYS');
+        await waitFor(() => expect(screen.getByTestId('loc')).toHaveTextContent('/statistics?range=7d'));
+        expect(statsGet).toHaveBeenLastCalledWith('p1', 'LAST_7_DAYS');
+    });
+
+    it('lets a range in the URL win over the remembered view, without remembering it', async () => {
+        // tableRef: statistics-behaviour #K2
+        const user = userEvent.setup();
+        const first = mount(mk('S'));
+        await pickRange(user, 'Last 7 days');
+        first.unmount();
+
+        const second = mount(mk('S'), '/statistics?range=3h');
+        expect(await rangeTrigger('Last 3 hours')).toBeInTheDocument();
+        second.unmount();
+
+        mount(mk('S'));
+        expect(await rangeTrigger('Last 7 days')).toBeInTheDocument();
+    });
+
+    it('shows the longest offered view when the remembered one is longer than the retention', async () => {
+        // tableRef: statistics-behaviour #K2, #K11
+        const user = userEvent.setup();
+        const first = mount(mk('S', 'p1', '1d', '1y'));
+        await pickRange(user, 'Last 12 months');
+        first.unmount();
+
+        mount(mk('S'));
+        expect(await rangeTrigger('Last 30 days')).toBeInTheDocument();
     });
 
     /** Open the range menu and list its views as "label" or "label (disabled: reason)". */
@@ -522,7 +563,7 @@ describe('Statistics page picker and fetching', () => {
         // tableRef: statistics-behaviour #K11
         const user = userEvent.setup();
         mount(mk('S'));
-        await user.click(await rangeTrigger('Last 7 days'));
+        await user.click(await rangeTrigger('Last 24 hours'));
         const item = await screen.findByRole('menuitemradio', { name: /Last 12 months/ });
         expect(item).toHaveAttribute('aria-disabled', 'true');
     });
@@ -583,7 +624,7 @@ describe('Statistics page picker and fetching', () => {
         let slow!: (v: unknown) => void;
         statsGet.mockImplementationOnce(() => new Promise(r => (slow = r)));
         mount(mk('S'));
-        await pickRange(user, 'Last 24 hours');
+        await pickRange(user, 'Last 7 days');
         await screen.findByLabelText(/^Total queries:/);
         await act(async () => slow({ data: createStatsResponse({ points: 5 }) }));
         const total = createStatsResponse({ points: 48 }).totals.total;
@@ -705,7 +746,7 @@ describe('Statistics page retention', () => {
         (api.Client.profilesApi.apiV1ProfilesIdPatch as unknown as Mock).mockResolvedValue({ status: 200, data: updated });
         profileGet.mockResolvedValue({ data: mk('S') });
         mount(mk('S'));
-        await user.click(await rangeTrigger('Last 7 days'));
+        await user.click(await rangeTrigger('Last 24 hours'));
         await user.click(await screen.findByRole('menuitem', { name: 'Change retention…' }));
         const dialog = await screen.findByRole('dialog', { name: 'Data collection' });
         const pills = within(dialog).getByRole('radiogroup', { name: 'Statistics Retention period' });

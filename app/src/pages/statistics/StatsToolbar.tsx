@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useDeleteStatisticsHistory } from "@/components/data-collection/DeleteStatisticsHistory";
 import { STALE_TEXT, STATS_RETENTION_OPTIONS } from "@/components/data-collection/model";
-import { RANGES, type RangeDef, type RangeKey } from "./ranges";
+import { RANGES, rangeDef, type RangeDef, type RangeKey } from "./ranges";
 import { mutedText, titleText } from "./primitives";
 
 const DAY = 86400;
@@ -45,7 +45,7 @@ export function RangePicker({
     // Opened only after the menu has closed, so the menu's focus handling can't pull focus out of the dialog.
     const retentionRequested = useRef(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
-    const current = RANGES.find(r => r.key === value) ?? RANGES[3];
+    const current = rangeDef(value);
     const isOffered = (k: RangeKey) => offered.some(r => r.key === k);
     const anyDisabled = RANGES.some(r => !isOffered(r.key));
     return (
