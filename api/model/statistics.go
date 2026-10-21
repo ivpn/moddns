@@ -137,8 +137,8 @@ type StatisticsReasons struct {
 	Other       int64 `json:"other"`
 }
 
-// StatisticsProtocols counts queries by encrypted transport; plain DNS is not counted, so the
-// protocols need not add up to totals.total.
+// StatisticsProtocols counts queries by encrypted transport. Plain DNS carries no profile ID
+// and is dropped by the proxy before counting, so these add up to totals.total.
 type StatisticsProtocols struct {
 	DoH int64 `json:"doh"`
 	DoT int64 `json:"dot"`
