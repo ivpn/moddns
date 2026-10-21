@@ -169,9 +169,9 @@ test.describe('@statistics Statistics page', () => {
     const menuButton = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
     expect(menuButton.x).toBeGreaterThan(t.x + t.width);
     expect(menuButton.x + menuButton.width).toBeLessThanOrEqual(375);
-    // Availability line first, the controls under it.
+    // The controls first, the availability line under them with the Counts heading.
     const line = (await page.getByTestId('stats-availability').boundingBox())!;
-    expect(line.y + line.height).toBeLessThanOrEqual(t.y);
+    expect(line.y).toBeGreaterThanOrEqual(t.y + t.height);
     await expectNoHorizontalOverflow(page);
 
     await trigger.click();
@@ -189,15 +189,19 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #K1, #K5, #P13
-  test('the toolbar puts the availability line left and the range and menu right, with no range caption', { tag: '@desktop' }, async ({ page }) => {
+  test('the toolbar holds the range and menu on the right, the availability line sits beside the Counts heading, with no range caption', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 1000 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics');
     const line = (await page.getByTestId('stats-availability').boundingBox())!;
+    const heading = (await page.getByRole('heading', { level: 2, name: 'Counts', exact: true }).boundingBox())!;
     const trigger = (await rangeTrigger(page).boundingBox())!;
     const menu = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
-    expect(line.x + line.width).toBeLessThanOrEqual(trigger.x);
     expect(menu.x).toBeGreaterThan(trigger.x + trigger.width);
+    expect(Math.abs(menu.x + menu.width - 1400)).toBeLessThanOrEqual(64);
+    expect(line.y).toBeGreaterThanOrEqual(trigger.y + trigger.height);
+    expect(line.x).toBeGreaterThan(heading.x + heading.width);
+    expect(line.y).toBeLessThan(heading.y + heading.height);
     await expect(page.getByText(/ · (15-minute|hourly|daily)\b/)).toHaveCount(0);
   });
 

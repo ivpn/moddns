@@ -230,12 +230,6 @@ export function logsScope(range: RangeKey, logsRetention: string | undefined, co
     return coveredFrom !== null && coveredFrom > start + toleranceMs(w.seconds) ? { kind: "since", at: coveredFrom } : { kind: "last", words: w.words };
 }
 
-/** P18: the counts group scope: the view, or since counting started inside it (P9). */
-export function countsScope(range: RangeKey, d: StatsData | null): Scope {
-    const since = d ? countingSince(d) : null;
-    return since !== null ? { kind: "since", at: since } : { kind: "last", words: rangeDef(range).words };
-}
-
 /** P28: the logs start before statistics started counting inside the view. */
 export function logsReachBeforeCounts(range: RangeKey, logsRetention: string | undefined, coveredFrom: number | null, countsStart: number | null): boolean {
     if (coveredFrom === null || countsStart === null) return false;

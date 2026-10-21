@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { countsScope, countsState, expectedFirstCounts, logsReachBeforeCounts, logsScope, scopeIn, scopeTitle, type StatsData } from "./derive";
+import { countsState, expectedFirstCounts, logsReachBeforeCounts, logsScope, scopeIn, scopeTitle, type StatsData } from "./derive";
 import { nextLongerRange, rangeDef, type RangeDef, type RangeKey } from "./ranges";
 import { formatDateTime, formatExpected } from "./time";
 import { GateAction, GroupHeading, LimitedAccessNote, MessageCard, StatsCard, mutedText } from "./primitives";
@@ -108,6 +108,8 @@ export interface CountsGroupProps extends GateProps {
     emptyHeadingRef: React.Ref<HTMLHeadingElement>;
     /** Clock for the collecting / no-queries-yet switch (P5, P23). */
     now: number;
+    /** P13: the availability line, shown beside the heading in place of a scope. */
+    availability?: React.ReactNode;
 }
 
 export function CountsGroup(p: CountsGroupProps) {
@@ -189,10 +191,9 @@ export function CountsGroup(p: CountsGroupProps) {
         }
     }
 
-    const scope = p.statsOn ? scopeTitle(countsScope(range, stats.status === "ready" ? stats.data : null)) : undefined;
     return (
         <div className="flex flex-col gap-4" data-testid="stats-counts-group">
-            <GroupHeading scope={scope}>Counts</GroupHeading>
+            <GroupHeading aside={p.statsOn ? p.availability : undefined}>Counts</GroupHeading>
             {body}
         </div>
     );

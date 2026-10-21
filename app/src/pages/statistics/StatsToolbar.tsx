@@ -140,12 +140,11 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
     );
 }
 
-/** K1: availability line on the left; time range and the ⋮ menu on the right. */
+/** K1: time range and the ⋮ menu, right-aligned from `sm`. */
 export function StatsToolbar({
     offered,
     range,
     onRange,
-    leading,
     trailing,
     onChangeRetention,
 }: {
@@ -154,12 +153,10 @@ export function StatsToolbar({
     onRange: (k: RangeKey) => void;
     /** Receives the range trigger, where focus returns when the dialog closes. */
     onChangeRetention: (trigger: HTMLElement | null) => void;
-    leading?: React.ReactNode;
     trailing?: React.ReactNode;
 }) {
     return (
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full">
-            <div className="min-w-0 flex-1 sm:pt-2">{leading}</div>
+        <div className="flex flex-col sm:flex-row sm:justify-end w-full">
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
                 <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
                 {trailing}

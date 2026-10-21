@@ -19,14 +19,20 @@ export function StatsCard({ className, ...props }: React.ComponentProps<"div">) 
     );
 }
 
-/** P18: `scope` names the window the group covers and is part of the heading's accessible name. */
-export function GroupHeading({ children, scope, caption }: { children: React.ReactNode; scope?: string; caption?: React.ReactNode }) {
+/**
+ * P18: `scope` names the window the group covers and is part of the heading's accessible name.
+ * `aside` sits beside the heading (P13) but outside it, so its controls stay out of the name.
+ */
+export function GroupHeading({ children, scope, caption, aside }: { children: React.ReactNode; scope?: string; caption?: React.ReactNode; aside?: React.ReactNode }) {
     return (
         <div className="flex flex-col gap-1">
-            <h2 className="font-['Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base uppercase tracking-wide leading-4">
-                {children}
-                {scope && <span className={cn("font-sans font-normal normal-case tracking-normal text-sm", mutedText)}>{` · ${scope}`}</span>}
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-baseline gap-x-3 gap-y-1">
+                <h2 className="font-['Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base uppercase tracking-wide leading-4">
+                    {children}
+                    {scope && <span className={cn("font-sans font-normal normal-case tracking-normal text-sm", mutedText)}>{` · ${scope}`}</span>}
+                </h2>
+                {aside}
+            </div>
             {caption && <p className={cn("text-[13px] leading-[18px]", mutedText)}>{caption}</p>}
         </div>
     );

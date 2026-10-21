@@ -233,27 +233,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         range={range}
                         onRange={setRange}
                         onChangeRetention={trigger => openDialog("retention", trigger)}
-                        leading={
-                            countsOn &&
-                            statsData && (
-                                <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
-                                    <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
-                                    <span>
-                                        {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}
-                                        kept for {statsRetentionWords(statsData.retention)} ·{" "}
-                                        <button
-                                            type="button"
-                                            aria-haspopup="dialog"
-                                            aria-label="Change how long statistics are kept"
-                                            onClick={() => openDialog("retention")}
-                                            className="underline underline-offset-2 whitespace-nowrap text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-800)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
-                                        >
-                                            Change
-                                        </button>
-                                    </span>
-                                </p>
-                            )
-                        }
                         trailing={
                             countsOn && (
                                 <StatsActions
@@ -278,6 +257,27 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         restricted={isRestricted}
                         laNoteId={laNoteId}
                         onGate={openDialog}
+                        availability={
+                            countsOn &&
+                            statsData && (
+                                <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
+                                    <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
+                                    <span>
+                                        {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}
+                                        kept for {statsRetentionWords(statsData.retention)} ·{" "}
+                                        <button
+                                            type="button"
+                                            aria-haspopup="dialog"
+                                            aria-label="Change how long statistics are kept"
+                                            onClick={() => openDialog("retention")}
+                                            className="underline underline-offset-2 whitespace-nowrap text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-800)] rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]"
+                                        >
+                                            Change
+                                        </button>
+                                    </span>
+                                </p>
+                            )
+                        }
                     />
                     <LogsGroup
                         logsOn={logsOn}
