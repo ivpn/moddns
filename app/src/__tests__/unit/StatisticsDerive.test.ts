@@ -15,7 +15,7 @@ import {
 } from '@/pages/statistics/derive';
 import { statsRetentionWords } from '@/components/data-collection/model';
 import { LOGS_TIMESPAN, RANGES, offeredRanges, resolveRange, STATS_TIMESPAN, nextLongerRange, parseRange } from '@/pages/statistics/ranges';
-import { axisTicks, formatDateTime, formatRangeCaption, bucketUnitWord } from '@/pages/statistics/time';
+import { axisTicks, formatDateTime, bucketUnitWord } from '@/pages/statistics/time';
 import { createStatsResponse } from '../mocks/statisticsMocks';
 
 describe('ranges', () => {
@@ -184,11 +184,10 @@ describe('labels', () => {
     });
 
     it('words the bucket resolution', () => {
-        // tableRef: statistics-behaviour #K5
+        // tableRef: statistics-behaviour #K6
         expect(bucketUnitWord(900)).toBe('15-minute');
         expect(bucketUnitWord(3600)).toBe('hourly');
         expect(bucketUnitWord(86400)).toBe('daily');
-        expect(formatRangeCaption(Date.UTC(2026, 8, 29, 15), Date.UTC(2026, 9, 6, 15), 3600)).toMatch(/ · hourly$/);
     });
 });
 

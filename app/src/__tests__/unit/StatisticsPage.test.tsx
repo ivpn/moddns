@@ -553,11 +553,13 @@ describe('Statistics page picker and fetching', () => {
         expect(await rangeTrigger('Last 12 months')).toBeInTheDocument();
     });
 
-    it('has no clamp caption: the range caption is always the plain one', async () => {
-        // tableRef: statistics-behaviour #P11
+    it('has no range caption under the picker, clamped or plain', async () => {
+        // tableRef: statistics-behaviour #P11, #K5
         statsGet.mockResolvedValue({ data: createStatsResponse({ points: 30, bucketSeconds: 86400, timespan: 'LAST_MONTH' }) });
         mount(mk('S'), '/statistics?range=30d');
-        expect(await screen.findByTestId('stats-range-caption')).not.toHaveTextContent(/are kept for/);
+        await screen.findByTestId('stats-availability');
+        expect(screen.queryByText(/are kept for/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/ · (15-minute|hourly|daily)\b/)).not.toBeInTheDocument();
     });
 
     it('fetches statistics on a range change with the mapped timespans', async () => {

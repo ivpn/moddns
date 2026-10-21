@@ -16,7 +16,7 @@ import type { InitialFocus } from "@/components/data-collection/DataCollectionCo
 import { countingSince, countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
 import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
-import { formatDateTime, formatRangeCaption } from "./time";
+import { formatDateTime } from "./time";
 import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId, type LogsList } from "./groups";
 import { StatsActions, StatsToolbar } from "./StatsToolbar";
@@ -209,12 +209,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
         return () => timers.forEach(clearTimeout);
     }, [collectingUntil, refetchAt, refetchStats, pid, range]);
 
-    const caption = useMemo(() => {
-        const d = countsOn && stats.status === "ready" ? stats.data : null;
-        if (!d || d.toMs <= d.fromMs) return null;
-        return formatRangeCaption(d.fromMs, d.toMs, d.bucketSeconds);
-    }, [countsOn, stats.status, stats.data, range]);
-
     if (!profile || !pid) return <div />;
 
     const lastSeen = logsOn && devices.status === "ready" ? devices.data : null;
@@ -239,7 +233,6 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         range={range}
                         onRange={setRange}
                         onChangeRetention={trigger => openDialog("retention", trigger)}
-                        caption={caption}
                         leading={
                             countsOn &&
                             statsData && (

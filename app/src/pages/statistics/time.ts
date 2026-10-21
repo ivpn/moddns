@@ -1,6 +1,6 @@
 // Date and time formatting for the Statistics page.
 //
-// Source of truth: docs/specs/statistics-behaviour.md Section K (K5, K6).
+// Source of truth: docs/specs/statistics-behaviour.md Section K (K6).
 // Sub-day buckets use browser local time; daily buckets are UTC days.
 
 import type { RangeKey } from "./ranges";
@@ -36,25 +36,10 @@ export function formatUtcDay(ms: number, withYear = false): string {
     return fmt("utcday", { month: "short", day: "numeric", year: withYear ? "numeric" : undefined, timeZone: "UTC" }).format(ms);
 }
 
-/** K6: only worth saying "Days are UTC days" when local time differs from UTC. */
-export function browserOffsetsFromUtc(): boolean {
-    return new Date().getTimezoneOffset() !== 0;
-}
-
 export function bucketUnitWord(bucketSeconds: number): string {
     if (bucketSeconds >= 86400) return "daily";
     if (bucketSeconds >= 3600) return "hourly";
     return "15-minute";
-}
-
-/** K5: "{from} - {to} · hourly" */
-export function formatRangeCaption(fromMs: number, toMs: number, bucketSeconds: number): string {
-    const daily = bucketSeconds >= 86400;
-    const range = daily
-        ? `${formatUtcDay(fromMs)} - ${formatUtcDay(toMs)}`
-        : `${formatDateTime(fromMs)} - ${formatDateTime(toMs)}`;
-    const days = daily && browserOffsetsFromUtc() ? " · Days are UTC days" : "";
-    return `${range} · ${bucketUnitWord(bucketSeconds)}${days}`;
 }
 
 export interface AxisTick {

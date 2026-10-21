@@ -140,12 +140,11 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
     );
 }
 
-/** K1, K5: availability line on the left; time range and the ⋮ menu on the right with the caption under them. */
+/** K1: availability line on the left; time range and the ⋮ menu on the right. */
 export function StatsToolbar({
     offered,
     range,
     onRange,
-    caption,
     leading,
     trailing,
     onChangeRetention,
@@ -155,23 +154,15 @@ export function StatsToolbar({
     onRange: (k: RangeKey) => void;
     /** Receives the range trigger, where focus returns when the dialog closes. */
     onChangeRetention: (trigger: HTMLElement | null) => void;
-    caption: string | null;
     leading?: React.ReactNode;
     trailing?: React.ReactNode;
 }) {
     return (
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 w-full">
             <div className="min-w-0 flex-1 sm:pt-2">{leading}</div>
-            <div className="flex flex-col gap-2 w-full sm:w-auto sm:items-end">
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
-                    <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
-                    {trailing}
-                </div>
-                {caption && (
-                    <p className={cn("text-[13px] leading-[18px] tabular-nums sm:text-right", mutedText)} data-testid="stats-range-caption">
-                        {caption}
-                    </p>
-                )}
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:justify-end">
+                <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
+                {trailing}
             </div>
         </div>
     );
