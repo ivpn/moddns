@@ -26,10 +26,10 @@ describe('ranges', () => {
         ]);
     });
 
-    it('defaults to 7d and reads an invalid value as 7d', () => {
+    it('defaults to 24h and reads an invalid value as 24h', () => {
         // tableRef: statistics-behaviour #K2
-        expect(parseRange(null)).toBe('7d');
-        expect(parseRange('banana')).toBe('7d');
+        expect(parseRange(null)).toBe('24h');
+        expect(parseRange('banana')).toBe('24h');
         expect(parseRange('12m')).toBe('12m');
     });
 
@@ -327,14 +327,14 @@ describe('offeredRanges and resolveRange', () => {
         expect(offeredRanges('1y').map(r => r.key)).toEqual(['3h', '6h', '24h', '7d', '30d', '3m', '12m']);
     });
 
-    it('reads a hidden view as the longest offered one and an invalid value as 7d', () => {
+    it('reads a hidden view as the longest offered one and an invalid value as 24h', () => {
         // tableRef: statistics-behaviour #K2, #K11
         expect(resolveRange('12m', '30d')).toBe('30d');
         expect(resolveRange('3m', '30d')).toBe('30d');
         expect(resolveRange('12m', '90d')).toBe('3m');
         expect(resolveRange('12m', '1y')).toBe('12m');
-        expect(resolveRange('bogus', '30d')).toBe('7d');
-        expect(resolveRange(null, '1y')).toBe('7d');
+        expect(resolveRange('bogus', '30d')).toBe('24h');
+        expect(resolveRange(null, '1y')).toBe('24h');
     });
 });
 

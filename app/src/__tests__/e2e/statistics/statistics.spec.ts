@@ -183,10 +183,26 @@ test.describe('@statistics Statistics page', () => {
       expect(b.height).toBeGreaterThanOrEqual(44);
       expect(b.right).toBeLessThanOrEqual(375);
     }
-    await page.getByRole('menuitemradio', { name: 'Last 24 hours' }).click();
-    await expect(page).toHaveURL(/range=24h$/);
-    await pickRange(page, 'Last 7 days');
+    await page.getByRole('menuitemradio', { name: 'Last 7 days' }).click();
+    await expect(page).toHaveURL(/range=7d$/);
+    await pickRange(page, 'Last 24 hours');
     await expect(page).toHaveURL(/\/statistics$/);
+  });
+
+  // tableRef: statistics-behaviour #K2
+  test('K2: opens on 24 hours, then on the last picked view after leaving and coming back', { tag: '@desktop' }, async ({ page }) => {
+    await setup(page, { logs: false, stats: true });
+    await page.goto('/statistics');
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+    await expect(page).toHaveURL(/\/statistics$/);
+
+    await pickRange(page, 'Last 7 days');
+    await expect(page).toHaveURL(/range=7d$/);
+    await page.getByTestId('main-navigation').getByRole('button', { name: 'Settings' }).click();
+    await expect(page).toHaveURL(/\/settings/);
+    await page.getByTestId('main-navigation').getByRole('button', { name: 'Statistics' }).click();
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 7 days');
+    await expect(page).toHaveURL(/\/statistics\?range=7d$/);
   });
 
   // tableRef: statistics-behaviour #K1
@@ -259,9 +275,9 @@ test.describe('@statistics Statistics page', () => {
     await expectNoHorizontalOverflow(page);
 
     // The picker still works from down the page.
-    await pickRange(page, 'Last 24 hours');
-    await expect(page).toHaveURL(/range=24h$/);
-    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+    await pickRange(page, 'Last 7 days');
+    await expect(page).toHaveURL(/range=7d$/);
+    await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 7 days');
     await expect(rangeTrigger(page)).toBeInViewport();
 
     // Below md the controls sit in the title row under Profile, so its open list may cover them (K1).

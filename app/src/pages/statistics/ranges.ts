@@ -10,7 +10,7 @@ import {
 
 export type RangeKey = "3h" | "6h" | "24h" | "7d" | "30d" | "3m" | "12m";
 
-export const DEFAULT_RANGE: RangeKey = "7d";
+export const DEFAULT_RANGE: RangeKey = "24h";
 
 export interface RangeDef {
     key: RangeKey;
@@ -34,8 +34,21 @@ export const RANGES: RangeDef[] = [
 ];
 
 export function rangeDef(key: RangeKey): RangeDef {
-    return RANGES.find(r => r.key === key) ?? RANGES[3];
+    return RANGES.find(r => r.key === key) ?? RANGES.find(r => r.key === DEFAULT_RANGE)!;
 }
+
+/** K2: the view last picked in this browser session; the page opens on it when the URL names none. */
+let remembered: RangeKey | null = null;
+
+export const rememberRange = (key: RangeKey) => {
+    remembered = key;
+};
+export const rememberedRange = (): RangeKey | null => remembered;
+
+/** Forgets the remembered view (tests). */
+export const resetRememberedRange = () => {
+    remembered = null;
+};
 
 /** K2: an invalid or missing value reads as the default. */
 export function parseRange(value: string | null | undefined): RangeKey {
