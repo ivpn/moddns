@@ -214,11 +214,12 @@ export interface BarRow {
  * X6, X7: label · bar · text; every row carries text, never colour alone.
  * "share" scales each bar to its part of all rows, so the track means 100 %;
  * "leader" scales to the largest row, ranking the rows against each other.
+ * `collapseAfter` shows that many rows behind a show-all toggle; without it every row shows (X7).
  */
 export function BarList({
     rows,
     scale,
-    collapseAfter = 5,
+    collapseAfter,
     noun = "rows",
 }: {
     rows: BarRow[];
@@ -228,7 +229,7 @@ export function BarList({
 }) {
     const [expanded, setExpanded] = useState(false);
     const denominator = scale === "share" ? rows.reduce((s, r) => s + r.value, 0) : Math.max(...rows.map(r => r.value));
-    const many = rows.length > collapseAfter;
+    const many = collapseAfter !== undefined && rows.length > collapseAfter;
     const shown = many && !expanded ? rows.slice(0, collapseAfter) : rows;
     const seg = (value: number, color: string | undefined) =>
         value > 0 && denominator > 0 ? (

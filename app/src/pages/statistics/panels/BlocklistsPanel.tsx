@@ -36,7 +36,6 @@ export function BlocklistsPanel({
                         ) : (
                             <BarList
                                 scale="leader"
-                                noun="blocklists"
                                 rows={items.map(b => ({
                                     id: b.id,
                                     value: b.count,

@@ -66,6 +66,7 @@ export function DevicesPanel({ data, range, lastSeen }: { data: StatsData; range
                         </div>
                         <BarList
                             scale="share"
+                            collapseAfter={5}
                             noun="devices"
                             rows={devices.map(d => {
                                 const s = seen(lastSeen, d);

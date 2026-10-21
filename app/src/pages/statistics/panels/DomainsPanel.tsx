@@ -45,7 +45,6 @@ export function DomainsPanel({
                 ) : (
                     <BarList
                         scale="leader"
-                        noun="domains"
                         rows={items.map(d => ({
                             id: d.domain,
                             value: d.count,
