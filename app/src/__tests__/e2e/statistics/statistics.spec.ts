@@ -292,6 +292,30 @@ test.describe('@statistics Statistics page', () => {
     }
   });
 
+  // tableRef: statistics-behaviour #X7
+  test('X7: a top 50 scrolls inside its card with a sticky header and no toggle', async ({ page }) => {
+    await setup(page, { logs: true, stats: true, ips: true });
+    const items = Array.from({ length: 50 }, (_, i) => ({ domain: `d${i}.example.com`, count: 500 - i }));
+    await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/top\/domains/i, r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ enabled: true, items, covered_from: null }) }));
+    await page.goto('/statistics');
+    const card = page.getByRole('region', { name: 'Top blocked domains', exact: true });
+    const area = card.getByRole('region', { name: /^Top blocked domains, from query logs/ });
+    await expect(area.getByRole('row')).toHaveCount(51);
+    expect((await area.boundingBox())!.height).toBeLessThanOrEqual(321);
+    await expect(card.getByText('Showing the top 50.')).toBeVisible();
+    await expect(card.getByRole('button', { name: /^Show / })).toHaveCount(0);
+
+    await area.evaluate(el => el.scrollTo(0, el.scrollHeight));
+    const box = (await area.boundingBox())!;
+    const last = (await area.getByRole('cell', { name: 'd49.example.com', exact: true }).boundingBox())!;
+    expect(last.y + last.height).toBeLessThanOrEqual(box.y + box.height + 1);
+    // The header stays at the top of the scrolled area.
+    const header = (await area.getByRole('columnheader', { name: 'Domain' }).boundingBox())!;
+    expect(Math.abs(header.y - box.y)).toBeLessThanOrEqual(30);
+    await expectNoHorizontalOverflow(page);
+  });
+
   // tableRef: statistics-behaviour #P9, #K12
   test('P9: a young window keeps the full axis with the start marker, a dot, and a link to a shorter view', { tag: '@desktop' }, async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 1200 });

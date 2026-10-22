@@ -281,6 +281,33 @@ describe('DomainsPanel', () => {
         expect(screen.getByText('Top blocked domains, from query logs in the last hour')).toBeInTheDocument();
     });
 
+    it('scrolls a top 50 inside the card with a sticky header, says it is the top 50, and has no toggle', async () => {
+        // tableRef: statistics-behaviour #X7
+        const fifty = Array.from({ length: 50 }, (_, i) => ({ domain: `d${i}.example.com`, count: 500 - i }));
+        render(<DomainsPanel kind="blocked" items={fifty} scopeIn="in the last hour" />);
+        const caption = 'Top blocked domains, from query logs in the last hour';
+        const tableArea = screen.getByRole('region', { name: caption });
+        expect(tableArea).toHaveClass('max-h-80', 'overflow-y-auto');
+        expect(tableArea).toHaveAttribute('tabindex', '0');
+        expect(within(tableArea).getAllByRole('row')).toHaveLength(51);
+        // z-10: row controls (the quick-rule button) must not paint over the pinned header.
+        expect(tableArea.querySelector('thead')).toHaveClass('sticky', 'z-10');
+        expect(screen.getByText('Showing the top 50.')).toBeInTheDocument();
+
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Chart' }));
+        const chartArea = screen.getByRole('region', { name: caption });
+        expect(chartArea).toHaveClass('max-h-80', 'overflow-y-auto');
+        expect(within(chartArea).getAllByTestId('bar-row')).toHaveLength(50);
+        expect(screen.getByText('Showing the top 50.')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Show / })).not.toBeInTheDocument();
+    });
+
+    it('does not call a shorter list a top 50', () => {
+        // tableRef: statistics-behaviour #X7
+        render(<DomainsPanel kind="blocked" items={topBlocked.items} scopeIn="in the last hour" />);
+        expect(screen.queryByText('Showing the top 50.')).not.toBeInTheDocument();
+    });
+
     it('shows every loaded domain in Chart view, without a show more/less toggle', async () => {
         // tableRef: statistics-behaviour #X7
         const ten = Array.from({ length: 10 }, (_, i) => ({ domain: `d${i}.example.com`, count: 100 - i }));

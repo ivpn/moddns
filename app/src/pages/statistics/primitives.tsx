@@ -150,6 +150,23 @@ export interface TableColumn {
     srOnly?: boolean;
 }
 
+/** X7: the rows a top list loads; the API serves at most 50, all from one cached aggregation. */
+export const TOP_LIST_LIMIT = 50;
+
+/** X7: says a full top list is the top 50, so it is never read as every domain in the window. */
+export function TopListNote({ count }: { count: number }) {
+    return count >= TOP_LIST_LIMIT ? <p className={cn("text-[13px] leading-[18px]", mutedText)}>{`Showing the top ${TOP_LIST_LIMIT}.`}</p> : null;
+}
+
+/** A list capped at the card's scroll height; focusable so keyboard users can scroll it. */
+export function ScrollRegion({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+    return (
+        <div tabIndex={0} role="region" aria-label={label} className={cn("max-h-80 overflow-y-auto", className)}>
+            {children}
+        </div>
+    );
+}
+
 export function StatsTable({
     caption,
     columns,
@@ -168,7 +185,7 @@ export function StatsTable({
         >
             <table className="w-full text-sm tabular-nums">
                 <caption className={cn("text-left text-[13px] pb-2", mutedText)}>{caption}</caption>
-                <thead className={cn(scroll && "sticky top-0 bg-[var(--shadcn-ui-app-background)] dark:bg-[var(--variable-collection-surface)]")}>
+                <thead className={cn(scroll && "sticky top-0 z-10 bg-[var(--shadcn-ui-app-background)] dark:bg-[var(--variable-collection-surface)]")}>
                     <tr className="border-b border-[var(--tailwind-colors-slate-600)]">
                         {columns.map(c => (
                             <th
@@ -215,17 +232,20 @@ export interface BarRow {
  * "share" scales each bar to its part of all rows, so the track means 100 %;
  * "leader" scales to the largest row, ranking the rows against each other.
  * `collapseAfter` shows that many rows behind a show-all toggle; without it every row shows (X7).
+ * `scroll` caps the list at the card's scroll height, named by that label.
  */
 export function BarList({
     rows,
     scale,
     collapseAfter,
     noun = "rows",
+    scroll,
 }: {
     rows: BarRow[];
     scale: "share" | "leader";
     collapseAfter?: number;
     noun?: string;
+    scroll?: string;
 }) {
     const [expanded, setExpanded] = useState(false);
     const denominator = scale === "share" ? rows.reduce((s, r) => s + r.value, 0) : Math.max(...rows.map(r => r.value));
@@ -235,37 +255,40 @@ export function BarList({
         value > 0 && denominator > 0 ? (
             <span data-testid="bar-seg" style={{ width: `${(value / denominator) * 100}%`, minWidth: 2, background: color }} />
         ) : null;
+    const list = (
+        <ul className={cn("flex flex-col gap-3", scroll && "pr-1")}>
+            {shown.map(r => (
+                <li key={r.id} className="group grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center">
+                    <span className={cn("min-w-0 truncate text-sm flex items-center gap-2", titleText)}>{r.label}</span>
+                    {r.action ? (
+                        <span className="flex items-center justify-end gap-1">
+                            {r.action}
+                            <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
+                        </span>
+                    ) : (
+                        <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
+                    )}
+                    <span
+                        aria-hidden
+                        data-testid="bar-row"
+                        className="col-span-2 flex h-2.5 rounded-[3px] overflow-hidden bg-[var(--stats-track)]"
+                    >
+                        {r.blocked !== undefined ? (
+                            <>
+                                {seg(r.value - r.blocked, "var(--stats-all)")}
+                                {seg(r.blocked, "var(--stats-blocked)")}
+                            </>
+                        ) : (
+                            seg(r.value, r.color)
+                        )}
+                    </span>
+                </li>
+            ))}
+        </ul>
+    );
     return (
         <>
-            <ul className="flex flex-col gap-3">
-                {shown.map(r => (
-                    <li key={r.id} className="group grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 items-center">
-                        <span className={cn("min-w-0 truncate text-sm flex items-center gap-2", titleText)}>{r.label}</span>
-                        {r.action ? (
-                            <span className="flex items-center justify-end gap-1">
-                                {r.action}
-                                <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
-                            </span>
-                        ) : (
-                            <span className={cn("text-sm tabular-nums text-right", titleText)}>{r.meta}</span>
-                        )}
-                        <span
-                            aria-hidden
-                            data-testid="bar-row"
-                            className="col-span-2 flex h-2.5 rounded-[3px] overflow-hidden bg-[var(--stats-track)]"
-                        >
-                            {r.blocked !== undefined ? (
-                                <>
-                                    {seg(r.value - r.blocked, "var(--stats-all)")}
-                                    {seg(r.blocked, "var(--stats-blocked)")}
-                                </>
-                            ) : (
-                                seg(r.value, r.color)
-                            )}
-                        </span>
-                    </li>
-                ))}
-            </ul>
+            {scroll ? <ScrollRegion label={scroll}>{list}</ScrollRegion> : list}
             {many && (
                 <Button
                     type="button"

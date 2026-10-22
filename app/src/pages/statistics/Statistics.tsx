@@ -21,7 +21,7 @@ import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId, type LogsList } from "./groups";
 import { StatsActions, StatsToolbar } from "./StatsToolbar";
 import { StatsHero } from "./StatsHero";
-import { mutedText } from "./primitives";
+import { TOP_LIST_LIMIT, mutedText } from "./primitives";
 import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import type { DomainItem } from "./panels/DomainsPanel";
@@ -32,8 +32,6 @@ interface StatisticsProps {
     account?: ModelAccount;
     profiles: ModelProfile[];
 }
-
-const LIST_LIMIT = 10;
 
 type DialogId = GateId | "retention";
 
@@ -147,16 +145,16 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
 
     const logsTimespan = LOGS_TIMESPAN[range];
     const blocked = useApiResource<LogsList<DomainItem>>(pid, pid && domainsOn ? `${pid}|${range}|b` : null, async () =>
-        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet(pid as string, "blocked", logsTimespan, LIST_LIMIT)).data, asDomains),
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet(pid as string, "blocked", logsTimespan, TOP_LIST_LIMIT)).data, asDomains),
     );
     const resolved = useApiResource<LogsList<DomainItem>>(pid, pid && domainsOn ? `${pid}|${range}|r` : null, async () =>
-        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet(pid as string, "resolved", logsTimespan, LIST_LIMIT)).data, asDomains),
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopDomainsGet(pid as string, "resolved", logsTimespan, TOP_LIST_LIMIT)).data, asDomains),
     );
     const clients = useApiResource<LogsList<ClientItem>>(pid, pid && ipsOn ? `${pid}|${range}|c` : null, async () =>
-        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopClientsGet(pid as string, logsTimespan, LIST_LIMIT)).data, asClients),
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopClientsGet(pid as string, logsTimespan, TOP_LIST_LIMIT)).data, asClients),
     );
     const blocklists = useApiResource<LogsList<BlocklistItem>>(pid, pid && logsOn ? `${pid}|${range}|bl` : null, async () =>
-        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopBlocklistsGet(pid as string, logsTimespan, LIST_LIMIT)).data, asBlocklists),
+        asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopBlocklistsGet(pid as string, logsTimespan, TOP_LIST_LIMIT)).data, asBlocklists),
     );
     // Once per profile: `last_seen` does not depend on the range and the endpoint is slow and rate-limited.
     const devices = useApiResource<Map<string, number>>(pid, pid && logsOn ? `${pid}|devices` : null, async () =>
