@@ -469,7 +469,7 @@ function Inner({
                     <SourceCard
                         id={ids.logs}
                         title="Query logs"
-                        description={`A record of each query (time, device, domain, result), kept for ${logsWords}. Client IP addresses only if you turn them on.`}
+                        description={`A record of each query (time, device, domain, result), kept for ${logsWords}. Client IP addresses are recorded only if you turn them on.`}
                         checked={pending.logs}
                         disabled={saving || (offOnly && !saved.logs)}
                         restricted={offOnly && !saved.logs}
