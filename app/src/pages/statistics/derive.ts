@@ -5,6 +5,10 @@
 import type { ModelStatisticsResponse } from "@/api/client";
 import { rangeDef, type RangeKey } from "./ranges";
 import { formatDateTime } from "./time";
+import type { BlocklistItem } from "./panels/BlocklistsPanel";
+
+/** X7: the rows a top list loads; the API serves at most 50, all from one cached aggregation. */
+export const TOP_LIST_LIMIT = 50;
 
 const rangeSeconds = (k: RangeKey) => rangeDef(k).seconds;
 
@@ -243,4 +247,18 @@ export function scopeTitle(s: Scope): string {
 /** P27: the scope inside a sentence. */
 export function scopeIn(s: Scope): string {
     return s.kind === "last" ? `in the ${s.words}` : `since ${formatDateTime(s.at)}`;
+}
+
+/**
+ * P22: appends the enabled lists the logs never credited, as 0, sorted by name. Skipped when the
+ * hits filled the top-list limit, where a missing list may simply rank lower.
+ */
+export function withEnabledLists(items: BlocklistItem[], enabled: string[], names: Map<string, string>): BlocklistItem[] {
+    if (items.length >= TOP_LIST_LIMIT) return items;
+    const credited = new Set(items.map(b => b.id));
+    const zero = enabled
+        .filter(id => !credited.has(id))
+        .map(id => ({ id, name: names.get(id), count: 0 }))
+        .sort((a, b) => (a.name ?? a.id).localeCompare(b.name ?? b.id));
+    return zero.length ? [...items, ...zero] : items;
 }

@@ -193,8 +193,20 @@ describe('Top blocklists panel', () => {
         expect(await within(panel).findByText('Basic Protection')).toBeInTheDocument();
         expect(within(panel).getByText('bl-nameless')).toBeInTheDocument();
         expect(catalogGet).not.toHaveBeenCalled();
-        expect(within(panel).getByText('A query blocked by several lists counts once for each.')).toBeInTheDocument();
+        expect(within(panel).getByText(/^Each blocked query counts for one list only/)).toBeInTheDocument();
         expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_1_DAY', 50);
+    });
+
+    it('lists enabled lists without hits as 0, naming them from the catalog', async () => {
+        // tableRef: statistics-behaviour #P22
+        const p = mk('SL');
+        (p.settings as unknown as { privacy: { blocklists: string[] } }).privacy = { blocklists: ['bl-basic', 'bl-steven', 'bl-nameless'] };
+        catalogGet.mockResolvedValue({ data: [{ blocklist_id: 'bl-steven', name: 'Steven Black' }, { blocklist_id: 'bl-basic', name: 'Basic Protection' }] });
+        mount(p);
+        const panel = await screen.findByRole('region', { name: 'Top blocklists' });
+        const row = await within(panel).findByRole('row', { name: /Steven Black/ });
+        expect(within(row).getByText('0')).toBeInTheDocument();
+        expect(catalogGet).toHaveBeenCalledTimes(1);
     });
 
     it('does not depend on log_domains', async () => {
