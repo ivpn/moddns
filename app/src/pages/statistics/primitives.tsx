@@ -3,6 +3,7 @@ import { ChartColumn, ChartLine, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { LIMITED_ACCESS_TEXT } from "@/components/data-collection/model";
+import { TOP_LIST_LIMIT } from "./derive";
 
 export const titleText = "text-[var(--tailwind-colors-slate-50)]";
 export const mutedText = "text-[var(--tailwind-colors-slate-200)]";
@@ -149,9 +150,6 @@ export interface TableColumn {
     /** The header text is read by screen readers only (an actions column). */
     srOnly?: boolean;
 }
-
-/** X7: the rows a top list loads; the API serves at most 50, all from one cached aggregation. */
-export const TOP_LIST_LIMIT = 50;
 
 /** X7: says a full top list is the top 50, so it is never read as every domain in the window. */
 export function TopListNote({ count }: { count: number }) {

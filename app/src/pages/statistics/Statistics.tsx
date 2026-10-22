@@ -13,7 +13,7 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
-import { countingSince, countsState, expectedFirstCounts, normalizeStats, type StatsData } from "./derive";
+import { TOP_LIST_LIMIT, countingSince, countsState, expectedFirstCounts, normalizeStats, withEnabledLists, type StatsData } from "./derive";
 import { profileStatsRetention, statsRetentionWords } from "@/components/data-collection/model";
 import { LOGS_TIMESPAN, STATS_TIMESPAN, offeredRanges, parseRange, resolveRange, rememberRange, rememberedRange, DEFAULT_RANGE, type RangeKey } from "./ranges";
 import { formatDateTime } from "./time";
@@ -21,7 +21,7 @@ import { useApiResource } from "./useApiResource";
 import { CountsGroup, LogsGroup, type GateId, type LogsList } from "./groups";
 import { StatsActions, StatsToolbar } from "./StatsToolbar";
 import { StatsHero } from "./StatsHero";
-import { TOP_LIST_LIMIT, mutedText } from "./primitives";
+import { mutedText } from "./primitives";
 import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
 import type { DomainItem } from "./panels/DomainsPanel";
@@ -155,6 +155,22 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     );
     const blocklists = useApiResource<LogsList<BlocklistItem>>(pid, pid && logsOn ? `${pid}|${range}|bl` : null, async () =>
         asList((await api.Client.queryLogsApi.apiV1ProfilesIdLogsTopBlocklistsGet(pid as string, logsTimespan, TOP_LIST_LIMIT)).data, asBlocklists),
+    );
+    // P22: enabled lists the logs never credited show as 0; the catalog that names them is fetched
+    // only when there are such lists.
+    const enabledLists = profile?.settings?.privacy?.blocklists;
+    const blocklistHits = blocklists.status === "ready" ? blocklists.data : null;
+    const uncredited = !!blocklistHits && withEnabledLists(blocklistHits.items, enabledLists ?? [], new Map()) !== blocklistHits.items;
+    const catalog = useApiResource<Map<string, string>>(pid, pid && uncredited ? "blocklists-catalog" : null, async () =>
+        new Map(((await api.Client.blocklistsApi.apiV1BlocklistsGet()).data ?? []).map(b => [b.blocklist_id, b.name])),
+    );
+    const catalogSettled = catalog.status === "ready" || catalog.status === "error";
+    const blocklistsShown = useMemo(
+        () =>
+            blocklistHits && uncredited && catalogSettled
+                ? { ...blocklists, data: { ...blocklistHits, items: withEnabledLists(blocklistHits.items, enabledLists ?? [], catalog.data ?? new Map()) } }
+                : blocklists,
+        [blocklists, blocklistHits, uncredited, catalogSettled, enabledLists, catalog.data],
     );
     // Once per profile: `last_seen` does not depend on the range and the endpoint is slow and rate-limited.
     const devices = useApiResource<Map<string, number>>(pid, pid && logsOn ? `${pid}|devices` : null, async () =>
@@ -295,7 +311,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         blocked={blocked}
                         resolved={resolved}
                         clients={clients}
-                        blocklists={blocklists}
+                        blocklists={blocklistsShown}
                         profileId={pid}
                         countsStart={countsOn && statsData ? countingSince(statsData) : null}
                         now={Date.now()}

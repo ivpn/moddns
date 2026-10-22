@@ -9,7 +9,9 @@ export interface BlocklistItem {
     count: number;
 }
 
-const MULTI_LIST_NOTE = "A query blocked by several lists counts once for each.";
+// The proxy stops at the first subscribed list that blocks a query and logs only that list's id.
+const CREDIT_NOTE =
+    "Each blocked query counts for one list only: the earliest-enabled list that blocks it. Lists that overlap with earlier ones can show few or no hits.";
 
 export function BlocklistsPanel({
     items,
@@ -21,10 +23,11 @@ export function BlocklistsPanel({
 }) {
     const nameOf = (b: BlocklistItem) => b.name || b.id;
     const caption = `Top blocklists, from query logs ${scopeIn}`;
+    const hits = items.filter(b => b.count > 0).length;
     return (
-        <PanelShell title="Top blocklists" toggle={items.length > 0} defaultView="table">
+        <PanelShell title="Top blocklists" toggle={hits > 0} defaultView="table">
             {view =>
-                items.length === 0 ? (
+                hits === 0 ? (
                     <p className={cn("text-sm", mutedText)}>{`No queries blocked by a blocklist ${scopeIn}.`}</p>
                 ) : (
                     <>
@@ -52,8 +55,8 @@ export function BlocklistsPanel({
                                 }))}
                             />
                         )}
-                        <TopListNote count={items.length} />
-                        <p className={cn("text-[13px] leading-[18px]", mutedText)}>{MULTI_LIST_NOTE}</p>
+                        <TopListNote count={hits} />
+                        <p className={cn("text-[13px] leading-[18px]", mutedText)}>{CREDIT_NOTE}</p>
                     </>
                 )
             }

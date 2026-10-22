@@ -115,6 +115,20 @@ test.describe('@statistics Statistics page', () => {
   });
 
   // tableRef: statistics-behaviour #P22
+  test('P22: an enabled list the logs never credited shows as 0, named from the catalog', async ({ page }) => {
+    const profile = await setup(page, { logs: true, stats: false });
+    (profile.settings as Record<string, unknown>).privacy = { blocklists: ['bl-basic', 'bl-steven', 'bl-nameless'] };
+    await page.route(/\/api\/v1\/blocklists(\/?|\?.*)$/i, r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ blocklist_id: 'bl-steven', name: 'Steven Black' }]) }));
+    await page.goto('/statistics');
+    const panel = page.getByRole('region', { name: 'Top blocklists' });
+    const rows = panel.getByRole('row');
+    await expect(rows.last()).toContainText('Steven Black');
+    await expect(rows.last()).toContainText('0');
+    await expect(rows.nth(1)).toContainText('Basic Protection');
+  });
+
+  // tableRef: statistics-behaviour #P22
   test('P22: Top blocklists shows the names from the response without a catalog request', async ({ page }) => {
     await setup(page, { logs: true, stats: false });
     const catalogRequests: string[] = [];
@@ -125,7 +139,7 @@ test.describe('@statistics Statistics page', () => {
     const panel = page.getByRole('region', { name: 'Top blocklists' });
     await expect(panel.getByText('Basic Protection')).toBeVisible();
     await expect(panel.getByText('bl-nameless')).toBeVisible();
-    await expect(panel.getByText('A query blocked by several lists counts once for each.')).toBeVisible();
+    await expect(panel.getByText(/^Each blocked query counts for one list only: the earliest-enabled list that blocks it\./)).toBeVisible();
     await expect(panel.getByRole('row', { name: /Basic Protection/ })).toContainText('90');
     await panel.getByRole('button', { name: 'Chart' }).click();
     await expect(panel.getByText('Basic Protection')).toBeVisible();
