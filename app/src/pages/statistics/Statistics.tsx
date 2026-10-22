@@ -283,7 +283,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         availability={
                             countsOn &&
                             statsData && (
-                                <p className={cn("flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
+                                <p className={cn("hidden sm:flex gap-1.5 text-sm", mutedText)} data-testid="stats-availability">
                                     <Info className="w-4 h-4 mt-0.5 flex-none" aria-hidden />
                                     <span>
                                         {statsData.enabledAt !== null ? `Statistics on since ${formatDateTime(statsData.enabledAt)} · ` : "Statistics on · "}

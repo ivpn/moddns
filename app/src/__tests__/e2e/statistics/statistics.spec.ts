@@ -185,8 +185,8 @@ test.describe('@statistics Statistics page', () => {
     const menuButton = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
     expect(menuButton.x).toBeGreaterThan(t.x + t.width);
     expect(menuButton.x + menuButton.width).toBeLessThanOrEqual(375);
-    const line = (await page.getByTestId('stats-availability').boundingBox())!;
-    expect(line.y).toBeGreaterThanOrEqual(t.y + t.height);
+    // P13: phones drop the availability line; the range menu keeps "Change retention…" (K11).
+    await expect(page.getByTestId('stats-availability')).toBeHidden();
     await expectNoHorizontalOverflow(page);
 
     await trigger.click();
@@ -232,6 +232,9 @@ test.describe('@statistics Statistics page', () => {
         // 44px targets below md (K1); the md+ header uses the desktop control height.
         if (width < 768) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
       }
+      // tableRef: statistics-behaviour #P13 — the availability line shows from sm (tablets) up.
+      if (width < 640) await expect(page.getByTestId('stats-availability')).toBeHidden();
+      else await expect(page.getByTestId('stats-availability')).toBeVisible();
       await expectNoHorizontalOverflow(page);
     });
   }
@@ -451,6 +454,7 @@ test.describe('@statistics Statistics page', () => {
 
   // tableRef: statistics-behaviour #U7, #S2, #T14, #P13, #D4
   test('U7: Change opens the retention in a dialog; raising it enables the longer views in place', async ({ page }) => {
+    test.skip(page.viewportSize()!.width < 640, 'below sm the availability line is hidden; phones use "Change retention…" in the range menu (K11)');
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics');
     const line = page.getByTestId('stats-availability');
