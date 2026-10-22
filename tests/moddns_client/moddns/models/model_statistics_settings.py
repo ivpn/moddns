@@ -29,7 +29,7 @@ class ModelStatisticsSettings(BaseModel):
     """ # noqa: E501
     enabled: StrictBool = Field(description="Whether DNS statistics are collected for the profile.")
     enabled_at: Optional[StrictStr] = Field(default=None, description="When statistics were last turned on (UTC); null while they are off.")
-    history_deleted_at: Optional[StrictStr] = Field(default=None, description="When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.")
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Keep-since instant (UTC): the last \"Delete statistics history\" while on, or the turn-off of an off and on; nothing older is kept. Null while off.")
     retention: Optional[ModelStatisticsRetention] = Field(default=None, description="How long daily statistics are kept.")
     __properties: ClassVar[List[str]] = ["enabled", "enabled_at", "history_deleted_at", "retention"]
 
