@@ -79,7 +79,7 @@ describe('DataCollectionControl', () => {
         render(<DataCollectionControl profile={p} />);
         expect(screen.getByTestId('data-collection-status')).toHaveTextContent("Off · Nothing is stored about this profile's queries.");
         expect(screen.getByText('Query counts per device, kept for 30 days. No domains or IP addresses.')).toBeInTheDocument();
-        expect(screen.getByText(/kept for 1 week\. Client IP addresses only if you turn them on\./)).toBeInTheDocument();
+        expect(screen.getByText(/kept for 1 week\. Client IP addresses are recorded only if you turn them on\./)).toBeInTheDocument();
     });
 
     it('names the saved sources in the status line', () => {
