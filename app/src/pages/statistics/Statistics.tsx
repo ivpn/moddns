@@ -8,6 +8,7 @@ import type { ModelAccount, ModelProfile, ModelQueryLogTopBlocklists } from "@/a
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
+import { useScreenDetector } from "@/hooks/useScreenDetector";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
@@ -95,6 +96,8 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
     const setActiveProfile = useAppStore(s => s.setActiveProfile);
     const profile = storeProfile ?? profiles[0] ?? null;
     const { isRestricted } = useSubscriptionGuard();
+    // K1: phones in portrait get the controls as a row in the page, not in the header.
+    const inlineToolbar = useScreenDetector().width < 640;
     const laNoteId = useId();
     const [params, setParams] = useSearchParams();
     const retention = profileStatsRetention(profile);
@@ -256,6 +259,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
                         range={range}
                         onRange={chooseRange}
                         onChangeRetention={trigger => openDialog("retention", trigger)}
+                        inline={inlineToolbar}
                         trailing={
                             countsOn && (
                                 <StatsActions
