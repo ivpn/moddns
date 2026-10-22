@@ -56,10 +56,9 @@ export function RangePicker({
                     type="button"
                     aria-label={`Time range: ${current.label}`}
                     data-testid="stats-range-trigger"
-                    className={cn(trigger, "justify-between gap-2 px-3 text-sm font-medium whitespace-nowrap sm:min-w-44")}
+                    className={cn(trigger, "justify-between gap-2 px-3 text-sm font-medium whitespace-nowrap flex-1 sm:flex-none sm:min-w-44")}
                 >
-                    <span className="sm:hidden">{current.label.replace(/^Last /, "")}</span>
-                    <span className="hidden sm:inline">{current.label}</span>
+                    {current.label}
                     <ChevronDown className="w-4 h-4 opacity-70" aria-hidden />
                 </button>
             </DropdownMenuTrigger>
@@ -142,13 +141,18 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
     );
 }
 
-/** K1: time range and the ⋮ menu, rendered into the app header beside the page title so they stay in view while the page scrolls. */
+/**
+ * K1, K13: time range and the ⋮ menu. From `sm` they go into the app header beside the page title,
+ * so they stay in view while the page scrolls; below `sm` (`inline`) they are a full-width row in
+ * the page that scrolls away with it.
+ */
 export function StatsToolbar({
     offered,
     range,
     onRange,
     trailing,
     onChangeRetention,
+    inline = false,
 }: {
     offered: RangeDef[];
     range: RangeKey;
@@ -156,11 +160,13 @@ export function StatsToolbar({
     /** Receives the range trigger, where focus returns when the dialog closes. */
     onChangeRetention: (trigger: HTMLElement | null) => void;
     trailing?: React.ReactNode;
+    inline?: boolean;
 }) {
-    return (
-        <PageActions>
+    const controls = (
+        <>
             <RangePicker offered={offered} value={range} onChange={onRange} onChangeRetention={onChangeRetention} />
             {trailing}
-        </PageActions>
+        </>
     );
+    return inline ? <div className="flex items-center gap-2 w-full">{controls}</div> : <PageActions>{controls}</PageActions>;
 }

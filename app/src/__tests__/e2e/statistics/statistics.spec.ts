@@ -169,19 +169,21 @@ test.describe('@statistics Statistics page', () => {
     await expect(page).toHaveURL(/\/setup$/);
   });
 
-  // tableRef: statistics-behaviour #K1, #K2
-  test('the range dropdown sits beside the page title at 375px with 44px targets and follows the URL', { tag: '@mobile' }, async ({ page }) => {
+  // tableRef: statistics-behaviour #K1, #K2, #K13
+  test('at 375px the range dropdown is a full-width row above Counts, outside the header, with 44px targets and follows the URL', { tag: '@mobile' }, async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await setup(page, { logs: false, stats: true });
     await page.goto('/statistics?range=30d');
     const trigger = rangeTrigger(page);
     await expect(trigger).toHaveAccessibleName('Time range: Last 30 days');
-    await expect(trigger.getByText('30 days', { exact: true })).toBeVisible();
+    await expect(trigger).toHaveText('Last 30 days');
+    await expect(page.getByTestId('app-header-wrapper').getByRole('button', { name: /^Time range: / })).toHaveCount(0);
     const t = (await trigger.boundingBox())!;
     expect(t.height).toBeGreaterThanOrEqual(43.5);
-    const title = (await page.getByTestId('mobile-header-page-title').getByRole('heading', { name: 'Statistics' }).boundingBox())!;
-    expect(t.x).toBeGreaterThan(title.x + title.width);
-    expect(t.y).toBeLessThan(title.y + title.height);
+    expect(t.width).toBeGreaterThan(250);
+    const counts = (await page.getByRole('heading', { level: 2, name: 'Counts', exact: true }).boundingBox())!;
+    expect(t.y + t.height).toBeLessThanOrEqual(counts.y);
+    expect(Math.abs(t.x - counts.x)).toBeLessThanOrEqual(1);
     const menuButton = (await page.getByRole('button', { name: 'More statistics actions' }).boundingBox())!;
     expect(menuButton.x).toBeGreaterThan(t.x + t.width);
     expect(menuButton.x + menuButton.width).toBeLessThanOrEqual(375);
@@ -227,6 +229,9 @@ test.describe('@statistics Statistics page', () => {
       // "Last 24 hours" is the longest label this profile's 30-day retention offers (K11).
       await page.goto('/statistics?range=24h');
       await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+      // K1: below sm the controls are a row in the page; from sm they sit in the header.
+      const inHeader = page.getByTestId('app-header-wrapper').getByRole('button', { name: /^Time range: / });
+      await expect(inHeader).toHaveCount(width < 640 ? 0 : 1);
       // K1: the controls match the Profile dropdown's height: 44px touch targets below lg.
       const profile = (await page.getByTestId('app-header-wrapper').getByRole('combobox').boundingBox())!;
       expect(profile.height).toBeGreaterThanOrEqual(43.5);
@@ -289,6 +294,11 @@ test.describe('@statistics Statistics page', () => {
     // scrollTo, not mouse.wheel: the wheel API is unsupported on mobile WebKit.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await page.waitForFunction(() => window.scrollY > 800);
+    // Below sm the controls are a plain row above Counts and scroll away with the page.
+    if (page.viewportSize()!.width < 640) {
+      await expect(rangeTrigger(page)).not.toBeInViewport();
+      return;
+    }
     await expect(rangeTrigger(page)).toBeInViewport({ ratio: 1 });
     await expect(page.getByRole('button', { name: 'More statistics actions' })).toBeInViewport({ ratio: 1 });
     await expectNoHorizontalOverflow(page);
