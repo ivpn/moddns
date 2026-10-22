@@ -593,9 +593,9 @@ export default function FAQ(): JSX.Element {
                     question="Why do new statistics take a while to appear, and why is part of today missing after I turned statistics off and on?"
                     answer={
                         <div>
-                            <p>To protect your privacy, modDNS never records queries one by one. It counts them in 15-minute blocks, which also add up into hourly and daily totals, and saves a block only when it is complete. New counts therefore appear at the next quarter hour.</p>
+                            <p>Statistics never record individual queries: to protect your privacy, they count queries in 15-minute blocks, which also add up into hourly and daily totals, and save a block only when it is complete. New counts therefore appear at the next quarter hour.</p>
                             <br />
-                            <p>When you turn statistics off or delete their history, everything stored is permanently deleted, including the block that was still being counted. If you turn statistics back on before that block ends, modDNS leaves the whole block out, so none of the deleted counts can come back. Depending on the view, that means the rest of the current 15 minutes (last 3 and 6 hours), the rest of the hour (last 24 hours and 7 days), or the rest of the day in UTC (last 30 days and longer) stays empty. Counting continues normally from the next block, and the Statistics page shows when the first counts will appear.</p>
+                            <p>When you delete statistics history, or turn statistics off and back on before the current block ends, everything stored is permanently deleted, including the block that was still being counted. So that none of the deleted counts can come back, modDNS leaves that whole block out, including queries made later in it. Depending on the view, the rest of the current 15 minutes (last 3 and 6 hours), the rest of the hour (last 24 hours and 7 days), or the rest of the day in UTC (last 30 days and longer) stays empty. Counting continues normally from the next block, and the Statistics page shows when the first counts will appear.</p>
                         </div>
                     }
                 />

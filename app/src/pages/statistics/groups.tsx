@@ -146,7 +146,7 @@ export function CountsGroup(p: CountsGroupProps) {
                 >
                     <p className={cn("text-sm", mutedText)}>
                         {collecting
-                            ? `${start ? `Statistics are on since ${start}. ` : ""}To protect your privacy, modDNS counts queries in 15-minute blocks that start on the quarter hour (:00, :15, :30, :45), never one by one, so the first counts appear at about ${formatExpected(expected.displayMs, p.now)}. This page updates by itself.`
+                            ? `${start ? `Statistics are on since ${start}. ` : ""}To protect your privacy, statistics count queries in 15-minute blocks that start on the quarter hour (:00, :15, :30, :45), never individually, so the first counts appear at about ${formatExpected(expected.displayMs, p.now)}. This page updates by itself.`
                             : `No queries have reached this profile${start ? ` since ${start}` : ""}. If your devices should be using it, check the device setup.`}
                     </p>
                     <Link
