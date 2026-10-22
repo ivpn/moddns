@@ -151,10 +151,10 @@ export function statsHeld(profile: ModelProfile | null | undefined, nowMs: numbe
     const deletedAt = parseTime(s.history_deleted_at);
     if (enabledAt === null && deletedAt === null) return null;
     const limit = nowMs - statsDays(normalizeStatsRetention(s.retention)) * DAY_MS;
-    // J53: the daily bucket holding a history delete also held older counts, so it is gone too.
-    const afterDelete = deletedAt !== null && (enabledAt === null || deletedAt > enabledAt);
-    const start = afterDelete ? deletedAt : enabledAt!;
-    const startDay = afterDelete ? floorDay(deletedAt) + DAY_MS : floorDay(enabledAt!);
+    // J53: the daily bucket holding history_deleted_at also held older counts, so it is gone too,
+    // even when a quick off and on put it before enabled_at (G22).
+    const start = Math.max(enabledAt ?? -Infinity, deletedAt ?? -Infinity);
+    const startDay = Math.max(enabledAt === null ? -Infinity : floorDay(enabledAt), deletedAt === null ? -Infinity : floorDay(deletedAt) + DAY_MS);
     return { nowMs, oldestMs: Math.max(start, limit), firstDayMs: Math.max(startDay, floorDay(limit)) };
 }
 

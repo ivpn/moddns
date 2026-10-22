@@ -27,17 +27,18 @@ const (
 	RetentionMoveLockTTL = 11 * time.Minute
 )
 
-// ProfileStatisticsReader loads the statistics settings of many profiles at once.
-// A profile that does not exist is absent from the map; one without a statistics
-// block maps to nil.
-type ProfileStatisticsReader interface {
+// ProfileStatisticsStore loads the statistics settings of many profiles at once and drops
+// stale turn-off stamps. A profile that does not exist is absent from the map; one without
+// a statistics block maps to nil.
+type ProfileStatisticsStore interface {
 	GetProfilesStatisticsSettings(ctx context.Context, profileIds []string) (map[string]*model.StatisticsSettings, error)
+	UnsetStatisticsDisabledAtBefore(ctx context.Context, before time.Time) (int64, error)
 }
 
 type StatisticsService struct {
 	StatisticsRepository repository.StatisticsRepository
 
-	profiles             ProfileStatisticsReader
+	profiles             ProfileStatisticsStore
 	cache                ReadCache
 	moveLocker           *dislock.Locker
 	background           func(func())
@@ -50,7 +51,7 @@ type StatisticsService struct {
 type Option func(*StatisticsService)
 
 // WithProfiles supplies the profile lookup ReconcileStatistics needs.
-func WithProfiles(profiles ProfileStatisticsReader) Option {
+func WithProfiles(profiles ProfileStatisticsStore) Option {
 	return func(s *StatisticsService) { s.profiles = profiles }
 }
 
@@ -178,6 +179,14 @@ func (s *StatisticsService) ReconcileStatistics(ctx context.Context) (Statistics
 
 	runCtx, cancel := context.WithTimeout(ctx, s.reconcileRunTime)
 	defer cancel()
+
+	// G22: disabled_at only matters until the end of its UTC day; after that its ceiling cannot
+	// reach a bucket of a later turn-on, so it is not kept.
+	if n, err := s.profiles.UnsetStatisticsDisabledAtBefore(runCtx, s.now().UTC().Truncate(24*time.Hour)); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Statistics reconcile: failed to drop stale disabled_at")
+	} else if n > 0 {
+		log.Ctx(ctx).Debug().Int64("profiles", n).Msg("Statistics reconcile: dropped stale disabled_at")
+	}
 
 	ids, err := s.StatisticsRepository.ListStatisticsProfileIDs(runCtx)
 	if err != nil {

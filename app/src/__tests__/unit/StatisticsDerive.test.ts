@@ -157,6 +157,20 @@ describe('expectedFirstCounts', () => {
         }
     });
 
+    it('after a quick off and on, the buckets open at the turn-off wait like a history delete', () => {
+        // tableRef: statistics-behaviour #P24
+        // J53, G22: history_deleted_at = the turn-off, just before enabled_at.
+        const sameQuarter = { en: at('2026-10-06T10:44:00Z'), off: at('2026-10-06T10:41:00Z') };
+        expect(iso(expectedFirstCounts('3h', sameQuarter.en, sameQuarter.off)?.boundaryMs)).toBe('2026-10-06T10:45:00.000Z');
+        expect(iso(expectedFirstCounts('24h', sameQuarter.en, sameQuarter.off)?.boundaryMs)).toBe('2026-10-06T11:15:00.000Z');
+        expect(iso(expectedFirstCounts('30d', sameQuarter.en, sameQuarter.off)?.boundaryMs)).toBe('2026-10-07T00:15:00.000Z');
+        // Off in the previous hour: the hour of the turn-on holds no older counts, the day still does.
+        const prevHour = { en: at('2026-10-06T10:04:00Z'), off: at('2026-10-06T09:58:00Z') };
+        expect(iso(expectedFirstCounts('3h', prevHour.en, prevHour.off)?.boundaryMs)).toBe('2026-10-06T10:15:00.000Z');
+        expect(iso(expectedFirstCounts('24h', prevHour.en, prevHour.off)?.boundaryMs)).toBe('2026-10-06T10:15:00.000Z');
+        expect(iso(expectedFirstCounts('30d', prevHour.en, prevHour.off)?.boundaryMs)).toBe('2026-10-07T00:15:00.000Z');
+    });
+
     it('computes UTC day edges from instants, independent of the local timezone', () => {
         // tableRef: statistics-behaviour #P24
         // 23:50 at UTC-5 is 04:50 UTC the next day; the next UTC day starts on the 8th.

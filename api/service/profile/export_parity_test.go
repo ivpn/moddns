@@ -80,6 +80,7 @@ var exportExclusions = map[string]string{
 	"Settings.Advanced.Recursor":           "F7 — staging-only control, deliberately not exported",
 	"Settings.Statistics.EnabledAt":        "F19 — server-derived transition time; set to import time when statistics arrive enabled",
 	"Settings.Statistics.HistoryDeletedAt": "F21 — server-derived keep-since instant of the last history delete",
+	"Settings.Statistics.DisabledAt":       "F22 — server-derived time of the last turn-off; bounds this profile's stored statistics only",
 	"Settings.Statistics.Retention":        "F20 — longer retention is an explicit opt-in; imports start at 30d",
 }
 

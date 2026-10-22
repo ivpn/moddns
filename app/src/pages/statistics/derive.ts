@@ -189,18 +189,17 @@ export interface ExpectedFirstCounts {
 
 /**
  * P24: when the first counts can appear in `range`'s bucket tier (Y15, Y17, Y28, J53).
- * After turning on, every view waits for the next quarter-hour boundary; after Delete history the
- * hourly and daily tiers also wait for their own bucket to close.
+ * After turning on, every view waits for the next quarter-hour boundary; the hourly and daily tiers
+ * also wait past the bucket holding history_deleted_at, which can precede enabled_at after a quick
+ * off and on (G22).
  */
 export function expectedFirstCounts(range: RangeKey, enabledAt: number | null, historyDeletedAt: number | null): ExpectedFirstCounts | null {
     const start = latest(enabledAt, historyDeletedAt);
     if (start === null) return null;
-    const afterDelete = historyDeletedAt !== null && (enabledAt === null || historyDeletedAt > enabledAt);
-    const nextQuarter = Math.floor(start / QUARTER_MS) * QUARTER_MS + QUARTER_MS;
-    let boundaryMs = nextQuarter;
-    if (afterDelete) {
-        if (range === "24h" || range === "7d") boundaryMs = Math.floor(start / HOUR_MS) * HOUR_MS + HOUR_MS + QUARTER_MS;
-        else if (range === "30d" || range === "3m" || range === "12m") boundaryMs = Math.floor(start / DAY_MS) * DAY_MS + DAY_MS + QUARTER_MS;
+    let boundaryMs = Math.floor(start / QUARTER_MS) * QUARTER_MS + QUARTER_MS;
+    if (historyDeletedAt !== null) {
+        const bucket = range === "24h" || range === "7d" ? HOUR_MS : range === "30d" || range === "3m" || range === "12m" ? DAY_MS : null;
+        if (bucket !== null) boundaryMs = Math.max(boundaryMs, Math.floor(historyDeletedAt / bucket) * bucket + bucket + QUARTER_MS);
     }
     const displayMs = boundaryMs + FLUSH_TICK_MS;
     return { boundaryMs, displayMs, collectingUntilMs: displayMs + COLLECTING_GRACE_MS };

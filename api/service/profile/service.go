@@ -420,7 +420,7 @@ func (p *ProfileService) UpdateProfile(ctx context.Context, accountId, profileId
 		return profile, nil
 	}
 
-	upd := repository.ProfileFieldsUpdate{EnabledAtNow: p.clock()}
+	upd := repository.ProfileFieldsUpdate{Now: p.clock()}
 	var redisFields []cache.SettingsField
 	for _, path := range touched {
 		f := patchFields[path]

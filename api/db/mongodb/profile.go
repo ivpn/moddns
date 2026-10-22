@@ -113,6 +113,16 @@ func (r *ProfileRepository) SetStatisticsHistoryDeletedAt(ctx context.Context, p
 	return res.MatchedCount > 0, nil
 }
 
+func (r *ProfileRepository) UnsetStatisticsDisabledAtBefore(ctx context.Context, before time.Time) (int64, error) {
+	filter := bson.D{primitive.E{Key: statisticsDisabledAtField, Value: bson.D{primitive.E{Key: "$lt", Value: before.UTC()}}}}
+	update := bson.D{primitive.E{Key: "$unset", Value: bson.D{primitive.E{Key: statisticsDisabledAtField, Value: ""}}}}
+	res, err := r.profilesCollection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
+}
+
 func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
 	if len(profileIds) == 0 {
 		return map[string]bool{}, nil
@@ -189,8 +199,9 @@ func (r *ProfileRepository) UpdateFields(ctx context.Context, profileId string, 
 		set = append(set, primitive.E{Key: f.Field, Value: bson.D{primitive.E{Key: "$literal", Value: f.Value}}})
 		if f.Field == statisticsEnabledField {
 			set = append(set,
-				primitive.E{Key: statisticsEnabledAtField, Value: enabledAtExpr(f.Value, upd.EnabledAtNow)},
-				primitive.E{Key: statisticsHistoryDeletedAtField, Value: historyDeletedAtExpr(f.Value)})
+				primitive.E{Key: statisticsEnabledAtField, Value: enabledAtExpr(f.Value, upd.Now)},
+				primitive.E{Key: statisticsHistoryDeletedAtField, Value: historyDeletedAtExpr(f.Value)},
+				primitive.E{Key: statisticsDisabledAtField, Value: disabledAtExpr(f.Value, upd.Now)})
 		}
 	}
 	pipeline := mongo.Pipeline{}
@@ -232,8 +243,9 @@ func (r *ProfileRepository) UpdateFields(ctx context.Context, profileId string, 
 const (
 	statisticsEnabledField   = "settings.statistics.enabled"
 	statisticsEnabledAtField = "settings.statistics.enabled_at"
-	// statisticsHistoryDeletedAtField is removed whenever enabled changes value (J53).
+	// statisticsHistoryDeletedAtField is removed on true->false and set from disabled_at on false->true (J53).
 	statisticsHistoryDeletedAtField = "settings.statistics.history_deleted_at"
+	statisticsDisabledAtField       = "settings.statistics.disabled_at"
 )
 
 // enabledAtExpr: set on false->true, removed on true->false, otherwise kept (api-endpoint-behaviour.md G7).
@@ -248,10 +260,28 @@ func enabledAtExpr(enabled any, now time.Time) bson.D {
 	return bson.D{primitive.E{Key: "$cond", Value: branch}}
 }
 
-// historyDeletedAtExpr keeps history_deleted_at only while enabled keeps its value.
+// historyDeletedAtExpr keeps history_deleted_at while enabled keeps its value, removes it on
+// true->false, and on false->true takes disabled_at: the proxy flushes counts it held from before
+// the switch into the bucket that was open, so that bucket is cut off per tier like a history delete.
 func historyDeletedAtExpr(enabled any) bson.D {
 	unchanged := bson.D{primitive.E{Key: "$eq", Value: bson.A{"$" + statisticsEnabledField, bson.D{primitive.E{Key: "$literal", Value: enabled}}}}}
-	return bson.D{primitive.E{Key: "$cond", Value: bson.A{unchanged, "$" + statisticsHistoryDeletedAtField, "$$REMOVE"}}}
+	changed := "$$REMOVE"
+	if b, _ := enabled.(bool); b {
+		changed = "$" + statisticsDisabledAtField
+	}
+	return bson.D{primitive.E{Key: "$cond", Value: bson.A{unchanged, "$" + statisticsHistoryDeletedAtField, changed}}}
+}
+
+// disabledAtExpr: set on true->false, removed on false->true, otherwise kept (G22).
+func disabledAtExpr(enabled any, now time.Time) bson.D {
+	wasEnabled := bson.D{primitive.E{Key: "$eq", Value: bson.A{"$" + statisticsEnabledField, true}}}
+	keep := "$" + statisticsDisabledAtField
+	on, off := bson.A{wasEnabled, keep, "$$REMOVE"}, bson.A{wasEnabled, now, keep}
+	branch := off
+	if b, _ := enabled.(bool); b {
+		branch = on
+	}
+	return bson.D{primitive.E{Key: "$cond", Value: branch}}
 }
 
 func appendCustomRuleIfAbsentStage(rule *model.CustomRule) bson.D {

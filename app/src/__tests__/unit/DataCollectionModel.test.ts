@@ -360,6 +360,12 @@ describe('how much a deleting change loses', () => {
         expect(transitionFor(kept('1y'), kept('30d'), h)?.dialog?.body).toContain(`That is 100 days of counts, from ${utcDay('2026-06-04T00:00:00Z')} to `);
     });
 
+    it('after a quick off and on the same day, the first stored day is the next one', () => {
+        // tableRef: statistics-behaviour #C25, #J53
+        const h = held({ retention: '1y', enabled_at: '2026-06-03T09:35:00Z', history_deleted_at: '2026-06-03T09:30:00Z' });
+        expect(transitionFor(kept('1y'), kept('30d'), h)?.dialog?.body).toContain(`That is 100 days of counts, from ${utcDay('2026-06-04T00:00:00Z')} to `);
+    });
+
     it('one day reads in the singular', () => {
         // tableRef: statistics-behaviour #C25
         const h = held({ retention: '1y', enabled_at: '2026-09-11T20:00:00Z' });
