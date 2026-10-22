@@ -37,7 +37,7 @@ class ModelStatisticsResponse(BaseModel):
     enabled: Optional[StrictBool] = Field(default=None, description="Whether statistics are collected; when false every count is zero and series and devices are empty.")
     enabled_at: Optional[StrictStr] = Field(default=None, description="When statistics were last turned on (UTC); null while they are off.")
     var_from: Optional[StrictStr] = Field(default=None, description="Start of the window (UTC, inclusive), aligned to bucket_seconds.", alias="from")
-    history_deleted_at: Optional[StrictStr] = Field(default=None, description="When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.")
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Keep-since instant (UTC): the last \"Delete statistics history\", or the turn-off of an off and on; nothing older is counted. Null when unset or while off.")
     protocols: Optional[ModelStatisticsProtocols] = Field(default=None, description="Queries by encrypted transport (plain DNS not counted).")
     reasons: Optional[ModelStatisticsReasons] = Field(default=None, description="Blocked queries by the class of rule that decided the block.")
     retention: Optional[ModelStatisticsRetention] = Field(default=None, description="How long the profile's daily statistics are kept; the window never reaches further back.")

@@ -80,6 +80,13 @@ def _floor_day(ts: datetime) -> datetime:
     return _utc(ts).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def _ceil(ts: datetime, floor, width: timedelta) -> datetime:
+    """The start of the first bucket that holds nothing from before ts (an instant exactly on
+    a bucket start keeps that bucket)."""
+    start = floor(ts)
+    return start if start == _utc(ts) else start + width
+
+
 def _insert_doc(db, pid, bucket_start, device="laptop", collection=TIER_15MIN):
     doc = dict.fromkeys(COUNTER_KEYS, 0)
     doc.update({
@@ -242,20 +249,27 @@ class TestConsentedStatistics:
 
     @pytest.mark.asyncio
     async def test_reconcile_keeps_only_buckets_since_reenable(self, user, mongo_db):
-        """specRef: api-endpoint-behaviour #J8 #J9 — for a statistics-on profile the
-        statistics reconcile deletes, per tier, buckets older than enabled_at floored to that
-        tier's width (15 min / 1 h / 1 day) and keeps buckets at or after it."""
+        """specRef: api-endpoint-behaviour #J8 #J9 #G22 #J53 — a quick off and on carries the
+        turn-off into history_deleted_at; the statistics reconcile then deletes, per tier
+        (15 min / 1 h / 1 day), buckets before the later of enabled_at floored to the tier and
+        history_deleted_at ceiled to it, so the bucket open at the turn-off, which may hold counts
+        from before it, is gone, and keeps buckets from that cutoff on."""
         pid = user.new_profile("stats-reenable")
         await enable_and_warm(user, pid)
         patch_stats(user, pid, False)
         patch_stats(user, pid, True)
-        raw = user.get_profile(pid).settings.statistics.enabled_at
-        assert raw is not None
-        enabled_at = parse_ts(raw)
-        bounds = (
-            (TIER_15MIN, _floor15(enabled_at), timedelta(minutes=15)),
-            (TIER_1H, _floor_hour(enabled_at), timedelta(hours=1)),
-            (DAY_TIERS[0], _floor_day(enabled_at), timedelta(days=1)),
+        stats = user.get_profile(pid).settings.statistics
+        assert stats.enabled_at is not None
+        assert stats.history_deleted_at is not None, "turning statistics back on must carry the turn-off"
+        enabled_at, turned_off = parse_ts(stats.enabled_at), parse_ts(stats.history_deleted_at)
+        assert turned_off <= enabled_at
+        bounds = tuple(
+            (tier, max(floor(enabled_at), _ceil(turned_off, floor, width)), width)
+            for tier, floor, width in (
+                (TIER_15MIN, _floor15, timedelta(minutes=15)),
+                (TIER_1H, _floor_hour, timedelta(hours=1)),
+                (DAY_TIERS[0], _floor_day, timedelta(days=1)),
+            )
         )
 
         # Inserted after the re-enable so the profile is never statistics-off
@@ -274,7 +288,7 @@ class TestConsentedStatistics:
         for tier, _, _ in bounds:
             assert mongo_db[tier].count_documents(
                 {"meta.profile_id": pid, "meta.device_id": "new"}) == 1, (
-                f"{tier}: bucket at the tier-floored enabled_at must be kept"
+                f"{tier}: bucket at the cutoff must be kept"
             )
 
     @pytest.mark.asyncio

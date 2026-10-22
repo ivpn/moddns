@@ -1713,7 +1713,7 @@ export interface ModelStatisticsResponse {
      */
     'from'?: string;
     /**
-     * When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.
+     * Keep-since instant (UTC): the last "Delete statistics history", or the turn-off of an off and on; nothing older is counted. Null when unset or while off.
      * @type {string}
      * @memberof ModelStatisticsResponse
      */
@@ -1797,7 +1797,7 @@ export interface ModelStatisticsSettings {
      */
     'enabled_at'?: string;
     /**
-     * When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.
+     * Keep-since instant (UTC): the last "Delete statistics history" while on, or the turn-off of an off and on; nothing older is kept. Null while off.
      * @type {string}
      * @memberof ModelStatisticsSettings
      */

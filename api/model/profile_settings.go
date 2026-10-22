@@ -91,7 +91,7 @@ type StatisticsSettings struct {
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
 	// When statistics were last turned on (UTC); null while they are off.
 	EnabledAt *time.Time `json:"enabled_at" bson:"enabled_at,omitempty" redis:"-"` // server-derived; not in Redis, not exported (F19)
-	// When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.
+	// Keep-since instant (UTC): the last "Delete statistics history" while on, or the turn-off of an off and on; nothing older is kept. Null while off.
 	HistoryDeletedAt *time.Time `json:"history_deleted_at" bson:"history_deleted_at,omitempty" redis:"-"` // J53; not in Redis, not exported (F21)
 	// When statistics were last turned off (UTC); carried into HistoryDeletedAt when they are turned back on.
 	DisabledAt *time.Time `json:"-" bson:"disabled_at,omitempty" redis:"-"` // G22; Mongo only, not exported (F22)

@@ -169,7 +169,7 @@ type StatisticsResponse struct {
 	Enabled bool `json:"enabled"`
 	// When statistics were last turned on (UTC); null while they are off.
 	EnabledAt *time.Time `json:"enabled_at"`
-	// When the statistics history was last deleted (UTC); nothing older is counted. Null when never deleted or while off.
+	// Keep-since instant (UTC): the last "Delete statistics history", or the turn-off of an off and on; nothing older is counted. Null when unset or while off.
 	HistoryDeletedAt *time.Time `json:"history_deleted_at"` // J53
 	// How long the profile's daily statistics are kept; the window never reaches further back.
 	Retention StatisticsRetention `json:"retention" enums:"30d,90d,1y"`
