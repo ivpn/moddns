@@ -194,7 +194,7 @@ describe('Top blocklists panel', () => {
         expect(within(panel).getByText('bl-nameless')).toBeInTheDocument();
         expect(catalogGet).not.toHaveBeenCalled();
         expect(within(panel).getByText('A query blocked by several lists counts once for each.')).toBeInTheDocument();
-        expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_1_DAY', 10);
+        expect(blocklistsGet).toHaveBeenCalledWith('p1', 'LAST_1_DAY', 50);
     });
 
     it('does not depend on log_domains', async () => {
@@ -612,8 +612,8 @@ describe('Statistics page picker and fetching', () => {
         await screen.findByRole('heading', { name: 'Top clients' });
         await pickRange(user, 'Last 3 hours');
         await waitFor(() => expect(statsGet).toHaveBeenLastCalledWith('p1', 'LAST_3_HOURS'));
-        await waitFor(() => expect(topGet).toHaveBeenCalledWith('p1', 'blocked', 'LAST_3_HOURS', 10));
-        expect(clientsGet).toHaveBeenLastCalledWith('p1', 'LAST_3_HOURS', 10);
+        await waitFor(() => expect(topGet).toHaveBeenCalledWith('p1', 'blocked', 'LAST_3_HOURS', 50));
+        expect(clientsGet).toHaveBeenLastCalledWith('p1', 'LAST_3_HOURS', 50);
         // The device list does not depend on the range.
         expect(devicesGet).toHaveBeenCalledTimes(1);
     });

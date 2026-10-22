@@ -1,6 +1,6 @@
 import { formatCount } from "@/lib/formatStats";
 import { cn } from "@/lib/utils";
-import { BarList, PanelShell, StatsTable, mutedText } from "../primitives";
+import { BarList, PanelShell, StatsTable, TopListNote, mutedText } from "../primitives";
 
 export interface BlocklistItem {
     id: string;
@@ -20,6 +20,7 @@ export function BlocklistsPanel({
     scopeIn: string;
 }) {
     const nameOf = (b: BlocklistItem) => b.name || b.id;
+    const caption = `Top blocklists, from query logs ${scopeIn}`;
     return (
         <PanelShell title="Top blocklists" toggle={items.length > 0} defaultView="table">
             {view =>
@@ -29,13 +30,15 @@ export function BlocklistsPanel({
                     <>
                         {view === "table" ? (
                             <StatsTable
-                                caption={`Top blocklists, from query logs ${scopeIn}`}
+                                scroll
+                                caption={caption}
                                 columns={[{ label: "#" }, { label: "Blocklist" }, { label: "Queries", align: "right" }]}
                                 rows={items.map((b, i) => [String(i + 1), <span key="n" className="break-words">{nameOf(b)}</span>, formatCount(b.count)])}
                             />
                         ) : (
                             <BarList
                                 scale="leader"
+                                scroll={caption}
                                 rows={items.map(b => ({
                                     id: b.id,
                                     value: b.count,
@@ -49,6 +52,7 @@ export function BlocklistsPanel({
                                 }))}
                             />
                         )}
+                        <TopListNote count={items.length} />
                         <p className={cn("text-[13px] leading-[18px]", mutedText)}>{MULTI_LIST_NOTE}</p>
                     </>
                 )
