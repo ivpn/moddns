@@ -16,9 +16,10 @@ type FieldSet struct {
 // ProfileFieldsUpdate is applied to one profile as a single atomic update.
 type ProfileFieldsUpdate struct {
 	Set []FieldSet
-	// EnabledAtNow becomes settings.statistics.enabled_at when Set turns statistics on;
-	// enabled_at is derived from the stored value being replaced (api-endpoint-behaviour.md G22).
-	EnabledAtNow time.Time
+	// Now becomes settings.statistics.enabled_at when Set turns statistics on and
+	// settings.statistics.disabled_at when it turns them off; both are derived from the stored
+	// value being replaced (api-endpoint-behaviour.md G22).
+	Now time.Time
 	// AppendCustomRules are appended unless a stored rule has the same value.
 	AppendCustomRules []*model.CustomRule
 }
@@ -44,6 +45,9 @@ type ProfileRepository interface {
 	// SetStatisticsHistoryDeletedAt stamps settings.statistics.history_deleted_at when statistics
 	// are on and reports whether they were (api-endpoint-behaviour.md J52).
 	SetStatisticsHistoryDeletedAt(ctx context.Context, profileId string, at time.Time) (bool, error)
+	// UnsetStatisticsDisabledAtBefore removes settings.statistics.disabled_at stamped before the
+	// given instant and reports how many profiles changed (api-endpoint-behaviour.md G22, J8).
+	UnsetStatisticsDisabledAtBefore(ctx context.Context, before time.Time) (int64, error)
 	// GetProfilesLogsEnabled reads only settings.logs.enabled of the given profiles from the
 	// primary. Profiles that do not exist are absent; a missing logs block maps to false.
 	GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error)

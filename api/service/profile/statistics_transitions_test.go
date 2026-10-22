@@ -131,7 +131,7 @@ func TestUpdateProfile_StatisticsDisablePurges(t *testing.T) {
 	require.NoError(t, err)
 	upd := h.sentUpdate(t)
 	require.Equal(t, []repository.FieldSet{statsFieldSet(false)}, upd.Set)
-	require.True(t, upd.EnabledAtNow.Equal(fixedNow))
+	require.True(t, upd.Now.Equal(fixedNow))
 }
 
 // specRef: api-endpoint-behaviour.md J6, G20 — the transition runs once per PATCH, not once per path,
@@ -174,8 +174,8 @@ func TestUpdateProfile_StatisticsEnablePassesClock(t *testing.T) {
 	require.NoError(t, err)
 	upd := h.sentUpdate(t)
 	require.Equal(t, []repository.FieldSet{statsFieldSet(true)}, upd.Set)
-	require.True(t, upd.EnabledAtNow.Equal(fixedNow))
-	require.Equal(t, time.UTC, upd.EnabledAtNow.Location(), "enabled_at is stored in UTC")
+	require.True(t, upd.Now.Equal(fixedNow))
+	require.Equal(t, time.UTC, upd.Now.Location(), "enabled_at is stored in UTC")
 	h.statsRepo.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
 }
 

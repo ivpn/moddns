@@ -93,6 +93,8 @@ type StatisticsSettings struct {
 	EnabledAt *time.Time `json:"enabled_at" bson:"enabled_at,omitempty" redis:"-"` // server-derived; not in Redis, not exported (F19)
 	// When the statistics history was last deleted while statistics were on (UTC); nothing older is kept. Null when never deleted or while off.
 	HistoryDeletedAt *time.Time `json:"history_deleted_at" bson:"history_deleted_at,omitempty" redis:"-"` // J53; not in Redis, not exported (F21)
+	// When statistics were last turned off (UTC); carried into HistoryDeletedAt when they are turned back on.
+	DisabledAt *time.Time `json:"-" bson:"disabled_at,omitempty" redis:"-"` // G22; Mongo only, not exported (F22)
 	// How long daily statistics are kept.
 	Retention StatisticsRetention `json:"retention" bson:"retention" redis:"retention" enums:"30d,90d,1y"` // no omitempty: HSET merges fields, an omitted value would leave a stale one (J48)
 }

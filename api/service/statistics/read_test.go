@@ -298,6 +298,34 @@ func TestGetProfileStatistics_EnabledAt(t *testing.T) {
 	require.Nil(t, got.EnabledAt)
 }
 
+// specRef: api-endpoint-behaviour.md G22, J53 — statistics turned off at 11:03 and back on at
+// 11:04: the bucket open at the switch also holds counts from before it, flushed later, so the read
+// starts past it in each tier (history_deleted_at = the turn-off, earlier than enabled_at).
+func TestGetProfileStatistics_QuickOffOnSkipsTheOpenBucket(t *testing.T) {
+	for _, tt := range []struct {
+		timespan string
+		tier     model.StatisticsTier
+		from     time.Time
+	}{
+		{model.StatisticsLast3Hours, model.StatisticsTier15Min, utc(2026, 10, 5, 11, 15, 0)},
+		{model.LAST_1_DAY, model.StatisticsTier1H, utc(2026, 10, 5, 12, 0, 0)},
+	} {
+		t.Run(tt.timespan, func(t *testing.T) {
+			off, on := utc(2026, 10, 5, 11, 3, 0), utc(2026, 10, 5, 11, 4, 0)
+			settings := stats(true, &on)
+			settings.HistoryDeletedAt = &off
+			repo := mocks.NewStatisticsRepository(t)
+			repo.On("GetProfileStatistics", mock.Anything, "p1", tt.tier,
+				mock.MatchedBy(func(from time.Time) bool { return from.Equal(tt.from) }),
+				mock.Anything, mock.Anything,
+			).Return(&model.StatisticsAggregate{}, nil).Once()
+
+			_, err := readService(t, repo, nil).GetProfileStatistics(context.Background(), "p1", tt.timespan, settings)
+			require.NoError(t, err)
+		})
+	}
+}
+
 // specRef: api-endpoint-behaviour.md J44 — at most 100 devices, tail folded into _other, ordered by total desc then id.
 func TestFoldDevices(t *testing.T) {
 	many := func(n int) []model.StatisticsDevice {

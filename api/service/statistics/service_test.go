@@ -78,7 +78,30 @@ func newReconcileHarness(t *testing.T, opts ...statistics.Option) *reconcileHarn
 	t.Helper()
 	h := &reconcileHarness{stats: mocks.NewStatisticsRepository(t), profiles: mocks.NewProfileRepository(t)}
 	h.svc = statistics.NewStatisticsService(h.stats, append([]statistics.Option{statistics.WithProfiles(h.profiles)}, opts...)...)
+	h.profiles.On("UnsetStatisticsDisabledAtBefore", mock.Anything, mock.Anything).Return(int64(0), nil).Maybe()
 	return h
+}
+
+// specRef: api-endpoint-behaviour.md G22, J8 — each run drops disabled_at stamped before the current
+// UTC day; a failure there is logged and the run goes on.
+func TestReconcileStatistics_DropsStaleDisabledAt(t *testing.T) {
+	now := utc(2026, 10, 22, 13, 5, 0)
+	for _, failing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("failing=%v", failing), func(t *testing.T) {
+			stats := mocks.NewStatisticsRepository(t)
+			profiles := mocks.NewProfileRepository(t)
+			svc := statistics.NewStatisticsService(stats, statistics.WithProfiles(profiles), statistics.WithClock(func() time.Time { return now }))
+			var err error
+			if failing {
+				err = errors.New("boom")
+			}
+			profiles.On("UnsetStatisticsDisabledAtBefore", mock.Anything, utc(2026, 10, 22, 0, 0, 0)).Return(int64(3), err).Once()
+			stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{}, nil).Once()
+
+			_, runErr := svc.ReconcileStatistics(context.Background())
+			require.NoError(t, runErr)
+		})
+	}
 }
 
 // specRef: api-endpoint-behaviour.md J8, J9 — each profile id gets the rule's decision; counts are returned.

@@ -111,7 +111,7 @@ func (s *ProfileRepositorySuite) TestUpdateFields_SetsOnlyNamedFields() {
 			{Field: "settings.advanced.recursor", Value: model.RECURSOR_SDNS},
 			{Field: "name", Value: "renamed"},
 		},
-		EnabledAtNow: updateNow,
+		Now: updateNow,
 	})
 	s.Require().NoError(err)
 	s.Equal(model.RetentionOneHour, before.Settings.Logs.Retention)
@@ -155,7 +155,7 @@ func (s *ProfileRepositorySuite) TestUpdateFields_StatisticsEnabledAt() {
 			s.SetupTest()
 			s.seed(tc.stored, tc.storedAt)
 			before, after, err := s.repo.UpdateFields(context.Background(), "p1", repository.ProfileFieldsUpdate{
-				Set: []repository.FieldSet{statsSet(tc.set)}, EnabledAtNow: updateNow,
+				Set: []repository.FieldSet{statsSet(tc.set)}, Now: updateNow,
 			})
 			s.Require().NoError(err)
 			s.Equal(tc.stored, before.Settings.Statistics.Enabled)
@@ -194,7 +194,7 @@ func (s *ProfileRepositorySuite) TestUpdateFields_AppendCustomRulesIfAbsent() {
 // specRef: api-endpoint-behaviour.md G22 — of two disables only one sees the true value it replaces.
 func (s *ProfileRepositorySuite) TestUpdateFields_ConcurrentDisablesSeeOneTransition() {
 	s.seed(true, &updateNow)
-	upd := repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(false)}, EnabledAtNow: updateNow}
+	upd := repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(false)}, Now: updateNow}
 	results := make(chan bool, 2)
 	for range 2 {
 		go func() {
@@ -284,13 +284,85 @@ func (s *ProfileRepositorySuite) TestUpdateFields_HistoryDeletedAtFollowsEnabled
 			s.Require().NoError(err)
 
 			_, after, err := s.repo.UpdateFields(context.Background(), "p1", repository.ProfileFieldsUpdate{
-				Set: []repository.FieldSet{statsSet(tc.set)}, EnabledAtNow: updateNow.Add(time.Hour),
+				Set: []repository.FieldSet{statsSet(tc.set)}, Now: updateNow.Add(time.Hour),
 			})
 			s.Require().NoError(err)
 			s.Equal(tc.wantKept, after.Settings.Statistics.HistoryDeletedAt != nil)
 		})
 	}
 }
+
+// specRef: api-endpoint-behaviour.md G22, J53 — turning statistics off stamps disabled_at;
+// turning them back on carries it into history_deleted_at, so counts the proxy still held from
+// before the switch (flushed later into the open bucket) are cut off per tier, and removes it.
+func (s *ProfileRepositorySuite) TestUpdateFields_DisabledAtCarriesIntoHistoryDeletedAt() {
+	ctx := context.Background()
+	off := updateNow.Add(time.Hour)
+	on := off.Add(30 * time.Second)
+
+	s.seed(true, &updateNow)
+	_, after, err := s.repo.UpdateFields(ctx, "p1", repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(false)}, Now: off})
+	s.Require().NoError(err)
+	s.Require().NotNil(after.Settings.Statistics.DisabledAt)
+	s.True(off.Equal(*after.Settings.Statistics.DisabledAt))
+	s.Nil(after.Settings.Statistics.HistoryDeletedAt)
+
+	_, after, err = s.repo.UpdateFields(ctx, "p1", repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(false)}, Now: on})
+	s.Require().NoError(err)
+	s.True(off.Equal(*after.Settings.Statistics.DisabledAt), "off to off keeps the first disable")
+
+	_, after, err = s.repo.UpdateFields(ctx, "p1", repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(true)}, Now: on})
+	s.Require().NoError(err)
+	s.Nil(after.Settings.Statistics.DisabledAt)
+	s.Require().NotNil(after.Settings.Statistics.HistoryDeletedAt)
+	s.True(off.Equal(*after.Settings.Statistics.HistoryDeletedAt))
+	s.True(on.Equal(*after.Settings.Statistics.EnabledAt))
+
+	_, after, err = s.repo.UpdateFields(ctx, "p1", repository.ProfileFieldsUpdate{Set: []repository.FieldSet{statsSet(true)}, Now: on.Add(time.Hour)})
+	s.Require().NoError(err)
+	s.True(off.Equal(*after.Settings.Statistics.HistoryDeletedAt), "on to on keeps it")
+	s.Nil(after.Settings.Statistics.DisabledAt)
+}
+
+// specRef: api-endpoint-behaviour.md G22, J53 — a profile never turned off has no disabled_at, so
+// turning statistics on leaves history_deleted_at unset.
+func (s *ProfileRepositorySuite) TestUpdateFields_OffToOnWithoutDisabledAt() {
+	s.seed(false, nil)
+	_, after, err := s.repo.UpdateFields(context.Background(), "p1", repository.ProfileFieldsUpdate{
+		Set: []repository.FieldSet{statsSet(true)}, Now: updateNow,
+	})
+	s.Require().NoError(err)
+	s.Nil(after.Settings.Statistics.HistoryDeletedAt)
+	s.Nil(after.Settings.Statistics.DisabledAt)
+}
+
+// specRef: api-endpoint-behaviour.md G22, J8 — disabled_at is dropped once it is older than the
+// current UTC day: past that day it can no longer reach a bucket of a later turn-on.
+func (s *ProfileRepositorySuite) TestUnsetStatisticsDisabledAtBefore() {
+	ctx := context.Background()
+	midnight := time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)
+	for id, at := range map[string]*time.Time{
+		"yesterday": ptr(midnight.Add(-time.Minute)),
+		"today":     ptr(midnight),
+		"never":     nil,
+	} {
+		settings := model.NewSettings()
+		settings.ProfileId = id
+		settings.Statistics = &model.StatisticsSettings{DisabledAt: at}
+		s.Require().NoError(s.repo.CreateProfile(ctx, &model.Profile{ID: primitive.NewObjectID(), ProfileId: id, AccountId: "a1", Name: id, Settings: settings}))
+	}
+
+	n, err := s.repo.UnsetStatisticsDisabledAtBefore(ctx, midnight)
+	s.Require().NoError(err)
+	s.Equal(int64(1), n)
+	for id, kept := range map[string]bool{"yesterday": false, "today": true, "never": false} {
+		got, err := s.repo.GetProfileById(ctx, id)
+		s.Require().NoError(err)
+		s.Equal(kept, got.Settings.Statistics.DisabledAt != nil, id)
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
 
 func TestProfileRepositorySuite(t *testing.T) {
 	suite.Run(t, new(ProfileRepositorySuite))
