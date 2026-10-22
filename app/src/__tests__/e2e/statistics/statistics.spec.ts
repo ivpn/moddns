@@ -227,10 +227,12 @@ test.describe('@statistics Statistics page', () => {
       // "Last 24 hours" is the longest label this profile's 30-day retention offers (K11).
       await page.goto('/statistics?range=24h');
       await expect(rangeTrigger(page)).toHaveAccessibleName('Time range: Last 24 hours');
+      // K1: the controls match the Profile dropdown's height: 44px touch targets below lg.
+      const profile = (await page.getByTestId('app-header-wrapper').getByRole('combobox').boundingBox())!;
+      expect(profile.height).toBeGreaterThanOrEqual(43.5);
       for (const control of [rangeTrigger(page), page.getByRole('button', { name: 'More statistics actions' })]) {
         await expect(control).toBeInViewport({ ratio: 1 });
-        // 44px targets below md (K1); the md+ header uses the desktop control height.
-        if (width < 768) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+        expect(Math.abs((await control.boundingBox())!.height - profile.height)).toBeLessThanOrEqual(0.5);
       }
       // tableRef: statistics-behaviour #P13 — the availability line shows from sm (tablets) up.
       if (width < 640) await expect(page.getByTestId('stats-availability')).toBeHidden();

@@ -19,7 +19,7 @@ import { mutedText, titleText } from "./primitives";
 
 const DAY = 86400;
 const trigger = cn(
-    "inline-flex items-center justify-center rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] bg-[var(--shadcn-ui-app-background)] hover:bg-muted cursor-pointer min-h-11 md:min-h-9 disabled:opacity-60 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center rounded-md border border-[var(--tailwind-colors-slate-light-300)] dark:border-[var(--tailwind-colors-slate-600)] bg-[var(--shadcn-ui-app-background)] hover:bg-muted cursor-pointer min-h-11 lg:min-h-9 disabled:opacity-60 disabled:cursor-not-allowed",
     titleText,
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)]",
 );
@@ -75,11 +75,11 @@ export function RangePicker({
                 <DropdownMenuRadioGroup value={value} onValueChange={v => onChange(v as RangeKey)}>
                     {RANGES.map(r =>
                         isOffered(r.key) ? (
-                            <DropdownMenuRadioItem key={r.key} value={r.key} className="min-h-11 md:min-h-8">
+                            <DropdownMenuRadioItem key={r.key} value={r.key} className="min-h-11 lg:min-h-8">
                                 {r.label}
                             </DropdownMenuRadioItem>
                         ) : (
-                            <DropdownMenuRadioItem key={r.key} value={r.key} disabled className="min-h-11 md:min-h-8 flex-col items-start gap-0">
+                            <DropdownMenuRadioItem key={r.key} value={r.key} disabled className="min-h-11 lg:min-h-8 flex-col items-start gap-0">
                                 <span>{r.label}</span>
                                 <span className="text-xs">{`Needs statistics kept for ${neededRetention(r)}`}</span>
                             </DropdownMenuRadioItem>
@@ -93,7 +93,7 @@ export function RangePicker({
                             inset
                             aria-haspopup="dialog"
                             onSelect={() => (retentionRequested.current = true)}
-                            className="min-h-11 md:min-h-8 text-[var(--tailwind-colors-rdns-600)] focus:text-[var(--tailwind-colors-rdns-600)]"
+                            className="min-h-11 lg:min-h-8 text-[var(--tailwind-colors-rdns-600)] focus:text-[var(--tailwind-colors-rdns-600)]"
                         >
                             Change retention…
                         </DropdownMenuItem>
@@ -120,7 +120,7 @@ export function StatsActions({ profile, onHistoryDeleted }: { profile: ModelProf
                         ref={menuRef}
                         aria-label="More statistics actions"
                         disabled={history.busy}
-                        className={cn(trigger, "flex-none min-w-11 md:min-w-9")}
+                        className={cn(trigger, "flex-none min-w-11 lg:min-w-9")}
                     >
                         <EllipsisVertical className="w-4 h-4" aria-hidden />
                     </button>
