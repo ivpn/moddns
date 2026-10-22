@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 16, 2026';
+const FAQ_LAST_UPDATED = 'October 22, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -588,6 +588,16 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="What is the Statistics page?"
                     answer="The Statistics page shows how many DNS queries your profile handled, how many were blocked and why, which protocols and devices they came from, and how many were DNSSEC-validated. Statistics are counts only: no domains and no IP addresses are stored, and they are kept for 30 days by default; you can keep them for 90 days or 1 year in Settings under Data collection. From the menu on the Statistics page, or in Settings, you can also choose Delete statistics history to remove all counts and start again. The page also shows your most queried domains and clients if you have turned on query logs."
+                />
+                <FAQItem
+                    question="Why do new statistics take a while to appear, and why is part of today missing after I turned statistics off and on?"
+                    answer={
+                        <div>
+                            <p>To protect your privacy, modDNS never records queries one by one. It counts them in 15-minute blocks, which also add up into hourly and daily totals, and saves a block only when it is complete. New counts therefore appear at the next quarter hour.</p>
+                            <br />
+                            <p>When you turn statistics off or delete their history, everything stored is permanently deleted, including the block that was still being counted. If you turn statistics back on before that block ends, modDNS leaves the whole block out, so none of the deleted counts can come back. Depending on the view, that means the rest of the current 15 minutes (last 3 and 6 hours), the rest of the hour (last 24 hours and 7 days), or the rest of the day in UTC (last 30 days and longer) stays empty. Counting continues normally from the next block, and the Statistics page shows when the first counts will appear.</p>
+                        </div>
+                    }
                 />
                 <FAQItem
                     question="Should I use Statistics or Query logs?"
