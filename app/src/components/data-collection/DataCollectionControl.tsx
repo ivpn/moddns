@@ -553,7 +553,7 @@ function Inner({
                                             </Tooltip>
                                         </div>
                                         <div className={subDesc}>
-                                            Choose how long query logs are kept before being automatically deleted.
+                                            How long query logs are kept.
                                         </div>
                                     </div>
                                     <div className="w-full sm:w-auto md:flex-shrink-0">
