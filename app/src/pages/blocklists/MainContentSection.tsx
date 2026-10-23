@@ -1,6 +1,8 @@
 import { type JSX, useState, useEffect } from "react";
 import AlertCard from "@/components/general/AlertCard";
 import BlocklistCard from "./BlocklistCard";
+import CategoryCard from "./CategoryCard";
+import ExpandPanel from "./ExpandPanel";
 import EmptyState from "@/pages/blocklists/NoBlocklistsFound";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesContentSection from "@/pages/blocklists/ServicesContentSection";
 import SecurityContentSection from "@/pages/blocklists/SecurityContentSection";
 import CategoriesContentSection from "@/pages/blocklists/CategoriesContentSection";
+import { formatEntries } from "@/pages/blocklists/formatEntries";
+import {
+    NATIVE_DESCRIPTION,
+    NATIVE_LABEL,
+    isNativeItem,
+    nativeCardMatches,
+    nativeCardVisible,
+    nativeLogo,
+    nativeSummary,
+    nativeVendorMatches,
+    orderedNativeItems,
+} from "@/pages/blocklists/nativeGroup";
+import { Radar } from "lucide-react";
+import { getServiceLogoSrc } from "@/assets/services";
+import { useTheme } from "@/components/theme-provider";
 
 const INDIVIDUAL_LISTS = [
     { label: "Hagezi", tag: "hagezi" },
@@ -133,6 +150,8 @@ export default function MainContentSection(): JSX.Element {
     const [searchValue, setSearchValue] = useState("");
     const [filterValue, setFilterValue] = useState("all");
     const [sortValue, setSortValue] = useState<ApiV1BlocklistsGetSortByEnum>(ApiV1BlocklistsGetSortByEnum.Updated);
+    const [nativeExpanded, setNativeExpanded] = useState(false);
+    const { theme } = useTheme();
 
     // Get activeProfile from the store
     const activeProfile = useAppStore((state) => state.activeProfile);
@@ -174,7 +193,7 @@ export default function MainContentSection(): JSX.Element {
     }, [sortValue]);
 
     // Handler to enable/disable all recommended blocklists in a category
-    const handleCategoryToggle = async (blocklistIds: string[], enable: boolean) => {
+    const handleCategoryToggle = async (blocklistIds: string[], enable: boolean, groupLabel?: string) => {
         if (!activeProfile?.profile_id || blocklistIds.length === 0) return;
         const idsToChange = enable
             ? blocklistIds.filter((id) => !enabledBlocklists.includes(id))
@@ -195,11 +214,17 @@ export default function MainContentSection(): JSX.Element {
             }
             const updatedProfile = await api.Client.profilesApi.apiV1ProfilesIdGet(activeProfile.profile_id);
             setActiveProfile(updatedProfile.data);
-            toast.success(enable ? "Category enabled" : "Category disabled", {
-                description: enable
-                    ? "Recommended blocklists have been enabled."
-                    : "Recommended blocklists have been disabled.",
-            });
+            if (groupLabel) {
+                toast.success(`${groupLabel} ${enable ? "enabled" : "disabled"}`, {
+                    description: `All lists in ${groupLabel} have been ${enable ? "enabled" : "disabled"}.`,
+                });
+            } else {
+                toast.success(enable ? "Category enabled" : "Category disabled", {
+                    description: enable
+                        ? "Recommended blocklists have been enabled."
+                        : "Recommended blocklists have been disabled.",
+                });
+            }
         } catch {
             toast.error("Error", {
                 description: "Failed to update category. Please try again.",
@@ -327,8 +352,32 @@ export default function MainContentSection(): JSX.Element {
     const securityBlocklists = blocklists.filter((bl) => bl.kind === "security");
     const categoryBlocklists = blocklists.filter((bl) => bl.kind === "category");
 
+    // Native tracker lists render as one grouped card after the regular lists and
+    // are never part of the "enable listed" bulk action.
+    const nativeItems = orderedNativeItems(regularBlocklists);
+    const showNativeCard = nativeCardVisible({
+        items: nativeItems,
+        enabled: enabledBlocklists,
+        filterValue,
+        searchTerm: searchValue,
+    });
+    // A search that matches only vendor names narrows the panel to those vendors.
+    const nativeSearchNarrowed = !nativeCardMatches(searchValue) && nativeVendorMatches(nativeItems, searchValue);
+    const nativePanelItems = nativeSearchNarrowed
+        ? nativeItems.filter((bl) => nativeVendorMatches([bl], searchValue))
+        : nativeItems;
+    const nativeStats = nativeSummary(nativeItems, enabledBlocklists);
+
+    useEffect(() => {
+        if (nativeSearchNarrowed) setNativeExpanded(true);
+    }, [nativeSearchNarrowed]);
+
+    useEffect(() => {
+        if (!showNativeCard) setNativeExpanded(false);
+    }, [showNativeCard]);
+
     // Filter blocklists by search and filter value (basic, comprehensive, restrictive, all)
-    let filteredBlocklists = regularBlocklists.filter((blocklist) => {
+    let filteredBlocklists = regularBlocklists.filter((blocklist) => !isNativeItem(blocklist)).filter((blocklist) => {
         const matchesSearch =
             !searchValue.trim() ||
             blocklist.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
@@ -632,28 +681,76 @@ export default function MainContentSection(): JSX.Element {
                                                 </div>
                                             ))}
                                         </>
-                                    ) : filteredBlocklists.length === 0 ? (
+                                    ) : filteredBlocklists.length === 0 && !showNativeCard ? (
                                         <div className="col-span-full flex justify-center py-8">
                                             <EmptyState searchTerm={searchValue.trim() || undefined} />
                                         </div>
                                     ) : (
-                                        filteredBlocklists.map((blocklist) => {
-                                            const blocklistId = blocklist.blocklist_id;
-                                            const isEnabled = enabledBlocklists.includes(blocklistId);
-                                            return (
-                                                <BlocklistCard
-                                                    key={blocklistId}
-                                                    title={blocklist.name}
-                                                    description={blocklist.description}
-                                                    entries={blocklist.entries}
-                                                    updated={formatUpdatedRelative(blocklist.last_modified)}
-                                                    onSwitchChange={(checked) => handleBlocklistSwitch(blocklistId, checked)}
-                                                    switchChecked={isEnabled}
-                                                    switchDisabled={updating === blocklistId || isRestricted}
-                                                    homepage={blocklist.homepage}
-                                                />
-                                            );
-                                        })
+                                        <>
+                                            {filteredBlocklists.map((blocklist) => {
+                                                const blocklistId = blocklist.blocklist_id;
+                                                const isEnabled = enabledBlocklists.includes(blocklistId);
+                                                return (
+                                                    <BlocklistCard
+                                                        key={blocklistId}
+                                                        title={blocklist.name}
+                                                        description={blocklist.description}
+                                                        entries={blocklist.entries}
+                                                        updated={formatUpdatedRelative(blocklist.last_modified)}
+                                                        onSwitchChange={(checked) => handleBlocklistSwitch(blocklistId, checked)}
+                                                        switchChecked={isEnabled}
+                                                        switchDisabled={updating === blocklistId || isRestricted}
+                                                        homepage={blocklist.homepage}
+                                                    />
+                                                );
+                                            })}
+                                            {showNativeCard && (
+                                                <div className="contents" data-testid="native-trackers-group">
+                                                    <CategoryCard
+                                                        label={NATIVE_LABEL}
+                                                        description={NATIVE_DESCRIPTION}
+                                                        totalLists={nativeItems.length}
+                                                        enabledLists={nativeStats.enabledCount}
+                                                        totalEntries={formatEntries(nativeStats.totalEntries)}
+                                                        lastUpdated={formatUpdatedRelative(nativeStats.mostRecent)}
+                                                        onToggle={() =>
+                                                            handleCategoryToggle(
+                                                                nativeItems.map((bl) => bl.blocklist_id),
+                                                                nativeStats.enabledCount === 0,
+                                                                NATIVE_LABEL,
+                                                            )
+                                                        }
+                                                        toggleDisabled={updating !== null || isRestricted}
+                                                        expanded={nativeExpanded}
+                                                        onExpandToggle={() => setNativeExpanded((v) => !v)}
+                                                    />
+                                                    {nativeExpanded && (
+                                                        <div className="col-[1/-1]">
+                                                            <ExpandPanel expanded categoryLabel={NATIVE_LABEL} categoryIcon={Radar}>
+                                                                {nativePanelItems.map((bl) => {
+                                                                    const logo = nativeLogo(bl);
+                                                                    return (
+                                                                        <BlocklistCard
+                                                                            key={bl.blocklist_id}
+                                                                            title={bl.name}
+                                                                            description={bl.description}
+                                                                            entries={bl.entries}
+                                                                            updated={formatUpdatedRelative(bl.last_modified)}
+                                                                            onSwitchChange={(checked) => handleBlocklistSwitch(bl.blocklist_id, checked)}
+                                                                            switchChecked={enabledBlocklists.includes(bl.blocklist_id)}
+                                                                            switchDisabled={updating === bl.blocklist_id || isRestricted}
+                                                                            homepage={bl.homepage}
+                                                                            logoSrc={logo && getServiceLogoSrc({ serviceId: logo.key, isDark: theme === "dark" })}
+                                                                            logoWide={logo?.wide}
+                                                                        />
+                                                                    );
+                                                                })}
+                                                            </ExpandPanel>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </ScrollArea>
