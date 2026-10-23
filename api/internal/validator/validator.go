@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/text/unicode/norm"
@@ -62,6 +63,14 @@ type APIValidator struct {
 	WildcardRegexes map[string]*regexp.Regexp
 }
 
+// TimespanTags maps each timespan validation tag to the set it accepts, one per endpoint
+// family (model/timespan.go).
+var TimespanTags = map[string]model.TimespanSet{
+	"logs_timespan":       model.QueryLogsTimespans,
+	"logs_top_timespan":   model.QueryLogsTopTimespans,
+	"statistics_timespan": model.StatisticsTimespanSet,
+}
+
 func NewAPIValidator() (*APIValidator, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	// Report fields by their JSON name so validation errors reference the field
@@ -97,6 +106,13 @@ func NewAPIValidator() (*APIValidator, error) {
 	err = apiValidator.Validator.RegisterValidation("safe_name", safeNameValidation)
 	if err != nil {
 		return nil, err
+	}
+	for tag, set := range TimespanTags {
+		if err := apiValidator.Validator.RegisterValidation(tag, func(fl validator.FieldLevel) bool {
+			return set.Contains(fl.Field().String())
+		}); err != nil {
+			return nil, err
+		}
 	}
 	for key, pattern := range wildcardPatterns {
 		compiled, err := regexp.Compile(pattern)

@@ -26,6 +26,44 @@ a no-op. Deploy note: proxies still running the previous release between the DCN
 restarts may recreate `statistics` as a plain collection; after the DFN restart, drop it if
 `db.statistics.countDocuments({})` is non-zero.
 
+### Migration 027 (statistics tiers)
+
+Creates the five per-profile statistics time-series collections the proxy writes to
+(`timeField` `bucket_start`, `metaField` `meta` = `{profile_id, device_id}`,
+`bucketMaxSpanSeconds` = `bucketRoundingSeconds` = 86400, MongoDB >= 6.3, `granularity` omitted;
+one-day buckets keep the TTL overrun to about a day):
+
+| Collection | Resolution | `expireAfterSeconds` |
+|---|---|---|
+| `statistics_15min` | 15 min | 86400 (1 d) |
+| `statistics_1h` | 1 h | 691200 (8 d) |
+| `statistics_1d_30d` | 1 d | 2592000 (30 d) |
+| `statistics_1d_90d` | 1 d | 7776000 (90 d) |
+| `statistics_1d_1y` | 1 d | 31536000 (1 y) |
+
+Each also gets a `{meta.profile_id: 1, bucket_start: 1}` index named `meta_profile_id_bucket_start`
+(the automatic `{meta, bucket_start}` index cannot serve a `meta.profile_id` predicate). The
+legacy `statistics` collection (already emptied by 026) is then dropped. The proxy never creates
+these collections, so deploy the migration before the proxy release.
+
+Verified on mongo:8.0.9 with the real golang-migrate image: `goto 26` with a legacy `statistics`
+collection, `up`, options and indexes read back, `down 1` removes all five, `up` again; the same
+checks run as testcontainer tests (`TestStatisticsRepositorySuite`), including explain showing the
+profile index is used by the read, both purge shapes and the profile-id listing (`DISTINCT_SCAN`),
+with no `COLLSCAN`. A `drop` of a missing namespace returns `ok: 1`, so the migration also applies
+to a fresh database. `create` is not idempotent (an existing collection fails with
+`NamespaceExists`), so if a run is interrupted after some `create` commands, drop the partially
+created `statistics_*` collections and `force 26` before retrying.
+
+The index build carries no `commitQuorum` because standalone MongoDB (dev, E2E) rejects it; on
+the degraded production replica set, build with `commitQuorum: "majority"` or fix a hung build
+with `setIndexCommitQuorum` (see the note on 018-style hangs). The down migration drops the five
+collections and their indexes (data is lost) and does not recreate the legacy `statistics`
+collection; after it, an older proxy's `InsertMany` would auto-create plain (non-time-series,
+no TTL) collections under the same names, so drop those before re-running `up`. Proxies still on
+the previous release may recreate `statistics` as a plain collection after the drop; drop it again
+once every PoP runs the new release.
+
 ### Query logs collections
 
 Note: Query logs time-series collections are created by the proxy service. Their only index is the `{profile_id, timestamp}` meta+time index MongoDB creates automatically on time-series creation (≥6.3) — no code creates query-log indexes explicitly (verified against prod, moddns-shadow#688).

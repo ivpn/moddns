@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"strings"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -10,8 +11,6 @@ import (
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
 )
-
-const REASON_CNAME_UNCLOAKING = "cname_uncloaking"
 
 // extractCNAMETargets returns the deduplicated, lowercased CNAME target names
 // from an answer section, trailing dots stripped. The QNAME itself is excluded
@@ -83,14 +82,14 @@ func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.Reque
 	}
 	if allowMatched || blockMatched {
 		result.Tier = TierCustomRules
-		result.Reasons = []string{REASON_CUSTOM_RULES, REASON_CNAME_UNCLOAKING}
+		result.Reasons = []string{filterreasons.CustomRules, filterreasons.CnameUncloaking}
 		if allowMatched {
 			result.Decision = model.DecisionAllow
 		} else {
 			result.Decision = model.DecisionBlock
 		}
 		reqCtx.Logger.Debug().
-			Str("reasons", REASON_CUSTOM_RULES+","+REASON_CNAME_UNCLOAKING).
+			Str("reasons", filterreasons.CustomRules+","+filterreasons.CnameUncloaking).
 			Str("decision", string(result.Decision)).
 			Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype]).
 			Msg("CNAME target matched custom rule")
@@ -106,17 +105,17 @@ func (f *IPFilter) filterCNAME(ctx context.Context, reqCtx *requestcontext.Reque
 			continue
 		}
 		e := reqCtx.Logger.Debug().
-			Str("reasons", REASON_BLOCKLISTS+","+REASON_CNAME_UNCLOAKING).
+			Str("reasons", filterreasons.Blocklists+","+filterreasons.CnameUncloaking).
 			Str("blocklist", match.blocklistID).
 			Str("qtype", dns.TypeToString[dctx.Req.Question[0].Qtype])
 		reqCtx.AddDomain(e, dctx.Req.Question[0].Name).Msg("CNAME target blocked")
 		result.Decision = model.DecisionBlock
 		result.Tier = TierBlocklists
-		result.Reasons = append(result.Reasons, "blocklist: "+match.blocklistID)
+		result.Reasons = append(result.Reasons, filterreasons.BlocklistPrefix+match.blocklistID)
 		if match.viaParent {
-			result.Reasons = append(result.Reasons, SUBDOMAINS_RULE)
+			result.Reasons = append(result.Reasons, filterreasons.BlocklistsSubdomains)
 		}
-		result.Reasons = append(result.Reasons, REASON_CNAME_UNCLOAKING)
+		result.Reasons = append(result.Reasons, filterreasons.CnameUncloaking)
 		return result, nil
 	}
 	return result, nil

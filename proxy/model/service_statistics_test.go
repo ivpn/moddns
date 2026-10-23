@@ -45,7 +45,7 @@ func TestNewServiceStatistics_KeyedByPopAndHour(t *testing.T) {
 	assert.Equal(t, "ams1:2026-09-17T13", doc.ID, "aggregation never moves the document")
 }
 
-// specRef: proxy-statistics-behaviour.md #Y1 #Y6
+// specRef: proxy-statistics-behaviour.md #Y1 #Y2 #Y6 #Y11
 func TestServiceStatistics_SchemaCarriesNoIdentifier(t *testing.T) {
 	forbidden := map[string]bool{"profile_id": true, "device_id": true, "client_ip": true}
 	allowed := map[string]bool{"_id": true, "timestamp": true, "pop": true, "queries": true}
@@ -59,6 +59,9 @@ func TestServiceStatistics_SchemaCarriesNoIdentifier(t *testing.T) {
 	assert.Equal(t, len(allowed), typ.NumField())
 
 	evt := reflect.TypeOf(EventStatistics{})
-	assert.Equal(t, 1, evt.NumField(), "the per-query event carries counters only")
+	assert.Equal(t, 2, evt.NumField(), "the per-query event is counters plus the optional consented part")
 	assert.Equal(t, "Queries", evt.Field(0).Name)
+	assert.Equal(t, "Consented", evt.Field(1).Name)
+	assert.Equal(t, reflect.Pointer, evt.Field(1).Type.Kind(), "absent unless the profile consented")
+	assert.Nil(t, EventStatistics{Queries: Queries{Total: 1}}.Consented)
 }

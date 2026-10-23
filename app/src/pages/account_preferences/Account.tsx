@@ -28,6 +28,7 @@ import { useAppStore } from "@/store/general";
 import AccountSubscription from "@/components/AccountSubscription";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import CutOffDataCollection from "@/components/data-collection/CutOffDataCollection";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import BackupRestoreSection from "@/components/BackupRestoreSection";
 
@@ -265,6 +266,9 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                         <AccountInfoCard accountInfo={accountInfo} />
                     </div>
                 </div>
+
+                {/* D5: turning data collection off and deleting stored data stay available while cut off (G27). */}
+                {isCutOff && <CutOffDataCollection />}
 
                 {/* Sections - disabled while the account is cut off (inactive /
                     pending_delete). Outer wrapper carries cursor-not-allowed +

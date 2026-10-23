@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -13,6 +14,7 @@ import (
 	"github.com/ivpn/dns/api/db"
 	webhookClient "github.com/ivpn/dns/api/internal/client"
 	"github.com/ivpn/dns/api/internal/email"
+	"github.com/ivpn/dns/api/internal/geoip"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
@@ -47,6 +49,14 @@ type Service struct {
 	SessionServicer
 	PasskeyServicer
 	dnsstamp.DNSStampServicer
+	// Statistics is exposed for the statistics reconcile job.
+	Statistics *statistics.StatisticsService
+	// QueryLogsPurger is exposed for the unconsented query-logs purge job.
+	QueryLogsPurger *profile.ProfileService
+}
+
+func newStatisticsReadCache(c cache.Cache) *cache.StatisticsReadCache {
+	return cache.NewStatisticsReadCache(c)
 }
 
 // New constructs the service layer. servicesCatalog is used by ProfileService
@@ -55,7 +65,7 @@ type Service struct {
 func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
-	statsSrv := statistics.NewStatisticsService(store)
+	statsSrv := statistics.NewStatisticsService(store, statistics.WithProfiles(store), statistics.WithReadCache(newStatisticsReadCache(cache)))
 	profSrv := profile.NewProfileService(*cfg.Server, *cfg.Service, store, store, blocklistSrv, queryLogsSrv, statsSrv, servicesCatalog, cache, idGen, apiValidator.Validator)
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
@@ -63,6 +73,9 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	// AccountService satisfies reauth.MfaVerifier via its MfaCheck method.
 	// Wired post-construction because profSrv is built before accSrv.
 	profSrv.SetMfaVerifier(accSrv)
+	geo := geoip.New(geoip.Config{ASNFile: cfg.Service.GeoIPASNFile, CountryFile: cfg.Service.GeoIPCountryFile, ReloadEvery: cfg.Service.GeoIPReloadEvery})
+	geo.Start(context.Background())
+	profSrv.SetClientEnricher(geo)
 	appleSrv := apple.NewAppleService(&cfg, cache, shortener)
 	dnsstampSrv := dnsstamp.NewDNSStampService(&cfg)
 	return Service{
@@ -77,6 +90,8 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		Webauthn:             webauthn,
 		HTTP:                 *httpClient,
 		DNSStampServicer:     dnsstampSrv,
+		Statistics:           statsSrv,
+		QueryLogsPurger:      profSrv,
 	}
 }
 
@@ -150,11 +165,15 @@ type ProfileServicer interface {
 	// Query logs
 	GetProfileQueryLogs(ctx context.Context, accountId, profileId, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	GetProfileQueryLogDevices(ctx context.Context, accountId, profileId string) ([]model.QueryLogDevice, error)
+	GetProfileQueryLogTop(ctx context.Context, accountId, profileId, timespan, kind string, limit int) (*model.QueryLogTopDomains, error)
+	GetProfileQueryLogClients(ctx context.Context, accountId, profileId, timespan string, limit int) (*model.QueryLogTopClients, error)
+	GetProfileQueryLogBlocklists(ctx context.Context, accountId, profileId, timespan string, limit int) (*model.QueryLogTopBlocklists, error)
 	DownloadProfileQueryLogs(ctx context.Context, accountId, profileId string, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, accountId, profileId string) error
 
 	// Statistics
-	GetStatistics(ctx context.Context, accountId, profileId, timespan string) ([]model.StatisticsAggregated, error)
+	GetStatistics(ctx context.Context, accountId, profileId, timespan string) (*model.StatisticsResponse, error)
+	DeleteStatisticsHistory(ctx context.Context, accountId, profileId string) error
 
 	// Custom Rules
 	DeleteCustomRule(ctx context.Context, accountId, profileId, customRuleId string) error
@@ -183,6 +202,10 @@ type ProfileServicer interface {
 type QueryLogsServicer interface {
 	GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error)
 	GetProfileQueryLogDevices(ctx context.Context, profileId string, retention model.Retention) ([]model.QueryLogDevice, error)
+	GetProfileQueryLogTopDomains(ctx context.Context, profileId string, retention model.Retention, timespan, kind string, limit int) ([]model.QueryLogTopDomain, error)
+	GetProfileQueryLogTopClients(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopClient, error)
+	GetProfileQueryLogTopBlocklists(ctx context.Context, profileId string, retention model.Retention, timespan string, limit int) ([]model.QueryLogTopBlocklist, error)
+	GetProfileQueryLogCoveredFrom(ctx context.Context, profileId string, retention model.Retention, timespan string) (*time.Time, error)
 	DownloadProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, page, limit int) ([]model.QueryLog, error)
 	DeleteProfileQueryLogs(ctx context.Context, profileId string) error
 }

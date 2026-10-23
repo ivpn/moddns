@@ -3,6 +3,7 @@ import {
     GlobeIcon,
     ListIcon,
     SettingsIcon,
+    ChartColumn,
     ShieldIcon,
     FilterX,
     UserIcon,
@@ -27,6 +28,9 @@ import { AuthContext, routePreload } from "@/App";
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
 import api from "@/api/api";
 import { useAnnouncementsIndicator } from "@/hooks/useAnnouncementsIndicator";
+
+// Routes whose menu entry carries the "New" pill; remove an entry to retire it.
+const NEW_NAV_ROUTES: readonly string[] = ["/statistics"];
 
 interface NavigationSectionProps {
     isMobile?: boolean;
@@ -99,6 +103,11 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
             icon: <FilterX className="w-5 h-5" />,
             label: "Custom rules",
             route: "/custom-rules",
+        },
+        {
+            icon: <ChartColumn className="w-5 h-5" />,
+            label: "Statistics",
+            route: "/statistics",
         },
         {
             icon: <ListIcon className="w-5 h-5" />,
@@ -187,11 +196,21 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
                                 onMouseEnter={() => routePreload[item.route]?.()}
                                 onFocus={() => routePreload[item.route]?.()}
                                 onTouchStart={() => routePreload[item.route]?.()}
+                                aria-label={showLabels && NEW_NAV_ROUTES.includes(item.route) ? `${item.label}, new` : undefined}
                             >
                                 <span className={`flex items-center ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>{item.icon}</span>
                                 {showLabels && (
                                     <span className={`font-medium ${isMobile ? 'text-base' : 'text-sm'} ${isActive(item.route) ? "text-[var(--tailwind-colors-rdns-600)]" : "text-[var(--sidebar-foreground)]"}`}>
                                         {item.label}
+                                    </span>
+                                )}
+                                {showLabels && NEW_NAV_ROUTES.includes(item.route) && (
+                                    <span
+                                        aria-hidden="true"
+                                        data-testid="nav-new-pill"
+                                        className="ml-auto rounded-full border border-[var(--tailwind-colors-rdns-600)] px-1.5 text-[10px] font-bold leading-4 tracking-[0.04em] text-[var(--tailwind-colors-rdns-600)]"
+                                    >
+                                        New
                                     </span>
                                 )}
                             </Button>

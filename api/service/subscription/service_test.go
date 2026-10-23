@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -187,6 +188,54 @@ func (s *UpdateSubscriptionFromPASessionSuite) TestRetiredSubscriptionRefusesRes
 	err := svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-retired", "")
 
 	s.Require().ErrorIs(err, subscription.ErrSubscriptionScheduledForDeletion)
+}
+
+func ruleProfile(id string, values ...string) model.Profile {
+	settings := model.NewSettings()
+	settings.ProfileId = id
+	for _, v := range values {
+		settings.CustomRules = append(settings.CustomRules, &model.CustomRule{ID: primitive.NewObjectID(), Action: model.ACTION_ALLOW, Value: v})
+	}
+	return model.Profile{ProfileId: id, Settings: settings}
+}
+
+// specRef: subscription-lifecycle-enforcement.md E11 — resync writes each profile's full settings,
+// custom rules included (the cache write replaces them, api-endpoint-behaviour.md G25).
+func (s *UpdateSubscriptionFromPASessionSuite) TestResyncWritesSettingsWithCustomRules() {
+	preauthSrv := newPreauthServer(s.T(), "tok-r")
+	defer preauthSrv.Close()
+	svc := s.buildService(preauthSrv.URL, "")
+	sub := newSub()
+	s.primeValidationMocks("sess-r", "tok-r")
+	withRules, noRules := ruleProfile("p1", "a.example", "b.example"), ruleProfile("p2")
+	s.mockSubscriptionRepo.On("Upsert", mock.Anything, mock.AnythingOfType("model.Subscription")).Return(nil)
+	s.mockSubscriptionRepo.On("ClearLegacyType", mock.Anything, sub.AccountID.Hex()).Return(nil)
+	s.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, sub.AccountID.Hex()).Return([]model.Profile{withRules, noRules}, nil)
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, mock.MatchedBy(func(st *model.ProfileSettings) bool {
+		return st.ProfileId == "p1" && len(st.CustomRules) == 2 && st.CustomRules[0].Value == "a.example"
+	})).Return(nil).Once()
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, noRules.Settings).Return(nil).Once()
+
+	s.Require().NoError(svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-r", ""))
+	s.mockCache.AssertNotCalled(s.T(), "AddCustomRules", mock.Anything, mock.Anything, mock.Anything)
+}
+
+// specRef: subscription-lifecycle-enforcement.md E11 — a failed write is logged and the next
+// profile is still restored; the resync succeeds.
+func (s *UpdateSubscriptionFromPASessionSuite) TestResyncWriteFailureIsBestEffort() {
+	preauthSrv := newPreauthServer(s.T(), "tok-f")
+	defer preauthSrv.Close()
+	svc := s.buildService(preauthSrv.URL, "")
+	sub := newSub()
+	s.primeValidationMocks("sess-f", "tok-f")
+	first, second := ruleProfile("p1", "a.example"), ruleProfile("p2", "b.example")
+	s.mockSubscriptionRepo.On("Upsert", mock.Anything, mock.AnythingOfType("model.Subscription")).Return(nil)
+	s.mockSubscriptionRepo.On("ClearLegacyType", mock.Anything, sub.AccountID.Hex()).Return(nil)
+	s.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, sub.AccountID.Hex()).Return([]model.Profile{first, second}, nil)
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, first.Settings).Return(errors.New("redis down")).Once()
+	s.mockCache.On("CreateOrUpdateProfileSettings", mock.Anything, second.Settings).Return(nil).Once()
+
+	s.Require().NoError(svc.UpdateSubscriptionFromPASession(context.Background(), sub, "sess-f", ""))
 }
 
 func TestUpdateSubscriptionFromPASession(t *testing.T) {

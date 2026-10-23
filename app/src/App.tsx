@@ -16,6 +16,7 @@ const Settings = lazyWithRetry(() => import('./pages/settings/Settings'));
 const PasswordReset = lazyWithRetry(() => import('./pages/auth/PasswordReset'));
 const PasswordResetConfirm = lazyWithRetry(() => import('./pages/auth/PasswordResetConfirm'));
 const Logs = lazyWithRetry(() => import('./pages/logs/Logs'));
+const Statistics = lazyWithRetry(() => import('./pages/statistics/Statistics'));
 const Blocklists = lazyWithRetry(() => import('./pages/blocklists/Blocklists'));
 const CustomRules = lazyWithRetry(() => import('./pages/custom_rules/CustomRules'));
 const Login = lazyWithRetry(() => import('./pages/auth/Login'));
@@ -39,6 +40,7 @@ const routePreload: Partial<Record<string, () => void>> = {
   '/setup': () => { void Setup.preload(); },
   '/blocklists': () => { void Blocklists.preload(); },
   '/custom-rules': () => { void CustomRules.preload(); },
+  '/statistics': () => { void Statistics.preload(); },
   '/query-logs': () => { void Logs.preload(); },
   '/settings': () => { void Settings.preload(); },
   '/account-preferences': () => { void AccountPreferences.preload(); },
@@ -59,6 +61,7 @@ import { useApiEventHandler } from "@/api/eventHandler";
 import { toast } from "sonner";
 import { authToasts } from "@/lib/authToasts";
 import { subscribe, dispatch, type AppEvent } from '@/lib/eventBus';
+import { PageActionsProvider } from '@/lib/pageActions';
 
 // Desktop layout sizing constants
 const DESKTOP_CONTENT_BASE_WIDTH = 1200;
@@ -486,6 +489,8 @@ function ProtectedLayout() {
         return 'Custom rules';
       case '/settings':
         return 'Settings';
+      case '/statistics':
+        return 'Statistics';
       case '/query-logs':
         return 'Logs';
       case '/account-preferences':
@@ -497,6 +502,7 @@ function ProtectedLayout() {
         if (location.pathname.startsWith('/blocklists/')) return 'Blocklists';
         if (location.pathname.startsWith('/custom-rules/')) return 'Custom rules';
         if (location.pathname.startsWith('/settings/')) return 'Settings';
+        if (location.pathname.startsWith('/statistics/')) return 'Statistics';
         if (location.pathname.startsWith('/query-logs/')) return 'Logs';
         if (location.pathname.startsWith('/account-preferences/')) return 'Account';
         if (location.pathname.startsWith('/mobileconfig/')) return 'Mobile configuration';
@@ -522,7 +528,7 @@ function ProtectedLayout() {
   const contentMaxWidth = isDesktop ? DESKTOP_CONTENT_CLAMP : 'min(100%, 1080px)';
 
   return (
-    <>
+    <PageActionsProvider>
       <AppLayout>
         <AccountCutoffGuard />
         {navDesktop && <div data-testid="persistent-sidebar"><NavigationMenu offsetLeft={shellOffset} /></div>}
@@ -629,7 +635,7 @@ function ProtectedLayout() {
           </div>
         </div>
       )}
-    </>
+    </PageActionsProvider>
   );
 }
 
@@ -675,6 +681,11 @@ function AccountPreferencesWithLoader() {
 
 function MobileconfigWithLoader() {
   return <Suspense fallback={<div />}><MobileconfigPage /></Suspense>;
+}
+
+function StatisticsWithLoader() {
+  const { account, profiles } = useLoaderData() as { account: ModelAccount | null, profiles: ModelProfile[] };
+  return <Suspense fallback={<div />}><Statistics account={account as ModelAccount} profiles={profiles} /></Suspense>;
 }
 
 function QueryLogsWithLoader() {
@@ -773,6 +784,7 @@ const router = createBrowserRouter([
           { loader: rootLoader, path: "custom-rules", element: <CustomRulesWithLoader /> },
           { loader: rootLoader, path: "account-preferences", element: <AccountPreferencesWithLoader /> },
           { loader: rootLoader, path: "mobileconfig", element: <MobileconfigWithLoader /> },
+          { loader: rootLoader, path: "statistics", element: <StatisticsWithLoader /> },
           { loader: rootLoader, path: "query-logs", element: <QueryLogsWithLoader /> },
         ],
       },

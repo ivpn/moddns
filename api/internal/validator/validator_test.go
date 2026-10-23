@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"github.com/ivpn/dns/api/model"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 )
@@ -264,5 +266,21 @@ func Test_NormalizeEmail(t *testing.T) {
 				t.Errorf("NormalizeEmail not idempotent: %q -> %q", got, again)
 			}
 		})
+	}
+}
+
+// specRef: api-endpoint-behaviour.md J1, J20, J40 - each timespan tag accepts exactly its family's set.
+func TestTimespanTags(t *testing.T) {
+	v, err := NewAPIValidator()
+	require.NoError(t, err)
+	for tag, set := range TimespanTags {
+		for _, ts := range []string{model.LAST_1_HOUR, model.LAST_3_HOURS, model.LAST_12_HOURS, model.LAST_1_DAY, model.LAST_MONTH, model.LAST_YEAR, "bogus", ""} {
+			err := v.Validator.Var(ts, tag)
+			if set.Contains(ts) {
+				require.NoError(t, err, "%s %s", tag, ts)
+			} else {
+				require.Error(t, err, "%s %s", tag, ts)
+			}
+		}
 	}
 }

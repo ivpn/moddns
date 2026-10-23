@@ -62,6 +62,15 @@ type ServiceConfig struct {
 	ServicesCatalogReloadEvery time.Duration
 	AnnouncementsURL           string
 	AnnouncementsReloadEvery   time.Duration
+	// StatisticsReconcileInterval is how often the statistics reconcile runs
+	// (env STATISTICS_PURGE_INTERVAL, kept for deployment compatibility).
+	StatisticsReconcileInterval time.Duration
+	// QueryLogsPurgeInterval is how often the unconsented query-logs sweep runs.
+	QueryLogsPurgeInterval time.Duration
+	// GeoIP databases enriching the query-log top-clients list; both optional.
+	GeoIPASNFile     string
+	GeoIPCountryFile string
+	GeoIPReloadEvery time.Duration
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
@@ -199,6 +208,18 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	statisticsPurgeInterval, err := parsePositiveDuration("STATISTICS_PURGE_INTERVAL", "1h")
+	if err != nil {
+		return nil, err
+	}
+	queryLogsPurgeInterval, err := parsePositiveDuration("QUERY_LOGS_PURGE_INTERVAL", "1h")
+	if err != nil {
+		return nil, err
+	}
+	geoIPReloadEvery, err := parsePositiveDuration("GEOIP_DB_RELOAD", "15m")
+	if err != nil {
+		return nil, err
+	}
 	idLimiterExpiration, err := time.ParseDuration(envOrDefault("ID_LIMITER_EXPIRATION", "1h"))
 	if err != nil {
 		return nil, err
@@ -307,6 +328,11 @@ func New() (*Config, error) {
 			ServicesCatalogReloadEvery:     servicesCatalogReloadEvery,
 			AnnouncementsURL:               os.Getenv("ANNOUNCEMENTS_URL"),
 			AnnouncementsReloadEvery:       announcementsReloadEvery,
+			StatisticsReconcileInterval:    statisticsPurgeInterval,
+			QueryLogsPurgeInterval:         queryLogsPurgeInterval,
+			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
+			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
+			GeoIPReloadEvery:               geoIPReloadEvery,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
 		},
 		Sentry: &SentryConfig{
@@ -316,4 +342,14 @@ func New() (*Config, error) {
 		},
 		LogLevel: logLevel,
 	}, nil
+}
+
+// parsePositiveDuration reads a duration env var and rejects unparsable or non-positive values.
+func parsePositiveDuration(env, def string) (time.Duration, error) {
+	raw := envOrDefault(env, def)
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("invalid %s: %q must be a positive duration", env, raw)
+	}
+	return d, nil
 }
