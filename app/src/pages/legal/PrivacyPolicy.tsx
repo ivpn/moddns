@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                            Last updated: Sep 17, 2026
+                                            Last updated: Oct 23, 2026
                                         </p>
                                     </div>
 
@@ -113,19 +113,19 @@ export default function PrivacyPolicy() {
                                             <li>Timestamps of DNS resolutions with user/profile attribution</li>
                                         </ul>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mt-4">
-                                            For more information on what is logged when you optionally enable "Query Logs", see the next section.
+                                            For more information on what is stored when you optionally enable "Statistics" or "Query Logs", see the next section.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">What information is logged about DNS activity?</h2>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            ModDNS is a privacy-first service: logging of DNS related activity is disabled by default. Beyond this default setting you have complete control over your DNS query logging.
+                                            ModDNS is a privacy-first service: logging of DNS related activity is disabled by default. Beyond this default setting you have complete control over Statistics and Query Logs for each profile.
                                         </p>
 
-                                        <h3 className="text-lg font-semibold mb-2">a) Default setting (Query Logs Disabled)</h3>
+                                        <h3 className="text-lg font-semibold mb-2">a) Default setting (Statistics and Query Logs Disabled)</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When query logging is turned off, all queries are processed entirely in memory and are never written to disk.
+                                            When Statistics and Query Logs are turned off, all queries are processed entirely in memory and are never written to disk.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             The only DNS activity data we keep is anonymous service-wide statistics: the number of queries, blocked queries and DNSSEC-validated queries handled by each server location, added up across all users with hourly timestamps. These counters contain no profile, device or client reference. Example of data stored:
@@ -134,7 +134,36 @@ export default function PrivacyPolicy() {
 "pop": "ams1"
 "queries": { "total": 18342, "blocked": 2917, "dnssec": 520 }`}</pre>
 
-                                        <h3 className="text-lg font-semibold mb-2">b) With Query Logs Enabled</h3>
+                                        <h3 className="text-lg font-semibold mb-2">b) With Statistics Enabled</h3>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            Statistics is an optional modDNS feature that counts the queries of a profile, so you can see how many were resolved and blocked without keeping a record of each query. It is off by default and you must explicitly turn it on for each profile.
+                                        </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            Queries are added up per profile and device in 15-minute blocks. The data points counted include:
+                                        </p>
+                                        <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
+                                            <li>The number of queries, blocked queries and DNSSEC-validated queries</li>
+                                            <li>The type of rule that blocked a query (blocklist, service, custom rule, DNS rebinding protection or default rule), without naming the blocklist, service or rule</li>
+                                            <li>The protocol used (DoH, DoT or DoQ)</li>
+                                            <li>Your Device Identifier, if configured</li>
+                                        </ul>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mt-4 mb-4">
+                                            Statistics contain no domains, no IP addresses and no time of individual queries. We also store the time you turned Statistics on. Example of data stored:
+                                        </p>
+                                        <pre className="bg-[var(--shadcn-ui-app-background)] border border-[var(--shadcn-ui-app-border)] rounded-md p-4 text-sm text-[var(--shadcn-ui-app-foreground)] opacity-80 overflow-x-auto mb-4">{`"bucket_start": "2026-10-23T10:15:00Z"
+"meta": { "profile_id": "3mdq3557b1", "device_id": "ff_browser" }
+"total": 412, "blocked": 57, "dnssec": 38
+"reason_blocklist": 49, "reason_service": 0, "reason_custom_rule": 6,
+"reason_rebinding": 0, "reason_default_rule": 2, "reason_other": 0
+"proto_doh": 301, "proto_dot": 111, "proto_doq": 0`}</pre>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            Counts become less detailed as they age: 15-minute counts are kept for 1 day and hourly counts for 8 days. Daily totals are kept for the retention period you choose: 30 days by default, 90 days or 1 year. Counts are deleted automatically once they exceed these periods, which can take up to a day.
+                                        </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            When you shorten the retention period, daily totals older than the new period are deleted. Turning Statistics off, or using Delete statistics history, permanently deletes all statistics for the profile.
+                                        </p>
+
+                                        <h3 className="text-lg font-semibold mb-2">c) With Query Logs Enabled</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             Query Logs is a modDNS feature that provides a detailed log of all queries to help you monitor and fine-tune your DNS filtering. If you choose to enable query logging, we store data required to provide you with detailed reports on your DNS activity. This is an optional feature that you must explicitly opt-in to, further, you have detailed control over what is logged and for how long.
                                         </p>
@@ -167,20 +196,23 @@ export default function PrivacyPolicy() {
                                             Within your profile settings, you can independently enable or disable the logging of queried domains and client IP Addresses.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            When client IP addresses are logged, the Statistics page shows the network provider and country of each address. We look these up in a database on our own servers when you open the page and do not store the result.
+                                        </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             You also have full control over the data retention period, which can be set from a minimum of 1 hour to a maximum of 1 month. The default retention period is 1 hour.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            Query log entries are automatically and permanently deleted once they exceed the retention period. When you change the retention period setting, any existing logs that exceed the new timeframe are immediately deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard.
+                                            Query log entries are automatically and permanently deleted once they exceed the retention period. When you change the retention period setting, any existing logs that exceed the new timeframe are immediately deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard, and turning Query Logs off deletes them as well.
                                         </p>
                                     </section>
 
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">How do you handle Device Identification?</h2>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Device Identification is an optional feature that allows you to distinguish between devices using the same DNS profile. The device identifier you set is only logged if you have Query Logs enabled.
+                                            Device Identification is an optional feature that allows you to distinguish between devices using the same DNS profile. The device identifier you set is only stored if you have Statistics or Query Logs enabled.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            This feature can be used to identify devices in your logs without needing to log your IP address, offering an additional layer of privacy when using Query Logs.
+                                            This feature can be used to identify devices in your statistics and logs without needing to log your IP address, offering an additional layer of privacy when using Query Logs.
                                         </p>
                                     </section>
 
@@ -194,7 +226,7 @@ export default function PrivacyPolicy() {
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">What information is retained when I stop using your service?</h2>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            If you choose to delete your account via the 'Delete Account' button in your Account settings, all data associated with your account - including your email, profile configurations, and any stored query logs - is deleted immediately.
+                                            If you choose to delete your account via the 'Delete Account' button in your Account settings, all data associated with your account - including your email, profile configurations, statistics and any stored query logs - is deleted immediately.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             Once an account is deleted, no data associated with it can be recovered.
@@ -210,10 +242,13 @@ export default function PrivacyPolicy() {
                                             If we receive a binding court order, we can only provide the data we possess.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            <strong>If Query Logging is disabled:</strong> We have no DNS activity logs to share. We can only be compelled to confirm that an account exists for a specific email address.
+                                            <strong>If Statistics and Query Logs are disabled:</strong> We have no DNS activity data to share. We can only be compelled to confirm that an account exists for a specific email address.
+                                        </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            <strong>If Statistics is enabled:</strong> We have the query counts per device that you have chosen to keep, for the retention period you have set. They contain no domains or IP addresses.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            <strong>If Query Logging is enabled:</strong> We have query logs that you have chosen to store. The extent of this data depends entirely on the logging and retention settings you have configured. If you are concerned about this possibility, we recommend keeping Query Logs disabled or regularly purging your logs.
+                                            <strong>If Query Logging is enabled:</strong> We have query logs that you have chosen to store. The extent of this data depends entirely on the logging and retention settings you have configured. If you are concerned about this possibility, we recommend keeping Statistics and Query Logs disabled or regularly deleting your statistics and logs.
                                         </p>
                                     </section>
 
