@@ -3,8 +3,10 @@
 // Source of truth: docs/specs/statistics-behaviour.md Section K.
 
 import { STATS_RETENTION_OPTIONS, type StatsRetention } from "@/components/data-collection/model";
-import {
-    ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum as LogsTimespan,
+import type {
+    ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum,
+    ApiV1ProfilesIdLogsTopClientsGetTimespanEnum,
+    ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum,
     ApiV1ProfilesIdStatisticsGetTimespanEnum as StatsTimespan,
 } from "@/api/client";
 
@@ -73,24 +75,32 @@ export function nextLongerRange(key: RangeKey): RangeKey | null {
     return i >= 0 && i < RANGES.length - 1 ? RANGES[i + 1].key : null;
 }
 
+// Wire values: generated enum member names are not stable across generator versions; the value
+// unions are, and they still type-check these maps.
+
+/** One timespan serves all three top lists, so it must be valid for each. */
+type LogsTimespan = ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum &
+    ApiV1ProfilesIdLogsTopClientsGetTimespanEnum &
+    ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum;
+
 /** K3 */
-export const STATS_TIMESPAN: Record<RangeKey, (typeof StatsTimespan)[keyof typeof StatsTimespan]> = {
-    "3h": StatsTimespan._3Hours,
-    "6h": StatsTimespan._6Hours,
-    "24h": StatsTimespan._1Day,
-    "7d": StatsTimespan._7Days,
-    "30d": StatsTimespan.Month,
-    "3m": StatsTimespan._3Months,
-    "12m": StatsTimespan.Year,
+export const STATS_TIMESPAN: Record<RangeKey, StatsTimespan> = {
+    "3h": "LAST_3_HOURS",
+    "6h": "LAST_6_HOURS",
+    "24h": "LAST_1_DAY",
+    "7d": "LAST_7_DAYS",
+    "30d": "LAST_MONTH",
+    "3m": "LAST_3_MONTHS",
+    "12m": "LAST_YEAR",
 };
 
 /** K4: logs never exceed one month, so the long views read LAST_MONTH. */
-export const LOGS_TIMESPAN: Record<RangeKey, (typeof LogsTimespan)[keyof typeof LogsTimespan]> = {
-    "3h": LogsTimespan._3Hours,
-    "6h": LogsTimespan._6Hours,
-    "24h": LogsTimespan._1Day,
-    "7d": LogsTimespan._7Days,
-    "30d": LogsTimespan.Month,
-    "3m": LogsTimespan.Month,
-    "12m": LogsTimespan.Month,
+export const LOGS_TIMESPAN: Record<RangeKey, LogsTimespan> = {
+    "3h": "LAST_3_HOURS",
+    "6h": "LAST_6_HOURS",
+    "24h": "LAST_1_DAY",
+    "7d": "LAST_7_DAYS",
+    "30d": "LAST_MONTH",
+    "3m": "LAST_MONTH",
+    "12m": "LAST_MONTH",
 };
