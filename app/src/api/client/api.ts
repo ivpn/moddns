@@ -1713,7 +1713,7 @@ export interface ModelStatisticsResponse {
      */
     'from'?: string;
     /**
-     * Keep-since instant (UTC): the last "Delete statistics history", or the turn-off of an off and on; nothing older is counted. Null when unset or while off.
+     * Keep-since instant (UTC): the last \"Delete statistics history\", or the turn-off of an off and on; nothing older is counted. Null when unset or while off.
      * @type {string}
      * @memberof ModelStatisticsResponse
      */
@@ -1797,7 +1797,7 @@ export interface ModelStatisticsSettings {
      */
     'enabled_at'?: string;
     /**
-     * Keep-since instant (UTC): the last "Delete statistics history" while on, or the turn-off of an off and on; nothing older is kept. Null while off.
+     * Keep-since instant (UTC): the last \"Delete statistics history\" while on, or the turn-off of an off and on; nothing older is kept. Null while off.
      * @type {string}
      * @memberof ModelStatisticsSettings
      */
@@ -7635,26 +7635,26 @@ export type ApiV1ProfilesIdLogsGetSortByEnum = typeof ApiV1ProfilesIdLogsGetSort
  * @export
  */
 export const ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum = {
-    _1Hour: 'LAST_1_HOUR',
-    _3Hours: 'LAST_3_HOURS',
-    _6Hours: 'LAST_6_HOURS',
-    _12Hours: 'LAST_12_HOURS',
-    _1Day: 'LAST_1_DAY',
-    _7Days: 'LAST_7_DAYS',
-    Month: 'LAST_MONTH'
+    Last1Hour: 'LAST_1_HOUR',
+    Last3Hours: 'LAST_3_HOURS',
+    Last6Hours: 'LAST_6_HOURS',
+    Last12Hours: 'LAST_12_HOURS',
+    Last1Day: 'LAST_1_DAY',
+    Last7Days: 'LAST_7_DAYS',
+    LastMonth: 'LAST_MONTH'
 } as const;
 export type ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum = typeof ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum[keyof typeof ApiV1ProfilesIdLogsTopBlocklistsGetTimespanEnum];
 /**
  * @export
  */
 export const ApiV1ProfilesIdLogsTopClientsGetTimespanEnum = {
-    _1Hour: 'LAST_1_HOUR',
-    _3Hours: 'LAST_3_HOURS',
-    _6Hours: 'LAST_6_HOURS',
-    _12Hours: 'LAST_12_HOURS',
-    _1Day: 'LAST_1_DAY',
-    _7Days: 'LAST_7_DAYS',
-    Month: 'LAST_MONTH'
+    Last1Hour: 'LAST_1_HOUR',
+    Last3Hours: 'LAST_3_HOURS',
+    Last6Hours: 'LAST_6_HOURS',
+    Last12Hours: 'LAST_12_HOURS',
+    Last1Day: 'LAST_1_DAY',
+    Last7Days: 'LAST_7_DAYS',
+    LastMonth: 'LAST_MONTH'
 } as const;
 export type ApiV1ProfilesIdLogsTopClientsGetTimespanEnum = typeof ApiV1ProfilesIdLogsTopClientsGetTimespanEnum[keyof typeof ApiV1ProfilesIdLogsTopClientsGetTimespanEnum];
 /**
@@ -7669,13 +7669,13 @@ export type ApiV1ProfilesIdLogsTopDomainsGetKindEnum = typeof ApiV1ProfilesIdLog
  * @export
  */
 export const ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum = {
-    _1Hour: 'LAST_1_HOUR',
-    _3Hours: 'LAST_3_HOURS',
-    _6Hours: 'LAST_6_HOURS',
-    _12Hours: 'LAST_12_HOURS',
-    _1Day: 'LAST_1_DAY',
-    _7Days: 'LAST_7_DAYS',
-    Month: 'LAST_MONTH'
+    Last1Hour: 'LAST_1_HOUR',
+    Last3Hours: 'LAST_3_HOURS',
+    Last6Hours: 'LAST_6_HOURS',
+    Last12Hours: 'LAST_12_HOURS',
+    Last1Day: 'LAST_1_DAY',
+    Last7Days: 'LAST_7_DAYS',
+    LastMonth: 'LAST_MONTH'
 } as const;
 export type ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum = typeof ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum[keyof typeof ApiV1ProfilesIdLogsTopDomainsGetTimespanEnum];
 
@@ -8069,13 +8069,13 @@ export class StatisticsApi extends BaseAPI {
  * @export
  */
 export const ApiV1ProfilesIdStatisticsGetTimespanEnum = {
-    _3Hours: 'LAST_3_HOURS',
-    _6Hours: 'LAST_6_HOURS',
-    _1Day: 'LAST_1_DAY',
-    _7Days: 'LAST_7_DAYS',
-    Month: 'LAST_MONTH',
-    _3Months: 'LAST_3_MONTHS',
-    Year: 'LAST_YEAR'
+    Last3Hours: 'LAST_3_HOURS',
+    Last6Hours: 'LAST_6_HOURS',
+    Last1Day: 'LAST_1_DAY',
+    Last7Days: 'LAST_7_DAYS',
+    LastMonth: 'LAST_MONTH',
+    Last3Months: 'LAST_3_MONTHS',
+    LastYear: 'LAST_YEAR'
 } as const;
 export type ApiV1ProfilesIdStatisticsGetTimespanEnum = typeof ApiV1ProfilesIdStatisticsGetTimespanEnum[keyof typeof ApiV1ProfilesIdStatisticsGetTimespanEnum];
 
