@@ -1,151 +1,50 @@
-import React, { useState } from "react";
+import React, { useId } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import ToggleGroup from "@/components/general/ToggleGroup";
 import { toast } from "sonner";
 import api from "@/api/api";
-import { Tooltip } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
-import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { DialogActions } from "@/components/dialogs/DialogLayout";
+import type { ModelProfile } from "@/api/client";
+import { DataCollectionControl } from "@/components/data-collection/DataCollectionControl";
+import { useClearQueryLogs } from "@/components/data-collection/ClearQueryLogs";
+import { useDeleteStatisticsHistory } from "@/components/data-collection/DeleteStatisticsHistory";
+import { DATA_COLLECTION_ANCHOR, STALE_TEXT } from "@/components/data-collection/model";
 
-type ToggleOption = { value: string; label: string };
-export interface LogsSetting {
-    title?: string;
-    description?: string;
-    value: string;
-    options: ToggleOption[];
-}
-interface ActiveProfile { profile_id: string }
 interface QueryLogsSectionProps {
-    logsSettings: LogsSetting[];
-    activeProfile: ActiveProfile;
-    handleLogsChange: (idx: number, value: string) => void;
+    activeProfile: ModelProfile;
 }
 
-const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
-    logsSettings,
-    activeProfile,
-    handleLogsChange,
-}) => {
-    const [showClearDialog, setShowClearDialog] = useState(false);
-    const [clearLoading, setClearLoading] = useState(false);
-    const { isRestricted } = useSubscriptionGuard();
-
-    const handleClearLogs = async () => {
-        setClearLoading(true);
-        try {
-            await api.Client.queryLogsApi.apiV1ProfilesIdLogsDelete(activeProfile.profile_id);
-            toast.success("Query logs cleared.");
-            setShowClearDialog(false);
-        } catch {
-            toast.error("Failed to clear query logs.");
-        } finally {
-            setClearLoading(false);
-        }
-    };
+const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({ activeProfile }) => {
+    const headingId = useId();
+    // S4: /settings#data-collection lands on the statistics retention.
+    const deepLinked = useLocation().hash === `#${DATA_COLLECTION_ANCHOR}`;
+    const statsOn = !!activeProfile.settings?.statistics?.enabled;
+    const history = useDeleteStatisticsHistory(activeProfile);
+    const clear = useClearQueryLogs(activeProfile.profile_id);
 
     return (
-        <Card className="w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
+        <Card id={DATA_COLLECTION_ANCHOR} className="scroll-mt-6 w-full bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
             <CardContent>
                 <div className="flex flex-col items-start gap-6 w-full">
                     <div className="flex items-center gap-2 w-full">
                         <div className="flex flex-col items-start gap-2">
-                            <div className="[font-family:'Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base tracking-[0] leading-4">
-                                LOGS
-                            </div>
+                            <h2 id={headingId} className="[font-family:'Roboto_Mono-Bold',Helvetica] font-bold text-[var(--tailwind-colors-rdns-600)] text-base tracking-[0] leading-4">
+                                DATA COLLECTION
+                            </h2>
                         </div>
                     </div>
 
-                    {/* Toggle group — PATCH /profiles/{id} blocked in LA, so gate visually */}
-                    <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>
-                    <div className={`flex flex-col items-start gap-6 w-full ${isRestricted ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full">
-                        <div className="flex flex-col items-start gap-2 min-w-0 max-w-full">
-                            <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words">Query logs</div>
-                            <div className="font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-[var(--tailwind-colors-slate-200)] text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] break-words">
-                                Logs are disabled by default to protect your privacy.
-                            </div>
-                        </div>
-                        <ToggleGroup
-                            options={logsSettings[0]?.options || []}
-                            value={logsSettings[0]?.value || "disable"}
-                            onChange={value => handleLogsChange(0, value)}
-                            variant="outline"
-                            className="rounded p-0.5 self-start sm:self-auto"
-                        />
-                    </div>
+                    <p className="text-sm leading-5 text-[var(--tailwind-colors-slate-200)]">
+                        Choose what modDNS keeps about this profile's DNS queries. Off by default.
+                    </p>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full">
-                        <div className="flex flex-col items-start gap-2 min-w-0 max-w-full">
-                            <div className="flex items-center gap-1">
-                                <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words">Retention period</div>
-                                {/* Informational tooltip about retention period reset behavior */}
-                                <Tooltip
-                                    content={
-                                        <span>
-                                            Changing the retention period switches to a new set of query logs. Logs collected under your previous setting remain preserved and become accessible again if you revert to that earlier retention period.
-                                        </span>
-                                    }
-                                    side="top"
-                                    align="start"
-                                    delay={0}
-                                    maxWidthClassName="max-w-[260px] md:max-w-[300px]"
-                                >
-                                    <button
-                                        type="button"
-                                        aria-label="Retention period information"
-                                        data-testid="retention-info-trigger"
-                                        className="min-w-10 min-h-10 flex items-center justify-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-300)] hover:text-[var(--tailwind-colors-slate-50)] transition-colors"
-                                    >
-                                        <Info size={16} strokeWidth={2} />
-                                    </button>
-                                </Tooltip>
-                            </div>
-                            <div className="font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-[var(--tailwind-colors-slate-200)] text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] break-words">
-                                Choose how long query logs are kept before being automatically deleted.
-                            </div>
-                        </div>
-                        <div className="w-full sm:w-auto md:flex-shrink-0">
-                            <ToggleGroup
-                                options={logsSettings[3]?.options || []}
-                                value={logsSettings[3]?.value || "1h"}
-                                onChange={value => handleLogsChange(3, value)}
-                                variant="outline"
-                                className="!w-full flex flex-wrap md:flex-nowrap gap-1 sm:!w-auto"
-                                itemClassName="min-w-[52px] sm:min-w-[64px] md:min-w-[64px] flex-1 sm:flex-initial px-2 sm:px-3"
-                            />
-                        </div>
-                    </div>
+                    <DataCollectionControl
+                        profile={activeProfile}
+                        labelledBy={headingId}
+                        initialFocus={deepLinked ? "stats-retention" : undefined}
+                    />
 
-                    {logsSettings.slice(1, 3).map((setting, index) => (
-                        <div
-                            key={index + 1}
-                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4 max-w-full"
-                        >
-                            <div className="flex flex-col items-start gap-2 min-w-0 max-w-full">
-                                <div className="[font-family:'Roboto_Flex-Medium',Helvetica] font-bold text-[var(--tailwind-colors-slate-50)] text-base tracking-[0] leading-4 break-words">{setting.title}</div>
-                                <div className="font-text-sm-leading-5-normal font-[number:var(--text-sm-leading-5-normal-font-weight)] text-[var(--tailwind-colors-slate-200)] text-[length:var(--text-sm-leading-5-normal-font-size)] tracking-[var(--text-sm-leading-5-normal-letter-spacing)] leading-[var(--text-sm-leading-5-normal-line-height)] [font-style:var(--text-sm-leading-5-normal-font-style)] break-words">{setting.description}</div>
-                            </div>
-                            <ToggleGroup
-                                options={setting.options}
-                                value={setting.value}
-                                onChange={value => handleLogsChange(index + 1, value)}
-                                variant="outline"
-                                className="rounded p-0.5 self-start sm:self-auto"
-                            />
-                        </div>
-                    ))}
-                    </div>
-                    </div>
-                    {/* Action buttons — Download (GET) and Clear (DELETE on logs) are LA-allowed at API level */}
+                    {/* Download (GET) and Clear (DELETE on logs) are allowed in limited access at API level */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 w-full">
                         <Button
                             variant="outline"
@@ -195,49 +94,31 @@ const QueryLogsSection: React.FC<QueryLogsSectionProps> = ({
                         </Button>
                         <Button
                             className="h-auto min-h-11 lg:min-h-0 flex items-center justify-center px-2 py-1.5 bg-[var(--tailwind-colors-red-600)] rounded-[var(--primitives-radius-radius-md)] gap-1 hover:bg-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
-                            onClick={() => setShowClearDialog(true)}
+                            onClick={clear.request}
                         >
                             <span className="text-white">Clear query logs</span>
                         </Button>
+                        {statsOn && (
+                            <Button
+                                variant="outline"
+                                className="h-auto min-h-11 lg:min-h-0 px-2 py-1.5 border-[var(--tailwind-colors-red-600)] text-[var(--tailwind-colors-red-600)] dark:text-[var(--tailwind-colors-red-400)] w-full sm:w-auto"
+                                disabled={history.busy}
+                                onClick={() => void history.request()}
+                            >
+                                Delete statistics history
+                            </Button>
+                        )}
                     </div>
+                    {history.stale && (
+                        <p aria-live="polite" className="text-sm leading-5 text-[var(--tailwind-colors-slate-200)]">
+                            {STALE_TEXT}
+                        </p>
+                    )}
+                    {history.dialog}
                 </div>
             </CardContent>
 
-            {/* Confirm Clear Logs Dialog */}
-            <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-                <DialogContent
-                    className="dialog-shell border-[var(--tailwind-colors-slate-600)] p-0 transition-opacity duration-200 [&_[data-slot=dialog-close]_svg]:text-[var(--tailwind-colors-rdns-600)] px-4 sm:px-0"
-                >
-                    <DialogHeader className="p-6 pb-0">
-                        <DialogTitle className="text-lg tracking-[-0.45px] leading-[18px] font-semibold text-[var(--tailwind-colors-slate-50)]">
-                            Clear all query logs?
-                        </DialogTitle>
-                    </DialogHeader>
-                    <DialogDescription className="px-6 pt-2 pb-0 text-sm tracking-[-0.35px] leading-[19.6px] text-[var(--tailwind-colors-slate-50)]">
-                        This action cannot be undone. All query logs for this profile will be permanently deleted.
-                    </DialogDescription>
-                    <DialogActions>
-                        <Button
-                            variant="cancel"
-                            size="lg"
-                            className="flex-1 min-w-32 font-medium focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 outline-none [-webkit-tap-highlight-color:transparent]"
-                            onClick={() => setShowClearDialog(false)}
-                            disabled={clearLoading}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="default"
-                            size="lg"
-                            className="flex-1 min-w-32 bg-[var(--tailwind-colors-red-600)] text-white hover:bg-[var(--tailwind-colors-red-400)]"
-                            onClick={handleClearLogs}
-                            disabled={clearLoading}
-                        >
-                            {clearLoading ? "Clearing..." : "Clear logs"}
-                        </Button>
-                    </DialogActions>
-                </DialogContent>
-            </Dialog>
+            {clear.dialog}
         </Card>
     );
 };

@@ -168,7 +168,7 @@ func expectOneSuccessfulCreate(
 			return p.AccountId == accountId && p.ProfileId == freshId
 		})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 }
 
 // ptr returns a pointer to the given string. Used to build the nullable
@@ -225,7 +225,7 @@ func TestImport_RebindingProtection_RoundTrips(t *testing.T) {
 				return true
 			})).Return(nil).Once()
 			env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-				mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+				mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 			envelope := &model.ExportEnvelope{
 				SchemaVersion: 1,
@@ -267,7 +267,7 @@ func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool {
 			capturedRules = rules
@@ -329,7 +329,7 @@ func TestImport_GroupsCappedPerList(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	over := model.ExportedCustomRuleGroupsLimit + 50
 	blockGroups := make([]model.CustomRuleGroup, over)
@@ -380,7 +380,7 @@ func TestImport_PreservesGroupOrder(t *testing.T) {
 		return true
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	// Deliberately non-alphabetical so a re-sort would be visible.
 	envelope := &model.ExportEnvelope{
@@ -531,7 +531,7 @@ func TestImport_ProfileCount_WithinCap(t *testing.T) {
 		env.idGen.On("Generate").Return(id, nil).Once()
 		env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 		env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-			mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+			mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
@@ -583,7 +583,7 @@ func TestImport_MissingBlocklistId_AddsWarning(t *testing.T) {
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	// Catalog lookup: "unknown-bl" not in catalog.
 	env.blocklistRepo.On("Get", mock.Anything,
@@ -756,7 +756,7 @@ func TestImport_PunycodeRule_AddsIDNWarning(t *testing.T) {
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	// xn--mller-kva.de is valid FQDN syntax; the rule passes re-validation.
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
@@ -794,7 +794,7 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.AnythingOfType("[]*model.CustomRule")).Return(nil).Once()
 	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
@@ -871,7 +871,7 @@ func TestImport_CustomRules_ReachesAccountCapExactly(t *testing.T) {
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	env.profileRepo.On("CreateCustomRules", mock.Anything, "fresh-id-1",
 		mock.MatchedBy(func(rules []*model.CustomRule) bool { return len(rules) == 1000 })).Return(nil).Once()
 	env.cache.On("AddCustomRules", mock.Anything, "fresh-id-1",
@@ -905,7 +905,7 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	envelope := minimalEnvelope(1)
 	envelope.Profiles[0].Settings = &model.ExportedSettings{
@@ -968,7 +968,7 @@ func TestImport_NameCollision_RenamesAgainstExisting(t *testing.T) {
 		return p.AccountId == "acct1"
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
@@ -993,7 +993,7 @@ func TestImport_NameCollision_WithinSameBatch(t *testing.T) {
 		return p.AccountId == "acct1"
 	})).Return(nil).Times(2)
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Times(2)
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Times(2)
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames("Work", "Work"), ptr("secret"), nil, nil)
@@ -1024,7 +1024,7 @@ func TestImport_NameCollision_CascadeAcrossSuffixes(t *testing.T) {
 		return p.AccountId == "acct1"
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
@@ -1051,7 +1051,7 @@ func TestImport_NameCollision_TruncatesToMaxLength(t *testing.T) {
 		return p.AccountId == "acct1"
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames(original), ptr("secret"), nil, nil)
@@ -1080,7 +1080,7 @@ func TestImport_AdvancedSection_SilentlyIgnored(t *testing.T) {
 		return p.AccountId == "acct1"
 	})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	envelope := envelopeWithNames("Imported")
 	envelope.Profiles[0].Settings = &model.ExportedSettings{
@@ -1112,7 +1112,7 @@ func TestImport_Response_CreatedNamesParallelToIds(t *testing.T) {
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).
 		Return(nil).Times(2)
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Times(2)
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Times(2)
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames("Alpha", "Beta"), ptr("secret"), nil, nil)
@@ -1133,7 +1133,7 @@ func TestImport_Response_CreatedNamesReflectI24Rename(t *testing.T) {
 	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).
 		Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
@@ -1166,7 +1166,7 @@ func TestImport_Rollback_EvictsCacheForCreatedProfiles(t *testing.T) {
 			return p.ProfileId == "created-id-1"
 		})).Return(nil).Once()
 	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-		mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	// Profile #2: fails at CreateProfile, triggering rollback of #1.
 	env.idGen.On("Generate").Return("doomed-id-2", nil).Once()
@@ -1182,6 +1182,7 @@ func TestImport_Rollback_EvictsCacheForCreatedProfiles(t *testing.T) {
 		Return(nil).Once()
 	env.cache.On("DeleteProfileSettings", mock.Anything, "created-id-1").
 		Return(nil).Once()
+	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, minimalEnvelope(2), ptr("secret"), nil, nil)
@@ -1213,7 +1214,7 @@ func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
 			mock.MatchedBy(func(p *model.Profile) bool { return p.ProfileId == id })).
 			Return(nil).Once()
 		env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
-			mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil).Once()
+			mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 	}
 	env.idGen.On("Generate").Return("doomed", nil).Once()
 	env.profileRepo.On("CreateProfile", mock.Anything,
@@ -1226,6 +1227,7 @@ func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
 	env.cache.On("DeleteProfileSettings", mock.Anything, "a").Return(assert.AnError).Once()
 	env.profileRepo.On("DeleteProfileById", mock.Anything, "b").Return(nil).Once()
 	env.cache.On("DeleteProfileSettings", mock.Anything, "b").Return(nil).Once()
+	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
 		profile.ImportModeCreateNew, minimalEnvelope(3), ptr("secret"), nil, nil)
@@ -1277,4 +1279,48 @@ func TestImport_LongName_TruncatedNotRejected(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "expected truncation warning; got: %v", result.Warnings)
+}
+
+// specRef: F19, F20 — statistics arriving enabled get enabled_at = import time; disabled ones get none; retention starts at 30d.
+func TestImport_StatisticsEnabledAt(t *testing.T) {
+	cases := []struct {
+		name    string
+		enabled bool
+	}{
+		{"enabled stamps enabled_at", true},
+		{"disabled leaves enabled_at empty", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := newImportTestEnv(t, "secret", 100)
+
+			var captured *model.ProfileSettings
+			env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").
+				Return([]model.Profile{}, nil).Once()
+			env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+			env.profileRepo.On("CreateProfile", mock.Anything, mock.MatchedBy(func(p *model.Profile) bool {
+				captured = p.Settings
+				return true
+			})).Return(nil).Once()
+			env.cache.On("CreateOrUpdateProfileSettings", mock.Anything,
+				mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
+
+			envelope := minimalEnvelope(1)
+			envelope.Profiles[0].Settings = &model.ExportedSettings{Statistics: &model.ExportedStatistics{Enabled: tc.enabled}}
+
+			start := time.Now()
+			_, err := env.svc.Import(context.Background(), "acct1", profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+			require.NoError(t, err)
+			require.NotNil(t, captured)
+			assert.Equal(t, tc.enabled, captured.Statistics.Enabled)
+			assert.Equal(t, model.StatisticsRetention30d, captured.Statistics.Retention, "F20: imports start at 30d")
+			if tc.enabled {
+				require.NotNil(t, captured.Statistics.EnabledAt)
+				assert.False(t, captured.Statistics.EnabledAt.Before(start.Add(-time.Second)))
+			} else {
+				assert.Nil(t, captured.Statistics.EnabledAt)
+			}
+		})
+	}
 }

@@ -60,50 +60,6 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
         },
     ]);
 
-    // Data for logs settings
-    const [logsSettings, setLogsSettings] = useState([
-        {
-            title: "Query logs",
-            description:
-                "Logs are disabled by default to protect your privacy.",
-            options: [
-                { value: "disable", label: "Disable", icon: "octagon-x" as const },
-                { value: "enable", label: "Enable", icon: "check" as const },
-            ],
-            value: "disable",
-        },
-        {
-            title: "Log clients IP",
-            description: "Store client IP addresses in logs.",
-            options: [
-                { value: "disable", label: "Disable", icon: "octagon-x" as const },
-                { value: "enable", label: "Enable", icon: "check" as const },
-            ],
-            value: "disable",
-        },
-        {
-            title: "Log domains",
-            description: "Store queried domains in logs.",
-            options: [
-                { value: "disable", label: "Disable", icon: "octagon-x" as const },
-                { value: "enable", label: "Enable", icon: "check" as const },
-            ],
-            value: "disable",
-        },
-        {
-            title: "Retention period",
-            description: "How long to keep query logs.",
-            options: [
-                { value: "1h", label: "1 H" },
-                { value: "6h", label: "6 H" },
-                { value: "1d", label: "1 D" },
-                { value: "1w", label: "1 W" },
-                { value: "1m", label: "1 M" },
-            ],
-            value: "1h",
-        },
-    ]);
-
     // Data for advanced settings
     const [advancedSettings, setAdvancedSettings] = useState([
         {
@@ -194,50 +150,6 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
         } catch (e: unknown) {
             const axiosErr = e as { response?: { data?: { detail?: string } } };
             toast.error(axiosErr?.response?.data?.detail || "Failed to update custom rules setting.");
-        }
-    };
-
-    // Usage for logs
-    const handleLogsChange = async (idx: number, value: string | boolean) => {
-        let path: ModelProfileUpdatePathEnum;
-        if (idx === 0) {
-            path = ModelProfileUpdatePathEnum.SettingsLogsEnabled;
-        } else if (idx === 1) {
-            path = ModelProfileUpdatePathEnum.SettingsLogsLogClientsIps;
-        } else if (idx === 2) {
-            path = ModelProfileUpdatePathEnum.SettingsLogsLogDomains;
-        } else if (idx === 3) {
-            path = ModelProfileUpdatePathEnum.SettingsLogsRetention;
-        } else {
-            return; // Invalid index
-        }
-
-        let apiValue: string | boolean = value;
-        if (value === "enable") apiValue = true;
-        else if (value === "disable") apiValue = false;
-        if (value === "") return;
-        if (logsSettings[idx].value === value) return;
-        if (!activeProfile) return;
-
-        try {
-            await api.Client.profilesApi.apiV1ProfilesIdPatch(activeProfile.profile_id, {
-                updates: [
-                    {
-                        operation: ModelProfileUpdateOperationEnum.Replace,
-                        path,
-                        value: apiValue as unknown as object,
-                    }
-                ]
-            });
-            setLogsSettings(current =>
-                current.map((setting, i) =>
-                    i === idx ? { ...setting, value: value as string } : setting
-                )
-            );
-            toast.success("Logs setting updated.");
-        } catch (e: unknown) {
-            const axiosErr = e as { response?: { data?: { detail?: string } } };
-            toast.error(axiosErr?.response?.data?.detail || "Failed to update logs setting.");
         }
     };
 
@@ -335,26 +247,6 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             },
         ]);
 
-        // Update logs settings
-        setLogsSettings([
-            {
-                ...logsSettings[0],
-                value: profile.settings?.logs?.enabled ? "enable" : "disable",
-            },
-            {
-                ...logsSettings[1],
-                value: profile.settings?.logs?.log_clients_ips ? "enable" : "disable",
-            },
-            {
-                ...logsSettings[2],
-                value: profile.settings?.logs?.log_domains ? "enable" : "disable",
-            },
-            {
-                ...logsSettings[3],
-                value: profile.settings?.logs?.retention ?? "1h",
-            },
-        ]);
-
         // Update advanced settings
         setAdvancedSettings([
             {
@@ -400,12 +292,8 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
                 </div>
             </div>
 
-            {/* LOGS Section — gates toggles internally; Download/Clear buttons stay active in LA */}
-            <QueryLogsSection
-                logsSettings={logsSettings}
-                activeProfile={activeProfile}
-                handleLogsChange={handleLogsChange}
-            />
+            {/* DATA COLLECTION — the control gates itself in LA; Download/Clear buttons stay active */}
+            {activeProfile && <QueryLogsSection activeProfile={activeProfile} />}
 
             {/* ADVANCED + DELETE — mutations blocked in LA */}
             <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full ${isRestricted ? 'cursor-not-allowed' : ''}`}>

@@ -313,7 +313,7 @@ func (p *ProfileService) importOneProfile(
 	}
 
 	// Populate cache for the new profile.
-	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings, true); err != nil {
+	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings); err != nil {
 		return "", nil, err
 	}
 
@@ -379,6 +379,10 @@ func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profil
 
 	if src.Statistics != nil {
 		s.Statistics.Enabled = src.Statistics.Enabled
+		if s.Statistics.Enabled {
+			now := p.clock()
+			s.Statistics.EnabledAt = &now
+		}
 	}
 
 	// Per-list custom rule groups round-trip as-is. Groups that end up with no

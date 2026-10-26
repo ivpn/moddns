@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Profile default-rule values (the fallback action when no rule matches). The
@@ -38,6 +39,15 @@ func (s ProfileSettings) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a)
 }
 
+// MarshalJSON renders an empty or unknown retention as 30d, which is how the proxy and
+// the reads treat it (api-endpoint-behaviour.md J49). Storage (bson, Redis) is unchanged.
+func (s StatisticsSettings) MarshalJSON() ([]byte, error) {
+	type alias StatisticsSettings
+	a := alias(s)
+	a.Retention = a.Retention.OrDefault()
+	return json.Marshal(a)
+}
+
 // NewSettings creates a new, empty settings object
 func NewSettings() *ProfileSettings {
 	return &ProfileSettings{
@@ -64,7 +74,8 @@ func NewSettings() *ProfileSettings {
 			Retention:     RetentionOneHour,
 		},
 		Statistics: &StatisticsSettings{
-			Enabled: false,
+			Enabled:   false,
+			Retention: StatisticsRetention30d,
 		},
 		CustomRules:      make([]*CustomRule, 0),
 		CustomRuleGroups: CustomRuleGroups{},
@@ -76,7 +87,16 @@ func NewSettings() *ProfileSettings {
 
 // StatisticsSettings represents statistics/analytics settings
 type StatisticsSettings struct {
+	// Whether DNS statistics are collected for the profile.
 	Enabled bool `json:"enabled" bson:"enabled" redis:"enabled" binding:"required"`
+	// When statistics were last turned on (UTC); null while they are off.
+	EnabledAt *time.Time `json:"enabled_at" bson:"enabled_at,omitempty" redis:"-"` // server-derived; not in Redis, not exported (F19)
+	// Keep-since instant (UTC): the last "Delete statistics history" while on, or the turn-off of an off and on; nothing older is kept. Null while off.
+	HistoryDeletedAt *time.Time `json:"history_deleted_at" bson:"history_deleted_at,omitempty" redis:"-"` // J53; not in Redis, not exported (F21)
+	// When statistics were last turned off (UTC); carried into HistoryDeletedAt when they are turned back on.
+	DisabledAt *time.Time `json:"-" bson:"disabled_at,omitempty" redis:"-"` // G22; Mongo only, not exported (F22)
+	// How long daily statistics are kept.
+	Retention StatisticsRetention `json:"retention" bson:"retention" redis:"retention" enums:"30d,90d,1y"` // no omitempty: HSET merges fields, an omitted value would leave a stale one (J48)
 }
 
 type LogsSettings struct {

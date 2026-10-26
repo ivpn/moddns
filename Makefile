@@ -107,9 +107,12 @@ dev_proxy: ## Starts the development proxy service.
 dev_check: ## Starts the development dnscheck service.
 	docker exec -it dnscheck make gow
 
+# Pinned: generated enum member names change between generator releases, and code imports them by name.
+OPENAPI_GENERATOR_VERSION := v7.11.0@sha256:a9e7091ac8808c6835cf8ec88252bca603f1f889ef1456b63d8add5781feeca7
+
 gen_python_client: ## Generates the python client from swagger spec (renamed to moddns_client, package moddns).
 	rm -r tests/moddns_client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm -i openapitools/openapi-generator-cli generate \
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm -i openapitools/openapi-generator-cli:$(OPENAPI_GENERATOR_VERSION) generate \
 		--package-name moddns \
 		-i swagger.yaml \
 		-g python \
@@ -119,7 +122,7 @@ gen_python_client: ## Generates the python client from swagger spec (renamed to 
 
 gen_ts_client: ## Generates the typescript client from swagger spec.
 	rm -rf app/src/api/client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli:$(OPENAPI_GENERATOR_VERSION) generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
 
 ### BUILD DEV IMAGES
 image?=api

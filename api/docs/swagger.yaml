@@ -603,6 +603,7 @@ definitions:
         enum:
         - /name
         - /settings/statistics/enabled
+        - /settings/statistics/retention
         - /settings/logs/enabled
         - /settings/logs/log_clients_ips
         - /settings/logs/log_domains
@@ -656,6 +657,98 @@ definitions:
       last_seen:
         type: string
     type: object
+  model.QueryLogTopBlocklist:
+    properties:
+      blocklist_id:
+        type: string
+      count:
+        type: integer
+      name:
+        type: string
+    type: object
+  model.QueryLogTopBlocklists:
+    properties:
+      covered_from:
+        description: When the oldest log row in the window was written (UTC, to the
+          minute); absent without rows.
+        type: string
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/model.QueryLogTopBlocklist'
+        type: array
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.Retention'
+        description: 'The logs retention the list was read from: the window never
+          reaches further back. Absent when enabled is false.'
+      timespan:
+        description: The timespan read; absent when enabled is false.
+        type: string
+    type: object
+  model.QueryLogTopClient:
+    properties:
+      as_org:
+        type: string
+      asn:
+        type: integer
+      count:
+        type: integer
+      country:
+        type: string
+      ip:
+        type: string
+    type: object
+  model.QueryLogTopClients:
+    properties:
+      covered_from:
+        description: When the oldest log row in the window was written (UTC, to the
+          minute); absent without rows.
+        type: string
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/model.QueryLogTopClient'
+        type: array
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.Retention'
+        description: 'The logs retention the list was read from: the window never
+          reaches further back. Absent when enabled is false.'
+      timespan:
+        description: The timespan read; absent when enabled is false.
+        type: string
+    type: object
+  model.QueryLogTopDomain:
+    properties:
+      count:
+        type: integer
+      domain:
+        type: string
+    type: object
+  model.QueryLogTopDomains:
+    properties:
+      covered_from:
+        description: When the oldest log row in the window was written (UTC, to the
+          minute); absent without rows.
+        type: string
+      enabled:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/model.QueryLogTopDomain'
+        type: array
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.Retention'
+        description: 'The logs retention the list was read from: the window never
+          reaches further back. Absent when enabled is false.'
+      timespan:
+        description: The timespan read; absent when enabled is false.
+        type: string
+    type: object
   model.RebindingProtection:
     properties:
       enabled:
@@ -684,19 +777,160 @@ definitions:
     required:
     - dnssec
     type: object
-  model.StatisticsAggregated:
+  model.StatisticsDevice:
     properties:
+      blocked:
+        type: integer
+      device_id:
+        description: The device id as sent by the client; "" for queries without one,
+          "_other" for the folded rest.
+        type: string
       total:
-        description: 'Note: "total" needs to be the same as in the repository mongo
-          query'
         type: integer
     type: object
+  model.StatisticsPoint:
+    properties:
+      blocked:
+        type: integer
+      dnssec:
+        type: integer
+      total:
+        type: integer
+      ts:
+        description: Start of the point's bucket (UTC); the bucket spans bucket_seconds.
+        type: string
+    type: object
+  model.StatisticsProtocols:
+    properties:
+      doh:
+        type: integer
+      doq:
+        type: integer
+      dot:
+        type: integer
+    type: object
+  model.StatisticsReasons:
+    properties:
+      blocklist:
+        type: integer
+      custom_rule:
+        type: integer
+      default_rule:
+        type: integer
+      other:
+        type: integer
+      rebinding:
+        type: integer
+      service:
+        type: integer
+    type: object
+  model.StatisticsResponse:
+    properties:
+      bucket_seconds:
+        description: Width of each series point in seconds.
+        type: integer
+      devices:
+        description: |-
+          Per-device counts, total descending then device_id ascending. At most 100 entries: past
+          that the 99 largest are kept and the rest is folded into one "_other" entry.
+        items:
+          $ref: '#/definitions/model.StatisticsDevice'
+        type: array
+      enabled:
+        description: Whether statistics are collected; when false every count is zero
+          and series and devices are empty.
+        type: boolean
+      enabled_at:
+        description: When statistics were last turned on (UTC); null while they are
+          off.
+        type: string
+      from:
+        description: Start of the window (UTC, inclusive), aligned to bucket_seconds.
+        type: string
+      history_deleted_at:
+        description: 'Keep-since instant (UTC): the last "Delete statistics history",
+          or the turn-off of an off and on; nothing older is counted. Null when unset
+          or while off.'
+        type: string
+      protocols:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsProtocols'
+        description: Queries by encrypted transport (plain DNS not counted).
+      reasons:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsReasons'
+        description: Blocked queries by the class of rule that decided the block.
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsRetention'
+        description: How long the profile's daily statistics are kept; the window
+          never reaches further back.
+        enum:
+        - 30d
+        - 90d
+        - 1y
+      series:
+        description: One point per bucket in [from, to), oldest first, zero-filled.
+        items:
+          $ref: '#/definitions/model.StatisticsPoint'
+        type: array
+      timespan:
+        description: The requested timespan.
+        type: string
+      to:
+        description: 'End of the window (UTC, exclusive): the time of the request.'
+        type: string
+      totals:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsTotals'
+        description: Sums over the window.
+    type: object
+  model.StatisticsRetention:
+    enum:
+    - 30d
+    - 90d
+    - 1y
+    type: string
+    x-enum-varnames:
+    - StatisticsRetention30d
+    - StatisticsRetention90d
+    - StatisticsRetention1y
   model.StatisticsSettings:
     properties:
       enabled:
+        description: Whether DNS statistics are collected for the profile.
         type: boolean
+      enabled_at:
+        description: When statistics were last turned on (UTC); null while they are
+          off.
+        type: string
+      history_deleted_at:
+        description: 'Keep-since instant (UTC): the last "Delete statistics history"
+          while on, or the turn-off of an off and on; nothing older is kept. Null
+          while off.'
+        type: string
+      retention:
+        allOf:
+        - $ref: '#/definitions/model.StatisticsRetention'
+        description: How long daily statistics are kept.
+        enum:
+        - 30d
+        - 90d
+        - 1y
     required:
     - enabled
+    type: object
+  model.StatisticsTotals:
+    properties:
+      blocked:
+        description: Queries blocked.
+        type: integer
+      dnssec:
+        description: Answers carrying the DNSSEC authenticated-data (AD) flag.
+        type: integer
+      total:
+        description: Queries counted.
+        type: integer
     type: object
   model.Subscription:
     properties:
@@ -2708,6 +2942,198 @@ paths:
       summary: Download profile query logs
       tags:
       - QueryLogs
+  /api/v1/profiles/{id}/logs/top/blocklists:
+    get:
+      description: Blocklists that blocked the most queries in the profile's query
+        logs (current retention window), by blocklist id with its catalogue name (the
+        id when the list is not in the catalogue). A query matched by several blocklists
+        counts once for each, so counts can sum to more than the blocked total. Returns
+        enabled=false with no items unless logs are on. Counts only. covered_from
+        is when the oldest log row in the window was written (to the minute), absent
+        without rows.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_1_DAY
+        description: specify timespan for query
+        enum:
+        - LAST_1_HOUR
+        - LAST_3_HOURS
+        - LAST_6_HOURS
+        - LAST_12_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        in: query
+        name: timespan
+        type: string
+      - default: 10
+        description: number of items
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.QueryLogTopBlocklists'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile top blocklists
+      tags:
+      - QueryLogs
+  /api/v1/profiles/{id}/logs/top/clients:
+    get:
+      description: Most frequent client IPs in the profile's query logs (current retention
+        window), enriched with ASN, AS organisation and country (null when unknown).
+        Returns enabled=false with no items unless logs and client IP logging are
+        on. covered_from is when the oldest log row in the window was written (to
+        the minute), absent without rows.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_1_DAY
+        description: specify timespan for query
+        enum:
+        - LAST_1_HOUR
+        - LAST_3_HOURS
+        - LAST_6_HOURS
+        - LAST_12_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        in: query
+        name: timespan
+        type: string
+      - default: 10
+        description: number of items
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.QueryLogTopClients'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile top clients
+      tags:
+      - QueryLogs
+  /api/v1/profiles/{id}/logs/top/domains:
+    get:
+      description: Most frequent blocked or resolved domains in the profile's query
+        logs (current retention window). Returns enabled=false with no items unless
+        logs and domain logging are on. Counts only. covered_from is when the oldest
+        log row in the window was written (to the minute), absent without rows.
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_1_DAY
+        description: specify timespan for query
+        enum:
+        - LAST_1_HOUR
+        - LAST_3_HOURS
+        - LAST_6_HOURS
+        - LAST_12_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        in: query
+        name: timespan
+        type: string
+      - description: which domains to rank
+        enum:
+        - blocked
+        - resolved
+        in: query
+        name: kind
+        required: true
+        type: string
+      - default: 10
+        description: number of items
+        in: query
+        maximum: 50
+        minimum: 1
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.QueryLogTopDomains'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile top domains
+      tags:
+      - QueryLogs
   /api/v1/profiles/{id}/services:
     delete:
       consumes:
@@ -2786,16 +3212,56 @@ paths:
       tags:
       - Profile
   /api/v1/profiles/{id}/statistics:
-    get:
-      description: Get statistics data for a profile
+    delete:
+      description: Delete every stored statistic of the profile, including the current
+        hour and day; statistics stay on with the same retention.
       parameters:
       - description: Profile ID
         in: path
         name: id
         required: true
         type: string
-      - default: '"LAST_MONTH"'
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete a profile's statistics history
+      tags:
+      - Statistics
+    get:
+      description: 'Get the profile''s DNS statistics for a timespan: totals, a zero-filled
+        time series, blocking reasons, transport protocols and per-device counts.
+        Always answers 200 for an owned profile; `enabled` is false (with empty data)
+        when statistics are off.'
+      parameters:
+      - description: Profile ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: LAST_7_DAYS
         description: specify timespan for query
+        enum:
+        - LAST_3_HOURS
+        - LAST_6_HOURS
+        - LAST_1_DAY
+        - LAST_7_DAYS
+        - LAST_MONTH
+        - LAST_3_MONTHS
+        - LAST_YEAR
         in: query
         name: timespan
         type: string
@@ -2805,11 +3271,17 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/model.StatisticsAggregated'
-            type: array
+            $ref: '#/definitions/model.StatisticsResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "500":

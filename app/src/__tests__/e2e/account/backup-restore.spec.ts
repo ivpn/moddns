@@ -274,6 +274,34 @@ test.describe('Backup & Restore — Import', { tag: '@desktop' }, () => {
         expect(capturedBody!.payload?.profiles).toHaveLength(2);
     });
 
+    // tableRef: account-export-import-behaviour #I26
+    test('confirm step names the data collection the selected profiles start', async ({ page }) => {
+        await setupBaseMocks(page);
+        await gotoAccount(page);
+        await page.getByTestId('btn-import-profiles').click();
+
+        const payload = makeExportPayload(['Alpha', 'Beta', 'Gamma']);
+        payload.profiles[0].settings.statistics = { enabled: true };
+        payload.profiles[1].settings.logs = { enabled: true, logDomains: true, logClientsIPs: true, retention: '1m' } as never;
+        await uploadJsonToDropzone(page, payload);
+        await expect(page.getByTestId('import-submit-btn')).toBeVisible({ timeout: 5_000 });
+
+        const warning = page.getByTestId('import-data-collection-warning');
+        await expect(warning).toBeVisible();
+        await expect(warning).toContainText('Data collection starts on import');
+        await expect(warning).toContainText('Alpha: query counts per device, kept for 30 days.');
+        await expect(warning).toContainText('Beta: a record of each query with its domain and client IP address, kept for 1 month.');
+        await expect(warning).not.toContainText('Gamma');
+
+        // Deselecting the collecting profiles removes them, and the warning with them.
+        const checkboxes = page.locator('[role="checkbox"]');
+        const count = await checkboxes.count();
+        await checkboxes.nth(count - 3).click();
+        await expect(warning).not.toContainText('Alpha');
+        await checkboxes.nth(count - 2).click();
+        await expect(warning).toBeHidden();
+    });
+
     // specRef: S5 — IDN warning row has amber/yellow treatment
     test('IDN warning gets amber treatment; generic warning gets neutral treatment', async ({ page }) => {
         await setupBaseMocks(page);

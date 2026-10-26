@@ -23,6 +23,11 @@ Usage:
     python scripts/generate_stub_mmdb.py --out-dir ../dnscheck/internal/maxmind/testdata --city-typed
         Writes the dnscheck unit-test fixtures. --city-typed additionally
         writes a real GeoLite2-City database so a wrong-type file can be tested.
+
+    python scripts/generate_stub_mmdb.py --country
+        Additionally writes GeoLite2-Country.mmdb (the API's top-clients
+        enrichment, api-endpoint-behaviour J21/J22): every ASN network above
+        -> US.
 """
 
 import argparse
@@ -37,6 +42,11 @@ parser.add_argument(
     "--city-typed",
     action="store_true",
     help="also write GeoLite2-City.mmdb with database_type GeoLite2-City (dnscheck wrong-type fixture)",
+)
+parser.add_argument(
+    "--country",
+    action="store_true",
+    help="also write GeoLite2-Country.mmdb (US for every network in the ASN stub)",
 )
 args = parser.parse_args()
 os.makedirs(args.out_dir, exist_ok=True)
@@ -87,3 +97,17 @@ if args.city_typed:
     )
     city_writer.to_db_file(out_city)
     print(f"Wrote {out_city}")
+
+if args.country:
+    out_country = os.path.join(args.out_dir, "GeoLite2-Country.mmdb")
+    country_writer = MMDBWriter(
+        ip_version=4,
+        database_type="GeoLite2-Country",
+        description={"en": "Stub GeoLite2-Country for CI tests"},
+    )
+    country_writer.insert_network(
+        IPSet(["8.8.8.8/32", "104.16.0.0/13", "104.24.0.0/14", "17.0.0.0/8", "13.104.0.0/14", "150.171.0.0/16"]),
+        {"country": {"iso_code": "US", "names": {"en": "United States"}}},
+    )
+    country_writer.to_db_file(out_country)
+    print(f"Wrote {out_country}")
