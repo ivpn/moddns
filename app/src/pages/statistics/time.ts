@@ -157,10 +157,27 @@ export function axisTicks(range: RangeKey, tsList: number[], widthPx?: number): 
     return ticks;
 }
 
-/** Tooltip and table row header for one bucket. */
+const HOUR_MS = 3600 * 1000;
+const localOffsetMin = (ms: number) => -new Date(ms).getTimezoneOffset();
+
+/** True when the local clock shows this wall time twice, as in the hour repeated when clocks go back. */
+function isRepeatedLocalTime(ms: number): boolean {
+    const before = localOffsetMin(ms - 3 * HOUR_MS);
+    const after = localOffsetMin(ms + 3 * HOUR_MS);
+    if (before === after) return false;
+    const own = localOffsetMin(ms);
+    return [before, after].some(other => other !== own && localOffsetMin(ms + (own - other) * 60000) === other);
+}
+
+/** Tooltip and table row header for one bucket; a repeated local time carries its zone name (K6). */
 export function formatBucketLabel(ms: number, bucketSeconds: number): string {
     if (bucketSeconds >= 86400) return `${formatUtcDay(ms, true)} (UTC day)`;
-    return `${formatDateTime(ms)}-${formatClock(ms + bucketSeconds * 1000)}`;
+    const end = ms + bucketSeconds * 1000;
+    const start = isRepeatedLocalTime(ms)
+        ? fmt("dtz", { month: "short", day: "numeric", ...HM, timeZoneName: "short" }).format(ms)
+        : formatDateTime(ms);
+    const finish = isRepeatedLocalTime(end) ? fmt("hmz", { ...HM, timeZoneName: "short" }).format(end) : formatClock(end);
+    return `${start}-${finish}`;
 }
 
 export function formatRelative(ms: number, nowMs = Date.now()): string {
