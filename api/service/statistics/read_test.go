@@ -617,11 +617,11 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J9, J46 — the reconcile drops a profile's cached reads only
+// specRef: api-endpoint-behaviour.md J9, J46 — the purge drops a profile's cached reads only
 // when its run deleted or moved documents; a no-op or a failure that changed nothing keeps them.
-func TestReconcile_InvalidatesOnlyChangedProfiles(t *testing.T) {
+func TestPurge_InvalidatesOnlyChangedProfiles(t *testing.T) {
 	cache := newFakeReadCache()
-	h := newReconcileHarness(t, statistics.WithReadCache(cache))
+	h := newPurgeHarness(t, statistics.WithReadCache(cache))
 	enabledAt := time.Date(2026, 9, 29, 10, 7, 0, 0, time.UTC)
 	deletedAt := time.Date(2026, 9, 30, 10, 7, 0, 0, time.UTC)
 	keep := stats(true, &enabledAt)
@@ -642,8 +642,8 @@ func TestReconcile_InvalidatesOnlyChangedProfiles(t *testing.T) {
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "partial", (*time.Time)(nil)).Return(int64(4), errors.New("one collection failed")).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 6, Deleted: 8, Moved: 2, Failed: 2}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 6, Deleted: 8, Moved: 2, Failed: 2}, res)
 	require.ElementsMatch(t, []string{"gone", "moved", "history", "partial"}, cache.invalidated)
 }

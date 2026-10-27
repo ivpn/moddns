@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// specRef: api-endpoint-behaviour.md J14 — the unconsented query-logs sweep cadence defaults to one hour and can be changed.
+// specRef: api-endpoint-behaviour.md J14 — the query-logs purge cadence defaults to one hour and can be changed.
 func TestQueryLogsPurgeIntervalConfig(t *testing.T) {
 	setRequiredEnv(t)
 	cfg, err := New()

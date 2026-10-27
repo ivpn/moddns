@@ -99,15 +99,15 @@ func TestMoveBestEffort(t *testing.T) {
 }
 
 // specRef: api-endpoint-behaviour.md J50 - the move lock outlives the longest move (and the undo of
-// its last batch), so the reconcile cannot start the same move while one is still running.
+// its last batch), so the purge cannot start the same move while one is still running.
 func TestRetentionMoveLockOutlivesTheMove(t *testing.T) {
 	require.GreaterOrEqual(t, statistics.RetentionMoveLockTTL, statistics.RetentionMoveDeadline+time.Minute)
 }
 
-// specRef: api-endpoint-behaviour.md J8, J50 — the hourly reconcile moves daily documents of enabled
+// specRef: api-endpoint-behaviour.md J8, J50 — the hourly purge moves daily documents of enabled
 // profiles down to their retention; disabled and missing profiles are only deleted.
-func TestReconcileStatistics_MovesToRetention(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
+func TestPurgeStatistics_MovesToRetention(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	h.svc.SetRetentionMoveLocker(testLocker(t))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	on := stats(true, &enabledAt)
@@ -119,15 +119,15 @@ func TestReconcileStatistics_MovesToRetention(t *testing.T) {
 	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", model.StatisticsRetention90d,
 		mock.MatchedBy(func(since time.Time) bool { return since.Equal(utc(2026, 7, 7, 0, 0, 0)) })).Return(3, nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2, Deleted: 5, Moved: 3}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Deleted: 5, Moved: 3}, res)
 	h.stats.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, "gone", mock.Anything, mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9, J50 — a failed move is counted and the run continues.
-func TestReconcileStatistics_MoveFailureIsCounted(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
+func TestPurgeStatistics_MoveFailureIsCounted(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
@@ -137,15 +137,15 @@ func TestReconcileStatistics_MoveFailureIsCounted(t *testing.T) {
 	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "a", mock.Anything, mock.Anything).Return(0, errors.New("boom")).Once()
 	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "b", mock.Anything, mock.Anything).Return(1, nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2, Failed: 1, Moved: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Failed: 1, Moved: 1}, res)
 }
 
-// specRef: api-endpoint-behaviour.md J8, J53 — the hourly reconcile also removes buckets up to the
+// specRef: api-endpoint-behaviour.md J8, J53 — the hourly purge also removes buckets up to the
 // one containing history_deleted_at.
-func TestReconcileStatistics_HonoursHistoryDeletedAt(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
+func TestPurgeStatistics_HonoursHistoryDeletedAt(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	deletedAt := utc(2026, 10, 5, 11, 20, 0)
 	on := stats(true, &enabledAt)
@@ -156,9 +156,9 @@ func TestReconcileStatistics_HonoursHistoryDeletedAt(t *testing.T) {
 	h.stats.On("DeleteProfileStatisticsThrough", mock.Anything, "on", deletedAt).Return(int64(2), nil).Once()
 	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", mock.Anything, mock.Anything).Return(0, nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 1, Deleted: 2}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Deleted: 2}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J42, J53 — reads skip the buckets up to the one containing

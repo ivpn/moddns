@@ -215,7 +215,7 @@ func TestUpdateProfile_StatisticsTransitionUsesReplacedValue(t *testing.T) {
 	})
 }
 
-// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the statistics reconcile and the PATCH still succeeds.
+// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the statistics purge and the PATCH still succeeds.
 func TestUpdateProfile_StatisticsPurgeFailureDoesNotFailThePatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectPersist(statsProfile(true, nil))
@@ -282,7 +282,7 @@ func TestDeleteProfile_PurgesStatistics(t *testing.T) {
 	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
 }
 
-// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the statistics reconcile; the deletion succeeds.
+// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the statistics purge; the deletion succeeds.
 func TestDeleteProfile_StatisticsPurgeFailureDoesNotFailTheDeletion(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectDelete(t, statsProfile(true, nil), nil)

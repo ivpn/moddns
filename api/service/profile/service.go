@@ -227,7 +227,7 @@ func (p *ProfileService) DeleteProfile(ctx context.Context, accountId, profileId
 
 	eg.Go(func() (err error) {
 		// delete statistics (ctx, not egCtx: a sibling failure must not cancel it);
-		// leftovers of a failed purge are removed by the statistics reconcile
+		// leftovers of a failed purge are removed by the statistics purge
 		p.StatisticsService.PurgeBestEffort(ctx, profileId)
 		return nil
 	})

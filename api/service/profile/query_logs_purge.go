@@ -15,30 +15,30 @@ const (
 	logsPurgeDeadline = 5 * time.Minute
 )
 
-// UnconsentedQueryLogsPurgeResult counts what one sweep did; it carries no identifiers.
-type UnconsentedQueryLogsPurgeResult struct {
+// QueryLogsPurgeResult counts what one purge run did; it carries no identifiers.
+type QueryLogsPurgeResult struct {
 	Checked, Purged, Failed int
 }
 
 // SetQueryLogsPurgeTimeouts overrides the per-profile delete bound and the whole-run bound
-// of PurgeUnconsentedQueryLogs.
+// of PurgeQueryLogs.
 func (p *ProfileService) SetQueryLogsPurgeTimeouts(perProfile, wholeRun time.Duration) {
 	p.logsPurgeJobTime, p.logsPurgeRunTime = perProfile, wholeRun
 }
 
 // purgeQueryLogsBestEffort deletes all of the profile's query logs; leftovers of a failure
-// are removed by the next sweep (api-endpoint-behaviour.md J12).
+// are removed by the next purge run (api-endpoint-behaviour.md J12).
 func (p *ProfileService) purgeQueryLogsBestEffort(ctx context.Context, profileId string) {
 	if err := p.QueryLogsService.DeleteProfileQueryLogs(ctx, profileId); err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("query logs: immediate purge failed; the next unconsented query-logs sweep removes the leftovers")
+		log.Ctx(ctx).Error().Err(err).Msg("query logs: immediate purge failed; the next query-logs purge removes the leftovers")
 	}
 	p.invalidateQueryLogCaches(ctx, profileId)
 }
 
-// PurgeUnconsentedQueryLogs deletes the query logs of every profile that no longer exists or
+// PurgeQueryLogs deletes the query logs of every profile that no longer exists or
 // has logging off, as stored now (api-endpoint-behaviour.md J13, J14).
-func (p *ProfileService) PurgeUnconsentedQueryLogs(ctx context.Context) (UnconsentedQueryLogsPurgeResult, error) {
-	var res UnconsentedQueryLogsPurgeResult
+func (p *ProfileService) PurgeQueryLogs(ctx context.Context) (QueryLogsPurgeResult, error) {
+	var res QueryLogsPurgeResult
 	jobTime, runTime := p.logsPurgeJobTime, p.logsPurgeRunTime
 	if jobTime <= 0 {
 		jobTime = logsPurgeJobTimeout

@@ -162,7 +162,7 @@ func TestUpdateProfile_LogsEnableOrUnchangedPurgesNothing(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J12 — a failed purge is left to the sweep; the PATCH succeeds and caches are still dropped.
+// specRef: api-endpoint-behaviour.md J12 — a failed purge is left to the next purge run; the PATCH succeeds and caches are still dropped.
 func TestUpdateProfile_LogsPurgeFailureDoesNotFailThePatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
@@ -202,7 +202,7 @@ func TestUpdateProfile_LogsNoPurgeWhenPersistFails(t *testing.T) {
 }
 
 // specRef: api-endpoint-behaviour.md J13, J14 — missing and logs-off profiles lose their logs; enabled ones keep them.
-func TestPurgeUnconsentedQueryLogs_AppliesRulePerProfile(t *testing.T) {
+func TestPurgeQueryLogs_AppliesRulePerProfile(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"gone", "off", "on"}, nil)
@@ -210,16 +210,16 @@ func TestPurgeUnconsentedQueryLogs_AppliesRulePerProfile(t *testing.T) {
 	ql.On("DeleteQueryLogs", mock.Anything, "gone").Return(nil).Once()
 	ql.On("DeleteQueryLogs", mock.Anything, "off").Return(nil).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 3, Purged: 2}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 3, Purged: 2}, res)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "on")
 	requireLogCachesInvalidated(t, h, "off")
 	require.Zero(t, generationBumps(h, "on"))
 }
 
 // specRef: api-endpoint-behaviour.md J14 — profile lookups are batched.
-func TestPurgeUnconsentedQueryLogs_BatchesProfileLookups(t *testing.T) {
+func TestPurgeQueryLogs_BatchesProfileLookups(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	ids := make([]string, 2500)
@@ -232,13 +232,13 @@ func TestPurgeUnconsentedQueryLogs_BatchesProfileLookups(t *testing.T) {
 	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(enabled, nil).Times(3)
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 2500}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 2500}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J14 — a failed delete is counted and the run continues.
-func TestPurgeUnconsentedQueryLogs_DeleteFailureDoesNotStopTheRun(t *testing.T) {
+func TestPurgeQueryLogs_DeleteFailureDoesNotStopTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
@@ -246,13 +246,13 @@ func TestPurgeUnconsentedQueryLogs_DeleteFailureDoesNotStopTheRun(t *testing.T) 
 	ql.On("DeleteQueryLogs", mock.Anything, "a").Return(errors.New("boom")).Once()
 	ql.On("DeleteQueryLogs", mock.Anything, "b").Return(nil).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 2, Purged: 1, Failed: 1}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 2, Purged: 1, Failed: 1}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J14 — the first per-profile timeout ends the run.
-func TestPurgeUnconsentedQueryLogs_JobTimeoutStopsTheRun(t *testing.T) {
+func TestPurgeQueryLogs_JobTimeoutStopsTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	h.svc.SetQueryLogsPurgeTimeouts(20*time.Millisecond, time.Minute)
@@ -262,14 +262,14 @@ func TestPurgeUnconsentedQueryLogs_JobTimeoutStopsTheRun(t *testing.T) {
 		<-args.Get(0).(context.Context).Done()
 	}).Return(context.DeadlineExceeded).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 1, Failed: 1}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 1, Failed: 1}, res)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "b")
 }
 
 // specRef: api-endpoint-behaviour.md J14 — past the whole-run deadline no further profile is processed.
-func TestPurgeUnconsentedQueryLogs_RunDeadlineStopsTheRun(t *testing.T) {
+func TestPurgeQueryLogs_RunDeadlineStopsTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	h.svc.SetQueryLogsPurgeTimeouts(time.Minute, 50*time.Millisecond)
@@ -279,19 +279,19 @@ func TestPurgeUnconsentedQueryLogs_RunDeadlineStopsTheRun(t *testing.T) {
 		time.Sleep(120 * time.Millisecond)
 	}).Return(nil).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Purged)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "b")
 }
 
 // specRef: api-endpoint-behaviour.md J14 — read failures abort the run before any delete.
-func TestPurgeUnconsentedQueryLogs_ReadFailuresAbort(t *testing.T) {
+func TestPurgeQueryLogs_ReadFailuresAbort(t *testing.T) {
 	t.Run("listing ids", func(t *testing.T) {
 		h := newTransitionsHarness(t)
 		ql := withQueryLogs(t, h)
 		ql.On("ListQueryLogProfileIDs", mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+		_, err := h.svc.PurgeQueryLogs(context.Background())
 		require.Error(t, err)
 	})
 	t.Run("profile lookup", func(t *testing.T) {
@@ -299,7 +299,7 @@ func TestPurgeUnconsentedQueryLogs_ReadFailuresAbort(t *testing.T) {
 		ql := withQueryLogs(t, h)
 		ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a"}, nil)
 		h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+		_, err := h.svc.PurgeQueryLogs(context.Background())
 		require.Error(t, err)
 		ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, mock.Anything)
 	})

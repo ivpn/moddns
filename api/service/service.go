@@ -49,9 +49,9 @@ type Service struct {
 	SessionServicer
 	PasskeyServicer
 	dnsstamp.DNSStampServicer
-	// Statistics is exposed for the statistics reconcile job.
+	// Statistics is exposed for the statistics purge job.
 	Statistics *statistics.StatisticsService
-	// QueryLogsPurger is exposed for the unconsented query-logs purge job.
+	// QueryLogsPurger is exposed for the query-logs purge job.
 	QueryLogsPurger *profile.ProfileService
 }
 
