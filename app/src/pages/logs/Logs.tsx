@@ -23,6 +23,8 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 const QUERY_LIMIT = 25;
+// A multiple of QUERY_LIMIT, so later pages continue right after page 1.
+const FIRST_PAGE_LIMIT = 100;
 // The API rejects page × limit above this (api-endpoint-behaviour.md J1).
 const QUERY_MAX_ROWS = 10000;
 
@@ -351,11 +353,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 // Status is already handled in filters.Status
                 // Bigger first page fills the viewport and defers the first pagination
                 // fetch; subsequent pages respect the configured limit.
-                const effectiveLimit = page === 1 ? 100 : filters.Limit;
+                const effectiveLimit = page === 1 ? FIRST_PAGE_LIMIT : filters.Limit;
+                const offset = page === 1 ? 0 : FIRST_PAGE_LIMIT + (page - 2) * filters.Limit;
+                // The API skips (page - 1) × limit rows, so offset must be a multiple of the limit.
+                const serverPage = offset / effectiveLimit + 1;
+                const nextPageEnd = offset + effectiveLimit + filters.Limit;
                 const searchParam = committedSearchValue || undefined;
                 const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
                     activeProfile.profile_id,
-                    page,
+                    serverPage,
                     effectiveLimit,
                     filters.Status,
                     filters.Timespan.Value,
@@ -371,8 +377,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
                     // Set logs and update state
                     setLogs(prev => (page === 1 ? newLogs : [...prev, ...newLogs]));
-                    setHasMore(newLogs.length === effectiveLimit && (page + 1) * filters.Limit <= QUERY_MAX_ROWS);
-                    setRowCapReached(newLogs.length === effectiveLimit && (page + 1) * filters.Limit > QUERY_MAX_ROWS);
+                    setHasMore(newLogs.length === effectiveLimit && nextPageEnd <= QUERY_MAX_ROWS);
+                    setRowCapReached(newLogs.length === effectiveLimit && nextPageEnd > QUERY_MAX_ROWS);
 
                     // Merge device IDs observed in rows (union with the server list)
                     setObservedDeviceIds(prev => {
@@ -479,7 +485,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
                 profileId,
                 1,
-                100,
+                FIRST_PAGE_LIMIT,
                 filters.Status,
                 filters.Timespan.Value,
                 deviceIdValue || undefined,
@@ -494,7 +500,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 // Nothing on screen to preserve — apply directly, a pill over an
                 // empty state helps no one.
                 setLogs(fetched);
-                setHasMore(fetched.length === 100);
+                setHasMore(fetched.length === FIRST_PAGE_LIMIT);
                 setRowCapReached(false);
                 setPendingLogs([]);
                 setPendingOverflow(false);
@@ -502,7 +508,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             }
             const { newLogs, overlapFound } = computeNewQueryLogs(fetched, logsRef.current);
             setPendingLogs(newLogs);
-            setPendingOverflow(!overlapFound && fetched.length === 100);
+            setPendingOverflow(!overlapFound && fetched.length === FIRST_PAGE_LIMIT);
         } catch {
             // Background ticks fail silently — the next tick retries; foreground
             // fetches own user-visible error reporting.
