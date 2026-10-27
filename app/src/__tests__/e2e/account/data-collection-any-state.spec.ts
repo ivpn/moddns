@@ -11,9 +11,9 @@ function profile() {
     profile_id: 'p1',
     name: 'Home',
     settings: {
-      logs: { enabled: true, log_domains: true, log_clients_ips: false, retention: '1h' },
-      statistics: { enabled: true, retention: '30d', enabled_at: new Date(Date.now() - 20 * 86_400_000).toISOString() },
-      privacy: { default_rule: 'allow', blocklists_subdomains_rule: 'allow', blocklists: [] },
+      logs: { enabled: true, log_domains: true, log_clients_ips: false, retention: '1h' as const },
+      statistics: { enabled: true, retention: '30d' as const, enabled_at: new Date(Date.now() - 20 * 86_400_000).toISOString() },
+      privacy: { default_rule: 'allow' as const, blocklists_subdomains_rule: 'allow' as const, blocklists: [] },
       custom_rules: [],
     },
   };

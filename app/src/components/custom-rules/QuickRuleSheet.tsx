@@ -136,7 +136,7 @@ const QuickRuleSheet = ({ open, onOpenChange, domain, defaultAction, onCreated, 
     };
 
     const handleDomainKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+        if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
             return;
         }
         if (!isDesktop) {

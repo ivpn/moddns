@@ -2,12 +2,13 @@ import { test, expect, type Page } from '@playwright/test';
 import { registerMocks, registerStatisticsMocks } from '../../mocks/registerMocks';
 import { createStatsResponse, devicesList, topBlocked, topBlocklists, topClients, topResolved } from '../../mocks/statisticsMocks';
 import { expectNoHorizontalOverflow } from '../utils/layoutAssertions';
+import type { ModelRetention, ModelStatisticsRetention } from '@/api/client';
 
 interface Cfg {
   logs: boolean;
   stats: boolean;
-  retention?: string;
-  statsRetention?: string;
+  retention?: ModelRetention;
+  statsRetention?: ModelStatisticsRetention;
   ips?: boolean;
 }
 

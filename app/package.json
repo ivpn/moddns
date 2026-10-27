@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc -b --noEmit",
     "test": "vitest run -c src/__tests__/vitest.config.ts",
     "test:ui": "vitest -c src/__tests__/vitest.config.ts",
     "test:e2e": "STRICT_MOBILE=1 playwright test -c src/__tests__/playwright.config.ts",

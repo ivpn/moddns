@@ -22,7 +22,7 @@ export default function PasswordResetConfirm(): JSX.Element {
     const [showOtp, setShowOtp] = useState(false);
     const [loading, setLoading] = useState(false);
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();

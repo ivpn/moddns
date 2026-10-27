@@ -12,7 +12,7 @@ type RegisterSWOptions = {
     immediate?: boolean;
     onRegisteredSW?: (
         swUrl: string,
-        registration?: { update: () => Promise<void>; waiting?: unknown },
+        registration?: { update: () => Promise<void>; waiting?: unknown; installing?: unknown },
     ) => void;
     onNeedRefresh?: () => void;
     onRegisterError?: (error: unknown) => void;

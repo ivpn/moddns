@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import React from "react";
 import QueryLogs from "@/pages/logs/Logs";
 import { useAppStore } from "@/store/general";
+import type { ModelAccount, ModelProfile } from "@/api/client";
 
 // Hoisted mocks for vi.mock
 const { queryLogsMock, queryLogsDevicesMock, profilesGetMock } = vi.hoisted(() => ({
@@ -46,7 +47,7 @@ vi.mock("@/pages/logs/QueryLogCard", () => ({
             <div data-testid="log-card" data-status={log.status} data-animate-entry={String(Boolean(animateEntry))}>
                 <button
                     aria-label="Quick custom rule"
-                    onClick={() => onQuickRule?.(log.dns_request?.domain, log.status === "blocked" ? "allowlist" : "denylist")}
+                    onClick={() => onQuickRule?.(log.dns_request?.domain ?? "", log.status === "blocked" ? "allowlist" : "denylist")}
                     data-is-last={String(isLast)}
                 />
             </div>
@@ -141,11 +142,6 @@ class MockIntersectionObserver {
     }
 }
 
-declare global {
-    // eslint-disable-next-line no-var
-    var IntersectionObserver: typeof MockIntersectionObserver;
-}
-
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof globalThis.IntersectionObserver;
 
 // jsdom's scrollTo throws "Not implemented"; the spy silences it and records calls.
@@ -156,9 +152,9 @@ const baseProfile = {
     id: "profile-1",
     name: "Primary",
     settings: { logs: { enabled: true } },
-} as unknown as Record<string, unknown> & { profile_id: string; settings: { logs: { enabled: boolean } } };
+} as unknown as ModelProfile;
 
-const account = { id: "account-1" } as unknown as Record<string, unknown>;
+const account = { id: "account-1" } as unknown as ModelAccount;
 
 const makeLog = (overrides: Record<string, unknown> = {}) => ({
     profile_id: baseProfile.profile_id,
@@ -960,7 +956,7 @@ describe("QueryLogs", () => {
     });
 
     test("shows not active state when logs disabled", async () => {
-        const disabledProfile = { ...baseProfile, profile_id: "profile-disabled", id: "profile-disabled", settings: { logs: { enabled: false } } };
+        const disabledProfile = { ...baseProfile, profile_id: "profile-disabled", id: "profile-disabled", settings: { logs: { enabled: false } } } as unknown as ModelProfile;
         queryLogsMock.mockResolvedValue({ status: 200, data: [] });
         useAppStore.setState({ activeProfile: disabledProfile });
         render(<QueryLogs account={account} profiles={[]} />);

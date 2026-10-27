@@ -42,7 +42,7 @@ test.describe('@layout mobile header wrapper transition', { tag: '@mobile' }, ()
 
     const props = transition.property.split(',').map(p => p.trim());
     const durations = transition.duration.split(',').map(d => parseFloat(d));
-    const animated = props.filter((p, i) => (durations[i] ?? durations[0] ?? 0) > 0);
+    const animated = props.filter((_, i) => (durations[i] ?? durations[0] ?? 0) > 0);
 
     for (const forbidden of ['all', 'top', 'left', 'right', 'bottom', 'width', 'height', 'transform']) {
       expect(animated, `mobile header must not animate "${forbidden}"`).not.toContain(forbidden);

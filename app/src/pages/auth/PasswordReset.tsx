@@ -20,7 +20,7 @@ export default function PasswordReset(): JSX.Element {
     const [sent, setSent] = useState(false);
     const [resending, setResending] = useState(false);
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();

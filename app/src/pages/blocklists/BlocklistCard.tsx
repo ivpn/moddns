@@ -8,7 +8,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 interface BlocklistCardProps {
     title: string;
     description: string;
-    entries: string;
+    entries?: number;
     updated: string;
     onSwitchChange?: (checked: boolean) => void;
     switchChecked?: boolean;

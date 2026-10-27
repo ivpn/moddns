@@ -3,7 +3,7 @@ import type { AxiosError } from "axios";
 
 interface NetworkError extends AxiosError { code?: string; }
 
-import type { ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
+import type { ApiV1ProfilesIdLogsGetSortByEnum, ApiV1ProfilesIdLogsGetStatusEnum, ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
 import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
@@ -117,10 +117,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     // Compose filters object for API
     const filters = {
         Limit: QUERY_LIMIT,
-        Status: filterValue === "all" ? undefined : filterValue,
+        Status: filterValue === "all" ? undefined : filterValue as ApiV1ProfilesIdLogsGetStatusEnum,
         Timespan: { Value: timespanValue === "all" ? undefined : timespanValue },
         Search: committedSearchValue,
-        Sort: sortValue,
+        Sort: sortValue as ApiV1ProfilesIdLogsGetSortByEnum,
     };
 
     const observer = useRef<IntersectionObserver | null>(null);
@@ -367,7 +367,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                     filters.Timespan.Value,
                     deviceIdValue || undefined,
                     searchParam,
-                    sortValue
+                    filters.Sort
                 );
                 // A newer fetch (or unmount) superseded this one — drop the stale response
                 // instead of letting it overwrite fresher state.
@@ -490,7 +490,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 filters.Timespan.Value,
                 deviceIdValue || undefined,
                 committedSearchValue || undefined,
-                sortValue
+                filters.Sort
             );
             if (response.status !== 200) return;
             // A tick that found nothing new still confirms freshness.
