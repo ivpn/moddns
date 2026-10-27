@@ -7091,7 +7091,7 @@ export const QueryLogsApiAxiosParamCreator = function (configuration?: Configura
          * @summary Get profile query logs
          * @param {string} id Profile ID
          * @param {number} [page] specify page number
-         * @param {number} [limit] specify logs limit by page
+         * @param {number} [limit] specify logs limit by page; page * limit is at most 10000
          * @param {ApiV1ProfilesIdLogsGetStatusEnum} [status] specify status for query
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
@@ -7348,7 +7348,7 @@ export const QueryLogsApiFp = function(configuration?: Configuration) {
          * @summary Get profile query logs
          * @param {string} id Profile ID
          * @param {number} [page] specify page number
-         * @param {number} [limit] specify logs limit by page
+         * @param {number} [limit] specify logs limit by page; page * limit is at most 10000
          * @param {ApiV1ProfilesIdLogsGetStatusEnum} [status] specify status for query
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
@@ -7454,7 +7454,7 @@ export const QueryLogsApiFactory = function (configuration?: Configuration, base
          * @summary Get profile query logs
          * @param {string} id Profile ID
          * @param {number} [page] specify page number
-         * @param {number} [limit] specify logs limit by page
+         * @param {number} [limit] specify logs limit by page; page * limit is at most 10000
          * @param {ApiV1ProfilesIdLogsGetStatusEnum} [status] specify status for query
          * @param {string} [timespan] specify timespan for query
          * @param {string} [deviceId] specify device ID for filtering
@@ -7554,7 +7554,7 @@ export class QueryLogsApi extends BaseAPI {
      * @summary Get profile query logs
      * @param {string} id Profile ID
      * @param {number} [page] specify page number
-     * @param {number} [limit] specify logs limit by page
+     * @param {number} [limit] specify logs limit by page; page * limit is at most 10000
      * @param {ApiV1ProfilesIdLogsGetStatusEnum} [status] specify status for query
      * @param {string} [timespan] specify timespan for query
      * @param {string} [deviceId] specify device ID for filtering

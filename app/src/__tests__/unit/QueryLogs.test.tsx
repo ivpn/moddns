@@ -641,6 +641,29 @@ describe("QueryLogs", () => {
         expect(scrollToSpy).not.toHaveBeenCalled();
     });
 
+        // tableRef: query-logs-refresh-behaviour #L1
+    test("stops paginating at the API row cap and says the list is cut", async () => {
+        // Identical rows collapse into one card, so 400 pages stay cheap to render.
+        const row = makeLog({ timestamp: "2024-01-01T00:00:00Z" });
+        queryLogsMock.mockImplementation((_id: string, _page: number, limit: number) =>
+            Promise.resolve({ status: 200, data: Array.from({ length: limit }, () => row) }));
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        for (let page = 2; page <= 400; page++) {
+            await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(page - 1));
+            await waitFor(() => expect(MockIntersectionObserver.lastInstance).toBeTruthy());
+            act(() => {
+                MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+            });
+        }
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(400));
+        expect(queryLogsMock).toHaveBeenLastCalledWith(baseProfile.profile_id, 400, 25, undefined, undefined, undefined, undefined, "created");
+        await waitFor(() => expect(screen.getByTestId("logs-end-marker")).toHaveTextContent("The list shows up to 10,000 logs"));
+        act(() => {
+            MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+        });
+        expect(queryLogsMock).toHaveBeenCalledTimes(400);
+    }, 60000);
+
         // tableRef: query-logs-refresh-behaviour #L2
     test("error-card Try again scrolls the window back to the top", async () => {
         queryLogsMock.mockRejectedValueOnce({ response: { status: 500 } });

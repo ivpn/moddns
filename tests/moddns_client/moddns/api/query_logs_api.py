@@ -848,8 +848,8 @@ class QueryLogsApi:
     def api_v1_profiles_id_logs_get(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        page: Annotated[Optional[StrictInt], Field(description="specify page number")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]], Field(description="specify page number")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page; page * limit is at most 10000")] = None,
         status: Annotated[Optional[StrictStr], Field(description="specify status for query")] = None,
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
@@ -876,7 +876,7 @@ class QueryLogsApi:
         :type id: str
         :param page: specify page number
         :type page: int
-        :param limit: specify logs limit by page
+        :param limit: specify logs limit by page; page * limit is at most 10000
         :type limit: int
         :param status: specify status for query
         :type status: str
@@ -945,8 +945,8 @@ class QueryLogsApi:
     def api_v1_profiles_id_logs_get_with_http_info(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        page: Annotated[Optional[StrictInt], Field(description="specify page number")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]], Field(description="specify page number")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page; page * limit is at most 10000")] = None,
         status: Annotated[Optional[StrictStr], Field(description="specify status for query")] = None,
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
@@ -973,7 +973,7 @@ class QueryLogsApi:
         :type id: str
         :param page: specify page number
         :type page: int
-        :param limit: specify logs limit by page
+        :param limit: specify logs limit by page; page * limit is at most 10000
         :type limit: int
         :param status: specify status for query
         :type status: str
@@ -1042,8 +1042,8 @@ class QueryLogsApi:
     def api_v1_profiles_id_logs_get_without_preload_content(
         self,
         id: Annotated[StrictStr, Field(description="Profile ID")],
-        page: Annotated[Optional[StrictInt], Field(description="specify page number")] = None,
-        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page")] = None,
+        page: Annotated[Optional[Annotated[int, Field(le=1000, strict=True, ge=1)]], Field(description="specify page number")] = None,
+        limit: Annotated[Optional[StrictInt], Field(description="specify logs limit by page; page * limit is at most 10000")] = None,
         status: Annotated[Optional[StrictStr], Field(description="specify status for query")] = None,
         timespan: Annotated[Optional[StrictStr], Field(description="specify timespan for query")] = None,
         device_id: Annotated[Optional[StrictStr], Field(description="specify device ID for filtering")] = None,
@@ -1070,7 +1070,7 @@ class QueryLogsApi:
         :type id: str
         :param page: specify page number
         :type page: int
-        :param limit: specify logs limit by page
+        :param limit: specify logs limit by page; page * limit is at most 10000
         :type limit: int
         :param status: specify status for query
         :type status: str

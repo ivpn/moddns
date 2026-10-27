@@ -2813,10 +2813,12 @@ paths:
       - default: 1
         description: specify page number
         in: query
+        maximum: 1000
+        minimum: 1
         name: page
         type: integer
       - default: 100
-        description: specify logs limit by page
+        description: specify logs limit by page; page * limit is at most 10000
         in: query
         name: limit
         type: integer

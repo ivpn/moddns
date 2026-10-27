@@ -7,8 +7,12 @@ type LogsSettingsUpdates struct {
 	Retention     *string `json:"retention" validate:"omitempty,oneof=1h 6h 1d 1w 1m"`
 }
 
+// QueryLogsMaxRows caps page × limit: every collection a read covers sorts and
+// keeps that many rows before the merge, so it bounds the cost of one request.
+const QueryLogsMaxRows = 10000
+
 type QueryLogsQueryParams struct {
-	Page     int    `json:"page" validate:"required,numeric,min=1"`
+	Page     int    `json:"page" validate:"required,numeric,min=1,max=1000"`
 	Limit    int    `json:"limit" validate:"required,oneof=10 25 50 100"`
 	Timespan string `json:"timespan" validate:"logs_timespan"`
 	Status   string `json:"status" validate:"omitempty,oneof=all blocked processed unanswered"`

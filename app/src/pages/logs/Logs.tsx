@@ -23,6 +23,8 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 const QUERY_LIMIT = 25;
+// The API rejects page × limit above this (api-endpoint-behaviour.md J1).
+const QUERY_MAX_ROWS = 10000;
 
 interface QueryLogsProps {
     account: ModelAccount;
@@ -35,6 +37,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [logs, setLogs] = useState<ModelQueryLog[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [rowCapReached, setRowCapReached] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // Auto-refresh cadence, selected via the split refresh button's interval menu
@@ -229,6 +232,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setLogs([]);
         setPage(1);
         setHasMore(true);
+        setRowCapReached(false);
         setIsListFading(true);
         setPendingLogs([]);
         setPendingOverflow(false);
@@ -367,7 +371,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
                     // Set logs and update state
                     setLogs(prev => (page === 1 ? newLogs : [...prev, ...newLogs]));
-                    setHasMore(newLogs.length === effectiveLimit);
+                    setHasMore(newLogs.length === effectiveLimit && (page + 1) * filters.Limit <= QUERY_MAX_ROWS);
+                    setRowCapReached(newLogs.length === effectiveLimit && (page + 1) * filters.Limit > QUERY_MAX_ROWS);
 
                     // Merge device IDs observed in rows (union with the server list)
                     setObservedDeviceIds(prev => {
@@ -490,6 +495,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 // empty state helps no one.
                 setLogs(fetched);
                 setHasMore(fetched.length === 100);
+                setRowCapReached(false);
                 setPendingLogs([]);
                 setPendingOverflow(false);
                 return;
@@ -795,7 +801,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                         and a finished list is indistinguishable from a stalled one. */}
                                     {!hasMore && !loading && !error && logs.length > 0 && (
                                         <div className="w-full text-center py-3 text-xs text-[var(--tailwind-colors-slate-400)]" data-testid="logs-end-marker">
-                                            End of logs
+                                            {rowCapReached ? `The list shows up to ${QUERY_MAX_ROWS.toLocaleString("en-US")} logs. Narrow the filters to see others.` : "End of logs"}
                                         </div>
                                     )}
                                 </div>
