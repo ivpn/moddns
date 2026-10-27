@@ -60,6 +60,10 @@ func (s *stubQueryLogsRepository) GetQueryLogCoveredFrom(ctx context.Context, pr
 	return nil, nil
 }
 
+func (s *stubQueryLogsRepository) TrimQueryLogs(context.Context, string, model.Retention, time.Time) (int64, error) {
+	return 0, nil
+}
+
 func (s *stubQueryLogsRepository) DeleteQueryLogs(ctx context.Context, profileId string) error {
 	s.deleteCalls++
 	return nil

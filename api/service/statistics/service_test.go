@@ -117,11 +117,11 @@ func TestPurgeStatistics_AppliesRulePerProfile(t *testing.T) {
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "on-ts", mock.MatchedBy(func(b *time.Time) bool {
 		return b != nil && b.Equal(enabledAt)
 	})).Return(int64(1), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on-ts", model.StatisticsRetention30d, mock.Anything).Return(0, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "on-ts", model.StatisticsRetention30d, mock.Anything).Return(int64(0), nil).Once()
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 3, Deleted: 7}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 3, Total: 3, Deleted: 7}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — profile lookups are batched.
@@ -138,11 +138,11 @@ func TestPurgeStatistics_BatchesProfileLookups(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(settings, nil).Times(3)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything).Return(int64(0), nil).Times(2500)
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Times(2500)
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(0), nil).Times(2500)
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2500}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2500, Total: 2500}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a failed delete is counted and the run continues; the profile is retried next run.
@@ -155,7 +155,7 @@ func TestPurgeStatistics_DeleteFailureDoesNotStopTheRun(t *testing.T) {
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Deleted: 3, Failed: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Total: 2, Deleted: 3, Failed: 1}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — the first per-profile timeout ends the run.
@@ -169,7 +169,7 @@ func TestPurgeStatistics_JobTimeoutStopsTheRun(t *testing.T) {
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Failed: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Total: 2, Failed: 1}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
@@ -184,7 +184,7 @@ func TestPurgeStatistics_RunDeadlineStopsTheRun(t *testing.T) {
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Deleted: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Total: 2, Deleted: 1}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
@@ -211,4 +211,25 @@ func TestPurgeStatistics_NoProfileReaderDeletesNothing(t *testing.T) {
 	stats := mocks.NewStatisticsRepository(t)
 	_, err := statistics.NewStatisticsService(stats).PurgeStatistics(context.Background())
 	require.Error(t, err)
+}
+
+// specRef: api-endpoint-behaviour.md J9 — a run that reaches its deadline while loading a later batch's settings
+// ends with its counts, like any other early stop, instead of failing.
+func TestPurgeStatistics_DeadlineDuringALaterLookupKeepsTheCounts(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithPurgeTimeouts(time.Minute, 200*time.Millisecond))
+	ids := make([]string, 1001)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("p%d", i)
+	}
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return(ids, nil)
+	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) == 1000 })).
+		Return(map[string]*model.StatisticsSettings{}, nil).Once()
+	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"p1000"}).Run(func(args mock.Arguments) {
+		<-args.Get(0).(context.Context).Done()
+	}).Return(nil, context.DeadlineExceeded).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, (*time.Time)(nil)).Return(int64(0), nil).Times(1000)
+
+	res, err := h.svc.PurgeStatistics(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1000, Total: 1001}, res)
 }

@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Statistics tiers written by the proxy; created by migration 027. Purges and the
@@ -287,115 +286,30 @@ var dailyCollectionNames = []struct {
 	{model.StatisticsRetention1y, statisticsColl1d1y},
 }
 
-const (
-	statisticsMoveBatch       = 1000
-	statisticsMoveUndoTimeout = 30 * time.Second
-)
-
-// MoveProfileDailyStatistics copies then deletes batch by batch (api-endpoint-behaviour.md J50):
-// $merge and $out cannot write into a time-series collection.
-func (r *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
-	target := r.collection(statisticsColl1d30d)
-	longer := false
-	moved := 0
-	for _, d := range dailyCollectionNames {
-		if d.retention == to.OrDefault() {
-			target = r.collection(d.name)
-			longer = true
-			continue
-		}
-		if !longer {
-			continue
-		}
-		n, err := r.moveCollection(ctx, r.collection(d.name), target, profileId, since)
-		moved += n
-		if err != nil {
-			return moved, err
-		}
-	}
-	return moved, nil
-}
-
-func (r *StatisticsRepository) moveCollection(ctx context.Context, source, target *mongo.Collection, profileId string, since time.Time) (int, error) {
-	moved := 0
-	for {
-		cur, err := source.Find(ctx, bson.D{primitive.E{Key: "meta.profile_id", Value: profileId}}, moveBatchFindOptions(statisticsMoveBatch))
-		if err != nil {
-			return moved, err
-		}
-		var docs []bson.D
-		if err := cur.All(ctx, &docs); err != nil {
-			return moved, err
-		}
-		if len(docs) == 0 {
-			return moved, nil
-		}
-
-		ids, lo, hi := moveBatchBounds(docs)
-		var keep []any
-		var keepIds bson.A
-		for _, doc := range docs {
-			if start, ok := docField(doc, "bucket_start").(primitive.DateTime); ok && !start.Time().Before(since) {
-				keep = append(keep, doc)
-				keepIds = append(keepIds, docField(doc, "_id"))
-			}
-		}
-		filter := func(in bson.A) bson.D { return moveBatchFilter(profileId, in, lo, hi) }
-		// Undo the copies of a failed batch so a retry cannot count them twice.
-		undo := func(err error) error {
-			if len(keepIds) == 0 {
-				return err
-			}
-			// The batch may have failed on ctx's deadline; the undo must still run.
-			undoCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), statisticsMoveUndoTimeout)
-			defer cancel()
-			if _, undoErr := target.DeleteMany(undoCtx, filter(keepIds)); undoErr != nil {
-				return errors.Join(err, undoErr)
-			}
-			return err
-		}
-		if len(keep) > 0 {
-			if _, err := target.InsertMany(ctx, keep); err != nil {
-				return moved, undo(err)
-			}
-		}
-		if _, err := source.DeleteMany(ctx, filter(ids)); err != nil {
-			return moved, undo(err)
-		}
-		moved += len(keep)
-	}
-}
-
-// moveBatchFindOptions reads a move batch in bucket_start order, so each batch covers one
-// contiguous time range that moveBatchFilter can bound.
-func moveBatchFindOptions(limit int64) *options.FindOptions {
-	return options.Find().SetSort(bson.D{primitive.E{Key: "bucket_start", Value: 1}}).SetLimit(limit)
-}
-
-// moveBatchBounds returns the batch's _ids and its earliest and latest bucket_start.
-func moveBatchBounds(docs []bson.D) (ids bson.A, lo, hi primitive.DateTime) {
-	ids = make(bson.A, 0, len(docs))
-	for i, doc := range docs {
-		ids = append(ids, docField(doc, "_id"))
-		start, _ := docField(doc, "bucket_start").(primitive.DateTime)
-		if i == 0 || start < lo {
-			lo = start
-		}
-		if i == 0 || start > hi {
-			hi = start
-		}
-	}
-	return ids, lo, hi
-}
-
-// moveBatchFilter selects a batch's documents. The bucket filter derived from `_id $in` cannot
-// narrow the profile index scan, so the bucket_start range bounds it to the batch's buckets.
-func moveBatchFilter(profileId string, ids bson.A, lo, hi primitive.DateTime) bson.D {
-	return bson.D{
+// TrimProfileDailyStatistics deletes the profile's daily documents with bucket_start before
+// floor_day(now - retention) from every daily collection longer than retention
+// (api-endpoint-behaviour.md J50, J8); the TTL of the retention's own collection and of the
+// shorter tiers already bounds them. It returns the number of documents deleted.
+func (r *StatisticsRepository) TrimProfileDailyStatistics(ctx context.Context, profileId string, retention model.StatisticsRetention, now time.Time) (int64, error) {
+	since := now.UTC().Add(-retention.Window()).Truncate(24 * time.Hour)
+	filter := bson.D{
 		primitive.E{Key: "meta.profile_id", Value: profileId},
-		primitive.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$gte", Value: lo}, primitive.E{Key: "$lte", Value: hi}}},
-		primitive.E{Key: "_id", Value: bson.D{primitive.E{Key: "$in", Value: ids}}},
+		primitive.E{Key: "bucket_start", Value: bson.D{primitive.E{Key: "$lt", Value: since}}},
 	}
+	var deleted int64
+	longer := false
+	for _, d := range dailyCollectionNames {
+		if !longer {
+			longer = d.retention == retention.OrDefault()
+			continue
+		}
+		res, err := r.collection(d.name).DeleteMany(ctx, filter)
+		if err != nil {
+			return deleted, err
+		}
+		deleted += res.DeletedCount
+	}
+	return deleted, nil
 }
 
 func (r *StatisticsRepository) collection(name string) *mongo.Collection {
@@ -442,14 +356,4 @@ func (r *StatisticsRepository) ListStatisticsProfileIDs(ctx context.Context) ([]
 		}
 	}
 	return ids, nil
-}
-
-// docField returns the value of key in doc, or nil when absent.
-func docField(doc bson.D, key string) any {
-	for _, e := range doc {
-		if e.Key == key {
-			return e.Value
-		}
-	}
-	return nil
 }

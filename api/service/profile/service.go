@@ -655,12 +655,15 @@ func (p *ProfileService) applySettingsTransitions(ctx context.Context, profileId
 		p.StatisticsService.InvalidateReadCache(ctx, profileId)
 	}
 	if after.statisticsEnabled() && after.statistics.Retention.Window() < before.statisticsRetention().Window() {
-		p.StatisticsService.MoveBestEffort(ctx, profileId, after.statistics.Retention)
+		p.StatisticsService.TrimBestEffort(ctx, profileId, after.statistics.Retention)
 	}
-	if before.logsEnabled && !after.logsEnabled {
+	switch {
+	case before.logsEnabled && !after.logsEnabled:
 		p.purgeQueryLogsBestEffort(ctx, profileId)
-	} else if before.logsRetention != after.logsRetention {
-		// The caches were computed from the previous retention's collection (J23).
+	case after.logsEnabled && after.logsRetention.Window() < before.logsRetention.Window():
+		p.trimQueryLogsBestEffort(ctx, profileId, after.logsRetention)
+	case before.logsRetention != after.logsRetention:
+		// The caches were computed with the previous retention's read window (J23).
 		p.invalidateQueryLogCaches(ctx, profileId)
 	}
 }

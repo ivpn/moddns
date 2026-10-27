@@ -125,7 +125,7 @@ func (s *QueryLogsRepositorySuite) TestGetQueryLogTopBlocklists_UsesMetaTimeInde
 		{Key: "explain", Value: bson.D{
 			{Key: "aggregate", Value: queryLogsCollOneDay},
 			{Key: "cursor", Value: bson.D{}},
-			{Key: "pipeline", Value: topBlocklistsPipeline("p3", time.Now().Add(-6*time.Hour), 50)},
+			{Key: "pipeline", Value: topBlocklistsBranch("p3", time.Now().Add(-6*time.Hour))},
 		}},
 		{Key: "verbosity", Value: "executionStats"},
 	}).Decode(&out))
@@ -161,7 +161,6 @@ func (s *QueryLogsRepositorySuite) TestGetQueryLogCoveredFrom() {
 	s.insertAt(queryLogsCollOneWeek, "p1", now.Add(-time.Minute), oldest, now.Add(-2*time.Hour))
 	s.insertAt(queryLogsCollOneWeek, "p1", now.Add(-30*time.Hour))    // before a 24 h window
 	s.insertAt(queryLogsCollOneWeek, "other", now.Add(-20*time.Hour)) // another profile
-	s.insertAt(queryLogsCollOneDay, "p1", now.Add(-23*time.Hour))     // another retention collection
 
 	got, err := s.repo.GetQueryLogCoveredFrom(ctx, "p1", model.RetentionOneWeek, 24)
 	s.Require().NoError(err)

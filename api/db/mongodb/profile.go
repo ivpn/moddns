@@ -123,9 +123,11 @@ func (r *ProfileRepository) UnsetStatisticsDisabledAtBefore(ctx context.Context,
 	return res.ModifiedCount, nil
 }
 
-func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error) {
+// GetProfilesLogsSettings reads only settings.logs of the given profiles from the primary. Profiles
+// that do not exist are absent from the result; a profile with no logs block maps to nil.
+func (r *ProfileRepository) GetProfilesLogsSettings(ctx context.Context, profileIds []string) (map[string]*model.LogsSettings, error) {
 	if len(profileIds) == 0 {
-		return map[string]bool{}, nil
+		return map[string]*model.LogsSettings{}, nil
 	}
 
 	// Primary read: a lagging secondary must not make a fresh profile look deleted.
@@ -137,7 +139,7 @@ func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileI
 	filter := bson.D{primitive.E{Key: "profile_id", Value: bson.D{primitive.E{Key: "$in", Value: profileIds}}}}
 	projection := bson.D{
 		primitive.E{Key: "profile_id", Value: 1},
-		primitive.E{Key: "settings.logs.enabled", Value: 1},
+		primitive.E{Key: "settings.logs", Value: 1},
 	}
 	cursor, err := coll.Find(ctx, filter, options.Find().SetProjection(projection))
 	if err != nil {
@@ -148,18 +150,20 @@ func (r *ProfileRepository) GetProfilesLogsEnabled(ctx context.Context, profileI
 	var docs []struct {
 		ProfileId string `bson:"profile_id"`
 		Settings  *struct {
-			Logs *struct {
-				Enabled bool `bson:"enabled"`
-			} `bson:"logs"`
+			Logs *model.LogsSettings `bson:"logs"`
 		} `bson:"settings"`
 	}
 	if err := cursor.All(ctx, &docs); err != nil {
 		return nil, err
 	}
 
-	out := make(map[string]bool, len(docs))
+	out := make(map[string]*model.LogsSettings, len(docs))
 	for _, d := range docs {
-		out[d.ProfileId] = d.Settings != nil && d.Settings.Logs != nil && d.Settings.Logs.Enabled
+		var logs *model.LogsSettings
+		if d.Settings != nil {
+			logs = d.Settings.Logs
+		}
+		out[d.ProfileId] = logs
 	}
 	return out, nil
 }

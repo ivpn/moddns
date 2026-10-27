@@ -282,10 +282,16 @@ func PurgeStatistics(statsPurger StatisticsPurger) {
 		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics purge failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: statistics purge complete")
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored data outlives its settings until a run reaches the profile (J9).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge complete")
 }
 
-// PurgeQueryLogs runs one query-logs purge (api-endpoint-behaviour.md J14).
+// PurgeQueryLogs runs one query-logs purge (api-endpoint-behaviour.md J13, J14).
+// Logs carry counts only.
 func PurgeQueryLogs(logsPurger QueryLogsPurger) {
 	ctx := context.Background()
 	ctx = log.With().Str("cron_job", "purge-query-logs").Logger().WithContext(ctx)
@@ -295,5 +301,10 @@ func PurgeQueryLogs(logsPurger QueryLogsPurger) {
 		log.Ctx(ctx).Error().Err(err).Msg("Cron: query-logs purge failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("failed", res.Failed).Msg("Cron: query-logs purge complete")
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored logs outlive their settings until a run reaches the profile (J14).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge complete")
 }

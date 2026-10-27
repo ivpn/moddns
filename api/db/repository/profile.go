@@ -48,9 +48,9 @@ type ProfileRepository interface {
 	// UnsetStatisticsDisabledAtBefore removes settings.statistics.disabled_at stamped before the
 	// given instant and reports how many profiles changed (api-endpoint-behaviour.md G22, J8).
 	UnsetStatisticsDisabledAtBefore(ctx context.Context, before time.Time) (int64, error)
-	// GetProfilesLogsEnabled reads only settings.logs.enabled of the given profiles from the
-	// primary. Profiles that do not exist are absent; a missing logs block maps to false.
-	GetProfilesLogsEnabled(ctx context.Context, profileIds []string) (map[string]bool, error)
+	// GetProfilesLogsSettings reads only settings.logs of the given profiles from the primary.
+	// Profiles that do not exist are absent from the result; a profile with no logs block maps to nil.
+	GetProfilesLogsSettings(ctx context.Context, profileIds []string) (map[string]*model.LogsSettings, error)
 	GetProfilesByAccountId(ctx context.Context, accountId string) ([]model.Profile, error)
 	// UpdateFields applies upd atomically and returns the profile as stored immediately before
 	// the update and as re-read from the primary after it.

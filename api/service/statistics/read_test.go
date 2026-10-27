@@ -618,7 +618,7 @@ func TestPurge_InvalidatesReadCache(t *testing.T) {
 }
 
 // specRef: api-endpoint-behaviour.md J9, J46 — the purge drops a profile's cached reads only
-// when its run deleted or moved documents; a no-op or a failure that changed nothing keeps them.
+// when its run deleted documents; a no-op or a failure that changed nothing keeps them.
 func TestPurge_InvalidatesOnlyChangedProfiles(t *testing.T) {
 	cache := newFakeReadCache()
 	h := newPurgeHarness(t, statistics.WithReadCache(cache))
@@ -627,23 +627,23 @@ func TestPurge_InvalidatesOnlyChangedProfiles(t *testing.T) {
 	keep := stats(true, &enabledAt)
 	history := stats(true, &enabledAt)
 	history.HistoryDeletedAt = &deletedAt
-	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "noop", "moved", "history", "failing", "partial"}, nil)
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "noop", "trimmed", "history", "failing", "partial"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
-		"noop": keep, "moved": keep, "history": history,
+		"noop": keep, "trimmed": keep, "history": history,
 	}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(int64(3), nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "noop", mock.Anything).Return(int64(0), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "noop", mock.Anything, mock.Anything).Return(0, nil).Once()
-	h.stats.On("DeleteProfileStatistics", mock.Anything, "moved", mock.Anything).Return(int64(0), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "moved", mock.Anything, mock.Anything).Return(2, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "noop", mock.Anything, mock.Anything).Return(int64(0), nil).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, "trimmed", mock.Anything).Return(int64(0), nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "trimmed", mock.Anything, mock.Anything).Return(int64(2), nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "history", mock.Anything).Return(int64(0), nil).Once()
 	h.stats.On("DeleteProfileStatisticsThrough", mock.Anything, "history", deletedAt).Return(int64(1), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "history", mock.Anything, mock.Anything).Return(0, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "history", mock.Anything, mock.Anything).Return(int64(0), nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "failing", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "partial", (*time.Time)(nil)).Return(int64(4), errors.New("one collection failed")).Once()
 
 	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 6, Deleted: 8, Moved: 2, Failed: 2}, res)
-	require.ElementsMatch(t, []string{"gone", "moved", "history", "partial"}, cache.invalidated)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 6, Total: 6, Deleted: 10, Failed: 2}, res)
+	require.ElementsMatch(t, []string{"gone", "trimmed", "history", "partial"}, cache.invalidated)
 }

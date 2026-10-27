@@ -7,7 +7,6 @@ import (
 
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
-	"github.com/ivpn/dns/libs/dislock"
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,15 +15,6 @@ const (
 	purgeProfileTimeout = 90 * time.Second
 	// A run must finish well inside the cron lock TTL (10 min).
 	purgeDeadline = 5 * time.Minute
-
-	// RetentionMoveLockPrefix namespaces the per-profile retention-move locks in Redis.
-	RetentionMoveLockPrefix = "statistics:retention-move:"
-	// RetentionMoveDeadline bounds the move a PATCH starts. Local measurement: ~25k documents/s;
-	// a profile's daily documents are far fewer than one deadline's worth even at a tenth of that.
-	RetentionMoveDeadline = 10 * time.Minute
-	// RetentionMoveLockTTL outlives the longest move (RetentionMoveDeadline, purgeProfileTimeout)
-	// plus the undo of its last batch, so no second mover can take the lock mid-batch.
-	RetentionMoveLockTTL = 11 * time.Minute
 )
 
 // ProfileStatisticsStore loads the statistics settings of many profiles at once and drops
@@ -40,8 +30,6 @@ type StatisticsService struct {
 
 	profiles         ProfileStatisticsStore
 	cache            ReadCache
-	moveLocker       *dislock.Locker
-	background       func(func())
 	now              func() time.Time
 	purgeProfileTime time.Duration
 	purgeRunTime     time.Duration
@@ -53,11 +41,6 @@ type Option func(*StatisticsService)
 // WithProfiles supplies the profile lookup PurgeStatistics needs.
 func WithProfiles(profiles ProfileStatisticsStore) Option {
 	return func(s *StatisticsService) { s.profiles = profiles }
-}
-
-// WithBackground replaces how MoveBestEffort starts its background move (a goroutine by default).
-func WithBackground(run func(func())) Option {
-	return func(s *StatisticsService) { s.background = run }
 }
 
 // WithPurgeTimeouts overrides the per-profile bound and the whole-run bound of
@@ -73,7 +56,6 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 	s := &StatisticsService{
 		StatisticsRepository: db,
 		cache:                noopReadCache{},
-		background:           func(f func()) { go f() },
 		now:                  time.Now,
 		purgeProfileTime:     purgeProfileTimeout,
 		purgeRunTime:         purgeDeadline,
@@ -84,44 +66,22 @@ func NewStatisticsService(db repository.StatisticsRepository, opts ...Option) *S
 	return s
 }
 
-// SetRetentionMoveLocker serialises retention moves of one profile across instances
-// (api-endpoint-behaviour.md J50). Without it moves run unlocked.
-func (s *StatisticsService) SetRetentionMoveLocker(l *dislock.Locker) { s.moveLocker = l }
-
-// MoveToRetention leaves the profile's daily statistics only in collections no longer than
-// retention, keeping the days the retention still covers (J50). A move already running on
-// another instance is skipped. It returns the number of documents copied.
-func (s *StatisticsService) MoveToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int, error) {
-	moved, err := s.moveToRetention(ctx, profileId, retention)
-	s.invalidate(ctx, profileId)
-	return moved, err
-}
-
-func (s *StatisticsService) moveToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int, error) {
-	if s.moveLocker != nil {
-		lock, err := s.moveLocker.TryLock(ctx, profileId, RetentionMoveLockTTL)
-		if errors.Is(err, dislock.ErrNotAcquired) {
-			return 0, nil
-		}
-		if err != nil {
-			return 0, err
-		}
-		defer func() { _ = lock.Unlock(context.WithoutCancel(ctx)) }()
+// TrimToRetention deletes the profile's daily statistics older than the retention (J50) and drops
+// its read cache when anything went. It returns the number of documents deleted.
+func (s *StatisticsService) TrimToRetention(ctx context.Context, profileId string, retention model.StatisticsRetention) (int64, error) {
+	deleted, err := s.StatisticsRepository.TrimProfileDailyStatistics(ctx, profileId, retention, s.now())
+	if deleted > 0 {
+		s.invalidate(ctx, profileId)
 	}
-	since := s.now().UTC().Add(-retention.Window()).Truncate(24 * time.Hour)
-	return s.StatisticsRepository.MoveProfileDailyStatistics(ctx, profileId, retention.OrDefault(), since)
+	return deleted, err
 }
 
-// MoveBestEffort starts the move on lowering the retention in the background, so the PATCH does
-// not wait for it; the next statistics purge repeats it for anything left.
-func (s *StatisticsService) MoveBestEffort(ctx context.Context, profileId string, retention model.StatisticsRetention) {
-	moveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), RetentionMoveDeadline)
-	s.background(func() {
-		defer cancel()
-		if _, err := s.MoveToRetention(moveCtx, profileId, retention); err != nil {
-			log.Ctx(moveCtx).Error().Err(err).Msg("statistics: retention move failed; the next statistics purge retries it")
-		}
-	})
+// TrimBestEffort is the trim on lowering the retention. A failure is only logged: reads never go
+// back further than the retention, and the next statistics purge removes whatever is left.
+func (s *StatisticsService) TrimBestEffort(ctx context.Context, profileId string, retention model.StatisticsRetention) {
+	if _, err := s.TrimToRetention(ctx, profileId, retention); err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("statistics: retention trim failed; the next statistics purge removes the leftovers")
+	}
 }
 
 // InvalidateReadCache drops the profile's cached statistics answers; a failure is only logged.
@@ -157,16 +117,17 @@ func PurgeBound(exists bool, settings *model.StatisticsSettings) *time.Time {
 	return settings.EnabledAt
 }
 
-// StatisticsPurgeResult counts what one run did; it carries no identifiers.
-// Deleted counts documents; Moved counts documents copied to a shorter retention.
+// StatisticsPurgeResult counts what one run did; it carries no identifiers. Deleted counts
+// documents; Total is the number of profiles found, so Checked < Total means the run ended
+// before reaching all of them.
 type StatisticsPurgeResult struct {
-	Checked, Deleted, Moved, Failed int
+	Checked, Total, Deleted, Failed int
 }
 
 // PurgeStatistics makes the stored statistics conform to each profile's current
 // settings (api-endpoint-behaviour.md J8, J9): for every profile id present in the
 // collections it deletes what the profile no longer keeps (PurgeBound, then
-// history_deleted_at) and moves daily documents down to the current retention. Everything
+// history_deleted_at, then daily documents older than the retention). Everything
 // is derived from Mongo, so a run needs no memory of earlier ones. A profile's read cache
 // is dropped only when its stored documents changed. The first per-profile timeout ends
 // the run (the database is struggling) and so does the whole-run deadline; profiles not
@@ -192,11 +153,15 @@ func (s *StatisticsService) PurgeStatistics(ctx context.Context) (StatisticsPurg
 	if err != nil {
 		return res, err
 	}
+	res.Total = len(ids)
 
 	for start := 0; start < len(ids); start += purgeBatch {
 		batch := ids[start:min(start+purgeBatch, len(ids))]
 		settings, err := s.profiles.GetProfilesStatisticsSettings(runCtx, batch)
 		if err != nil {
+			if runCtx.Err() != nil {
+				return res, nil
+			}
 			return res, err
 		}
 
@@ -208,12 +173,11 @@ func (s *StatisticsService) PurgeStatistics(ctx context.Context) (StatisticsPurg
 			st, exists := settings[id]
 
 			jobCtx, cancelJob := context.WithTimeout(runCtx, s.purgeProfileTime)
-			deleted, moved, jobErr := s.purgeProfile(jobCtx, id, exists, st)
+			deleted, jobErr := s.purgeProfile(jobCtx, id, exists, st)
 			timedOut := errors.Is(jobCtx.Err(), context.DeadlineExceeded)
 			cancelJob()
 			res.Deleted += int(deleted)
-			res.Moved += moved
-			if deleted > 0 || moved > 0 {
+			if deleted > 0 {
 				s.invalidate(runCtx, id)
 			}
 			if jobErr != nil {
@@ -227,18 +191,18 @@ func (s *StatisticsService) PurgeStatistics(ctx context.Context) (StatisticsPurg
 	return res, nil
 }
 
-func (s *StatisticsService) purgeProfile(ctx context.Context, profileId string, exists bool, st *model.StatisticsSettings) (int64, int, error) {
+func (s *StatisticsService) purgeProfile(ctx context.Context, profileId string, exists bool, st *model.StatisticsSettings) (int64, error) {
 	deleted, err := s.StatisticsRepository.DeleteProfileStatistics(ctx, profileId, PurgeBound(exists, st))
 	if err != nil || !exists || st == nil || !st.Enabled {
-		return deleted, 0, err
+		return deleted, err
 	}
 	if st.HistoryDeletedAt != nil {
 		n, err := s.StatisticsRepository.DeleteProfileStatisticsThrough(ctx, profileId, *st.HistoryDeletedAt)
 		deleted += n
 		if err != nil {
-			return deleted, 0, err
+			return deleted, err
 		}
 	}
-	moved, err := s.moveToRetention(ctx, profileId, st.Retention)
-	return deleted, moved, err
+	n, err := s.StatisticsRepository.TrimProfileDailyStatistics(ctx, profileId, st.Retention.OrDefault(), s.now())
+	return deleted + n, err
 }
