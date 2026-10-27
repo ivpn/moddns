@@ -46,6 +46,7 @@ export default defineConfig({
         // updates atomically stay precached via includeAssets.
         globPatterns: ['**/*.{js,css,html,ico,webmanifest}'],
         cleanupOutdatedCaches: true,
+        importScripts: ['sw-cache-cleanup.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp)$/,
@@ -53,14 +54,6 @@ export default defineConfig({
             options: {
               cacheName: 'images',
               expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/.*\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api',
-              expiration: { maxEntries: 100, maxAgeSeconds: 5 * 60 },
             },
           },
         ],
