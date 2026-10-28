@@ -157,10 +157,10 @@ export default function PrivacyPolicy() {
 "reason_rebinding": 0, "reason_default_rule": 2, "reason_other": 0
 "proto_doh": 301, "proto_dot": 111, "proto_doq": 0`}</pre>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Counts become less detailed as they age: 15-minute counts are kept for 1 day and hourly counts for 8 days. Daily totals are kept for the retention period you choose: 30 days by default, 90 days or 1 year. Counts are deleted automatically once they exceed these periods.
+                                            Counts become less detailed as they age: 15-minute counts are kept for 1 day and hourly counts for 8 days. Daily totals are kept for the retention period you choose: 30 days by default, 90 days or 1 year. Counts are deleted automatically once they exceed these periods. Deletion process may take up to 24 hours.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When you shorten the retention period, daily totals older than the new period are deleted. Turning Statistics off, or using Delete statistics history, permanently deletes all statistics for the profile. Deletion process may take up to 24 hours.
+                                            When you shorten the retention period, daily totals older than the new period are deleted. Turning Statistics off, or using Delete statistics history, permanently deletes all statistics for the profile.
                                         </p>
 
                                         <h3 className="text-lg font-semibold mb-2">c) With Query Logs Enabled</h3>
@@ -202,7 +202,7 @@ export default function PrivacyPolicy() {
                                             Query log entries are automatically and permanently deleted once they exceed the retention period, which can take up to an hour. When you change the retention period setting, any existing logs that exceed the new timeframe are deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard, and turning Query Logs off deletes them as well.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            When Query Logs and client IP logging are both on, the Top clients list on the Statistics page shows the network provider and country of each logged address. We look these up in a IP-geolocation database held on our own servers each time you open the page. Nothing is sent to a third party, and the result is not stored. The addresses themselves are part of your query logs and are kept for the retention period you have set.
+                                            When Query Logs and client IP logging are both on, the Top clients list on the Statistics page shows the network provider and country of each logged address. We look these up in an IP-geolocation database held on our own servers each time you open the page. Nothing is sent to a third party, and the result is not stored. The addresses themselves are part of your query logs and are kept for the retention period you have set.
                                         </p>
                                     </section>
 
