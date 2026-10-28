@@ -32,7 +32,6 @@ func NewCredentialError(msg string) *CredentialError {
 var (
 	ErrGetCredentials        = NewCredentialError("Unable to retrieve credentials.")
 	ErrSaveCredential        = NewCredentialError("Unable to save credential. Please try again.")
-	ErrUpdateCredential      = NewCredentialError("Unable to update credential. Please try again.")
 	ErrDeleteCredential      = NewCredentialError("Unable to delete credential. Please try again.")
 	ErrMaxExceededCredential = NewCredentialError("You have reached the maximum number of allowed passkeys.")
 )
@@ -61,15 +60,6 @@ func (s *Service) SaveCredential(ctx context.Context, credential *model.Credenti
 	err = s.Store.SaveCredential(ctx, credential)
 	if err != nil {
 		return ErrSaveCredential
-	}
-
-	return nil
-}
-
-func (s *Service) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
-	err := s.Store.UpdateCredential(ctx, credentialID, accountID, signCount)
-	if err != nil {
-		return ErrUpdateCredential
 	}
 
 	return nil

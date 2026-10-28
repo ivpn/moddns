@@ -12,8 +12,7 @@ import (
 )
 
 const (
-	CredentialsCollection      = "credentials"
-	WebAuthnSessionsCollection = "webauthn_sessions"
+	CredentialsCollection = "credentials"
 )
 
 // CredentialRepository handles WebAuthn credential operations
