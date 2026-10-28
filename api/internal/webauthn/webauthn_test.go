@@ -335,6 +335,11 @@ func TestCeremonyExpires(t *testing.T) {
 
 	_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(assert(t, options, u, cred)))
 	require.Error(t, err)
+
+	_, token, err = rp.BeginRegistration(ctx, u.user, "")
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(store.states[token], &c))
+	require.WithinDuration(t, time.Now().Add(CeremonyTimeout), c.SessionData.Expires, 5*time.Second)
 }
 
 func TestCredentialRecordRoundTrip(t *testing.T) {

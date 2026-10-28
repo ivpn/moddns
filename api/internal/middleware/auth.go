@@ -1,14 +1,10 @@
 package middleware
 
 import (
-	"fmt"
-
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/rs/zerolog/log"
 )
@@ -41,23 +37,4 @@ func NewBasicAuth(cfg config.APIConfig) fiber.Handler {
 			cfg.BasicAuthUser: cfg.BasicAuthPassword,
 		},
 	})
-}
-
-func NewWebAuthn(cfg config.Config) (*webauthn.WebAuthn, error) {
-	waCfg := &webauthn.Config{
-		RPDisplayName: cfg.Server.Name,                  // Display Name for your site
-		RPID:          cfg.Server.FQDN,                  // Generally the FQDN for your site
-		RPOrigins:     []string{cfg.API.ApiAllowOrigin}, // The origin URLs allowed for WebAuthn requests
-		Timeouts: webauthn.TimeoutsConfig{
-			Login:        webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
-			Registration: webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
-		},
-	}
-
-	webAuthn, err := webauthn.New(waCfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize WebAuthn: %w", err)
-	}
-
-	return webAuthn, nil
 }

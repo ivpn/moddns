@@ -13,9 +13,9 @@ import (
 	"github.com/ivpn/dns/api/internal/cron"
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
-	"github.com/ivpn/dns/api/internal/middleware"
 	"github.com/ivpn/dns/api/internal/migrations"
 	"github.com/ivpn/dns/api/internal/validator"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/statistics"
 	libscache "github.com/ivpn/dns/libs/cache"
@@ -146,7 +146,11 @@ func main() {
 		log.Panic().Err(err).Msg("Failed to create API validator")
 	}
 
-	webAuthn, err := middleware.NewWebAuthn(*appConfig)
+	webAuthn, err := webauthn.New(webauthn.Config{
+		RPID:          appConfig.Server.FQDN,
+		RPDisplayName: appConfig.Server.Name,
+		RPOrigins:     []string{appConfig.API.ApiAllowOrigin},
+	}, cache)
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to initialize WebAuthn")
 	}

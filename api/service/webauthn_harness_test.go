@@ -15,7 +15,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/descope/virtualwebauthn"
-	"github.com/go-webauthn/webauthn/webauthn"
+	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,6 +24,7 @@ import (
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/passkey"
@@ -144,7 +145,7 @@ func (s *passkeyStore) DeleteCredentialByID(_ context.Context, id, accountID pri
 }
 
 // SaveSession mirrors the Mongo repository, which stores the payload as JSON bytes.
-func (s *passkeyStore) SaveSession(_ context.Context, sessionData webauthn.SessionData, token, accountID string) error {
+func (s *passkeyStore) SaveSession(_ context.Context, sessionData gowebauthn.SessionData, token, accountID string) error {
 	data, err := json.Marshal(sessionData)
 	if err != nil {
 		return err
@@ -174,19 +175,14 @@ func newPasskeyHarness(t *testing.T) *passkeyHarness {
 		API:     &config.APIConfig{ApiAllowOrigin: harnessOrigin, SessionExpirationTime: time.Hour},
 		Service: &config.ServiceConfig{MaxCredentials: 10, IdLimiterMax: 100, IdLimiterExpiration: time.Minute},
 	}
-	// Same settings as middleware.NewWebAuthn, which this package cannot import.
-	wa, err := webauthn.New(&webauthn.Config{
-		RPDisplayName: cfg.Server.Name,
-		RPID:          cfg.Server.FQDN,
-		RPOrigins:     []string{cfg.API.ApiAllowOrigin},
-		Timeouts: webauthn.TimeoutsConfig{
-			Login:        webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
-			Registration: webauthn.TimeoutConfig{Enforce: true, Timeout: model.CeremonyTimeout, TimeoutUVD: model.CeremonyTimeout},
-		},
-	})
-	require.NoError(t, err)
-
 	mr := miniredis.RunT(t)
+	redisCache := cache.NewRedisCacheFromClient(redis.NewClient(&redis.Options{Addr: mr.Addr()}))
+	rp, err := webauthn.New(webauthn.Config{
+		RPID:          cfg.Server.FQDN,
+		RPDisplayName: cfg.Server.Name,
+		RPOrigins:     []string{cfg.API.ApiAllowOrigin},
+	}, redisCache)
+	require.NoError(t, err)
 	store := &passkeyStore{Db: mocks.NewDb(t), accounts: map[string]*model.Account{}, sessions: map[string]model.Session{}}
 	accounts := mocks.NewAccountServicer(t)
 	subscriptions := mocks.NewSubscriptionServicer(t)
@@ -200,8 +196,8 @@ func newPasskeyHarness(t *testing.T) *passkeyHarness {
 		svc: &Service{
 			Cfg:                  cfg,
 			Store:                store,
-			Cache:                cache.NewRedisCacheFromClient(redis.NewClient(&redis.Options{Addr: mr.Addr()})),
-			Webauthn:             wa,
+			Cache:                redisCache,
+			Webauthn:             rp,
 			AccountServicer:      accounts,
 			SubscriptionServicer: subscriptions,
 		},
@@ -691,9 +687,9 @@ func TestPasskeyHarnessCeremonyExpires(t *testing.T) {
 
 	options, token, err := h.svc.BeginLogin(h.ctx, acc.Email)
 	require.NoError(t, err)
-	require.Equal(t, model.CeremonyTimeout, h.redis.TTL("webauthn_ceremony:"+token))
+	require.Equal(t, webauthn.CeremonyTimeout, h.redis.TTL("webauthn_ceremony:"+token))
 
-	h.redis.FastForward(model.CeremonyTimeout + time.Second)
+	h.redis.FastForward(webauthn.CeremonyTimeout + time.Second)
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(h.assert(options, authenticator, cred)), true)
 	require.Error(t, err)
 	require.Empty(t, h.store.sessions)

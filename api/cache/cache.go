@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/libs/cache"
 )
@@ -37,8 +38,7 @@ type Cache interface {
 	AddPASession(ctx context.Context, session *model.PASession, expiresIn time.Duration) error
 	GetPASession(ctx context.Context, sessionID string) (*model.PASession, error)
 	RemovePASession(ctx context.Context, sessionID string) error
-	SaveCeremony(ctx context.Context, token string, ceremony *model.Ceremony, expiresIn time.Duration) error
-	ConsumeCeremony(ctx context.Context, token string) (*model.Ceremony, error)
+	webauthn.CeremonyStore
 }
 
 // NewCache creates a new BlocklistCache instance
