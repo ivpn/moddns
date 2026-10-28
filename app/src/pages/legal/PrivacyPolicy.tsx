@@ -46,7 +46,7 @@ export default function PrivacyPolicy() {
                                 <div className="space-y-6">
                                     <div className="mb-6">
                                         <p className="text-sm text-[var(--shadcn-ui-app-muted-foreground)] mb-4">
-                                            Last updated: Oct 23, 2026
+                                            Last updated: Oct 28, 2026
                                         </p>
                                     </div>
 
@@ -94,7 +94,7 @@ export default function PrivacyPolicy() {
                                     <section>
                                         <h2 className="text-xl font-semibold mb-3">Do you use cookies or third-party services?</h2>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            We use a single cookie solely for the purpose of managing your authenticated session when you are logged into the modDNS website.
+                                            We use three cookies for signing in and setting up your account. All are set by modDNS itself and none are shared with third parties.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             For monitoring aggregate website usage we run our own <a href="https://umami.is/docs" target="_blank" rel="noopener noreferrer" className="text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)] transition-colors">Umami</a> analytics instance. Umami is a privacy-focused, cookieless solution that tracks page views and user interactions without collecting personally identifiable information. All data remains on our self-hosted infrastructure.
@@ -125,7 +125,7 @@ export default function PrivacyPolicy() {
 
                                         <h3 className="text-lg font-semibold mb-2">a) Default setting (Statistics and Query Logs Disabled)</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When Statistics and Query Logs are turned off, all queries are processed entirely in memory and are never written to disk.
+                                            When Statistics and Query Logs are turned off, no record of individual queries is written to disk.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             The only DNS activity data we keep is anonymous service-wide statistics: the number of queries, blocked queries and DNSSEC-validated queries handled by each server location, added up across all users with hourly timestamps. These counters contain no profile, device or client reference. Example of data stored:
@@ -139,7 +139,7 @@ export default function PrivacyPolicy() {
                                             Statistics is an optional modDNS feature that counts the queries of a profile, so you can see how many were resolved and blocked without keeping a record of each query. It is off by default and you must explicitly turn it on for each profile.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Queries are added up per profile and device in 15-minute blocks. The data points counted include:
+                                            We count queries per profile and device in 15-minute blocks. The data points counted include:
                                         </p>
                                         <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>The number of queries, blocked queries and DNSSEC-validated queries</li>
@@ -157,24 +157,24 @@ export default function PrivacyPolicy() {
 "reason_rebinding": 0, "reason_default_rule": 2, "reason_other": 0
 "proto_doh": 301, "proto_dot": 111, "proto_doq": 0`}</pre>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Counts become less detailed as they age: 15-minute counts are kept for 1 day and hourly counts for 8 days. Daily totals are kept for the retention period you choose: 30 days by default, 90 days or 1 year. Counts are deleted automatically once they exceed these periods, which can take up to a day.
+                                            Counts become less detailed as they age: 15-minute counts are kept for 1 day and hourly counts for 8 days. Daily totals are kept for the retention period you choose: 30 days by default, 90 days or 1 year. Counts are deleted automatically once they exceed these periods.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When you shorten the retention period, daily totals older than the new period are deleted. Turning Statistics off, or using Delete statistics history, permanently deletes all statistics for the profile.
+                                            When you shorten the retention period, daily totals older than the new period are deleted. Turning Statistics off, or using Delete statistics history, permanently deletes all statistics for the profile. Deletion process may take up to 24 hours.
                                         </p>
 
                                         <h3 className="text-lg font-semibold mb-2">c) With Query Logs Enabled</h3>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Query Logs is a modDNS feature that provides a detailed log of all queries to help you monitor and fine-tune your DNS filtering. If you choose to enable query logging, we store data required to provide you with detailed reports on your DNS activity. This is an optional feature that you must explicitly opt-in to, further, you have detailed control over what is logged and for how long.
+                                            Query Logs is a modDNS feature that provides a detailed log of all queries to help you monitor and fine-tune your DNS filtering. If you choose to enable query logging, we store data required to provide you with detailed reports on your DNS activity. This is an optional feature that you must explicitly opt in to. You also have detailed control over what is logged and for how long.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             The data points logged include:
                                         </p>
                                         <ul className="list-disc pl-6 space-y-2 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                                             <li>The timestamp of the query</li>
-                                            <li>The requested domain or IP address (e.g., example.com)</li>
+                                            <li>The requested domain or IP address (e.g., example.com), if enabled</li>
                                             <li>The decision (e.g., Allowed, Blocked) and the trigger for the decision (e.g. entry on enabled blocklist)</li>
-                                            <li>Your client IP address</li>
+                                            <li>Your client IP address, if enabled (off by default)</li>
                                             <li>Your Device Identifier, if configured</li>
                                         </ul>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mt-4 mb-4">
@@ -193,16 +193,16 @@ export default function PrivacyPolicy() {
     "dnssec": false
 "client_ip": "203.0.113.55"`}</pre>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            Within your profile settings, you can independently enable or disable the logging of queried domains and client IP Addresses.
-                                        </p>
-                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            When client IP addresses are logged, the Statistics page shows the network provider and country of each address. We look these up in a database on our own servers when you open the page and do not store the result.
+                                            Within your profile settings, you can independently enable or disable the logging of queried domains and client IP addresses.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             You also have full control over the data retention period, which can be set from a minimum of 1 hour to a maximum of 1 month. The default retention period is 1 hour.
                                         </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            Query log entries are automatically and permanently deleted once they exceed the retention period, which can take up to an hour. When you change the retention period setting, any existing logs that exceed the new timeframe are deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard, and turning Query Logs off deletes them as well.
+                                        </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            Query log entries are automatically and permanently deleted once they exceed the retention period. When you change the retention period setting, any existing logs that exceed the new timeframe are immediately deleted from our systems. You can permanently delete all stored query logs at any time from your dashboard, and turning Query Logs off deletes them as well.
+                                            When Query Logs and client IP logging are both on, the Top clients list on the Statistics page shows the network provider and country of each logged address. We look these up in a IP-geolocation database held on our own servers each time you open the page. Nothing is sent to a third party, and the result is not stored. The addresses themselves are part of your query logs and are kept for the retention period you have set.
                                         </p>
                                     </section>
 
@@ -242,13 +242,16 @@ export default function PrivacyPolicy() {
                                             If we receive a binding court order, we can only provide the data we possess.
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
-                                            <strong>If Statistics and Query Logs are disabled:</strong> We have no DNS activity data to share. We can only be compelled to confirm that an account exists for a specific email address.
+                                            <strong>If Statistics and Query Logs are disabled:</strong> We hold no DNS activity data that can be linked to you. We can only be compelled to provide the account and profile information described in "What information do you store about my account?"
                                         </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
                                             <strong>If Statistics is enabled:</strong> We have the query counts per device that you have chosen to keep, for the retention period you have set. They contain no domains or IP addresses.
                                         </p>
+                                        <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed mb-4">
+                                            <strong>If Query Logging is enabled:</strong> We have query logs that you have chosen to store. The extent of this data depends entirely on the logging and retention settings you have configured.
+                                        </p>
                                         <p className="text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
-                                            <strong>If Query Logging is enabled:</strong> We have query logs that you have chosen to store. The extent of this data depends entirely on the logging and retention settings you have configured. If you are concerned about this possibility, we recommend keeping Statistics and Query Logs disabled or regularly deleting your statistics and logs.
+                                            If this concerns you, we recommend keeping Statistics and Query Logs disabled. We cannot be compelled to hand over data we do not hold.
                                         </p>
                                     </section>
 
