@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/utils"
@@ -196,7 +195,7 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 	purpose := result.Purpose
 
 	// Save the session
-	sessionData := gowebauthn.SessionData{
+	sessionData := model.SessionPayload{
 		UserID:  account.WebAuthnID(),
 		Expires: time.Now().Add(s.Cfg.API.SessionExpirationTime), // TODO: improve
 	}

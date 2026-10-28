@@ -8,7 +8,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/db/repository"
 	"github.com/ivpn/dns/api/model"
@@ -4179,7 +4178,7 @@ func (_c *Db_SaveCredential_Call) RunAndReturn(run func(ctx context.Context, cre
 }
 
 // SaveSession provides a mock function for the type Db
-func (_mock *Db) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error {
+func (_mock *Db) SaveSession(ctx context.Context, sessionData model.SessionPayload, token string, userID string) error {
 	ret := _mock.Called(ctx, sessionData, token, userID)
 
 	if len(ret) == 0 {
@@ -4187,7 +4186,7 @@ func (_mock *Db) SaveSession(ctx context.Context, sessionData webauthn.SessionDa
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, model.SessionPayload, string, string) error); ok {
 		r0 = returnFunc(ctx, sessionData, token, userID)
 	} else {
 		r0 = ret.Error(0)
@@ -4202,22 +4201,22 @@ type Db_SaveSession_Call struct {
 
 // SaveSession is a helper method to define mock.On call
 //   - ctx context.Context
-//   - sessionData webauthn.SessionData
+//   - sessionData model.SessionPayload
 //   - token string
 //   - userID string
 func (_e *Db_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}) *Db_SaveSession_Call {
 	return &Db_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID)}
 }
 
-func (_c *Db_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string)) *Db_SaveSession_Call {
+func (_c *Db_SaveSession_Call) Run(run func(ctx context.Context, sessionData model.SessionPayload, token string, userID string)) *Db_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.SessionData
+		var arg1 model.SessionPayload
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.SessionData)
+			arg1 = args[1].(model.SessionPayload)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -4242,7 +4241,7 @@ func (_c *Db_SaveSession_Call) Return(err error) *Db_SaveSession_Call {
 	return _c
 }
 
-func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error) *Db_SaveSession_Call {
+func (_c *Db_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData model.SessionPayload, token string, userID string) error) *Db_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

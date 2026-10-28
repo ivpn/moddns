@@ -104,8 +104,6 @@
   "login_session": {
     "challenge": "",
     "expires": "<expires>",
-    "rpId": "",
-    "userVerification": "",
     "user_id": "<account>"
   },
   "reauth_ceremony": {

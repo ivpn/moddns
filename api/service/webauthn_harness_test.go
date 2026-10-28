@@ -15,7 +15,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/descope/virtualwebauthn"
-	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -145,7 +144,7 @@ func (s *passkeyStore) DeleteCredentialByID(_ context.Context, id, accountID pri
 }
 
 // SaveSession mirrors the Mongo repository, which stores the payload as JSON bytes.
-func (s *passkeyStore) SaveSession(_ context.Context, sessionData gowebauthn.SessionData, token, accountID string) error {
+func (s *passkeyStore) SaveSession(_ context.Context, sessionData model.SessionPayload, token, accountID string) error {
 	data, err := json.Marshal(sessionData)
 	if err != nil {
 		return err

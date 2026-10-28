@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	gowebauthn "github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/api/responses"
 	"github.com/ivpn/dns/api/cache"
@@ -128,7 +127,7 @@ type PasskeyServicer interface {
 
 type SessionServicer interface {
 	GetSession(context.Context, string) (model.Session, bool, error)
-	SaveSession(context.Context, gowebauthn.SessionData, string, string) error
+	SaveSession(context.Context, model.SessionPayload, string, string) error
 	DeleteSession(context.Context, string) error
 	DeleteSessionsByAccountID(ctx context.Context, accID string) error
 	DeleteSessionsByAccountIDExceptCurrent(ctx context.Context, accID, currentToken string) error
