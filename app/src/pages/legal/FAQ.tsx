@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 22, 2026';
+const FAQ_LAST_UPDATED = 'October 23, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -707,16 +707,16 @@ export default function FAQ(): JSX.Element {
                             For DoT and DoQ connections, add your device identifier as a subdomain:
                             <br /><br />
                             <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">
-                                DEVICE_ID--PROFILE_ID.{dnsDomain}
+                                DEVICE_ID-PROFILE_ID.{dnsDomain}
                             </code>
                             <br /><br />
                             Examples:
                             <br />
-                            • DoT (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">laptop--8kqr1tbfco.{dnsDomain}</code>
+                            • DoT (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">laptop-8kqr1tbfco.{dnsDomain}</code>
                             <br />
-                            • DoQ (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone--8kqr1tbfco.{dnsDomain}</code>
+                            • DoQ (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone-8kqr1tbfco.{dnsDomain}</code>
                             <br /><br />
-                            Replace PROFILE_ID with your actual profile ID and DEVICE_ID with a name for your device.
+                            Replace PROFILE_ID with your actual profile ID and DEVICE_ID with a name for your device. A single hyphen separates the device name from the profile ID. To put a space in the device name, write it as <code>--</code>: "Home Router" becomes <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">home--router-8kqr1tbfco.{dnsDomain}</code>.
                         </div>
                     }
                 />
