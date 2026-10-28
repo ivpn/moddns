@@ -4124,16 +4124,16 @@ func (_c *Servicer_RotatePASessionID_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // SaveCredential provides a mock function for the type Servicer
-func (_mock *Servicer) SaveCredential(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID) error {
-	ret := _mock.Called(context1, credential, objectID)
+func (_mock *Servicer) SaveCredential(context1 context.Context, credential *model.Credential) error {
+	ret := _mock.Called(context1, credential)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveCredential")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.Credential, primitive.ObjectID) error); ok {
-		r0 = returnFunc(context1, credential, objectID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Credential) error); ok {
+		r0 = returnFunc(context1, credential)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4147,30 +4147,24 @@ type Servicer_SaveCredential_Call struct {
 
 // SaveCredential is a helper method to define mock.On call
 //   - context1 context.Context
-//   - credential webauthn.Credential
-//   - objectID primitive.ObjectID
-func (_e *Servicer_Expecter) SaveCredential(context1 interface{}, credential interface{}, objectID interface{}) *Servicer_SaveCredential_Call {
-	return &Servicer_SaveCredential_Call{Call: _e.mock.On("SaveCredential", context1, credential, objectID)}
+//   - credential *model.Credential
+func (_e *Servicer_Expecter) SaveCredential(context1 interface{}, credential interface{}) *Servicer_SaveCredential_Call {
+	return &Servicer_SaveCredential_Call{Call: _e.mock.On("SaveCredential", context1, credential)}
 }
 
-func (_c *Servicer_SaveCredential_Call) Run(run func(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID)) *Servicer_SaveCredential_Call {
+func (_c *Servicer_SaveCredential_Call) Run(run func(context1 context.Context, credential *model.Credential)) *Servicer_SaveCredential_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.Credential
+		var arg1 *model.Credential
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.Credential)
-		}
-		var arg2 primitive.ObjectID
-		if args[2] != nil {
-			arg2 = args[2].(primitive.ObjectID)
+			arg1 = args[1].(*model.Credential)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -4181,7 +4175,7 @@ func (_c *Servicer_SaveCredential_Call) Return(err error) *Servicer_SaveCredenti
 	return _c
 }
 
-func (_c *Servicer_SaveCredential_Call) RunAndReturn(run func(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID) error) *Servicer_SaveCredential_Call {
+func (_c *Servicer_SaveCredential_Call) RunAndReturn(run func(context1 context.Context, credential *model.Credential) error) *Servicer_SaveCredential_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4598,16 +4592,16 @@ func (_c *Servicer_UpdateAccount_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // UpdateCredential provides a mock function for the type Servicer
-func (_mock *Servicer) UpdateCredential(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID) error {
-	ret := _mock.Called(context1, credential, objectID)
+func (_mock *Servicer) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
+	ret := _mock.Called(ctx, credentialID, accountID, signCount)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCredential")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.Credential, primitive.ObjectID) error); ok {
-		r0 = returnFunc(context1, credential, objectID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []byte, primitive.ObjectID, uint32) error); ok {
+		r0 = returnFunc(ctx, credentialID, accountID, signCount)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4620,31 +4614,37 @@ type Servicer_UpdateCredential_Call struct {
 }
 
 // UpdateCredential is a helper method to define mock.On call
-//   - context1 context.Context
-//   - credential webauthn.Credential
-//   - objectID primitive.ObjectID
-func (_e *Servicer_Expecter) UpdateCredential(context1 interface{}, credential interface{}, objectID interface{}) *Servicer_UpdateCredential_Call {
-	return &Servicer_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", context1, credential, objectID)}
+//   - ctx context.Context
+//   - credentialID []byte
+//   - accountID primitive.ObjectID
+//   - signCount uint32
+func (_e *Servicer_Expecter) UpdateCredential(ctx interface{}, credentialID interface{}, accountID interface{}, signCount interface{}) *Servicer_UpdateCredential_Call {
+	return &Servicer_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", ctx, credentialID, accountID, signCount)}
 }
 
-func (_c *Servicer_UpdateCredential_Call) Run(run func(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID)) *Servicer_UpdateCredential_Call {
+func (_c *Servicer_UpdateCredential_Call) Run(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32)) *Servicer_UpdateCredential_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.Credential
+		var arg1 []byte
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.Credential)
+			arg1 = args[1].([]byte)
 		}
 		var arg2 primitive.ObjectID
 		if args[2] != nil {
 			arg2 = args[2].(primitive.ObjectID)
 		}
+		var arg3 uint32
+		if args[3] != nil {
+			arg3 = args[3].(uint32)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -4655,7 +4655,7 @@ func (_c *Servicer_UpdateCredential_Call) Return(err error) *Servicer_UpdateCred
 	return _c
 }
 
-func (_c *Servicer_UpdateCredential_Call) RunAndReturn(run func(context1 context.Context, credential webauthn.Credential, objectID primitive.ObjectID) error) *Servicer_UpdateCredential_Call {
+func (_c *Servicer_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error) *Servicer_UpdateCredential_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -4122,16 +4122,16 @@ func (_c *Db_RemoveProfileFromAccount_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // SaveCredential provides a mock function for the type Db
-func (_mock *Db) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	ret := _mock.Called(ctx, credential, accountID)
+func (_mock *Db) SaveCredential(ctx context.Context, credential *model.Credential) error {
+	ret := _mock.Called(ctx, credential)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveCredential")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.Credential, primitive.ObjectID) error); ok {
-		r0 = returnFunc(ctx, credential, accountID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Credential) error); ok {
+		r0 = returnFunc(ctx, credential)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4145,30 +4145,24 @@ type Db_SaveCredential_Call struct {
 
 // SaveCredential is a helper method to define mock.On call
 //   - ctx context.Context
-//   - credential webauthn.Credential
-//   - accountID primitive.ObjectID
-func (_e *Db_Expecter) SaveCredential(ctx interface{}, credential interface{}, accountID interface{}) *Db_SaveCredential_Call {
-	return &Db_SaveCredential_Call{Call: _e.mock.On("SaveCredential", ctx, credential, accountID)}
+//   - credential *model.Credential
+func (_e *Db_Expecter) SaveCredential(ctx interface{}, credential interface{}) *Db_SaveCredential_Call {
+	return &Db_SaveCredential_Call{Call: _e.mock.On("SaveCredential", ctx, credential)}
 }
 
-func (_c *Db_SaveCredential_Call) Run(run func(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID)) *Db_SaveCredential_Call {
+func (_c *Db_SaveCredential_Call) Run(run func(ctx context.Context, credential *model.Credential)) *Db_SaveCredential_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.Credential
+		var arg1 *model.Credential
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.Credential)
-		}
-		var arg2 primitive.ObjectID
-		if args[2] != nil {
-			arg2 = args[2].(primitive.ObjectID)
+			arg1 = args[1].(*model.Credential)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -4179,7 +4173,7 @@ func (_c *Db_SaveCredential_Call) Return(err error) *Db_SaveCredential_Call {
 	return _c
 }
 
-func (_c *Db_SaveCredential_Call) RunAndReturn(run func(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error) *Db_SaveCredential_Call {
+func (_c *Db_SaveCredential_Call) RunAndReturn(run func(ctx context.Context, credential *model.Credential) error) *Db_SaveCredential_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4649,16 +4643,16 @@ func (_c *Db_UpdateAccount_Call) RunAndReturn(run func(ctx context.Context, acco
 }
 
 // UpdateCredential provides a mock function for the type Db
-func (_mock *Db) UpdateCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	ret := _mock.Called(ctx, credential, accountID)
+func (_mock *Db) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
+	ret := _mock.Called(ctx, credentialID, accountID, signCount)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCredential")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.Credential, primitive.ObjectID) error); ok {
-		r0 = returnFunc(ctx, credential, accountID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []byte, primitive.ObjectID, uint32) error); ok {
+		r0 = returnFunc(ctx, credentialID, accountID, signCount)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4672,30 +4666,36 @@ type Db_UpdateCredential_Call struct {
 
 // UpdateCredential is a helper method to define mock.On call
 //   - ctx context.Context
-//   - credential webauthn.Credential
+//   - credentialID []byte
 //   - accountID primitive.ObjectID
-func (_e *Db_Expecter) UpdateCredential(ctx interface{}, credential interface{}, accountID interface{}) *Db_UpdateCredential_Call {
-	return &Db_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", ctx, credential, accountID)}
+//   - signCount uint32
+func (_e *Db_Expecter) UpdateCredential(ctx interface{}, credentialID interface{}, accountID interface{}, signCount interface{}) *Db_UpdateCredential_Call {
+	return &Db_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", ctx, credentialID, accountID, signCount)}
 }
 
-func (_c *Db_UpdateCredential_Call) Run(run func(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID)) *Db_UpdateCredential_Call {
+func (_c *Db_UpdateCredential_Call) Run(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32)) *Db_UpdateCredential_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.Credential
+		var arg1 []byte
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.Credential)
+			arg1 = args[1].([]byte)
 		}
 		var arg2 primitive.ObjectID
 		if args[2] != nil {
 			arg2 = args[2].(primitive.ObjectID)
 		}
+		var arg3 uint32
+		if args[3] != nil {
+			arg3 = args[3].(uint32)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -4706,7 +4706,7 @@ func (_c *Db_UpdateCredential_Call) Return(err error) *Db_UpdateCredential_Call 
 	return _c
 }
 
-func (_c *Db_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error) *Db_UpdateCredential_Call {
+func (_c *Db_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error) *Db_UpdateCredential_Call {
 	_c.Call.Return(run)
 	return _c
 }

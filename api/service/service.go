@@ -109,8 +109,8 @@ type Servicer interface {
 
 type CredentialServicer interface {
 	GetCredentials(context.Context, primitive.ObjectID) ([]model.Credential, error)
-	SaveCredential(context.Context, webauthn.Credential, primitive.ObjectID) error
-	UpdateCredential(context.Context, webauthn.Credential, primitive.ObjectID) error
+	SaveCredential(context.Context, *model.Credential) error
+	UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error
 	DeleteCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID) error
 	DeleteCredentialByID(context.Context, primitive.ObjectID, primitive.ObjectID) error
 }

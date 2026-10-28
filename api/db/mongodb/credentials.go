@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -35,10 +34,8 @@ func NewCredentialRepository(client *mongo.Client, dbName, collectionName string
 }
 
 // SaveCredential saves a WebAuthn credential to the database
-func (r *CredentialRepository) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	cred := model.NewCredentialFromWebAuthn(credential, accountID)
-
-	_, err := r.credentialsColl.InsertOne(ctx, cred)
+func (r *CredentialRepository) SaveCredential(ctx context.Context, credential *model.Credential) error {
+	_, err := r.credentialsColl.InsertOne(ctx, credential)
 	if err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
@@ -47,16 +44,16 @@ func (r *CredentialRepository) SaveCredential(ctx context.Context, credential we
 }
 
 // UpdateCredential updates an existing WebAuthn credential
-func (r *CredentialRepository) UpdateCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
+func (r *CredentialRepository) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
 
 	filter := bson.M{
-		"credential_id": credential.ID,
+		"credential_id": credentialID,
 		"account_id":    accountID,
 	}
 
 	update := bson.M{
 		"$set": bson.M{
-			"authenticator.sign_count": credential.Authenticator.SignCount,
+			"authenticator.sign_count": signCount,
 			"updated_at":               time.Now(),
 		},
 	}

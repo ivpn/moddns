@@ -111,20 +111,20 @@ func (s *passkeyStore) GetCredentialByID(_ context.Context, id primitive.ObjectI
 	return nil, errors.New("credential not found")
 }
 
-func (s *passkeyStore) SaveCredential(_ context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
+func (s *passkeyStore) SaveCredential(_ context.Context, credential *model.Credential) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.credentials = append(s.credentials, *model.NewCredentialFromWebAuthn(credential, accountID))
+	s.credentials = append(s.credentials, *credential)
 	return nil
 }
 
 // UpdateCredential mirrors the Mongo repository: only the sign count is written.
-func (s *passkeyStore) UpdateCredential(_ context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
+func (s *passkeyStore) UpdateCredential(_ context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, c := range s.credentials {
-		if string(c.CredentialID) == string(credential.ID) && c.AccountID == accountID {
-			s.credentials[i].Authenticator.SignCount = credential.Authenticator.SignCount
+		if string(c.CredentialID) == string(credentialID) && c.AccountID == accountID {
+			s.credentials[i].Authenticator.SignCount = signCount
 		}
 	}
 	return nil

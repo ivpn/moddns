@@ -6,7 +6,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -48,8 +47,8 @@ func (s *Service) GetCredentials(ctx context.Context, accountID primitive.Object
 	return credentials, nil
 }
 
-func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	count, err := s.Store.GetCredentialsCount(ctx, accountID)
+func (s *Service) SaveCredential(ctx context.Context, credential *model.Credential) error {
+	count, err := s.Store.GetCredentialsCount(ctx, credential.AccountID)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("error saving credential")
 		return ErrSaveCredential
@@ -59,7 +58,7 @@ func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Creden
 		return ErrMaxExceededCredential
 	}
 
-	err = s.Store.SaveCredential(ctx, credential, accountID)
+	err = s.Store.SaveCredential(ctx, credential)
 	if err != nil {
 		return ErrSaveCredential
 	}
@@ -67,8 +66,8 @@ func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Creden
 	return nil
 }
 
-func (s *Service) UpdateCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	err := s.Store.UpdateCredential(ctx, credential, accountID)
+func (s *Service) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
+	err := s.Store.UpdateCredential(ctx, credentialID, accountID, signCount)
 	if err != nil {
 		return ErrUpdateCredential
 	}

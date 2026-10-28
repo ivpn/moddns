@@ -65,7 +65,7 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 	}
 
 	// Save credential
-	err = s.Store.SaveCredential(ctx, *credential, account.ID)
+	err = s.Store.SaveCredential(ctx, model.NewCredentialFromWebAuthn(*credential, account.ID))
 	if err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
@@ -292,7 +292,7 @@ func (s *Service) finishAssertion(ctx context.Context, tmpToken, ceremonyType, a
 	}
 
 	// Update credential with new sign count
-	err = s.Store.UpdateCredential(ctx, *credential, account.ID)
+	err = s.Store.UpdateCredential(ctx, credential.ID, account.ID, credential.Authenticator.SignCount)
 	if err != nil {
 		return nil, purpose, fmt.Errorf("failed to update credential: %w", err)
 	}
@@ -390,7 +390,7 @@ func (s *Service) FinishAddPasskey(ctx context.Context, accountID, token string,
 	}
 
 	// Save the new credential
-	err = s.SaveCredential(ctx, *credential, account.ID)
+	err = s.SaveCredential(ctx, model.NewCredentialFromWebAuthn(*credential, account.ID))
 	if err != nil {
 		return err
 	}
