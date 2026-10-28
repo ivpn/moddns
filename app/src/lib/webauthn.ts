@@ -60,9 +60,7 @@ export async function registerPasskey(email: string, subid: string): Promise<voi
     }
 
     // Send the registration response to the server
-    const finishResponse = await api.Client.authApi.apiV1WebauthnRegisterFinishPost({
-      data: JSON.stringify(registrationResponse)
-    });
+    const finishResponse = await api.Client.authApi.apiV1WebauthnRegisterFinishPost(registrationResponse);
 
     if (finishResponse.status !== 201) {
       throw new Error("Failed to complete passkey registration");
@@ -133,10 +131,8 @@ export async function authenticateWithPasskey(
 
     // Send the authentication response to the server
     const finishResponse = await api.Client.authApi.apiV1WebauthnLoginFinishPost(
+      authenticationResponse,
       xSessionsRemove ? "true" : undefined, // xSessionsRemove parameter
-      {
-        data: JSON.stringify(authenticationResponse)
-      }
     );
 
     if (finishResponse.status !== 201) {
@@ -248,9 +244,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Send the registration response to the server
-    const finishResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddFinishPost({
-      data: JSON.stringify(registrationResponse)
-    });
+    const finishResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddFinishPost(registrationResponse);
 
     if (finishResponse.status !== 201) {
       throw new Error("Failed to complete passkey addition");
@@ -315,7 +309,7 @@ async function beginReauthForPurpose(purpose: RequestsWebAuthnReauthBeginRequest
     const optionsRecord = options as Record<string, unknown>;
     const opts = optionsRecord.publicKey ? optionsRecord.publicKey : options;
     const assertionResponse = await startAuthentication({ optionsJSON: opts as PublicKeyCredentialRequestOptionsJSON });
-    const finish = await api.Client.authApi.apiV1WebauthnPasskeyReauthFinishPost({ data: JSON.stringify(assertionResponse) });
+    const finish = await api.Client.authApi.apiV1WebauthnPasskeyReauthFinishPost(assertionResponse);
     const token = finish.data.reauth_token;
     if (!token) throw new Error('Missing reauth token');
     return token;
