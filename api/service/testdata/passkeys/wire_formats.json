@@ -1,0 +1,207 @@
+{
+  "add_passkey_ceremony": {
+    "account_id": "<account>",
+    "session_data": {
+      "challenge": "<challenge>",
+      "expires": "<expires>",
+      "rpId": "test.local",
+      "userVerification": "",
+      "user_id": "<account>"
+    },
+    "type": "add_passkey"
+  },
+  "add_passkey_options": {
+    "publicKey": {
+      "authenticatorSelection": {},
+      "challenge": "<challenge>",
+      "excludeCredentials": [
+        {
+          "id": "<credential>",
+          "type": "public-key"
+        }
+      ],
+      "pubKeyCredParams": [
+        {
+          "alg": -7,
+          "type": "public-key"
+        },
+        {
+          "alg": -35,
+          "type": "public-key"
+        },
+        {
+          "alg": -36,
+          "type": "public-key"
+        },
+        {
+          "alg": -257,
+          "type": "public-key"
+        },
+        {
+          "alg": -258,
+          "type": "public-key"
+        },
+        {
+          "alg": -259,
+          "type": "public-key"
+        },
+        {
+          "alg": -37,
+          "type": "public-key"
+        },
+        {
+          "alg": -38,
+          "type": "public-key"
+        },
+        {
+          "alg": -39,
+          "type": "public-key"
+        },
+        {
+          "alg": -8,
+          "type": "public-key"
+        }
+      ],
+      "rp": {
+        "id": "test.local",
+        "name": "modDNS Test"
+      },
+      "timeout": 300000,
+      "user": {
+        "displayName": "wire@example.com",
+        "id": "<account>",
+        "name": "wire@example.com"
+      }
+    }
+  },
+  "login_ceremony": {
+    "account_id": "<account>",
+    "session_data": {
+      "allowed_credentials": [
+        "<credential>"
+      ],
+      "challenge": "<challenge>",
+      "expires": "<expires>",
+      "rpId": "test.local",
+      "userVerification": "",
+      "user_id": "<account>"
+    },
+    "type": "login"
+  },
+  "login_options": {
+    "publicKey": {
+      "allowCredentials": [
+        {
+          "id": "<credential>",
+          "type": "public-key"
+        }
+      ],
+      "challenge": "<challenge>",
+      "rpId": "test.local",
+      "timeout": 300000
+    }
+  },
+  "login_session": {
+    "challenge": "",
+    "expires": "<expires>",
+    "user_id": "<account>"
+  },
+  "reauth_ceremony": {
+    "account_id": "<account>",
+    "purpose": "email_change",
+    "session_data": {
+      "allowed_credentials": [
+        "<credential>"
+      ],
+      "challenge": "<challenge>",
+      "expires": "<expires>",
+      "rpId": "test.local",
+      "userVerification": "",
+      "user_id": "<account>"
+    },
+    "type": "reauth"
+  },
+  "reauth_options": {
+    "publicKey": {
+      "allowCredentials": [
+        {
+          "id": "<credential>",
+          "type": "public-key"
+        }
+      ],
+      "challenge": "<challenge>",
+      "rpId": "test.local",
+      "timeout": 300000
+    }
+  },
+  "registration_ceremony": {
+    "account_id": "<account>",
+    "session_data": {
+      "challenge": "<challenge>",
+      "expires": "<expires>",
+      "rpId": "test.local",
+      "userVerification": "",
+      "user_id": "<account>"
+    },
+    "sub_id": "sub-1",
+    "type": "registration"
+  },
+  "registration_options": {
+    "publicKey": {
+      "authenticatorSelection": {},
+      "challenge": "<challenge>",
+      "pubKeyCredParams": [
+        {
+          "alg": -7,
+          "type": "public-key"
+        },
+        {
+          "alg": -35,
+          "type": "public-key"
+        },
+        {
+          "alg": -36,
+          "type": "public-key"
+        },
+        {
+          "alg": -257,
+          "type": "public-key"
+        },
+        {
+          "alg": -258,
+          "type": "public-key"
+        },
+        {
+          "alg": -259,
+          "type": "public-key"
+        },
+        {
+          "alg": -37,
+          "type": "public-key"
+        },
+        {
+          "alg": -38,
+          "type": "public-key"
+        },
+        {
+          "alg": -39,
+          "type": "public-key"
+        },
+        {
+          "alg": -8,
+          "type": "public-key"
+        }
+      ],
+      "rp": {
+        "id": "test.local",
+        "name": "modDNS Test"
+      },
+      "timeout": 300000,
+      "user": {
+        "displayName": "wire-signup@example.com",
+        "id": "<account>",
+        "name": "wire-signup@example.com"
+      }
+    }
+  }
+}

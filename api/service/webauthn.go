@@ -2,70 +2,79 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/utils"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/passkey"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// passkeyUser describes acc and the credentials it holds to the relying party.
+func passkeyUser(acc *model.Account, credentials []model.Credential) webauthn.User {
+	return webauthn.User{
+		AccountID:   acc.ID,
+		Handle:      acc.WebAuthnID(),
+		Name:        acc.WebAuthnName(),
+		DisplayName: acc.WebAuthnDisplayName(),
+		Credentials: credentials,
+	}
+}
+
+// accountLoader returns a UserLoader that reads the ceremony's account, into *acc
+// when acc is set, and, when getCredentials is set, the credentials it holds.
+func (s *Service) accountLoader(acc **model.Account, getCredentials func(context.Context, primitive.ObjectID) ([]model.Credential, error)) webauthn.UserLoader {
+	return func(ctx context.Context, accountID string) (webauthn.User, error) {
+		account, err := s.Store.GetAccount(ctx, accountID)
+		if err != nil {
+			return webauthn.User{}, fmt.Errorf("failed to get account: %w", err)
+		}
+		var credentials []model.Credential
+		if getCredentials != nil {
+			credentials, err = getCredentials(ctx, account.ID)
+			if err != nil {
+				return webauthn.User{}, fmt.Errorf("failed to get credentials: %w", err)
+			}
+		}
+		if acc != nil {
+			*acc = account
+		}
+		return passkeyUser(account, credentials), nil
+	}
+}
+
+// ceremonyError returns mismatchErr for state begun by another ceremony or account.
+func ceremonyError(err, mismatchErr error) error {
+	if errors.Is(err, webauthn.ErrCeremonyMismatch) {
+		return mismatchErr
+	}
+	return err
+}
+
 // BeginRegistration starts the WebAuthn registration process.
-// subID is the external subscription ID from the signup request; it is stored
-// in the transient session so FinishRegistration can forward it to the webhook.
-func (s *Service) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error) {
-	// Create a user object with credentials
-	user := &passkey.WebAuthnUser{
-		Account:     account,
-		Credentials: make([]webauthn.Credential, 0), // potential issue lies here
-	}
-
-	// Begin registration
-	creation, sessionData, err := s.Webauthn.BeginRegistration(user)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to begin registration: %w", err)
-	}
-
-	// subID is kept so FinishRegistration can forward it to the webhook
-	token, err := s.saveCeremony(ctx, &model.Ceremony{Type: model.CeremonyRegistration, AccountID: account.ID.Hex(), SubID: subID, SessionData: *sessionData})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return creation, token, nil
+// subID is the external subscription ID from the signup request; it is kept with
+// the ceremony so FinishRegistration can forward it to the webhook.
+func (s *Service) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*webauthn.CredentialCreation, string, error) {
+	return s.Webauthn.BeginRegistration(ctx, passkeyUser(account, nil), subID)
 }
 
 // FinishRegistration completes the WebAuthn registration process
 func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error {
-	ceremony, err := s.consumeCeremony(ctx, token, model.CeremonyRegistration, "", passkey.ErrFinishRegistration)
+	var account *model.Account
+	result, err := s.Webauthn.FinishRegistration(ctx, token, s.accountLoader(&account, nil), httpReq)
 	if err != nil {
-		return err
-	}
-
-	// Get account
-	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
-	if err != nil {
-		return fmt.Errorf("failed to get account: %w", err)
-	}
-
-	// Finish registration
-	credential, err := s.Webauthn.FinishRegistration(account, ceremony.SessionData, httpReq)
-	if err != nil {
-		return fmt.Errorf("failed to finish registration: %w", err)
+		return ceremonyError(err, passkey.ErrFinishRegistration)
 	}
 
 	// Save credential
-	err = s.Store.SaveCredential(ctx, *credential, account.ID)
+	err = s.Store.SaveCredential(ctx, result.Credential)
 	if err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
@@ -75,8 +84,8 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 		tokenHash = sub.TokenHash
 	}
 
-	// Use the external subID preserved in the session from BeginRegistration
-	if err = s.CompleteRegistration(ctx, account, ceremony.SubID, paSessionID, tokenHash); err != nil {
+	// Use the external subID preserved in the ceremony from BeginRegistration
+	if err = s.CompleteRegistration(ctx, account, result.SubID, paSessionID, tokenHash); err != nil {
 		return fmt.Errorf("failed to complete registration: %w", err)
 	}
 
@@ -84,7 +93,7 @@ func (s *Service) FinishRegistration(ctx context.Context, token string, httpReq 
 }
 
 // BeginLogin starts the WebAuthn login process
-func (s *Service) BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error) {
+func (s *Service) BeginLogin(ctx context.Context, email string) (*webauthn.CredentialAssertion, string, error) {
 	// Get account by email
 	account, err := s.Store.GetAccountByEmail(ctx, email)
 	if err != nil {
@@ -101,33 +110,10 @@ func (s *Service) BeginLogin(ctx context.Context, email string) (*protocol.Crede
 		return nil, "", fmt.Errorf("no credentials found for account")
 	}
 
-	// Convert to WebAuthn credentials
-	webauthnCreds := make([]webauthn.Credential, len(credentials))
-	for i, cred := range credentials {
-		webauthnCreds[i] = cred.ToWebAuthnCredential()
-	}
-
-	// Create user object
-	user := &passkey.WebAuthnUser{
-		Account:     account,
-		Credentials: webauthnCreds,
-	}
-
-	// Begin login
-	assertion, sessionData, err := s.Webauthn.BeginLogin(user)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to begin login: %w", err)
-	}
-
-	token, err := s.saveCeremony(ctx, &model.Ceremony{Type: model.CeremonyLogin, AccountID: account.ID.Hex(), SessionData: *sessionData})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return assertion, token, nil
+	return s.Webauthn.BeginLogin(ctx, passkeyUser(account, credentials))
 }
 
-func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*protocol.CredentialAssertion, string, error) {
+func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*webauthn.CredentialAssertion, string, error) {
 	// Rate limiting
 	limiter := utils.IDLimiter{Cache: s.Cache, ID: accountId, Label: "reauth_" + purpose + "_begin", Max: s.Cfg.Service.IdLimiterMax, Exp: s.Cfg.Service.IdLimiterExpiration}
 	if err := limiter.Tick(); err != nil {
@@ -155,27 +141,7 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", fmt.Errorf("no credentials found for account")
 	}
 
-	webauthnCreds := make([]webauthn.Credential, len(credentials))
-	for i, cred := range credentials {
-		webauthnCreds[i] = cred.ToWebAuthnCredential()
-	}
-
-	user := &passkey.WebAuthnUser{
-		Account:     acc,
-		Credentials: webauthnCreds,
-	}
-
-	options, sessionData, err := s.Webauthn.BeginLogin(user)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to begin reauth login: %w", err)
-	}
-
-	token, err := s.saveCeremony(ctx, &model.Ceremony{Type: model.CeremonyReauth, AccountID: acc.ID.Hex(), Purpose: purpose, SessionData: *sessionData})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return options, token, nil
+	return s.Webauthn.BeginReauth(ctx, passkeyUser(acc, credentials), purpose)
 }
 
 // reauthTokenTypes maps each passkey reauth purpose to the token type that the
@@ -197,12 +163,13 @@ func reauthTokenType(purpose string) (string, bool) {
 
 // FinishReauth completes the WebAuthn reauthentication process and issues a reauth token
 func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, httpReq *http.Request) (*model.Token, error) {
-	acc, purpose, err := s.finishAssertion(ctx, tmpToken, model.CeremonyReauth, accountID, passkey.ErrFinishReauth, httpReq)
-	if err != nil {
+	var acc *model.Account
+	result, err := s.Webauthn.FinishReauth(ctx, tmpToken, accountID, s.accountLoader(&acc, s.Store.GetCredentials), httpReq)
+	if err = s.recordAssertion(ctx, acc, result, ceremonyError(err, passkey.ErrFinishReauth)); err != nil {
 		return nil, err
 	}
 
-	tokenType, ok := reauthTokenType(purpose)
+	tokenType, ok := reauthTokenType(result.Purpose)
 	if !ok {
 		return nil, account.ErrInvalidReauthToken
 	}
@@ -220,13 +187,15 @@ func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, 
 
 // FinishLogin completes the WebAuthn login process
 func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *http.Request, saveSession bool) (*model.Account, string, string, error) {
-	account, purpose, err := s.finishAssertion(ctx, tmpToken, model.CeremonyLogin, "", passkey.ErrFinishLogin, httpReq)
-	if err != nil {
-		return nil, "", purpose, err
+	var account *model.Account
+	result, err := s.Webauthn.FinishLogin(ctx, tmpToken, s.accountLoader(&account, s.Store.GetCredentials), httpReq)
+	if err = s.recordAssertion(ctx, account, result, ceremonyError(err, passkey.ErrFinishLogin)); err != nil {
+		return nil, "", "", err
 	}
+	purpose := result.Purpose
 
 	// Save the session
-	sessionData := webauthn.SessionData{
+	sessionData := model.SessionPayload{
 		UserID:  account.WebAuthnID(),
 		Expires: time.Now().Add(s.Cfg.API.SessionExpirationTime), // TODO: improve
 	}
@@ -247,63 +216,22 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 	return account, "", purpose, nil
 }
 
-// finishAssertion verifies a WebAuthn assertion against the state of the given
-// ceremony and returns the account it authenticates.
-func (s *Service) finishAssertion(ctx context.Context, tmpToken, ceremonyType, accountID string, mismatchErr error, httpReq *http.Request) (*model.Account, string, error) {
-	ceremony, err := s.consumeCeremony(ctx, tmpToken, ceremonyType, accountID, mismatchErr)
+// recordAssertion stores the new signature counter of the credential a verified
+// login or reauth asserted. It returns err unchanged when the finish call failed.
+func (s *Service) recordAssertion(ctx context.Context, account *model.Account, result *webauthn.Result, err error) error {
 	if err != nil {
-		return nil, "", err
+		return err
 	}
-	purpose := ceremony.Purpose
-
-	// Get account
-	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
-	if err != nil {
-		return nil, purpose, fmt.Errorf("failed to get account: %w", err)
+	if err := s.Store.UpdateCredential(ctx, result.CredentialID, account.ID, result.SignCount); err != nil {
+		return fmt.Errorf("failed to update credential: %w", err)
 	}
-
-	// Get credentials
-	credentials, err := s.Store.GetCredentials(ctx, account.ID)
-	if err != nil {
-		return nil, purpose, fmt.Errorf("failed to get credentials: %w", err)
-	}
-
-	// Convert to WebAuthn credentials
-	webauthnCreds := make([]webauthn.Credential, len(credentials))
-	for i, cred := range credentials {
-		webauthnCreds[i] = cred.ToWebAuthnCredential()
-	}
-
-	// Create user object
-	user := &passkey.WebAuthnUser{
-		Account:     account,
-		Credentials: webauthnCreds,
-	}
-
-	// Finish login
-	credential, err := s.Webauthn.FinishLogin(user, ceremony.SessionData, httpReq)
-	if err != nil {
-		return nil, purpose, fmt.Errorf("failed to finish login: %w", err)
-	}
-
-	// Check for clone warning
-	if credential.Authenticator.CloneWarning {
-		return nil, purpose, fmt.Errorf("credential clone warning: potential security issue")
-	}
-
-	// Update credential with new sign count
-	err = s.Store.UpdateCredential(ctx, *credential, account.ID)
-	if err != nil {
-		return nil, purpose, fmt.Errorf("failed to update credential: %w", err)
-	}
-
-	return account, purpose, nil
+	return nil
 }
 
 // BeginAddPasskey starts the process of adding a new passkey to an existing account
 // The account owner must first verify with the current password (plus TOTP when enabled)
 // or a passkey reauth token issued for passkey_add, so a session alone cannot add a credential.
-func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, currentPassword, reauthToken *string, mfa *model.MfaData) (*protocol.CredentialCreation, string, error) {
+func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, currentPassword, reauthToken *string, mfa *model.MfaData) (*webauthn.CredentialCreation, string, error) {
 	account, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
 		AccountId:        accountID,
 		TokenType:        auth.TokenTypeReauthPasskeyAdd,
@@ -322,79 +250,18 @@ func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, current
 		return nil, "", fmt.Errorf("failed to get credentials: %w", err)
 	}
 
-	// Convert to WebAuthn credentials
-	webauthnCreds := make([]webauthn.Credential, len(credentials))
-	excluded := make([]protocol.CredentialDescriptor, len(credentials))
-	for i, cred := range credentials {
-		webauthnCreds[i] = cred.ToWebAuthnCredential()
-		excluded[i] = webauthnCreds[i].Descriptor()
-	}
-
-	// Create user object with existing credentials
-	user := &passkey.WebAuthnUser{
-		Account:     account,
-		Credentials: webauthnCreds,
-	}
-
-	// An authenticator keeps one discoverable credential per (RP ID, user handle) and
-	// replaces it on a new registration (W3C WebAuthn L3 §6.3.2 step 7.4.4). Excluding the
-	// account's credentials makes it refuse instead (§6.3.2 step 3, §5.4).
-	creation, sessionData, err := s.Webauthn.BeginRegistration(user, webauthn.WithExclusions(excluded))
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to begin add passkey: %w", err)
-	}
-
-	token, err := s.saveCeremony(ctx, &model.Ceremony{Type: model.CeremonyAddPasskey, AccountID: account.ID.Hex(), SessionData: *sessionData})
-	if err != nil {
-		return nil, "", err
-	}
-
-	return creation, token, nil
+	return s.Webauthn.BeginAddPasskey(ctx, passkeyUser(account, credentials))
 }
 
 // FinishAddPasskey completes the process of adding a new passkey to an existing account
 func (s *Service) FinishAddPasskey(ctx context.Context, accountID, token string, httpReq *http.Request) error {
-	ceremony, err := s.consumeCeremony(ctx, token, model.CeremonyAddPasskey, accountID, passkey.ErrFinishAddPasskey)
+	result, err := s.Webauthn.FinishAddPasskey(ctx, token, accountID, s.accountLoader(nil, s.GetCredentials), httpReq)
 	if err != nil {
-		return err
-	}
-
-	// Get account
-	account, err := s.Store.GetAccount(ctx, ceremony.AccountID)
-	if err != nil {
-		return fmt.Errorf("failed to get account: %w", err)
-	}
-
-	// Get existing credentials
-	credentials, err := s.GetCredentials(ctx, account.ID)
-	if err != nil {
-		return fmt.Errorf("failed to get credentials: %w", err)
-	}
-
-	// Convert to WebAuthn credentials
-	webauthnCreds := make([]webauthn.Credential, len(credentials))
-	for i, cred := range credentials {
-		webauthnCreds[i] = cred.ToWebAuthnCredential()
-	}
-
-	// Create user object
-	user := &passkey.WebAuthnUser{
-		Account:     account,
-		Credentials: webauthnCreds,
-	}
-
-	// Finish registration
-	credential, err := s.Webauthn.FinishRegistration(user, ceremony.SessionData, httpReq)
-	if err != nil {
-		return err
+		return ceremonyError(err, passkey.ErrFinishAddPasskey)
 	}
 
 	// Save the new credential
-	err = s.SaveCredential(ctx, *credential, account.ID)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.SaveCredential(ctx, result.Credential)
 }
 
 // GetPasskeysForAccount retrieves passkeys for an account (excluding sensitive data)
@@ -465,44 +332,4 @@ func (s *Service) ensureAnotherSignInMethod(ctx context.Context, accountID primi
 		return passkey.ErrLastSignInMethod
 	}
 	return nil
-}
-
-// saveCeremony stores the state of a ceremony started by a begin call and returns
-// the token that identifies it.
-func (s *Service) saveCeremony(ctx context.Context, ceremony *model.Ceremony) (string, error) {
-	token, err := generateToken()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate ceremony token: %w", err)
-	}
-	if err := s.Cache.SaveCeremony(ctx, token, ceremony, model.CeremonyTimeout); err != nil {
-		return "", fmt.Errorf("failed to save ceremony: %w", err)
-	}
-	return token, nil
-}
-
-// consumeCeremony returns the state saved by a ceremony's begin call. The state is
-// removed as it is read, whether or not the finish call succeeds. State left by a
-// different ceremony, or by another account when accountID is set, yields mismatchErr.
-func (s *Service) consumeCeremony(ctx context.Context, token, ceremonyType, accountID string, mismatchErr error) (*model.Ceremony, error) {
-	if token == "" {
-		return nil, errors.New("missing ceremony token")
-	}
-	ceremony, err := s.Cache.ConsumeCeremony(ctx, token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ceremony: %w", err)
-	}
-	if ceremony.Type != ceremonyType || (accountID != "" && ceremony.AccountID != accountID) {
-		return nil, mismatchErr
-	}
-	return ceremony, nil
-}
-
-// generateToken generates a secure random token
-func generateToken() (string, error) {
-	bytes := make([]byte, 32)
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(bytes), nil
 }

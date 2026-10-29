@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -119,7 +118,7 @@ func (r *SessionRepository) GetSession(ctx context.Context, token string) (model
 }
 
 // SaveSession saves a webauthn session
-func (r *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, accID string) error {
+func (r *SessionRepository) SaveSession(ctx context.Context, sessionData model.SessionPayload, token string, accID string) error {
 	// Serialize the webauthn session data to JSON
 	dataBytes, err := json.Marshal(sessionData)
 	if err != nil {
