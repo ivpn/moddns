@@ -311,7 +311,7 @@ export default function ProfileManagementSection({ profiles }: ProfileManagement
             </div>
 
             {/* Delete Profile Dialog */}
-            {showDeleteDialog && (
+            {showDeleteDialog && activeProfile && (
                 <DeleteProfileDialog
                     open={showDeleteDialog}
                     onOpenChange={setShowDeleteDialog}

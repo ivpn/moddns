@@ -3,11 +3,13 @@ import { createMockAccount, createMockProfiles, createMockBlocklists } from './a
 import type { ModelAccount, ModelProfile } from '@/api/client/api';
 import { AUTH_KEY } from '@/lib/consts';
 
+type DeepPartial<T> = T extends (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
+
 export interface RegisterMocksOptions {
   authenticated?: boolean;
   profilesCount?: number;
   enableBlocklists?: string[];
-  customProfiles?: Partial<ModelProfile>[]; // allow tests to pass partial override objects
+  customProfiles?: DeepPartial<ModelProfile>[]; // allow tests to pass partial override objects
   accountOverride?: Partial<ReturnType<typeof createMockAccount>>;
   extraRoutes?: (page: Page) => Promise<void> | void;
   ensureActiveProfile?: boolean; // new option
@@ -32,7 +34,7 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
 
   const baseAccount: ModelAccount = createMockAccount();
   const account: ModelAccount = { ...baseAccount, ...accountOverride };
-  const profiles: ModelProfile[] = customProfiles || createMockProfiles(profilesCount, {}, enableBlocklists);
+  const profiles = (customProfiles as ModelProfile[] | undefined) || createMockProfiles(profilesCount, {}, enableBlocklists);
   const blocklists = createMockBlocklists();
 
   if (authenticated) {

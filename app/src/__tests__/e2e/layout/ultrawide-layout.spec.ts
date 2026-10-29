@@ -23,8 +23,9 @@ test.describe('@layout Ultrawide clamp alignment', { tag: '@desktop' }, () => {
       const conn = document.querySelector('[data-testid="conn-header-root"]') as HTMLElement | null;
       const connContainer = conn?.parentElement as HTMLElement | null;
       const maxWidth = content ? getComputedStyle(content).maxWidth : '';
-      const result: Record<string, unknown> = { docWidth, maxWidth };
-      const entries: [string, HTMLElement | null][] = [
+      type Box = { width: number; left: number; right: number };
+      const result: { docWidth: number; maxWidth: string; content?: Box; conn?: Box; connContainer?: Box } = { docWidth, maxWidth };
+      const entries: ['content' | 'conn' | 'connContainer', HTMLElement | null][] = [
         ['content', content],
         ['conn', conn],
         ['connContainer', connContainer],
@@ -38,6 +39,7 @@ test.describe('@layout Ultrawide clamp alignment', { tag: '@desktop' }, () => {
     });
 
     expect(metrics.content).toBeDefined();
+    const content = metrics.content!;
     // CSS resolves clamp() to a pixel value; accept either the raw clamp string or the resolved max value
     if (typeof metrics.maxWidth === 'string' && metrics.maxWidth.includes('clamp')) {
       expect(metrics.maxWidth).toContain('clamp');
@@ -46,13 +48,13 @@ test.describe('@layout Ultrawide clamp alignment', { tag: '@desktop' }, () => {
       expect(parsed).toBeGreaterThanOrEqual(CLAMP_BASE - WIDTH_TOLERANCE);
       expect(parsed).toBeLessThanOrEqual(CLAMP_MAX + WIDTH_TOLERANCE);
     }
-    expect(metrics.content.width).toBeGreaterThanOrEqual(CLAMP_BASE - WIDTH_TOLERANCE);
-    expect(metrics.content.width).toBeLessThanOrEqual(CLAMP_MAX + WIDTH_TOLERANCE);
-    expect(metrics.docWidth - metrics.content.width).toBeGreaterThan(300); // clamp engaged on 1920px
+    expect(content.width).toBeGreaterThanOrEqual(CLAMP_BASE - WIDTH_TOLERANCE);
+    expect(content.width).toBeLessThanOrEqual(CLAMP_MAX + WIDTH_TOLERANCE);
+    expect(metrics.docWidth - content.width).toBeGreaterThan(300); // clamp engaged on 1920px
 
     expect(metrics.connContainer || metrics.conn).toBeDefined();
-    const connBox = metrics.connContainer || metrics.conn;
-    expect(Math.abs(metrics.content.width - connBox.width)).toBeLessThanOrEqual(16);
-    expect(Math.abs(metrics.content.left - connBox.left)).toBeLessThanOrEqual(EDGE_TOLERANCE);
+    const connBox = (metrics.connContainer || metrics.conn)!;
+    expect(Math.abs(content.width - connBox.width)).toBeLessThanOrEqual(16);
+    expect(Math.abs(content.left - connBox.left)).toBeLessThanOrEqual(EDGE_TOLERANCE);
   });
 });

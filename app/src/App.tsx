@@ -279,7 +279,7 @@ async function rootLoader() {
 
     if (error instanceof Response) throw error;
     const err = error as Record<string, unknown>;
-    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ?? (error instanceof Error && (error as Record<string, unknown>).status);
+    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ;
     if (status === 401 || status === 404) {
       // Dispatch a unified session expired event; AuthProvider subscriber performs cleanup + toast
       if (typeof window !== 'undefined') {
@@ -345,7 +345,7 @@ async function profilesOnlyLoader() {
   } catch (error: unknown) {
     if (error instanceof Response) throw error;
     const err = error as Record<string, unknown>;
-    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ?? (error instanceof Error && (error as Record<string, unknown>).status);
+    const status = (err?.response as Record<string, unknown>)?.status ?? err?.status ;
     if (status === 401 || status === 404) {
       if (typeof window !== 'undefined') {
         dispatch({ type: 'auth/sessionExpired' });
@@ -697,6 +697,7 @@ function QueryLogsWithLoader() {
 function LoginWrapper() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const from = (location.state as Record<string, unknown>)?.from as Record<string, unknown> | undefined;
   const fromPath = from?.pathname as string || "/home";
 

@@ -10,7 +10,7 @@ import AuthFooter from "@/components/auth/AuthFooter";
 export default function TermsOfService() {
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
     const location = useLocation();
     const hasHistory = location.key !== "default";
 

@@ -168,7 +168,7 @@ export default function FAQ(): JSX.Element {
     const [toggleSignal, setToggleSignal] = useState(0);
     const [toggleState, setToggleState] = useState(false);
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     const toggleAllFAQs = () => {
         setToggleState(!toggleState);

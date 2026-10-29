@@ -11,7 +11,7 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from '@simplewebauthn/browser';
 import api from "@/api/api";
-import type { ApiWebAuthnRegisterBeginRequest, ApiWebAuthnLoginBeginRequest } from "@/api/client";
+import type { ApiWebAuthnRegisterBeginRequest, ApiWebAuthnLoginBeginRequest, RequestsWebAuthnReauthBeginRequestPurposeEnum } from "@/api/client";
 import axios from "axios";
 import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 
@@ -308,9 +308,9 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
  * Begins the WebAuthn ceremony for the given purpose, completes the assertion,
  * and returns the short-lived reauth token from the finish endpoint.
  */
-async function beginReauthForPurpose(purpose: string): Promise<string> {
+async function beginReauthForPurpose(purpose: RequestsWebAuthnReauthBeginRequestPurposeEnum): Promise<string> {
   try {
-    const begin = await api.Client.authApi.apiV1WebauthnPasskeyReauthBeginPost({ purpose: purpose as unknown as string });
+    const begin = await api.Client.authApi.apiV1WebauthnPasskeyReauthBeginPost({ purpose });
     const options = begin.data;
     const optionsRecord = options as Record<string, unknown>;
     const opts = optionsRecord.publicKey ? optionsRecord.publicKey : options;

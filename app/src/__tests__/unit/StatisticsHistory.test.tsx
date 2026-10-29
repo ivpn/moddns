@@ -54,7 +54,7 @@ describe('Delete statistics history', () => {
         // tableRef: statistics-behaviour #S3, #C25
         const user = userEvent.setup();
         const p = mk();
-        (p.settings!.statistics as Record<string, unknown>).enabled_at = new Date(Date.now() - 3 * 86_400_000 - 60_000).toISOString();
+        p.settings!.statistics!.enabled_at = new Date(Date.now() - 3 * 86_400_000 - 60_000).toISOString();
         mount(p);
         await openDelete(user);
         const dialog = await screen.findByRole('dialog', { name: 'Delete statistics history?' });

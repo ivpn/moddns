@@ -178,7 +178,7 @@ describe('DataCollectionControl', () => {
         // tableRef: statistics-behaviour #C25, #C8
         const user = userEvent.setup();
         const p = mk('p1', 'stats');
-        (p.settings!.statistics as Record<string, unknown>).enabled_at = new Date(Date.now() - 10 * 86_400_000 - 3_600_000).toISOString();
+        p.settings!.statistics!.enabled_at = new Date(Date.now() - 10 * 86_400_000 - 3_600_000).toISOString();
         seed(p);
         render(<DataCollectionControl profile={p} />);
         await user.click(box('Statistics'));
@@ -191,7 +191,7 @@ describe('DataCollectionControl', () => {
         // tableRef: statistics-behaviour #C24, #C25, #T15
         const user = userEvent.setup();
         const old = mk('p1', 'stats');
-        Object.assign(old.settings!.statistics as Record<string, unknown>, { retention: '1y', enabled_at: new Date(Date.now() - 100 * 86_400_000).toISOString() });
+        Object.assign(old.settings!.statistics!, { retention: '1y' as const, enabled_at: new Date(Date.now() - 100 * 86_400_000).toISOString() });
         seed(old);
         const { unmount } = render(<DataCollectionControl profile={old} />);
         await user.click(screen.getByRole('radio', { name: '30 days' }));
@@ -199,7 +199,7 @@ describe('DataCollectionControl', () => {
         unmount();
 
         const fresh = mk('p1', 'stats');
-        Object.assign(fresh.settings!.statistics as Record<string, unknown>, { retention: '1y', enabled_at: new Date(Date.now() - 5 * 86_400_000).toISOString() });
+        Object.assign(fresh.settings!.statistics!, { retention: '1y' as const, enabled_at: new Date(Date.now() - 5 * 86_400_000).toISOString() });
         seed(fresh);
         patch.mockResolvedValue({ status: 200, data: fresh });
         render(<DataCollectionControl profile={fresh} />);

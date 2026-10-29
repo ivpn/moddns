@@ -68,7 +68,9 @@ const platformIcons: { [key: string]: React.ReactNode } = {
     "Device Identification": <Smartphone className="w-5 h-5" />,
 };
 
-const platformGuides: { [key: string]: { badges?: { label: string }[]; steps?: { instruction: React.ReactNode; step?: number }[] } | null } = {
+type GuideContent = { badges?: { label: string }[]; steps?: { instruction: React.ReactNode; step?: number }[] };
+
+const platformGuides: { [key: string]: GuideContent | null } = {
     "Windows": WindowsGuide,
     "Linux": LinuxGuide,
     "Android": AndroidGuide,
@@ -87,7 +89,7 @@ export default function SetupGuidePanel({ platform, onClose, isVisible = true, m
     const effectiveDomain = profileData?.domain || 'example.com';
     const dohEndpoint = profileData?.dohEndpoint || 'https://example.com/dns-query/your-profile-id';
     // Handle Device Identification dynamically with actual values
-    let guide;
+    let guide: GuideContent;
     if (platform === "Device Identification") {
         guide = {
             badges: deviceIdentificationBadges,

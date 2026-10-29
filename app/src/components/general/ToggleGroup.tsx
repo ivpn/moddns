@@ -23,7 +23,7 @@ export interface ToggleGroupProps {
     labelledBy?: string;
     /** Accessible name when no visible element names the group; exposes it as a radiogroup. */
     ariaLabel?: string;
-    groupProps?: React.ComponentProps<typeof UIToggleGroup>;
+    groupProps?: Omit<React.ComponentProps<typeof UIToggleGroup>, "type" | "value" | "defaultValue" | "onValueChange">;
     itemProps?: Partial<React.ComponentProps<typeof UIToggleGroupItem>>;
 }
 

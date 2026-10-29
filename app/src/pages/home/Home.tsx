@@ -17,7 +17,7 @@ import VerificationBanner from '@/pages/setup/VerificationBanner';
 const Entry = (): JSX.Element => {
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
     const account = useAppStore(state => state.account);
     const emailVerified = account?.email_verified;
 

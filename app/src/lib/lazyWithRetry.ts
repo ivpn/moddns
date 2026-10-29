@@ -1,10 +1,11 @@
-import { lazy, ComponentType, LazyExoticComponent } from 'react';
+import { lazy, type ComponentType, type LazyExoticComponent } from 'react';
 
 /**
  * A lazy component that can also be preloaded imperatively (e.g. on nav hover)
  * to warm its chunk before the user clicks.
  */
-export type PreloadableComponent<T extends ComponentType<unknown>> =
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- same constraint as React.lazy
+export type PreloadableComponent<T extends ComponentType<any>> =
   LazyExoticComponent<T> & { preload: () => Promise<{ default: T }> };
 
 /**
@@ -18,7 +19,8 @@ export type PreloadableComponent<T extends ComponentType<unknown>> =
  * import ahead of render. The import promise is memoized, so preload() on hover
  * followed by React.lazy resolving on click share a single in-flight request.
  */
-export function lazyWithRetry<T extends ComponentType<unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- same constraint as React.lazy
+export function lazyWithRetry<T extends ComponentType<any>>(
   importFn: () => Promise<{ default: T }>,
   retries = 2
 ): PreloadableComponent<T> {
