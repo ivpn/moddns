@@ -271,29 +271,40 @@ func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionR
 	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }
 
-// ReconcileStatistics runs one statistics reconcile (api-endpoint-behaviour.md J8, J9).
+// PurgeStatistics runs one statistics purge (api-endpoint-behaviour.md J8, J9).
 // Logs carry counts only.
-func ReconcileStatistics(statsReconciler StatisticsReconciler) {
+func PurgeStatistics(statsPurger StatisticsPurger) {
 	ctx := context.Background()
-	ctx = log.With().Str("cron_job", "reconcile-statistics").Logger().WithContext(ctx)
+	ctx = log.With().Str("cron_job", "purge-statistics").Logger().WithContext(ctx)
 
-	res, err := statsReconciler.ReconcileStatistics(ctx)
+	res, err := statsPurger.PurgeStatistics(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics reconcile failed")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics purge failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("deleted", res.Deleted).Int("moved", res.Moved).Int("failed", res.Failed).Msg("Cron: statistics reconcile complete")
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored data outlives its settings until a run reaches the profile (J9).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge complete")
 }
 
-// PurgeUnconsentedQueryLogs runs one unconsented query-logs sweep (api-endpoint-behaviour.md J14).
-func PurgeUnconsentedQueryLogs(logsPurger UnconsentedQueryLogsPurger) {
+// PurgeQueryLogs runs one query-logs purge (api-endpoint-behaviour.md J13, J14).
+// Logs carry counts only.
+func PurgeQueryLogs(logsPurger QueryLogsPurger) {
 	ctx := context.Background()
-	ctx = log.With().Str("cron_job", "purge-unconsented-query-logs").Logger().WithContext(ctx)
+	ctx = log.With().Str("cron_job", "purge-query-logs").Logger().WithContext(ctx)
 
-	res, err := logsPurger.PurgeUnconsentedQueryLogs(ctx)
+	res, err := logsPurger.PurgeQueryLogs(ctx)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Msg("Cron: unconsented query-logs purge failed")
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: query-logs purge failed")
 		return
 	}
-	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("purged", res.Purged).Int("failed", res.Failed).Msg("Cron: unconsented query-logs purge complete")
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored logs outlive their settings until a run reaches the profile (J14).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge complete")
 }

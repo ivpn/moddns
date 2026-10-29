@@ -1772,6 +1772,8 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "maximum": 1000,
+                        "minimum": 1,
                         "type": "integer",
                         "default": 1,
                         "description": "specify page number",
@@ -1781,7 +1783,7 @@ const docTemplate = `{
                     {
                         "type": "integer",
                         "default": 100,
-                        "description": "specify logs limit by page",
+                        "description": "specify logs limit by page; page * limit is at most 10000",
                         "name": "limit",
                         "in": "query"
                     },

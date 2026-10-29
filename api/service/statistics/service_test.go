@@ -25,7 +25,7 @@ func stats(enabled bool, at *time.Time) *model.StatisticsSettings {
 func atp(t time.Time) *time.Time { return &t }
 
 // specRef: api-endpoint-behaviour.md J8
-func TestReconcileBound(t *testing.T) {
+func TestPurgeBound(t *testing.T) {
 	tests := []struct {
 		name       string
 		exists     bool
@@ -42,7 +42,7 @@ func TestReconcileBound(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			before := statistics.ReconcileBound(tt.exists, tt.settings)
+			before := statistics.PurgeBound(tt.exists, tt.settings)
 			if tt.wantBefore == nil {
 				require.Nil(t, before)
 			} else {
@@ -68,15 +68,15 @@ func TestPurgeBestEffort(t *testing.T) {
 	}
 }
 
-type reconcileHarness struct {
+type purgeHarness struct {
 	stats    *mocks.StatisticsRepository
 	profiles *mocks.ProfileRepository
 	svc      *statistics.StatisticsService
 }
 
-func newReconcileHarness(t *testing.T, opts ...statistics.Option) *reconcileHarness {
+func newPurgeHarness(t *testing.T, opts ...statistics.Option) *purgeHarness {
 	t.Helper()
-	h := &reconcileHarness{stats: mocks.NewStatisticsRepository(t), profiles: mocks.NewProfileRepository(t)}
+	h := &purgeHarness{stats: mocks.NewStatisticsRepository(t), profiles: mocks.NewProfileRepository(t)}
 	h.svc = statistics.NewStatisticsService(h.stats, append([]statistics.Option{statistics.WithProfiles(h.profiles)}, opts...)...)
 	h.profiles.On("UnsetStatisticsDisabledAtBefore", mock.Anything, mock.Anything).Return(int64(0), nil).Maybe()
 	return h
@@ -84,7 +84,7 @@ func newReconcileHarness(t *testing.T, opts ...statistics.Option) *reconcileHarn
 
 // specRef: api-endpoint-behaviour.md G22, J8 — each run drops disabled_at stamped before the current
 // UTC day; a failure there is logged and the run goes on.
-func TestReconcileStatistics_DropsStaleDisabledAt(t *testing.T) {
+func TestPurgeStatistics_DropsStaleDisabledAt(t *testing.T) {
 	now := utc(2026, 10, 22, 13, 5, 0)
 	for _, failing := range []bool{false, true} {
 		t.Run(fmt.Sprintf("failing=%v", failing), func(t *testing.T) {
@@ -98,15 +98,15 @@ func TestReconcileStatistics_DropsStaleDisabledAt(t *testing.T) {
 			profiles.On("UnsetStatisticsDisabledAtBefore", mock.Anything, utc(2026, 10, 22, 0, 0, 0)).Return(int64(3), err).Once()
 			stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{}, nil).Once()
 
-			_, runErr := svc.ReconcileStatistics(context.Background())
+			_, runErr := svc.PurgeStatistics(context.Background())
 			require.NoError(t, runErr)
 		})
 	}
 }
 
 // specRef: api-endpoint-behaviour.md J8, J9 — each profile id gets the rule's decision; counts are returned.
-func TestReconcileStatistics_AppliesRulePerProfile(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeStatistics_AppliesRulePerProfile(t *testing.T) {
+	h := newPurgeHarness(t)
 	enabledAt := utc(2026, 9, 29, 10, 7, 0)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"gone", "off", "on-ts"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"gone", "off", "on-ts"}).Return(map[string]*model.StatisticsSettings{
@@ -117,16 +117,16 @@ func TestReconcileStatistics_AppliesRulePerProfile(t *testing.T) {
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "on-ts", mock.MatchedBy(func(b *time.Time) bool {
 		return b != nil && b.Equal(enabledAt)
 	})).Return(int64(1), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on-ts", model.StatisticsRetention30d, mock.Anything).Return(0, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "on-ts", model.StatisticsRetention30d, mock.Anything).Return(int64(0), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 3, Deleted: 7}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 3, Total: 3, Deleted: 7}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — profile lookups are batched.
-func TestReconcileStatistics_BatchesProfileLookups(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeStatistics_BatchesProfileLookups(t *testing.T) {
+	h := newPurgeHarness(t)
 	enabledAt := utc(2026, 9, 29, 10, 7, 0)
 	ids := make([]string, 2500)
 	settings := map[string]*model.StatisticsSettings{}
@@ -138,77 +138,98 @@ func TestReconcileStatistics_BatchesProfileLookups(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
 		Return(settings, nil).Times(3)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything).Return(int64(0), nil).Times(2500)
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(0, nil).Times(2500)
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(int64(0), nil).Times(2500)
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2500}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2500, Total: 2500}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a failed delete is counted and the run continues; the profile is retried next run.
-func TestReconcileStatistics_DeleteFailureDoesNotStopTheRun(t *testing.T) {
-	h := newReconcileHarness(t)
+func TestPurgeStatistics_DeleteFailureDoesNotStopTheRun(t *testing.T) {
+	h := newPurgeHarness(t)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Return(int64(0), errors.New("boom")).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "b", (*time.Time)(nil)).Return(int64(3), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2, Deleted: 3, Failed: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Total: 2, Deleted: 3, Failed: 1}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — the first per-profile timeout ends the run.
-func TestReconcileStatistics_JobTimeoutStopsTheRun(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithReconcileTimeouts(20*time.Millisecond, time.Minute))
+func TestPurgeStatistics_JobTimeoutStopsTheRun(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithPurgeTimeouts(20*time.Millisecond, time.Minute))
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Run(func(args mock.Arguments) {
 		<-args.Get(0).(context.Context).Done()
 	}).Return(int64(0), context.DeadlineExceeded).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 1, Failed: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Total: 2, Failed: 1}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — past the whole-run deadline no further profile is processed.
-func TestReconcileStatistics_RunDeadlineStopsTheRun(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithReconcileTimeouts(time.Minute, 50*time.Millisecond))
+func TestPurgeStatistics_RunDeadlineStopsTheRun(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithPurgeTimeouts(time.Minute, 50*time.Millisecond))
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "a", (*time.Time)(nil)).Run(func(mock.Arguments) {
 		time.Sleep(120 * time.Millisecond)
 	}).Return(int64(1), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 1, Deleted: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Total: 2, Deleted: 1}, res)
 	h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, "b", mock.Anything)
 }
 
 // specRef: api-endpoint-behaviour.md J9 — read failures abort the run with an error.
-func TestReconcileStatistics_ReadFailuresAbort(t *testing.T) {
+func TestPurgeStatistics_ReadFailuresAbort(t *testing.T) {
 	t.Run("listing ids", func(t *testing.T) {
-		h := newReconcileHarness(t)
+		h := newPurgeHarness(t)
 		h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.ReconcileStatistics(context.Background())
+		_, err := h.svc.PurgeStatistics(context.Background())
 		require.Error(t, err)
 	})
 	t.Run("profile lookup", func(t *testing.T) {
-		h := newReconcileHarness(t)
+		h := newPurgeHarness(t)
 		h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a"}, nil)
 		h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.ReconcileStatistics(context.Background())
+		_, err := h.svc.PurgeStatistics(context.Background())
 		require.Error(t, err)
 		h.stats.AssertNotCalled(t, "DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything)
 	})
 }
 
 // specRef: api-endpoint-behaviour.md J9 — a lookup failure must never be read as "profile missing".
-func TestReconcileStatistics_NoProfileReaderDeletesNothing(t *testing.T) {
+func TestPurgeStatistics_NoProfileReaderDeletesNothing(t *testing.T) {
 	stats := mocks.NewStatisticsRepository(t)
-	_, err := statistics.NewStatisticsService(stats).ReconcileStatistics(context.Background())
+	_, err := statistics.NewStatisticsService(stats).PurgeStatistics(context.Background())
 	require.Error(t, err)
+}
+
+// specRef: api-endpoint-behaviour.md J9 — a run that reaches its deadline while loading a later batch's settings
+// ends with its counts, like any other early stop, instead of failing.
+func TestPurgeStatistics_DeadlineDuringALaterLookupKeepsTheCounts(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithPurgeTimeouts(time.Minute, 200*time.Millisecond))
+	ids := make([]string, 1001)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("p%d", i)
+	}
+	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return(ids, nil)
+	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) == 1000 })).
+		Return(map[string]*model.StatisticsSettings{}, nil).Once()
+	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"p1000"}).Run(func(args mock.Arguments) {
+		<-args.Get(0).(context.Context).Done()
+	}).Return(nil, context.DeadlineExceeded).Once()
+	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, (*time.Time)(nil)).Return(int64(0), nil).Times(1000)
+
+	res, err := h.svc.PurgeStatistics(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1000, Total: 1001}, res)
 }

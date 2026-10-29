@@ -220,22 +220,29 @@ func (s *ProfileRepositorySuite) TestUpdateFields_MissingProfile() {
 	s.ErrorIs(err, dbErrors.ErrProfileNotFound)
 }
 
-// specRef: api-endpoint-behaviour.md J13, J14 — one query returns logs.enabled per existing profile.
-func (s *ProfileRepositorySuite) TestGetProfilesLogsEnabled() {
+// specRef: api-endpoint-behaviour.md J13, J14 — one query returns the logs settings per existing profile.
+func (s *ProfileRepositorySuite) TestGetProfilesLogsSettings() {
 	ctx := context.Background()
+	logs := func(enabled bool, retention string) bson.D {
+		return bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: enabled}, {Key: "retention", Value: retention}}}}
+	}
 	_, err := s.repo.profilesCollection.InsertMany(ctx, []any{
-		bson.D{{Key: "profile_id", Value: "on"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}}}}},
-		bson.D{{Key: "profile_id", Value: "off"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: false}}}}}},
+		bson.D{{Key: "profile_id", Value: "on"}, {Key: "settings", Value: logs(true, "1w")}},
+		bson.D{{Key: "profile_id", Value: "off"}, {Key: "settings", Value: logs(false, "1d")}},
 		bson.D{{Key: "profile_id", Value: "no-block"}, {Key: "settings", Value: bson.D{}}},
-		bson.D{{Key: "profile_id", Value: "other"}, {Key: "settings", Value: bson.D{{Key: "logs", Value: bson.D{{Key: "enabled", Value: true}}}}}},
+		bson.D{{Key: "profile_id", Value: "other"}, {Key: "settings", Value: logs(true, "1h")}},
 	})
 	s.Require().NoError(err)
 
-	got, err := s.repo.GetProfilesLogsEnabled(ctx, []string{"on", "off", "no-block", "missing"})
+	got, err := s.repo.GetProfilesLogsSettings(ctx, []string{"on", "off", "no-block", "missing"})
 	s.Require().NoError(err)
-	s.Equal(map[string]bool{"on": true, "off": false, "no-block": false}, got)
+	s.Equal(map[string]*model.LogsSettings{
+		"on":       {Enabled: true, Retention: model.RetentionOneWeek},
+		"off":      {Enabled: false, Retention: model.RetentionOneDay},
+		"no-block": nil,
+	}, got)
 
-	empty, err := s.repo.GetProfilesLogsEnabled(ctx, nil)
+	empty, err := s.repo.GetProfilesLogsSettings(ctx, nil)
 	s.Require().NoError(err)
 	s.Empty(empty)
 }

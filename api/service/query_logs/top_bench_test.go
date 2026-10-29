@@ -6,6 +6,7 @@ package querylogs
 //
 //	BENCH_QUERY_LOGS_TOP=1 go test ./service/query_logs/ -run TestBenchmarkQueryLogsTop -v
 //	BENCH_DOCS=3000000 BENCH_CLIENTS=500 BENCH_QUERY_LOGS_TOP=1 go test ... (overrides)
+//	BENCH_SPLIT=1 ... (the last 7 days in query_logs_1w, as after raising 1w -> 1m)
 //
 // Reports p50/p95 over BENCH_RUNS runs (default 15) per aggregation and
 // timespan. The first run of each series is cold.
@@ -77,8 +78,13 @@ func TestBenchmarkQueryLogsTop(t *testing.T) {
 			SetMetaField("profile_id").
 			SetGranularity("seconds"),
 	).SetExpireAfterSeconds(2592000)
-	require.NoError(t, client.Database(dbName).CreateCollection(ctx, "query_logs_1m", tsOpts))
+	// All five exist in production (the proxy creates them); reads probe every one.
+	for _, rt := range model.Retentions() {
+		require.NoError(t, client.Database(dbName).CreateCollection(ctx, "query_logs_"+string(rt), tsOpts))
+	}
 	coll := client.Database(dbName).Collection("query_logs_1m")
+	recent := client.Database(dbName).Collection("query_logs_1w")
+	split := os.Getenv("BENCH_SPLIT") == "1"
 
 	docCount := benchEnvInt("BENCH_DOCS", 1_000_000)
 	clientCount := benchEnvInt("BENCH_CLIENTS", 200)
@@ -90,6 +96,14 @@ func TestBenchmarkQueryLogsTop(t *testing.T) {
 	now := time.Now()
 	seedStart := time.Now()
 	batch := make([]any, 0, batchSize)
+	recentBatch := make([]any, 0, batchSize)
+	flush := func(c *mongo.Collection, b *[]any) {
+		if len(*b) > 0 {
+			_, err := c.InsertMany(ctx, *b)
+			require.NoError(t, err)
+			*b = (*b)[:0]
+		}
+	}
 	for i := 0; i < docCount; i++ {
 		status := "processed"
 		if i%5 == 0 {
@@ -104,7 +118,11 @@ func TestBenchmarkQueryLogsTop(t *testing.T) {
 			clientIdx = i % 5 // busy clients
 		}
 		ts := now.Add(-time.Duration(i%(30*24*60)) * time.Minute)
-		batch = append(batch, bson.D{
+		target := &batch
+		if split && now.Sub(ts) < 7*24*time.Hour {
+			target = &recentBatch
+		}
+		*target = append(*target, bson.D{
 			{Key: "timestamp", Value: ts},
 			{Key: "profile_id", Value: profileID},
 			{Key: "device_id", Value: "device-00"},
@@ -120,16 +138,15 @@ func TestBenchmarkQueryLogsTop(t *testing.T) {
 			{Key: "protocol", Value: "udp"},
 		})
 		if len(batch) == batchSize {
-			_, err := coll.InsertMany(ctx, batch)
-			require.NoError(t, err)
-			batch = batch[:0]
+			flush(coll, &batch)
+		}
+		if len(recentBatch) == batchSize {
+			flush(recent, &recentBatch)
 		}
 	}
-	if len(batch) > 0 {
-		_, err := coll.InsertMany(ctx, batch)
-		require.NoError(t, err)
-	}
-	t.Logf("seeded %d docs (5000 domains, %d clients, 20%% blocked) in %s", docCount, clientCount, time.Since(seedStart).Round(time.Millisecond))
+	flush(coll, &batch)
+	flush(recent, &recentBatch)
+	t.Logf("seeded %d docs (5000 domains, %d clients, 20%% blocked, split=%v) in %s", docCount, clientCount, split, time.Since(seedStart).Round(time.Millisecond))
 
 	series := func(name string, fn func() error) {
 		durs := make([]time.Duration, 0, runs)

@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -9,7 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/api/service/profile"
 	"github.com/ivpn/dns/api/service/statistics"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -334,23 +338,73 @@ func TestNotifyExpiring_PostFilterSkipsPDAndGrace(t *testing.T) {
 	NotifyExpiringSubscriptions(subRepo, accountRepo, mailer)
 }
 
-type fakeStatisticsReconciler struct {
+type fakeStatisticsPurger struct {
 	calls int
+	res   statistics.StatisticsPurgeResult
 	err   error
 }
 
-func (f *fakeStatisticsReconciler) ReconcileStatistics(_ context.Context) (statistics.StatisticsReconcileResult, error) {
+func (f *fakeStatisticsPurger) PurgeStatistics(_ context.Context) (statistics.StatisticsPurgeResult, error) {
 	f.calls++
-	return statistics.StatisticsReconcileResult{Checked: 1}, f.err
+	if f.res == (statistics.StatisticsPurgeResult{}) {
+		return statistics.StatisticsPurgeResult{Checked: 1, Total: 1}, f.err
+	}
+	return f.res, f.err
+}
+
+type fakeQueryLogsPurger struct {
+	res profile.QueryLogsPurgeResult
+}
+
+func (f *fakeQueryLogsPurger) PurgeQueryLogs(_ context.Context) (profile.QueryLogsPurgeResult, error) {
+	return f.res, nil
+}
+
+// captureLog sends the global logger to a buffer for the test.
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := log.Logger
+	log.Logger = zerolog.New(&buf)
+	t.Cleanup(func() { log.Logger = prev })
+	return &buf
+}
+
+// specRef: api-endpoint-behaviour.md J9, J14 — a run that ends before reaching every profile, or with failed
+// profiles, logs a warning with counts only; a complete run logs info.
+func TestPurgeJobs_WarnWhenProfilesAreLeft(t *testing.T) {
+	cases := []struct {
+		name  string
+		stats statistics.StatisticsPurgeResult
+		logs  profile.QueryLogsPurgeResult
+		level string
+	}{
+		{name: "complete", stats: statistics.StatisticsPurgeResult{Checked: 3, Total: 3}, logs: profile.QueryLogsPurgeResult{Checked: 3, Total: 3}, level: `"level":"info"`},
+		{name: "stopped early", stats: statistics.StatisticsPurgeResult{Checked: 2, Total: 3}, logs: profile.QueryLogsPurgeResult{Checked: 2, Total: 3}, level: `"level":"warn"`},
+		{name: "failed profiles", stats: statistics.StatisticsPurgeResult{Checked: 3, Total: 3, Failed: 1}, logs: profile.QueryLogsPurgeResult{Checked: 3, Total: 3, Failed: 1}, level: `"level":"warn"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf := captureLog(t)
+			PurgeStatistics(&fakeStatisticsPurger{res: tc.stats})
+			require.Contains(t, buf.String(), tc.level)
+			require.Contains(t, buf.String(), `"total":3`)
+
+			buf.Reset()
+			PurgeQueryLogs(&fakeQueryLogsPurger{res: tc.logs})
+			require.Contains(t, buf.String(), tc.level)
+			require.Contains(t, buf.String(), `"cron_job":"purge-query-logs"`)
+		})
+	}
 }
 
 // specRef: api-endpoint-behaviour.md J9
-func TestReconcileStatistics_RunsAndSurvivesErrors(t *testing.T) {
-	ok := &fakeStatisticsReconciler{}
-	ReconcileStatistics(ok)
+func TestPurgeStatistics_RunsAndSurvivesErrors(t *testing.T) {
+	ok := &fakeStatisticsPurger{}
+	PurgeStatistics(ok)
 	require.Equal(t, 1, ok.calls)
 
-	failing := &fakeStatisticsReconciler{err: errors.New("mongo down")}
-	require.NotPanics(t, func() { ReconcileStatistics(failing) })
+	failing := &fakeStatisticsPurger{err: errors.New("mongo down")}
+	require.NotPanics(t, func() { PurgeStatistics(failing) })
 	require.Equal(t, 1, failing.calls)
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,8 +19,8 @@ import (
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Profile ID"
-// @Param        page    query     int  false  "specify page number" default(1)
-// @Param        limit    query     int  false  "specify logs limit by page" default(100)
+// @Param        page    query     int  false  "specify page number" default(1) minimum(1) maximum(1000)
+// @Param        limit    query     int  false  "specify logs limit by page; page * limit is at most 10000" default(100)
 // @Param        status    query     string  false  "specify status for query" Enums(all,blocked,processed,unanswered) default("all")
 // @Param        timespan    query     string  false  "specify timespan for query" default("LAST_1_HOUR")
 // @Param        device_id    query     string  false  "specify device ID for filtering"
@@ -45,6 +46,9 @@ func (s *APIServer) getProfileQueryLogs() fiber.Handler {
 		err := s.Validator.Validator.Struct(queryParams)
 		if err != nil {
 			return HandleError(c, ErrInvalidRequestBody, err.Error())
+		}
+		if queryParams.Page*queryParams.Limit > requests.QueryLogsMaxRows {
+			return HandleError(c, ErrInvalidRequestBody, fmt.Sprintf("page * limit must be at most %d", requests.QueryLogsMaxRows))
 		}
 
 		accountId := auth.GetAccountID(c)

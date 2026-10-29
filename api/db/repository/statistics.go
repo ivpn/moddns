@@ -21,9 +21,8 @@ type StatisticsRepository interface {
 	// DeleteProfileStatisticsThrough removes the profile's buckets up to and including the one
 	// of each tier's width that contains at (api-endpoint-behaviour.md J53).
 	DeleteProfileStatisticsThrough(ctx context.Context, profileId string, at time.Time) (int64, error)
-	// MoveProfileDailyStatistics leaves the profile's daily statistics only in collections no
-	// longer than to: documents of longer daily collections with bucket_start >= since are
-	// copied unchanged into to's collection, then removed there with the older ones. It
-	// returns the number of documents copied.
-	MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error)
+	// TrimProfileDailyStatistics deletes the profile's daily documents with bucket_start before
+	// floor_day(now - retention) from every daily collection longer than retention and returns
+	// the number deleted.
+	TrimProfileDailyStatistics(ctx context.Context, profileId string, retention model.StatisticsRetention, now time.Time) (int64, error)
 }

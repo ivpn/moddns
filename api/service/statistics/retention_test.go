@@ -6,109 +6,45 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/statistics"
-	"github.com/ivpn/dns/libs/dislock"
 )
 
-func testLocker(t *testing.T) *dislock.Locker {
-	t.Helper()
-	mr := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: mr.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
-	return dislock.New(client, statistics.RetentionMoveLockPrefix)
-}
-
-// specRef: api-endpoint-behaviour.md J50 — the move keeps documents since floor_day(now − retention)
-// and invalidates the read cache.
-func TestMoveToRetention(t *testing.T) {
-	for _, tc := range []struct {
-		retention model.StatisticsRetention
-		since     time.Time
-	}{
-		{model.StatisticsRetention30d, utc(2026, 9, 5, 0, 0, 0)},
-		{model.StatisticsRetention90d, utc(2026, 7, 7, 0, 0, 0)},
-		{"", utc(2026, 9, 5, 0, 0, 0)},
-	} {
+// specRef: api-endpoint-behaviour.md J50 — the trim measures the retention from now and drops the read cache
+// only when it deleted something.
+func TestTrimToRetention(t *testing.T) {
+	for _, deleted := range []int64{0, 3} {
 		repo := mocks.NewStatisticsRepository(t)
 		cache := newFakeReadCache()
 		svc := readService(t, repo, cache)
-		svc.SetRetentionMoveLocker(testLocker(t))
-		repo.On("MoveProfileDailyStatistics", mock.Anything, "p1", tc.retention.OrDefault(),
-			mock.MatchedBy(func(since time.Time) bool { return since.Equal(tc.since) })).Return(4, nil).Once()
+		repo.On("TrimProfileDailyStatistics", mock.Anything, "p1", model.StatisticsRetention30d, readNow).Return(deleted, nil).Once()
 
-		moved, err := svc.MoveToRetention(context.Background(), "p1", tc.retention)
+		got, err := svc.TrimToRetention(context.Background(), "p1", model.StatisticsRetention30d)
 		require.NoError(t, err)
-		require.Equal(t, 4, moved)
-		require.Equal(t, []string{"p1"}, cache.invalidated)
+		require.Equal(t, deleted, got)
+		if deleted > 0 {
+			require.Equal(t, []string{"p1"}, cache.invalidated)
+		} else {
+			require.Empty(t, cache.invalidated)
+		}
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J50 — a move already running elsewhere is skipped, not repeated.
-func TestMoveToRetention_SkipsWhenLocked(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J50 — a failed trim on lowering is only logged.
+func TestTrimBestEffort(t *testing.T) {
 	repo := mocks.NewStatisticsRepository(t)
-	svc := readService(t, repo, nil)
-	locker := testLocker(t)
-	svc.SetRetentionMoveLocker(locker)
-	held, err := locker.TryLock(context.Background(), "p1", time.Minute)
-	require.NoError(t, err)
-	defer func() { _ = held.Unlock(context.Background()) }()
-
-	moved, err := svc.MoveToRetention(context.Background(), "p1", model.StatisticsRetention30d)
-	require.NoError(t, err)
-	require.Zero(t, moved)
-	repo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	repo.On("TrimProfileDailyStatistics", mock.Anything, "p1", model.StatisticsRetention30d, mock.Anything).Return(int64(0), errors.New("boom")).Once()
+	readService(t, repo, nil).TrimBestEffort(context.Background(), "p1", model.StatisticsRetention30d)
 }
 
-// specRef: api-endpoint-behaviour.md J50 - the immediate move runs in the background: MoveBestEffort
-// returns before it starts, the move outlives the caller's context under its own deadline, and an
-// error is only logged.
-func TestMoveBestEffort(t *testing.T) {
-	repo := mocks.NewStatisticsRepository(t)
-	var moveErr error
-	var deadline time.Time
-	var hasDeadline bool
-	repo.On("MoveProfileDailyStatistics", mock.Anything, "p1", model.StatisticsRetention30d, mock.Anything).
-		Run(func(args mock.Arguments) {
-			moveCtx := args.Get(0).(context.Context)
-			moveErr = moveCtx.Err()
-			deadline, hasDeadline = moveCtx.Deadline()
-		}).
-		Return(0, errors.New("boom")).Once()
-	var pending []func()
-	svc := statistics.NewStatisticsService(repo, statistics.WithBackground(func(f func()) { pending = append(pending, f) }))
-	svc.SetRetentionMoveLocker(testLocker(t))
-
-	callerCtx, cancel := context.WithCancel(context.Background())
-	svc.MoveBestEffort(callerCtx, "p1", model.StatisticsRetention30d)
-	cancel()
-	repo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-	require.Len(t, pending, 1)
-
-	start := time.Now()
-	pending[0]()
-	require.NoError(t, moveErr, "the caller's cancellation does not reach the move")
-	require.True(t, hasDeadline, "the move has a deadline")
-	require.WithinDuration(t, start.Add(statistics.RetentionMoveDeadline), deadline, 5*time.Second)
-}
-
-// specRef: api-endpoint-behaviour.md J50 - the move lock outlives the longest move (and the undo of
-// its last batch), so the reconcile cannot start the same move while one is still running.
-func TestRetentionMoveLockOutlivesTheMove(t *testing.T) {
-	require.GreaterOrEqual(t, statistics.RetentionMoveLockTTL, statistics.RetentionMoveDeadline+time.Minute)
-}
-
-// specRef: api-endpoint-behaviour.md J8, J50 — the hourly reconcile moves daily documents of enabled
-// profiles down to their retention; disabled and missing profiles are only deleted.
-func TestReconcileStatistics_MovesToRetention(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
-	h.svc.SetRetentionMoveLocker(testLocker(t))
+// specRef: api-endpoint-behaviour.md J8, J50 — the hourly purge trims enabled profiles to their retention;
+// disabled and missing profiles are only deleted.
+func TestPurgeStatistics_TrimsToRetention(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	on := stats(true, &enabledAt)
 	on.Retention = model.StatisticsRetention90d
@@ -116,36 +52,35 @@ func TestReconcileStatistics_MovesToRetention(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, []string{"gone", "on"}).Return(map[string]*model.StatisticsSettings{"on": on}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "gone", (*time.Time)(nil)).Return(int64(5), nil).Once()
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "on", mock.Anything).Return(int64(0), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", model.StatisticsRetention90d,
-		mock.MatchedBy(func(since time.Time) bool { return since.Equal(utc(2026, 7, 7, 0, 0, 0)) })).Return(3, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "on", model.StatisticsRetention90d, readNow).Return(int64(3), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2, Deleted: 5, Moved: 3}, res)
-	h.stats.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, "gone", mock.Anything, mock.Anything)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Total: 2, Deleted: 8}, res)
+	h.stats.AssertNotCalled(t, "TrimProfileDailyStatistics", mock.Anything, "gone", mock.Anything, mock.Anything)
 }
 
-// specRef: api-endpoint-behaviour.md J9, J50 — a failed move is counted and the run continues.
-func TestReconcileStatistics_MoveFailureIsCounted(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
+// specRef: api-endpoint-behaviour.md J9, J50 — a failed trim is counted and the run continues.
+func TestPurgeStatistics_TrimFailureIsCounted(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	h.stats.On("ListStatisticsProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{
 		"a": stats(true, &enabledAt), "b": stats(true, &enabledAt),
 	}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, mock.Anything, mock.Anything).Return(int64(0), nil).Twice()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "a", mock.Anything, mock.Anything).Return(0, errors.New("boom")).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "b", mock.Anything, mock.Anything).Return(1, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "a", mock.Anything, mock.Anything).Return(int64(0), errors.New("boom")).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "b", mock.Anything, mock.Anything).Return(int64(1), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 2, Failed: 1, Moved: 1}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 2, Total: 2, Deleted: 1, Failed: 1}, res)
 }
 
-// specRef: api-endpoint-behaviour.md J8, J53 — the hourly reconcile also removes buckets up to the
+// specRef: api-endpoint-behaviour.md J8, J53 — the hourly purge also removes buckets up to the
 // one containing history_deleted_at.
-func TestReconcileStatistics_HonoursHistoryDeletedAt(t *testing.T) {
-	h := newReconcileHarness(t, statistics.WithClock(func() time.Time { return readNow }))
+func TestPurgeStatistics_HonoursHistoryDeletedAt(t *testing.T) {
+	h := newPurgeHarness(t, statistics.WithClock(func() time.Time { return readNow }))
 	enabledAt := utc(2026, 9, 1, 8, 0, 0)
 	deletedAt := utc(2026, 10, 5, 11, 20, 0)
 	on := stats(true, &enabledAt)
@@ -154,11 +89,11 @@ func TestReconcileStatistics_HonoursHistoryDeletedAt(t *testing.T) {
 	h.profiles.On("GetProfilesStatisticsSettings", mock.Anything, mock.Anything).Return(map[string]*model.StatisticsSettings{"on": on}, nil)
 	h.stats.On("DeleteProfileStatistics", mock.Anything, "on", mock.Anything).Return(int64(0), nil).Once()
 	h.stats.On("DeleteProfileStatisticsThrough", mock.Anything, "on", deletedAt).Return(int64(2), nil).Once()
-	h.stats.On("MoveProfileDailyStatistics", mock.Anything, "on", mock.Anything, mock.Anything).Return(0, nil).Once()
+	h.stats.On("TrimProfileDailyStatistics", mock.Anything, "on", mock.Anything, mock.Anything).Return(int64(0), nil).Once()
 
-	res, err := h.svc.ReconcileStatistics(context.Background())
+	res, err := h.svc.PurgeStatistics(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, statistics.StatisticsReconcileResult{Checked: 1, Deleted: 2}, res)
+	require.Equal(t, statistics.StatisticsPurgeResult{Checked: 1, Total: 1, Deleted: 2}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J42, J53 — reads skip the buckets up to the one containing

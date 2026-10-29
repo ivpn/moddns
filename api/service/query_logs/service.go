@@ -14,12 +14,33 @@ var ErrInvalidTopKind = errors.New("invalid top kind")
 
 type QueryLogsService struct {
 	QueryLogsRepository repository.QueryLogsRepository
+
+	now func() time.Time
 }
 
-func NewQueryLogsService(db repository.QueryLogsRepository) *QueryLogsService {
-	return &QueryLogsService{
+// Option configures optional QueryLogsService dependencies.
+type Option func(*QueryLogsService)
+
+// WithClock replaces the clock the retention trim measures the retention from.
+func WithClock(now func() time.Time) Option {
+	return func(q *QueryLogsService) { q.now = now }
+}
+
+func NewQueryLogsService(db repository.QueryLogsRepository, opts ...Option) *QueryLogsService {
+	q := &QueryLogsService{
 		QueryLogsRepository: db,
+		now:                 time.Now,
 	}
+	for _, opt := range opts {
+		opt(q)
+	}
+	return q
+}
+
+// TrimToRetention deletes the profile's query logs older than the retention from the longer
+// collections (J54, J13) and returns the number of rows deleted.
+func (q *QueryLogsService) TrimToRetention(ctx context.Context, profileId string, retention model.Retention) (int64, error) {
+	return q.QueryLogsRepository.TrimQueryLogs(ctx, profileId, retention, q.now())
 }
 
 func (q *QueryLogsService) GetProfileQueryLogs(ctx context.Context, profileId string, retention model.Retention, status, timespan, deviceId, search, sortBy string, page, limit int) ([]model.QueryLog, error) {

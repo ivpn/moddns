@@ -691,3 +691,81 @@ func (_c *QueryLogsRepository_ListQueryLogProfileIDs_Call) RunAndReturn(run func
 	_c.Call.Return(run)
 	return _c
 }
+
+// TrimQueryLogs provides a mock function for the type QueryLogsRepository
+func (_mock *QueryLogsRepository) TrimQueryLogs(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, retention, now)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TrimQueryLogs")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, retention, now)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Retention, time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, retention, now)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.Retention, time.Time) error); ok {
+		r1 = returnFunc(ctx, profileId, retention, now)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// QueryLogsRepository_TrimQueryLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TrimQueryLogs'
+type QueryLogsRepository_TrimQueryLogs_Call struct {
+	*mock.Call
+}
+
+// TrimQueryLogs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - profileId string
+//   - retention model.Retention
+//   - now time.Time
+func (_e *QueryLogsRepository_Expecter) TrimQueryLogs(ctx interface{}, profileId interface{}, retention interface{}, now interface{}) *QueryLogsRepository_TrimQueryLogs_Call {
+	return &QueryLogsRepository_TrimQueryLogs_Call{Call: _e.mock.On("TrimQueryLogs", ctx, profileId, retention, now)}
+}
+
+func (_c *QueryLogsRepository_TrimQueryLogs_Call) Run(run func(ctx context.Context, profileId string, retention model.Retention, now time.Time)) *QueryLogsRepository_TrimQueryLogs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Retention
+		if args[2] != nil {
+			arg2 = args[2].(model.Retention)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *QueryLogsRepository_TrimQueryLogs_Call) Return(n int64, err error) *QueryLogsRepository_TrimQueryLogs_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *QueryLogsRepository_TrimQueryLogs_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.Retention, now time.Time) (int64, error)) *QueryLogsRepository_TrimQueryLogs_Call {
+	_c.Call.Return(run)
+	return _c
+}

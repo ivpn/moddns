@@ -21,7 +21,7 @@ import (
 func withQueryLogs(t *testing.T, h *transitionsHarness) *mocks.QueryLogsRepository {
 	t.Helper()
 	ql := mocks.NewQueryLogsRepository(t)
-	h.svc.QueryLogsService = querylogs.NewQueryLogsService(ql)
+	h.svc.QueryLogsService = querylogs.NewQueryLogsService(ql, querylogs.WithClock(func() time.Time { return fixedNow }))
 	h.cache.On("Incr", mock.Anything, mock.Anything, cache.GenerationTTL).Return(int64(1), nil).Maybe()
 	return ql
 }
@@ -60,7 +60,7 @@ func logsRetentionOp(v string) model.ProfileUpdate {
 }
 
 // specRef: api-endpoint-behaviour.md J23, G22 - a logs retention change retires the query-log caches
-// once (they were computed from the previous retention's collection); an unchanged retention does
+// once (they were computed with the previous retention's read window); an unchanged retention does
 // not, and a PATCH that also turns logs off invalidates only through the purge.
 func TestUpdateProfile_LogsRetentionChangeInvalidatesCaches(t *testing.T) {
 	cases := []struct {
@@ -88,6 +88,51 @@ func TestUpdateProfile_LogsRetentionChangeInvalidatesCaches(t *testing.T) {
 			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", tc.ops)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantBumps, generationBumps(h, "profile123"))
+		})
+	}
+}
+
+func logsSettings(enabled bool, retention model.Retention) *model.LogsSettings {
+	return &model.LogsSettings{Enabled: enabled, Retention: retention}
+}
+
+// specRef: api-endpoint-behaviour.md J54, J55, G22 — lowering the logs retention while logs stay on trims the
+// profile's older rows once, inline, then retires the query-log caches once; raising, an unchanged value or
+// turning logs off in the same PATCH trims nothing, and a failed trim does not fail the PATCH.
+func TestUpdateProfile_LogsRetentionLoweringTrims(t *testing.T) {
+	cases := []struct {
+		name      string
+		stored    model.Retention
+		ops       []model.ProfileUpdate
+		wantTrim  bool
+		trimErr   error
+		wantPurge bool
+	}{
+		{name: "lowered", stored: model.RetentionOneMonth, ops: []model.ProfileUpdate{logsRetentionOp("1d")}, wantTrim: true},
+		{name: "lowered, trim fails", stored: model.RetentionOneMonth, ops: []model.ProfileUpdate{logsRetentionOp("1d")}, wantTrim: true, trimErr: errors.New("boom")},
+		{name: "raised", stored: model.RetentionOneDay, ops: []model.ProfileUpdate{logsRetentionOp("1m")}},
+		{name: "lowered and turned off", stored: model.RetentionOneMonth, ops: []model.ProfileUpdate{logsRetentionOp("1h"), logsToggle(false)}, wantPurge: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newTransitionsHarness(t)
+			ql := withQueryLogs(t, h)
+			p := logsProfile(true)
+			p.Settings.Logs.Retention = tc.stored
+			h.expectPersist(p)
+			if tc.wantTrim {
+				ql.On("TrimQueryLogs", mock.Anything, "profile123", model.RetentionOneDay, fixedNow).Return(int64(2), tc.trimErr).Once()
+			}
+			if tc.wantPurge {
+				ql.On("DeleteQueryLogs", mock.Anything, "profile123").Return(nil).Once()
+			}
+
+			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", tc.ops)
+			require.NoError(t, err)
+			if !tc.wantTrim {
+				ql.AssertNotCalled(t, "TrimQueryLogs", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			}
+			require.Equal(t, 1, generationBumps(h, "profile123"))
 		})
 	}
 }
@@ -162,7 +207,7 @@ func TestUpdateProfile_LogsEnableOrUnchangedPurgesNothing(t *testing.T) {
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J12 — a failed purge is left to the sweep; the PATCH succeeds and caches are still dropped.
+// specRef: api-endpoint-behaviour.md J12 — a failed purge is left to the next purge run; the PATCH succeeds and caches are still dropped.
 func TestUpdateProfile_LogsPurgeFailureDoesNotFailThePatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
@@ -201,106 +246,145 @@ func TestUpdateProfile_LogsNoPurgeWhenPersistFails(t *testing.T) {
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, mock.Anything)
 }
 
-// specRef: api-endpoint-behaviour.md J13, J14 — missing and logs-off profiles lose their logs; enabled ones keep them.
-func TestPurgeUnconsentedQueryLogs_AppliesRulePerProfile(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J13, J14 — missing, logs-off and no-logs-block profiles lose all their
+// logs; enabled ones lose the rows older than their retention, and only a profile whose rows changed has its
+// caches retired.
+func TestPurgeQueryLogs_AppliesRulePerProfile(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
-	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"gone", "off", "on"}, nil)
-	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, []string{"gone", "off", "on"}).Return(map[string]bool{"off": false, "on": true}, nil)
+	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"gone", "off", "no-block", "on", "on-noop"}, nil)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, []string{"gone", "off", "no-block", "on", "on-noop"}).Return(map[string]*model.LogsSettings{
+		"off":      logsSettings(false, model.RetentionOneWeek),
+		"no-block": nil,
+		"on":       logsSettings(true, model.RetentionOneDay),
+		"on-noop":  logsSettings(true, model.RetentionOneMonth),
+	}, nil)
 	ql.On("DeleteQueryLogs", mock.Anything, "gone").Return(nil).Once()
 	ql.On("DeleteQueryLogs", mock.Anything, "off").Return(nil).Once()
+	ql.On("DeleteQueryLogs", mock.Anything, "no-block").Return(nil).Once()
+	ql.On("TrimQueryLogs", mock.Anything, "on", model.RetentionOneDay, fixedNow).Return(int64(7), nil).Once()
+	ql.On("TrimQueryLogs", mock.Anything, "on-noop", model.RetentionOneMonth, fixedNow).Return(int64(0), nil).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 3, Purged: 2}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 5, Total: 5, Purged: 3, Deleted: 7}, res)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "on")
 	requireLogCachesInvalidated(t, h, "off")
-	require.Zero(t, generationBumps(h, "on"))
+	requireLogCachesInvalidated(t, h, "on")
+	require.Zero(t, generationBumps(h, "on-noop"))
 }
 
 // specRef: api-endpoint-behaviour.md J14 — profile lookups are batched.
-func TestPurgeUnconsentedQueryLogs_BatchesProfileLookups(t *testing.T) {
+func TestPurgeQueryLogs_BatchesProfileLookups(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	ids := make([]string, 2500)
-	enabled := map[string]bool{}
+	settings := map[string]*model.LogsSettings{}
 	for i := range ids {
 		ids[i] = fmt.Sprintf("p%d", i)
-		enabled[ids[i]] = true
+		settings[ids[i]] = logsSettings(true, model.RetentionOneMonth)
 	}
 	ql.On("ListQueryLogProfileIDs", mock.Anything).Return(ids, nil)
-	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
-		Return(enabled, nil).Times(3)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) <= 1000 })).
+		Return(settings, nil).Times(3)
+	ql.On("TrimQueryLogs", mock.Anything, mock.Anything, model.RetentionOneMonth, fixedNow).Return(int64(0), nil).Times(2500)
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 2500}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 2500, Total: 2500}, res)
 }
 
-// specRef: api-endpoint-behaviour.md J14 — a failed delete is counted and the run continues.
-func TestPurgeUnconsentedQueryLogs_DeleteFailureDoesNotStopTheRun(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J14 — a failed delete or trim is counted and the run continues.
+func TestPurgeQueryLogs_FailureDoesNotStopTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
-	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
-	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.Anything).Return(map[string]bool{}, nil)
+	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a", "b", "c"}, nil)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.Anything).Return(map[string]*model.LogsSettings{
+		"c": logsSettings(true, model.RetentionOneDay),
+	}, nil)
 	ql.On("DeleteQueryLogs", mock.Anything, "a").Return(errors.New("boom")).Once()
 	ql.On("DeleteQueryLogs", mock.Anything, "b").Return(nil).Once()
+	ql.On("TrimQueryLogs", mock.Anything, "c", model.RetentionOneDay, fixedNow).Return(int64(0), errors.New("boom")).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 2, Purged: 1, Failed: 1}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 3, Total: 3, Purged: 1, Failed: 2}, res)
 }
 
 // specRef: api-endpoint-behaviour.md J14 — the first per-profile timeout ends the run.
-func TestPurgeUnconsentedQueryLogs_JobTimeoutStopsTheRun(t *testing.T) {
+func TestPurgeQueryLogs_JobTimeoutStopsTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	h.svc.SetQueryLogsPurgeTimeouts(20*time.Millisecond, time.Minute)
 	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
-	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.Anything).Return(map[string]bool{}, nil)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.Anything).Return(map[string]*model.LogsSettings{}, nil)
 	ql.On("DeleteQueryLogs", mock.Anything, "a").Run(func(args mock.Arguments) {
 		<-args.Get(0).(context.Context).Done()
 	}).Return(context.DeadlineExceeded).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, profile.UnconsentedQueryLogsPurgeResult{Checked: 1, Failed: 1}, res)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 1, Total: 2, Failed: 1}, res)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "b")
 }
 
 // specRef: api-endpoint-behaviour.md J14 — past the whole-run deadline no further profile is processed.
-func TestPurgeUnconsentedQueryLogs_RunDeadlineStopsTheRun(t *testing.T) {
+func TestPurgeQueryLogs_RunDeadlineStopsTheRun(t *testing.T) {
 	h := newTransitionsHarness(t)
 	ql := withQueryLogs(t, h)
 	h.svc.SetQueryLogsPurgeTimeouts(time.Minute, 50*time.Millisecond)
 	ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a", "b"}, nil)
-	h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.Anything).Return(map[string]bool{}, nil)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.Anything).Return(map[string]*model.LogsSettings{}, nil)
 	ql.On("DeleteQueryLogs", mock.Anything, "a").Run(func(mock.Arguments) {
 		time.Sleep(120 * time.Millisecond)
 	}).Return(nil).Once()
 
-	res, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+	res, err := h.svc.PurgeQueryLogs(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, 1, res.Purged)
 	ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, "b")
 }
 
 // specRef: api-endpoint-behaviour.md J14 — read failures abort the run before any delete.
-func TestPurgeUnconsentedQueryLogs_ReadFailuresAbort(t *testing.T) {
+func TestPurgeQueryLogs_ReadFailuresAbort(t *testing.T) {
 	t.Run("listing ids", func(t *testing.T) {
 		h := newTransitionsHarness(t)
 		ql := withQueryLogs(t, h)
 		ql.On("ListQueryLogProfileIDs", mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+		_, err := h.svc.PurgeQueryLogs(context.Background())
 		require.Error(t, err)
 	})
 	t.Run("profile lookup", func(t *testing.T) {
 		h := newTransitionsHarness(t)
 		ql := withQueryLogs(t, h)
 		ql.On("ListQueryLogProfileIDs", mock.Anything).Return([]string{"a"}, nil)
-		h.profiles.On("GetProfilesLogsEnabled", mock.Anything, mock.Anything).Return(nil, errors.New("down"))
-		_, err := h.svc.PurgeUnconsentedQueryLogs(context.Background())
+		h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.Anything).Return(nil, errors.New("down"))
+		_, err := h.svc.PurgeQueryLogs(context.Background())
 		require.Error(t, err)
 		ql.AssertNotCalled(t, "DeleteQueryLogs", mock.Anything, mock.Anything)
 	})
+}
+
+// specRef: api-endpoint-behaviour.md J14 — a run that reaches its deadline while loading a later batch's settings
+// ends with its counts, like any other early stop, instead of failing.
+func TestPurgeQueryLogs_DeadlineDuringALaterLookupKeepsTheCounts(t *testing.T) {
+	h := newTransitionsHarness(t)
+	ql := withQueryLogs(t, h)
+	h.svc.SetQueryLogsPurgeTimeouts(time.Minute, 200*time.Millisecond)
+	ids := make([]string, 1001)
+	first := map[string]*model.LogsSettings{}
+	for i := range ids {
+		ids[i] = fmt.Sprintf("p%d", i)
+		first[ids[i]] = logsSettings(true, model.RetentionOneMonth)
+	}
+	ql.On("ListQueryLogProfileIDs", mock.Anything).Return(ids, nil)
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, mock.MatchedBy(func(b []string) bool { return len(b) == 1000 })).Return(first, nil).Once()
+	h.profiles.On("GetProfilesLogsSettings", mock.Anything, []string{"p1000"}).Run(func(args mock.Arguments) {
+		<-args.Get(0).(context.Context).Done()
+	}).Return(nil, context.DeadlineExceeded).Once()
+	ql.On("TrimQueryLogs", mock.Anything, mock.Anything, model.RetentionOneMonth, fixedNow).Return(int64(0), nil).Times(1000)
+
+	res, err := h.svc.PurgeQueryLogs(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, profile.QueryLogsPurgeResult{Checked: 1000, Total: 1001}, res)
 }

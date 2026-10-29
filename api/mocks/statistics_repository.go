@@ -337,47 +337,47 @@ func (_c *StatisticsRepository_ListStatisticsProfileIDs_Call) RunAndReturn(run f
 	return _c
 }
 
-// MoveProfileDailyStatistics provides a mock function for the type StatisticsRepository
-func (_mock *StatisticsRepository) MoveProfileDailyStatistics(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error) {
-	ret := _mock.Called(ctx, profileId, to, since)
+// TrimProfileDailyStatistics provides a mock function for the type StatisticsRepository
+func (_mock *StatisticsRepository) TrimProfileDailyStatistics(ctx context.Context, profileId string, retention model.StatisticsRetention, now time.Time) (int64, error) {
+	ret := _mock.Called(ctx, profileId, retention, now)
 
 	if len(ret) == 0 {
-		panic("no return value specified for MoveProfileDailyStatistics")
+		panic("no return value specified for TrimProfileDailyStatistics")
 	}
 
-	var r0 int
+	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) (int, error)); ok {
-		return returnFunc(ctx, profileId, to, since)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, profileId, retention, now)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) int); ok {
-		r0 = returnFunc(ctx, profileId, to, since)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.StatisticsRetention, time.Time) int64); ok {
+		r0 = returnFunc(ctx, profileId, retention, now)
 	} else {
-		r0 = ret.Get(0).(int)
+		r0 = ret.Get(0).(int64)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, model.StatisticsRetention, time.Time) error); ok {
-		r1 = returnFunc(ctx, profileId, to, since)
+		r1 = returnFunc(ctx, profileId, retention, now)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// StatisticsRepository_MoveProfileDailyStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveProfileDailyStatistics'
-type StatisticsRepository_MoveProfileDailyStatistics_Call struct {
+// StatisticsRepository_TrimProfileDailyStatistics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TrimProfileDailyStatistics'
+type StatisticsRepository_TrimProfileDailyStatistics_Call struct {
 	*mock.Call
 }
 
-// MoveProfileDailyStatistics is a helper method to define mock.On call
+// TrimProfileDailyStatistics is a helper method to define mock.On call
 //   - ctx context.Context
 //   - profileId string
-//   - to model.StatisticsRetention
-//   - since time.Time
-func (_e *StatisticsRepository_Expecter) MoveProfileDailyStatistics(ctx interface{}, profileId interface{}, to interface{}, since interface{}) *StatisticsRepository_MoveProfileDailyStatistics_Call {
-	return &StatisticsRepository_MoveProfileDailyStatistics_Call{Call: _e.mock.On("MoveProfileDailyStatistics", ctx, profileId, to, since)}
+//   - retention model.StatisticsRetention
+//   - now time.Time
+func (_e *StatisticsRepository_Expecter) TrimProfileDailyStatistics(ctx interface{}, profileId interface{}, retention interface{}, now interface{}) *StatisticsRepository_TrimProfileDailyStatistics_Call {
+	return &StatisticsRepository_TrimProfileDailyStatistics_Call{Call: _e.mock.On("TrimProfileDailyStatistics", ctx, profileId, retention, now)}
 }
 
-func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Run(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+func (_c *StatisticsRepository_TrimProfileDailyStatistics_Call) Run(run func(ctx context.Context, profileId string, retention model.StatisticsRetention, now time.Time)) *StatisticsRepository_TrimProfileDailyStatistics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -405,12 +405,12 @@ func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) Return(n int, err error) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+func (_c *StatisticsRepository_TrimProfileDailyStatistics_Call) Return(n int64, err error) *StatisticsRepository_TrimProfileDailyStatistics_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *StatisticsRepository_MoveProfileDailyStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, to model.StatisticsRetention, since time.Time) (int, error)) *StatisticsRepository_MoveProfileDailyStatistics_Call {
+func (_c *StatisticsRepository_TrimProfileDailyStatistics_Call) RunAndReturn(run func(ctx context.Context, profileId string, retention model.StatisticsRetention, now time.Time) (int64, error)) *StatisticsRepository_TrimProfileDailyStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }

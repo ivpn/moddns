@@ -56,8 +56,7 @@ func newTransitionsHarness(t *testing.T) *transitionsHarness {
 		cache:     mocks.NewCachecache(t),
 		readCache: &countingReadCache{},
 	}
-	// The retention move runs inline so its effects are visible when UpdateProfile returns.
-	statsSvc := statistics.NewStatisticsService(h.statsRepo, statistics.WithBackground(func(f func()) { f() }), statistics.WithReadCache(h.readCache))
+	statsSvc := statistics.NewStatisticsService(h.statsRepo, statistics.WithReadCache(h.readCache))
 	h.svc = profile.NewProfileService(config.ServerConfig{}, config.ServiceConfig{}, h.profiles, mocks.NewAccountRepository(t),
 		nil, nil, statsSvc, nil, h.cache, mocks.NewGeneratoridgen(t), validator.New())
 	h.svc.SetClock(func() time.Time { return fixedNow })
@@ -215,7 +214,7 @@ func TestUpdateProfile_StatisticsTransitionUsesReplacedValue(t *testing.T) {
 	})
 }
 
-// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the statistics reconcile and the PATCH still succeeds.
+// specRef: api-endpoint-behaviour.md J6 — a failed immediate purge is left to the statistics purge and the PATCH still succeeds.
 func TestUpdateProfile_StatisticsPurgeFailureDoesNotFailThePatch(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectPersist(statsProfile(true, nil))
@@ -282,7 +281,7 @@ func TestDeleteProfile_PurgesStatistics(t *testing.T) {
 	h.statsRepo.AssertNumberOfCalls(t, "DeleteProfileStatistics", 1)
 }
 
-// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the statistics reconcile; the deletion succeeds.
+// specRef: api-endpoint-behaviour.md J7 — a failed purge is logged and left to the statistics purge; the deletion succeeds.
 func TestDeleteProfile_StatisticsPurgeFailureDoesNotFailTheDeletion(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectDelete(t, statsProfile(true, nil), nil)
@@ -316,31 +315,31 @@ func retentionOp(v string) model.ProfileUpdate {
 }
 
 // specRef: api-endpoint-behaviour.md J50, J51, G22 — lowering the retention of an enabled profile
-// moves its daily statistics once, compared with the replaced value; raising, a disabled profile
-// and a PATCH that also turns statistics off move nothing.
+// trims its daily statistics once, compared with the replaced value; raising, a disabled profile
+// and a PATCH that also turns statistics off trim nothing.
 func TestUpdateProfile_StatisticsRetentionTransitions(t *testing.T) {
 	cases := []struct {
 		name      string
 		read      *model.Profile
 		stored    *model.Profile
 		ops       []model.ProfileUpdate
-		wantMove  model.StatisticsRetention
+		wantTrim  model.StatisticsRetention
 		wantPurge bool
 	}{
-		{name: "1y to 30d moves", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "1y"), ops: []model.ProfileUpdate{retentionOp("30d")}, wantMove: "30d"},
-		{name: "1y to 90d moves", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "1y"), ops: []model.ProfileUpdate{retentionOp("90d")}, wantMove: "90d"},
+		{name: "1y to 30d trims", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "1y"), ops: []model.ProfileUpdate{retentionOp("30d")}, wantTrim: "30d"},
+		{name: "1y to 90d trims", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "1y"), ops: []model.ProfileUpdate{retentionOp("90d")}, wantTrim: "90d"},
 		{name: "empty stored reads as 30d: nothing lower", read: retentionProfile(true, ""), stored: retentionProfile(true, ""), ops: []model.ProfileUpdate{retentionOp("30d")}},
-		{name: "raising moves nothing", read: retentionProfile(true, "30d"), stored: retentionProfile(true, "30d"), ops: []model.ProfileUpdate{retentionOp("1y")}},
-		{name: "disabled profile moves nothing", read: retentionProfile(false, "1y"), stored: retentionProfile(false, "1y"), ops: []model.ProfileUpdate{retentionOp("30d")}},
-		{name: "read 1y but stored 30d moves nothing", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "30d"), ops: []model.ProfileUpdate{retentionOp("30d")}},
+		{name: "raising trims nothing", read: retentionProfile(true, "30d"), stored: retentionProfile(true, "30d"), ops: []model.ProfileUpdate{retentionOp("1y")}},
+		{name: "disabled profile trims nothing", read: retentionProfile(false, "1y"), stored: retentionProfile(false, "1y"), ops: []model.ProfileUpdate{retentionOp("30d")}},
+		{name: "read 1y but stored 30d trims nothing", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "30d"), ops: []model.ProfileUpdate{retentionOp("30d")}},
 		{name: "lowering and turning off purges only", read: retentionProfile(true, "1y"), stored: retentionProfile(true, "1y"), ops: []model.ProfileUpdate{retentionOp("30d"), statsToggle(false)}, wantPurge: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newTransitionsHarness(t)
 			h.expectPersistWithStored(tc.read, tc.stored)
-			if tc.wantMove != "" {
-				h.statsRepo.On("MoveProfileDailyStatistics", mock.Anything, "profile123", tc.wantMove, mock.Anything).Return(2, nil).Once()
+			if tc.wantTrim != "" {
+				h.statsRepo.On("TrimProfileDailyStatistics", mock.Anything, "profile123", tc.wantTrim, mock.Anything).Return(int64(2), nil).Once()
 			}
 			if tc.wantPurge {
 				h.statsRepo.On("DeleteProfileStatistics", mock.Anything, "profile123", (*time.Time)(nil)).Return(int64(0), nil).Once()
@@ -348,25 +347,27 @@ func TestUpdateProfile_StatisticsRetentionTransitions(t *testing.T) {
 
 			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", tc.ops)
 			require.NoError(t, err)
-			if tc.wantMove == "" {
-				h.statsRepo.AssertNotCalled(t, "MoveProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			if tc.wantTrim == "" {
+				h.statsRepo.AssertNotCalled(t, "TrimProfileDailyStatistics", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 			}
 		})
 	}
 }
 
 // specRef: api-endpoint-behaviour.md J46, J51 - any change of an enabled profile's retention drops
-// its cached statistics answers at once (their retention label and window are stale); lowering
-// also drops them again when the move ends.
+// its cached statistics answers at once (their retention label and window are stale); a lowering
+// whose trim deletes documents drops them again.
 func TestUpdateProfile_StatisticsRetentionChangeInvalidatesReadCache(t *testing.T) {
 	cases := []struct {
 		name    string
 		read    *model.Profile
 		op      string
+		trimmed int64
 		wantInv int
 	}{
 		{name: "raising", read: retentionProfile(true, "30d"), op: "1y", wantInv: 1},
-		{name: "lowering", read: retentionProfile(true, "1y"), op: "90d", wantInv: 2},
+		{name: "lowering, nothing older", read: retentionProfile(true, "1y"), op: "90d", wantInv: 1},
+		{name: "lowering", read: retentionProfile(true, "1y"), op: "90d", trimmed: 4, wantInv: 2},
 		{name: "unchanged", read: retentionProfile(true, "90d"), op: "90d"},
 		{name: "empty stored to 30d is unchanged", read: retentionProfile(true, ""), op: "30d"},
 		{name: "disabled profile", read: retentionProfile(false, "30d"), op: "1y"},
@@ -375,7 +376,7 @@ func TestUpdateProfile_StatisticsRetentionChangeInvalidatesReadCache(t *testing.
 		t.Run(tc.name, func(t *testing.T) {
 			h := newTransitionsHarness(t)
 			h.expectPersist(tc.read)
-			h.statsRepo.On("MoveProfileDailyStatistics", mock.Anything, "profile123", mock.Anything, mock.Anything).Return(0, nil).Maybe()
+			h.statsRepo.On("TrimProfileDailyStatistics", mock.Anything, "profile123", mock.Anything, mock.Anything).Return(tc.trimmed, nil).Maybe()
 
 			_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{retentionOp(tc.op)})
 			require.NoError(t, err)
@@ -384,11 +385,11 @@ func TestUpdateProfile_StatisticsRetentionChangeInvalidatesReadCache(t *testing.
 	}
 }
 
-// specRef: api-endpoint-behaviour.md J50 — a failed immediate move does not fail the PATCH.
-func TestUpdateProfile_StatisticsRetentionMoveFailureIsBestEffort(t *testing.T) {
+// specRef: api-endpoint-behaviour.md J50 — a failed immediate trim does not fail the PATCH.
+func TestUpdateProfile_StatisticsRetentionTrimFailureIsBestEffort(t *testing.T) {
 	h := newTransitionsHarness(t)
 	h.expectPersist(retentionProfile(true, "1y"))
-	h.statsRepo.On("MoveProfileDailyStatistics", mock.Anything, "profile123", model.StatisticsRetention30d, mock.Anything).Return(0, errors.New("boom")).Once()
+	h.statsRepo.On("TrimProfileDailyStatistics", mock.Anything, "profile123", model.StatisticsRetention30d, mock.Anything).Return(int64(0), errors.New("boom")).Once()
 
 	_, err := h.svc.UpdateProfile(context.Background(), "account123", "profile123", []model.ProfileUpdate{retentionOp("30d")})
 	require.NoError(t, err)

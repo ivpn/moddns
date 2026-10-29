@@ -120,16 +120,16 @@ class TestStatisticsRetention:
         assert _count(mongo_db, pid, TIER_1H) > 0
 
     @pytest.mark.asyncio
-    async def test_lowering_to_30d_moves_recent_days_and_empties_the_1y_collection(self, user, mongo_db):
-        """specRef: api-endpoint-behaviour #J50 — 1y → 30d: the last 30 days move unchanged into
-        statistics_1d_30d, older days are dropped, statistics_1d_1y holds nothing for the profile."""
+    async def test_lowering_to_30d_deletes_older_days_and_keeps_recent_ones_in_place(self, user, mongo_db):
+        """specRef: api-endpoint-behaviour #J50 — 1y → 30d: the PATCH deletes the days older than 30 days;
+        the recent days stay unchanged in statistics_1d_1y, where they were written."""
         pid = user.new_profile("ret-lower")
         _set_retention(user, pid, "1y")
         await _enable(user, pid)
         await _traffic(user, pid, 3)
         await restart_proxy(user)
         today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        # The reconcile (every 5 s here) deletes daily buckets older than enabled_at (J8), so the
+        # The purge (every 5 s here) deletes daily buckets older than enabled_at (J8), so the
         # inserted history needs statistics to have been on since before it.
         mongo_db.profiles.update_one(
             {"profile_id": pid}, {"$set": {"settings.statistics.enabled_at": today - timedelta(days=365)}})
@@ -140,17 +140,13 @@ class TestStatisticsRetention:
 
         _set_retention(user, pid, "30d")
 
-        # The move runs in the background after the PATCH answers (J50).
-        deadline = time.monotonic() + 30
-        while time.monotonic() < deadline and _docs(mongo_db, pid, "statistics_1d_1y"):
-            await asyncio.sleep(0.5)
-        assert _docs(mongo_db, pid, "statistics_1d_1y") == {}
-        after = _docs(mongo_db, pid, "statistics_1d_30d")
+        after = _docs(mongo_db, pid, "statistics_1d_1y")
         assert old not in after
         for _id, doc in before.items():
             if _id != old:
-                assert after.get(_id) == doc, "moved documents are unchanged"
+                assert after.get(_id) == doc, "recent documents stay unchanged"
         assert recent in after
+        assert recent not in _docs(mongo_db, pid, "statistics_1d_30d")
 
     @pytest.mark.asyncio
     async def test_raising_after_traffic_keeps_the_chart_continuous(self, user, mongo_db):
