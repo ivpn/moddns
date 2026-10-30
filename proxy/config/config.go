@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -160,6 +161,52 @@ type PlainDNSConfig struct {
 // DoHConfig represents the DNS-over-HTTPS configuration
 type DoHConfig struct {
 	ListenAddr int
+	// HTTP3Enabled adds an HTTP/3 (QUIC) listener on UDP at the same port as
+	// the HTTPS listener (RFC 9114).
+	HTTP3Enabled bool
+	HTTP3        DoH3Limits
+}
+
+// DoH3Limits bounds the HTTP/3 listener.
+type DoH3Limits struct {
+	MaxConns      int // DOH_HTTP3_MAX_CONNECTIONS
+	MaxConnsPerIP int // DOH_HTTP3_MAX_CONNECTIONS_PER_IP
+	MaxStreams    int // DOH_HTTP3_MAX_STREAMS: concurrent requests per connection
+}
+
+var defaultDoH3Limits = DoH3Limits{MaxConns: 4096, MaxConnsPerIP: 32, MaxStreams: 16}
+
+// loadDoH3Limits reads the HTTP/3 limits; unset, non-numeric or non-positive
+// values keep the default.
+func loadDoH3Limits() DoH3Limits {
+	return DoH3Limits{
+		MaxConns:      getEnvPositiveInt("DOH_HTTP3_MAX_CONNECTIONS", defaultDoH3Limits.MaxConns),
+		MaxConnsPerIP: getEnvPositiveInt("DOH_HTTP3_MAX_CONNECTIONS_PER_IP", defaultDoH3Limits.MaxConnsPerIP),
+		MaxStreams:    getEnvPositiveInt("DOH_HTTP3_MAX_STREAMS", defaultDoH3Limits.MaxStreams),
+	}
+}
+
+func getEnvPositiveInt(env string, def int) int {
+	v, err := strconv.Atoi(strings.TrimSpace(os.Getenv(env)))
+	if err != nil || v <= 0 {
+		return def
+	}
+	return v
+}
+
+// loadDoHConfig reads DOH_LISTEN_ADDR and DOH_HTTP3_ENABLED.
+func loadDoHConfig() (*DoHConfig, error) {
+	listenAddr, err := GetEnvInt("DOH_LISTEN_ADDR")
+	if err != nil {
+		return nil, err
+	}
+
+	http3Enabled := getEnvBool("DOH_HTTP3_ENABLED")
+	if http3Enabled && listenAddr == 0 {
+		return nil, errors.New("DOH_HTTP3_ENABLED requires DOH_LISTEN_ADDR")
+	}
+
+	return &DoHConfig{ListenAddr: listenAddr, HTTP3Enabled: http3Enabled, HTTP3: loadDoH3Limits()}, nil
 }
 
 // DoTConfig represents the DNS-over-TLS configuration
@@ -328,7 +375,7 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
-	dohListenAddr, err := GetEnvInt("DOH_LISTEN_ADDR")
+	dohConfig, err := loadDoHConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -465,9 +512,7 @@ func New() (*Config, error) {
 			CertPaths: parseCSV(os.Getenv("TLS_CERT_PATH")),
 			KeyPaths:  parseCSV(os.Getenv("TLS_KEY_PATH")),
 		},
-		DoH: &DoHConfig{
-			ListenAddr: dohListenAddr,
-		},
+		DoH: dohConfig,
 		DoT: &DoTConfig{
 			ListenAddr: dotListenAddr,
 		},
