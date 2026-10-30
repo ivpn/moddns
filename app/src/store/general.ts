@@ -5,6 +5,9 @@ import { useMemo } from "react";
 
 interface AppState {
   activeProfile: ModelProfile | null;
+  // Internal profile id (not the DNS credential `profile_id`); the only profile
+  // data kept in browser storage, used to reselect the profile after a reload.
+  activeProfileId: string | null;
   setActiveProfile: (profile: ModelProfile | null) => void;
   profiles: ModelProfile[];
   setProfiles: (profiles: ModelProfile[]) => void;
@@ -17,9 +20,9 @@ interface AppState {
   setConnectionStatusVisible: (isVisible: boolean) => void;
   verificationBannerDismissed: boolean; // persisted dismissal of email verification banner
   setVerificationBannerDismissed: (dismissed: boolean) => void;
-  blocklistsAlertDismissed: boolean; // session-only dismissal (not persisted)
+  blocklistsAlertDismissed: boolean; // persisted dismissal of the blocklists alert
   setBlocklistsAlertDismissed: (dismissed: boolean) => void;
-  customRulesAlertDismissed: boolean; // session-only dismissal (not persisted)
+  customRulesAlertDismissed: boolean; // persisted dismissal of the custom rules alert
   setCustomRulesAlertDismissed: (dismissed: boolean) => void;
   logsExpandHintDismissed: boolean; // persisted dismissal of the one-time "tap a row" logs hint
   setLogsExpandHintDismissed: (dismissed: boolean) => void;
@@ -43,40 +46,57 @@ interface AppState {
   markAnnouncementsSeen: () => void;
   customRulesCollapsed: Record<string, string[]>;
   setCustomRulesCollapsed: (key: string, collapsedNames: string[]) => void;
+  // Drops everything tied to the signed-in account; device preferences and
+  // dismissals stay.
+  resetAccountState: () => void;
+  // Bumped by every reset; a background fetch that started under an older
+  // epoch must not write its result.
+  authEpoch: number;
 }
+
+const accountState = {
+  activeProfile: null,
+  activeProfileId: null,
+  profiles: [],
+  account: null,
+  passkeys: [],
+  subscriptionStatus: null,
+  subscriptionType: null,
+  subscriptionDeletionScheduled: false,
+  customRulesCollapsed: {},
+} satisfies Partial<AppState>;
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      activeProfile: null,
+      ...accountState,
       // Mutations store the refetched profile here, so mirror it into `profiles`;
       // profile switching and the account-wide rule count read from that list.
       setActiveProfile: (profile) => {
         set((s) => ({
           activeProfile: profile,
+          activeProfileId: profile?.id ?? null,
           profiles: profile
             ? s.profiles.map((p) => (p.profile_id === profile.profile_id ? profile : p))
             : s.profiles,
         }));
       },
-      profiles: [],
       setProfiles: (profiles) => set({ profiles }),
       restoreActiveProfile: (profiles) => {
-        const currentActiveProfile = get().activeProfile;
-        if (currentActiveProfile && profiles.length > 0) {
+        const currentId = get().activeProfile?.id ?? get().activeProfileId;
+        if (currentId && profiles.length > 0) {
           // Try to find the current active profile in the new profiles list
-          const foundProfile = profiles.find(p => p.id === currentActiveProfile.id);
+          const foundProfile = profiles.find(p => p.id === currentId);
           if (foundProfile) {
-            set({ activeProfile: foundProfile });
+            set({ activeProfile: foundProfile, activeProfileId: foundProfile.id });
             return;
           }
         }
         // If no active profile or profile not found, set the first one
         if (profiles.length > 0) {
-          set({ activeProfile: profiles[0] });
+          set({ activeProfile: profiles[0], activeProfileId: profiles[0].id });
         }
       },
-      account: null,
       setAccount: (account) => set({ account }),
       rightPanelOpen: false,
       setRightPanelOpen: (isOpen) => set({ rightPanelOpen: isOpen }),
@@ -90,25 +110,33 @@ export const useAppStore = create<AppState>()(
       setCustomRulesAlertDismissed: (dismissed) => set({ customRulesAlertDismissed: dismissed }),
       logsExpandHintDismissed: false,
       setLogsExpandHintDismissed: (dismissed) => set({ logsExpandHintDismissed: dismissed }),
-      passkeys: [],
       setPasskeys: (passkeys) => set({ passkeys }),
-      subscriptionStatus: null,
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
-      subscriptionType: null,
       setSubscriptionType: (type) => set({ subscriptionType: type }),
-      subscriptionDeletionScheduled: false,
       setSubscriptionDeletionScheduled: (scheduled) => set({ subscriptionDeletionScheduled: scheduled }),
       announcementsLastSeenAt: null,
       markAnnouncementsSeen: () => set({ announcementsLastSeenAt: new Date().toISOString() }),
-      customRulesCollapsed: {},
       setCustomRulesCollapsed: (key, collapsedNames) =>
         set((s) => ({ customRulesCollapsed: { ...s.customRulesCollapsed, [key]: collapsedNames } })),
+      authEpoch: 0,
+      resetAccountState: () => set((s) => ({ ...structuredClone(accountState), authEpoch: s.authEpoch + 1 })),
     }),
     {
       name: "moddns-storage",
-      // Persist only necessary lightweight UI state
+      version: 1,
+      // v0 payloads carry the whole active profile and collapse keys built from
+      // the DNS credential; keep only the profile's internal id.
+      migrate: (persisted, version) => {
+        const state = (persisted ?? {}) as Partial<AppState> & { activeProfile?: ModelProfile | null };
+        if (version < 1) {
+          const { activeProfile, ...rest } = state;
+          return { ...rest, activeProfileId: activeProfile?.id ?? null, customRulesCollapsed: {} } as AppState;
+        }
+        return state as AppState;
+      },
+      // Persist only the selected profile id and lightweight UI state
       partialize: (state) => ({
-        activeProfile: state.activeProfile,
+        activeProfileId: state.activeProfile?.id ?? state.activeProfileId,
         verificationBannerDismissed: state.verificationBannerDismissed,
         blocklistsAlertDismissed: state.blocklistsAlertDismissed,
         customRulesAlertDismissed: state.customRulesAlertDismissed,

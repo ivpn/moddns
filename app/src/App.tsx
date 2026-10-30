@@ -119,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAuthenticated, navigate]);
 
   const login = (showToast: boolean = true) => {
+    useAppStore.getState().resetAccountState();
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_KEY, "true");
     if (showToast) authToasts.loginSuccess();
@@ -126,11 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const performLogoutSideEffects = () => {
     localStorage.removeItem(AUTH_KEY);
-    useAppStore.getState().setAccount(null);
-    useAppStore.getState().setProfiles([]);
-    useAppStore.getState().setActiveProfile(null);
-    useAppStore.getState().setSubscriptionStatus(null);
-    useAppStore.getState().setSubscriptionType(null);
+    useAppStore.getState().resetAccountState();
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -166,6 +163,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { unsub(); };
   }, [isAuthenticated, navigate]);
 
+  // `storage` fires only in other tabs, so a logout there also clears this tab
+  // before it can write account state back to localStorage.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== AUTH_KEY && e.key !== null) return;
+      if (!isAuthenticated || localStorage.getItem(AUTH_KEY) === "true") return;
+      setIsAuthenticated(false);
+      performLogoutSideEffects();
+      toast.info("You were logged out in another tab.");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [isAuthenticated]);
+
   // Removed legacy __session_expired_flag__ flush (event bus handles timing via queue)
 
   return (
@@ -187,11 +198,13 @@ function isAuthExpiryError(error: unknown): boolean {
 // blocking loader path uses, so a stale-cache navigation still logs the user out
 // if their session died.
 function revalidateAccountAndProfiles() {
+  const epoch = useAppStore.getState().authEpoch;
   void Promise.allSettled([
     api.Client.accountsApi.apiV1AccountsCurrentGet(),
     api.Client.profilesApi.apiV1ProfilesGet(),
   ]).then(([accountResult, profilesResult]) => {
-    const { setAccount, setProfiles, restoreActiveProfile } = useAppStore.getState();
+    const { setAccount, setProfiles, restoreActiveProfile, authEpoch } = useAppStore.getState();
+    if (authEpoch !== epoch) return;
     if (accountResult.status === 'fulfilled') {
       setAccount(accountResult.value.data as ModelAccount);
     }
@@ -313,9 +326,11 @@ async function profilesOnlyLoader() {
     if (typeof window !== "undefined") {
       const cached = useAppStore.getState();
       if (cached.profiles.length > 0) {
+        const epoch = cached.authEpoch;
         void api.Client.profilesApi.apiV1ProfilesGet()
           .then((res) => {
-            const { setProfiles, restoreActiveProfile } = useAppStore.getState();
+            const { setProfiles, restoreActiveProfile, authEpoch } = useAppStore.getState();
+            if (authEpoch !== epoch) return;
             const fresh = res.data as ModelProfile[];
             setProfiles(fresh);
             restoreActiveProfile(fresh);
@@ -455,15 +470,6 @@ function ProtectedLayout() {
   }, [location.pathname, rightPanelOpen, setRightPanelOpen]);
 
   const localAuthed = typeof window !== 'undefined' ? localStorage.getItem(AUTH_KEY) === 'true' : isAuthenticated;
-
-  useEffect(() => {
-    const revalidate = () => { };
-    window.addEventListener('auth:logout', revalidate);
-    window.addEventListener('storage', (e) => { if (e.key === AUTH_KEY) revalidate(); });
-    return () => {
-      window.removeEventListener('auth:logout', revalidate);
-    };
-  }, []);
 
   if (!isAuthenticated || !localAuthed) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -814,4 +820,4 @@ function App() {
 
 export default App;
 // eslint-disable-next-line react-refresh/only-export-components
-export { useAuth, AuthContext, RootIndexRedirect, routePreload };
+export { useAuth, AuthContext, RootIndexRedirect, routePreload, rootLoader, profilesOnlyLoader };
