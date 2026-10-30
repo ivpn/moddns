@@ -127,6 +127,10 @@ func main() {
 		if err := server.Proxy.Start(ctx); err != nil {
 			log.Panic().Err(err).Msg("Failed to start proxy")
 		}
+		// Fatal, not Panic: safelyRun would re-run Proxy.Start on recovery.
+		if err := server.StartDoH3(); err != nil {
+			log.Fatal().Err(err).Msg("Failed to start DoH over HTTP/3")
+		}
 	})
 
 	signals := make(chan os.Signal, 1)
@@ -204,9 +208,17 @@ func doShutdown(server *server.Server, emitterI emitter.Emitter, sentryWriter *s
 	}
 
 	if server != nil {
+		doh3Done := make(chan struct{})
+		go func() {
+			defer close(doh3Done)
+			if err := server.ShutdownDoH3(ctx); err != nil {
+				log.Warn().Err(err).Msg("Failed to shutdown DoH over HTTP/3")
+			}
+		}()
 		if err := server.Proxy.Shutdown(ctx); err != nil {
 			log.Warn().Err(err).Msg("Failed to shutdown proxy")
 		}
+		<-doh3Done
 		server.Cache.Close()
 	}
 

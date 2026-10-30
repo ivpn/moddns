@@ -48,6 +48,8 @@ type Server struct {
 	LoggerFactory        logging.FactoryInterface
 	RateLimiter          *ratelimit.RateLimiter
 	Metrics              Metrics
+	// doh3 serves DoH over HTTP/3 when DOH_HTTP3_ENABLED is set; nil otherwise.
+	doh3 *doh3Server
 }
 
 var _ proxy.Handler = (*Server)(nil)
