@@ -185,14 +185,14 @@ type tlsConn interface {
 func (s *Server) clientIDFromDNSContext(pctx *proxy.DNSContext) (clientID, deviceId string, err error) {
 	proto := pctx.Proto
 	if proto == proxy.ProtoHTTPS {
+		// Path only (RFC 8484 §3): HTTP/2 arrives via a reverse proxy that does not
+		// forward the client's server name, HTTP/3 directly, so names would differ.
 		clientID, deviceId, err = clientIDFromDNSContextHTTPS(pctx)
 		if err != nil {
 			return "", "", fmt.Errorf("checking url: %w", err)
-		} else if clientID != "" {
-			return clientID, deviceId, nil
 		}
 
-		// Go on and check the domain name as well.
+		return clientID, deviceId, nil
 	} else if proto != proxy.ProtoTLS && proto != proxy.ProtoQUIC {
 		return "", "", nil
 	}
@@ -241,27 +241,9 @@ func (s *Server) clientIDFromDNSContext(pctx *proxy.DNSContext) (clientID, devic
 	return "", "", nil
 }
 
-// clientServerName returns the TLS server name based on the protocol.  For
-// DNS-over-HTTPS requests, it will return the hostname part of the Host header
-// if there is one.
+// clientServerName returns the TLS server name of a DoT or DoQ connection.
 func clientServerName(pctx *proxy.DNSContext, proto proxy.Proto) (srvName string, err error) {
-	from := "tls conn"
-
 	switch proto {
-	case proxy.ProtoHTTPS:
-		r := pctx.HTTPRequest
-		if connState := r.TLS; connState != nil {
-			srvName = connState.ServerName
-		} else if r.Host != "" {
-			var host string
-			host, err = netutil.SplitHost(r.Host)
-			if err != nil {
-				return "", fmt.Errorf("parsing host: %w", err)
-			}
-
-			srvName = host
-			from = "host header"
-		}
 	case proxy.ProtoQUIC:
 		qConn := pctx.QUICConnection
 		if qConn == nil {
@@ -279,7 +261,7 @@ func clientServerName(pctx *proxy.DNSContext, proto proxy.Proto) (srvName string
 		srvName = tc.ConnectionState().ServerName
 	}
 
-	log.Debug("dnsforward: got client server name %q from %s", srvName, from)
+	log.Debug("dnsforward: got client server name %q", srvName)
 
 	return srvName, nil
 }
