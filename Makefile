@@ -1,5 +1,5 @@
 CWD=$$(pwd)
-.PHONY: help announcements
+.PHONY: help announcements diff
 
 help: ## Displays the help for each command.
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -143,3 +143,6 @@ build_image_dev:
 		echo "Building DNS Blocklists dev image...\n"; \
 		docker build -t dnsblocklistsdev -f blocklists/Dockerfile.dev . ;\
 	fi
+
+diff: ## Opens the staged changes in Meld.
+	git difftool --cached --tool=meld --dir-diff

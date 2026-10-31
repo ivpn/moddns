@@ -3002,6 +3002,15 @@ const docTemplate = `{
                 "summary": "Finish passkey login",
                 "parameters": [
                     {
+                        "description": "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    {
                         "type": "string",
                         "description": "Remove all other active sessions during login",
                         "name": "x-sessions-remove",
@@ -3094,6 +3103,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Complete adding new passkey",
+                "parameters": [
+                    {
+                        "description": "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Passkey addition completed successfully"
@@ -3166,6 +3186,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Finish reauthentication via passkey",
+                "parameters": [
+                    {
+                        "description": "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -3321,6 +3352,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Finish passkey registration",
+                "parameters": [
+                    {
+                        "description": "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Registration completed successfully"

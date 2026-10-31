@@ -8,7 +8,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/go-webauthn/webauthn/protocol"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -41,24 +41,24 @@ func (_m *PasskeyServicer) EXPECT() *PasskeyServicer_Expecter {
 }
 
 // BeginLogin provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error) {
+func (_mock *PasskeyServicer) BeginLogin(ctx context.Context, email string) (*webauthn.CredentialAssertion, string, error) {
 	ret := _mock.Called(ctx, email)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginLogin")
 	}
 
-	var r0 *protocol.CredentialAssertion
+	var r0 *webauthn.CredentialAssertion
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*protocol.CredentialAssertion, string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*webauthn.CredentialAssertion, string, error)); ok {
 		return returnFunc(ctx, email)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *protocol.CredentialAssertion); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *webauthn.CredentialAssertion); ok {
 		r0 = returnFunc(ctx, email)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*protocol.CredentialAssertion)
+			r0 = ret.Get(0).(*webauthn.CredentialAssertion)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) string); ok {
@@ -104,35 +104,35 @@ func (_c *PasskeyServicer_BeginLogin_Call) Run(run func(ctx context.Context, ema
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginLogin_Call) Return(credentialAssertion *protocol.CredentialAssertion, s string, err error) *PasskeyServicer_BeginLogin_Call {
-	_c.Call.Return(credentialAssertion, s, err)
+func (_c *PasskeyServicer_BeginLogin_Call) Return(v *webauthn.CredentialAssertion, s string, err error) *PasskeyServicer_BeginLogin_Call {
+	_c.Call.Return(v, s, err)
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginLogin_Call) RunAndReturn(run func(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error)) *PasskeyServicer_BeginLogin_Call {
+func (_c *PasskeyServicer_BeginLogin_Call) RunAndReturn(run func(ctx context.Context, email string) (*webauthn.CredentialAssertion, string, error)) *PasskeyServicer_BeginLogin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // BeginReauth provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) BeginReauth(ctx context.Context, purpose string, accountID string) (*protocol.CredentialAssertion, string, error) {
+func (_mock *PasskeyServicer) BeginReauth(ctx context.Context, purpose string, accountID string) (*webauthn.CredentialAssertion, string, error) {
 	ret := _mock.Called(ctx, purpose, accountID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginReauth")
 	}
 
-	var r0 *protocol.CredentialAssertion
+	var r0 *webauthn.CredentialAssertion
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*protocol.CredentialAssertion, string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*webauthn.CredentialAssertion, string, error)); ok {
 		return returnFunc(ctx, purpose, accountID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *protocol.CredentialAssertion); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *webauthn.CredentialAssertion); ok {
 		r0 = returnFunc(ctx, purpose, accountID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*protocol.CredentialAssertion)
+			r0 = ret.Get(0).(*webauthn.CredentialAssertion)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) string); ok {
@@ -184,35 +184,35 @@ func (_c *PasskeyServicer_BeginReauth_Call) Run(run func(ctx context.Context, pu
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginReauth_Call) Return(credentialAssertion *protocol.CredentialAssertion, s string, err error) *PasskeyServicer_BeginReauth_Call {
-	_c.Call.Return(credentialAssertion, s, err)
+func (_c *PasskeyServicer_BeginReauth_Call) Return(v *webauthn.CredentialAssertion, s string, err error) *PasskeyServicer_BeginReauth_Call {
+	_c.Call.Return(v, s, err)
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginReauth_Call) RunAndReturn(run func(ctx context.Context, purpose string, accountID string) (*protocol.CredentialAssertion, string, error)) *PasskeyServicer_BeginReauth_Call {
+func (_c *PasskeyServicer_BeginReauth_Call) RunAndReturn(run func(ctx context.Context, purpose string, accountID string) (*webauthn.CredentialAssertion, string, error)) *PasskeyServicer_BeginReauth_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // BeginRegistration provides a mock function for the type PasskeyServicer
-func (_mock *PasskeyServicer) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error) {
+func (_mock *PasskeyServicer) BeginRegistration(ctx context.Context, account *model.Account, subID string) (*webauthn.CredentialCreation, string, error) {
 	ret := _mock.Called(ctx, account, subID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for BeginRegistration")
 	}
 
-	var r0 *protocol.CredentialCreation
+	var r0 *webauthn.CredentialCreation
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) (*protocol.CredentialCreation, string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) (*webauthn.CredentialCreation, string, error)); ok {
 		return returnFunc(ctx, account, subID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) *protocol.CredentialCreation); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *model.Account, string) *webauthn.CredentialCreation); ok {
 		r0 = returnFunc(ctx, account, subID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*protocol.CredentialCreation)
+			r0 = ret.Get(0).(*webauthn.CredentialCreation)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *model.Account, string) string); ok {
@@ -264,12 +264,12 @@ func (_c *PasskeyServicer_BeginRegistration_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginRegistration_Call) Return(credentialCreation *protocol.CredentialCreation, s string, err error) *PasskeyServicer_BeginRegistration_Call {
-	_c.Call.Return(credentialCreation, s, err)
+func (_c *PasskeyServicer_BeginRegistration_Call) Return(v *webauthn.CredentialCreation, s string, err error) *PasskeyServicer_BeginRegistration_Call {
+	_c.Call.Return(v, s, err)
 	return _c
 }
 
-func (_c *PasskeyServicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error)) *PasskeyServicer_BeginRegistration_Call {
+func (_c *PasskeyServicer_BeginRegistration_Call) RunAndReturn(run func(ctx context.Context, account *model.Account, subID string) (*webauthn.CredentialCreation, string, error)) *PasskeyServicer_BeginRegistration_Call {
 	_c.Call.Return(run)
 	return _c
 }
