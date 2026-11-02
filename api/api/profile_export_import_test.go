@@ -195,12 +195,12 @@ func (s *ProfileExportImportSuite) TestExport_HappyPath_ReturnsEnvelope() {
 }
 
 // specRef:"E20"
-// TestExport_TruncatesCustomRulesAndSetsHeader verifies that a profile with more
-// than ExportedCustomRulesLimit custom rules is truncated (oldest-first) in the
-// downloaded file and that the X-modDNS-Export-Truncated header (E21) reports the
-// number of profiles trimmed, so the UI can warn the user.
-func (s *ProfileExportImportSuite) TestExport_TruncatesCustomRulesAndSetsHeader() {
-	rules := make([]model.ExportedCustomRule, model.ExportedCustomRulesLimit+5)
+// TestExport_CarriesAllCustomRules verifies that export never truncates a
+// profile's custom rules (the account-wide cap bounds the file instead) and sets
+// no truncation header.
+func (s *ProfileExportImportSuite) TestExport_CarriesAllCustomRules() {
+	const ruleCount = 1500
+	rules := make([]model.ExportedCustomRule, ruleCount)
 	for i := range rules {
 		rules[i] = model.ExportedCustomRule{Action: "block", Value: "ads.example.com"}
 	}
@@ -225,13 +225,13 @@ func (s *ProfileExportImportSuite) TestExport_TruncatesCustomRulesAndSetsHeader(
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
 	s.Equal(http.StatusOK, resp.StatusCode)
-	s.Equal("1", resp.Header.Get("X-modDNS-Export-Truncated"))
+	s.Empty(resp.Header.Get("X-modDNS-Export-Truncated"))
 
 	var got model.ExportEnvelope
 	decodeJSON(s.T(), resp, &got)
 	s.Require().Len(got.Profiles, 1)
 	s.Require().NotNil(got.Profiles[0].Settings)
-	s.Len(got.Profiles[0].Settings.CustomRules, model.ExportedCustomRulesLimit)
+	s.Len(got.Profiles[0].Settings.CustomRules, ruleCount)
 }
 
 // specRef:"E2"

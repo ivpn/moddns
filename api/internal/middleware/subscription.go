@@ -2,11 +2,13 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/model"
+	"github.com/spf13/cast"
 )
 
 // SubscriptionProvider can fetch a subscription for a given account.
@@ -17,7 +19,8 @@ type SubscriptionProvider interface {
 // NewSubscriptionGuard returns middleware that enforces API access rules based
 // on subscription lifecycle status. Routes are classified into three tiers:
 //
-//   - alwaysAllowed: accessible in any subscription state (auth, logout, delete account, resync, export)
+//   - alwaysAllowed: accessible in any subscription state (auth, logout, delete account, resync, export,
+//     turning data collection off and deleting stored statistics and logs)
 //   - limitedAllowed: accessible during Active, GracePeriod, AND LimitedAccess (read-only views, account mgmt)
 //   - everything else: blocked during LimitedAccess, Inactive, and PendingDelete (mutations to profiles, rules, blocklists)
 //
@@ -48,7 +51,7 @@ func NewSubscriptionGuard(provider SubscriptionProvider) fiber.Handler {
 		path := c.Path()
 		c.Route()
 
-		if isAlwaysAllowed(method, path) {
+		if isAlwaysAllowed(method, path) || isTurnOffOnly(method, path, c.Body()) {
 			return c.Next()
 		}
 
@@ -95,9 +98,50 @@ func isAlwaysAllowed(method, path string) bool {
 		// Password reset
 		{method: "POST", prefix: "/api/v1/verify/reset-password"},
 		{method: "POST", prefix: "/api/v1/accounts/reset-password"},
+		// Deleting stored statistics and query logs, and the profile list to see what is
+		// collected. Turning collection off goes through isTurnOffOnly.
+		{method: "DELETE", prefix: "/api/v1/profiles/", suffix: "/statistics"},
+		{method: "DELETE", prefix: "/api/v1/profiles/", suffix: "/logs"},
+		{method: "GET", prefix: "/api/v1/profiles", exact: true},
 	}
 
 	return matchRoute(method, path, always)
+}
+
+// turnOffPaths are the profile settings a turn-off-only PATCH may set, each to false.
+var turnOffPaths = map[string]bool{
+	"/settings/statistics/enabled": true,
+	"/settings/logs/enabled":       true,
+}
+
+// isTurnOffOnly reports whether the request is PATCH /api/v1/profiles/{id} whose every
+// update replaces statistics.enabled or logs.enabled with false, which is allowed in
+// any subscription state. Any other body fails closed.
+func isTurnOffOnly(method, path string, body []byte) bool {
+	id, ok := strings.CutPrefix(path, "/api/v1/profiles/")
+	if method != fiber.MethodPatch || !ok || id == "" || strings.Contains(id, "/") {
+		return false
+	}
+	var req struct {
+		Updates []model.ProfileUpdate `json:"updates"`
+	}
+	if json.Unmarshal(body, &req) != nil || len(req.Updates) == 0 {
+		return false
+	}
+	for _, u := range req.Updates {
+		if u.Operation != model.UpdateOperationReplace || !turnOffPaths[u.Path] {
+			return false
+		}
+		// The service reads the value with cast.ToBoolE, which also turns nil into false.
+		v := u.Unwrapped()
+		if v == nil {
+			return false
+		}
+		if on, err := cast.ToBoolE(v); err != nil || on {
+			return false
+		}
+	}
+	return true
 }
 
 // isLimitedAccessAllowed returns true for routes allowed during LimitedAccess
@@ -106,8 +150,6 @@ func isLimitedAccessAllowed(method, path string) bool {
 	limited := []routeRule{
 		// Read-only profile views
 		{method: "GET", prefix: "/api/v1/profiles"},
-		// Delete logs (data cleanup)
-		{method: "DELETE", prefix: "/api/v1/profiles/", suffix: "/logs"},
 		// Read-only catalogs
 		{method: "GET", prefix: "/api/v1/blocklists"},
 		{method: "GET", prefix: "/api/v1/services"},

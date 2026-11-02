@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/model"
 )
 
 // @Summary Export profiles
@@ -26,7 +24,6 @@ import (
 // @Header 200 {string} Content-Disposition "attachment with a filename of the form moddns-export-<UTC>.moddns.json (contains no PII)"
 // @Header 200 {string} Cache-Control "no-store; the export contains sensitive data"
 // @Header 200 {string} Pragma "no-cache"
-// @Header 200 {integer} X-modDNS-Export-Truncated "count of profiles whose custom rules were truncated to the 1000 per-profile export limit; omitted when nothing was truncated"
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
 // @Failure 404 {object} ErrResponse
@@ -59,22 +56,6 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 		envelope, err := s.Service.Export(c.UserContext(), accountId, req.Scope, req.ProfileIds, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
 			return HandleError(c, err, err.Error())
-		}
-
-		// Cap each profile's custom rules to the per-profile export limit
-		// (oldest-first, preserving insertion order) so the file always re-imports
-		// cleanly regardless of how many rules a profile accumulated. Signal how
-		// many profiles were trimmed via a header so the UI can warn the user.
-		truncatedProfiles := 0
-		for i := range envelope.Profiles {
-			settings := envelope.Profiles[i].Settings
-			if settings != nil && len(settings.CustomRules) > model.ExportedCustomRulesLimit {
-				settings.CustomRules = settings.CustomRules[:model.ExportedCustomRulesLimit]
-				truncatedProfiles++
-			}
-		}
-		if truncatedProfiles > 0 {
-			c.Set("X-modDNS-Export-Truncated", strconv.Itoa(truncatedProfiles))
 		}
 
 		// specRef: E12, E13, E14, E15

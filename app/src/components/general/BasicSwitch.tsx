@@ -1,5 +1,5 @@
 import { Switch } from "@/components/ui/switch";
-import React, { type JSX } from "react";
+import { type JSX } from "react";
 
 interface BasicSwitchProps {
     className?: string;

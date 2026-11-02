@@ -23,6 +23,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/ivpn/dns/api/api/requests"
+	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
@@ -278,7 +279,7 @@ func (suite *AccountTestSuite) TestGetUnfinishedSignupOrPostAccount() {
 				suite.mockIDGenerator.On("Generate").Return("profile123", nil)
 				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return([]*model.Blocklist{{Name: "Default Blocklist", Default: true}}, nil)
 				suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
-				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings"), true).Return(nil)
+				suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(nil)
 				suite.mockSubscriptionRepo.On("Create", context.Background(), mock.AnythingOfType("model.Subscription")).Return(nil)
 				suite.mockAccountRepo.On("CreateAccount", context.Background(), email, password, mock.AnythingOfType("string"), "profile123").Return(&model.Account{ID: primitive.NewObjectID(), Email: email, Password: &password}, nil)
 				// CompleteRegistration mocks
@@ -1252,7 +1253,10 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 							}, nil)
 							suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), profileID).Return(nil)
 							suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), profileID).Return(nil)
+							suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, profileID, (*time.Time)(nil)).Return(int64(0), nil)
 							suite.mockCache.On("DeleteProfileSettings", context.Background(), profileID).Return(nil)
+							suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+							suite.mockCache.On("Incr", mock.Anything, mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs-gen:") }), cache.GenerationTTL).Return(int64(1), nil).Maybe()
 							suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, profileID).Return(nil)
 						}
 
@@ -1332,7 +1336,10 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	)
 	suite.mockProfileRepo.On("DeleteProfileById", mock.AnythingOfType("*context.cancelCtx"), "profile2").Return(nil)
 	suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), "profile2").Return(nil)
+	suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, "profile2", (*time.Time)(nil)).Return(int64(0), nil)
 	suite.mockCache.On("DeleteProfileSettings", context.Background(), "profile2").Return(nil)
+	suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+	suite.mockCache.On("Incr", mock.Anything, mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs-gen:") }), cache.GenerationTTL).Return(int64(1), nil).Maybe()
 	suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, "profile2").Return(nil)
 
 	// Account doc nukes any orphan profile1 reference still in the array.
@@ -1348,6 +1355,48 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	// would have failed if it had.
 	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, "profile1")
 	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RemoveProfileFromAccount", mock.Anything, mock.Anything, "profile1")
+}
+
+// specRef: api-endpoint-behaviour.md J7 — account purge removes every profile's statistics.
+func (suite *AccountTestSuite) TestPurgeAccountData_RemovesStatistics() {
+	suite.mockAccountRepo.ExpectedCalls = nil
+	suite.mockProfileRepo.ExpectedCalls = nil
+	suite.mockCredentialRepo.ExpectedCalls = nil
+	suite.mockSubscriptionRepo.ExpectedCalls = nil
+	suite.mockStatsRepo.ExpectedCalls = nil
+	suite.mockStatsRepo.Calls = nil
+
+	accountID := "507f1f77bcf86cd799439011"
+	accountObjID, err := primitive.ObjectIDFromHex(accountID)
+	suite.Require().NoError(err)
+	profiles := []model.Profile{
+		{ProfileId: "profileA", AccountId: accountID},
+		{ProfileId: "profileB", AccountId: accountID},
+	}
+
+	suite.mockCredentialRepo.On("DeleteCredentialsByAccountID", context.Background(), accountObjID).Return(nil)
+	suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), accountID).Return(profiles, nil)
+	for _, p := range profiles {
+		suite.mockProfileRepo.On("GetProfileById", context.Background(), p.ProfileId).Return(&model.Profile{ProfileId: p.ProfileId, AccountId: accountID}, nil)
+		suite.mockProfileRepo.On("DeleteProfileById", mock.Anything, p.ProfileId).Return(nil)
+		suite.mockQueryLogsRepo.On("DeleteQueryLogs", context.Background(), p.ProfileId).Return(nil)
+		suite.mockStatsRepo.On("DeleteProfileStatistics", mock.Anything, p.ProfileId, (*time.Time)(nil)).Return(int64(0), nil).Once()
+		suite.mockCache.On("DeleteProfileSettings", context.Background(), p.ProfileId).Return(nil)
+		suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+		suite.mockCache.On("Incr", mock.Anything, mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs-gen:") }), cache.GenerationTTL).Return(int64(1), nil).Maybe()
+		suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), accountID, p.ProfileId).Return(nil)
+	}
+	suite.mockAccountRepo.On("DeleteAccountById", context.Background(), accountID).Return(nil)
+	suite.mockSubscriptionRepo.On("DeleteSubscriptionByAccountId", context.Background(), accountID).Return(nil)
+
+	// Own instance: other tests in this suite swap suite.service for variants
+	// built without a credential repository.
+	svc := account.NewAccountService(suite.serviceConfig, suite.mockAccountRepo, suite.profileService, suite.statisticsService,
+		suite.subscriptionService, suite.mockCredentialRepo, suite.mockCache, suite.mockMailer, suite.mockIDGenerator,
+		suite.validator, webhookClient.Http{})
+	suite.Require().NoError(svc.PurgeAccountData(context.Background(), accountID))
+
+	suite.mockStatsRepo.AssertNumberOfCalls(suite.T(), "DeleteProfileStatistics", len(profiles))
 }
 
 // TestDeleteAccount_RetryWithAllProfilesAlreadyGone covers the case where a
@@ -2955,6 +3004,8 @@ func (suite *AccountTestSuite) TestSignupReset_RetiresSupersededAccount() {
 	suite.mockSubscriptionRepo.On("MarkSubscriptionRetired", mock.Anything, oldSub.ID, mock.AnythingOfType("time.Time")).Return(nil).Once()
 	suite.mockProfileRepo.On("GetProfilesByAccountId", mock.Anything, oldAccountID.Hex()).Return([]model.Profile{oldProfile}, nil).Once()
 	suite.mockCache.On("DeleteProfileSettings", mock.Anything, "old-prof").Return(nil).Once()
+	suite.mockCache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
+	suite.mockCache.On("Incr", mock.Anything, mock.MatchedBy(func(k string) bool { return strings.HasPrefix(k, "logs-gen:") }), cache.GenerationTTL).Return(int64(1), nil).Maybe()
 
 	err := suite.service.CompleteRegistration(context.Background(), newAcc, subID, sessionID, tokenHash)
 	suite.NoError(err)

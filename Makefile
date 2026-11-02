@@ -47,39 +47,24 @@ down_dns: ## Stops the DNS services (both recursors: sdns + knot).
 	-f compose.knot.yml \
 	down
 
-up_dev: ## Starts the services for development purposes.
-	docker compose \
-		-f compose.yml \
-		-f compose.dev.yml \
-		-f compose.redis.yml \
-		-f compose.knot.yml \
-		-f compose.sdns.yml \
-		up -d
-
-down_dev: ## Stops the development services.
-	docker compose \
+DEV_COMPOSE_FILES = \
 	-f compose.yml \
 	-f compose.dev.yml \
 	-f compose.redis.yml \
-	-f compose.sdns.yml \
 	-f compose.knot.yml \
-	down --remove-orphans --timeout 10
+	-f compose.sdns.yml
 
-restart_dev: ## Restarts development services (down + up with proper wait).
-	docker compose \
-	-f compose.dev.yml \
-	-f compose.yml \
-	-f compose.sdns.yml \
-	-f compose.knot.yml \
-	down --remove-orphans --timeout 10
+up_dev: ## Starts the minimal development stack (single Redis, knot); FULL=1 adds Redis replicas + sentinel, sdns and RedisInsight.
+	docker compose $(DEV_COMPOSE_FILES) $(if $(FULL),,-f compose.dev.minimal.yml) up -d
+
+down_dev: ## Stops the development services (minimal or FULL=1).
+	docker compose $(DEV_COMPOSE_FILES) down --remove-orphans
+
+restart_dev: ## Restarts development services (down + up with proper wait); accepts FULL=1.
+	$(MAKE) down_dev
 	@echo "Waiting for network resources to be released..."
 	@sleep 2
-	docker compose \
-		-f compose.yml \
-		-f compose.dev.yml \
-		-f compose.knot.yml \
-		-f compose.sdns.yml \
-		up -d
+	$(MAKE) up_dev
 
 announcements: ## Serves the Announcements dev fixture on the dns network as http://announcements-dev/ (set ANNOUNCEMENTS_URL in api/.env + recreate dnsapi; see README-dev.md).
 	@NET=$$(docker inspect -f '{{range $$k,$$v := .NetworkSettings.Networks}}{{$$k}}{{end}}' dnsapi 2>/dev/null); \
@@ -122,9 +107,12 @@ dev_proxy: ## Starts the development proxy service.
 dev_check: ## Starts the development dnscheck service.
 	docker exec -it dnscheck make gow
 
+# Pinned: generated enum member names change between generator releases, and code imports them by name.
+OPENAPI_GENERATOR_VERSION := v7.11.0@sha256:a9e7091ac8808c6835cf8ec88252bca603f1f889ef1456b63d8add5781feeca7
+
 gen_python_client: ## Generates the python client from swagger spec (renamed to moddns_client, package moddns).
 	rm -r tests/moddns_client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm -i openapitools/openapi-generator-cli generate \
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm -i openapitools/openapi-generator-cli:$(OPENAPI_GENERATOR_VERSION) generate \
 		--package-name moddns \
 		-i swagger.yaml \
 		-g python \
@@ -134,7 +122,7 @@ gen_python_client: ## Generates the python client from swagger spec (renamed to 
 
 gen_ts_client: ## Generates the typescript client from swagger spec.
 	rm -rf app/src/api/client/ || true
-	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
+	docker run -v ${CWD}:/app -w /app/api/docs --user $$(id -u):$$(id -g) --rm openapitools/openapi-generator-cli:$(OPENAPI_GENERATOR_VERSION) generate --package-name idns -i swagger.yaml -g typescript-axios -o /app/app/src/api/client --skip-validate-spec
 
 ### BUILD DEV IMAGES
 image?=api

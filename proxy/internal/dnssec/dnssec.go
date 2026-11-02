@@ -11,11 +11,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-// ReasonFailed is appended to a query log's reasons when the recursor reports a
-// DNSSEC validation failure via an Extended DNS Error (RFC 8914). The frontend
-// renders it as a "DNSSEC validation failed" chip.
-const ReasonFailed = "dnssec_failed"
-
 // ApplyRequestFlags configures the upstream request's DNSSEC-related bits.
 //
 // The logged DNSSEC-validation status (QueryLog.DNSRequest.DNSSEC, sourced from the

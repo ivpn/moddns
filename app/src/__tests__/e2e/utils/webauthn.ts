@@ -10,7 +10,6 @@ export async function installWebAuthnSuccessStub(page: import('@playwright/test'
     navigator.credentials = navigator.credentials || {};
     // Shape follows what @simplewebauthn/browser's startAuthentication() reads
     // from a PublicKeyCredential before serialising it for the finish call.
-    // @ts-expect-error - mocking WebAuthn API
     navigator.credentials.get = async () => ({
       id: 'cred1',
       rawId: buf('rawId'),
@@ -32,7 +31,6 @@ export async function installWebAuthnErrorStub(page: import('@playwright/test').
   await page.addInitScript((msg: string) => {
     // @ts-expect-error - mocking WebAuthn API
     navigator.credentials = navigator.credentials || {};
-    // @ts-expect-error - mocking WebAuthn API
     navigator.credentials.get = async () => { throw new Error(msg); };
   }, message);
 }

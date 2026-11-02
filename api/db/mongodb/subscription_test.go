@@ -40,7 +40,7 @@ type SubscriptionRepositorySuite struct {
 func (s *SubscriptionRepositorySuite) SetupSuite() {
 	ctx := context.Background()
 
-	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:7.0.8")
+	mongoImage := firstNonEmpty(os.Getenv("TEST_MONGO_IMAGE"), "mongo:8.0.9")
 	username := firstNonEmpty(os.Getenv("TEST_MONGO_USERNAME"), "testuser")
 	password := firstNonEmpty(os.Getenv("TEST_MONGO_PASSWORD"), "testpass")
 	authSource := firstNonEmpty(os.Getenv("DB_AUTH_SOURCE"), "admin")

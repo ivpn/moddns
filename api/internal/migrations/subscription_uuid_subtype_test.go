@@ -40,7 +40,7 @@ func TestMigrateSuite(t *testing.T) {
 func (s *MigrateSuite) SetupSuite() {
 	ctx := context.Background()
 
-	mongoImage := firstNonEmptyEnv("TEST_MONGO_IMAGE", "mongo:7.0.8")
+	mongoImage := firstNonEmptyEnv("TEST_MONGO_IMAGE", "mongo:8.0.9")
 	username := firstNonEmptyEnv("TEST_MONGO_USERNAME", "testuser")
 	password := firstNonEmptyEnv("TEST_MONGO_PASSWORD", "testpass")
 	authSource := firstNonEmptyEnv("DB_AUTH_SOURCE", "admin")

@@ -38,11 +38,11 @@ jobs:
       - name: SSL cert setup
         run: |
           echo "The value of PYTHON_CERTS_PATH is $PYTHON_CERTS_PATH"
-          sudo cat ${IVPN_CERT_PATH} >> ${PYTHON_CERTS_PATH}
+          cat "${IVPN_CERT_PATH}" | sudo tee -a "${PYTHON_CERTS_PATH}" > /dev/null
 
       - name: Add hosts to /etc/hosts
         run: |
-          sudo echo "127.0.0.1 moddns.dev" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 moddns.dev" | sudo tee -a /etc/hosts > /dev/null
 
       # dnscrypt-proxy client for the DoH-stamp E2E test (dns_tests/test_dnscrypt_proxy.py).
       # The pinned version + URL + sha256 live in tests/libs/dnscrypt_proxy.py (single

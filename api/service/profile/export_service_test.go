@@ -105,7 +105,7 @@ func fullProfile(accountId string) *model.Profile {
 		LogDomains:    false,
 		Retention:     "1w",
 	}
-	p.Settings.Statistics = &model.StatisticsSettings{Enabled: true}
+	p.Settings.Statistics = &model.StatisticsSettings{Enabled: true, Retention: model.StatisticsRetention1y}
 	p.Settings.Advanced = &model.Advanced{Recursor: "unbound"}
 	return p
 }
@@ -290,6 +290,9 @@ func TestExport_ProfileMapping_Includes(t *testing.T) {
 	// Statistics
 	require.NotNil(t, ep.Settings.Statistics)
 	assert.True(t, ep.Settings.Statistics.Enabled)
+	b, err := json.Marshal(ep.Settings.Statistics)
+	require.NoError(t, err)
+	assert.NotContains(t, string(b), "retention", "F20: statistics retention is not exported")
 
 	// Advanced — specRef: F7
 	// Advanced settings are deliberately not emitted; the staging-only

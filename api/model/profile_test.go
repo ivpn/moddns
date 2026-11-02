@@ -64,16 +64,15 @@ func TestExportedProfileName_WireMaxIsPermissive(t *testing.T) {
 }
 
 // TestExportedCustomRules_MaxMatchesCanonicalConst is the drift guard for the
-// per-profile export/import custom-rules limit: the import-wire DTO tag must
-// equal ExportedCustomRulesLimit — the value export truncates to and import
-// accepts — so update both together.
+// import-wire custom-rules bound: one profile can never hold more than the
+// account-wide cap, so the DTO tag must equal MaxCustomRulesPerAccount.
 func TestExportedCustomRules_MaxMatchesCanonicalConst(t *testing.T) {
 	f, ok := reflect.TypeOf(ExportedSettings{}).FieldByName("CustomRules")
 	require.True(t, ok, "ExportedSettings.CustomRules field not found")
 	got := extractMaxFromValidateTag(t, "model.ExportedSettings.CustomRules", f.Tag)
-	assert.Equal(t, ExportedCustomRulesLimit, got,
-		"ExportedSettings.CustomRules validate tag has max=%d but ExportedCustomRulesLimit=%d — update both together",
-		got, ExportedCustomRulesLimit)
+	assert.Equal(t, MaxCustomRulesPerAccount, got,
+		"ExportedSettings.CustomRules validate tag has max=%d but MaxCustomRulesPerAccount=%d — update both together",
+		got, MaxCustomRulesPerAccount)
 }
 
 // TestExportedCustomRuleGroups_MaxMatchesCanonicalConst is the drift guard for the
@@ -88,4 +87,13 @@ func TestExportedCustomRuleGroups_MaxMatchesCanonicalConst(t *testing.T) {
 			"CustomRuleGroups.%s validate tag has max=%d but ExportedCustomRuleGroupsLimit=%d — update both together",
 			field, got, ExportedCustomRuleGroupsLimit)
 	}
+}
+
+// specRef: api-endpoint-behaviour.md G27 — the Python client sends a value wrapped as {"value": x}; the service and the subscription guard read it the same way.
+func TestProfileUpdateUnwrapped(t *testing.T) {
+	assert.Equal(t, false, ProfileUpdate{Value: false}.Unwrapped())
+	assert.Equal(t, false, ProfileUpdate{Value: map[string]any{"value": false}}.Unwrapped())
+	assert.Equal(t, "30d", ProfileUpdate{Value: map[string]any{"value": "30d"}}.Unwrapped())
+	assert.Nil(t, ProfileUpdate{Value: map[string]any{"other": true}}.Unwrapped())
+	assert.Equal(t, "x", ProfileUpdate{Value: "x"}.Unwrapped())
 }

@@ -13,7 +13,7 @@ type EventQueryLogChannel struct {
 }
 
 // Send method to implement the CollectorChannel interface
-func (c EventQueryLogChannel) Send(data interface{}) error {
+func (c EventQueryLogChannel) Send(data any) error {
 	eventLog, ok := data.(model.EventQueryLog)
 	if !ok {
 		return errors.New("invalid data type")
@@ -23,7 +23,7 @@ func (c EventQueryLogChannel) Send(data interface{}) error {
 }
 
 // Receive method to implement the CollectorChannel interface
-func (c EventQueryLogChannel) Receive() (interface{}, error) {
+func (c EventQueryLogChannel) Receive() (any, error) {
 	eventLog := <-c.Channel
 	return eventLog, nil
 }

@@ -83,6 +83,10 @@ const groupSortId = (name: string) => `${GROUP_SORT_PREFIX}${name}`;
 const isGroupSortId = (id: string) => id.startsWith(GROUP_SORT_PREFIX);
 const groupFromSortId = (id: string) => id.slice(GROUP_SORT_PREFIX.length);
 
+const RULES_PAGE_SIZE = 200;
+// Matches the section body's duration-300 height transition.
+const SECTION_TRANSITION_MS = 300;
+
 export interface CustomRulesCardProps {
     rules: ModelCustomRule[];
     groupNotes: Record<string, string>;
@@ -430,6 +434,8 @@ function NewGroupZone({
 // ── Section body ───────────────────────────────────────────────────────────────
 // The collapse-animated list of a section's rules (its own rule-level SortableContext
 // + droppable). Shared by the Ungrouped section and every named group.
+// Rows are rendered RULES_PAGE_SIZE at a time and a closed group renders none, so the
+// page stays within mobile WebKit's memory budget at the 10,000-rule account cap.
 function SectionBody({
     section,
     isCollapsed,
@@ -440,6 +446,8 @@ function SectionBody({
     removingIds,
     allSelected,
     draggable,
+    activeId,
+    suggestGroups,
 }: {
     section: { name: string; items: ModelCustomRule[] };
     isCollapsed: boolean;
@@ -450,18 +458,39 @@ function SectionBody({
     removingIds: string[];
     allSelected: boolean;
     draggable: boolean;
+    activeId: string | null;
+    suggestGroups: boolean;
 }): JSX.Element {
+    const [limit, setLimit] = useState(RULES_PAGE_SIZE);
+    // Rows stay mounted until the close transition ends; opening mounts them in the
+    // same render as the 0fr -> 1fr change, which still animates.
+    const [rowsMounted, setRowsMounted] = useState(!isCollapsed);
+    useEffect(() => {
+        if (!isCollapsed) { setRowsMounted(true); return; }
+        const t = setTimeout(() => setRowsMounted(false), SECTION_TRANSITION_MS);
+        return () => clearTimeout(t);
+    }, [isCollapsed]);
+    const showRows = rowsMounted || !isCollapsed;
+
     const isEmpty = section.items.length === 0;
-    const sectionIds = section.items.map(r => r.id);
+    const visible = section.items.slice(0, limit);
+    // A rule dragged in from another section lands at its end; keep it rendered so
+    // the drag keeps its source node.
+    if (activeId && !visible.some(r => r.id === activeId)) {
+        const dragged = section.items.find(r => r.id === activeId);
+        if (dragged) visible.push(dragged);
+    }
+    const hidden = section.items.length - visible.length;
+    const visibleIds = visible.map(r => r.id);
     return (
         /* grid-template-rows 0fr<->1fr animates the section height fluidly without
-           measuring; the inner wrapper clips during the transition. Kept mounted so
-           it stays a drop target. */
+           measuring; the inner wrapper clips during the transition. The droppable stays
+           mounted when closed; only the rows are dropped. */
         <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out motion-reduce:transition-none ${isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]"}`}>
             <div className={`min-h-0 overflow-hidden transition-opacity duration-200 ${isCollapsed ? "opacity-0" : "opacity-100"}`}>
-                <SortableContext items={sectionIds} strategy={verticalListSortingStrategy}>
+                <SortableContext items={showRows ? visibleIds : []} strategy={verticalListSortingStrategy}>
                     <DroppableSection group={section.name} isEmpty={isEmpty}>
-                        {section.items.map((rule) => (
+                        {showRows && visible.map((rule) => (
                             <SortableEntry
                                 key={rule.id}
                                 rule={rule}
@@ -476,6 +505,22 @@ function SectionBody({
                         ))}
                     </DroppableSection>
                 </SortableContext>
+                {showRows && hidden > 0 && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 w-full px-1 pt-2 text-sm text-[var(--tailwind-colors-slate-light-600)] dark:text-[var(--tailwind-colors-slate-400)]">
+                        <span>
+                            {hidden.toLocaleString()} rules not shown. Search finds any rule.
+                            {suggestGroups && " Tip: put rules into groups to keep this list short."}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-10 md:h-8 text-[var(--tailwind-colors-rdns-600)]"
+                            onClick={() => setLimit(l => l + RULES_PAGE_SIZE)}
+                        >
+                            Show {Math.min(RULES_PAGE_SIZE, hidden).toLocaleString()} more
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -502,6 +547,7 @@ function SortableGroupSection({
     onEdit,
     removingIds,
     allSelected,
+    activeId,
 }: {
     section: { name: string; items: ModelCustomRule[] };
     collapsed: boolean;
@@ -519,6 +565,7 @@ function SortableGroupSection({
     onEdit: (rule: ModelCustomRule) => void;
     removingIds: string[];
     allSelected: boolean;
+    activeId: string | null;
 }): JSX.Element {
     const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
         id: groupSortId(section.name),
@@ -565,6 +612,8 @@ function SortableGroupSection({
                 removingIds={removingIds}
                 allSelected={allSelected}
                 draggable={draggable}
+                activeId={activeId}
+                suggestGroups={false}
             />
         </div>
     );
@@ -917,6 +966,8 @@ export default function CustomRulesCard({
                                 removingIds={removingIds}
                                 allSelected={allSelected}
                                 draggable={draggable}
+                                activeId={activeId}
+                                suggestGroups
                             />
                         </div>
                     )}
@@ -942,6 +993,7 @@ export default function CustomRulesCard({
                                 onEdit={onEdit}
                                 removingIds={removingIds}
                                 allSelected={allSelected}
+                                activeId={activeId}
                             />
                         ))}
                     </SortableContext>

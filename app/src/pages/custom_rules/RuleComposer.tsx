@@ -1,4 +1,4 @@
-import { type ComponentProps, useMemo, useState, type KeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import CreatableSelect from "react-select/creatable";
 import {
     components,
@@ -7,6 +7,7 @@ import {
     type CSSObjectWithLabel,
     type GroupBase,
     type InputActionMeta,
+    type InputProps,
     type MultiValue,
     type MultiValueGenericProps,
     type MultiValueProps,
@@ -191,7 +192,7 @@ const DropdownIndicator = () => null;
 const IndicatorSeparator = () => null;
 const Menu = () => null;
 
-const CustomInput = (props: ComponentProps<typeof components.Input>) => (
+const CustomInput = (props: InputProps<RuleOption, true, GroupBase<RuleOption>>) => (
     <components.Input {...props} autoCapitalize="none" spellCheck={false} autoCorrect="off" />
 );
 

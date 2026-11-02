@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/ivpn/dns/api/internal/idgen"
+	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -13,20 +14,14 @@ import (
 // the tags and this const stay aligned — do not change one without the other.
 const MaxProfileNameLen = 50
 
-// MaxCustomRulesPerProfile is the hard upper ceiling on how many custom rules a
-// single profile may hold. It is a high abuse/resource guard (protecting Redis
-// memory and the proxy's in-memory rule cache), not a product-facing limit —
-// real users never reach it. Enforced by the create path
-// (service/profile/custom_rules.go).
-const MaxCustomRulesPerProfile = 10000
-
-// ExportedCustomRulesLimit is the maximum number of custom rules emitted per
-// profile in an export, and therefore the per-profile cap accepted on import.
-// Exports beyond this are truncated (oldest-first) so an export always re-imports
-// cleanly regardless of how many rules a profile accumulated. Mirrors the
-// `max` literal in the ExportedSettings.CustomRules tag in export.go; the
-// regression test in profile_test.go keeps them aligned — change both together.
-const ExportedCustomRulesLimit = 1000
+// MaxCustomRulesPerAccount is the one limit on custom rules: the total across
+// all of an account's profiles. It bounds what create and import may write, and
+// therefore what an export carries, so export never truncates. It guards Mongo,
+// Redis and the proxy's in-memory rule cache. Enforced in
+// service/profile/custom_rules.go (create) and service/profile/import.go (import).
+// Mirrors the `max` literal in the ExportedSettings.CustomRules tag in export.go;
+// the regression test in profile_test.go keeps them aligned — change both together.
+const MaxCustomRulesPerAccount = 10000
 
 // ExportedCustomRuleGroupsLimit is the maximum number of custom-rule groups emitted
 // per list (denylist/allowlist) in an export, and the per-list cap accepted on
@@ -64,6 +59,15 @@ func NewProfile(idGen idgen.Generator, name, accountId string) (*Profile, error)
 // RFC6902 JSON Patch format is used
 type ProfileUpdate struct {
 	Operation string `json:"operation" validate:"required,oneof=remove add replace move copy"`
-	Path      string `json:"path" validate:"required,oneof=/name /settings/statistics/enabled /settings/logs/enabled /settings/logs/log_clients_ips /settings/logs/log_domains /settings/logs/retention /settings/privacy/default_rule /settings/privacy/blocklists_subdomains_rule /settings/privacy/custom_rules_subdomains_rule /settings/security/dnssec/enabled /settings/security/dnssec/send_do_bit /settings/security/rebinding_protection/enabled /settings/advanced/recursor"`
+	Path      string `json:"path" validate:"required,oneof=/name /settings/statistics/enabled /settings/statistics/retention /settings/logs/enabled /settings/logs/log_clients_ips /settings/logs/log_domains /settings/logs/retention /settings/privacy/default_rule /settings/privacy/blocklists_subdomains_rule /settings/privacy/custom_rules_subdomains_rule /settings/security/dnssec/enabled /settings/security/dnssec/send_do_bit /settings/security/rebinding_protection/enabled /settings/advanced/recursor"`
 	Value     any    `json:"value" validate:"required"`
+}
+
+// Unwrapped returns Value, or the "value" key when Value is a map: the generated
+// Python client sends a value wrapped as {"value": x}.
+func (u ProfileUpdate) Unwrapped() any {
+	if m, err := cast.ToStringMapE(u.Value); err == nil {
+		return m["value"]
+	}
+	return u.Value
 }

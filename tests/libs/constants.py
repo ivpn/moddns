@@ -20,3 +20,9 @@ BLOCKLISTED_SUBDOMAIN = f"sub.{BLOCKLISTED_DOMAIN}"
 # resolves deterministically to RESOLVABLE_TEST_IP and is in NO blocklist.
 RESOLVABLE_TEST_DOMAIN = "test.com"
 RESOLVABLE_TEST_IP = "104.18.74.230"  # AS13335 (Cloudflare, not in catalog)
+
+# First entry of SERVER_ALLOWED_DOMAINS in config/api.env: the hostnames the API adds
+# allow rules for when a profile's default_rule is block. Pinned in config/testhosts.txt
+# (mirrored in config/knot.config.yaml) so it resolves deterministically.
+SERVICE_ALLOWED_DOMAIN = "app.ivpndns.net"
+SERVICE_ALLOWED_IP = "104.18.74.240"

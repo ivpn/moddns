@@ -3,6 +3,7 @@ import '@testing-library/jest-dom';
 import QueryLogCard from '@/pages/logs/QueryLogCard';
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import type { ModelQueryLog } from '@/api/client';
+import type { ConsolidatedLogGroup } from '@/lib/consolidateLogs';
 
 // Helper to stub matchMedia with basic capability flags
 function stubDesktopMatchMedia(isDesktop: boolean) {
@@ -316,8 +317,9 @@ describe('QueryLogCard consolidation (issue #161)', () => {
         timestamp: '2026-06-15T10:20:30.000Z',
         dns_request: { domain: 'dup.example.com', query_type: 'AAAA', response_code: 'NXDOMAIN' },
     };
-    const group = {
+    const group: ConsolidatedLogGroup = {
         key: 'con-group',
+        identity: 'con-group',
         representative: memberA,
         count: 3,
         members: [memberA, memberAAAA, memberA],
@@ -513,8 +515,9 @@ describe('QueryLogCard collapsed status indicator', () => {
             outcome: 'timeout',
             dns_request: { ...baseLog.dns_request, query_type: 'AAAA', response_code: '' },
         };
-        const group = {
+        const group: ConsolidatedLogGroup = {
             key: 'chip-group',
+            identity: 'chip-group',
             representative: resolvedA,
             count: 2,
             members: [resolvedA, timeoutAAAA],

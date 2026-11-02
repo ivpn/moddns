@@ -21,11 +21,6 @@ class MockIntersectionObserver {
     }
 }
 
-declare global {
-    // eslint-disable-next-line no-var
-    var IntersectionObserver: typeof MockIntersectionObserver;
-}
-
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof globalThis.IntersectionObserver;
 
 vi.mock('@/components/theme-provider', () => ({

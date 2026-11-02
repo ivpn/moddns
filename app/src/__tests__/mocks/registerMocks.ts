@@ -3,11 +3,13 @@ import { createMockAccount, createMockProfiles, createMockBlocklists } from './a
 import type { ModelAccount, ModelProfile } from '@/api/client/api';
 import { AUTH_KEY } from '@/lib/consts';
 
+type DeepPartial<T> = T extends (infer U)[] ? DeepPartial<U>[] : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
+
 export interface RegisterMocksOptions {
   authenticated?: boolean;
   profilesCount?: number;
   enableBlocklists?: string[];
-  customProfiles?: Partial<ModelProfile>[]; // allow tests to pass partial override objects
+  customProfiles?: DeepPartial<ModelProfile>[]; // allow tests to pass partial override objects
   accountOverride?: Partial<ReturnType<typeof createMockAccount>>;
   extraRoutes?: (page: Page) => Promise<void> | void;
   ensureActiveProfile?: boolean; // new option
@@ -32,7 +34,7 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
 
   const baseAccount: ModelAccount = createMockAccount();
   const account: ModelAccount = { ...baseAccount, ...accountOverride };
-  const profiles: ModelProfile[] = customProfiles || createMockProfiles(profilesCount, {}, enableBlocklists);
+  const profiles = (customProfiles as ModelProfile[] | undefined) || createMockProfiles(profilesCount, {}, enableBlocklists);
   const blocklists = createMockBlocklists();
 
   if (authenticated) {
@@ -121,4 +123,34 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
     }
     return r.continue();
   });
+}
+
+export interface StatisticsMockOptions {
+  /** Response for GET /profiles/{id}/statistics; omit for a statistics-off answer. */
+  statistics?: unknown;
+  top?: { blocked?: unknown; resolved?: unknown };
+  clients?: unknown;
+  blocklists?: unknown;
+  devices?: unknown;
+}
+
+/**
+ * Routes for the Statistics page. Call AFTER registerMocks so they win over its catch-all
+ * (later registrations take precedence in Playwright).
+ */
+export async function registerStatisticsMocks(page: Page, opts: StatisticsMockOptions = {}) {
+  const json = (r: Route, body: unknown) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/statistics/i, (r: Route) =>
+    json(r, opts.statistics ?? { enabled: false, series: [], devices: [] }));
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/top\/domains/i, (r: Route) => {
+    const kind = new URL(r.request().url()).searchParams.get('kind');
+    return json(r, (kind === 'blocked' ? opts.top?.blocked : opts.top?.resolved) ?? { enabled: true, items: [] });
+  });
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/top\/clients/i, (r: Route) =>
+    json(r, opts.clients ?? { enabled: true, items: [] }));
+  await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/top\/blocklists/i, (r: Route) =>
+    json(r, opts.blocklists ?? { enabled: true, items: [] }));
+  if (opts.devices) {
+    await page.route(/\/api\/v1\/profiles\/[^/]+\/logs\/devices/i, (r: Route) => json(r, opts.devices));
+  }
 }

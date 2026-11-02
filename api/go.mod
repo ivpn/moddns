@@ -22,7 +22,7 @@ require (
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	github.com/testcontainers/testcontainers-go v0.43.0
 	go.mongodb.org/mongo-driver v1.17.3
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.58.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -84,6 +84,8 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/oschwald/geoip2-golang/v2 v2.4.0 // indirect
+	github.com/oschwald/maxminddb-golang/v2 v2.6.0 // indirect
 	github.com/philhofer/fwd v1.1.3-0.20240916144458-20a13a1f6b7c // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
@@ -105,7 +107,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.41.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/tools v0.44.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 )
 
 require (
@@ -130,8 +132,8 @@ require (
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
-	golang.org/x/crypto v0.52.0
+	golang.org/x/crypto v0.55.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.37.0
+	golang.org/x/text v0.41.0
 )

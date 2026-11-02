@@ -81,7 +81,7 @@ const PreferencesDialog = ({
     }: {
         operation?: ModelProfileUpdateOperationEnum | string;
         path: ModelProfileUpdatePathEnum | string;
-        value: string | boolean;
+        value: string;
         loadingSetter: React.Dispatch<React.SetStateAction<boolean>>;
         stateSetter: React.Dispatch<React.SetStateAction<typeof initialBlocklistSettings>>;
         idx: number;

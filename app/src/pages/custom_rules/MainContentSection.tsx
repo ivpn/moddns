@@ -3,11 +3,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo, type JSX } from "react";
 import AlertCard from "@/components/general/AlertCard";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import CustomRulesSearch from "@/pages/custom_rules/Search";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import CustomRulesAccountLimitBanner from "@/pages/custom_rules/CustomRulesAccountLimitBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import api from "@/api/api";
 import { toast } from "sonner";
@@ -17,8 +18,8 @@ import CustomRulesCard from "@/pages/custom_rules/CustomRulesCard";
 import RuleEditDialog from "@/pages/custom_rules/RuleEditDialog";
 import type { RequestsUpdateProfileCustomRuleBody, RequestsCustomRuleGroupUpdate } from "@/api/client/api";
 import { RequestsCustomRuleGroupUpdateOperationEnum as GroupOp } from "@/api/client/api";
-import CustomRulesExportLimitBanner from "@/pages/custom_rules/CustomRulesExportLimitBanner";
 import { formatApiError } from "@/lib/apiError";
+import { parseRuleList } from "@/pages/custom_rules/utils";
 
 type RuleTab = "denylist" | "allowlist";
 
@@ -43,7 +44,8 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
     const customRulesAlertDismissed = useAppStore((state) => state.customRulesAlertDismissed);
     const setCustomRulesAlertDismissed = useAppStore((state) => state.setCustomRulesAlertDismissed);
     const [showSearch, setShowSearch] = useState(false);
-    const [activeTab, setActiveTab] = useState<RuleTab>("denylist");
+    const [params] = useSearchParams();
+    const [activeTab, setActiveTab] = useState<RuleTab>(() => parseRuleList(params.get("list")));
     const [loading, setLoading] = useState(false);
     const [searchValue, setSearchValue] = useState("");
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -426,7 +428,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible">
             <BetaEndingBanner />
             <LimitedAccessBanner />
-            <CustomRulesExportLimitBanner />
+            <CustomRulesAccountLimitBanner />
             <div className="flex w-full h-full flex-1 items-start relative min-h-0">
                 <div className="flex flex-col flex-1 h-full w-full min-h-0">
                     <Tabs

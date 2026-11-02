@@ -16,7 +16,8 @@ from libs.dns_lib import assert_not_blocked
 from libs.settings import get_settings
 from pymongo import MongoClient
 
-# Collector batch interval is 10s in this env (tests/config/proxy.env); poll past it.
+# Service statistics flush every 10s in this env (COLLECTOR_SERVICE_STATISTICS_BATCH_INTERVAL,
+# tests/config/proxy.env); poll past it.
 STATS_POLL_TIMEOUT_S = 30
 STATS_POLL_STEP_S = 2
 QUERIES_TO_SEND = 5

@@ -146,11 +146,15 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 		existingValues[normalized] = struct{}{}
 	}
 
-	if len(profile.Settings.CustomRules)+len(toCreate) > model.MaxCustomRulesPerProfile {
-		return nil, ErrMaxCustomRulesReached
-	}
-
 	if len(toCreate) > 0 {
+		profiles, err := p.ProfileRepository.GetProfilesByAccountId(ctx, accountId)
+		if err != nil {
+			return nil, err
+		}
+		if countCustomRules(profiles)+len(toCreate) > model.MaxCustomRulesPerAccount {
+			return nil, ErrMaxCustomRulesReached
+		}
+
 		if err := p.ProfileRepository.CreateCustomRules(ctx, profileId, toCreate); err != nil {
 			return nil, err
 		}
@@ -163,6 +167,17 @@ func (p *ProfileService) CreateCustomRulesBulk(ctx context.Context, accountId, p
 	}
 
 	return result, nil
+}
+
+// countCustomRules returns the number of custom rules across the given profiles.
+func countCustomRules(profiles []model.Profile) int {
+	total := 0
+	for _, profile := range profiles {
+		if profile.Settings != nil {
+			total += len(profile.Settings.CustomRules)
+		}
+	}
+	return total
 }
 
 // normalizeRuleValue applies the canonical custom-rule normalization pipeline to a

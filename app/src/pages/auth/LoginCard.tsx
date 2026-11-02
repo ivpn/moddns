@@ -24,7 +24,7 @@ const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, 
     const [isPasskeyMode, setIsPasskeyMode] = useState(initialPasskeyMode);
     const navigate = useNavigate();
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     const handlePasskeySubmit = async (e: React.FormEvent) => {
         e.preventDefault();

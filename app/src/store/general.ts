@@ -49,8 +49,15 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       activeProfile: null,
+      // Mutations store the refetched profile here, so mirror it into `profiles`;
+      // profile switching and the account-wide rule count read from that list.
       setActiveProfile: (profile) => {
-        set({ activeProfile: profile });
+        set((s) => ({
+          activeProfile: profile,
+          profiles: profile
+            ? s.profiles.map((p) => (p.profile_id === profile.profile_id ? profile : p))
+            : s.profiles,
+        }));
       },
       profiles: [],
       setProfiles: (profiles) => set({ profiles }),

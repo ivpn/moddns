@@ -2,7 +2,7 @@ import { describe, beforeEach, afterEach, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { act } from 'react-dom/test-utils';
 import '@testing-library/jest-dom';
-import QuickRuleSheet from '@/pages/logs/QuickRuleSheet';
+import QuickRuleSheet from '@/components/custom-rules/QuickRuleSheet';
 import { useAppStore } from '@/store/general';
 
 describe('QuickRuleSheet', () => {

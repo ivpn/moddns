@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import React from "react";
 import QueryLogs from "@/pages/logs/Logs";
 import { useAppStore } from "@/store/general";
+import type { ModelAccount, ModelProfile } from "@/api/client";
 
 // Hoisted mocks for vi.mock
 const { queryLogsMock, queryLogsDevicesMock, profilesGetMock } = vi.hoisted(() => ({
@@ -26,7 +27,7 @@ vi.mock("@/api/api", () => ({
     },
 }));
 
-vi.mock("@/pages/logs/QuickRuleSheet", () => ({
+vi.mock("@/components/custom-rules/QuickRuleSheet", () => ({
     __esModule: true,
     default: ({ open, defaultAction }: { open: boolean; defaultAction: string }) => (
         <div data-testid="quick-rule-sheet" data-open={open} data-default-action={defaultAction} />
@@ -46,7 +47,7 @@ vi.mock("@/pages/logs/QueryLogCard", () => ({
             <div data-testid="log-card" data-status={log.status} data-animate-entry={String(Boolean(animateEntry))}>
                 <button
                     aria-label="Quick custom rule"
-                    onClick={() => onQuickRule?.(log.dns_request?.domain, log.status === "blocked" ? "allowlist" : "denylist")}
+                    onClick={() => onQuickRule?.(log.dns_request?.domain ?? "", log.status === "blocked" ? "allowlist" : "denylist")}
                     data-is-last={String(isLast)}
                 />
             </div>
@@ -141,11 +142,6 @@ class MockIntersectionObserver {
     }
 }
 
-declare global {
-    // eslint-disable-next-line no-var
-    var IntersectionObserver: typeof MockIntersectionObserver;
-}
-
 global.IntersectionObserver = MockIntersectionObserver as unknown as typeof globalThis.IntersectionObserver;
 
 // jsdom's scrollTo throws "Not implemented"; the spy silences it and records calls.
@@ -156,9 +152,9 @@ const baseProfile = {
     id: "profile-1",
     name: "Primary",
     settings: { logs: { enabled: true } },
-} as unknown as Record<string, unknown> & { profile_id: string; settings: { logs: { enabled: boolean } } };
+} as unknown as ModelProfile;
 
-const account = { id: "account-1" } as unknown as Record<string, unknown>;
+const account = { id: "account-1" } as unknown as ModelAccount;
 
 const makeLog = (overrides: Record<string, unknown> = {}) => ({
     profile_id: baseProfile.profile_id,
@@ -197,7 +193,8 @@ describe("QueryLogs", () => {
         MockIntersectionObserver.lastInstance = null;
     });
 
-    test("fetches with page 1 limit 100 and paginates to page 2", async () => {
+    // tableRef: query-logs-refresh-behaviour #L4
+    test("fetches with page 1 limit 100 and continues after its 100 rows", async () => {
         const firstPageLogs = Array.from({ length: 100 }).map((_, i) => makeLog({ timestamp: `2024-01-01T00:00:${i.toString().padStart(2, "0")}Z` }));
         queryLogsMock.mockResolvedValueOnce({ status: 200, data: firstPageLogs });
         queryLogsMock.mockResolvedValueOnce({ status: 200, data: [] });
@@ -223,7 +220,7 @@ describe("QueryLogs", () => {
         await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(2));
         expect(queryLogsMock).toHaveBeenLastCalledWith(
             baseProfile.profile_id,
-            2,
+            5,
             25,
             undefined,
             undefined,
@@ -641,6 +638,30 @@ describe("QueryLogs", () => {
         expect(scrollToSpy).not.toHaveBeenCalled();
     });
 
+        // tableRef: query-logs-refresh-behaviour #L1
+    test("stops paginating at the API row cap and says the list is cut", async () => {
+        // Identical rows collapse into one card, so 400 pages stay cheap to render.
+        const row = makeLog({ timestamp: "2024-01-01T00:00:00Z" });
+        queryLogsMock.mockImplementation((_id: string, _page: number, limit: number) =>
+            Promise.resolve({ status: 200, data: Array.from({ length: limit }, () => row) }));
+        render(<QueryLogs account={account} profiles={[baseProfile]} />);
+        // Page 1 holds 100 rows, so UI page 397 is server page 400 (rows 9975-9999).
+        for (let page = 2; page <= 397; page++) {
+            await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(page - 1));
+            await waitFor(() => expect(MockIntersectionObserver.lastInstance).toBeTruthy());
+            act(() => {
+                MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+            });
+        }
+        await waitFor(() => expect(queryLogsMock).toHaveBeenCalledTimes(397));
+        expect(queryLogsMock).toHaveBeenLastCalledWith(baseProfile.profile_id, 400, 25, undefined, undefined, undefined, undefined, "created");
+        await waitFor(() => expect(screen.getByTestId("logs-end-marker")).toHaveTextContent("The list shows up to 10,000 logs"));
+        act(() => {
+            MockIntersectionObserver.lastInstance?.trigger([{ isIntersecting: true } as IntersectionObserverEntry]);
+        });
+        expect(queryLogsMock).toHaveBeenCalledTimes(397);
+    }, 60000);
+
         // tableRef: query-logs-refresh-behaviour #L2
     test("error-card Try again scrolls the window back to the top", async () => {
         queryLogsMock.mockRejectedValueOnce({ response: { status: 500 } });
@@ -935,7 +956,7 @@ describe("QueryLogs", () => {
     });
 
     test("shows not active state when logs disabled", async () => {
-        const disabledProfile = { ...baseProfile, profile_id: "profile-disabled", id: "profile-disabled", settings: { logs: { enabled: false } } };
+        const disabledProfile = { ...baseProfile, profile_id: "profile-disabled", id: "profile-disabled", settings: { logs: { enabled: false } } } as unknown as ModelProfile;
         queryLogsMock.mockResolvedValue({ status: 200, data: [] });
         useAppStore.setState({ activeProfile: disabledProfile });
         render(<QueryLogs account={account} profiles={[]} />);

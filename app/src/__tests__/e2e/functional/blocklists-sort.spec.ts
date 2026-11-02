@@ -16,7 +16,7 @@ test.describe('@functional blocklists sorting', () => {
       name: `Entries Variant ${index + 1}`,
       entries: 999999 - index * 5000,
     }));
-    const nameSorted = [...baseBlocklists].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const nameSorted = [...baseBlocklists].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 
     const requestLog: string[] = [];
 

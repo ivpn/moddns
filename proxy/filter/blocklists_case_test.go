@@ -2,6 +2,7 @@ package filter
 
 import (
 	"context"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -68,16 +69,16 @@ func TestFilterBlocklistsIsCaseInsensitive(t *testing.T) {
 		{
 			name:            "subdomain match, mixed-case query",
 			questionDomain:  "SuB.BlOcKeD.cOm",
-			privacySettings: map[string]string{SUBDOMAINS_RULE: RULE_BLOCK},
+			privacySettings: map[string]string{subdomainsRuleSetting: RULE_BLOCK},
 			expectBlocked:   true,
-			expectReasons:   []string{"blocklist: bl1", SUBDOMAINS_RULE},
+			expectReasons:   []string{"blocklist: bl1", filterreasons.BlocklistsSubdomains},
 		},
 		{
 			name:            "subdomain match, uppercase query",
 			questionDomain:  "SUB.BLOCKED.COM",
-			privacySettings: map[string]string{SUBDOMAINS_RULE: RULE_BLOCK},
+			privacySettings: map[string]string{subdomainsRuleSetting: RULE_BLOCK},
 			expectBlocked:   true,
-			expectReasons:   []string{"blocklist: bl1", SUBDOMAINS_RULE},
+			expectReasons:   []string{"blocklist: bl1", filterreasons.BlocklistsSubdomains},
 		},
 		// --- negative controls: normalisation must not over-block -----------
 		{

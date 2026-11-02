@@ -24,6 +24,9 @@ local-data:
     ## name and accepts only its real answer.
     google-public-dns-a.google.com: [8.8.8.8]
     ipv6-test.com: [2001:41d0:701:1100::29c8]
+    ## default_rule = block allow rules for SERVER_ALLOWED_DOMAINS
+    ## (test_default_rule_allowed_domains.py).
+    app.ivpndns.net: [104.18.74.240]
     ## DNS rebinding protection tests — public names deliberately mapped to
     ## private IPs so the proxy IP-phase rebinding filter can be exercised.
     rebinding-private-v4.com: [192.168.0.10]

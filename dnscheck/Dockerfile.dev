@@ -5,12 +5,15 @@ RUN apt update; apt install -y make
 WORKDIR /app
 
 # Copy golang dependency manifests
-COPY go.mod /app
-COPY go.sum /app
+COPY dnscheck/go.mod .
+COPY dnscheck/go.sum .
+
+# Copy the DNS libs
+COPY ../libs/ /libs
 
 # Cache the downloaded dependency in the layer.
 RUN go mod download
 
-COPY . /app/
+COPY dnscheck/ .
 RUN GOOS=linux GOARCH=amd64 go build -o /app/dnscheck -v .
 CMD ["./dnscheck"]

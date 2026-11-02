@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictBool
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from moddns.models.model_statistics_retention import ModelStatisticsRetention
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -26,8 +27,11 @@ class ModelStatisticsSettings(BaseModel):
     """
     ModelStatisticsSettings
     """ # noqa: E501
-    enabled: StrictBool
-    __properties: ClassVar[List[str]] = ["enabled"]
+    enabled: StrictBool = Field(description="Whether DNS statistics are collected for the profile.")
+    enabled_at: Optional[StrictStr] = Field(default=None, description="When statistics were last turned on (UTC); null while they are off.")
+    history_deleted_at: Optional[StrictStr] = Field(default=None, description="Keep-since instant (UTC): the last \"Delete statistics history\" while on, or the turn-off of an off and on; nothing older is kept. Null while off.")
+    retention: Optional[ModelStatisticsRetention] = Field(default=None, description="How long daily statistics are kept.")
+    __properties: ClassVar[List[str]] = ["enabled", "enabled_at", "history_deleted_at", "retention"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -80,7 +84,10 @@ class ModelStatisticsSettings(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "enabled": obj.get("enabled")
+            "enabled": obj.get("enabled"),
+            "enabled_at": obj.get("enabled_at"),
+            "history_deleted_at": obj.get("history_deleted_at"),
+            "retention": obj.get("retention")
         })
         return _obj
 

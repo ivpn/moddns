@@ -296,3 +296,41 @@ func BenchmarkASNRawReader(b *testing.B) {
 		}
 	})
 }
+
+func TestOpenCountryServesCityDatabaseAndRejectsASN(t *testing.T) {
+	r, err := OpenCountry(cityFixture)
+	if err != nil {
+		t.Fatalf("open city as country: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+	rec, err := r.Country(netip.MustParseAddr("8.8.8.8"))
+	if err != nil {
+		t.Fatalf("country lookup: %v", err)
+	}
+	if rec.Country.ISOCode != "US" {
+		t.Errorf("8.8.8.8 country = %q, want US", rec.Country.ISOCode)
+	}
+
+	if _, err := OpenCountry(asnFixture); err == nil {
+		t.Fatal("expected an error when the path points at an ASN database")
+	}
+}
+
+func TestCountryReloadKeepsServingWhenReplacementIsWrongType(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "GeoLite2-City.mmdb")
+	installFixture(t, cityFixture, path, time.Now().Add(-time.Hour))
+	r, err := OpenCountry(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	installFixture(t, asnFixture, path, time.Now())
+	if _, err := r.Reload(); err == nil {
+		t.Fatal("expected an error for an ASN database on the Country path")
+	}
+	rec, err := r.Country(netip.MustParseAddr("8.8.8.8"))
+	if err != nil || rec.Country.ISOCode != "US" {
+		t.Errorf("old database not served after wrong-type reload: %v %v", rec, err)
+	}
+}

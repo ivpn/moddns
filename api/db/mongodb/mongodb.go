@@ -13,7 +13,6 @@ const (
 	collNameSubscriptions      = "subscriptions"
 	collNameBlocklistsMetadata = "blocklists_metadata"
 	collNameQueryLogs          = "query_logs"
-	collNameStatistics         = "statistics"
 	collNameSessions           = "sessions"
 )
 
@@ -46,7 +45,7 @@ func New(ctx context.Context, storeI store.Store, config *config.Config) (*Mongo
 		QueryLogsRepository:    NewQueryLogsRepository(client, config.DB.Name, collNameQueryLogs),
 		BlocklistRepository:    NewBlocklistRepository(client, config.DB.Name, collNameBlocklistsMetadata),
 		SubscriptionRepository: NewSubscriptionRepository(client, config.DB.Name, collNameSubscriptions),
-		StatisticsRepository:   NewStatisticsRepository(client, config.DB.Name, collNameStatistics),
+		StatisticsRepository:   NewStatisticsRepository(client, config.DB.Name),
 		SessionRepository:      sessionRepo,
 		CredentialRepository:   NewCredentialRepository(client, config.DB.Name, CredentialsCollection),
 	}, nil

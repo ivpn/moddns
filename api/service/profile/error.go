@@ -51,8 +51,10 @@ var (
 	ErrCustomRuleAlreadyExists      = errors.New("custom rule already exists")
 	ErrLastProfileInAccount         = errors.New("cannot delete the last profile in the account")
 	ErrRecursorInvalid              = fmt.Errorf("recursor value is invalid. Allowed values: %v", model.RECURSORS)
+	ErrStatisticsRetentionInvalid   = fmt.Errorf("statistics retention is invalid. Allowed values: %v", model.StatisticsRetentions())
 	ErrMaxProfilesLimitReached      = errors.New("maximum number of profiles reached")
 	ErrQueryLogsRateLimited         = errors.New("query logs rate limited")
+	ErrStatisticsRateLimited        = errors.New("statistics rate limited")
 	ErrServiceNotFound              = errors.New("service not found")
 	ErrServiceAlreadyEnabled        = errors.New("service already enabled")
 	ErrInvalidServiceValue          = errors.New("invalid service value")
@@ -107,12 +109,17 @@ var (
 	// specRef: I16, I17, I18
 	ErrMaxProfilesExceeded = NewProfileError("import would exceed maximum profile limit")
 
-	// ErrMaxCustomRulesReached is returned when creating custom rules would push a
-	// profile over the model.MaxCustomRulesPerProfile cap. Its message is shown
+	// ErrMaxCustomRulesExceeded is returned when importing would push the
+	// account's custom rules over model.MaxCustomRulesPerAccount.
+	// specRef: I25
+	ErrMaxCustomRulesExceeded = NewProfileError("import would exceed maximum custom rules limit")
+
+	// ErrMaxCustomRulesReached is returned when creating custom rules would push
+	// the account over the model.MaxCustomRulesPerAccount cap. Its message is shown
 	// directly to the user (the frontend surfaces response.data.error), so it is
 	// phrased as user-facing copy.
 	ErrMaxCustomRulesReached = NewProfileError(fmt.Sprintf(
-		"Adding these would exceed the limit of %d custom rules per profile. Remove some rules first.",
-		model.MaxCustomRulesPerProfile,
+		"Adding these would exceed the limit of %d custom rules per account (across all profiles). Remove some rules first.",
+		model.MaxCustomRulesPerAccount,
 	))
 )

@@ -44,12 +44,13 @@ test('password update sends test+replace operations', async ({ page }) => {
 
   // Wait for network interception
   await expect.poll(() => patchPayload).not.toBeNull();
-  expect(Array.isArray(patchPayload.updates)).toBeTruthy();
-  expect(patchPayload.updates).toHaveLength(2);
-  expect(patchPayload.updates[0].operation).toBe('test');
-  expect(patchPayload.updates[0].path).toBe('/password');
-  expect(patchPayload.updates[1].operation).toBe('replace');
-  expect(patchPayload.updates[1].path).toBe('/password');
+  const payload = patchPayload!;
+  expect(Array.isArray(payload.updates)).toBeTruthy();
+  expect(payload.updates).toHaveLength(2);
+  expect(payload.updates[0].operation).toBe('test');
+  expect(payload.updates[0].path).toBe('/password');
+  expect(payload.updates[1].operation).toBe('replace');
+  expect(payload.updates[1].path).toBe('/password');
 });
 
 // Negative flow: missing old password should not send patch

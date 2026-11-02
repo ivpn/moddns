@@ -36,7 +36,7 @@ class ModelExportedSettings(BaseModel):
     """ # noqa: E501
     advanced: Optional[ModelExportedAdvanced] = None
     custom_rule_groups: Optional[ModelCustomRuleGroups] = Field(default=None, description="CustomRuleGroups is the per-list group registry; reuses the storage type (its json tags define the wire shape). Pointer so an empty registry is omitted. Round-trips with the rules' `group` field.", alias="customRuleGroups")
-    custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=1000)]] = Field(default=None, description="CustomRules holds the profile's custom filtering rules, capped at 1000 per profile.", alias="customRules")
+    custom_rules: Optional[Annotated[List[ModelExportedCustomRule], Field(max_length=10000)]] = Field(default=None, description="CustomRules holds the profile's custom filtering rules, bounded by the account-wide cap.", alias="customRules")
     logs: Optional[ModelExportedLogs] = None
     privacy: Optional[ModelExportedPrivacy] = None
     security: Optional[ModelExportedSecurity] = None

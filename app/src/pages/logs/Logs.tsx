@@ -3,12 +3,12 @@ import type { AxiosError } from "axios";
 
 interface NetworkError extends AxiosError { code?: string; }
 
-import type { ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
+import type { ApiV1ProfilesIdLogsGetSortByEnum, ApiV1ProfilesIdLogsGetStatusEnum, ModelAccount, ModelProfile, ModelQueryLog } from "@/api/client";
 import Filters from "./Filters";
 import NoLogs from "./NoLogs";
 import LogsNotActive from "./LogsNotActive";
 import QueryLogCard from "./QueryLogCard";
-import QuickRuleSheet, { type QuickRuleAction } from "./QuickRuleSheet";
+import QuickRuleSheet, { type QuickRuleAction } from "@/components/custom-rules/QuickRuleSheet";
 import { consolidateLogs, toSingletonGroup } from "@/lib/consolidateLogs";
 import { computeNewQueryLogs } from "@/lib/queryLogsDiff";
 import { refreshIntervalMsFor, type RefreshIntervalKey } from "@/lib/consts";
@@ -23,6 +23,10 @@ import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 const QUERY_LIMIT = 25;
+// A multiple of QUERY_LIMIT, so later pages continue right after page 1.
+const FIRST_PAGE_LIMIT = 100;
+// The API rejects page × limit above this (api-endpoint-behaviour.md J1).
+const QUERY_MAX_ROWS = 10000;
 
 interface QueryLogsProps {
     account: ModelAccount;
@@ -35,6 +39,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     const [logs, setLogs] = useState<ModelQueryLog[]>([]);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [rowCapReached, setRowCapReached] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     // Auto-refresh cadence, selected via the split refresh button's interval menu
@@ -112,10 +117,10 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
     // Compose filters object for API
     const filters = {
         Limit: QUERY_LIMIT,
-        Status: filterValue === "all" ? undefined : filterValue,
+        Status: filterValue === "all" ? undefined : filterValue as ApiV1ProfilesIdLogsGetStatusEnum,
         Timespan: { Value: timespanValue === "all" ? undefined : timespanValue },
         Search: committedSearchValue,
-        Sort: sortValue,
+        Sort: sortValue as ApiV1ProfilesIdLogsGetSortByEnum,
     };
 
     const observer = useRef<IntersectionObserver | null>(null);
@@ -229,6 +234,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
         setLogs([]);
         setPage(1);
         setHasMore(true);
+        setRowCapReached(false);
         setIsListFading(true);
         setPendingLogs([]);
         setPendingOverflow(false);
@@ -347,17 +353,21 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 // Status is already handled in filters.Status
                 // Bigger first page fills the viewport and defers the first pagination
                 // fetch; subsequent pages respect the configured limit.
-                const effectiveLimit = page === 1 ? 100 : filters.Limit;
+                const effectiveLimit = page === 1 ? FIRST_PAGE_LIMIT : filters.Limit;
+                const offset = page === 1 ? 0 : FIRST_PAGE_LIMIT + (page - 2) * filters.Limit;
+                // The API skips (page - 1) × limit rows, so offset must be a multiple of the limit.
+                const serverPage = offset / effectiveLimit + 1;
+                const nextPageEnd = offset + effectiveLimit + filters.Limit;
                 const searchParam = committedSearchValue || undefined;
                 const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
                     activeProfile.profile_id,
-                    page,
+                    serverPage,
                     effectiveLimit,
                     filters.Status,
                     filters.Timespan.Value,
                     deviceIdValue || undefined,
                     searchParam,
-                    sortValue
+                    filters.Sort
                 );
                 // A newer fetch (or unmount) superseded this one — drop the stale response
                 // instead of letting it overwrite fresher state.
@@ -367,7 +377,8 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
 
                     // Set logs and update state
                     setLogs(prev => (page === 1 ? newLogs : [...prev, ...newLogs]));
-                    setHasMore(newLogs.length === effectiveLimit);
+                    setHasMore(newLogs.length === effectiveLimit && nextPageEnd <= QUERY_MAX_ROWS);
+                    setRowCapReached(newLogs.length === effectiveLimit && nextPageEnd > QUERY_MAX_ROWS);
 
                     // Merge device IDs observed in rows (union with the server list)
                     setObservedDeviceIds(prev => {
@@ -474,12 +485,12 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             const response = await api.Client.queryLogsApi.apiV1ProfilesIdLogsGet(
                 profileId,
                 1,
-                100,
+                FIRST_PAGE_LIMIT,
                 filters.Status,
                 filters.Timespan.Value,
                 deviceIdValue || undefined,
                 committedSearchValue || undefined,
-                sortValue
+                filters.Sort
             );
             if (response.status !== 200) return;
             // A tick that found nothing new still confirms freshness.
@@ -489,14 +500,15 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 // Nothing on screen to preserve — apply directly, a pill over an
                 // empty state helps no one.
                 setLogs(fetched);
-                setHasMore(fetched.length === 100);
+                setHasMore(fetched.length === FIRST_PAGE_LIMIT);
+                setRowCapReached(false);
                 setPendingLogs([]);
                 setPendingOverflow(false);
                 return;
             }
             const { newLogs, overlapFound } = computeNewQueryLogs(fetched, logsRef.current);
             setPendingLogs(newLogs);
-            setPendingOverflow(!overlapFound && fetched.length === 100);
+            setPendingOverflow(!overlapFound && fetched.length === FIRST_PAGE_LIMIT);
         } catch {
             // Background ticks fail silently — the next tick retries; foreground
             // fetches own user-visible error reporting.
@@ -685,13 +697,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                 <div className="flex flex-col items-start gap-3 md:gap-4 relative flex-1 self-stretch w-full grow min-w-0 overflow-x-hidden">
                     <div className="flex flex-col items-start gap-2 relative flex-1 self-stretch w-full grow rounded-md min-w-0 overflow-x-hidden">
                         {!logsEnabled && (
-                            <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent">
-                                <div className="flex flex-col h-auto md:h-[652px] items-start gap-3 md:gap-8 p-4 pt-3 md:pt-4 relative self-stretch w-full">
-                                    <div className="flex flex-col items-center justify-start md:justify-center gap-2.5 relative self-stretch w-full md:flex-1 md:grow">
-                                        <LogsNotActive profile={activeProfile ?? profiles[0]} />
-                                    </div>
-                                </div>
-                            </div>
+                            <LogsNotActive profile={activeProfile ?? profiles[0]} />
                         )}
                         {logsEnabled && logs.length === 0 && !loading && !error && (
                             <div className="flex flex-col w-full grow bg-transparent dark:bg-[var(--variable-collection-surface)] rounded-lg overflow-hidden border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent" data-testid="logs-empty-state">
@@ -801,7 +807,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
                                         and a finished list is indistinguishable from a stalled one. */}
                                     {!hasMore && !loading && !error && logs.length > 0 && (
                                         <div className="w-full text-center py-3 text-xs text-[var(--tailwind-colors-slate-400)]" data-testid="logs-end-marker">
-                                            End of logs
+                                            {rowCapReached ? `The list shows up to ${QUERY_MAX_ROWS.toLocaleString("en-US")} logs. Narrow the filters to see others.` : "End of logs"}
                                         </div>
                                     )}
                                 </div>

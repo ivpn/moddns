@@ -270,3 +270,41 @@ func rearmInactiveNotified(ctx context.Context, subRepo repository.SubscriptionR
 	}
 	return subRepo.SetInactiveNotified(ctx, toReset, false)
 }
+
+// PurgeStatistics runs one statistics purge (api-endpoint-behaviour.md J8, J9).
+// Logs carry counts only.
+func PurgeStatistics(statsPurger StatisticsPurger) {
+	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "purge-statistics").Logger().WithContext(ctx)
+
+	res, err := statsPurger.PurgeStatistics(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: statistics purge failed")
+		return
+	}
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored data outlives its settings until a run reaches the profile (J9).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: statistics purge complete")
+}
+
+// PurgeQueryLogs runs one query-logs purge (api-endpoint-behaviour.md J13, J14).
+// Logs carry counts only.
+func PurgeQueryLogs(logsPurger QueryLogsPurger) {
+	ctx := context.Background()
+	ctx = log.With().Str("cron_job", "purge-query-logs").Logger().WithContext(ctx)
+
+	res, err := logsPurger.PurgeQueryLogs(ctx)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Msg("Cron: query-logs purge failed")
+		return
+	}
+	if res.Checked < res.Total || res.Failed > 0 {
+		// Stored logs outlive their settings until a run reaches the profile (J14).
+		log.Ctx(ctx).Warn().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge left profiles unprocessed")
+		return
+	}
+	log.Ctx(ctx).Info().Int("checked", res.Checked).Int("total", res.Total).Int("purged", res.Purged).Int("deleted", res.Deleted).Int("failed", res.Failed).Msg("Cron: query-logs purge complete")
+}

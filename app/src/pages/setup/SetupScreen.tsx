@@ -57,7 +57,7 @@ const platformCards: PlatformCard[][] = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function Setup({ profiles }: SetupProps): JSX.Element {
+export default function Setup(_props: SetupProps): JSX.Element {
     const { isDesktop } = useScreenDetector();
     const setRightPanelOpen = useAppStore((state) => state.setRightPanelOpen);
     const account = useAppStore(state => state.account);
@@ -66,7 +66,7 @@ export default function Setup({ profiles }: SetupProps): JSX.Element {
     const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
     const [showPanel, setShowPanel] = useState(false);
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDarkMode = theme === 'dark';
 
     const location = useLocation();
     const navigate = useNavigate();

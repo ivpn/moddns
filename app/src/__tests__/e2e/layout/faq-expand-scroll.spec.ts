@@ -45,10 +45,13 @@ test.describe('FAQ expand keeps scroll position', { tag: '@mobile' }, () => {
         await registerMocks(page);
         await page.goto('/faq');
         await page.waitForLoadState('networkidle');
+        // networkidle can fire before React has rendered the page, so wait for the answers
+        // list and the footer before measuring.
+        await expect(page.getByRole('button', { name: LAST_QUESTION })).toBeVisible();
+        const tosLink = page.locator('a[title="Go to Terms of Service page"]');
         // Collapsed answers must not push the document past the footer: absolutely
         // positioned descendants need the clipped wrapper as their containing block.
-        const { scrollHeight, footerBottom } = await page.evaluate(() => {
-            const link = document.querySelector('a[title="Go to Terms of Service page"]') as HTMLElement;
+        const { scrollHeight, footerBottom } = await tosLink.evaluate(link => {
             const footer = link.closest('div')!.parentElement as HTMLElement;
             return {
                 scrollHeight: document.documentElement.scrollHeight,
@@ -63,6 +66,8 @@ test.describe('FAQ expand keeps scroll position', { tag: '@mobile' }, () => {
         await registerMocks(page);
         await page.goto('/faq');
         await page.waitForLoadState('networkidle');
+        // Measure the rendered page; before render there is nothing to find and the check passes vacuously.
+        await expect(page.getByRole('button', { name: LAST_QUESTION })).toBeVisible();
         // A wrapper that clips or scrolls vertically AND holds more content than it
         // shows is a nested scroller; those are what confuse mobile engines.
         const nested = await page.evaluate(() => {

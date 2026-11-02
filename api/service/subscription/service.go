@@ -237,7 +237,7 @@ func (s *SubscriptionService) repopulateProfileCache(ctx context.Context, accoun
 		if profile.Settings == nil {
 			continue
 		}
-		if err := s.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings, false); err != nil {
+		if err := s.Cache.CreateOrUpdateProfileSettings(ctx, profile.Settings); err != nil {
 			log.Ctx(ctx).Error().Err(err).Str("profile_id", profile.ProfileId).Msg("Failed to repopulate profile settings in cache")
 		}
 	}

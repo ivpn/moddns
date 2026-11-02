@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -28,20 +28,12 @@ const CustomRuleEntry: React.FC<CustomRuleEntryProps> = ({
     hideDeleteButton = false,
     dragHandle,
 }) => {
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-        const timeout = setTimeout(() => setIsVisible(true), 10);
-        return () => clearTimeout(timeout);
-    }, []);
-
-
     const domain = rule.value?.replace(/\.$/, "") ?? "";
     const note = rule.note?.trim() ?? "";
 
     return (
         <Card
-            className={`w-full h-10 bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent transition-opacity duration-300 ${isVisible && !isRemoving ? "opacity-100" : "opacity-0"}`}
+            className={`w-full h-10 bg-transparent dark:bg-[var(--variable-collection-surface)] border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent transition-opacity duration-300 ${isRemoving ? "opacity-0" : "opacity-100"}`}
         >
             <CardContent className="flex items-center justify-between relative self-stretch w-full h-full p-0 px-3">
                 <div className="flex items-center gap-4 relative flex-1 min-w-0">

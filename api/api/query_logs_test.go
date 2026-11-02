@@ -113,6 +113,28 @@ func (s *QueryLogsAPIShortSuite) TestGetLogsValidationError() {
 	s.svc.AssertNotCalled(s.T(), "GetProfileQueryLogs")
 }
 
+// specRef: api-endpoint-behaviour.md J1 — page × limit may reach 10000.
+func (s *QueryLogsAPIShortSuite) TestGetLogsOffsetAtMaximum() {
+	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", "created", 400, 25).Return([]model.QueryLog{}, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=400&limit=25&status=all&timespan=LAST_1_HOUR", nil)
+	s.auth(req)
+	resp, err := s.server().App.Test(req, -1)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+}
+
+// specRef: api-endpoint-behaviour.md J1 — page × limit is at most 10000.
+func (s *QueryLogsAPIShortSuite) TestGetLogsOffsetAboveMaximum() {
+	for _, q := range []string{"page=401&limit=25", "page=101&limit=100", "page=1001&limit=10"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?"+q+"&status=all&timespan=LAST_1_HOUR", nil)
+		s.auth(req)
+		resp, err := s.server().App.Test(req, -1)
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), http.StatusBadRequest, resp.StatusCode, q)
+	}
+	s.svc.AssertNotCalled(s.T(), "GetProfileQueryLogs")
+}
+
 func (s *QueryLogsAPIShortSuite) TestGetLogsServiceError() {
 	s.svc.On("GetProfileQueryLogs", mock.Anything, qlAccID, qlProfile, "all", "LAST_1_HOUR", "", "", "created", 1, 25).Return(nil, errors.New("boom"))
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/"+qlProfile+"/logs?page=1&limit=25&status=all&timespan=LAST_1_HOUR", nil)

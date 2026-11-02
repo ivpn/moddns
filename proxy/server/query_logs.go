@@ -3,13 +3,13 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/ivpn/dns/libs/filterreasons"
 	"net"
 	"strconv"
 	"time"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/getsentry/sentry-go"
-	"github.com/ivpn/dns/proxy/internal/dnssec"
 	"github.com/ivpn/dns/proxy/model"
 	"github.com/ivpn/dns/proxy/requestcontext"
 	"github.com/miekg/dns"
@@ -142,7 +142,7 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 		}
 
 		if dnssecFailed {
-			queryLog.Reasons = appendReason(queryLog.Reasons, dnssec.ReasonFailed)
+			queryLog.Reasons = appendReason(queryLog.Reasons, filterreasons.DNSSECFailed)
 		}
 		retention := model.Retention(logsSettings["retention"])
 		// send event to channel

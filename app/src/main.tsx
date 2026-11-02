@@ -5,8 +5,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { setupSWUpdate } from './lib/swUpdate'
+import { deleteApiResponseCache } from './lib/apiResponseCache'
 
 setupSWUpdate();
+void deleteApiResponseCache();
 
 const container = document.getElementById('root')!;
 const root = createRoot(container, {

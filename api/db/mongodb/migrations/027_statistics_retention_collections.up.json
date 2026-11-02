@@ -1,0 +1,115 @@
+[
+  {
+    "create": "statistics_15min",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "bucketMaxSpanSeconds": 86400,
+      "bucketRoundingSeconds": 86400
+    },
+    "expireAfterSeconds": 86400
+  },
+  {
+    "create": "statistics_1h",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "bucketMaxSpanSeconds": 86400,
+      "bucketRoundingSeconds": 86400
+    },
+    "expireAfterSeconds": 691200
+  },
+  {
+    "create": "statistics_1d_30d",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "bucketMaxSpanSeconds": 86400,
+      "bucketRoundingSeconds": 86400
+    },
+    "expireAfterSeconds": 2592000
+  },
+  {
+    "create": "statistics_1d_90d",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "bucketMaxSpanSeconds": 86400,
+      "bucketRoundingSeconds": 86400
+    },
+    "expireAfterSeconds": 7776000
+  },
+  {
+    "create": "statistics_1d_1y",
+    "timeseries": {
+      "timeField": "bucket_start",
+      "metaField": "meta",
+      "bucketMaxSpanSeconds": 86400,
+      "bucketRoundingSeconds": 86400
+    },
+    "expireAfterSeconds": 31536000
+  },
+  {
+    "createIndexes": "statistics_15min",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_1h",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_1d_30d",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_1d_90d",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "createIndexes": "statistics_1d_1y",
+    "indexes": [
+      {
+        "key": {
+          "meta.profile_id": 1,
+          "bucket_start": 1
+        },
+        "name": "meta_profile_id_bucket_start"
+      }
+    ]
+  },
+  {
+    "drop": "statistics"
+  }
+]

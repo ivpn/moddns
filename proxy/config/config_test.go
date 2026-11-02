@@ -1,9 +1,12 @@
 package config
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,6 +69,37 @@ func TestLoadCacheCommandTimeout(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("CACHE_COMMAND_TIMEOUT", tt.env)
 			assert.Equal(t, tt.want, loadCacheCommandTimeout())
+		})
+	}
+}
+
+// specRef: proxy-statistics-behaviour.md #Y25
+func TestWarnStatisticsSettingsTTL(t *testing.T) {
+	tests := []struct {
+		name string
+		ttl  time.Duration
+		warn bool
+	}{
+		{name: "default 30s", ttl: 30 * time.Second},
+		{name: "1ms as in the E2E stack", ttl: time.Millisecond},
+		{name: "zero never expires", ttl: 0, warn: true},
+		{name: "above 30s", ttl: 31 * time.Second, warn: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			old := log.Logger
+			log.Logger = zerolog.New(&buf)
+			t.Cleanup(func() { log.Logger = old })
+
+			WarnStatisticsSettingsTTL(tt.ttl)
+
+			if !tt.warn {
+				assert.Empty(t, buf.String())
+				return
+			}
+			assert.Contains(t, buf.String(), `"level":"warn"`)
+			assert.Contains(t, buf.String(), "PROFILE_SETTINGS_CACHE_TTL")
 		})
 	}
 }

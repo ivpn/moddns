@@ -122,134 +122,68 @@ func (c *RedisCache) AddBlocklist(ctx context.Context, blocklistId string, data 
 }
 
 // CreateOrUpdateProfileSettings adds profile settings to the cache
-func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings, rollback bool) error {
+func (c *RedisCache) CreateOrUpdateProfileSettings(ctx context.Context, settings *model.ProfileSettings) error {
+	storedRules, err := c.client.SMembers(ctx, customRulesSetKey(settings.ProfileId)).Result()
+	if err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to read profile custom rules")
+		return err
+	}
+
+	// Queued commands only fail at Exec, so errors are checked there.
 	rdp := c.client.Pipeline()
 	settingsBlocklist := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "blocklists")
-	res := rdp.Del(ctx, settingsBlocklist)
-	if err := res.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings blocklists")
-		return err
-	}
-	// associate blocklists to selected settings
+	rdp.Del(ctx, settingsBlocklist)
 	for _, blocklistID := range settings.Privacy.Blocklists {
-		// put settings model as blocklist value; this can be replaced
-		blocklistsCmd := rdp.RPush(ctx, settingsBlocklist, blocklistID)
-		if err := blocklistsCmd.Err(); err != nil {
-			log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings blocklist")
-			if rollback {
-				rdp.Del(ctx, settingsBlocklist)
-			}
-			return err
-		}
-		log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
-			Msgf("Created/updated profile settings blocklist")
+		rdp.RPush(ctx, settingsBlocklist, blocklistID)
 	}
 
-	// associate blocked services to selected settings
 	servicesKey := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "services")
-	res = rdp.Del(ctx, servicesKey)
-	if err := res.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to remove existing settings services")
-		return err
-	}
+	rdp.Del(ctx, servicesKey)
 	if settings.Privacy != nil {
 		for _, serviceID := range settings.Privacy.Services {
-			cmd := rdp.RPush(ctx, servicesKey, serviceID)
-			if err := cmd.Err(); err != nil {
-				log.Ctx(ctx).Err(err).Msg("Cache: failed to create settings services")
-				if rollback {
-					rdp.Del(ctx, servicesKey)
-				}
-				return err
-			}
+			rdp.RPush(ctx, servicesKey, serviceID)
 		}
-		log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).Msg("Created/updated profile settings services")
 	}
 
-	// add logs settings
-	logsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs")
-	logsCmd := rdp.HSet(ctx, logsSettings, settings.Logs)
-	if err := logsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create logs settings")
-		if rollback {
-			rdp.Del(ctx, logsSettings)
-		}
-		return err
-	}
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "logs"), settings.Logs)
 
-	// add statistics settings
 	if settings.Statistics == nil {
 		settings.Statistics = &model.StatisticsSettings{
 			Enabled: false,
 		}
 	}
-	statsSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "statistics")
-	statsCmd := rdp.HSet(ctx, statsSettings, settings.Statistics)
-	if err := statsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create statistics settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back statistics settings")
-			rdp.Del(ctx, statsSettings)
-		}
-		return err
-	}
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "statistics"), settings.Statistics)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "dnssec"), settings.Security.DNSSECSettings)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection"), settings.Security.RebindingProtection)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced"), settings.Advanced)
+	rdp.HSet(ctx, fmt.Sprintf("settings:%s:%s", settings.ProfileId, "privacy"), settings.Privacy)
 
-	// add security DNSSEC settings
-	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "dnssec")
-	securityDNSSECCmd := rdp.HSet(ctx, dnssecSettings, settings.Security.DNSSECSettings)
-	if err := securityDNSSECCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security DNSSEC settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back security DNSSEC settings")
-			rdp.Del(ctx, dnssecSettings)
-		}
-		return err
-	}
+	// ProfileSettings.CustomRules is redis:"-", so the hashes above never carry them.
+	queueReplaceCustomRules(ctx, rdp, settings.ProfileId, settings.CustomRules, storedRules)
 
-	// add security rebinding protection settings
-	rebindingSettings := fmt.Sprintf("settings:%s:%s:%s", settings.ProfileId, "security", "rebinding_protection")
-	securityRebindingCmd := rdp.HSet(ctx, rebindingSettings, settings.Security.RebindingProtection)
-	if err := securityRebindingCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create security rebinding protection settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back security rebinding protection settings")
-			rdp.Del(ctx, rebindingSettings)
-		}
-		return err
-	}
-
-	// add advanced settings
-	advancedSettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "advanced")
-	advancedCmd := rdp.HSet(ctx, advancedSettings, settings.Advanced)
-	if err := advancedCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create advanced settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back advanced settings")
-			rdp.Del(ctx, advancedSettings)
-		}
-		return err
-	}
-
-	// add privacy settings
-	privacySettings := fmt.Sprintf("settings:%s:%s", settings.ProfileId, "privacy")
-	privacyCmd := rdp.HSet(ctx, privacySettings, settings.Privacy)
-	if err := privacyCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to create privacy settings")
-		if rollback {
-			log.Ctx(ctx).Warn().Msg("Cache: rolling back privacy settings")
-			rdp.Del(ctx, privacySettings)
-		}
-		return err
-	}
-
-	_, err := rdp.Exec(ctx)
-	if err != nil {
+	if _, err := rdp.Exec(ctx); err != nil {
 		log.Ctx(ctx).Err(err).Msg("Cache: failed to execute pipeline")
 		return err
 	}
 
 	log.Ctx(ctx).Info().Msg("Created/updated profile settings")
 
+	return nil
+}
+
+// SetProfileSettingsFields writes only the given fields, leaving the rest of each hash as stored.
+func (c *RedisCache) SetProfileSettingsFields(ctx context.Context, profileId string, fields []SettingsField) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	pipe := c.client.Pipeline()
+	for _, f := range fields {
+		pipe.HSet(ctx, fmt.Sprintf("settings:%s:%s", profileId, f.Hash), f.Field, f.Value)
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		log.Ctx(ctx).Err(err).Int("fields", len(fields)).Msg("Cache: failed to update profile settings fields")
+		return err
+	}
 	return nil
 }
 
@@ -285,6 +219,56 @@ func (c *RedisCache) RemoveServicesBlockedFromProfileSettings(ctx context.Contex
 	return nil
 }
 
+func customRulesSetKey(profileId string) string {
+	return fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
+}
+
+func customRuleKey(profileId, ruleId string) string {
+	return fmt.Sprintf("settings:%s:custom_rule:%s", profileId, ruleId)
+}
+
+// queueCustomRules queues the layout the proxy reads custom rules from: one hash per rule,
+// then their keys in the profile's set. It returns the keys.
+func queueCustomRules(ctx context.Context, pipe redis.Pipeliner, profileId string, rules []*model.CustomRule) map[string]struct{} {
+	keys := make(map[string]struct{}, len(rules))
+	if len(rules) == 0 {
+		return keys
+	}
+	members := make([]any, 0, len(rules))
+	for _, rule := range rules {
+		key := customRuleKey(profileId, rule.ID.Hex())
+		pipe.HSet(ctx, key, rule)
+		keys[key] = struct{}{}
+		members = append(members, key)
+	}
+	pipe.SAdd(ctx, customRulesSetKey(profileId), members...)
+	return keys
+}
+
+// queueReplaceCustomRules makes the stored rules equal to rules. Current rules are written
+// before stale ones are removed, so a reader never misses a rule that stays.
+func queueReplaceCustomRules(ctx context.Context, pipe redis.Pipeliner, profileId string, rules []*model.CustomRule, stored []string) {
+	keep := queueCustomRules(ctx, pipe, profileId, rules)
+	var stale []any
+	for _, key := range stored {
+		if _, ok := keep[key]; !ok {
+			stale = append(stale, key)
+		}
+	}
+	if len(stale) > 0 {
+		pipe.SRem(ctx, customRulesSetKey(profileId), stale...)
+		pipe.Del(ctx, anyToStrings(stale)...)
+	}
+}
+
+func anyToStrings(in []any) []string {
+	out := make([]string, len(in))
+	for i, v := range in {
+		out[i] = v.(string)
+	}
+	return out
+}
+
 // AddCustomRules bulk-inserts all rules for a profile in a single Redis
 // pipeline. It issues one HSet per rule plus a single variadic SAdd for the set
 // membership, using the canonical key/field layout (settings:<id>:custom_rule:<ruleId>
@@ -294,16 +278,8 @@ func (c *RedisCache) AddCustomRules(ctx context.Context, profileId string, rules
 	if len(rules) == 0 {
 		return nil
 	}
-	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
-
 	pipe := c.client.Pipeline()
-	hashKeys := make([]any, 0, len(rules))
-	for _, rule := range rules {
-		customRuleHash := fmt.Sprintf("settings:%s:custom_rule:%s", profileId, rule.ID.Hex())
-		pipe.HSet(ctx, customRuleHash, rule)
-		hashKeys = append(hashKeys, customRuleHash)
-	}
-	pipe.SAdd(ctx, customRulesSetName, hashKeys...)
+	queueCustomRules(ctx, pipe, profileId, rules)
 
 	if _, err := pipe.Exec(ctx); err != nil {
 		log.Ctx(ctx).Err(err).Str("profile_id", profileId).Int("count", len(rules)).Msg("Cache: failed to bulk-insert custom rules")
@@ -333,55 +309,22 @@ func (c *RedisCache) RemoveCustomRule(ctx context.Context, profileId, customRule
 
 // DeleteProfileSettings deletes profile settings from the cache
 func (c *RedisCache) DeleteProfileSettings(ctx context.Context, profileId string) error {
-	settingsBlocklist := fmt.Sprintf("settings:%s:%s", profileId, "blocklists")
-	blocklistsCmd := c.client.Del(ctx, settingsBlocklist)
-	if err := blocklistsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings blocklists")
+	prefix := "settings:" + profileId + ":"
+	keys := []string{
+		prefix + "blocklists",
+		prefix + "services",
+		prefix + "logs",
+		prefix + "privacy",
+		prefix + "advanced",
+		prefix + "statistics",
+		prefix + "security:dnssec",
+		prefix + "security:rebinding_protection",
+	}
+	if err := c.client.Del(ctx, keys...).Err(); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings")
 		return err
 	}
-	log.Ctx(ctx).Info().Str("settings_blocklist_key", settingsBlocklist).
-		Msg("Cache: Deleted profile settings blocklist")
-
-	servicesKey := fmt.Sprintf("settings:%s:%s", profileId, "services")
-	servicesCmd := c.client.Del(ctx, servicesKey)
-	if err := servicesCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile settings services")
-		return err
-	}
-	log.Ctx(ctx).Info().Str("settings_services_key", servicesKey).
-		Msg("Cache: Deleted profile settings services")
-
-	// delete logs settings
-	logsSettings := fmt.Sprintf("settings:%s:%s", profileId, "logs")
-	logsCmd := c.client.Del(ctx, logsSettings)
-	if err := logsCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile logs settings")
-		return err
-	}
-	log.Ctx(ctx).Info().Str("logs_settings_key", logsSettings).Msg("Cache: deleted profile logs settings")
-
-	// delete privacy settings
-	privacySettings := fmt.Sprintf("settings:%s:%s", profileId, "privacy")
-	privacyCmd := c.client.Del(ctx, privacySettings)
-	if err := privacyCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile privacy settings")
-		return err
-	}
-	// delete advanced settings
-	advancedSettings := fmt.Sprintf("settings:%s:%s", profileId, "advanced")
-	advancedCmd := c.client.Del(ctx, advancedSettings)
-	if err := advancedCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile advanced settings")
-		return err
-	}
-
-	// delete security DNSSEC settings
-	dnssecSettings := fmt.Sprintf("settings:%s:%s:%s", profileId, "security", "dnssec")
-	dnssecCmd := c.client.Del(ctx, dnssecSettings)
-	if err := dnssecCmd.Err(); err != nil {
-		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete profile security settings")
-		return err
-	}
+	log.Ctx(ctx).Info().Msg("Cache: deleted profile settings")
 
 	customRulesSetName := fmt.Sprintf("settings:%s:%s", profileId, CUSTOM_RULES)
 

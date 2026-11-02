@@ -544,6 +544,69 @@ func (_c *ProfileServicer_DeleteProfileQueryLogs_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// DeleteStatisticsHistory provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) DeleteStatisticsHistory(ctx context.Context, accountId string, profileId string) error {
+	ret := _mock.Called(ctx, accountId, profileId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteStatisticsHistory")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, accountId, profileId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// ProfileServicer_DeleteStatisticsHistory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteStatisticsHistory'
+type ProfileServicer_DeleteStatisticsHistory_Call struct {
+	*mock.Call
+}
+
+// DeleteStatisticsHistory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+func (_e *ProfileServicer_Expecter) DeleteStatisticsHistory(ctx interface{}, accountId interface{}, profileId interface{}) *ProfileServicer_DeleteStatisticsHistory_Call {
+	return &ProfileServicer_DeleteStatisticsHistory_Call{Call: _e.mock.On("DeleteStatisticsHistory", ctx, accountId, profileId)}
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) Run(run func(ctx context.Context, accountId string, profileId string)) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) Return(err error) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *ProfileServicer_DeleteStatisticsHistory_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string) error) *ProfileServicer_DeleteStatisticsHistory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DisableBlocklists provides a mock function for the type ProfileServicer
 func (_mock *ProfileServicer) DisableBlocklists(ctx context.Context, accountId string, profileId string, blocklistIds []string) error {
 	ret := _mock.Called(ctx, accountId, profileId, blocklistIds)
@@ -1078,6 +1141,178 @@ func (_c *ProfileServicer_GetProfile_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetProfileQueryLogBlocklists provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) GetProfileQueryLogBlocklists(ctx context.Context, accountId string, profileId string, timespan string, limit int) (*model.QueryLogTopBlocklists, error) {
+	ret := _mock.Called(ctx, accountId, profileId, timespan, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogBlocklists")
+	}
+
+	var r0 *model.QueryLogTopBlocklists
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int) (*model.QueryLogTopBlocklists, error)); ok {
+		return returnFunc(ctx, accountId, profileId, timespan, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int) *model.QueryLogTopBlocklists); ok {
+		r0 = returnFunc(ctx, accountId, profileId, timespan, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.QueryLogTopBlocklists)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, int) error); ok {
+		r1 = returnFunc(ctx, accountId, profileId, timespan, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileServicer_GetProfileQueryLogBlocklists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogBlocklists'
+type ProfileServicer_GetProfileQueryLogBlocklists_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogBlocklists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - timespan string
+//   - limit int
+func (_e *ProfileServicer_Expecter) GetProfileQueryLogBlocklists(ctx interface{}, accountId interface{}, profileId interface{}, timespan interface{}, limit interface{}) *ProfileServicer_GetProfileQueryLogBlocklists_Call {
+	return &ProfileServicer_GetProfileQueryLogBlocklists_Call{Call: _e.mock.On("GetProfileQueryLogBlocklists", ctx, accountId, profileId, timespan, limit)}
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogBlocklists_Call) Run(run func(ctx context.Context, accountId string, profileId string, timespan string, limit int)) *ProfileServicer_GetProfileQueryLogBlocklists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogBlocklists_Call) Return(queryLogTopBlocklists *model.QueryLogTopBlocklists, err error) *ProfileServicer_GetProfileQueryLogBlocklists_Call {
+	_c.Call.Return(queryLogTopBlocklists, err)
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogBlocklists_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string, limit int) (*model.QueryLogTopBlocklists, error)) *ProfileServicer_GetProfileQueryLogBlocklists_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfileQueryLogClients provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) GetProfileQueryLogClients(ctx context.Context, accountId string, profileId string, timespan string, limit int) (*model.QueryLogTopClients, error) {
+	ret := _mock.Called(ctx, accountId, profileId, timespan, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogClients")
+	}
+
+	var r0 *model.QueryLogTopClients
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int) (*model.QueryLogTopClients, error)); ok {
+		return returnFunc(ctx, accountId, profileId, timespan, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int) *model.QueryLogTopClients); ok {
+		r0 = returnFunc(ctx, accountId, profileId, timespan, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.QueryLogTopClients)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, int) error); ok {
+		r1 = returnFunc(ctx, accountId, profileId, timespan, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileServicer_GetProfileQueryLogClients_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogClients'
+type ProfileServicer_GetProfileQueryLogClients_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogClients is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - timespan string
+//   - limit int
+func (_e *ProfileServicer_Expecter) GetProfileQueryLogClients(ctx interface{}, accountId interface{}, profileId interface{}, timespan interface{}, limit interface{}) *ProfileServicer_GetProfileQueryLogClients_Call {
+	return &ProfileServicer_GetProfileQueryLogClients_Call{Call: _e.mock.On("GetProfileQueryLogClients", ctx, accountId, profileId, timespan, limit)}
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogClients_Call) Run(run func(ctx context.Context, accountId string, profileId string, timespan string, limit int)) *ProfileServicer_GetProfileQueryLogClients_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogClients_Call) Return(queryLogTopClients *model.QueryLogTopClients, err error) *ProfileServicer_GetProfileQueryLogClients_Call {
+	_c.Call.Return(queryLogTopClients, err)
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogClients_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string, limit int) (*model.QueryLogTopClients, error)) *ProfileServicer_GetProfileQueryLogClients_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetProfileQueryLogDevices provides a mock function for the type ProfileServicer
 func (_mock *ProfileServicer) GetProfileQueryLogDevices(ctx context.Context, accountId string, profileId string) ([]model.QueryLogDevice, error) {
 	ret := _mock.Called(ctx, accountId, profileId)
@@ -1148,6 +1383,98 @@ func (_c *ProfileServicer_GetProfileQueryLogDevices_Call) Return(queryLogDevices
 }
 
 func (_c *ProfileServicer_GetProfileQueryLogDevices_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string) ([]model.QueryLogDevice, error)) *ProfileServicer_GetProfileQueryLogDevices_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetProfileQueryLogTop provides a mock function for the type ProfileServicer
+func (_mock *ProfileServicer) GetProfileQueryLogTop(ctx context.Context, accountId string, profileId string, timespan string, kind string, limit int) (*model.QueryLogTopDomains, error) {
+	ret := _mock.Called(ctx, accountId, profileId, timespan, kind, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetProfileQueryLogTop")
+	}
+
+	var r0 *model.QueryLogTopDomains
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) (*model.QueryLogTopDomains, error)); ok {
+		return returnFunc(ctx, accountId, profileId, timespan, kind, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int) *model.QueryLogTopDomains); ok {
+		r0 = returnFunc(ctx, accountId, profileId, timespan, kind, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.QueryLogTopDomains)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, int) error); ok {
+		r1 = returnFunc(ctx, accountId, profileId, timespan, kind, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ProfileServicer_GetProfileQueryLogTop_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetProfileQueryLogTop'
+type ProfileServicer_GetProfileQueryLogTop_Call struct {
+	*mock.Call
+}
+
+// GetProfileQueryLogTop is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - profileId string
+//   - timespan string
+//   - kind string
+//   - limit int
+func (_e *ProfileServicer_Expecter) GetProfileQueryLogTop(ctx interface{}, accountId interface{}, profileId interface{}, timespan interface{}, kind interface{}, limit interface{}) *ProfileServicer_GetProfileQueryLogTop_Call {
+	return &ProfileServicer_GetProfileQueryLogTop_Call{Call: _e.mock.On("GetProfileQueryLogTop", ctx, accountId, profileId, timespan, kind, limit)}
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogTop_Call) Run(run func(ctx context.Context, accountId string, profileId string, timespan string, kind string, limit int)) *ProfileServicer_GetProfileQueryLogTop_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogTop_Call) Return(queryLogTopDomains *model.QueryLogTopDomains, err error) *ProfileServicer_GetProfileQueryLogTop_Call {
+	_c.Call.Return(queryLogTopDomains, err)
+	return _c
+}
+
+func (_c *ProfileServicer_GetProfileQueryLogTop_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string, kind string, limit int) (*model.QueryLogTopDomains, error)) *ProfileServicer_GetProfileQueryLogTop_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1337,23 +1664,23 @@ func (_c *ProfileServicer_GetProfiles_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // GetStatistics provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) GetStatistics(ctx context.Context, accountId string, profileId string, timespan string) ([]model.StatisticsAggregated, error) {
+func (_mock *ProfileServicer) GetStatistics(ctx context.Context, accountId string, profileId string, timespan string) (*model.StatisticsResponse, error) {
 	ret := _mock.Called(ctx, accountId, profileId, timespan)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetStatistics")
 	}
 
-	var r0 []model.StatisticsAggregated
+	var r0 *model.StatisticsResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) ([]model.StatisticsAggregated, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.StatisticsResponse, error)); ok {
 		return returnFunc(ctx, accountId, profileId, timespan)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) []model.StatisticsAggregated); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.StatisticsResponse); ok {
 		r0 = returnFunc(ctx, accountId, profileId, timespan)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.StatisticsAggregated)
+			r0 = ret.Get(0).(*model.StatisticsResponse)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
@@ -1406,12 +1733,12 @@ func (_c *ProfileServicer_GetStatistics_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *ProfileServicer_GetStatistics_Call) Return(statisticsAggregateds []model.StatisticsAggregated, err error) *ProfileServicer_GetStatistics_Call {
-	_c.Call.Return(statisticsAggregateds, err)
+func (_c *ProfileServicer_GetStatistics_Call) Return(statisticsResponse *model.StatisticsResponse, err error) *ProfileServicer_GetStatistics_Call {
+	_c.Call.Return(statisticsResponse, err)
 	return _c
 }
 
-func (_c *ProfileServicer_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string) ([]model.StatisticsAggregated, error)) *ProfileServicer_GetStatistics_Call {
+func (_c *ProfileServicer_GetStatistics_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string, timespan string) (*model.StatisticsResponse, error)) *ProfileServicer_GetStatistics_Call {
 	_c.Call.Return(run)
 	return _c
 }
