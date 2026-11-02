@@ -31,6 +31,9 @@ type ServerMetrics struct {
 	upstreamDuration     *prometheus.HistogramVec
 	blocked              *prometheus.CounterVec
 	filterStageErrors    *prometheus.CounterVec
+	dohRequests          *prometheus.CounterVec
+	doh3ConnRejected     *prometheus.CounterVec
+	doh3Busy             prometheus.Counter
 }
 
 // NewServerMetrics creates and registers all server-level Prometheus collectors.
@@ -72,6 +75,18 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 			Name: "proxy_dns_filter_stage_errors_total",
 			Help: "Settings-store read failures by pipeline phase and stage; each one answers SERVFAIL.",
 		}, []string{"phase", "stage"}),
+		dohRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_doh_requests_total",
+			Help: "DoH requests by the HTTP version the proxy received (behind a reverse proxy, that hop's version; 3 = direct HTTP/3).",
+		}, []string{"http_version"}),
+		doh3ConnRejected: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_doh3_connections_rejected_total",
+			Help: "HTTP/3 connections refused by the listener caps, by reason: total, source, unverified.",
+		}, []string{"reason"}),
+		doh3Busy: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "proxy_doh3_requests_busy_total",
+			Help: "HTTP/3 requests answered 503 because no handler slot (MAX_GOROUTINES) freed up before the deadline.",
+		}),
 	}
 	reg.MustRegister(
 		m.queries,
@@ -82,6 +97,9 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		m.upstreamDuration,
 		m.blocked,
 		m.filterStageErrors,
+		m.dohRequests,
+		m.doh3ConnRejected,
+		m.doh3Busy,
 	)
 	return m
 }
@@ -116,4 +134,16 @@ func (m *ServerMetrics) RecordBlocked(phase string) {
 
 func (m *ServerMetrics) RecordFilterStageError(phase, stage string) {
 	m.filterStageErrors.WithLabelValues(phase, stage).Inc()
+}
+
+func (m *ServerMetrics) RecordDoHRequest(httpVersion string) {
+	m.dohRequests.WithLabelValues(httpVersion).Inc()
+}
+
+func (m *ServerMetrics) RecordDoH3ConnRejected(reason string) {
+	m.doh3ConnRejected.WithLabelValues(reason).Inc()
+}
+
+func (m *ServerMetrics) RecordDoH3Busy() {
+	m.doh3Busy.Inc()
 }
