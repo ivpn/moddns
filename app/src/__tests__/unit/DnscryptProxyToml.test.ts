@@ -12,6 +12,11 @@ describe("buildDnscryptProxyToml", () => {
         expect(toml).toContain(`stamp = '${STAMP}'`);
     });
 
+    it("does not set http3, which the stock dnscrypt-proxy.toml already defines", () => {
+        const toml = buildDnscryptProxyToml("abc123def4", STAMP);
+        expect(toml).not.toMatch(/^\s*http3\s*=/m);
+    });
+
     it("uses the same server name in both the list and the static section", () => {
         const toml = buildDnscryptProxyToml("xyz789", STAMP);
         const matches = toml.match(/modDNS-xyz789/g) ?? [];
