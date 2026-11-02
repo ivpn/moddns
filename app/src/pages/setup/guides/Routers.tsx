@@ -200,6 +200,7 @@ const StampsTab = ({ deps }: { deps: RoutersGuideDeps }) => {
                         <div className="text-xs text-[var(--tailwind-colors-slate-200)] leading-relaxed">
                             Running <strong>dnscrypt-proxy</strong>? Paste this into your{' '}
                             <code className="font-mono">dnscrypt-proxy.toml</code> to consume the DoH stamp above.
+                            For DNS-over-HTTP/3, change the existing <code className="font-mono">http3 = false</code> line to <code className="font-mono">http3 = true</code>.
                         </div>
                         {loading || !stamps?.doh ? (
                             <div className="h-9 rounded border border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-900)] animate-pulse" />
