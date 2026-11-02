@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/ivpn/dns/proxy/config"
 	"github.com/ivpn/dns/proxy/internal/dnssec"
+	"github.com/ivpn/dns/proxy/mocks"
 	"github.com/miekg/dns"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -53,7 +55,7 @@ func TestNewDoH3QUICConfig(t *testing.T) {
 
 // specRef: proxy-request-admission-behaviour.md #Q17
 func TestDoH3RetryPolicy(t *testing.T) {
-	conns := newConnLimiter(8, 8, 64)
+	conns, _ := newTestConnLimiter(8, 8)
 	needsRetry := newDoH3RetryPolicy(conns, 0, 2)
 	addr := &net.UDPAddr{IP: net.IPv4(192, 0, 2, 1), Port: 5000}
 
@@ -63,12 +65,17 @@ func TestDoH3RetryPolicy(t *testing.T) {
 
 	// A source holding half its slots must prove its address even when the
 	// global rate allows the attempt.
-	conns = newConnLimiter(8, 2, 64)
+	conns, _ = newTestConnLimiter(8, 2)
 	needsRetry = newDoH3RetryPolicy(conns, rate.Inf, 1)
 	assert.False(t, needsRetry(addr))
 	_, err := admitTest(t, conns, addr.String(), true)
 	require.NoError(t, err)
 	assert.True(t, needsRetry(addr))
+}
+
+func newTestConnLimiter(maxTotal, maxPerIP int) (*connLimiter, *recordingMetrics) {
+	m := &recordingMetrics{}
+	return newConnLimiter(maxTotal, maxPerIP, 64, m), m
 }
 
 func admitTest(t *testing.T, l *connLimiter, addr string, verified bool) (context.CancelFunc, error) {
@@ -86,7 +93,7 @@ func admitTest(t *testing.T, l *connLimiter, addr string, verified bool) (contex
 
 // specRef: proxy-request-admission-behaviour.md #Q17
 func TestConnLimiter_UnverifiedAddressesUseHalfThePerIPCap(t *testing.T) {
-	l := newConnLimiter(100, 4, 64)
+	l, m := newTestConnLimiter(100, 4)
 	src := "192.0.2.1:5000"
 
 	for i := range 2 {
@@ -103,11 +110,12 @@ func TestConnLimiter_UnverifiedAddressesUseHalfThePerIPCap(t *testing.T) {
 	}
 	_, err = admitTest(t, l, src, true)
 	require.ErrorIs(t, err, errDoH3ConnLimit)
+	assert.Equal(t, []string{doh3RejectUnverified, doh3RejectSource}, m.snapshot().doh3Rejected)
 }
 
 // specRef: proxy-request-admission-behaviour.md #Q17
 func TestConnLimiter_GroupsIPv6ByPrefixAndUnmapsIPv4(t *testing.T) {
-	l := newConnLimiter(100, 2, 64)
+	l, _ := newTestConnLimiter(100, 2)
 
 	_, err := admitTest(t, l, "[2001:db8:1:2::1]:5000", true)
 	require.NoError(t, err)
@@ -128,11 +136,12 @@ func TestConnLimiter_GroupsIPv6ByPrefixAndUnmapsIPv4(t *testing.T) {
 
 // specRef: proxy-request-admission-behaviour.md #Q17
 func TestConnLimiter_ReleasesSlotWhenConnectionEnds(t *testing.T) {
-	l := newConnLimiter(1, 1, 64)
+	l, m := newTestConnLimiter(1, 1)
 	cancel, err := admitTest(t, l, "192.0.2.1:5000", true)
 	require.NoError(t, err)
 	_, err = admitTest(t, l, "192.0.2.2:5000", true)
 	require.ErrorIs(t, err, errDoH3ConnLimit)
+	assert.Equal(t, []string{doh3RejectTotal}, m.snapshot().doh3Rejected)
 
 	cancel()
 	require.Eventually(t, func() bool {
@@ -156,9 +165,10 @@ type seenRequest struct {
 // dohTestEnv runs dnsproxy's DoH listener (HTTP/2) and doh3Server (HTTP/3) on
 // loopback ports in front of a stub handler.
 type dohTestEnv struct {
-	h2Port int
-	h3     *doh3Server
-	seen   func() seenRequest
+	h2Port  int
+	h3      *doh3Server
+	seen    func() seenRequest
+	metrics *recordingMetrics
 }
 
 // dohTestOpts configures startDoHTestEnv; zero values get test defaults.
@@ -229,7 +239,8 @@ func startDoHTestEnv(t *testing.T, opts dohTestOpts) *dohTestEnv {
 	t.Cleanup(func() { _ = p.Shutdown(context.Background()) })
 
 	// Dual-stack wildcard, as in production; tests connect over IPv4.
-	h3 := newDoH3Server(netip.MustParseAddrPort("[::]:0"), conf.TLSConfig, p, limits, opts.maxRequests, 64)
+	metrics := &recordingMetrics{}
+	h3 := newDoH3Server(netip.MustParseAddrPort("[::]:0"), conf.TLSConfig, p, limits, opts.maxRequests, 64, metrics)
 	require.NoError(t, h3.start())
 	t.Cleanup(func() { _ = h3.shutdown(context.Background()) })
 
@@ -237,8 +248,9 @@ func startDoHTestEnv(t *testing.T, opts dohTestOpts) *dohTestEnv {
 	require.True(t, ok)
 
 	return &dohTestEnv{
-		h2Port: tcpAddr.Port,
-		h3:     h3,
+		h2Port:  tcpAddr.Port,
+		h3:      h3,
+		metrics: metrics,
 		seen: func() seenRequest {
 			mu.Lock()
 			defer mu.Unlock()
@@ -367,11 +379,12 @@ func TestDoH3_IgnoresForwardedAddressHeaders(t *testing.T) {
 // specRef: proxy-request-admission-behaviour.md #Q17
 func TestDoH3_ConnectionCaps(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		limits config.DoH3Limits
+		name       string
+		limits     config.DoH3Limits
+		wantReason string
 	}{
-		{"per IP", config.DoH3Limits{MaxConns: 8, MaxConnsPerIP: 1, MaxStreams: 8}},
-		{"global", config.DoH3Limits{MaxConns: 1, MaxConnsPerIP: 8, MaxStreams: 8}},
+		{"per IP", config.DoH3Limits{MaxConns: 8, MaxConnsPerIP: 1, MaxStreams: 8}, doh3RejectSource},
+		{"global", config.DoH3Limits{MaxConns: 1, MaxConnsPerIP: 8, MaxStreams: 8}, doh3RejectTotal},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			env := startDoHTestEnv(t, dohTestOpts{limits: tc.limits})
@@ -385,6 +398,7 @@ func TestDoH3_ConnectionCaps(t *testing.T) {
 			second.Timeout = time.Second
 			_, err := second.Do(newDoHRequest(t, url, bytes.NewReader(packedQuery(t))))
 			require.Error(t, err, "a connection above the cap must be refused")
+			assert.Contains(t, env.metrics.snapshot().doh3Rejected, tc.wantReason)
 
 			first.Transport.(*http3.Transport).Close()
 			require.Eventually(t, func() bool {
@@ -497,6 +511,7 @@ func TestDoH3_ConcurrentRequestsBoundedByMaxGoroutines(t *testing.T) {
 	require.NoError(t, err)
 	_ = resp.Body.Close()
 	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
+	assert.Equal(t, 1, env.metrics.snapshot().doh3BusyCount)
 
 	release()
 	<-firstDone
@@ -504,7 +519,7 @@ func TestDoH3_ConcurrentRequestsBoundedByMaxGoroutines(t *testing.T) {
 
 // specRef: proxy-request-admission-behaviour.md #Q16
 func TestDoH3_ShutdownReleasesSocket(t *testing.T) {
-	d := newDoH3Server(netip.MustParseAddrPort("127.0.0.1:0"), newTestTLSConfig(t), http.NotFoundHandler(), config.DoH3Limits{MaxConns: 1, MaxConnsPerIP: 1, MaxStreams: 1}, 0, 64)
+	d := newDoH3Server(netip.MustParseAddrPort("127.0.0.1:0"), newTestTLSConfig(t), http.NotFoundHandler(), config.DoH3Limits{MaxConns: 1, MaxConnsPerIP: 1, MaxStreams: 1}, 0, 64, &recordingMetrics{})
 	require.NoError(t, d.start())
 	addr := d.addr().(*net.UDPAddr)
 	require.NoError(t, d.shutdown(context.Background()))
@@ -521,3 +536,41 @@ func newTestTLSConfig(t *testing.T) *tls.Config {
 	require.NoError(t, err)
 	return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}
 }
+
+// specRef: proxy-request-admission-behaviour.md #Q16
+func TestPrepareRequest_RecordsDoHHTTPVersion(t *testing.T) {
+	for _, tc := range []struct {
+		proto        proxy.Proto
+		major, minor int
+		want         []string
+	}{
+		{proxy.ProtoHTTPS, 1, 1, []string{"1.1"}},
+		{proxy.ProtoHTTPS, 2, 0, []string{"2"}},
+		{proxy.ProtoHTTPS, 3, 0, []string{"3"}},
+		{proxy.ProtoTLS, 0, 0, nil},
+	} {
+		t.Run(fmt.Sprintf("%s/%d.%d", tc.proto, tc.major, tc.minor), func(t *testing.T) {
+			s := newProfileRateLimitServer(mocks.NewCache(t), config.RateLimitResponseRefuse)
+			m := &recordingMetrics{}
+			s.Metrics = m
+
+			dctx := &proxy.DNSContext{
+				Req:   new(dns.Msg).SetQuestion("example.com.", dns.TypeA),
+				Proto: tc.proto,
+				Addr:  netip.MustParseAddrPort("192.0.2.1:5000"),
+			}
+			if tc.proto == proxy.ProtoHTTPS {
+				dctx.HTTPRequest = &http.Request{URL: &url.URL{Path: "/dns-query"}, ProtoMajor: tc.major, ProtoMinor: tc.minor}
+			} else {
+				dctx.Conn = fakeTLSConn{}
+			}
+
+			_, _, _ = s.prepareRequest(context.Background(), nil, dctx)
+			assert.Equal(t, tc.want, m.snapshot().dohVersions)
+		})
+	}
+}
+
+type fakeTLSConn struct{ net.Conn }
+
+func (fakeTLSConn) ConnectionState() tls.ConnectionState { return tls.ConnectionState{} }

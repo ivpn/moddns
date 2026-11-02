@@ -37,6 +37,29 @@ const (
 	doh3MaxHeaderBytes = 8 << 10
 )
 
+// Reasons for proxy_doh3_connections_rejected_total.
+const (
+	doh3RejectTotal      = "total"      // DOH_HTTP3_MAX_CONNECTIONS reached
+	doh3RejectSource     = "source"     // DOH_HTTP3_MAX_CONNECTIONS_PER_IP reached
+	doh3RejectUnverified = "unverified" // half the source's slots held by unvalidated addresses
+)
+
+// httpVersion returns the label for proxy_doh_requests_total.
+func httpVersion(r *http.Request) string {
+	switch {
+	case r.ProtoMajor == 3:
+		return "3"
+	case r.ProtoMajor == 2:
+		return "2"
+	case r.ProtoMajor == 1 && r.ProtoMinor == 1:
+		return "1.1"
+	case r.ProtoMajor == 1 && r.ProtoMinor == 0:
+		return "1.0"
+	default:
+		return "other"
+	}
+}
+
 // forwardedAddrHeaders are the headers dnsproxy reads a client address from.
 // HTTP/3 never arrives through a reverse proxy, so they are dropped before
 // dnsproxy sees the request.
@@ -50,6 +73,7 @@ type doh3Server struct {
 	limits         config.DoH3Limits
 	requestTimeout time.Duration
 	conns          *connLimiter
+	metrics        doh3Metrics
 	// requests holds one token per running handler (MAX_GOROUTINES); nil
 	// means unbounded.
 	requests chan struct{}
@@ -61,14 +85,18 @@ type doh3Server struct {
 	server    *http3.Server
 }
 
-func newDoH3Server(listenAddr netip.AddrPort, tlsConf *tls.Config, handler http.Handler, limits config.DoH3Limits, maxRequests uint, ipv6PrefixLen int) *doh3Server {
+func newDoH3Server(listenAddr netip.AddrPort, tlsConf *tls.Config, handler http.Handler, limits config.DoH3Limits, maxRequests uint, ipv6PrefixLen int, metrics doh3Metrics) *doh3Server {
+	if metrics == nil {
+		metrics = noopMetrics{}
+	}
 	d := &doh3Server{
 		listenAddr:     listenAddr,
 		tlsConf:        tlsConf,
 		handler:        handler,
 		limits:         limits,
 		requestTimeout: dohTimeout,
-		conns:          newConnLimiter(limits.MaxConns, limits.MaxConnsPerIP, ipv6PrefixLen),
+		conns:          newConnLimiter(limits.MaxConns, limits.MaxConnsPerIP, ipv6PrefixLen, metrics),
+		metrics:        metrics,
 	}
 	if maxRequests > 0 {
 		d.requests = make(chan struct{}, maxRequests)
@@ -168,6 +196,7 @@ func (d *doh3Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		case d.requests <- struct{}{}:
 			defer func() { <-d.requests }()
 		case <-wait.C:
+			d.metrics.RecordDoH3Busy()
 			// The request deadline has passed; allow the short error reply out.
 			_ = rc.SetWriteDeadline(time.Now().Add(time.Second))
 			http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
@@ -213,17 +242,24 @@ type connLimiter struct {
 	maxTotal      int
 	maxPerIP      int
 	ipv6PrefixLen int
+	metrics       doh3Metrics
 
 	mu    sync.Mutex
 	total int
 	perIP map[netip.Addr]int
 }
 
-func newConnLimiter(maxTotal, maxPerIP, ipv6PrefixLen int) *connLimiter {
+func newConnLimiter(maxTotal, maxPerIP, ipv6PrefixLen int, metrics doh3Metrics) *connLimiter {
 	if ipv6PrefixLen < 1 || ipv6PrefixLen > 128 {
 		ipv6PrefixLen = 64
 	}
-	return &connLimiter{maxTotal: maxTotal, maxPerIP: maxPerIP, ipv6PrefixLen: ipv6PrefixLen, perIP: make(map[netip.Addr]int)}
+	return &connLimiter{
+		maxTotal:      maxTotal,
+		maxPerIP:      maxPerIP,
+		ipv6PrefixLen: ipv6PrefixLen,
+		metrics:       metrics,
+		perIP:         make(map[netip.Addr]int),
+	}
 }
 
 var errDoH3ConnLimit = errors.New("doh3: connection limit reached")
@@ -268,12 +304,18 @@ func (l *connLimiter) admit(ctx context.Context, info *quic.ClientInfo) (context
 	}
 
 	l.mu.Lock()
-	limit := l.maxPerIP
-	if !info.AddrVerified {
-		limit = l.unverifiedCap()
+	reason := ""
+	switch {
+	case l.total >= l.maxTotal:
+		reason = doh3RejectTotal
+	case !info.AddrVerified && l.perIP[key] >= l.unverifiedCap():
+		reason = doh3RejectUnverified
+	case l.perIP[key] >= l.maxPerIP:
+		reason = doh3RejectSource
 	}
-	if l.total >= l.maxTotal || l.perIP[key] >= limit {
+	if reason != "" {
 		l.mu.Unlock()
+		l.metrics.RecordDoH3ConnRejected(reason)
 		return ctx, errDoH3ConnLimit
 	}
 	l.total++
