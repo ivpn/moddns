@@ -1,214 +1,183 @@
-# modDNS · Secure DNS System
+<p align="center">
+  <img alt="modDNS" src="app/src/assets/logos/modDNS-light-theme.svg#gh-light-mode-only" width="320">
+  <img alt="modDNS" src="app/src/assets/logos/modDNS-dark-theme.svg#gh-dark-mode-only" width="320">
+</p>
 
-modDNS is a full-stack DNS security platform that combines encrypted DNS transport, fine-grained content filtering, and rich analytics. The project is maintained by IVPN and released under the GPL-3.0 license.
+<p align="center">
+  Privacy-first DNS filtering service with DoH, DoT and DoQ, blocklists, custom rules and per-profile settings. Independently audited. Built by IVPN.
+</p>
+
+<p align="center">
+  <a href="https://moddns.net">modDNS website</a> ·
+  <a href="https://www.ivpn.net">IVPN website</a> ·
+  <a href="https://moddns.net/faq">FAQ</a> ·
+  <a href="https://moddns.net/privacy">Privacy Policy</a>
+</p>
+
+<p align="center">
+  <a href="LICENSE.md"><img alt="License: GPL-3.0" src="https://img.shields.io/github/license/ivpn/moddns"></a>
+  <a href="https://github.com/ivpn/moddns/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/ivpn/moddns"></a>
+</p>
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Core Technologies](#core-technologies)
-3. [Features](#features)
-4. [Getting Started](#getting-started)
-5. [Repository Layout](#repository-layout)
-6. [Development Workflow](#development-workflow)
-7. [Testing](#testing)
-8. [Contributing](#contributing)
-9. [Code of Conduct & Security](#code-of-conduct--security)
-10. [License](#license)
-11. [Community & Support](#community--support)
+1. [About](#about)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [Repository layout](#repository-layout)
+5. [Development](#development)
+6. [Testing](#testing)
+7. [Contributing](#contributing)
+8. [Security](#security)
+9. [License](#license)
 
-## Architecture Overview
-modDNS is built as a microservices architecture with the following components:
+## About
 
-```
-┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│  Web Client  │──▶│    Nginx     │──▶│   Frontend   │
-│  (browser)   │   │ (:80, static)│   │ (React SPA)  │
-└──────┬───────┘   └──────────────┘   └──────────────┘
-       │ REST API (:3000)
-       ▼
-┌──────────────┐   ┌──────────────────────┐
-│  API Server  │──▶│        Redis         │
-│  (Go/Fiber)  │   │ (master + 2 replicas │
-└──────┬───────┘   │     + sentinel)      │
-       │           └──────────▲───────────┘
-       ▼                      │ profile/rule reads
-┌──────────────┐              │ (dns replica)
-│   MongoDB    │   ┌──────────┴───┐   ┌──────────────────┐
-│              │◀──│  DNS Proxy   │──▶│    Recursors     │
-└──────────────┘   │  (TLS term.) │   │  (sdns + Knot)   │
-   query logs &    └──────▲───────┘   └──────────────────┘
-   statistics             │ DoH / DoT / DoQ
-                   ┌──────┴───────┐
-                   │ DNS Clients  │
-                   └──────────────┘
-```
+modDNS is a hosted DNS service that blocks ads, trackers and malware on every device, with encrypted transport and full control over what gets logged. It is developed and operated by IVPN.
 
-Additional services not shown above:
-
-- **blocklists** — periodically downloads and ingests filter lists (AdGuard, Hagezi, OISD, StevenBlack, …) into Redis/MongoDB.
-- **dnscheck** — standalone DNS diagnostics microservice with GeoIP (MaxMind) lookup.
-
-Note that the DNS proxy terminates TLS for the encrypted DNS transports itself; Nginx only serves the web frontend. The API is exposed directly on port 3000.
-
-## Core Technologies
-
-**Backend Services**
-- Go & Fiber for high-performance APIs
-- MongoDB for persistent storage of accounts, profiles, query logs, and statistics
-- Redis (master + two replicas + sentinel) for caching and distributing profile configuration to the proxy
-- sdns and Knot Resolver as bundled recursors (Knot is the default)
-
-**Frontend**
-- React + TypeScript SPA (shadcn/ui & Radix UI component system)
-- Tailwind CSS for utility-first styling
-- PWA with offline support and in-app update flow
-
-**Infrastructure**
-- Docker & Docker Compose for local orchestration
-- Nginx serving the web frontend (the DNS proxy terminates TLS for encrypted DNS transports itself)
-- GitHub Actions for CI/CD automation
+modDNS is included in the [IVPN](https://www.ivpn.net/pricing/) Plus and Pro Suite plans. This repository contains the source code of the service. Self-hosting is not supported: the setup instructions below are for contributors running the stack locally.
 
 ## Features
 
 **Encrypted DNS**
-- DNS over HTTPS (DoH), DNS over TLS (DoT), DNS over QUIC (DoQ)
-- Per-profile DNS stamps (`sdns://`) calculator and dnscrypt-proxy (via DoH) setup support
-- DNSSEC validation (per profile, enabled by default)
+- DNS over HTTPS (DoH), DNS over TLS (DoT) and DNS over QUIC (DoQ)
+- DNS stamps (`sdns://`) for each profile, for use with dnscrypt-proxy over DoH
+- DNSSEC validation, on by default and configurable per profile
 
-**Content Filtering**
-- Built-in blocklists (ads, malware, trackers)
-- Custom allow/deny rules per profile — domains and IPs, with rule groups and precedence
-- Service-based blocking presets backed by ASN lookup (Google, Meta, TikTok, Netflix, …)
+**Filtering**
+- Curated blocklists for ads, trackers, malware and more (AdGuard, Hagezi, OISD, StevenBlack and others)
+- Custom allow and block rules for domains and IPs, with rule groups and precedence
+- Block whole services (Google, Meta, TikTok, Netflix and others) with one toggle
 - DNS rebinding protection
 
-**User & Profile Management**
-- Multi-profile accounts with individualized policies
-- MFA (TOTP and WebAuthn/passkeys), email verification, and secure password workflows
-- Profile settings export & import
-- In-app announcements
+**Accounts and profiles**
+- Several profiles per account, each with its own settings
+- Two-factor authentication with TOTP or passkeys (WebAuthn)
+- Export and import of profile settings
 
-**Observability**
-- Near real-time DNS query logging with outcome classification and quick-rule creation from log entries (opt-in, configurable retention from 1 hour to 1 month)
-- Statistics and exportable analytics for auditing
-- Prometheus metrics exposed by the proxy
+**Logs and statistics**
+- Query logs are off by default. When enabled, they show each query's outcome, let you create a rule from any entry and are kept from 1 hour to 1 month
+- Opt-in statistics on queries and blocking over time
 
-**Apple Device Integration**
-- Managed `.mobileconfig` profiles
-- QR-code assisted enrollment for mobile clients
+**Device setup**
+- Setup guides for every major platform
+- Apple configuration profiles (`.mobileconfig`) with QR-code enrollment on mobile
 
-## Getting Started
+## Architecture
+
+modDNS is a set of Go microservices with a React frontend:
+
+<p align="center">
+  <img alt="modDNS architecture: DNS clients connect to the DNS proxy over DoH, DoT and DoQ; the proxy forwards queries to Knot Resolver, reads settings from Redis and writes query logs and statistics to MongoDB. The web app talks to the API and dnscheck; the API stores accounts in MongoDB and publishes profile settings to Redis; blocklists loads filter lists into Redis and MongoDB." src=".github/assets/architecture-light.svg#gh-light-mode-only">
+  <img alt="modDNS architecture: DNS clients connect to the DNS proxy over DoH, DoT and DoQ; the proxy forwards queries to Knot Resolver, reads settings from Redis and writes query logs and statistics to MongoDB. The web app talks to the API and dnscheck; the API stores accounts in MongoDB and publishes profile settings to Redis; blocklists loads filter lists into Redis and MongoDB." src=".github/assets/architecture-dark.svg#gh-dark-mode-only">
+</p>
+
+- The **DNS proxy** receives DoH, DoT and DoQ queries and applies each profile's filtering.
+- The **API** (Go, Fiber, MongoDB) manages accounts and profiles, writes profile settings to Redis for the proxy to read, and serves query logs and statistics to the web app.
+- **Knot Resolver** is the recursive resolver behind the proxy.
+- **blocklists** downloads filter lists on a schedule and loads them into Redis and MongoDB.
+- **dnscheck** is a DNS diagnostics service with GeoIP (MaxMind) lookup.
+- The **frontend** is a React + TypeScript PWA built with shadcn/ui, Radix UI and Tailwind CSS.
+
+## Repository layout
+
+| Path | Purpose |
+|------|---------|
+| `api/` | API service (Go, Fiber, MongoDB) |
+| `proxy/` | DNS proxy |
+| `blocklists/` | Blocklist ingestion |
+| `dnscheck/` | DNS diagnostics service |
+| `libs/` | Shared Go libraries, vendored by `api/` and `proxy/` |
+| `app/` | React frontend |
+| `tests/` | Backend end-to-end tests (pytest + testcontainers) |
+| `dev/`, `compose.*.yml` | Local Docker Compose stack, bootstrap data and development TLS certificates |
+| `scripts/` | Helper scripts |
+| `.github/` | CI workflows, lint configs, issue and PR templates |
+
+## Development
 
 ### Prerequisites
-- Docker & Docker Compose
-- Make (for the provided automation scripts)
-- Node.js 22+ and npm (for the React application)
-- Go 1.26.8+ for every Go module (toolchain version pinned in each `go.mod`)
-- Python 3.11 (for the backend E2E tests)
+
+- Docker and Docker Compose
+- Make
+- Go 1.26.8+ (pinned in each `go.mod`)
+- Node.js 22+ and npm
+- Python 3.11 (backend end-to-end tests)
 - mkcert (optional, for trusted local TLS certificates)
 
-### Quick Start
+### Running the stack locally
 
-Before the first `make up`, create the required (gitignored) environment files from the tracked samples and provide the GeoLite2 databases:
+1. Create the environment files from the tracked samples:
 
-```bash
-# 1. Environment files
-cp api/.env.sample api/.env
-cp proxy/.env.sample proxy/.env
-cp dnscheck/.env.sample dnscheck/.env
+   ```bash
+   cp api/.env.sample api/.env
+   cp proxy/.env.sample proxy/.env
+   cp dnscheck/.env.sample dnscheck/.env
+   ```
 
-# 2. MaxMind GeoLite2-ASN database (mounted by the proxy and dnscheck)
-#    Place GeoLite2-ASN.mmdb under dev/bootstrap/GeoLite2-ASN/
-```
+2. Download the free [MaxMind GeoLite2-ASN](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database (requires a MaxMind account) and place `GeoLite2-ASN.mmdb` in `dev/bootstrap/GeoLite2-ASN/`. The proxy and dnscheck mount it.
 
-Then:
+3. Start and stop the stack:
 
-```bash
-make up          # Build and start every service stack
-make down        # Stop and remove containers
-```
+   ```bash
+   make up      # build and start all services
+   make down    # stop and remove containers
+   ```
 
-Certificates for local HTTPS access live in `dev/certs/`. You can either generate them with `mkcert` or import the bundled CA into your OS trust store.
+   `make up_dev` starts a smaller stack (single Redis, Knot only). Run `make help` for all targets.
 
-## Repository Layout
-
-| Path      | Purpose |
-|-----------|---------|
-| `api/`    | Go API service (REST + DNS logic)
-| `app/`    | React front-end (shadcn/ui + Tailwind)
-| `blocklists/` | Blocklist ingestion and update tooling
-| `dnscheck/` | DNS diagnostics microservice
-| `libs/`   | Shared Go libraries (logging, cache, store)
-| `proxy/`  | DNS proxy implementation
-| `tests/`  | Integration and regression suites (pytest + testcontainers)
-| `dev/bootstrap/`, `compose.*.yml` | Docker-compose orchestration and bootstrap assets
-| `dev/certs/`  | Development TLS certificates and local CA
-| `scripts/` | Helper scripts
-| `.github/` | CI workflows (GitHub Actions), lint configs, issue/PR templates
-
-## Development Workflow
+Development TLS certificates are in `dev/certs/`. Generate your own with mkcert or import the bundled CA into your OS trust store. [`README-dev.md`](README-dev.md) covers certificates, local DNS overrides and client configuration in detail, and [`README-QA.md`](README-QA.md) shows how to point browsers and devices at the local stack.
 
 ### Frontend (`app/`)
+
 ```bash
 cd app
 npm install
-npm run dev       # Launches Vite dev server on http://localhost:5173
-npm run lint
-npm run tsc
-npm run build
+npm run dev     # Vite dev server on http://localhost:5173
 ```
-`npm run dev` sources `app/env/.env.local`, which is gitignored — create it first (see the tracked `app/env/.env.production`, `.env.staging`, and `.env.test` for reference).
 
-### API service (`api/`)
-```bash
-cd api
-go mod tidy
-make test
-```
-(See `api/Makefile` for additional targets like `make lint`, `make gow` (live reload), `make swag`, and `make mockery`. From the repo root, `make dev_api` runs live reload inside the running container.)
+`npm run dev` reads `app/env/.env.local`, which is gitignored. Create it based on the tracked `app/env/.env.production`, `.env.staging` or `.env.test`.
 
-### Proxy service (`proxy/`)
-```bash
-cd proxy
-go mod tidy
-make test
-```
-(See `proxy/Makefile` for additional targets like `make lint`, `make gow`, and `make mockery`. From the repo root, `make dev_proxy` runs live reload inside the running container.)
+### Go services
 
-### Backend E2E tests (`tests/`)
+Each Go module (`api/`, `proxy/`, `blocklists/`, `dnscheck/`, `libs/`) is tested on its own. In `api/` and `proxy/`, `make lint`, `make gow` (live reload) and `make mockery` are also available, plus `make swag` in `api/`. From the repository root, `make dev_api` and `make dev_proxy` run live reload inside the running containers.
+
+`api/` and `proxy/` vendor `libs/`. After changing `libs/`, run `go mod vendor` in both.
+
+## Testing
+
+| Area | Command |
+|------|---------|
+| Frontend | `cd app && npm run lint && npx tsc -p tsconfig.app.json && npm run test` |
+| Frontend E2E (Playwright) | `cd app && npm run test:e2e -- <area>` |
+| API | `cd api && go test ./...` |
+| Proxy | `cd proxy && go test -race ./...` |
+| Other Go modules | `go test ./...` in `blocklists/`, `dnscheck/` or `libs/` |
+| Backend E2E | see below |
+
+Backend end-to-end tests start the stack with testcontainers:
+
 ```bash
 cd tests
 python3.11 -m venv venv
 source venv/bin/activate
 make install_test_dependencies
-make test_ci        # spins up the stack via testcontainers
-make test_failover  # destructive Redis failover tests (excluded from test_ci, run separately)
+make test_ci         # main suite
+make test_failover   # destructive Redis failover tests, run separately
 ```
-
-## Testing
-
-- **Web client**: `npm run lint && npm run tsc && npm run test` (unit) and `npm run test:e2e` (Playwright)
-- **Go services**: `go test ./...` inside each Go module (`api/`, `blocklists/`, `proxy/`, etc.)
-- **Integration**: `cd tests && source venv/bin/activate && make test_ci`
-- **Static analysis**: `make lint` in relevant directories (Go linters + ESLint)
 
 ## Contributing
 
-Please see [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for detailed guidelines on how to propose changes, open issues, and submit pull requests.
+See [`CONTRIBUTING.md`](.github/CONTRIBUTING.md) for how to open issues and submit pull requests. Contributions are accepted under the [Contributor License Agreement](CLA.md) and the [Code of Conduct](CODE_OF_CONDUCT.md) applies in all project spaces.
 
-## Code of Conduct & Security
+- **Bugs and feature requests:** [GitHub Issues](https://github.com/ivpn/moddns/issues)
+- **Questions and ideas:** [GitHub Discussions](https://github.com/ivpn/moddns/discussions)
+- **Account and service support:** [moddns@ivpn.net](mailto:moddns@ivpn.net)
 
-Please refer to [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) for expectations in all community spaces.
+## Security
 
-Security vulnerabilities should **not** be disclosed in public issues. Follow the process described in [`SECURITY.md`](.github/SECURITY.md) to report them responsibly.
+Do not report vulnerabilities in public issues. Follow [`SECURITY.md`](.github/SECURITY.md) to report them privately.
 
 ## License
 
-modDNS is licensed under the [GNU GPL-3.0](LICENSE.md). By contributing, you agree that your contributions will be licensed under the same terms.
-
-## Community & Support
-
-- GitHub Issues: bug reports, feature requests, documentation updates
-- Discussions & PR reviews: architectural questions, roadmap proposals
-- Commercial support: contact IVPN through the official support portal if you are an IVPN customer
-
-We look forward to your contributions—whether code, documentation, or feedback.
+modDNS is licensed under the [GNU GPL-3.0](LICENSE.md).
