@@ -5,6 +5,7 @@ go 1.26.8
 require (
 	github.com/AfterShip/email-verifier v1.4.0
 	github.com/alicebob/miniredis/v2 v2.38.0
+	github.com/descope/virtualwebauthn v1.0.3 // v1.0.4+ require go-webauthn >= v0.15; bump together with go-webauthn
 	github.com/getsentry/sentry-go v0.31.1
 	github.com/getsentry/sentry-go/fiber v0.31.1
 	github.com/getsentry/sentry-go/zerolog v0.31.1

@@ -374,23 +374,23 @@ func (_c *Cachecache_AppendServicesBlockedToProfileSettings_Call) RunAndReturn(r
 }
 
 // ConsumeCeremony provides a mock function for the type Cachecache
-func (_mock *Cachecache) ConsumeCeremony(ctx context.Context, token string) (*model.Ceremony, error) {
+func (_mock *Cachecache) ConsumeCeremony(ctx context.Context, token string) ([]byte, error) {
 	ret := _mock.Called(ctx, token)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ConsumeCeremony")
 	}
 
-	var r0 *model.Ceremony
+	var r0 []byte
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.Ceremony, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
 		return returnFunc(ctx, token)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.Ceremony); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
 		r0 = returnFunc(ctx, token)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*model.Ceremony)
+			r0 = ret.Get(0).([]byte)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -431,12 +431,12 @@ func (_c *Cachecache_ConsumeCeremony_Call) Run(run func(ctx context.Context, tok
 	return _c
 }
 
-func (_c *Cachecache_ConsumeCeremony_Call) Return(ceremony *model.Ceremony, err error) *Cachecache_ConsumeCeremony_Call {
-	_c.Call.Return(ceremony, err)
+func (_c *Cachecache_ConsumeCeremony_Call) Return(bytes []byte, err error) *Cachecache_ConsumeCeremony_Call {
+	_c.Call.Return(bytes, err)
 	return _c
 }
 
-func (_c *Cachecache_ConsumeCeremony_Call) RunAndReturn(run func(ctx context.Context, token string) (*model.Ceremony, error)) *Cachecache_ConsumeCeremony_Call {
+func (_c *Cachecache_ConsumeCeremony_Call) RunAndReturn(run func(ctx context.Context, token string) ([]byte, error)) *Cachecache_ConsumeCeremony_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1149,16 +1149,16 @@ func (_c *Cachecache_RemoveServicesBlockedFromProfileSettings_Call) RunAndReturn
 }
 
 // SaveCeremony provides a mock function for the type Cachecache
-func (_mock *Cachecache) SaveCeremony(ctx context.Context, token string, ceremony *model.Ceremony, expiresIn time.Duration) error {
-	ret := _mock.Called(ctx, token, ceremony, expiresIn)
+func (_mock *Cachecache) SaveCeremony(ctx context.Context, token string, state []byte, expiresIn time.Duration) error {
+	ret := _mock.Called(ctx, token, state, expiresIn)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveCeremony")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *model.Ceremony, time.Duration) error); ok {
-		r0 = returnFunc(ctx, token, ceremony, expiresIn)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte, time.Duration) error); ok {
+		r0 = returnFunc(ctx, token, state, expiresIn)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1173,13 +1173,13 @@ type Cachecache_SaveCeremony_Call struct {
 // SaveCeremony is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-//   - ceremony *model.Ceremony
+//   - state []byte
 //   - expiresIn time.Duration
-func (_e *Cachecache_Expecter) SaveCeremony(ctx interface{}, token interface{}, ceremony interface{}, expiresIn interface{}) *Cachecache_SaveCeremony_Call {
-	return &Cachecache_SaveCeremony_Call{Call: _e.mock.On("SaveCeremony", ctx, token, ceremony, expiresIn)}
+func (_e *Cachecache_Expecter) SaveCeremony(ctx interface{}, token interface{}, state interface{}, expiresIn interface{}) *Cachecache_SaveCeremony_Call {
+	return &Cachecache_SaveCeremony_Call{Call: _e.mock.On("SaveCeremony", ctx, token, state, expiresIn)}
 }
 
-func (_c *Cachecache_SaveCeremony_Call) Run(run func(ctx context.Context, token string, ceremony *model.Ceremony, expiresIn time.Duration)) *Cachecache_SaveCeremony_Call {
+func (_c *Cachecache_SaveCeremony_Call) Run(run func(ctx context.Context, token string, state []byte, expiresIn time.Duration)) *Cachecache_SaveCeremony_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1189,9 +1189,9 @@ func (_c *Cachecache_SaveCeremony_Call) Run(run func(ctx context.Context, token 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 *model.Ceremony
+		var arg2 []byte
 		if args[2] != nil {
-			arg2 = args[2].(*model.Ceremony)
+			arg2 = args[2].([]byte)
 		}
 		var arg3 time.Duration
 		if args[3] != nil {
@@ -1212,7 +1212,7 @@ func (_c *Cachecache_SaveCeremony_Call) Return(err error) *Cachecache_SaveCeremo
 	return _c
 }
 
-func (_c *Cachecache_SaveCeremony_Call) RunAndReturn(run func(ctx context.Context, token string, ceremony *model.Ceremony, expiresIn time.Duration) error) *Cachecache_SaveCeremony_Call {
+func (_c *Cachecache_SaveCeremony_Call) RunAndReturn(run func(ctx context.Context, token string, state []byte, expiresIn time.Duration) error) *Cachecache_SaveCeremony_Call {
 	_c.Call.Return(run)
 	return _c
 }

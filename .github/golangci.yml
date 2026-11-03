@@ -2,6 +2,7 @@ version: "2"
 linters:
   default: none
   enable:
+    - depguard
     - errcheck
     # - goconst  # temporarily disabled — golangci-lint v1.12.1 surfaced ~50 new findings; tracked for cleanup in a separate PR.
     - gocritic
@@ -37,6 +38,15 @@ linters:
       - builtin$
       - examples$
   settings:
+    depguard:
+      rules:
+        webauthn:
+          files:
+            - $all
+            - "!**/internal/webauthn/**"
+          deny:
+            - pkg: github.com/go-webauthn/webauthn
+              desc: run WebAuthn through github.com/ivpn/dns/api/internal/webauthn
     gosec:
       excludes:
         - G117  # struct fields matching secret patterns (Password, AuthToken, Secret) – expected in auth APIs

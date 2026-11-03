@@ -6,7 +6,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -33,7 +32,6 @@ func NewCredentialError(msg string) *CredentialError {
 var (
 	ErrGetCredentials        = NewCredentialError("Unable to retrieve credentials.")
 	ErrSaveCredential        = NewCredentialError("Unable to save credential. Please try again.")
-	ErrUpdateCredential      = NewCredentialError("Unable to update credential. Please try again.")
 	ErrDeleteCredential      = NewCredentialError("Unable to delete credential. Please try again.")
 	ErrMaxExceededCredential = NewCredentialError("You have reached the maximum number of allowed passkeys.")
 )
@@ -48,8 +46,8 @@ func (s *Service) GetCredentials(ctx context.Context, accountID primitive.Object
 	return credentials, nil
 }
 
-func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	count, err := s.Store.GetCredentialsCount(ctx, accountID)
+func (s *Service) SaveCredential(ctx context.Context, credential *model.Credential) error {
+	count, err := s.Store.GetCredentialsCount(ctx, credential.AccountID)
 	if err != nil {
 		log.Ctx(ctx).Err(err).Msg("error saving credential")
 		return ErrSaveCredential
@@ -59,18 +57,9 @@ func (s *Service) SaveCredential(ctx context.Context, credential webauthn.Creden
 		return ErrMaxExceededCredential
 	}
 
-	err = s.Store.SaveCredential(ctx, credential, accountID)
+	err = s.Store.SaveCredential(ctx, credential)
 	if err != nil {
 		return ErrSaveCredential
-	}
-
-	return nil
-}
-
-func (s *Service) UpdateCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	err := s.Store.UpdateCredential(ctx, credential, accountID)
-	if err != nil {
-		return ErrUpdateCredential
 	}
 
 	return nil

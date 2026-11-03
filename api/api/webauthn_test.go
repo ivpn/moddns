@@ -19,8 +19,8 @@ import (
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/internal/middleware"
 	"github.com/ivpn/dns/api/internal/validator"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
@@ -34,6 +34,21 @@ type WebAuthnAPITestSuite struct {
 	mockDB    *mocks.Db
 	mockCache *mocks.Cachecache
 	mockServ  *mocks.Servicer
+}
+
+// storedCeremony is the JSON shape of WebAuthn ceremony state in the cache.
+type storedCeremony struct {
+	Type      webauthn.CeremonyType `json:"type"`
+	AccountID string                `json:"account_id"`
+	Purpose   string                `json:"purpose,omitempty"`
+}
+
+func decodeCeremony(state []byte) storedCeremony {
+	var c storedCeremony
+	if err := json.Unmarshal(state, &c); err != nil {
+		return storedCeremony{Type: "invalid"}
+	}
+	return c
 }
 
 func TestWebAuthnAPITestSuite(t *testing.T) {
@@ -69,7 +84,11 @@ func (suite *WebAuthnAPITestSuite) SetupTest() {
 }
 
 func (suite *WebAuthnAPITestSuite) createServer() *APIServer {
-	webAuthn, err := middleware.NewWebAuthn(*suite.config)
+	webAuthn, err := webauthn.New(webauthn.Config{
+		RPID:          suite.config.Server.FQDN,
+		RPDisplayName: suite.config.Server.Name,
+		RPOrigins:     []string{suite.config.API.ApiAllowOrigin},
+	}, suite.mockCache)
 	suite.Require().NoError(err)
 
 	srv := service.Service{
@@ -134,9 +153,10 @@ func (suite *WebAuthnAPITestSuite) beginReauthSucceeds(purpose string) {
 
 	suite.mockServ.On("GetAccount", mock.Anything, accountID.Hex()).Return(acc, nil).Once()
 	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{credential}, nil).Once()
-	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
-		return c.Type == model.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == purpose
-	}), model.CeremonyTimeout).Return(nil).Once()
+	suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(state []byte) bool {
+		c := decodeCeremony(state)
+		return c.Type == webauthn.CeremonyReauth && c.AccountID == accountID.Hex() && c.Purpose == purpose
+	}), webauthn.CeremonyTimeout).Return(nil).Once()
 	suite.mockCache.On("Incr", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Once()
 	suite.mockCache.On("Get", mock.Anything, mock.AnythingOfType("string")).Return("1", nil).Once()
 
@@ -242,25 +262,26 @@ func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAc
 	tests := []struct {
 		name     string
 		handler  func(*APIServer) fiber.Handler
-		ceremony model.Ceremony
+		ceremony storedCeremony
 	}{
-		{"register finish with login state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyLogin}},
-		{"register finish with add-passkey state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyAddPasskey}},
-		{"register finish with untyped state", (*APIServer).finishRegistration, model.Ceremony{AccountID: otherAccountID}},
-		{"login finish with registration state", (*APIServer).finishLogin, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyRegistration}},
-		{"login finish with reauth state", (*APIServer).finishLogin, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyReauth, Purpose: "email_change"}},
-		{"add-passkey finish with login state", (*APIServer).finishAddPasskey, model.Ceremony{AccountID: accountID, Type: model.CeremonyLogin}},
-		{"add-passkey finish with another account's state", (*APIServer).finishAddPasskey, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyAddPasskey}},
-		{"reauth finish with login state", (*APIServer).finishReauth, model.Ceremony{AccountID: accountID, Type: model.CeremonyLogin}},
-		{"reauth finish with another account's state", (*APIServer).finishReauth, model.Ceremony{AccountID: otherAccountID, Type: model.CeremonyReauth, Purpose: "email_change"}},
+		{"register finish with login state", (*APIServer).finishRegistration, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyLogin}},
+		{"register finish with add-passkey state", (*APIServer).finishRegistration, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyAddPasskey}},
+		{"register finish with untyped state", (*APIServer).finishRegistration, storedCeremony{AccountID: otherAccountID}},
+		{"login finish with registration state", (*APIServer).finishLogin, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyRegistration}},
+		{"login finish with reauth state", (*APIServer).finishLogin, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyReauth, Purpose: "email_change"}},
+		{"add-passkey finish with login state", (*APIServer).finishAddPasskey, storedCeremony{AccountID: accountID, Type: webauthn.CeremonyLogin}},
+		{"add-passkey finish with another account's state", (*APIServer).finishAddPasskey, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyAddPasskey}},
+		{"reauth finish with login state", (*APIServer).finishReauth, storedCeremony{AccountID: accountID, Type: webauthn.CeremonyLogin}},
+		{"reauth finish with another account's state", (*APIServer).finishReauth, storedCeremony{AccountID: otherAccountID, Type: webauthn.CeremonyReauth, Purpose: "email_change"}},
 	}
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
 			suite.SetupTest()
 			server := suite.createServer()
-			ceremony := tt.ceremony
-			suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(&ceremony, nil).Once()
+			state, err := json.Marshal(tt.ceremony)
+			suite.Require().NoError(err)
+			suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(state, nil).Once()
 
 			handler := tt.handler(server)
 			app := fiber.New()
@@ -321,9 +342,10 @@ func (suite *WebAuthnAPITestSuite) TestBeginAddPasskeyRequiresVerification() {
 			if tt.verified {
 				suite.mockDB.On("UpdateAccount", mock.Anything, mock.Anything).Return(&acc, nil).Maybe()
 				suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{}, nil).Once()
-				suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(c *model.Ceremony) bool {
-					return c.Type == model.CeremonyAddPasskey && c.AccountID == accountID.Hex()
-				}), model.CeremonyTimeout).Return(nil).Once()
+				suite.mockCache.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.MatchedBy(func(state []byte) bool {
+					c := decodeCeremony(state)
+					return c.Type == webauthn.CeremonyAddPasskey && c.AccountID == accountID.Hex()
+				}), webauthn.CeremonyTimeout).Return(nil).Once()
 			}
 
 			handler := server.beginAddPasskey()
