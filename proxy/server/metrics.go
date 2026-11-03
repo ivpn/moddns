@@ -31,6 +31,8 @@ type doh3Metrics interface {
 	RecordDoH3ConnRejected(reason string)
 	// RecordDoH3Busy counts a request answered 503 for want of a handler slot.
 	RecordDoH3Busy()
+	// SetDoH3ListenerUp reports whether the listener is serving.
+	SetDoH3ListenerUp(up bool)
 }
 
 type noopMetrics struct{}
@@ -46,3 +48,4 @@ func (noopMetrics) RecordFilterStageError(string, string)            {}
 func (noopMetrics) RecordDoHRequest(string)                          {}
 func (noopMetrics) RecordDoH3ConnRejected(string)                    {}
 func (noopMetrics) RecordDoH3Busy()                                  {}
+func (noopMetrics) SetDoH3ListenerUp(bool)                           {}

@@ -127,9 +127,10 @@ func main() {
 		if err := server.Proxy.Start(ctx); err != nil {
 			log.Panic().Err(err).Msg("Failed to start proxy")
 		}
-		// Fatal, not Panic: safelyRun would re-run Proxy.Start on recovery.
+		// Not fatal: DoH over HTTP/2 keeps serving and clients fall back to it.
+		// proxy_doh3_listener_up reports the failure.
 		if err := server.StartDoH3(); err != nil {
-			log.Fatal().Err(err).Msg("Failed to start DoH over HTTP/3")
+			log.Error().Err(err).Msg("DoH over HTTP/3 disabled: listener failed to start")
 		}
 	})
 

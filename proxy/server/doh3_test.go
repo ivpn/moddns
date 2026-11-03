@@ -529,6 +529,23 @@ func TestDoH3_ShutdownReleasesSocket(t *testing.T) {
 	_ = conn.Close()
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q16
+func TestDoH3_ReportsListenerState(t *testing.T) {
+	limits := config.DoH3Limits{MaxConns: 1, MaxConnsPerIP: 1, MaxStreams: 1}
+
+	metrics := &recordingMetrics{}
+	d := newDoH3Server(netip.MustParseAddrPort("127.0.0.1:0"), newTestTLSConfig(t), http.NotFoundHandler(), limits, 0, 64, metrics)
+	require.NoError(t, d.start())
+	t.Cleanup(func() { _ = d.shutdown(context.Background()) })
+	assert.Equal(t, []bool{true}, metrics.snapshot().doh3ListenerUp)
+
+	busy := d.addr().(*net.UDPAddr).AddrPort()
+	metrics = &recordingMetrics{}
+	s := &Server{doh3: newDoH3Server(busy, newTestTLSConfig(t), http.NotFoundHandler(), limits, 0, 64, metrics)}
+	require.Error(t, s.StartDoH3(), "the port is taken")
+	assert.Equal(t, []bool{false}, metrics.snapshot().doh3ListenerUp)
+}
+
 func newTestTLSConfig(t *testing.T) *tls.Config {
 	t.Helper()
 	certPath, keyPath := writeSelfSignedCert(t)

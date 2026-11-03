@@ -47,3 +47,32 @@ func TestServerMetrics_DoHCounters(t *testing.T) {
 	assert.InDelta(t, 1, got["proxy_doh3_connections_rejected_total{reason=source}"], 0)
 	assert.InDelta(t, 1, got["proxy_doh3_requests_busy_total"], 0)
 }
+
+// specRef: proxy-request-admission-behaviour.md #Q16
+func TestServerMetrics_DoH3ListenerUp(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	m := NewServerMetrics(reg)
+
+	listenerUp := func() (float64, bool) {
+		gathered, err := reg.Gather()
+		require.NoError(t, err)
+		for _, fam := range gathered {
+			if fam.GetName() == "proxy_doh3_listener_up" {
+				return fam.GetMetric()[0].GetGauge().GetValue(), true
+			}
+		}
+		return 0, false
+	}
+
+	_, exported := listenerUp()
+	assert.False(t, exported, "absent until a DoH3 listener reports, so DoT/DoQ and h3-off containers do not export 0")
+
+	m.SetDoH3ListenerUp(false)
+	v, exported := listenerUp()
+	require.True(t, exported)
+	assert.InDelta(t, 0, v, 0)
+
+	m.SetDoH3ListenerUp(true)
+	v, _ = listenerUp()
+	assert.InDelta(t, 1, v, 0)
+}
