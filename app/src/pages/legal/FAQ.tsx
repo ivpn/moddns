@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 23, 2026';
+const FAQ_LAST_UPDATED = 'October 30, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -179,6 +179,7 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <ul className="list-disc pl-5 space-y-1">
                 <li>DNS-over-HTTPS (DoH) - Port 443</li>
+                <li>DNS-over-HTTP/3 (DoH3) - Port 443 (UDP), same address as DoH; supporting clients switch to it automatically</li>
                 <li>DNS-over-TLS (DoT) - Port 853</li>
                 <li>DNS-over-QUIC (DoQ) - Port 853</li>
             </ul>

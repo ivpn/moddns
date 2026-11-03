@@ -13,7 +13,8 @@ services:
       - recursor_sdns
       - recursor_knot
     ports:
-      - "443:443" # HTTPS
+      - "443:443/tcp" # HTTPS
+      - "443:443/udp" # HTTP/3 (DOH_HTTP3_ENABLED)
       - "853:853/tcp" # TLS
       - "853:853/udp" # QUIC
       - "9153:9153"   # METRICS
