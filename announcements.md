@@ -6,6 +6,24 @@ See README.md on this branch for the full format and publishing guide.
 -->
 
 ---
+id: 2026-11-opt-in-statistics
+category: feature
+severity: info
+title: Opt-in statistics added
+published_at: 2026-11-03
+link: https://github.com/ivpn/moddns/releases/tag/v0.6.0
+---
+modDNS now has a [Statistics](https://github.com/ivpn/moddns/pull/286) page. Statistics are off by default and applied per profile: nothing is recorded until you turn them on. The page charts your queries over time, and with query logs enabled it also shows top domains and blocklists used.
+
+Statistics and query logs are now separate choices, each with its own retention. You set how long statistics are kept, from 30 days to 1 year, and can delete them at any time. Our [Privacy Policy](https://moddns.net/privacy) has been updated to cover these changes. With Statistics and Query Logs off (the default), modDNS holds no DNS activity data that can be linked to you.
+
+Also new:
+
+- Hagezi [native tracker blocklists](https://github.com/ivpn/moddns/pull/292) for device telemetry from Apple, Microsoft, Samsung, Xiaomi and others.
+- Fewer false positives from blocklists in AdGuard format, which now apply their own exception rules.
+- [FAQ](https://moddns.net/faq) guides for running AdGuard Home or Pi-hole in front of modDNS.
+
+---
 id: 2026-08-cname-uncloaking-logs-filters
 category: feature
 severity: info
