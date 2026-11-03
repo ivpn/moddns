@@ -121,11 +121,20 @@ func newDoH3RetryPolicy(conns *connLimiter, r rate.Limit, burst int) func(net.Ad
 	return func(addr net.Addr) bool { return conns.needsValidation(addr) || !limiter.Allow() }
 }
 
-// start binds the UDP socket and serves in the background.
+// start binds the UDP socket and serves in the background. The outcome is
+// reported to proxy_doh3_listener_up.
 func (d *doh3Server) start() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	err := d.listen()
+	if err != nil {
+		d.metrics.SetDoH3ListenerUp(false)
+	}
+	return err
+}
+
+func (d *doh3Server) listen() error {
 	conn, err := net.ListenUDP("udp", net.UDPAddrFromAddrPort(d.listenAddr))
 	if err != nil {
 		return fmt.Errorf("doh3: listening on %s: %w", d.listenAddr, err)
@@ -141,6 +150,7 @@ func (d *doh3Server) start() error {
 	d.listener, err = d.transport.ListenEarly(http3.ConfigureTLSConfig(d.tlsConf.Clone()), newDoH3QUICConfig(d.limits))
 	if err != nil {
 		_ = conn.Close()
+		d.conn, d.transport = nil, nil
 		return fmt.Errorf("doh3: quic listener: %w", err)
 	}
 
@@ -151,8 +161,11 @@ func (d *doh3Server) start() error {
 	}
 
 	srv, ln := d.server, d.listener
+	// Before the goroutine, so a serve error cannot be overwritten.
+	d.metrics.SetDoH3ListenerUp(true)
 	go func() {
 		if err := srv.ServeListener(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			d.metrics.SetDoH3ListenerUp(false)
 			log.Error().Err(err).Msg("doh3: serving")
 		}
 	}()
@@ -161,7 +174,8 @@ func (d *doh3Server) start() error {
 	return nil
 }
 
-// StartDoH3 starts the HTTP/3 DoH listener, if one is configured.
+// StartDoH3 starts the HTTP/3 DoH listener, if one is configured. On error
+// the other listeners are unaffected.
 func (s *Server) StartDoH3() error {
 	if s.doh3 == nil {
 		return nil
@@ -212,6 +226,9 @@ func (d *doh3Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 func (d *doh3Server) addr() net.Addr {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.conn == nil {
+		return nil
+	}
 	return d.conn.LocalAddr()
 }
 

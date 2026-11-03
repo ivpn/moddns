@@ -34,6 +34,9 @@ type ServerMetrics struct {
 	dohRequests          *prometheus.CounterVec
 	doh3ConnRejected     *prometheus.CounterVec
 	doh3Busy             prometheus.Counter
+	// doh3ListenerUp has no labels; a vec so the series exists only once a
+	// DoH3 listener reports.
+	doh3ListenerUp *prometheus.GaugeVec
 }
 
 // NewServerMetrics creates and registers all server-level Prometheus collectors.
@@ -87,6 +90,10 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 			Name: "proxy_doh3_requests_busy_total",
 			Help: "HTTP/3 requests answered 503 because no handler slot (MAX_GOROUTINES) freed up before the deadline.",
 		}),
+		doh3ListenerUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "proxy_doh3_listener_up",
+			Help: "1 when the DoH over HTTP/3 listener is serving, 0 when it failed to start or stopped serving; absent when DOH_HTTP3_ENABLED is off.",
+		}, nil),
 	}
 	reg.MustRegister(
 		m.queries,
@@ -100,6 +107,7 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		m.dohRequests,
 		m.doh3ConnRejected,
 		m.doh3Busy,
+		m.doh3ListenerUp,
 	)
 	return m
 }
@@ -146,4 +154,12 @@ func (m *ServerMetrics) RecordDoH3ConnRejected(reason string) {
 
 func (m *ServerMetrics) RecordDoH3Busy() {
 	m.doh3Busy.Inc()
+}
+
+func (m *ServerMetrics) SetDoH3ListenerUp(up bool) {
+	v := 0.0
+	if up {
+		v = 1
+	}
+	m.doh3ListenerUp.WithLabelValues().Set(v)
 }
