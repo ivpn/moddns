@@ -115,6 +115,7 @@ func (s *APIServer) finishRegistration() fiber.Handler {
 			return HandleError(c, err, "Failed to finish registration")
 		}
 
+		ClearCookies(c, PASessionCookie)
 		return c.SendStatus(201)
 	}
 
