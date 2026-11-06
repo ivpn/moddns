@@ -57,6 +57,7 @@ func (s *APIServer) registerAccount() fiber.Handler {
 			return HandleError(c, err, ErrFailedToRegisterAccount.Error())
 		}
 
+		ClearCookies(c, PASessionCookie)
 		// Success response (account object suppressed per scenario requirements)
 		return c.Status(201).JSON(fiber.Map{"message": "Account created successfully."})
 	}
@@ -155,6 +156,7 @@ func (s *APIServer) deleteAccount() fiber.Handler {
 			return HandleError(c, err, ErrFailedToDeleteAccount.Error())
 		}
 
+		ClearCookies(c, auth.AUTH_COOKIE)
 		return c.SendStatus(204)
 	}
 	return handler
