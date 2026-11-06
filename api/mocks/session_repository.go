@@ -7,7 +7,6 @@ package mocks
 import (
 	"context"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -355,7 +354,7 @@ func (_c *SessionRepository_GetSession_Call) RunAndReturn(run func(ctx context.C
 }
 
 // SaveSession provides a mock function for the type SessionRepository
-func (_mock *SessionRepository) SaveSession(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error {
+func (_mock *SessionRepository) SaveSession(ctx context.Context, sessionData model.SessionPayload, token string, userID string) error {
 	ret := _mock.Called(ctx, sessionData, token, userID)
 
 	if len(ret) == 0 {
@@ -363,7 +362,7 @@ func (_mock *SessionRepository) SaveSession(ctx context.Context, sessionData web
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, model.SessionPayload, string, string) error); ok {
 		r0 = returnFunc(ctx, sessionData, token, userID)
 	} else {
 		r0 = ret.Error(0)
@@ -378,22 +377,22 @@ type SessionRepository_SaveSession_Call struct {
 
 // SaveSession is a helper method to define mock.On call
 //   - ctx context.Context
-//   - sessionData webauthn.SessionData
+//   - sessionData model.SessionPayload
 //   - token string
 //   - userID string
 func (_e *SessionRepository_Expecter) SaveSession(ctx interface{}, sessionData interface{}, token interface{}, userID interface{}) *SessionRepository_SaveSession_Call {
 	return &SessionRepository_SaveSession_Call{Call: _e.mock.On("SaveSession", ctx, sessionData, token, userID)}
 }
 
-func (_c *SessionRepository_SaveSession_Call) Run(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string)) *SessionRepository_SaveSession_Call {
+func (_c *SessionRepository_SaveSession_Call) Run(run func(ctx context.Context, sessionData model.SessionPayload, token string, userID string)) *SessionRepository_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.SessionData
+		var arg1 model.SessionPayload
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.SessionData)
+			arg1 = args[1].(model.SessionPayload)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -418,7 +417,7 @@ func (_c *SessionRepository_SaveSession_Call) Return(err error) *SessionReposito
 	return _c
 }
 
-func (_c *SessionRepository_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData webauthn.SessionData, token string, userID string) error) *SessionRepository_SaveSession_Call {
+func (_c *SessionRepository_SaveSession_Call) RunAndReturn(run func(ctx context.Context, sessionData model.SessionPayload, token string, userID string) error) *SessionRepository_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

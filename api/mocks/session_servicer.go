@@ -7,7 +7,6 @@ package mocks
 import (
 	"context"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -355,16 +354,16 @@ func (_c *SessionServicer_GetSession_Call) RunAndReturn(run func(context1 contex
 }
 
 // SaveSession provides a mock function for the type SessionServicer
-func (_mock *SessionServicer) SaveSession(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string) error {
-	ret := _mock.Called(context1, sessionData, s, s1)
+func (_mock *SessionServicer) SaveSession(context1 context.Context, sessionPayload model.SessionPayload, s string, s1 string) error {
+	ret := _mock.Called(context1, sessionPayload, s, s1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, webauthn.SessionData, string, string) error); ok {
-		r0 = returnFunc(context1, sessionData, s, s1)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, model.SessionPayload, string, string) error); ok {
+		r0 = returnFunc(context1, sessionPayload, s, s1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -378,22 +377,22 @@ type SessionServicer_SaveSession_Call struct {
 
 // SaveSession is a helper method to define mock.On call
 //   - context1 context.Context
-//   - sessionData webauthn.SessionData
+//   - sessionPayload model.SessionPayload
 //   - s string
 //   - s1 string
-func (_e *SessionServicer_Expecter) SaveSession(context1 interface{}, sessionData interface{}, s interface{}, s1 interface{}) *SessionServicer_SaveSession_Call {
-	return &SessionServicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionData, s, s1)}
+func (_e *SessionServicer_Expecter) SaveSession(context1 interface{}, sessionPayload interface{}, s interface{}, s1 interface{}) *SessionServicer_SaveSession_Call {
+	return &SessionServicer_SaveSession_Call{Call: _e.mock.On("SaveSession", context1, sessionPayload, s, s1)}
 }
 
-func (_c *SessionServicer_SaveSession_Call) Run(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string)) *SessionServicer_SaveSession_Call {
+func (_c *SessionServicer_SaveSession_Call) Run(run func(context1 context.Context, sessionPayload model.SessionPayload, s string, s1 string)) *SessionServicer_SaveSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 webauthn.SessionData
+		var arg1 model.SessionPayload
 		if args[1] != nil {
-			arg1 = args[1].(webauthn.SessionData)
+			arg1 = args[1].(model.SessionPayload)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -418,7 +417,7 @@ func (_c *SessionServicer_SaveSession_Call) Return(err error) *SessionServicer_S
 	return _c
 }
 
-func (_c *SessionServicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionData webauthn.SessionData, s string, s1 string) error) *SessionServicer_SaveSession_Call {
+func (_c *SessionServicer_SaveSession_Call) RunAndReturn(run func(context1 context.Context, sessionPayload model.SessionPayload, s string, s1 string) error) *SessionServicer_SaveSession_Call {
 	_c.Call.Return(run)
 	return _c
 }

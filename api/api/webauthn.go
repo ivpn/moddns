@@ -90,6 +90,7 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 // @Description Complete WebAuthn registration process
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 "Registration completed successfully"
 // @Failure 400 {object} ErrResponse
@@ -171,6 +172,7 @@ func (s *APIServer) beginLogin() fiber.Handler {
 // @Description Complete WebAuthn login process
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Param x-sessions-remove header string false "Remove all other active sessions during login"
 // @Success 201 "Login completed successfully"
@@ -339,6 +341,7 @@ func (s *APIServer) beginReauth() fiber.Handler {
 // @Description Complete WebAuthn assertion and issue a short-lived reauth token
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 {object} responses.WebAuthnReauthFinishResponse
 // @Failure 400 {object} ErrResponse
@@ -380,6 +383,7 @@ func (s *APIServer) finishReauth() fiber.Handler {
 // @Description Complete adding a new passkey to authenticated account
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 "Passkey addition completed successfully"
 // @Failure 400 {object} ErrResponse
