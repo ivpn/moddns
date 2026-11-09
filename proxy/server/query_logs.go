@@ -134,7 +134,7 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 				QueryType: dns.TypeToString[dctx.Req.Question[0].Qtype],
 			},
 			ClientIP: clientIP,
-			Protocol: string(dctx.Proto),
+			Protocol: queryLogProtocol(dctx),
 		}
 		if dctx.Res != nil {
 			queryLog.DNSRequest.ResponseCode = dns.RcodeToString[dctx.Res.Rcode]
@@ -157,4 +157,13 @@ func (s *Server) EmitQueryLog(reqCtx *requestcontext.RequestContext, dctx *proxy
 			logger.Err(sendErr).Msg("Error sending query log event")
 		}
 	}
+}
+
+// queryLogProtocol is dctx.Proto, except DoH over HTTP/3 (RFC 9114), which is
+// logged as "doh3". HTTP/2 arrives through nginx as HTTP/1.1, so it stays "https".
+func queryLogProtocol(dctx *proxy.DNSContext) string {
+	if dctx.Proto == proxy.ProtoHTTPS && dctx.HTTPRequest != nil && dctx.HTTPRequest.ProtoMajor == 3 {
+		return "doh3"
+	}
+	return string(dctx.Proto)
 }
