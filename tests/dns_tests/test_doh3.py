@@ -4,12 +4,15 @@ DoH3 uses the same URL as DoH over HTTP/2 (``/dns-query/<profile>[/<device>]``);
 only the transport differs. The proxy serves it on UDP at the DoH port when
 ``DOH_HTTP3_ENABLED`` is set (tests/config/proxy.env).
 
-Spec: docs/specs/proxy-request-admission-behaviour.md Q6, Q15, Q16.
+Spec: docs/specs/proxy-request-admission-behaviour.md Q6, Q15, Q16, Q18.
 """
 from __future__ import annotations
 
+import asyncio
+import time
 from urllib.parse import urlparse
 
+import moddns.api as api
 import pytest
 from dns.message import ShortHeader
 from dns.rdatatype import A
@@ -22,6 +25,10 @@ from libs.settings import get_settings
 BLOCKED_DOMAIN = "doh3-isolation-block.test"
 UNKNOWN_PROFILE = "zzzzzzzzz9"
 DOH_DOMAIN = urlparse(get_settings().DOH_ENDPOINT).hostname
+
+# Collector batch interval is 10s in this env; poll a little past it.
+LOGS_POLL_TIMEOUT_S = 30
+LOGS_POLL_STEP_S = 2
 
 
 class TestDoH3:
@@ -73,3 +80,28 @@ class TestDoH3:
 
         with pytest.raises(ShortHeader):
             await user.dns.send_doh3_request("", RESOLVABLE_TEST_DOMAIN, "A", host=f"{pid}.{DOH_DOMAIN}")
+
+    @pytest.mark.asyncio
+    async def test_query_log_protocol_tells_http3_apart(self, user):
+        """specRef: Q18 - a DoH query over HTTP/3 is logged as doh3, over HTTP/2 as https."""
+        pid = user.new_profile("doh3-log-protocol")
+        user.patch_setting(pid, "/settings/logs/enabled", True)
+        await user.wait_for(pid, RESOLVABLE_TEST_DOMAIN, A, is_resolved)
+
+        assert is_resolved(await user.dns.send_doh3_request(f"{pid}/h3client", RESOLVABLE_TEST_DOMAIN, "A"))
+        assert is_resolved(await user.dns.send_doh_request(f"{pid}/h2client", RESOLVABLE_TEST_DOMAIN, "A"))
+
+        expected = {"h3client": "doh3", "h2client": "https"}
+        protocols = {}
+        deadline = time.monotonic() + LOGS_POLL_TIMEOUT_S
+        with user.profiles_api() as p:
+            logs_api = api.QueryLogsApi(p.api_client)
+            while time.monotonic() < deadline:
+                resp = logs_api.api_v1_profiles_id_logs_get_with_http_info(id=pid)
+                assert resp.status_code == 200, f"logs fetch failed: {resp.status_code}"
+                protocols = {e.device_id: e.protocol for e in resp.data or [] if e.device_id in expected}
+                if len(protocols) == len(expected):
+                    break
+                await asyncio.sleep(LOGS_POLL_STEP_S)
+
+        assert protocols == expected
