@@ -16,9 +16,12 @@ export function useLogout() {
             auth?.logout?.();
             return true;
         } catch (e) {
-            // 401: the session had already ended and the API interceptor has logged the user out.
+            // 401: the session had already ended on the server, so only app state is left to clear.
             const status = (e as { response?: { status?: number } })?.response?.status;
-            if (status === 401) return true;
+            if (status === 401) {
+                auth?.logout?.();
+                return true;
+            }
             toast.error("Logout failed.");
             return false;
         } finally {

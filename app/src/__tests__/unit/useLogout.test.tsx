@@ -58,7 +58,7 @@ describe('useLogout', () => {
     });
 
     // specRef: A2a
-    it('adds no failure toast when the session had already ended', async () => {
+    it('clears app state without a failure toast when the session had already ended', async () => {
         logoutPost.mockRejectedValue({ response: { status: 401 } });
         const appLogout = vi.fn();
         const { result } = setup(appLogout);
@@ -68,6 +68,6 @@ describe('useLogout', () => {
 
         expect(ended).toBe(true);
         expect(toast.error).not.toHaveBeenCalled();
-        expect(appLogout).not.toHaveBeenCalled();
+        expect(appLogout).toHaveBeenCalledTimes(1);
     });
 });
