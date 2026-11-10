@@ -4388,11 +4388,14 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
         /**
          * Complete WebAuthn login process
          * @summary Finish passkey login
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {string} [xSessionsRemove] Remove all other active sessions during login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnLoginFinishPost: async (xSessionsRemove?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnLoginFinishPost: async (body: object, xSessionsRemove?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1WebauthnLoginFinishPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/login/finish`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -4407,12 +4410,15 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             if (xSessionsRemove != null) {
                 localVarHeaderParameter['x-sessions-remove'] = String(xSessionsRemove);
             }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4467,10 +4473,13 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
         /**
          * Complete adding a new passkey to authenticated account
          * @summary Complete adding new passkey
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddFinishPost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnPasskeyAddFinishPost: async (body: object, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1WebauthnPasskeyAddFinishPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/passkey/add/finish`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -4485,9 +4494,12 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4582,10 +4594,13 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
         /**
          * Complete WebAuthn assertion and issue a short-lived reauth token
          * @summary Finish reauthentication via passkey
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyReauthFinishPost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnPasskeyReauthFinishPost: async (body: object, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1WebauthnPasskeyReauthFinishPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/passkey/reauth/finish`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -4600,9 +4615,12 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4678,10 +4696,13 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
         /**
          * Complete WebAuthn registration process
          * @summary Finish passkey registration
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnRegisterFinishPost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnRegisterFinishPost: async (body: object, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1WebauthnRegisterFinishPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/register/finish`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -4696,9 +4717,12 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -4759,12 +4783,13 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
         /**
          * Complete WebAuthn login process
          * @summary Finish passkey login
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {string} [xSessionsRemove] Remove all other active sessions during login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnLoginFinishPost(xSessionsRemove?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnLoginFinishPost(xSessionsRemove, options);
+        async apiV1WebauthnLoginFinishPost(body: object, xSessionsRemove?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnLoginFinishPost(body, xSessionsRemove, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnLoginFinishPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4787,11 +4812,12 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
         /**
          * Complete adding a new passkey to authenticated account
          * @summary Complete adding new passkey
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyAddFinishPost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddFinishPost(options);
+        async apiV1WebauthnPasskeyAddFinishPost(body: object, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddFinishPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyAddFinishPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4828,11 +4854,12 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
         /**
          * Complete WebAuthn assertion and issue a short-lived reauth token
          * @summary Finish reauthentication via passkey
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyReauthFinishPost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesWebAuthnReauthFinishResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyReauthFinishPost(options);
+        async apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesWebAuthnReauthFinishResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyReauthFinishPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyReauthFinishPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4865,11 +4892,12 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
         /**
          * Complete WebAuthn registration process
          * @summary Finish passkey registration
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnRegisterFinishPost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnRegisterFinishPost(options);
+        async apiV1WebauthnRegisterFinishPost(body: object, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnRegisterFinishPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnRegisterFinishPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4919,12 +4947,13 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
         /**
          * Complete WebAuthn login process
          * @summary Finish passkey login
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {string} [xSessionsRemove] Remove all other active sessions during login
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnLoginFinishPost(xSessionsRemove?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1WebauthnLoginFinishPost(xSessionsRemove, options).then((request) => request(axios, basePath));
+        apiV1WebauthnLoginFinishPost(body: object, xSessionsRemove?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1WebauthnLoginFinishPost(body, xSessionsRemove, options).then((request) => request(axios, basePath));
         },
         /**
          * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
@@ -4941,11 +4970,12 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
         /**
          * Complete adding a new passkey to authenticated account
          * @summary Complete adding new passkey
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddFinishPost(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1WebauthnPasskeyAddFinishPost(options).then((request) => request(axios, basePath));
+        apiV1WebauthnPasskeyAddFinishPost(body: object, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1WebauthnPasskeyAddFinishPost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
@@ -4973,11 +5003,12 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
         /**
          * Complete WebAuthn assertion and issue a short-lived reauth token
          * @summary Finish reauthentication via passkey
+         * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyReauthFinishPost(options?: RawAxiosRequestConfig): AxiosPromise<ResponsesWebAuthnReauthFinishResponse> {
-            return localVarFp.apiV1WebauthnPasskeyReauthFinishPost(options).then((request) => request(axios, basePath));
+        apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesWebAuthnReauthFinishResponse> {
+            return localVarFp.apiV1WebauthnPasskeyReauthFinishPost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Get list of passkeys for authenticated user
@@ -5001,11 +5032,12 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
         /**
          * Complete WebAuthn registration process
          * @summary Finish passkey registration
+         * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnRegisterFinishPost(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1WebauthnRegisterFinishPost(options).then((request) => request(axios, basePath));
+        apiV1WebauthnRegisterFinishPost(body: object, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1WebauthnRegisterFinishPost(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -5058,13 +5090,14 @@ export class AuthenticationApi extends BaseAPI {
     /**
      * Complete WebAuthn login process
      * @summary Finish passkey login
+     * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
      * @param {string} [xSessionsRemove] Remove all other active sessions during login
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnLoginFinishPost(xSessionsRemove?: string, options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnLoginFinishPost(xSessionsRemove, options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnLoginFinishPost(body: object, xSessionsRemove?: string, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnLoginFinishPost(body, xSessionsRemove, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5084,12 +5117,13 @@ export class AuthenticationApi extends BaseAPI {
     /**
      * Complete adding a new passkey to authenticated account
      * @summary Complete adding new passkey
+     * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnPasskeyAddFinishPost(options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddFinishPost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnPasskeyAddFinishPost(body: object, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddFinishPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5122,12 +5156,13 @@ export class AuthenticationApi extends BaseAPI {
     /**
      * Complete WebAuthn assertion and issue a short-lived reauth token
      * @summary Finish reauthentication via passkey
+     * @param {object} body Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnPasskeyReauthFinishPost(options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyReauthFinishPost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyReauthFinishPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5156,12 +5191,13 @@ export class AuthenticationApi extends BaseAPI {
     /**
      * Complete WebAuthn registration process
      * @summary Finish passkey registration
+     * @param {object} body Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnRegisterFinishPost(options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnRegisterFinishPost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnRegisterFinishPost(body: object, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnRegisterFinishPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
