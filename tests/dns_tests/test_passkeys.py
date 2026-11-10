@@ -5,9 +5,11 @@ Every browser response is produced by a software authenticator
 party; no credential or token is written to the database. MongoDB and Redis are
 only read, to check what the API stored.
 
-tableRef: api-endpoint-behaviour #A4, #A5, #B3a, #F1-#F11
+tableRef: api-endpoint-behaviour #A4, #A5, #B3a, #F1-#F13
 """
 
+import base64
+import json
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -77,6 +79,17 @@ def parse_rfc3339(value: str) -> datetime:
 
 def ceremony_keys(redis_client) -> set[bytes]:
     return set(redis_client.scan_iter(match=f"{CEREMONY_KEY_PREFIX}*"))
+
+
+def with_changed_challenge(response: dict) -> dict:
+    """The browser response with one character of the challenge in its clientDataJSON
+    changed, still valid base64url and JSON."""
+    encoded = response["response"]["clientDataJSON"]
+    client_data = json.loads(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)))
+    challenge = client_data["challenge"]
+    client_data["challenge"] = ("B" if challenge[0] == "A" else "A") + challenge[1:]
+    changed = base64.urlsafe_b64encode(json.dumps(client_data).encode()).rstrip(b"=").decode()
+    return {**response, "response": {**response["response"], "clientDataJSON": changed}}
 
 
 def current_account(session_cookie: str):
@@ -178,14 +191,43 @@ def test_passkey_login_begin_for_an_account_without_passkeys():
 def test_passkey_login_refuses_a_sign_count_that_does_not_increase(passkey_user: PasskeyUser):
     """A counter at or below the stored one fails sign-in and leaves the stored count as it was.
 
-    W3C WebAuthn L3 §6.1.1. tableRef: api-endpoint-behaviour #A5
+    W3C WebAuthn L3 §6.1.1. tableRef: api-endpoint-behaviour #A5, #F13
     """
     assert login(passkey_user, sign_count=10).status == 201
     resp = login(passkey_user, sign_count=3)
-    assert resp.status >= 400
+    assert resp.status == 400
     assert resp.cookie(AUTH_COOKIE) is None
     assert stored_credential(passkey_user.credential_id)["authenticator"]["sign_count"] == 10
     passkey_user.authenticator.credentials[passkey_user.credential_id].sign_count = 10
+
+
+def test_passkey_login_with_a_changed_challenge_is_refused_with_400(passkey_user: PasskeyUser, redis_client):
+    """tableRef: api-endpoint-behaviour #F12"""
+    begin = login_begin(passkey_user.email)
+    temp = begin.cookie(TEMP_COOKIE)
+    assertion = passkey_user.authenticator.get(begin.body, passkey_user.credential_id)
+
+    finish = login_finish(temp, with_changed_challenge(assertion))
+    assert finish.status == 400
+    assert finish.body["error"] == "Unable to complete login. Please try again."
+    assert finish.cookie(AUTH_COOKIE) is None
+    assert not redis_client.exists(f"{CEREMONY_KEY_PREFIX}{temp}")
+
+
+def test_passkey_signup_with_a_changed_challenge_is_refused_with_400():
+    """tableRef: api-endpoint-behaviour #F12"""
+    authenticator = new_authenticator()
+    sub_id, pa_set_cookie = create_temp_subscription()
+    pa_cookie = cookie_value(pa_set_cookie, PA_SESSION_COOKIE)
+    begin = register_begin(random_email("passkey"), sub_id, pa_cookie)
+    assert begin.status == 200
+    credential_id, credential = authenticator.create(begin.body)
+
+    finish = register_finish(begin.cookie(TEMP_COOKIE), pa_cookie, with_changed_challenge(credential))
+    assert finish.status == 400
+    assert finish.body["error"] == "Unable to complete registration. Please try again."
+    assert finish.cookie(AUTH_COOKIE) is None
+    assert stored_credential(credential_id) is None
 
 
 # ----------------------------------------------------------------------
@@ -240,10 +282,6 @@ def test_reauth_state_is_refused_for_another_account(passkey_user: PasskeyUser, 
     assert not (finish.body or {}).get("reauth_token")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="An expired ceremony answers 500; spec row F11 states 400.",
-)
 def test_expired_ceremony_state_is_refused_with_400(passkey_user: PasskeyUser, redis_client):
     """tableRef: api-endpoint-behaviour #F11"""
     begin = login_begin(passkey_user.email)
@@ -253,6 +291,20 @@ def test_expired_ceremony_state_is_refused_with_400(passkey_user: PasskeyUser, r
     time.sleep(0.05)
 
     assert login_finish(temp, assertion).status == 400
+
+
+def test_reauth_finish_without_the_ceremony_cookie_keeps_the_session(passkey_user: PasskeyUser):
+    """A missing ceremony cookie is refused with 400, not 401, so the session stays valid.
+
+    tableRef: api-endpoint-behaviour #F11
+    """
+    begin = reauth_begin(passkey_user.session_cookie, "email_change")
+    assertion = passkey_user.authenticator.get(begin.body, passkey_user.credential_id)
+
+    finish = reauth_finish(passkey_user.session_cookie, None, assertion)
+    assert finish.status == 400
+    assert finish.body["error"] == "Unable to complete reauthentication. Please try again."
+    assert current_account(passkey_user.session_cookie).status_code == 200
 
 
 # ----------------------------------------------------------------------
@@ -266,6 +318,21 @@ def test_passkey_reauth_issues_a_token_for_each_purpose(passkey_user: PasskeyUse
     assert resp.body["reauth_token"]
     expires_at = parse_rfc3339(resp.body["expires_at"])
     assert abs(expires_at - (datetime.now(timezone.utc) + timedelta(minutes=5))) < timedelta(seconds=30)
+
+
+def test_reauth_with_a_sign_count_that_does_not_increase_is_refused_with_400(passkey_user: PasskeyUser):
+    """W3C WebAuthn L3 §6.1.1. tableRef: api-endpoint-behaviour #F13"""
+    assert login(passkey_user, sign_count=10).status == 201
+    begin = reauth_begin(passkey_user.session_cookie, "profile_export")
+    assert begin.status == 200
+    assertion = passkey_user.authenticator.get(begin.body, passkey_user.credential_id, sign_count=3)
+
+    finish = reauth_finish(passkey_user.session_cookie, begin.cookie(TEMP_COOKIE), assertion)
+    assert finish.status == 400
+    assert finish.body["error"] == "Unable to complete reauthentication. Please try again."
+    assert not finish.body.get("reauth_token")
+    assert stored_credential(passkey_user.credential_id)["authenticator"]["sign_count"] == 10
+    passkey_user.authenticator.credentials[passkey_user.credential_id].sign_count = 10
 
 
 def test_reauth_token_is_accepted_once_by_its_operation(passkey_user: PasskeyUser):
