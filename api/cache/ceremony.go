@@ -2,10 +2,14 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
+
+	"github.com/ivpn/dns/api/internal/webauthn"
 )
 
 func ceremonyKey(token string) string {
@@ -24,5 +28,9 @@ func (c *RedisCache) SaveCeremony(ctx context.Context, token string, state []byt
 // ConsumeCeremony reads and deletes WebAuthn ceremony state in one step, so each
 // challenge is used at most once (W3C WebAuthn Level 3 §13.4.3).
 func (c *RedisCache) ConsumeCeremony(ctx context.Context, token string) ([]byte, error) {
-	return c.client.GetDel(ctx, ceremonyKey(token)).Bytes()
+	state, err := c.client.GetDel(ctx, ceremonyKey(token)).Bytes()
+	if errors.Is(err, redis.Nil) {
+		return nil, webauthn.ErrCeremonyNotFound
+	}
+	return state, err
 }

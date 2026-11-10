@@ -30,10 +30,29 @@ var (
 	// ErrCeremonyMismatch is returned when a finish call gets state begun by another
 	// ceremony type or, where the caller names one, by another account.
 	ErrCeremonyMismatch = errors.New("ceremony state belongs to another ceremony")
+	// ErrCeremonyNotFound is returned when no state is stored under the ceremony
+	// token: it is missing, already used or expired. A CeremonyStore returns it
+	// from ConsumeCeremony for an unknown token.
+	ErrCeremonyNotFound = errors.New("ceremony state not found")
+	// ErrVerificationFailed is returned when the browser's response fails the
+	// relying-party checks (W3C WebAuthn Level 3 §7.1, §7.2).
+	ErrVerificationFailed = errors.New("ceremony response failed verification")
 	// ErrCloneDetected is returned when the signature counter did not increase
 	// (W3C WebAuthn Level 3 §6.1.1, §7.2 step 22).
 	ErrCloneDetected = errors.New("credential clone warning: potential security issue")
 )
+
+// IsRefusal reports whether err is a finish call refused because of the request:
+// state from another ceremony or account, missing state, a failed verification or a
+// signature counter that did not increase. Other errors are server failures.
+func IsRefusal(err error) bool {
+	for _, refusal := range []error{ErrCeremonyMismatch, ErrCeremonyNotFound, ErrVerificationFailed, ErrCloneDetected} {
+		if errors.Is(err, refusal) {
+			return true
+		}
+	}
+	return false
+}
 
 // Config holds the relying-party settings.
 type Config struct {

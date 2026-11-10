@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -50,10 +49,11 @@ func (s *Service) accountLoader(acc **model.Account, getCredentials func(context
 	}
 }
 
-// ceremonyError returns mismatchErr for state begun by another ceremony or account.
-func ceremonyError(err, mismatchErr error) error {
-	if errors.Is(err, webauthn.ErrCeremonyMismatch) {
-		return mismatchErr
+// ceremonyError wraps a refused finish call in the endpoint's refusalErr, keeping
+// err in the chain for the log. Other errors are returned unchanged.
+func ceremonyError(err error, refusalErr *passkey.PasskeyError) error {
+	if webauthn.IsRefusal(err) {
+		return fmt.Errorf("%w: %w", refusalErr, err)
 	}
 	return err
 }

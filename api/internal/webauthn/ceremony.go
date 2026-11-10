@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -24,7 +23,8 @@ const (
 
 // CeremonyStore keeps ceremony state between the begin and finish calls. Consume
 // must read and delete in one step, so each challenge is used at most once
-// (W3C WebAuthn Level 3 §13.4.3).
+// (W3C WebAuthn Level 3 §13.4.3), and return ErrCeremonyNotFound for a token
+// with no state.
 type CeremonyStore interface {
 	SaveCeremony(ctx context.Context, token string, state []byte, expiresIn time.Duration) error
 	ConsumeCeremony(ctx context.Context, token string) ([]byte, error)
@@ -59,10 +59,11 @@ func (rp *RelyingParty) save(ctx context.Context, c *ceremony) (string, error) {
 // consume returns the state saved under token by a begin call of ceremonyType. The
 // state is removed as it is read, whether or not the finish call succeeds. State
 // from another ceremony type, or, for a ceremony bound to accountID, from another
-// account, yields ErrCeremonyMismatch. An empty accountID matches no account.
+// account, yields ErrCeremonyMismatch. An empty accountID matches no account. A
+// missing or unknown token yields ErrCeremonyNotFound.
 func (rp *RelyingParty) consume(ctx context.Context, token string, ceremonyType CeremonyType, accountID *string) (*ceremony, error) {
 	if token == "" {
-		return nil, errors.New("missing ceremony token")
+		return nil, fmt.Errorf("missing ceremony token: %w", ErrCeremonyNotFound)
 	}
 	state, err := rp.store.ConsumeCeremony(ctx, token)
 	if err != nil {
