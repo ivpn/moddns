@@ -99,6 +99,32 @@ describe('AccountSubscription resync link', () => {
     });
 
     // specRef: SY16
+    it('shows the expired message and removes the link parameters when rotate refuses the link', async () => {
+        rotateMock.mockRejectedValue({ response: { status: 400 } });
+        const id = sessionId(5);
+        renderAt(`/account-preferences?sessionid=${id}&subid=${SUB_ID}`);
+
+        expect(await screen.findByText(/This signup link has expired/)).toBeTruthy();
+        await waitFor(() => expect(search()).toBe(''));
+        expect(subUpdateMock).not.toHaveBeenCalled();
+
+        cleanup();
+        renderAt(`/account-preferences?sessionid=${id}`);
+        await waitFor(() => expect(subGetMock).toHaveBeenCalledTimes(2));
+        expect(rotateMock).toHaveBeenCalledTimes(1);
+    });
+
+    // specRef: SY16
+    it('keeps the link parameters when rotate fails for another reason', async () => {
+        rotateMock.mockRejectedValue({ response: { status: 500 } });
+        const id = sessionId(6);
+        renderAt(`/account-preferences?sessionid=${id}`);
+
+        expect(await screen.findByText('Failed to sync subscription. Please try again.')).toBeTruthy();
+        expect(search()).toBe(`?sessionid=${id}`);
+    });
+
+    // specRef: SY16
     it('does not navigate after unmount or sync the same link again on remount', async () => {
         let finish: (v: unknown) => void = () => {};
         subUpdateMock.mockReturnValue(new Promise(r => { finish = r; }));
