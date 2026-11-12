@@ -44,6 +44,8 @@ linters:
           files:
             - $all
             - "!**/internal/webauthn/**"
+            # Tests may use the library's protocol constants to check wire options.
+            - "!$test"
           deny:
             - pkg: github.com/go-webauthn/webauthn
               desc: run WebAuthn through github.com/ivpn/dns/api/internal/webauthn
