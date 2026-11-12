@@ -254,7 +254,7 @@ func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
 	suite.mockCache.AssertExpectations(suite.T())
 }
 
-// specRef: F10
+// specRef: F10, W14a
 func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAccount() {
 	accountID := primitive.NewObjectID().Hex()
 	otherAccountID := primitive.NewObjectID().Hex()
@@ -293,10 +293,12 @@ func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAc
 			req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{}`)))
 			req.Header.Set("Content-Type", "application/json")
 			req.AddCookie(&http.Cookie{Name: WebAuthnTempCookie, Value: "temp-token"})
+			req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
 
 			resp, err := app.Test(req)
 			suite.Require().NoError(err)
 			suite.Equal(400, resp.StatusCode)
+			suite.False(cookieCleared(resp, PASessionCookie), "a failed ceremony keeps pa_session")
 			suite.mockCache.AssertExpectations(suite.T())
 		})
 	}
