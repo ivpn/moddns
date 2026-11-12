@@ -6,7 +6,7 @@ import DeleteAccountDialog from '@/pages/account_preferences/DeleteAccount';
 import { AuthContext } from '@/App';
 import { useAppStore } from '@/store/general';
 import api from '@/api/api';
-import type { ModelAccount, ModelCredential } from '@/api/client/api';
+import type { ModelAccount, ResponsesPasskey } from '@/api/client/api';
 import { beginAccountDeletionReauth } from '@/lib/webauthn';
 import type React from 'react';
 
@@ -114,7 +114,7 @@ describe('DeleteAccountDialog', () => {
             auth_methods: ['passkey'],
             mfa: { totp: { enabled: false } },
         } as unknown as ModelAccount;
-        const credential = { id: 'cred-1' } as unknown as ModelCredential;
+        const credential = { id: 'cred-1' } as unknown as ResponsesPasskey;
         useAppStore.setState({ account, passkeys: [credential] });
 
         mockedBeginReauth.mockResolvedValue('reauth-token-1');

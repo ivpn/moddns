@@ -21,13 +21,13 @@ from typing import Any, Dict, List, Optional
 from typing_extensions import Annotated
 from moddns.models.api_web_authn_login_begin_request import ApiWebAuthnLoginBeginRequest
 from moddns.models.api_web_authn_register_begin_request import ApiWebAuthnRegisterBeginRequest
-from moddns.models.model_credential import ModelCredential
 from moddns.models.protocol_credential_assertion import ProtocolCredentialAssertion
 from moddns.models.protocol_credential_creation import ProtocolCredentialCreation
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_web_authn_add_passkey_begin_request import RequestsWebAuthnAddPasskeyBeginRequest
 from moddns.models.requests_web_authn_delete_passkey_request import RequestsWebAuthnDeletePasskeyRequest
 from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAuthnReauthBeginRequest
+from moddns.models.responses_passkey import ResponsesPasskey
 from moddns.models.responses_web_authn_reauth_finish_response import ResponsesWebAuthnReauthFinishResponse
 
 from moddns.api_client import ApiClient, RequestSerialized
@@ -2672,7 +2672,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> List[ModelCredential]:
+    ) -> List[ResponsesPasskey]:
         """Get user passkeys
 
         Get list of passkeys for authenticated user
@@ -2707,7 +2707,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2736,7 +2736,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[List[ModelCredential]]:
+    ) -> ApiResponse[List[ResponsesPasskey]]:
         """Get user passkeys
 
         Get list of passkeys for authenticated user
@@ -2771,7 +2771,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2835,7 +2835,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(

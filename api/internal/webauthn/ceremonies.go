@@ -24,10 +24,11 @@ type Result struct {
 	SubID     string
 	// Credential is the new credential to store after registration and add passkey.
 	Credential *model.Credential
-	// CredentialID and SignCount identify the credential a login or reauth asserted
-	// and its new signature counter.
+	// CredentialID, SignCount and Flags identify the credential a login or reauth
+	// asserted, with its new signature counter and the assertion's flags.
 	CredentialID []byte
 	SignCount    uint32
+	Flags        model.CredentialFlags
 }
 
 // requireUserVerification makes a new credential verify the user, so a passkey sign-in
@@ -159,7 +160,7 @@ func (rp *RelyingParty) finishAssertion(ctx context.Context, token string, cerem
 	if cred.Authenticator.CloneWarning {
 		return nil, ErrCloneDetected
 	}
-	return &Result{AccountID: c.AccountID, Purpose: c.Purpose, CredentialID: cred.ID, SignCount: cred.Authenticator.SignCount}, nil
+	return &Result{AccountID: c.AccountID, Purpose: c.Purpose, CredentialID: cred.ID, SignCount: cred.Authenticator.SignCount, Flags: toRecordFlags(cred.Flags)}, nil
 }
 
 // verificationError marks a refusal by the WebAuthn library with ErrVerificationFailed.

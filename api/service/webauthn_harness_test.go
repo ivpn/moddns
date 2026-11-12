@@ -120,13 +120,14 @@ func (s *passkeyStore) SaveCredential(_ context.Context, credential *model.Crede
 	return nil
 }
 
-// UpdateCredential mirrors the Mongo repository: only the sign count is written.
-func (s *passkeyStore) UpdateCredential(_ context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
+// UpdateCredential mirrors the Mongo repository: only the sign count and flags are written.
+func (s *passkeyStore) UpdateCredential(_ context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, c := range s.credentials {
 		if string(c.CredentialID) == string(credentialID) && c.AccountID == accountID {
 			s.credentials[i].Authenticator.SignCount = signCount
+			s.credentials[i].Flags = flags
 		}
 	}
 	return nil
@@ -410,6 +411,37 @@ func TestPasskeyHarnessLogin(t *testing.T) {
 	require.Empty(t, session.SessionData.Challenge, "a login session carries no challenge")
 	require.Equal(t, acc.WebAuthnID(), session.SessionData.UserID)
 	require.WithinDuration(t, time.Now().Add(time.Hour), session.SessionData.Expires, time.Minute)
+}
+
+// Every login and reauth stores the assertion's flags, so user_verified reflects the
+// latest ceremony of the credential, not only its registration.
+// specRef: A5, F6, F15
+func TestPasskeyHarnessAssertionStoresUserVerification(t *testing.T) {
+	t.Parallel()
+	h := newPasskeyHarness(t)
+	acc, authenticator, cred := h.registered("uv-flags@example.com")
+	require.True(t, h.storedCredential(acc, cred).Flags.UserVerified)
+
+	authenticator.Options.UserNotVerified = true
+	cred.Counter = 1
+	_, _, err := h.login(acc, authenticator, cred)
+	require.NoError(t, err, "login keeps accepting an assertion without user verification")
+	stored := h.storedCredential(acc, cred)
+	require.False(t, stored.Flags.UserVerified)
+	require.True(t, stored.Flags.UserPresent)
+	require.Equal(t, uint32(1), stored.Authenticator.SignCount)
+
+	authenticator.Options.UserNotVerified = false
+	cred.Counter = 2
+	_, err = h.reauth(acc, "email_change", authenticator, cred)
+	require.NoError(t, err)
+	require.True(t, h.storedCredential(acc, cred).Flags.UserVerified)
+
+	authenticator.Options.UserNotVerified = true
+	cred.Counter = 3
+	_, err = h.reauth(acc, "email_change", authenticator, cred)
+	require.NoError(t, err, "reauth keeps accepting an assertion without user verification")
+	require.False(t, h.storedCredential(acc, cred).Flags.UserVerified)
 }
 
 // specRef: A5

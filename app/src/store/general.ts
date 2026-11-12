@@ -1,4 +1,4 @@
-import type { ModelAccount, ModelCredential, ModelProfile } from "@/api/client/api";
+import type { ModelAccount, ResponsesPasskey, ModelProfile } from "@/api/client/api";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useMemo } from "react";
@@ -26,8 +26,8 @@ interface AppState {
   setCustomRulesAlertDismissed: (dismissed: boolean) => void;
   logsExpandHintDismissed: boolean; // persisted dismissal of the one-time "tap a row" logs hint
   setLogsExpandHintDismissed: (dismissed: boolean) => void;
-  passkeys: ModelCredential[];
-  setPasskeys: (passkeys: ModelCredential[]) => void;
+  passkeys: ResponsesPasskey[];
+  setPasskeys: (passkeys: ResponsesPasskey[]) => void;
   subscriptionStatus: string | null;
   setSubscriptionStatus: (status: string | null) => void;
   // Legacy pre-0.1.8 enum surfaced from the API; "Managed" gates the

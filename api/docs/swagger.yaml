@@ -232,13 +232,6 @@ definitions:
     - description
     - name
     type: object
-  model.Credential:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-    type: object
   model.CustomRule:
     properties:
       action:
@@ -1663,6 +1656,17 @@ definitions:
         type: string
       expires_at:
         type: string
+    type: object
+  responses.Passkey:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      user_verified:
+        description: UserVerified tells whether the latest ceremony with this passkey
+          verified the user.
+        type: boolean
     type: object
   responses.RegistrationSuccessResponse:
     properties:
@@ -3919,7 +3923,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Credential'
+              $ref: '#/definitions/responses.Passkey'
             type: array
         "400":
           description: Bad Request

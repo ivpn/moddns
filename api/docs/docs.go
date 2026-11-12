@@ -3286,7 +3286,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Credential"
+                                "$ref": "#/definitions/responses.Passkey"
                             }
                         }
                     },
@@ -3708,17 +3708,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "description": "ownership: currently always \"public\" (platform-provided)",
-                    "type": "string"
-                }
-            }
-        },
-        "model.Credential": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 }
             }
@@ -5682,6 +5671,21 @@ const docTemplate = `{
                 },
                 "expires_at": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.Passkey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "user_verified": {
+                    "description": "UserVerified tells whether the latest ceremony with this passkey verified the user.",
+                    "type": "boolean"
                 }
             }
         },
