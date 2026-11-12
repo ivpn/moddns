@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, Key, Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, AlertTriangle, Key, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { addPasskeyToAccount, deletePasskey, isWebAuthnSupported } from "@/lib/webauthn";
@@ -197,6 +198,7 @@ export default function PasskeySettings() {
                                     {Array.isArray(passkeys) && passkeys.map((passkey, index) => (
                                         <div
                                             key={passkey.id || index}
+                                            data-testid={`passkey-item-${passkey.id ?? index}`}
                                             className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-[var(--tailwind-colors-slate-600)] rounded-lg w-full gap-3 break-words"
                                         >
                                             <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -204,9 +206,20 @@ export default function PasskeySettings() {
                                                     <Key className="h-4 w-4 text-[var(--tailwind-colors-slate-50)]" />
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-[var(--tailwind-colors-slate-50)] break-all">
-                                                        {passkey.id || `Passkey ${index + 1}`}
-                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                        <p className="font-medium text-[var(--tailwind-colors-slate-50)] break-all">
+                                                            {passkey.id || `Passkey ${index + 1}`}
+                                                        </p>
+                                                        {passkey.user_verified === false && (
+                                                            <Badge
+                                                                data-testid="passkey-needs-verification"
+                                                                className="rounded border border-yellow-600 dark:border-yellow-400 bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
+                                                            >
+                                                                <AlertTriangle aria-hidden="true" />
+                                                                Needs PIN or biometric
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     {passkey.created_at && (
                                                         <div className="flex items-center gap-2 text-xs text-[var(--tailwind-colors-slate-200)]">
                                                             <span>Created: {formatDate(passkey.created_at)}</span>

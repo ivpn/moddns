@@ -10,15 +10,19 @@ import { useTheme } from "@/components/theme-provider";
 import AuthFooter from "@/components/auth/AuthFooter";
 import { parseDnsServerLocations, firstAddress } from "@/lib/dnsServerLocations";
 import { LINKS } from "@/pages/landing/links";
+import { passkeyVerificationDeadline } from "@/lib/passkeyVerification";
 
 interface FAQItemProps {
+    /** Anchor id; a URL with this hash opens the item and scrolls to it. */
+    id?: string;
     question: string;
     answer: string | JSX.Element;
     globalToggleSignal?: number; // Used to trigger expand/collapse from parent
     globalToggleState?: boolean; // What state to set when signal changes
 }
 
-function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FAQItemProps) {
+function FAQItem({ id, question, answer, globalToggleSignal, globalToggleState }: FAQItemProps) {
+    const { hash, key } = useLocation();
     const [isExpanded, setIsExpanded] = useState(false);
     const [height, setHeight] = useState<string>('0px');
     const contentRef = useRef<HTMLDivElement>(null);
@@ -47,12 +51,18 @@ function FAQItem({ question, answer, globalToggleSignal, globalToggleState }: FA
         return () => observer.disconnect();
     }, [isExpanded]);
 
+    useEffect(() => {
+        if (!id || hash !== `#${id}`) return;
+        setIsExpanded(true);
+        document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    }, [id, hash, key]);
+
     const handleToggle = () => {
         setIsExpanded(!isExpanded);
     };
 
     return (
-        <div className="mb-4 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-lg overflow-hidden bg-transparent dark:bg-[var(--variable-collection-surface)]">
+        <div id={id} className="mb-4 scroll-mt-24 border border-[var(--tailwind-colors-slate-light-300)] dark:border-transparent rounded-lg overflow-hidden bg-transparent dark:bg-[var(--variable-collection-surface)]">
             <button
                 className="w-full p-4 text-left hover:bg-[var(--shadcn-ui-app-muted)] transition-colors duration-200 flex items-center justify-between"
                 onClick={handleToggle}
@@ -111,7 +121,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 23, 2026';
+const FAQ_LAST_UPDATED = 'November 12, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -405,6 +415,28 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <p>modDNS is included in the IVPN Plus and IVPN Pro Suite plans. There is no standalone modDNS subscription, and it is not part of the IVPN Standard plan. See <a href={LINKS.pricing} target="_blank" rel="noopener noreferrer" className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)]">ivpn.net/pricing</a> for current plans.</p>
             <p>Once you have an eligible IVPN plan, start modDNS from your IVPN account area. IVPN sends you to a one-time signup link where you create your modDNS login with an email and password or a passkey. Your modDNS access then follows your IVPN subscription automatically.</p>
+        </div>
+    );
+
+    const passkeyVerification = (
+        <div className="space-y-2">
+            <p>A passkey signs you in without a password or a 2FA code, so your device or security key has to confirm it's really you, with a PIN, fingerprint, face or device password. This check stays on your device and is never sent to modDNS.</p>
+            <p>New passkeys always ask for it. From {passkeyVerificationDeadline()}, every passkey sign-in must ask for it too. Until you update a passkey that doesn't, you see a notice in the app and the passkey is marked "Needs PIN or biometric" in Account Preferences.</p>
+            <p><strong>Nothing to do for passkeys on Apple devices (iCloud Keychain), in Google Password Manager or in Windows Hello.</strong> They already ask for your fingerprint, face or device password.</p>
+            <p><strong>Security key (a USB or NFC key, such as a YubiKey): set a PIN.</strong> The PIN is stored on the key itself. You can set it with the key maker's app, with Windows or with Chrome: they all do the same thing, so use whichever you have.</p>
+            <ol className="list-decimal pl-6 space-y-1">
+                <li>Plug in the key, or hold it to your phone or NFC reader.</li>
+                <li>Set a PIN with one of these:
+                    <ul className="list-disc pl-6 space-y-1">
+                        <li>The key maker's app. For a YubiKey: Yubico Authenticator on a computer or Android phone &gt; Passkeys &gt; Set PIN (<a href="https://docs.yubico.com/software/yubikey/tools/authenticator/auth-guide/fido2.html" target="_blank" rel="noopener noreferrer" className="!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]">Yubico's guide</a>)</li>
+                        <li>Windows: Settings &gt; Accounts &gt; Sign-in options &gt; Security Key &gt; Manage &gt; Add (<a href="https://support.microsoft.com/en-us/account-billing/sign-in-to-your-account-with-a-security-key-b23a2a45-6ab8-4c86-9f22-bcadf60235aa" target="_blank" rel="noopener noreferrer" className="!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]">Microsoft's guide</a>)</li>
+                        <li>Chrome on macOS, Linux or ChromeOS: Settings &gt; Privacy and security &gt; Security &gt; Manage security keys &gt; Create a PIN</li>
+                    </ul>
+                </li>
+                <li>Sign out of modDNS and sign in again with the key. The notice disappears.</li>
+            </ol>
+            <p>Setting a PIN keeps the passkeys on your key. Don't choose "Reset": it erases every passkey on the key, for all websites. Pick a PIN you will remember: after too many wrong tries the key locks and can only be reset. Once set, the PIN can only be removed by resetting the key, and other websites may ask for it too.</p>
+            <p><strong>If the notice stays</strong> after you sign in again with the passkey, add a new passkey in Account Preferences and delete the old one. You can also set a password, so you can always sign in without a passkey.</p>
         </div>
     );
 
@@ -886,6 +918,11 @@ export default function FAQ(): JSX.Element {
                 <FAQItem
                     question="What is the DNSSEC OK (DO) bit?"
                     answer={whatIsDNSSECDOBit}
+                />
+                <FAQItem
+                    id="passkey-pin"
+                    question="Why does my passkey ask for a PIN, fingerprint or face?"
+                    answer={passkeyVerification}
                 />
                 <FAQItem
                     question="Do you support 2FA?"
