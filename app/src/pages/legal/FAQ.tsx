@@ -81,7 +81,7 @@ function FAQItem({ id, question, answer, globalToggleSignal, globalToggleState }
                 style={{ height }}
                 className="relative overflow-hidden transition-all duration-300 ease-in-out"
             >
-                <div className="p-4 pt-0 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
+                <div data-testid="faq-answer" className="p-4 pt-0 text-[var(--shadcn-ui-app-foreground)] leading-relaxed">
                     {typeof answer === 'string' ? (
                         <p>{answer}</p>
                     ) : (
@@ -123,6 +123,8 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
 
 const FAQ_LAST_UPDATED = 'November 12, 2026';
 
+// The base stylesheet colours every <a>; only an important utility overrides it.
+const LINK_CLASS = "!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]";
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
 const TERM_CLASS = "block text-xs uppercase tracking-wide text-[var(--shadcn-ui-app-muted-foreground)]";
@@ -332,7 +334,7 @@ export default function FAQ(): JSX.Element {
             <li>View the connection status displayed in the header of the modDNS web application</li>
             <li>Visit a known ad-heavy website and see if ads are blocked</li>
             <li>Check your Query Logs for recent activity</li>
-            <li>Use <a href="https://www.dnsleaktest.com" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsleaktest.com</code></a> to verify you're using modDNS servers</li>
+            <li>Use <a href="https://www.dnsleaktest.com" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}><code className="px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsleaktest.com</code></a> to verify you're using modDNS servers</li>
             <li>Try accessing a test domain that should be blocked</li>
         </ol>
     );
@@ -413,7 +415,7 @@ export default function FAQ(): JSX.Element {
 
     const howToGetModDNS = (
         <div className="space-y-2">
-            <p>modDNS is included in the IVPN Plus and IVPN Pro Suite plans. There is no standalone modDNS subscription, and it is not part of the IVPN Standard plan. See <a href={LINKS.pricing} target="_blank" rel="noopener noreferrer" className="underline text-[var(--tailwind-colors-rdns-600)] hover:text-[var(--tailwind-colors-rdns-700)]">ivpn.net/pricing</a> for current plans.</p>
+            <p>modDNS is included in the IVPN Plus and IVPN Pro Suite plans. There is no standalone modDNS subscription, and it is not part of the IVPN Standard plan. See <a href={LINKS.pricing} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>ivpn.net/pricing</a> for current plans.</p>
             <p>Once you have an eligible IVPN plan, start modDNS from your IVPN account area. IVPN sends you to a one-time signup link where you create your modDNS login with an email and password or a passkey. Your modDNS access then follows your IVPN subscription automatically.</p>
         </div>
     );
@@ -428,8 +430,8 @@ export default function FAQ(): JSX.Element {
                 <li>Plug in the key, or hold it to your phone or NFC reader.</li>
                 <li>Set a PIN with one of these:
                     <ul className="list-disc pl-6 space-y-1">
-                        <li>The key maker's app. For a YubiKey: Yubico Authenticator on a computer or Android phone &gt; Passkeys &gt; Set PIN (<a href="https://docs.yubico.com/software/yubikey/tools/authenticator/auth-guide/fido2.html" target="_blank" rel="noopener noreferrer" className="!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]">Yubico's guide</a>)</li>
-                        <li>Windows: Settings &gt; Accounts &gt; Sign-in options &gt; Security Key &gt; Manage &gt; Add (<a href="https://support.microsoft.com/en-us/account-billing/sign-in-to-your-account-with-a-security-key-b23a2a45-6ab8-4c86-9f22-bcadf60235aa" target="_blank" rel="noopener noreferrer" className="!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]">Microsoft's guide</a>)</li>
+                        <li>The key maker's app. For a YubiKey: Yubico Authenticator on a computer or Android phone &gt; Passkeys &gt; Set PIN (<a href="https://docs.yubico.com/software/yubikey/tools/authenticator/auth-guide/fido2.html" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>Yubico's guide</a>)</li>
+                        <li>Windows: Settings &gt; Accounts &gt; Sign-in options &gt; Security Key &gt; Manage &gt; Add (<a href="https://support.microsoft.com/en-us/account-billing/sign-in-to-your-account-with-a-security-key-b23a2a45-6ab8-4c86-9f22-bcadf60235aa" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>Microsoft's guide</a>)</li>
                         <li>Chrome on macOS, Linux or ChromeOS: Settings &gt; Privacy and security &gt; Security &gt; Manage security keys &gt; Create a PIN</li>
                     </ul>
                 </li>
@@ -504,7 +506,7 @@ export default function FAQ(): JSX.Element {
     const whatAreDNSStamps = (
         <div className="space-y-2">
             <p>A DNS Stamp is a single string starting with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> that bundles everything a client needs to reach a resolver - its IP address, port, protocol (DoH, DoT, DoQ), hostname for TLS, URL path, and properties such as DNSSEC support. Instead of typing each field separately, you paste one string and the client unpacks the rest.</p>
-            <p>Stamps were originally introduced by the DNSCrypt project, but today most encrypted-DNS clients understand them regardless of the underlying protocol. For the full format definition, see <a href="https://dnscrypt.info/stamps-specifications/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt.info/stamps-specifications</code></a>.</p>
+            <p>Stamps were originally introduced by the DNSCrypt project, but today most encrypted-DNS clients understand them regardless of the underlying protocol. For the full format definition, see <a href="https://dnscrypt.info/stamps-specifications/" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}><code className="px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt.info/stamps-specifications</code></a>.</p>
         </div>
     );
 
@@ -562,7 +564,7 @@ export default function FAQ(): JSX.Element {
             <p>Yes, both. Put the local resolver in front of modDNS and let it forward every query it does not answer itself.</p>
             <ul className="list-disc pl-5 space-y-1">
                 <li><strong>AdGuard Home</strong> speaks DoH, DoT and DoQ natively. Add <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https://{dnsDomain}/dns-query/&lt;profile id&gt;</code>, <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">tls://&lt;profile id&gt;.{dnsDomain}</code> or <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">quic://&lt;profile id&gt;.{dnsDomain}:853</code> as an upstream, or paste one of your DNS Stamps. Click <strong>Test upstreams</strong> to confirm.</li>
-                <li><strong>Pi-hole</strong> forwards plain DNS only, so it needs <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> next to it. Configure dnscrypt-proxy with your DoH stamp (the ready-made <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> snippet is on the DNS Stamps tab under <strong>Setup</strong>) and set Pi-hole's upstream to the address dnscrypt-proxy listens on, for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1#5053</code> when <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">listen_addresses</code> in <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> is <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1:5053</code>; the two must match. Pi-hole's guide covers the installation: <a href="https://docs.pi-hole.net/guides/dns/dnscrypt-proxy/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">docs.pi-hole.net/guides/dns/dnscrypt-proxy</code></a>.</li>
+                <li><strong>Pi-hole</strong> forwards plain DNS only, so it needs <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> next to it. Configure dnscrypt-proxy with your DoH stamp (the ready-made <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> snippet is on the DNS Stamps tab under <strong>Setup</strong>) and set Pi-hole's upstream to the address dnscrypt-proxy listens on, for example <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1#5053</code> when <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">listen_addresses</code> in <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy.toml</code> is <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">127.0.0.1:5053</code>; the two must match. Pi-hole's guide covers the installation: <a href="https://docs.pi-hole.net/guides/dns/dnscrypt-proxy/" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}><code className="px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">docs.pi-hole.net/guides/dns/dnscrypt-proxy</code></a>.</li>
             </ul>
             <p>Your profile id is shown on the <strong>Setup</strong> page. To see the resolver as a named device in your query logs, generate the stamp with a device label (see <em>"Can I generate a per-device DNS Stamp?"</em>).</p>
             <p>Filter in one place only: a domain blocked by AdGuard Home or Pi-hole never reaches modDNS and is missing from your modDNS logs and statistics, so turn off the local blocklists and manage blocking in your modDNS profile.</p>
@@ -575,7 +577,7 @@ export default function FAQ(): JSX.Element {
             <p>The most common case is a VPN client with a firewall or kill switch, such as the IVPN app, which only allows DNS to IVPN's own resolver. Two fixes, either one is enough:</p>
             <ul className="list-disc pl-5 space-y-1">
                 <li><strong>Use a DNS Stamp as the upstream.</strong> A stamp carries the modDNS address, so no bootstrap lookup is needed. It keeps working whether the VPN is on or off.</li>
-                <li><strong>Set the bootstrap to the resolver your network allows.</strong> With the IVPN app that is the IVPN DNS server; the address depends on your AntiTracker setting, see <a href="https://www.ivpn.net/knowledgebase/troubleshooting/what-is-the-ip-address-of-your-dns-servers/" target="_blank" rel="noopener noreferrer"><code className="text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">What is the IP address of your DNS servers?</code></a>. This only works while the VPN is connected.</li>
+                <li><strong>Set the bootstrap to the resolver your network allows.</strong> With the IVPN app that is the IVPN DNS server; the address depends on your AntiTracker setting, see <a href="https://www.ivpn.net/knowledgebase/troubleshooting/what-is-the-ip-address-of-your-dns-servers/" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}><code className="px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">What is the IP address of your DNS servers?</code></a>. This only works while the VPN is connected.</li>
             </ul>
             <p>AdGuard Home caches the result of the bootstrap lookup. If a setup that worked stops working after you turn a VPN on, restart AdGuard Home after changing the bootstrap, or switch to a stamp.</p>
         </div>
