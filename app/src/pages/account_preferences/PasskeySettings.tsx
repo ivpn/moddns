@@ -10,7 +10,7 @@ import DeletePasskeyDialog from "./DeletePasskeyDialog";
 import AddPasskeyDialog from "./AddPasskeyDialog";
 import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 import { useAppStore } from "@/store/general";
-import type { ModelCredential } from "@/api/client/api";
+import type { ResponsesPasskey } from "@/api/client/api";
 
 export default function PasskeySettings() {
     const passkeys = useAppStore(state => state.passkeys);
@@ -42,7 +42,7 @@ export default function PasskeySettings() {
             const response = await api.Client.authApi.apiV1WebauthnPasskeysGet();
 
             if (response.data && Array.isArray(response.data)) {
-                setPasskeys(response.data as ModelCredential[]);
+                setPasskeys(response.data as ResponsesPasskey[]);
             } else {
                 setPasskeys([]);
             }

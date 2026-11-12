@@ -469,25 +469,6 @@ export interface ModelBlocklist {
 /**
  * 
  * @export
- * @interface ModelCredential
- */
-export interface ModelCredential {
-    /**
-     * 
-     * @type {string}
-     * @memberof ModelCredential
-     */
-    'created_at'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ModelCredential
-     */
-    'id'?: string;
-}
-/**
- * 
- * @export
  * @interface ModelCustomRule
  */
 export interface ModelCustomRule {
@@ -3124,6 +3105,31 @@ export interface ResponsesDeletionCodeResponse {
 /**
  * 
  * @export
+ * @interface ResponsesPasskey
+ */
+export interface ResponsesPasskey {
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesPasskey
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesPasskey
+     */
+    'id'?: string;
+    /**
+     * UserVerified tells whether the latest ceremony with this passkey verified the user.
+     * @type {boolean}
+     * @memberof ResponsesPasskey
+     */
+    'user_verified'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ResponsesRegistrationSuccessResponse
  */
 export interface ResponsesRegistrationSuccessResponse {
@@ -4870,7 +4876,7 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeysGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ModelCredential>>> {
+        async apiV1WebauthnPasskeysGet(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ResponsesPasskey>>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeysGet(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeysGet']?.[localVarOperationServerIndex]?.url;
@@ -5016,7 +5022,7 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeysGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<ModelCredential>> {
+        apiV1WebauthnPasskeysGet(options?: RawAxiosRequestConfig): AxiosPromise<Array<ResponsesPasskey>> {
             return localVarFp.apiV1WebauthnPasskeysGet(options).then((request) => request(axios, basePath));
         },
         /**

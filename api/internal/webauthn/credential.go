@@ -81,12 +81,7 @@ func toRecord(cred *gowebauthn.Credential, accountID primitive.ObjectID) *model.
 		PublicKey:          cred.PublicKey,
 		AttestationType:    cred.AttestationType,
 		Transport:          transports,
-		Flags: model.CredentialFlags{
-			UserPresent:    cred.Flags.UserPresent,
-			UserVerified:   cred.Flags.UserVerified,
-			BackupEligible: cred.Flags.BackupEligible,
-			BackupState:    cred.Flags.BackupState,
-		},
+		Flags:              toRecordFlags(cred.Flags),
 		Authenticator: model.Authenticator{
 			AAGUID:       cred.Authenticator.AAGUID,
 			SignCount:    cred.Authenticator.SignCount,
@@ -96,5 +91,14 @@ func toRecord(cred *gowebauthn.Credential, accountID primitive.ObjectID) *model.
 		AccountID: accountID,
 		CreatedAt: now,
 		UpdatedAt: now,
+	}
+}
+
+func toRecordFlags(f gowebauthn.CredentialFlags) model.CredentialFlags {
+	return model.CredentialFlags{
+		UserPresent:    f.UserPresent,
+		UserVerified:   f.UserVerified,
+		BackupEligible: f.BackupEligible,
+		BackupState:    f.BackupState,
 	}
 }

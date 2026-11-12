@@ -17,18 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class ModelCredential(BaseModel):
+class ResponsesPasskey(BaseModel):
     """
-    ModelCredential
+    ResponsesPasskey
     """ # noqa: E501
     created_at: Optional[StrictStr] = None
     id: Optional[StrictStr] = None
-    __properties: ClassVar[List[str]] = ["created_at", "id"]
+    user_verified: Optional[StrictBool] = Field(default=None, description="UserVerified tells whether the latest ceremony with this passkey verified the user.")
+    __properties: ClassVar[List[str]] = ["created_at", "id", "user_verified"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +49,7 @@ class ModelCredential(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of ModelCredential from a JSON string"""
+        """Create an instance of ResponsesPasskey from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +74,7 @@ class ModelCredential(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of ModelCredential from a dict"""
+        """Create an instance of ResponsesPasskey from a dict"""
         if obj is None:
             return None
 
@@ -82,7 +83,8 @@ class ModelCredential(BaseModel):
 
         _obj = cls.model_validate({
             "created_at": obj.get("created_at"),
-            "id": obj.get("id")
+            "id": obj.get("id"),
+            "user_verified": obj.get("user_verified")
         })
         return _obj
 

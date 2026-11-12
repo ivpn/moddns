@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // @vitest-environment jsdom
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ChangeEmailDialog from '@/pages/account_preferences/ChangeEmailDialog';
-import type { ModelAccount, ModelCredential } from '@/api/client/api';
+import type { ModelAccount, ResponsesPasskey } from '@/api/client/api';
 import { useAppStore } from '@/store/general';
 import api from '@/api/api';
 
@@ -40,7 +40,7 @@ describe('ChangeEmailDialog', () => {
 
     it('prefers passkey verification when available', () => {
         useAppStore.getState().setPasskeys([
-            { id: 'cred-1' } as unknown as ModelCredential,
+            { id: 'cred-1' } as unknown as ResponsesPasskey,
         ]);
         render(<ChangeEmailDialog open account={getAccount()} onOpenChange={() => { }} onChanged={() => { }} />);
 
