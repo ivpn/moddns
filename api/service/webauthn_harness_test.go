@@ -16,6 +16,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/descope/virtualwebauthn"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -339,6 +340,36 @@ func TestPasskeyHarnessRegistration(t *testing.T) {
 	require.True(t, stored.Flags.UserVerified)
 	require.Equal(t, []string{harnessSubID + "/" + harnessSession + "/token-hash"}, h.completed)
 	require.Empty(t, h.store.sessions, "signup does not open a login session")
+}
+
+// Signup and add passkey require user verification (W3C WebAuthn L3 §5.8.6, §7.1 step 16):
+// the options ask for it and a credential created without it is refused.
+// specRef: F1, F2, F3, F4, F14
+func TestPasskeyHarnessCreationRequiresUserVerification(t *testing.T) {
+	t.Parallel()
+	h := newPasskeyHarness(t)
+	unverified := func(acc *model.Account) virtualwebauthn.Authenticator {
+		return virtualwebauthn.NewAuthenticatorWithOptions(virtualwebauthn.AuthenticatorOptions{UserHandle: acc.WebAuthnID(), UserNotVerified: true})
+	}
+
+	signup := h.newAccount("signup-uv@example.com", nil)
+	options, _, err := h.svc.BeginRegistration(h.ctx, signup, harnessSubID)
+	require.NoError(t, err)
+	require.Equal(t, protocol.VerificationRequired, options.Response.AuthenticatorSelection.UserVerification)
+	err = h.register(signup, unverified(signup), virtualwebauthn.NewCredential(virtualwebauthn.KeyTypeEC2))
+	require.ErrorContains(t, err, "failed to finish registration")
+	require.Empty(t, h.credentials(signup))
+	require.Empty(t, h.completed, "the signup is not completed")
+
+	acc, authenticator, cred := h.registered("add-uv@example.com")
+	reauth, err := h.reauth(acc, "passkey_add", authenticator, cred)
+	require.NoError(t, err)
+	options, _, err = h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauth.Value, &model.MfaData{})
+	require.NoError(t, err)
+	require.Equal(t, protocol.VerificationRequired, options.Response.AuthenticatorSelection.UserVerification)
+	err = h.addPasskey(acc, h.grantReauthToken(acc, auth.TokenTypeReauthPasskeyAdd), unverified(acc), virtualwebauthn.NewCredential(virtualwebauthn.KeyTypeEC2))
+	require.ErrorContains(t, err, "failed to finish add passkey")
+	require.Len(t, h.credentials(acc), 1)
 }
 
 // Signup saves its credential without the MaxCredentials check; add passkey applies it.
