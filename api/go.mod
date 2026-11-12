@@ -1,6 +1,6 @@
 module github.com/ivpn/dns/api
 
-go 1.26.8
+go 1.26.11
 
 require (
 	github.com/AfterShip/email-verifier v1.4.0
