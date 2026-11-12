@@ -2,6 +2,8 @@ package webauthn
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -101,7 +103,7 @@ func (rp *RelyingParty) FinishRegistration(ctx context.Context, token string, lo
 	}
 	cred, err := rp.lib.FinishRegistration(newLibUser(user), c.SessionData, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to finish registration: %w", err)
+		return nil, verificationError("failed to finish registration", err)
 	}
 	return &Result{AccountID: c.AccountID, SubID: c.SubID, Credential: toRecord(cred, user.AccountID)}, nil
 }
@@ -118,7 +120,7 @@ func (rp *RelyingParty) FinishAddPasskey(ctx context.Context, token, accountID s
 	}
 	cred, err := rp.lib.FinishRegistration(newLibUser(user), c.SessionData, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to finish add passkey: %w", err)
+		return nil, verificationError("failed to finish add passkey", err)
 	}
 	return &Result{AccountID: c.AccountID, Credential: toRecord(cred, user.AccountID)}, nil
 }
@@ -144,10 +146,25 @@ func (rp *RelyingParty) finishAssertion(ctx context.Context, token string, cerem
 	}
 	cred, err := rp.lib.FinishLogin(newLibUser(user), c.SessionData, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to finish login: %w", err)
+		return nil, verificationError("failed to finish login", err)
 	}
 	if cred.Authenticator.CloneWarning {
 		return nil, ErrCloneDetected
 	}
 	return &Result{AccountID: c.AccountID, Purpose: c.Purpose, CredentialID: cred.ID, SignCount: cred.Authenticator.SignCount}, nil
+}
+
+// verificationError marks a refusal by the WebAuthn library with ErrVerificationFailed.
+// The library reports a failed relying-party check as a *protocol.Error, except a
+// clientDataJSON in an assertion that is not JSON, which it returns as the decoder's error.
+func verificationError(msg string, err error) error {
+	var (
+		protoErr  *protocol.Error
+		syntaxErr *json.SyntaxError
+		typeErr   *json.UnmarshalTypeError
+	)
+	if errors.As(err, &protoErr) || errors.As(err, &syntaxErr) || errors.As(err, &typeErr) {
+		return fmt.Errorf("%s: %w: %w", msg, ErrVerificationFailed, err)
+	}
+	return fmt.Errorf("%s: %w", msg, err)
 }

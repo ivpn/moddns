@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -409,7 +410,8 @@ func TestPasskeyHarnessLoginCloneWarning(t *testing.T) {
 
 	cred.Counter = 3
 	_, _, err = h.login(acc, authenticator, cred)
-	require.ErrorContains(t, err, "credential clone warning")
+	require.ErrorIs(t, err, passkey.ErrFinishLogin)
+	require.ErrorIs(t, err, webauthn.ErrCloneDetected)
 	require.Equal(t, uint32(10), h.storedCredential(acc, cred).Authenticator.SignCount)
 	require.Len(t, h.store.sessions, 1)
 }
@@ -423,7 +425,7 @@ func TestPasskeyHarnessLoginUnknownCredential(t *testing.T) {
 
 	_, other := h.newAuthenticator(acc)
 	_, _, err := h.login(acc, authenticator, other)
-	require.Error(t, err)
+	require.ErrorIs(t, err, passkey.ErrFinishLogin)
 	require.Empty(t, h.store.sessions)
 }
 
@@ -454,6 +456,81 @@ func TestPasskeyHarnessReauth(t *testing.T) {
 
 	_, _, err := h.svc.BeginReauth(h.ctx, "unknown", acc.ID.Hex())
 	require.ErrorContains(t, err, "unsupported reauth purpose")
+}
+
+// A sign count that does not increase fails the reauth and issues no token.
+// specRef: F13
+func TestPasskeyHarnessReauthCloneWarning(t *testing.T) {
+	t.Parallel()
+	h := newPasskeyHarness(t)
+	acc, authenticator, cred := h.registered("reauth-clone@example.com")
+
+	cred.Counter = 10
+	_, _, err := h.login(acc, authenticator, cred)
+	require.NoError(t, err)
+	tokensBefore := len(acc.Tokens)
+
+	cred.Counter = 3
+	token, err := h.reauth(acc, "profile_export", authenticator, cred)
+	require.ErrorIs(t, err, passkey.ErrFinishReauth)
+	require.ErrorIs(t, err, webauthn.ErrCloneDetected)
+	require.Nil(t, token)
+	require.Len(t, acc.Tokens, tokensBefore)
+	require.Equal(t, uint32(10), h.storedCredential(acc, cred).Authenticator.SignCount)
+}
+
+// withChangedChallenge returns the browser response with one character of the
+// challenge in its clientDataJSON changed, still valid base64url and JSON.
+func withChangedChallenge(t *testing.T, response string) string {
+	t.Helper()
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(response), &body))
+	inner := body["response"].(map[string]any)
+	raw, err := base64.RawURLEncoding.DecodeString(inner["clientDataJSON"].(string))
+	require.NoError(t, err)
+	var clientData map[string]any
+	require.NoError(t, json.Unmarshal(raw, &clientData))
+	challenge := []byte(clientData["challenge"].(string))
+	if challenge[0] == 'A' {
+		challenge[0] = 'B'
+	} else {
+		challenge[0] = 'A'
+	}
+	clientData["challenge"] = string(challenge)
+	inner["clientDataJSON"] = base64.RawURLEncoding.EncodeToString([]byte(toJSON(t, clientData)))
+	return toJSON(t, body)
+}
+
+// specRef: F12
+func TestPasskeyHarnessChangedChallengeIsRefused(t *testing.T) {
+	t.Parallel()
+
+	t.Run("registration", func(t *testing.T) {
+		t.Parallel()
+		h := newPasskeyHarness(t)
+		acc := h.newAccount("signup-challenge@example.com", nil)
+		authenticator, cred := h.newAuthenticator(acc)
+
+		options, token, err := h.svc.BeginRegistration(h.ctx, acc, harnessSubID)
+		require.NoError(t, err)
+		err = h.svc.FinishRegistration(h.ctx, token, browserRequest(withChangedChallenge(t, h.attest(options, authenticator, cred))), harnessSession)
+		require.ErrorIs(t, err, passkey.ErrFinishRegistration)
+		require.ErrorIs(t, err, webauthn.ErrVerificationFailed)
+		require.Empty(t, h.credentials(acc))
+	})
+
+	t.Run("login", func(t *testing.T) {
+		t.Parallel()
+		h := newPasskeyHarness(t)
+		acc, authenticator, cred := h.registered("login-challenge@example.com")
+
+		options, token, err := h.svc.BeginLogin(h.ctx, acc.Email)
+		require.NoError(t, err)
+		_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(withChangedChallenge(t, h.assert(options, authenticator, cred))), true)
+		require.ErrorIs(t, err, passkey.ErrFinishLogin)
+		require.ErrorIs(t, err, webauthn.ErrVerificationFailed)
+		require.Empty(t, h.store.sessions)
+	})
 }
 
 // specRef: F3, F3b, F4
@@ -657,7 +734,7 @@ func TestPasskeyHarnessCeremonyIsSingleUse(t *testing.T) {
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(response), true)
 	require.NoError(t, err)
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(response), true)
-	require.Error(t, err, "a replayed finish call is refused")
+	require.ErrorIs(t, err, passkey.ErrFinishLogin, "a replayed finish call is refused")
 	require.Len(t, h.store.sessions, 1)
 }
 
@@ -672,13 +749,13 @@ func TestPasskeyHarnessFailedFinishConsumesState(t *testing.T) {
 	require.NoError(t, err)
 
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(`{}`), true)
-	require.Error(t, err)
+	require.ErrorIs(t, err, passkey.ErrFinishLogin)
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(h.assert(options, authenticator, cred)), true)
-	require.Error(t, err)
+	require.ErrorIs(t, err, passkey.ErrFinishLogin)
 	require.Empty(t, h.store.sessions)
 }
 
-// specRef: F9
+// specRef: F9, F11
 func TestPasskeyHarnessCeremonyExpires(t *testing.T) {
 	t.Parallel()
 	h := newPasskeyHarness(t)
@@ -690,7 +767,7 @@ func TestPasskeyHarnessCeremonyExpires(t *testing.T) {
 
 	h.redis.FastForward(webauthn.CeremonyTimeout + time.Second)
 	_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(h.assert(options, authenticator, cred)), true)
-	require.Error(t, err)
+	require.ErrorIs(t, err, passkey.ErrFinishLogin)
 	require.Empty(t, h.store.sessions)
 }
 
@@ -716,7 +793,7 @@ func TestPasskeyHarnessOriginAndRPID(t *testing.T) {
 			response := virtualwebauthn.CreateAssertionResponse(rp, authenticator, cred, *parsed)
 
 			_, _, _, err = h.svc.FinishLogin(h.ctx, token, browserRequest(response), true)
-			require.Error(t, err)
+			require.ErrorIs(t, err, passkey.ErrFinishLogin)
 			require.Empty(t, h.store.sessions)
 		})
 	}

@@ -211,20 +211,27 @@ func (suite *WebAuthnAPITestSuite) TestBeginReauthValidationError() {
 	suite.Contains(details, "oneof")
 }
 
-func (suite *WebAuthnAPITestSuite) TestFinishReauthMissingCookie() {
-	server := suite.createServer()
-	handler := server.finishReauth()
-	app := fiber.New()
-	app.Post("/", func(c *fiber.Ctx) error {
-		c.Locals(auth.ACCOUNT_ID, primitive.NewObjectID().Hex())
-		return handler(c)
-	})
+// Without a session the account-bound finish endpoints answer 401 before the ceremony is read.
+// specRef: F4, F6
+func (suite *WebAuthnAPITestSuite) TestAccountBoundFinishWithoutSessionIsUnauthorized() {
+	for name, handler := range map[string]func(*APIServer) fiber.Handler{
+		"reauth finish":      (*APIServer).finishReauth,
+		"add-passkey finish": (*APIServer).finishAddPasskey,
+	} {
+		suite.Run(name, func() {
+			suite.SetupTest()
+			app := fiber.New()
+			app.Post("/", handler(suite.createServer()))
 
-	req := httptest.NewRequest("POST", "/", nil)
+			req := httptest.NewRequest("POST", "/", nil)
+			req.AddCookie(&http.Cookie{Name: WebAuthnTempCookie, Value: "temp-token"})
 
-	resp, err := app.Test(req)
-	suite.Require().NoError(err)
-	suite.Equal(401, resp.StatusCode)
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			suite.Equal(401, resp.StatusCode)
+			suite.mockCache.AssertNotCalled(suite.T(), "ConsumeCeremony", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func (suite *WebAuthnAPITestSuite) TestFinishReauthSessionError() {
@@ -300,6 +307,89 @@ func (suite *WebAuthnAPITestSuite) TestFinishRejectsStateFromAnotherCeremonyOrAc
 			suite.Equal(400, resp.StatusCode)
 			suite.False(cookieCleared(resp, PASessionCookie), "a failed ceremony keeps pa_session")
 			suite.mockCache.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// A finish call whose ceremony state is gone (expired, used or never begun) is refused with 400.
+// specRef: F11
+func (suite *WebAuthnAPITestSuite) TestFinishWithUnknownCeremonyIsRefused() {
+	accountID := primitive.NewObjectID().Hex()
+
+	tests := []struct {
+		name    string
+		handler func(*APIServer) fiber.Handler
+		wantErr *passkey.PasskeyError
+	}{
+		{"register finish", (*APIServer).finishRegistration, passkey.ErrFinishRegistration},
+		{"login finish", (*APIServer).finishLogin, passkey.ErrFinishLogin},
+		{"add-passkey finish", (*APIServer).finishAddPasskey, passkey.ErrFinishAddPasskey},
+		{"reauth finish", (*APIServer).finishReauth, passkey.ErrFinishReauth},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.SetupTest()
+			server := suite.createServer()
+			suite.mockCache.On("ConsumeCeremony", mock.Anything, "temp-token").Return(nil, webauthn.ErrCeremonyNotFound).Once()
+
+			handler := tt.handler(server)
+			app := fiber.New()
+			app.Post("/", func(c *fiber.Ctx) error {
+				c.Locals(auth.ACCOUNT_ID, accountID)
+				return handler(c)
+			})
+
+			req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{}`)))
+			req.Header.Set("Content-Type", "application/json")
+			req.AddCookie(&http.Cookie{Name: WebAuthnTempCookie, Value: "temp-token"})
+
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			suite.Equal(400, resp.StatusCode)
+			payload := make(map[string]any)
+			suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
+			suite.Equal(tt.wantErr.Error(), payload["error"])
+			suite.mockCache.AssertExpectations(suite.T())
+		})
+	}
+}
+
+// A finish call without the ceremony cookie is refused with 400 and the endpoint's
+// passkey error, not 401: the caller's session, if any, is still valid.
+// specRef: F11
+func (suite *WebAuthnAPITestSuite) TestFinishWithoutCeremonyCookieIsRefused() {
+	tests := []struct {
+		name    string
+		handler func(*APIServer) fiber.Handler
+		wantErr *passkey.PasskeyError
+	}{
+		{"register finish", (*APIServer).finishRegistration, passkey.ErrFinishRegistration},
+		{"login finish", (*APIServer).finishLogin, passkey.ErrFinishLogin},
+		{"add-passkey finish", (*APIServer).finishAddPasskey, passkey.ErrFinishAddPasskey},
+		{"reauth finish", (*APIServer).finishReauth, passkey.ErrFinishReauth},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			suite.SetupTest()
+			handler := tt.handler(suite.createServer())
+			app := fiber.New()
+			app.Post("/", func(c *fiber.Ctx) error {
+				c.Locals(auth.ACCOUNT_ID, primitive.NewObjectID().Hex())
+				return handler(c)
+			})
+
+			req := httptest.NewRequest("POST", "/", bytes.NewReader([]byte(`{}`)))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req)
+			suite.Require().NoError(err)
+			suite.Equal(400, resp.StatusCode)
+			payload := make(map[string]any)
+			suite.Require().NoError(json.Unmarshal(readResponseBody(suite.T(), resp), &payload))
+			suite.Equal(tt.wantErr.Error(), payload["error"])
+			suite.mockCache.AssertNotCalled(suite.T(), "ConsumeCeremony", mock.Anything, mock.Anything)
 		})
 	}
 }

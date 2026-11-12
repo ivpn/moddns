@@ -2,8 +2,10 @@ package webauthn
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -50,7 +52,7 @@ func (s *memStore) ConsumeCeremony(_ context.Context, token string) ([]byte, err
 	defer s.mu.Unlock()
 	state, ok := s.states[token]
 	if !ok {
-		return nil, errNotFound
+		return nil, ErrCeremonyNotFound
 	}
 	delete(s.states, token)
 	return state, nil
@@ -311,7 +313,7 @@ func TestCeremonyStateIsSingleUse(t *testing.T) {
 	_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(response))
 	require.NoError(t, err)
 	_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(response))
-	require.ErrorIs(t, err, errNotFound)
+	require.ErrorIs(t, err, ErrCeremonyNotFound)
 }
 
 // The server rejects a response to options older than the ceremony timeout.
@@ -334,12 +336,163 @@ func TestCeremonyExpires(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(assert(t, options, u, cred)))
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrVerificationFailed)
 
 	_, token, err = rp.BeginRegistration(ctx, u.user, "")
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(store.states[token], &c))
 	require.WithinDuration(t, time.Now().Add(CeremonyTimeout), c.SessionData.Expires, 5*time.Second)
+}
+
+// withChangedChallenge returns the browser response with one character of the
+// challenge in its clientDataJSON changed, still valid base64url and JSON.
+func withChangedChallenge(t *testing.T, response string) string {
+	t.Helper()
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(response), &body))
+	inner := body["response"].(map[string]any)
+	raw, err := base64.RawURLEncoding.DecodeString(inner["clientDataJSON"].(string))
+	require.NoError(t, err)
+	var clientData map[string]any
+	require.NoError(t, json.Unmarshal(raw, &clientData))
+	challenge := []byte(clientData["challenge"].(string))
+	if challenge[0] == 'A' {
+		challenge[0] = 'B'
+	} else {
+		challenge[0] = 'A'
+	}
+	clientData["challenge"] = string(challenge)
+	raw, err = json.Marshal(clientData)
+	require.NoError(t, err)
+	inner["clientDataJSON"] = base64.RawURLEncoding.EncodeToString(raw)
+	out, err := json.Marshal(body)
+	require.NoError(t, err)
+	return string(out)
+}
+
+// specRef: F12
+func TestFinishRefusesChangedChallenge(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	t.Run("registration", func(t *testing.T) {
+		t.Parallel()
+		rp, store := newTestRP(t)
+		u := newTestUser()
+		cred := virtualwebauthn.NewCredential(virtualwebauthn.KeyTypeEC2)
+
+		options, token, err := rp.BeginRegistration(ctx, u.user, "")
+		require.NoError(t, err)
+		result, err := rp.FinishRegistration(ctx, token, u.load, browserRequest(withChangedChallenge(t, attest(t, options, u, cred))))
+		require.ErrorIs(t, err, ErrVerificationFailed)
+		require.Nil(t, result)
+		require.Empty(t, store.states)
+	})
+
+	t.Run("add passkey", func(t *testing.T) {
+		t.Parallel()
+		rp, _ := newTestRP(t)
+		u := newTestUser()
+		register(t, rp, u)
+		cred := virtualwebauthn.NewCredential(virtualwebauthn.KeyTypeEC2)
+
+		options, token, err := rp.BeginAddPasskey(ctx, u.user)
+		require.NoError(t, err)
+		_, err = rp.FinishAddPasskey(ctx, token, u.user.AccountID.Hex(), u.load, browserRequest(withChangedChallenge(t, attest(t, options, u, cred))))
+		require.ErrorIs(t, err, ErrVerificationFailed)
+	})
+
+	t.Run("login", func(t *testing.T) {
+		t.Parallel()
+		rp, _ := newTestRP(t)
+		u := newTestUser()
+		cred := register(t, rp, u)
+
+		options, token, err := rp.BeginLogin(ctx, u.user)
+		require.NoError(t, err)
+		_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(withChangedChallenge(t, assert(t, options, u, cred))))
+		require.ErrorIs(t, err, ErrVerificationFailed)
+	})
+
+	t.Run("reauth", func(t *testing.T) {
+		t.Parallel()
+		rp, _ := newTestRP(t)
+		u := newTestUser()
+		cred := register(t, rp, u)
+
+		options, token, err := rp.BeginReauth(ctx, u.user, "email_change")
+		require.NoError(t, err)
+		_, err = rp.FinishReauth(ctx, token, u.user.AccountID.Hex(), u.load, browserRequest(withChangedChallenge(t, assert(t, options, u, cred))))
+		require.ErrorIs(t, err, ErrVerificationFailed)
+	})
+}
+
+// A clientDataJSON that is valid base64url but not JSON is refused like any other failed check.
+// specRef: F12
+func TestFinishRefusesClientDataThatIsNotJSON(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	rp, _ := newTestRP(t)
+	u := newTestUser()
+	cred := register(t, rp, u)
+
+	options, token, err := rp.BeginLogin(ctx, u.user)
+	require.NoError(t, err)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal([]byte(assert(t, options, u, cred)), &body))
+	body["response"].(map[string]any)["clientDataJSON"] = base64.RawURLEncoding.EncodeToString([]byte("not json"))
+	response, err := json.Marshal(body)
+	require.NoError(t, err)
+
+	_, err = rp.FinishLogin(ctx, token, u.load, browserRequest(string(response)))
+	require.ErrorIs(t, err, ErrVerificationFailed)
+}
+
+// specRef: F11
+func TestFinishRefusesUnknownCeremony(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	rp, _ := newTestRP(t)
+	u := newTestUser()
+
+	for _, token := range []string{"", "unknown"} {
+		_, err := rp.FinishLogin(ctx, token, u.load, browserRequest("{}"))
+		require.ErrorIs(t, err, ErrCeremonyNotFound, "token %q", token)
+		_, err = rp.FinishRegistration(ctx, token, u.load, browserRequest("{}"))
+		require.ErrorIs(t, err, ErrCeremonyNotFound, "token %q", token)
+	}
+}
+
+// A store failure is not a refusal of the request.
+// specRef: F11
+func TestFinishKeepsStoreFailures(t *testing.T) {
+	t.Parallel()
+	rp, err := New(Config{RPID: testRPID, RPDisplayName: testRPName, RPOrigins: []string{testOrigin}}, failingStore{})
+	require.NoError(t, err)
+
+	_, err = rp.FinishLogin(context.Background(), "token", newTestUser().load, browserRequest("{}"))
+	require.ErrorIs(t, err, errStoreDown)
+	require.NotErrorIs(t, err, ErrCeremonyNotFound)
+}
+
+var errStoreDown = errors.New("store down")
+
+type failingStore struct{}
+
+func (failingStore) SaveCeremony(context.Context, string, []byte, time.Duration) error {
+	return errStoreDown
+}
+func (failingStore) ConsumeCeremony(context.Context, string) ([]byte, error) {
+	return nil, errStoreDown
+}
+
+func TestIsRefusal(t *testing.T) {
+	t.Parallel()
+	for _, err := range []error{ErrCeremonyMismatch, ErrCeremonyNotFound, ErrVerificationFailed, ErrCloneDetected} {
+		require.True(t, IsRefusal(fmt.Errorf("finish: %w", err)), err)
+	}
+	require.False(t, IsRefusal(errStoreDown))
+	require.False(t, IsRefusal(nil))
 }
 
 func TestCredentialRecordRoundTrip(t *testing.T) {
