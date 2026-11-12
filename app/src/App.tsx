@@ -54,6 +54,7 @@ import { AUTH_KEY } from "@/lib/consts"
 import { useAppStore } from "@/store/general"
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard"
 import { Toaster } from "@/components/ui/sonner"
+import { useLoadPasskeysOnce } from "@/hooks/useLoadPasskeysOnce";
 import { checkForAppUpdate } from "@/lib/swUpdate"
 import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
 import { RouterErrorBoundary } from "@/components/errors/RouterErrorBoundary";
@@ -452,6 +453,7 @@ function ProtectedLayout() {
   // not run and the UI does not advertise functionality the user has lost.
   const { isCutOff } = useSubscriptionGuard();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
+  useLoadPasskeysOnce(isAuthenticated);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
 
