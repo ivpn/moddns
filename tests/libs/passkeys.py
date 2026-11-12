@@ -250,6 +250,11 @@ def add_passkey(user: PasskeyUser, *, reauth_token: Optional[str] = None,
     return credential_id
 
 
+def list_passkeys(session_cookie: str) -> Response:
+    with auth_api(session_cookie) as a:
+        return call(a.api_v1_webauthn_passkeys_get_without_preload_content)
+
+
 def delete_passkey(session_cookie: str, credential_id: bytes, *, reauth_token: Optional[str] = None,
                    current_password: Optional[str] = None) -> Response:
     """Delete the passkey whose WebAuthn credential id is ``credential_id``."""
