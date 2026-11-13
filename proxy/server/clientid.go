@@ -15,11 +15,8 @@ import (
 
 	"github.com/ivpn/dns/libs/deviceid"
 	"github.com/ivpn/dns/libs/dohpath"
+	"github.com/ivpn/dns/libs/profileid"
 )
-
-// profileIDMinLength holds the minimum length considered valid for profile IDs.
-// Configurable via PROFILE_ID_MIN_LENGTH; default 10, the length of IDs the API issues.
-var profileIDMinLength = 10
 
 // ValidateClientID returns an error if id is not a valid ClientID.
 //
@@ -37,10 +34,11 @@ func ValidateClientID(id string) (err error) {
 // SanitizeDeviceIdForDNS kept for backward compatibility in DoT/DoQ path using shared deviceid lib.
 func SanitizeDeviceIdForDNS(deviceId string) string { return deviceid.SanitizeForDNS(deviceId) }
 
-// isValidProfileID checks if a string could be a valid profile ID
+// isValidProfileID checks if a string could be a valid profile ID: at least
+// profileid.Length ASCII letters and digits. Mixed case is accepted because
+// DNS names compare case-insensitively (RFC 4343).
 func isValidProfileID(s string) bool {
-	// Profile IDs are typically UUIDs or alphanumeric strings
-	if len(s) < profileIDMinLength {
+	if len(s) < profileid.Length {
 		return false
 	}
 	for _, r := range s {
