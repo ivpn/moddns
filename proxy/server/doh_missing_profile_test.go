@@ -38,6 +38,8 @@ func TestServeDNS_DoHWithoutProfileGetsHTTPError(t *testing.T) {
 	}{
 		{name: "no profile in path", path: "/dns-query", want: http.StatusBadRequest},
 		{name: "invalid profile ID", path: "/dns-query/not_a_valid_id!", want: http.StatusBadRequest},
+		{name: "profile ID shorter than the minimum", path: "/dns-query/abc", want: http.StatusBadRequest},
+		{name: "profile ID with a hyphen", path: "/dns-query/abcde-fghijk", want: http.StatusBadRequest},
 		{name: "too many path segments", path: "/dns-query/validprofile1/dev/extra", want: http.StatusBadRequest},
 		{name: "path other than /dns-query", path: "/foo", want: http.StatusNotFound},
 		// Q15: DoH takes the profile from the path only, never from Host.

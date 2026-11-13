@@ -170,6 +170,9 @@ func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId str
 	if err != nil {
 		return "", "", fmt.Errorf("clientid check: %w", err)
 	}
+	if !isValidProfileID(clientID) {
+		return "", "", fmt.Errorf("clientid check: invalid profile id %q", clientID)
+	}
 
 	return strings.ToLower(clientID), deviceId, nil
 }
