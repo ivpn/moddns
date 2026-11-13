@@ -128,6 +128,32 @@ func NewProfileService(serverCfg config.ServerConfig, serviceCfg config.ServiceC
 	}
 }
 
+// profileIdAttempts bounds the redraws in insertWithNewProfileId; a clash is
+// already rare at the generated ID length.
+const profileIdAttempts = 5
+
+// insertWithNewProfileId gives profile (and its settings) a generated profile ID
+// and inserts it, drawing again when the ID is taken. The unique index on
+// profile_id decides, so concurrent API instances cannot both claim an ID.
+func (p *ProfileService) insertWithNewProfileId(ctx context.Context, profile *model.Profile) error {
+	for range profileIdAttempts {
+		profileId, err := p.IdGen.Generate()
+		if err != nil {
+			return err
+		}
+		profile.ProfileId = profileId
+		if profile.Settings != nil {
+			profile.Settings.ProfileId = profileId
+		}
+		err = p.ProfileRepository.CreateProfile(ctx, profile)
+		if errors.Is(err, dbErrors.ErrProfileIdAlreadyExists) {
+			continue
+		}
+		return err
+	}
+	return ErrProfileIdUnavailable
+}
+
 // Create creates a new profile
 func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId string) (*model.Profile, error) {
 	name = apivalidator.NormalizeName(name)
@@ -137,17 +163,6 @@ func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId stri
 	if !apivalidator.IsSafeName(name) {
 		return nil, ErrProfileNameInvalid
 	}
-	profile, err := model.NewProfile(p.IdGen, name, accountId)
-	if err != nil {
-		return nil, err
-	}
-
-	// create default settings associated with the profile ID
-	settings, err := p.createSettings(ctx, profile.ProfileId)
-	if err != nil {
-		return nil, err
-	}
-	profile.Settings = settings
 
 	profiles, err := p.ProfileRepository.GetProfilesByAccountId(ctx, accountId)
 	if err != nil {
@@ -166,8 +181,29 @@ func (p *ProfileService) CreateProfile(ctx context.Context, name, accountId stri
 		}
 	}
 
+	settings, err := p.defaultSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	profile := model.NewProfile("", name, accountId)
+	profile.Settings = settings
+
 	// TODO: update mongodb account document with new profile ID
-	if err := p.ProfileRepository.CreateProfile(ctx, profile); err != nil {
+	if err := p.insertWithNewProfileId(ctx, profile); err != nil {
+		return nil, err
+	}
+
+	// The proxy reads settings from the cache only, so a profile whose settings
+	// could not be cached is removed rather than left unreachable. The write is
+	// not atomic, so any keys it did store are removed too.
+	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings); err != nil {
+		cleanupCtx := context.WithoutCancel(ctx)
+		if delErr := p.Cache.DeleteProfileSettings(cleanupCtx, profile.ProfileId); delErr != nil {
+			log.Ctx(ctx).Error().Err(delErr).Msg("Failed to remove cached settings after settings cache write failed")
+		}
+		if delErr := p.ProfileRepository.DeleteProfileById(cleanupCtx, profile.ProfileId); delErr != nil {
+			log.Ctx(ctx).Error().Err(delErr).Msg("Failed to remove profile after settings cache write failed")
+		}
 		return nil, err
 	}
 
