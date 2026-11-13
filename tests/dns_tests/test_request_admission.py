@@ -63,3 +63,29 @@ class TestRequestAdmission:
         resp = message.from_wire(r.content)
         assert resp.rcode() == FORMERR, f"expected FORMERR, got {resp.rcode()!r}"
         assert resp.id == 0x002A, "response ID must match the request"
+
+    @pytest.mark.parametrize(
+        "profile_path",
+        ["", "abc", "abcde-fghijk", "zzzzzzzzzzzz"],
+        ids=["no-profile", "too-short", "non-alphanumeric", "unknown-profile"],
+    )
+    def test_doh_without_usable_profile_answers_http_400(self, profile_path):
+        """A DoH request whose path carries no usable or no existing profile ID
+        gets HTTP 400 with no DNS message, not an empty 200: a 2xx is reserved
+        for a valid DNS response (RFC 8484 §4.2.1). Missing, malformed and
+        unknown IDs get the same status.
+
+        Behaviour table #Q5, #Q6, #Q11 (proxy-request-admission-behaviour.md).
+        """
+        base = get_settings().DOH_ENDPOINT.rstrip("/")
+        url = f"{base}/{profile_path}" if profile_path else base
+        wire = message.make_query("example.com", "A").to_wire()
+
+        r = httpx.post(
+            url,
+            content=wire,
+            headers={"Content-Type": "application/dns-message"},
+            timeout=10,
+        )
+        assert r.status_code == 400, f"expected HTTP 400, got HTTP {r.status_code}"
+        assert r.headers.get("content-type", "") != "application/dns-message"
