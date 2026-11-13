@@ -411,7 +411,7 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 // @Description Get list of passkeys for authenticated user
 // @Tags Authentication
 // @Produce json
-// @Success 200 {array} model.Credential
+// @Success 200 {array} responses.Passkey
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkeys [get]
 func (s *APIServer) getPasskeys() fiber.Handler {
@@ -433,7 +433,7 @@ func (s *APIServer) getPasskeys() fiber.Handler {
 			return HandleError(c, err, "Failed to get passkeys")
 		}
 
-		return c.Status(200).JSON(passkeys)
+		return c.Status(200).JSON(responses.NewPasskeys(passkeys))
 	}
 	return handler
 }

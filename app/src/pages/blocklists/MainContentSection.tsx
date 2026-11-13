@@ -33,6 +33,7 @@ import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -482,6 +483,7 @@ export default function MainContentSection(): JSX.Element {
         <div className="flex flex-col w-full items-start gap-6 p-6 md:p-8">
             <BetaEndingBanner />
             <LimitedAccessBanner />
+            <PasskeyVerificationBanner />
             <div title={isRestricted ? "Feature unavailable in limited access mode" : undefined} className={`w-full min-w-0${isRestricted ? ' cursor-not-allowed' : ''}`}>
             <Tabs value={activeTab} onValueChange={setActiveTab} className={`w-full${isRestricted ? ' opacity-50 pointer-events-none' : ''}`}>
                 <div className="w-full border-b border-[var(--tailwind-colors-slate-700)]">

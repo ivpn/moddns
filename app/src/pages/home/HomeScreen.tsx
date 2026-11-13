@@ -1,5 +1,6 @@
 import Home from "@/pages/home/Home";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { JSX } from "react";
 
@@ -8,6 +9,7 @@ export default function HomeScreen(): JSX.Element {
         <div className="flex flex-col w-full gap-6 p-8 bg-[var(--shadcn-ui-app-background)]">
             <BetaEndingBanner />
             <LimitedAccessBanner />
+            <PasskeyVerificationBanner />
             <Home />
         </div>
     );

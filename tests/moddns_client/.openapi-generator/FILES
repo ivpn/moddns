@@ -42,7 +42,6 @@ moddns/models/model_account.py
 moddns/models/model_account_update.py
 moddns/models/model_advanced.py
 moddns/models/model_blocklist.py
-moddns/models/model_credential.py
 moddns/models/model_custom_rule.py
 moddns/models/model_custom_rule_group.py
 moddns/models/model_custom_rule_groups.py
@@ -138,6 +137,7 @@ moddns/models/responses_custom_rule_batch_created.py
 moddns/models/responses_custom_rule_batch_skipped.py
 moddns/models/responses_deletion_code_response.py
 moddns/models/responses_dns_stamp_response.py
+moddns/models/responses_passkey.py
 moddns/models/responses_registration_success_response.py
 moddns/models/responses_short_link_response.py
 moddns/models/responses_web_authn_reauth_finish_response.py

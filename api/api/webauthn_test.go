@@ -562,3 +562,32 @@ func (suite *WebAuthnAPITestSuite) TestDeleteLastPasskeyWithoutPasswordIsRefused
 	suite.mockDB.AssertNotCalled(suite.T(), "DeleteCredentialByID", mock.Anything, mock.Anything, mock.Anything)
 	suite.mockDB.AssertExpectations(suite.T())
 }
+
+// The passkey list carries, per credential, whether its latest ceremony verified the user,
+// and nothing of the stored key material.
+// specRef: F7
+func (suite *WebAuthnAPITestSuite) TestGetPasskeysReportsUserVerification() {
+	server := suite.createServer()
+	accountID := primitive.NewObjectID()
+	created := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	verified := model.Credential{ID: primitive.NewObjectID(), CredentialID: []byte{0x01}, PublicKey: []byte{0xAA}, AccountID: accountID, CreatedAt: created,
+		Flags: model.CredentialFlags{UserPresent: true, UserVerified: true}}
+	unverified := model.Credential{ID: primitive.NewObjectID(), CredentialID: []byte{0x02}, PublicKey: []byte{0xBB}, AccountID: accountID, CreatedAt: created,
+		Flags: model.CredentialFlags{UserPresent: true}}
+	suite.mockDB.On("GetCredentials", mock.Anything, accountID).Return([]model.Credential{verified, unverified}, nil).Once()
+
+	handler := server.getPasskeys()
+	app := fiber.New()
+	app.Get("/", func(c *fiber.Ctx) error {
+		c.Locals(auth.ACCOUNT_ID, accountID.Hex())
+		return handler(c)
+	})
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/", nil))
+	suite.Require().NoError(err)
+	suite.Equal(200, resp.StatusCode)
+	suite.JSONEq(`[
+		{"id": "`+verified.ID.Hex()+`", "created_at": "2026-10-01T12:00:00Z", "user_verified": true},
+		{"id": "`+unverified.ID.Hex()+`", "created_at": "2026-10-01T12:00:00Z", "user_verified": false}
+	]`, string(readResponseBody(suite.T(), resp)))
+}

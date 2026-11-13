@@ -4720,16 +4720,16 @@ func (_c *Db_UpdateAccount_Call) RunAndReturn(run func(ctx context.Context, acco
 }
 
 // UpdateCredential provides a mock function for the type Db
-func (_mock *Db) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
-	ret := _mock.Called(ctx, credentialID, accountID, signCount)
+func (_mock *Db) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error {
+	ret := _mock.Called(ctx, credentialID, accountID, signCount, flags)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCredential")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []byte, primitive.ObjectID, uint32) error); ok {
-		r0 = returnFunc(ctx, credentialID, accountID, signCount)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []byte, primitive.ObjectID, uint32, model.CredentialFlags) error); ok {
+		r0 = returnFunc(ctx, credentialID, accountID, signCount, flags)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4746,11 +4746,12 @@ type Db_UpdateCredential_Call struct {
 //   - credentialID []byte
 //   - accountID primitive.ObjectID
 //   - signCount uint32
-func (_e *Db_Expecter) UpdateCredential(ctx interface{}, credentialID interface{}, accountID interface{}, signCount interface{}) *Db_UpdateCredential_Call {
-	return &Db_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", ctx, credentialID, accountID, signCount)}
+//   - flags model.CredentialFlags
+func (_e *Db_Expecter) UpdateCredential(ctx interface{}, credentialID interface{}, accountID interface{}, signCount interface{}, flags interface{}) *Db_UpdateCredential_Call {
+	return &Db_UpdateCredential_Call{Call: _e.mock.On("UpdateCredential", ctx, credentialID, accountID, signCount, flags)}
 }
 
-func (_c *Db_UpdateCredential_Call) Run(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32)) *Db_UpdateCredential_Call {
+func (_c *Db_UpdateCredential_Call) Run(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags)) *Db_UpdateCredential_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4768,11 +4769,16 @@ func (_c *Db_UpdateCredential_Call) Run(run func(ctx context.Context, credential
 		if args[3] != nil {
 			arg3 = args[3].(uint32)
 		}
+		var arg4 model.CredentialFlags
+		if args[4] != nil {
+			arg4 = args[4].(model.CredentialFlags)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -4783,7 +4789,7 @@ func (_c *Db_UpdateCredential_Call) Return(err error) *Db_UpdateCredential_Call 
 	return _c
 }
 
-func (_c *Db_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error) *Db_UpdateCredential_Call {
+func (_c *Db_UpdateCredential_Call) RunAndReturn(run func(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error) *Db_UpdateCredential_Call {
 	_c.Call.Return(run)
 	return _c
 }

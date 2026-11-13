@@ -60,7 +60,6 @@ from moddns.models.model_account import ModelAccount
 from moddns.models.model_account_update import ModelAccountUpdate
 from moddns.models.model_advanced import ModelAdvanced
 from moddns.models.model_blocklist import ModelBlocklist
-from moddns.models.model_credential import ModelCredential
 from moddns.models.model_custom_rule import ModelCustomRule
 from moddns.models.model_custom_rule_group import ModelCustomRuleGroup
 from moddns.models.model_custom_rule_groups import ModelCustomRuleGroups
@@ -156,6 +155,7 @@ from moddns.models.responses_custom_rule_batch_created import ResponsesCustomRul
 from moddns.models.responses_custom_rule_batch_skipped import ResponsesCustomRuleBatchSkipped
 from moddns.models.responses_dns_stamp_response import ResponsesDNSStampResponse
 from moddns.models.responses_deletion_code_response import ResponsesDeletionCodeResponse
+from moddns.models.responses_passkey import ResponsesPasskey
 from moddns.models.responses_registration_success_response import ResponsesRegistrationSuccessResponse
 from moddns.models.responses_short_link_response import ResponsesShortLinkResponse
 from moddns.models.responses_web_authn_reauth_finish_response import ResponsesWebAuthnReauthFinishResponse

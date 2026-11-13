@@ -5,14 +5,16 @@
       "challenge": "<challenge>",
       "expires": "<expires>",
       "rpId": "test.local",
-      "userVerification": "",
+      "userVerification": "required",
       "user_id": "<account>"
     },
     "type": "add_passkey"
   },
   "add_passkey_options": {
     "publicKey": {
-      "authenticatorSelection": {},
+      "authenticatorSelection": {
+        "userVerification": "required"
+      },
       "challenge": "<challenge>",
       "excludeCredentials": [
         {
@@ -140,7 +142,7 @@
       "challenge": "<challenge>",
       "expires": "<expires>",
       "rpId": "test.local",
-      "userVerification": "",
+      "userVerification": "required",
       "user_id": "<account>"
     },
     "sub_id": "sub-1",
@@ -148,7 +150,9 @@
   },
   "registration_options": {
     "publicKey": {
-      "authenticatorSelection": {},
+      "authenticatorSelection": {
+        "userVerification": "required"
+      },
       "challenge": "<challenge>",
       "pubKeyCredParams": [
         {

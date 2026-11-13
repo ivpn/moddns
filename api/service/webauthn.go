@@ -216,13 +216,13 @@ func (s *Service) FinishLogin(ctx context.Context, tmpToken string, httpReq *htt
 	return account, "", purpose, nil
 }
 
-// recordAssertion stores the new signature counter of the credential a verified
-// login or reauth asserted. It returns err unchanged when the finish call failed.
+// recordAssertion stores the new signature counter and the flags of the credential a
+// verified login or reauth asserted. It returns err unchanged when the finish call failed.
 func (s *Service) recordAssertion(ctx context.Context, account *model.Account, result *webauthn.Result, err error) error {
 	if err != nil {
 		return err
 	}
-	if err := s.Store.UpdateCredential(ctx, result.CredentialID, account.ID, result.SignCount); err != nil {
+	if err := s.Store.UpdateCredential(ctx, result.CredentialID, account.ID, result.SignCount, result.Flags); err != nil {
 		return fmt.Errorf("failed to update credential: %w", err)
 	}
 	return nil

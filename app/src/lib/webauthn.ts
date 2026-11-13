@@ -76,7 +76,7 @@ export async function registerPasskey(email: string, subid: string): Promise<voi
     }
 
     if (webauthnErr.name === 'NotAllowedError') {
-      throw new Error("Passkey registration was cancelled or timed out");
+      throw new Error("Passkey registration was cancelled or timed out. If you use a security key, it needs a PIN: set one in your browser's security key settings.");
     } else if (webauthnErr.name === 'InvalidStateError') {
       throw new Error("A passkey is already registered for this account on this device");
     } else if (webauthnErr.name === 'NotSupportedError') {
@@ -260,7 +260,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     if (webauthnErr.name === 'NotAllowedError') {
-      throw new Error("Passkey addition was cancelled or timed out");
+      throw new Error("Passkey addition was cancelled or timed out. If you use a security key, it needs a PIN: set one in your browser's security key settings.");
     } else if (webauthnErr.name === 'InvalidStateError') {
       throw new Error(ALREADY_HOLDS_PASSKEY);
     } else if (webauthnErr.name === 'NotSupportedError') {

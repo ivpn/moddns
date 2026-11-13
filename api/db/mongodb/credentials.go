@@ -42,8 +42,8 @@ func (r *CredentialRepository) SaveCredential(ctx context.Context, credential *m
 	return nil
 }
 
-// UpdateCredential updates an existing WebAuthn credential
-func (r *CredentialRepository) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error {
+// UpdateCredential stores the signature counter and flags of the credential's latest assertion
+func (r *CredentialRepository) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error {
 
 	filter := bson.M{
 		"credential_id": credentialID,
@@ -53,6 +53,7 @@ func (r *CredentialRepository) UpdateCredential(ctx context.Context, credentialI
 	update := bson.M{
 		"$set": bson.M{
 			"authenticator.sign_count": signCount,
+			"flags":                    flags,
 			"updated_at":               time.Now(),
 		},
 	}

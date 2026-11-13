@@ -5,7 +5,7 @@ Every browser response is produced by a software authenticator
 party; no credential or token is written to the database. MongoDB and Redis are
 only read, to check what the API stored.
 
-tableRef: api-endpoint-behaviour #A4, #A5, #B3a, #F1-#F13
+tableRef: api-endpoint-behaviour #A4, #A5, #B3a, #F1-#F15
 """
 
 import base64
@@ -32,6 +32,7 @@ from libs.passkeys import (
     delete_passkey,
     delete_passkey_account,
     export_profiles,
+    list_passkeys,
     login,
     login_begin,
     login_finish,
@@ -493,17 +494,88 @@ def test_passkey_only_account_sets_a_first_password(passkey_user: PasskeyUser):
 
 
 # ----------------------------------------------------------------------
-# User verification (current policy: preferred)
+# User verification: required to create a passkey; sign-in still accepts UV=0
+# until the announced date and stores it
 # ----------------------------------------------------------------------
-def test_user_verification_is_preferred():
-    """Ceremonies use userVerification "preferred" (W3C WebAuthn L3 §5.8.6): a credential
-    and an assertion with UV=0 are accepted.
+def test_signup_requires_user_verification():
+    """Registration options require UV and a credential created without it is refused
+    (W3C WebAuthn L3 §5.8.6, §7.1 step 16).
 
-    tableRef: api-endpoint-behaviour #F2, #A5
+    tableRef: api-endpoint-behaviour #F1, #F2, #F14
     """
-    user = signup(new_authenticator(user_verified=False))
+    authenticator = new_authenticator(user_verified=False)
+    sub_id, pa_set_cookie = create_temp_subscription()
+    pa_cookie = cookie_value(pa_set_cookie, PA_SESSION_COOKIE)
+    begin = register_begin(random_email("passkey"), sub_id, pa_cookie)
+    assert begin.status == 200
+    assert begin.body["publicKey"]["authenticatorSelection"]["userVerification"] == "required"
+
+    credential_id, credential = authenticator.create(begin.body)
+    finish = register_finish(begin.cookie(TEMP_COOKIE), pa_cookie, credential)
+    assert finish.status == 400, finish.body
+    assert finish.body["error"] == "Unable to complete registration. Please try again."
+    assert finish.cookie(AUTH_COOKIE) is None
+    assert stored_credential(credential_id) is None
+
+
+def test_add_passkey_requires_user_verification(passkey_user: PasskeyUser):
+    """tableRef: api-endpoint-behaviour #F3, #F4, #F14"""
+    begin = add_passkey_begin(passkey_user.session_cookie, reauth_token=reauth_token(passkey_user, "passkey_add"))
+    assert begin.status == 200, begin.body
+    assert begin.body["publicKey"]["authenticatorSelection"]["userVerification"] == "required"
+
+    credential_id, credential = new_authenticator(user_verified=False).create(begin.body)
+    finish = add_passkey_finish(passkey_user.session_cookie, begin.cookie(TEMP_COOKIE), credential)
+    assert finish.status == 400, finish.body
+    assert finish.body["error"] == "Unable to add passkey. Please try again."
+    assert stored_credential(credential_id) is None
+
+
+def test_login_stores_user_verification(passkey_user: PasskeyUser):
+    """Login keeps accepting an assertion without UV and stores the flag of the latest
+    assertion, which the passkey list reports.
+
+    tableRef: api-endpoint-behaviour #A4, #A5, #F7, #F15
+    """
+    begin = login_begin(passkey_user.email)
+    assert "userVerification" not in begin.body["publicKey"]
+
+    passkey_user.authenticator.user_verified = False
     try:
-        assert stored_credential(user.credential_id)["flags"]["user_verified"] is False
-        assert login(user).status == 201
+        resp = login(passkey_user)
+        assert resp.status == 201, resp.body
+        assert stored_credential(passkey_user.credential_id)["flags"]["user_verified"] is False
+        assert list_passkeys(passkey_user.session_cookie).body[0]["user_verified"] is False
     finally:
-        delete_passkey_account(user)
+        passkey_user.authenticator.user_verified = True
+
+    resp = login(passkey_user)
+    assert resp.status == 201, resp.body
+    assert stored_credential(passkey_user.credential_id)["flags"]["user_verified"] is True
+    assert list_passkeys(passkey_user.session_cookie).body[0]["user_verified"] is True
+
+
+def test_reauth_stores_user_verification(passkey_user: PasskeyUser):
+    """tableRef: api-endpoint-behaviour #F5, #F6, #F7, #F14, #F15"""
+    begin = reauth_begin(passkey_user.session_cookie, "email_change")
+    assert begin.status == 200, begin.body
+    assert "userVerification" not in begin.body["publicKey"]
+
+    passkey_user.authenticator.user_verified = False
+    try:
+        resp = reauth(passkey_user, "email_change")
+    finally:
+        passkey_user.authenticator.user_verified = True
+    assert resp.status == 201, resp.body
+    assert stored_credential(passkey_user.credential_id)["flags"]["user_verified"] is False
+    assert list_passkeys(passkey_user.session_cookie).body[0]["user_verified"] is False
+
+
+def test_passkey_list_shows_no_key_material(passkey_user: PasskeyUser):
+    """tableRef: api-endpoint-behaviour #F7"""
+    resp = list_passkeys(passkey_user.session_cookie)
+    assert resp.status == 200
+    assert len(resp.body) == 1
+    assert set(resp.body[0]) == {"id", "created_at", "user_verified"}
+    assert resp.body[0]["id"] == str(stored_credential(passkey_user.credential_id)["_id"])
+    assert resp.body[0]["user_verified"] is True

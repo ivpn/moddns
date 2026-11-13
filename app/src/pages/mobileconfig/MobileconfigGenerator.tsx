@@ -16,6 +16,7 @@ import { RequestsAdvancedOptionsReqEncryptionTypeEnum } from "@/api/client/api";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { JSX } from "react";
 
@@ -242,6 +243,7 @@ export default function MobileconfigGenerator(): JSX.Element {
             <div className="max-w-[840px] xl:max-w-[760px] 2xl:max-w-[700px] mx-auto space-y-6">
                 <BetaEndingBanner />
                 <LimitedAccessBanner />
+                <PasskeyVerificationBanner />
                 <div className="flex justify-center mb-6">
                     <Button
                         onClick={handleBack}

@@ -8,6 +8,7 @@ import CustomRulesSearch from "@/pages/custom_rules/Search";
 import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
 import CustomRulesAccountLimitBanner from "@/pages/custom_rules/CustomRulesAccountLimitBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import api from "@/api/api";
@@ -428,6 +429,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
         <div className="flex flex-col flex-1 w-full h-full min-h-screen md:min-h-0 items-start gap-6 p-6 pt-8 md:pt-8 md:p-8 overflow-visible">
             <BetaEndingBanner />
             <LimitedAccessBanner />
+            <PasskeyVerificationBanner />
             <CustomRulesAccountLimitBanner />
             <div className="flex w-full h-full flex-1 items-start relative min-h-0">
                 <div className="flex flex-col flex-1 h-full w-full min-h-0">

@@ -1,6 +1,7 @@
 import { type JSX } from "react";
 import ProfileManagementSection from "@/pages/settings/ProfileManagementSection";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
+import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { ModelProfile } from "@/api/client/api";
 
@@ -13,6 +14,7 @@ export default function FrameScreen({ profiles }: SettingsProps): JSX.Element {
         <div className="flex flex-col w-full gap-6 p-4 pt-8 sm:p-8 max-w-full overflow-x-hidden">
             <BetaEndingBanner />
             <LimitedAccessBanner />
+            <PasskeyVerificationBanner />
 
             {/* Page Description */}
             <section className="w-full">
