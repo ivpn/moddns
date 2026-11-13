@@ -11,7 +11,7 @@ import httpx
 import pytest
 from dns import message
 from dns.rcode import FORMERR, NOTIMP
-from libs.dns_lib import DNSLib
+from libs.dns_lib import DNSLib, DoHHTTPError
 from libs.settings import get_settings
 
 # Admission responses are produced before profile handling, so a bogus,
@@ -89,3 +89,14 @@ class TestRequestAdmission:
         )
         assert r.status_code == 400, f"expected HTTP 400, got HTTP {r.status_code}"
         assert r.headers.get("content-type", "") != "application/dns-message"
+
+    @pytest.mark.asyncio
+    async def test_doh_client_reports_http_status_for_unknown_profile(self):
+        """The shared DoH client surfaces the 400 as DoHHTTPError, which the
+        replication-wait helpers rely on to tell "not ready yet" apart.
+
+        Behaviour table #Q6 (proxy-request-admission-behaviour.md).
+        """
+        with pytest.raises(DoHHTTPError) as exc:
+            await _dns.send_doh_request("zzzzzzzzzzzz", "example.com", "A")
+        assert exc.value.status_code == 400
