@@ -18,7 +18,7 @@ import (
 )
 
 // profileIDMinLength holds the minimum length considered valid for profile IDs.
-// Configurable via PROFILE_ID_MIN_LENGTH env in both API and proxy; default 10.
+// Configurable via PROFILE_ID_MIN_LENGTH; default 10, the length of IDs the API issues.
 var profileIDMinLength = 10
 
 // ValidateClientID returns an error if id is not a valid ClientID.
