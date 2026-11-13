@@ -31,6 +31,12 @@ type ServerMetrics struct {
 	upstreamDuration     *prometheus.HistogramVec
 	blocked              *prometheus.CounterVec
 	filterStageErrors    *prometheus.CounterVec
+	dohRequests          *prometheus.CounterVec
+	doh3ConnRejected     *prometheus.CounterVec
+	doh3Busy             prometheus.Counter
+	// doh3ListenerUp has no labels; a vec so the series exists only once a
+	// DoH3 listener reports.
+	doh3ListenerUp *prometheus.GaugeVec
 }
 
 // NewServerMetrics creates and registers all server-level Prometheus collectors.
@@ -72,6 +78,22 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 			Name: "proxy_dns_filter_stage_errors_total",
 			Help: "Settings-store read failures by pipeline phase and stage; each one answers SERVFAIL.",
 		}, []string{"phase", "stage"}),
+		dohRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_doh_requests_total",
+			Help: "DoH requests by the HTTP version the proxy received (behind a reverse proxy, that hop's version; 3 = direct HTTP/3).",
+		}, []string{"http_version"}),
+		doh3ConnRejected: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "proxy_doh3_connections_rejected_total",
+			Help: "HTTP/3 connections refused by the listener caps, by reason: total, source, unverified.",
+		}, []string{"reason"}),
+		doh3Busy: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "proxy_doh3_requests_busy_total",
+			Help: "HTTP/3 requests answered 503 because no handler slot (MAX_GOROUTINES) freed up before the deadline.",
+		}),
+		doh3ListenerUp: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "proxy_doh3_listener_up",
+			Help: "1 when the DoH over HTTP/3 listener is serving, 0 when it failed to start or stopped serving; absent when DOH_HTTP3_ENABLED is off.",
+		}, nil),
 	}
 	reg.MustRegister(
 		m.queries,
@@ -82,6 +104,10 @@ func NewServerMetrics(reg prometheus.Registerer) *ServerMetrics {
 		m.upstreamDuration,
 		m.blocked,
 		m.filterStageErrors,
+		m.dohRequests,
+		m.doh3ConnRejected,
+		m.doh3Busy,
+		m.doh3ListenerUp,
 	)
 	return m
 }
@@ -116,4 +142,24 @@ func (m *ServerMetrics) RecordBlocked(phase string) {
 
 func (m *ServerMetrics) RecordFilterStageError(phase, stage string) {
 	m.filterStageErrors.WithLabelValues(phase, stage).Inc()
+}
+
+func (m *ServerMetrics) RecordDoHRequest(httpVersion string) {
+	m.dohRequests.WithLabelValues(httpVersion).Inc()
+}
+
+func (m *ServerMetrics) RecordDoH3ConnRejected(reason string) {
+	m.doh3ConnRejected.WithLabelValues(reason).Inc()
+}
+
+func (m *ServerMetrics) RecordDoH3Busy() {
+	m.doh3Busy.Inc()
+}
+
+func (m *ServerMetrics) SetDoH3ListenerUp(up bool) {
+	v := 0.0
+	if up {
+		v = 1
+	}
+	m.doh3ListenerUp.WithLabelValues().Set(v)
 }

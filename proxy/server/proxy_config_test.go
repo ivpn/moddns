@@ -48,27 +48,36 @@ func writeSelfSignedCert(t *testing.T) (certPath, keyPath string) {
 	return certPath, keyPath
 }
 
-// specRef: proxy-request-admission-behaviour.md #Q2 #Q10
-func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
+// newTestServerConfig is the minimal config newProxyConfig accepts, with the
+// given DoH settings.
+func newTestServerConfig(t *testing.T, doh *config.DoHConfig) *config.Config {
+	t.Helper()
 	certPath, keyPath := writeSelfSignedCert(t)
 
-	s := &Server{
-		Upstreams: map[string]*proxy.CustomUpstreamConfig{},
-		edeStore:  &dnssec.EDEStore{},
-	}
-	serverConfig := &config.Config{
-		Server: &config.ServerConfig{MaxGoroutines: 1234},
+	return &config.Config{
+		Server: &config.ServerConfig{},
 		Upstream: &config.UpstreamConfig{
 			Upstreams: map[string]string{"test": "127.0.0.1:5399"},
 			Default:   "test",
 		},
-		DNSCache: &config.DNSCacheConfig{},
-		TLS:      &config.TLSConfig{CertPaths: []string{certPath}, KeyPaths: []string{keyPath}},
-		PlainDNS: &config.PlainDNSConfig{},
-		DoH:      &config.DoHConfig{ListenAddr: 443},
-		DoT:      &config.DoTConfig{},
-		DoQ:      &config.DoQConfig{},
+		DNSCache:       &config.DNSCacheConfig{},
+		TLS:            &config.TLSConfig{CertPaths: []string{certPath}, KeyPaths: []string{keyPath}},
+		PlainDNS:       &config.PlainDNSConfig{},
+		DoH:            doh,
+		DoT:            &config.DoTConfig{},
+		DoQ:            &config.DoQConfig{},
+		TrustedProxies: []string{"10.5.0.0/16"},
 	}
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q2 #Q10
+func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
+	s := &Server{
+		Upstreams: map[string]*proxy.CustomUpstreamConfig{},
+		edeStore:  &dnssec.EDEStore{},
+	}
+	serverConfig := newTestServerConfig(t, &config.DoHConfig{ListenAddr: 443})
+	serverConfig.Server.MaxGoroutines = 1234
 
 	conf, err := s.newProxyConfig(serverConfig)
 	require.NoError(t, err)
@@ -88,25 +97,11 @@ func TestNewProxyConfig_ConcurrencyAndAnyLimits(t *testing.T) {
 
 // specRef: proxy-request-admission-behaviour.md #Q10
 func TestNewProxyConfig_NoDoHListener(t *testing.T) {
-	certPath, keyPath := writeSelfSignedCert(t)
-
 	s := &Server{
 		Upstreams: map[string]*proxy.CustomUpstreamConfig{},
 		edeStore:  &dnssec.EDEStore{},
 	}
-	serverConfig := &config.Config{
-		Server: &config.ServerConfig{},
-		Upstream: &config.UpstreamConfig{
-			Upstreams: map[string]string{"test": "127.0.0.1:5399"},
-			Default:   "test",
-		},
-		DNSCache: &config.DNSCacheConfig{},
-		TLS:      &config.TLSConfig{CertPaths: []string{certPath}, KeyPaths: []string{keyPath}},
-		PlainDNS: &config.PlainDNSConfig{},
-		DoH:      &config.DoHConfig{},
-		DoT:      &config.DoTConfig{},
-		DoQ:      &config.DoQConfig{},
-	}
+	serverConfig := newTestServerConfig(t, &config.DoHConfig{})
 
 	conf, err := s.newProxyConfig(serverConfig)
 	require.NoError(t, err)

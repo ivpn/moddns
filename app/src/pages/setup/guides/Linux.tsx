@@ -106,6 +106,9 @@ const LinuxDnscryptProxyTab = ({ deps }: { deps: LinuxGuideDeps }) => {
                             <CodeBlock value={buildDnscryptProxyToml(deps.profileId, doh)} />
                         )}
                     </div>
+                    <p className="mt-2 text-xs">
+                        For DNS-over-HTTP/3, change the existing <code className="font-mono">http3 = false</code> line in the same file to <code className="font-mono">http3 = true</code>.
+                    </p>
                 </StepBlock>
                 <StepBlock number={3}>
                     Point your system resolver at dnscrypt-proxy's <code className="font-mono text-xs">listen_addresses</code>

@@ -133,6 +133,14 @@ describe('QueryLogCard whole-card expansion', () => {
         expect(screen.getByTestId('querylog-detail-timestamp')).toBeInTheDocument();
     });
 
+    test('DoH over HTTP/3 shows HTTPS in the row and HTTP/3 in the details', () => {
+        // tableRef: proxy-request-admission-behaviour #Q18
+        render(<QueryLogCard log={{ ...baseLog, protocol: 'doh3' }} />);
+        fireEvent.click(screen.getByTestId('querylog-card-toggle'));
+        expect(screen.getByText('HTTPS')).toBeInTheDocument();
+        expect(screen.getByTestId('querylog-detail-protocol')).toHaveTextContent('HTTPS (HTTP/3)');
+    });
+
     test('row with reasons renders the reasons block', () => {
         const log: ModelQueryLog = {
             ...baseLog,

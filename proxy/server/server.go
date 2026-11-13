@@ -48,6 +48,8 @@ type Server struct {
 	LoggerFactory        logging.FactoryInterface
 	RateLimiter          *ratelimit.RateLimiter
 	Metrics              Metrics
+	// doh3 serves DoH over HTTP/3 when DOH_HTTP3_ENABLED is set; nil otherwise.
+	doh3 *doh3Server
 }
 
 var _ proxy.Handler = (*Server)(nil)
@@ -194,6 +196,9 @@ func (s *Server) postResolve(ctx context.Context, reqCtx *requestcontext.Request
 // without a response.
 func (s *Server) prepareRequest(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSContext) (reqCtx *requestcontext.RequestContext, errResp *dns.Msg, err error) {
 	s.Metrics.RecordQuery(string(dctx.Proto))
+	if r := dctx.HTTPRequest; dctx.Proto == proxy.ProtoHTTPS && r != nil {
+		s.Metrics.RecordDoHRequest(httpVersion(r))
+	}
 
 	// Layer 1: per-IP rate limit (before any IO or profile extraction).
 	if !s.RateLimiter.CheckIP(dctx.Addr.Addr(), string(dctx.Proto)) {

@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import httpx
 from dns import message
-from dns.query import https as query_https, tls as query_tls, quic as query_quic
+from dns.query import HTTPVersion, https as query_https, tls as query_tls, quic as query_quic
 from dns.message import Message, ShortHeader
 
 # Sentinel answers the proxy returns for blocked domains.
@@ -125,6 +125,31 @@ class DNSLib:
                 bootstrap_address=self.bootstrap_address,
             )
             return r
+
+    async def send_doh3_request(
+        self, profile_id: str, domain: str, record_type: str, *, host: Optional[str] = None,
+    ) -> Message:
+        """Same query as ``send_doh_request``, over HTTP/3 (RFC 9114).
+
+        ``host`` replaces the URL host, and with it the TLS server name; the
+        connection still goes to the bootstrap address. Uses aioquic through
+        dnspython, which needs the development CA passed explicitly.
+        """
+        query = message.make_query(domain, record_type)
+        endpoint = urlparse(self.server)
+        netloc = endpoint.netloc
+        if host:
+            netloc = f"{host}:{endpoint.port}" if endpoint.port else host
+        url = f"https://{netloc}{endpoint.path}{profile_id}"
+        return await asyncio.to_thread(
+            query_https,
+            query,
+            url,
+            bootstrap_address=self.bootstrap_address,
+            verify=_dev_ca_path(),
+            http_version=HTTPVersion.HTTP_3,
+            timeout=5,
+        )
 
     async def send_doh_request_with_retry(
         self, profile_id: str, domain: str, record_type: str,

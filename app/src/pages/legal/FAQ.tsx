@@ -111,7 +111,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'October 23, 2026';
+const FAQ_LAST_UPDATED = 'November 13, 2026';
 
 const CODE_CLASS = "text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]";
 const TABLE_CELL_CLASS = "border border-[var(--shadcn-ui-app-border)] px-3 py-2 text-left align-top";
@@ -179,8 +179,9 @@ export default function FAQ(): JSX.Element {
         <div className="space-y-2">
             <ul className="list-disc pl-5 space-y-1">
                 <li>DNS-over-HTTPS (DoH) - Port 443</li>
+                <li>DNS-over-HTTP/3 (DoH3) - Port 443 (UDP), same address as DoH; supporting clients switch to it automatically</li>
                 <li>DNS-over-TLS (DoT) - Port 853</li>
-                <li>DNS-over-QUIC (DoQ) - Port 853</li>
+                <li>DNS-over-QUIC (DoQ) - Port 853 (UDP)</li>
             </ul>
             <p>We do not offer unencrypted DNS on port 53. The modDNS address answers encrypted queries only, so it cannot serve as a bootstrap or fallback resolver in AdGuard Home, routers or similar clients; use any plain resolver for that role.</p>
         </div>
@@ -714,7 +715,7 @@ export default function FAQ(): JSX.Element {
                             <br />
                             • DoT (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">laptop-8kqr1tbfco.{dnsDomain}</code>
                             <br />
-                            • DoQ (port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone-8kqr1tbfco.{dnsDomain}</code>
+                            • DoQ (UDP port 853): <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">phone-8kqr1tbfco.{dnsDomain}</code>
                             <br /><br />
                             Replace PROFILE_ID with your actual profile ID and DEVICE_ID with a name for your device. A single hyphen separates the device name from the profile ID. To put a space in the device name, write it as <code>--</code>: "Home Router" becomes <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">home--router-8kqr1tbfco.{dnsDomain}</code>.
                         </div>

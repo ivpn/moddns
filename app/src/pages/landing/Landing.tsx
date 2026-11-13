@@ -180,8 +180,9 @@ export default function Landing({ isAuthenticated = false }: LandingProps) {
                             <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>// DNS_PROTOCOLS</h3>
                             <ul>
                                 <li><span>DNS-over-HTTPS (DoH)</span><span>Port 443</span></li>
+                                <li><span>DNS-over-HTTP/3 (DoH3)</span><span>Port 443 (UDP)</span></li>
                                 <li><span>DNS-over-TLS (DoT)</span><span>Port 853</span></li>
-                                <li><span>DNS-over-QUIC (DoQ)</span><span>Port 853</span></li>
+                                <li><span>DNS-over-QUIC (DoQ)</span><span>Port 853 (UDP)</span></li>
                                 <li><span>DNSSEC</span><span>Enabled</span></li>
                             </ul>
                         </div>
