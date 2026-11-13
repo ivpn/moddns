@@ -95,6 +95,36 @@ func TestServeDNS_DoHDeletedProfileGetsBadRequest(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code, "same status as an unknown profile (Q6)")
 }
 
+// specRef: proxy-request-admission-behaviour.md #Q3
+func TestServeDNS_DoHIPRateLimitDropGetsTooManyRequests(t *testing.T) {
+	s := newRateLimitServer(config.RateLimitResponseDrop, config.RateLimitResponseRefuse)
+	first, _ := newDoHDNSContextWithWriter("/dns-query", "")
+	_, _, _ = s.prepareRequest(context.Background(), nil, first)
+
+	dctx, w := newDoHDNSContextWithWriter("/dns-query/validprofile1", "")
+	err := s.ServeDNS(context.Background(), nil, dctx)
+
+	require.ErrorIs(t, err, errRateLimitedIP)
+	assert.Nil(t, dctx.Res)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q8
+func TestServeDNS_DoHProfileRateLimitDropGetsTooManyRequests(t *testing.T) {
+	s := newProfileRateLimitServer(mocks.NewCache(t), config.RateLimitResponseDrop)
+	seedCachedProfile(s, "validprofile1")
+	first, _ := newDoHDNSContextWithWriter("/dns-query/validprofile1", "")
+	_, _, err := s.prepareRequest(context.Background(), nil, first)
+	require.NoError(t, err)
+
+	dctx, w := newDoHDNSContextWithWriter("/dns-query/validprofile1", "")
+	err = s.ServeDNS(context.Background(), nil, dctx)
+
+	require.ErrorIs(t, err, errRateLimitedProfile)
+	assert.Nil(t, dctx.Res)
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+}
+
 // specRef: proxy-request-admission-behaviour.md #Q5
 func TestServeDNS_DoTWithoutProfileIsDropped(t *testing.T) {
 	s := newProfileRateLimitServer(mocks.NewCache(t), config.RateLimitResponseRefuse)

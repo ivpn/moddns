@@ -150,12 +150,14 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 }
 
 // dohDropStatus is the HTTP status written for a dropped DoH request. HTTP
-// always sends a status, and a 2xx must carry a DNS message (RFC 8484 §4.2.1).
-// Drops are client-side faults, so 400 is the default.
+// always sends a status, and a 2xx must carry a DNS message (RFC 8484 §4.2.1);
+// 429 is RFC 6585 §4. Drops are client-side faults, so 400 is the default.
 func dohDropStatus(err error) int {
 	switch {
 	case errors.Is(err, errDoHPathNotFound):
 		return http.StatusNotFound
+	case errors.Is(err, errRateLimitedIP), errors.Is(err, errRateLimitedProfile):
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusBadRequest
 	}
