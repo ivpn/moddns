@@ -142,7 +142,7 @@ func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId str
 	}
 
 	if len(parts) == 0 || parts[0] != dohpath.Segment {
-		return "", "", fmt.Errorf("clientid check: invalid path %q", origPath)
+		return "", "", fmt.Errorf("clientid check: %w: %q", errDoHPathNotFound, origPath)
 	}
 
 	switch len(parts) {
