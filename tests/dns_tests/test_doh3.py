@@ -14,7 +14,6 @@ from urllib.parse import urlparse
 
 import moddns.api as api
 import pytest
-from dns.message import ShortHeader
 from dns.rdatatype import A
 
 from libs.constants import RESOLVABLE_TEST_DOMAIN
@@ -66,9 +65,9 @@ class TestDoH3:
 
     @pytest.mark.asyncio
     async def test_unknown_profile_gets_no_answer(self, user):
-        """specRef: Q6, Q16 - a profile that does not exist is dropped over HTTP/3 too:
-        the response carries no DNS message."""
-        with pytest.raises(ShortHeader):
+        """specRef: Q6, Q16 - a profile that does not exist gets HTTP 400 and no DNS
+        message over HTTP/3 too (RFC 8484 §4.2.1)."""
+        with pytest.raises(ValueError, match="status code 400"):
             await user.dns.send_doh3_request(UNKNOWN_PROFILE, RESOLVABLE_TEST_DOMAIN, "A")
 
     @pytest.mark.asyncio
@@ -78,7 +77,7 @@ class TestDoH3:
         pid = user.new_profile("doh3-sni")
         await user.wait_for(pid, RESOLVABLE_TEST_DOMAIN, A, is_resolved)
 
-        with pytest.raises(ShortHeader):
+        with pytest.raises(ValueError, match="status code 400"):
             await user.dns.send_doh3_request("", RESOLVABLE_TEST_DOMAIN, "A", host=f"{pid}.{DOH_DOMAIN}")
 
     @pytest.mark.asyncio

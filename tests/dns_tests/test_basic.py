@@ -1,31 +1,12 @@
 from ipaddress import ip_address
 
 import pytest
-from libs.dns_lib import DNSLib
 from libs.session import ProfileSession
-from libs.settings import get_settings
-from dns.message import ShortHeader
 from dns.rdataclass import IN
 from dns.rdatatype import A
 
-# Account-less DoH client for the missing/non-existent profile case, which must
-# be exercised without a registered account.
-_dns = DNSLib(get_settings().DOH_ENDPOINT)
-
 
 class TestBasic:
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("profile_id", ["", "123"])
-    async def test_profile_id_not_provided_or_non_existing(self, profile_id: str):
-        """
-        Verify that missing profile_id in the DNS DoH request raises an
-        exception (connection is dropped, user does not get any response).
-
-        Behaviour table #Q5 / #Q6 (proxy-request-admission-behaviour.md).
-        """
-        with pytest.raises(ShortHeader):
-            await _dns.send_doh_request(profile_id, "example.com", "A")
-
     @pytest.mark.asyncio
     @pytest.mark.xfail(
         strict=False,

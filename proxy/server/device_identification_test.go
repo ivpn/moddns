@@ -60,23 +60,23 @@ func testDoHDeviceIdentification(t *testing.T) {
 		expectedDevice string
 		expectedClient string
 	}{
-		{"/dns-query/abc123", "", "abc123"},
-		{"/dns-query/abc123/my-laptop", "my-laptop", "abc123"},
+		{"/dns-query/abc123defg", "", "abc123defg"},
+		{"/dns-query/abc123defg/my-laptop", "my-laptop", "abc123defg"},
 		// Apostrophe removed by normalization
-		{"/dns-query/abc123/John%27s%20iPhone", "Johns iPhone", "abc123"},
-		{"/dns-query/abc123/Home%20Router", "Home Router", "abc123"},
+		{"/dns-query/abc123defg/John%27s%20iPhone", "Johns iPhone", "abc123defg"},
+		{"/dns-query/abc123defg/Home%20Router", "Home Router", "abc123defg"},
 		// Previously truncated at 16; now length < 36 so remains whole
-		{"/dns-query/abc123/ThisDeviceNameIsWayTooLong", "ThisDeviceNameIsWayTooLong", "abc123"},
+		{"/dns-query/abc123defg/ThisDeviceNameIsWayTooLong", "ThisDeviceNameIsWayTooLong", "abc123defg"},
 		// Script tag & angle brackets removed. No truncation now (length 19 < 36)
-		{"/dns-query/abc123/%3Cscript%3Ealert(1)%3Cscript%3E", "scriptalert1script", "abc123"},
+		{"/dns-query/abc123defg/%3Cscript%3Ealert(1)%3Cscript%3E", "scriptalert1script", "abc123defg"},
 		// CRLF removed; length (18) < 36 so no truncation
-		{"/dns-query/abc123/DeviceName%0d%0aAnother", "DeviceNameAnother", "abc123"},
+		{"/dns-query/abc123defg/DeviceName%0d%0aAnother", "DeviceNameAnother", "abc123defg"},
 		// ANSI escape sequences stripped (ESC = %1b)
-		{"/dns-query/abc123/Name%1b[31mRED%1b[0m", "Name31mRED0m", "abc123"},
+		{"/dns-query/abc123defg/Name%1b[31mRED%1b[0m", "Name31mRED0m", "abc123defg"},
 		// Mixed special chars
-		{"/dns-query/abc123/@@@My__Device!!!", "MyDevice", "abc123"},
+		{"/dns-query/abc123defg/@@@My__Device!!!", "MyDevice", "abc123defg"},
 		// New truncation test >36 chars
-		{"/dns-query/abc123/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789EXTRA", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "abc123"},
+		{"/dns-query/abc123defg/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789EXTRA", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "abc123defg"},
 	}
 
 	for _, tc := range testCases {
