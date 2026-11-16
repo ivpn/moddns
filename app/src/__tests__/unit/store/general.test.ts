@@ -89,6 +89,7 @@ describe('app store persistence', () => {
         st.setActiveProfile(p);
         st.setAccount({ id: 'acc-1', email: 'a@example.com' } as never);
         st.setPasskeys([{ id: 'pk' } as never]);
+        st.setPasskeyBannerDismissedKey('pk');
         st.setSubscriptionStatus('active');
         st.setSubscriptionType('Managed');
         st.setSubscriptionDeletionScheduled(true);
@@ -108,6 +109,7 @@ describe('app store persistence', () => {
         expect(s.profiles).toEqual([]);
         expect(s.account).toBeNull();
         expect(s.passkeys).toEqual([]);
+        expect(s.passkeyBannerDismissedKey).toBeNull();
         expect(s.subscriptionStatus).toBeNull();
         expect(s.subscriptionType).toBeNull();
         expect(s.subscriptionDeletionScheduled).toBe(false);
@@ -124,5 +126,59 @@ describe('app store persistence', () => {
         expect(raw).not.toContain('mongo-1');
         expect(raw).not.toContain('work');
         expect(stored().activeProfileId).toBeNull();
+        expect(stored().passkeyBannerDismissedKey).toBeNull();
+    });
+
+    it('adopts settings another tab saved, except the selected profile', async () => {
+        const useAppStore = await loadStore();
+        const p = profile('mongo-1', 'dnscred1');
+        useAppStore.getState().setProfiles([p]);
+        useAppStore.getState().setActiveProfile(p);
+
+        const otherTab = { activeProfileId: 'mongo-2', passkeyBannerDismissedKey: 'p1', customRulesCollapsed: { 'mongo-1:denied': ['work'] } };
+        const newValue = JSON.stringify({ state: { ...stored(), ...otherTab }, version: 1 });
+        localStorage.setItem(STORAGE_KEY, newValue);
+        window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue, storageArea: localStorage }));
+
+        const s = useAppStore.getState();
+        expect(s.passkeyBannerDismissedKey).toBe('p1');
+        expect(s.customRulesCollapsed).toEqual({ 'mongo-1:denied': ['work'] });
+        expect(s.activeProfile?.id).toBe('mongo-1');
+        expect(s.activeProfileId).toBe('mongo-1');
+        // Adopting must not write back: the other tab's snapshot, profile id included, stays as saved.
+        expect(localStorage.getItem(STORAGE_KEY)).toBe(newValue);
+    });
+
+    it('restores the saved profile id on startup', async () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { activeProfileId: 'mongo-2' }, version: 1 }));
+
+        const useAppStore = await loadStore();
+
+        expect(useAppStore.getState().activeProfileId).toBe('mongo-2');
+    });
+
+    it('starts from defaults when reading browser storage throws', async () => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { blocklistsAlertDismissed: true }, version: 1 }));
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+        try {
+            const useAppStore = await loadStore();
+
+            expect(useAppStore.getState().blocklistsAlertDismissed).toBe(false);
+        } finally {
+            vi.restoreAllMocks();
+        }
+    });
+
+    it('keeps working in memory when browser storage throws', async () => {
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+        try {
+            const useAppStore = await loadStore();
+
+            expect(() => useAppStore.getState().setBlocklistsAlertDismissed(true)).not.toThrow();
+            expect(useAppStore.getState().blocklistsAlertDismissed).toBe(true);
+        } finally {
+            vi.restoreAllMocks();
+        }
     });
 });

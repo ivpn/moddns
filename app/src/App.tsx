@@ -63,7 +63,6 @@ import { toast } from "sonner";
 import { authToasts } from "@/lib/authToasts";
 import { subscribe, dispatch, type AppEvent } from '@/lib/eventBus';
 import { PageActionsProvider } from '@/lib/pageActions';
-import { clearPasskeyBannerDismissal } from '@/lib/passkeyVerification';
 
 // Desktop layout sizing constants
 const DESKTOP_CONTENT_BASE_WIDTH = 1200;
@@ -130,7 +129,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const performLogoutSideEffects = () => {
     localStorage.removeItem(AUTH_KEY);
     useAppStore.getState().resetAccountState();
-    clearPasskeyBannerDismissal();
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {

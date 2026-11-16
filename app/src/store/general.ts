@@ -1,7 +1,14 @@
 import type { ModelAccount, ResponsesPasskey, ModelProfile } from "@/api/client/api";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 import { useMemo } from "react";
+
+// Browser storage can be unavailable or full; the in-memory state then still applies for the session.
+const safeLocalStorage: StateStorage = {
+  getItem: (name) => { try { return localStorage.getItem(name); } catch { return null; } },
+  setItem: (name, value) => { try { localStorage.setItem(name, value); } catch { /* keep in-memory state */ } },
+  removeItem: (name) => { try { localStorage.removeItem(name); } catch { /* keep in-memory state */ } },
+};
 
 interface AppState {
   activeProfile: ModelProfile | null;
@@ -28,6 +35,9 @@ interface AppState {
   setLogsExpandHintDismissed: (dismissed: boolean) => void;
   passkeys: ResponsesPasskey[];
   setPasskeys: (passkeys: ResponsesPasskey[]) => void;
+  // Sorted ids of the unverified passkeys whose verification banner was closed; account-scoped.
+  passkeyBannerDismissedKey: string | null;
+  setPasskeyBannerDismissedKey: (key: string | null) => void;
   subscriptionStatus: string | null;
   setSubscriptionStatus: (status: string | null) => void;
   // Legacy pre-0.1.8 enum surfaced from the API; "Managed" gates the
@@ -46,13 +56,30 @@ interface AppState {
   markAnnouncementsSeen: () => void;
   customRulesCollapsed: Record<string, string[]>;
   setCustomRulesCollapsed: (key: string, collapsedNames: string[]) => void;
-  // Drops everything tied to the signed-in account; device preferences and
-  // dismissals stay.
+  // Drops everything tied to the signed-in account (`accountState`, including
+  // account-scoped dismissals); device preferences and other dismissals stay.
   resetAccountState: () => void;
   // Bumped by every reset; a background fetch that started under an older
   // epoch must not write its result.
   authEpoch: number;
 }
+
+const STORAGE_KEY = "moddns-storage";
+const STORAGE_VERSION = 1;
+
+// Persist only the selected profile id and lightweight UI state.
+const partialize = (state: AppState) => ({
+  activeProfileId: state.activeProfile?.id ?? state.activeProfileId,
+  verificationBannerDismissed: state.verificationBannerDismissed,
+  blocklistsAlertDismissed: state.blocklistsAlertDismissed,
+  customRulesAlertDismissed: state.customRulesAlertDismissed,
+  connectionStatusVisible: state.connectionStatusVisible,
+  announcementsLastSeenAt: state.announcementsLastSeenAt,
+  customRulesCollapsed: state.customRulesCollapsed,
+  logsExpandHintDismissed: state.logsExpandHintDismissed,
+  passkeyBannerDismissedKey: state.passkeyBannerDismissedKey,
+});
+type PersistedState = ReturnType<typeof partialize>;
 
 const accountState = {
   activeProfile: null,
@@ -60,6 +87,7 @@ const accountState = {
   profiles: [],
   account: null,
   passkeys: [],
+  passkeyBannerDismissedKey: null,
   subscriptionStatus: null,
   subscriptionType: null,
   subscriptionDeletionScheduled: false,
@@ -111,6 +139,7 @@ export const useAppStore = create<AppState>()(
       logsExpandHintDismissed: false,
       setLogsExpandHintDismissed: (dismissed) => set({ logsExpandHintDismissed: dismissed }),
       setPasskeys: (passkeys) => set({ passkeys }),
+      setPasskeyBannerDismissedKey: (key) => set({ passkeyBannerDismissedKey: key }),
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
       setSubscriptionType: (type) => set({ subscriptionType: type }),
       setSubscriptionDeletionScheduled: (scheduled) => set({ subscriptionDeletionScheduled: scheduled }),
@@ -122,8 +151,9 @@ export const useAppStore = create<AppState>()(
       resetAccountState: () => set((s) => ({ ...structuredClone(accountState), authEpoch: s.authEpoch + 1 })),
     }),
     {
-      name: "moddns-storage",
-      version: 1,
+      name: STORAGE_KEY,
+      storage: createJSONStorage(() => safeLocalStorage),
+      version: STORAGE_VERSION,
       // v0 payloads carry the whole active profile and collapse keys built from
       // the DNS credential; keep only the profile's internal id.
       migrate: (persisted, version) => {
@@ -134,20 +164,25 @@ export const useAppStore = create<AppState>()(
         }
         return state as AppState;
       },
-      // Persist only the selected profile id and lightweight UI state
-      partialize: (state) => ({
-        activeProfileId: state.activeProfile?.id ?? state.activeProfileId,
-        verificationBannerDismissed: state.verificationBannerDismissed,
-        blocklistsAlertDismissed: state.blocklistsAlertDismissed,
-        customRulesAlertDismissed: state.customRulesAlertDismissed,
-        connectionStatusVisible: state.connectionStatusVisible,
-        announcementsLastSeenAt: state.announcementsLastSeenAt,
-        customRulesCollapsed: state.customRulesCollapsed,
-        logsExpandHintDismissed: state.logsExpandHintDismissed,
-      }),
+      partialize,
+      // The selected profile is per tab: keep this tab's choice when another tab's state is adopted.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<PersistedState>;
+        return { ...current, ...saved, activeProfileId: current.activeProfileId ?? saved.activeProfileId ?? null };
+      },
     }
   )
 );
+
+// Persist writes the whole snapshot on every change and never re-reads it, so a tab that missed
+// another tab's change would overwrite it. Rehydrating applies the stored state without writing.
+if (typeof window !== "undefined") {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === STORAGE_KEY && event.newValue) void useAppStore.persist.rehydrate();
+  };
+  window.addEventListener("storage", onStorage);
+  import.meta.hot?.dispose(() => window.removeEventListener("storage", onStorage));
+}
 
 // Centralized profile data shape consumed by setup guides & UI
 export interface DerivedProfileData {

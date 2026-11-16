@@ -1,11 +1,8 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { useAppStore } from '@/store/general';
 import {
-    dismissPasskeyBanner,
     hasUnverifiedPasskey,
-    isPasskeyBannerDismissed,
     otherSignInMethod,
     passkeyVerificationDeadline,
     unverifiedPasskeysKey,
@@ -16,19 +13,18 @@ import {
 export default function PasskeyVerificationBanner() {
     const passkeys = useAppStore(s => s.passkeys);
     const authMethods = useAppStore(s => s.account?.auth_methods);
-    const [, setDismissed] = useState(0);
+    const dismissedKey = useAppStore(s => s.passkeyBannerDismissedKey);
+    const setDismissedKey = useAppStore(s => s.setPasskeyBannerDismissedKey);
     if (!hasUnverifiedPasskey(passkeys)) return null;
 
     const key = unverifiedPasskeysKey(passkeys);
     const fallback = key === null ? null : otherSignInMethod(authMethods, passkeys);
     // Some routes don't load the account; a dismissal stands there until the account shows otherwise.
     const accountLoaded = Array.isArray(authMethods);
-    if (key !== null && (fallback || !accountLoaded) && isPasskeyBannerDismissed(key)) return null;
+    if (key !== null && (fallback || !accountLoaded) && dismissedKey === key) return null;
 
     const close = () => {
-        if (key === null) return;
-        dismissPasskeyBanner(key);
-        setDismissed(n => n + 1);
+        if (key !== null) setDismissedKey(key);
     };
 
     return (

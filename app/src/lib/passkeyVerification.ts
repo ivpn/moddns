@@ -26,11 +26,6 @@ export function otherSignInMethod(
   return null;
 }
 
-export const PASSKEY_BANNER_DISMISSED_KEY = 'passkeyVerificationBannerDismissed';
-
-// Fallback for storage that is unavailable or throws: the dismissal lasts until the app reloads.
-let dismissedInMemory: string | null = null;
-
 /** The dismissal key for the current unverified passkeys: their ids, sorted. Null when one has
  *  no id, since the key could then match a different set. */
 export function unverifiedPasskeysKey(passkeys: ResponsesPasskey[] | null | undefined): string | null {
@@ -38,32 +33,4 @@ export function unverifiedPasskeysKey(passkeys: ResponsesPasskey[] | null | unde
   const ids = passkeys.filter(p => p.user_verified === false).map(p => p.id);
   if (ids.some(id => !id)) return null;
   return ids.sort().join(',');
-}
-
-export function isPasskeyBannerDismissed(key: string): boolean {
-  if (dismissedInMemory === key) return true;
-  try {
-    return localStorage.getItem(PASSKEY_BANNER_DISMISSED_KEY) === key;
-  } catch {
-    return false;
-  }
-}
-
-export function dismissPasskeyBanner(key: string): void {
-  dismissedInMemory = key;
-  try {
-    localStorage.setItem(PASSKEY_BANNER_DISMISSED_KEY, key);
-  } catch {
-    // the in-memory dismissal still applies
-  }
-}
-
-/** Forgets the dismissal; called on logout so it doesn't outlive the session on a shared browser. */
-export function clearPasskeyBannerDismissal(): void {
-  dismissedInMemory = null;
-  try {
-    localStorage.removeItem(PASSKEY_BANNER_DISMISSED_KEY);
-  } catch {
-    // nothing stored
-  }
 }
