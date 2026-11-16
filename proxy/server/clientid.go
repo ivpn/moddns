@@ -142,7 +142,7 @@ func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId str
 	}
 
 	if len(parts) == 0 || parts[0] != dohpath.Segment {
-		return "", "", fmt.Errorf("clientid check: invalid path %q", origPath)
+		return "", "", fmt.Errorf("clientid check: %w: %q", errDoHPathNotFound, origPath)
 	}
 
 	switch len(parts) {
@@ -169,6 +169,9 @@ func clientIDFromDNSContextHTTPS(pctx *proxy.DNSContext) (clientID, deviceId str
 	err = ValidateClientID(clientID)
 	if err != nil {
 		return "", "", fmt.Errorf("clientid check: %w", err)
+	}
+	if !isValidProfileID(clientID) {
+		return "", "", fmt.Errorf("clientid check: invalid profile id %q", clientID)
 	}
 
 	return strings.ToLower(clientID), deviceId, nil

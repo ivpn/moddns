@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +57,7 @@ var _ proxy.Handler = (*Server)(nil)
 
 var (
 	errProfileIdNotProvided = errors.New("profile_id not provided")
+	errDoHPathNotFound      = errors.New("doh path not found")
 	errProfileIdNotFound    = errors.New("profile_id not found")
 	errRateLimitedIP        = errors.New("rate limited by IP")
 	errRateLimitedProfile   = errors.New("rate limited by profile")
@@ -147,6 +149,20 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	return server, nil
 }
 
+// dohDropStatus is the HTTP status written for a dropped DoH request. HTTP
+// always sends a status, and a 2xx must carry a DNS message (RFC 8484 §4.2.1);
+// 429 is RFC 6585 §4. Drops are client-side faults, so 400 is the default.
+func dohDropStatus(err error) int {
+	switch {
+	case errors.Is(err, errDoHPathNotFound):
+		return http.StatusNotFound
+	case errors.Is(err, errRateLimitedIP), errors.Is(err, errRateLimitedProfile):
+		return http.StatusTooManyRequests
+	default:
+		return http.StatusBadRequest
+	}
+}
+
 // ServeDNS implements [proxy.Handler]; it is the single entry point for every
 // DNS request. The vendor proxy has already validated the question section
 // (exactly one question) and answered ANY queries before calling it.
@@ -155,7 +171,11 @@ func (s *Server) ServeDNS(ctx context.Context, p *proxy.Proxy, dctx *proxy.DNSCo
 
 	reqCtx, errResp, err := s.prepareRequest(ctx, p, dctx)
 	if err != nil {
-		// No response is sent for dropped requests.
+		if w := dctx.HTTPResponseWriter; w != nil {
+			code := dohDropStatus(err)
+			http.Error(w, http.StatusText(code), code)
+		}
+		// No DNS response is sent for dropped requests.
 		return fmt.Errorf("%w: %w", proxy.ErrDrop, err)
 	}
 	if errResp != nil {

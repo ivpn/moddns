@@ -1,6 +1,7 @@
 import asyncio
 import os
 import socket
+import ssl
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -8,8 +9,8 @@ from urllib.parse import urlparse
 
 import httpx
 from dns import message
-from dns.query import HTTPVersion, https as query_https, tls as query_tls, quic as query_quic
-from dns.message import Message, ShortHeader
+from dns.query import BadResponse, HTTPVersion, https as query_https, tls as query_tls, quic as query_quic
+from dns.message import Message
 
 # Sentinel answers the proxy returns for blocked domains.
 BLOCKED_IPV4 = "0.0.0.0"
@@ -21,6 +22,24 @@ BLOCKED_IPS = (BLOCKED_IPV4, BLOCKED_IPV6)
 # integration we substitute the loopback bind while preserving SNI so the
 # proxy's profile-id dispatcher still resolves the right tenant.
 LOCAL_PROXY_HOST = "127.0.0.1"
+
+
+class DoHHTTPError(Exception):
+    """The DoH server answered with a non-2xx status and no DNS message
+    (RFC 8484 §4.2.1)."""
+
+    def __init__(self, status_code: int):
+        super().__init__(f"DoH server answered HTTP {status_code}")
+        self.status_code = status_code
+
+
+def _is_transient(err: Exception) -> bool:
+    """Transport failures, HTTP 400 for a profile not yet replicated to the
+    proxy's Redis replica (proxy-request-admission #Q6), and HTTP 429 for a
+    rate-limited request (#Q3, #Q8)."""
+    if isinstance(err, DoHHTTPError):
+        return err.status_code in (400, 429)
+    return isinstance(err, (httpx.TransportError, OSError))
 
 
 def first_answer_ip(resp: Message) -> Optional[str]:
@@ -110,21 +129,30 @@ class DNSLib:
     def __init__(self, server: str):
         self.server = server
         # dnspython >= 2.7 treats a URL nameserver as a DoH server and would ask
-        # the proxy itself to resolve its own hostname. Resolve it once through
-        # the C library instead (honours /etc/hosts) and hand dnspython the
-        # address, so the endpoint hostname is used only for TLS and the URL.
+        # the proxy itself to resolve its own hostname, so the HTTP/3 path gets
+        # the address from the C library instead (honours /etc/hosts).
         self.bootstrap_address = socket.gethostbyname(urlparse(server).hostname)
 
     async def send_doh_request(self, profile_id: str, domain: str, record_type: str) -> Message:
+        """RFC 8484 §4.1 POST. A non-2xx answer raises DoHHTTPError carrying the
+        status, so callers can tell a rejected request from a transport error."""
+        query = message.make_query(domain, record_type)
         with httpx.Client() as client:
-            query = message.make_query(domain, record_type)
-            r = query_https(
-                query,
+            r = client.post(
                 f"{self.server}{profile_id}",
-                session=client,
-                bootstrap_address=self.bootstrap_address,
+                content=query.to_wire(),
+                headers={
+                    "Content-Type": "application/dns-message",
+                    "Accept": "application/dns-message",
+                },
+                timeout=10,
             )
-            return r
+        if not 200 <= r.status_code <= 299:
+            raise DoHHTTPError(r.status_code)
+        resp = message.from_wire(r.content)
+        if not query.is_response(resp):
+            raise BadResponse
+        return resp
 
     async def send_doh3_request(
         self, profile_id: str, domain: str, record_type: str, *, host: Optional[str] = None,
@@ -160,7 +188,9 @@ class DNSLib:
         for attempt in range(retries):
             try:
                 return await self.send_doh_request(profile_id, domain, record_type)
-            except (ShortHeader, httpx.ConnectError, httpx.ReadError, OSError) as e:
+            except Exception as e:
+                if not _is_transient(e):
+                    raise
                 last_err = e
                 if attempt < retries - 1:
                     await asyncio.sleep(delay)
@@ -192,11 +222,10 @@ class DNSLib:
         while True:
             try:
                 resp = await self.send_doh_request(profile_id, domain, record_type)
-            except (ShortHeader, httpx.ConnectError, httpx.ReadError, OSError):
-                # The proxy drops connections for unknown profiles, so a freshly
-                # created profile can cause ShortHeader until it propagates to
-                # the replica. Treat as "not ready yet"; re-raise on deadline.
-                if time.monotonic() >= deadline:
+            except Exception as e:
+                # A freshly created profile is unknown to the proxy until it
+                # reaches the Redis replica; re-raise on deadline.
+                if not _is_transient(e) or time.monotonic() >= deadline:
                     raise
                 await asyncio.sleep(interval)
                 continue
@@ -224,7 +253,7 @@ class DNSLib:
 
         if stamp.protocol == Protocol.DOH:
             url = f"https://{stamp.hostname}{stamp.path}"
-            with httpx.Client(verify=ca) as client:
+            with httpx.Client(verify=ssl.create_default_context(cafile=ca)) as client:
                 return query_https(query, url, session=client, bootstrap_address=LOCAL_PROXY_HOST)
         if stamp.protocol == Protocol.DOT:
             port = _port_from_address(stamp.address, default=853)
