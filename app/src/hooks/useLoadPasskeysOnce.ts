@@ -4,8 +4,8 @@ import type { ResponsesPasskey } from '@/api/client/api';
 import { AUTH_KEY } from '@/lib/consts';
 import { useAppStore } from '@/store/general';
 
-/** Loads the passkey list once per signed-in layout mount. Some routes don't load the
- *  account; then the list is loaded without knowing whether the account has a passkey. */
+/** Loads the passkey list once per signed-in layout mount. While the account isn't loaded yet
+ *  (or failed to load), the list is loaded without knowing whether the account has a passkey. */
 export function useLoadPasskeysOnce(signedIn: boolean) {
     const account = useAppStore(s => s.account);
     const setPasskeys = useAppStore(s => s.setPasskeys);

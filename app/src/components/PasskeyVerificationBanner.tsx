@@ -19,7 +19,7 @@ export default function PasskeyVerificationBanner() {
 
     const key = unverifiedPasskeysKey(passkeys);
     const fallback = key === null ? null : otherSignInMethod(authMethods, passkeys);
-    // Some routes don't load the account; a dismissal stands there until the account shows otherwise.
+    // Until the account is loaded (or if it failed to load), a dismissal stands.
     const accountLoaded = Array.isArray(authMethods);
     if (key !== null && (fallback || !accountLoaded) && dismissedKey === key) return null;
 

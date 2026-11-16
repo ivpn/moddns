@@ -14,9 +14,9 @@ export function hasUnverifiedPasskey(passkeys: ResponsesPasskey[] | null | undef
   return Array.isArray(passkeys) && passkeys.some(p => p.user_verified === false);
 }
 
-/** How the account can still sign in without its unverified passkeys, or null when it can't or the
- *  password can't be known yet (account not loaded). A passkey with no `user_verified` value counts
- *  as unverified. */
+/** How the account can still sign in without its unverified passkeys, or null when it can't.
+ *  Without the account (not loaded yet) the password is unknown, so only a verified passkey counts.
+ *  A passkey with no `user_verified` value counts as unverified. */
 export function otherSignInMethod(
   authMethods: string[] | null | undefined,
   passkeys: ResponsesPasskey[] | null | undefined,

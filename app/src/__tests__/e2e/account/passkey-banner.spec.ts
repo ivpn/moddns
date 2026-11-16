@@ -7,7 +7,7 @@ const storedDismissal = (page: Page) => page.evaluate(() =>
 test.describe('Passkey verification banner', () => {
   const baseAccount = { account_id: 'abc', email: 'user@example.com', email_verified: true, mfa: { totp: { enabled: false } } };
 
-  async function setup(page: Page, authMethods: string[], passkeys: Record<string, unknown>[]) {
+  async function setup(page: Page, authMethods: string[], passkeys: Record<string, unknown>[], path = '/account-preferences') {
     await registerMocks(page, { authenticated: true });
     // Registered after registerMocks: its /api/v1/ catch-all would otherwise answer first.
     await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
@@ -16,7 +16,7 @@ test.describe('Passkey verification banner', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
     await page.route('**/api/v1/webauthn/passkeys', route =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(passkeys) }));
-    await page.goto('/account-preferences');
+    await page.goto(path);
   }
 
   // specRef: api-endpoint-behaviour F17
@@ -78,6 +78,19 @@ test.describe('Passkey verification banner', () => {
     await expect(page).toHaveURL(/\/login$/);
 
     expect(await storedDismissal(page)).toBeNull();
+  });
+
+  // specRef: api-endpoint-behaviour F17
+  test('a first load of /blocklists names the password like every other page', async ({ page }) => {
+    await setup(page, ['password', 'passkey'], [
+      { id: 'p1', created_at: '2026-01-01T00:00:00Z', user_verified: false },
+      { id: 'p2', created_at: '2026-01-02T00:00:00Z', user_verified: true },
+    ], '/blocklists');
+
+    await expect(page.getByRole('tab', { name: 'Lists' })).toBeVisible();
+    const banner = page.getByTestId('passkey-verification-banner');
+    await expect(banner).toContainText('You can still sign in with your password.');
+    await expect(banner).not.toContainText('other passkey');
   });
 
   // specRef: api-endpoint-behaviour F16, F17
