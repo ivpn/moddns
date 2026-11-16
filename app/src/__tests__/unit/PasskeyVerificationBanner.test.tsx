@@ -1,4 +1,4 @@
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useAppStore } from '@/store/general';
 import PasskeyVerificationBanner from '@/components/PasskeyVerificationBanner';
 import { useLoadPasskeysOnce } from '@/hooks/useLoadPasskeysOnce';
 import { AUTH_KEY } from '@/lib/consts';
+import { PASSKEY_BANNER_DISMISSED_KEY, clearPasskeyBannerDismissal } from '@/lib/passkeyVerification';
 
 const deferred = <T,>() => { let resolve!: (v: T) => void; const promise = new Promise<T>((r) => { resolve = r; }); return { promise, resolve }; };
 
@@ -24,7 +25,9 @@ describe('PasskeyVerificationBanner', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         useAppStore.getState().resetAccountState();
+        localStorage.clear();
         localStorage.setItem(AUTH_KEY, 'true');
+        clearPasskeyBannerDismissal();
     });
 
     it('shows the deadline once a passkey reports no user verification', async () => {
@@ -110,5 +113,133 @@ describe('PasskeyVerificationBanner', () => {
         await act(async () => { pending.resolve({ data: [{ id: 'p1', user_verified: false }] }); await Promise.resolve(); });
 
         expect(useAppStore.getState().passkeys).toEqual([{ id: 'p2', user_verified: true }]);
+    });
+});
+
+// specRef: api-endpoint-behaviour F17
+describe('PasskeyVerificationBanner dismissal', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        useAppStore.getState().resetAccountState();
+        localStorage.clear();
+        localStorage.setItem(AUTH_KEY, 'true');
+        clearPasskeyBannerDismissal();
+    });
+
+    const setUp = (authMethods: string[] | null, passkeys: { id?: string; user_verified?: boolean }[]) => {
+        if (authMethods) useAppStore.getState().setAccount({ id: 'a1', auth_methods: authMethods } as never);
+        useAppStore.getState().setPasskeys(passkeys);
+    };
+    const renderStatic = () => render(<MemoryRouter><PasskeyVerificationBanner /></MemoryRouter>);
+    const close = () => screen.queryByRole('button', { name: 'Close' });
+
+    it('can be closed by an account with a password, and stays closed on the next page', () => {
+        setUp(['password', 'passkey'], [{ id: 'p1', user_verified: false }]);
+
+        const { unmount } = renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toHaveTextContent('You can still sign in with your password.');
+        fireEvent.click(close()!);
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
+        expect(localStorage.getItem(PASSKEY_BANNER_DISMISSED_KEY)).toBe('p1');
+
+        unmount();
+        renderStatic();
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
+    });
+
+    it('can be closed by an account with another verified passkey', () => {
+        setUp(['passkey'], [{ id: 'p1', user_verified: false }, { id: 'p2', user_verified: true }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toHaveTextContent('You can still sign in with your other passkey.');
+        fireEvent.click(close()!);
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
+    });
+
+    it('cannot be closed when only unverified passkeys can sign in', () => {
+        setUp(['passkey'], [{ id: 'p1', user_verified: false }, { id: 'p2' }]);
+
+        renderStatic();
+        const banner = screen.getByTestId('passkey-verification-banner');
+        expect(banner).not.toHaveTextContent('You can still sign in');
+        expect(close()).toBeNull();
+    });
+
+    it('cannot be closed while the account is not loaded', () => {
+        setUp(null, [{ id: 'p1', user_verified: false }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toBeInTheDocument();
+        expect(close()).toBeNull();
+    });
+
+    it('keeps a stored dismissal while the account is not loaded', () => {
+        localStorage.setItem(PASSKEY_BANNER_DISMISSED_KEY, 'p1');
+        setUp(null, [{ id: 'p1', user_verified: false }]);
+
+        renderStatic();
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
+    });
+
+    it('can be closed before the account loads when another passkey verifies the user', () => {
+        setUp(null, [{ id: 'p1', user_verified: false }, { id: 'p2', user_verified: true }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toHaveTextContent('You can still sign in with your other passkey.');
+        expect(close()).not.toBeNull();
+    });
+
+    it('forgets the dismissal when cleared on logout', () => {
+        setUp(['password', 'passkey'], [{ id: 'p1', user_verified: false }]);
+        const { unmount } = renderStatic();
+        fireEvent.click(close()!);
+        unmount();
+
+        clearPasskeyBannerDismissal();
+
+        expect(localStorage.getItem(PASSKEY_BANNER_DISMISSED_KEY)).toBeNull();
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toBeInTheDocument();
+    });
+
+    it('ignores a stored dismissal once the account can no longer sign in another way', () => {
+        localStorage.setItem(PASSKEY_BANNER_DISMISSED_KEY, 'p1');
+        setUp(['passkey'], [{ id: 'p1', user_verified: false }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toBeInTheDocument();
+        expect(close()).toBeNull();
+    });
+
+    it('shows again when another passkey becomes unverified', () => {
+        localStorage.setItem(PASSKEY_BANNER_DISMISSED_KEY, 'p1');
+        setUp(['password', 'passkey'], [{ id: 'p1', user_verified: false }, { id: 'p3', user_verified: false }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toBeInTheDocument();
+        fireEvent.click(close()!);
+        expect(localStorage.getItem(PASSKEY_BANNER_DISMISSED_KEY)).toBe('p1,p3');
+    });
+
+    it('cannot be closed when an unverified passkey has no id', () => {
+        setUp(['password', 'passkey'], [{ id: 'p1', user_verified: false }, { user_verified: false }]);
+
+        renderStatic();
+        expect(screen.getByTestId('passkey-verification-banner')).toBeInTheDocument();
+        expect(close()).toBeNull();
+    });
+
+    it('still closes, until reload, when storage throws', () => {
+        setUp(['password', 'passkey'], [{ id: 'p1', user_verified: false }]);
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+
+        const { unmount } = renderStatic();
+        fireEvent.click(close()!);
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
+
+        unmount();
+        renderStatic();
+        expect(screen.queryByTestId('passkey-verification-banner')).toBeNull();
     });
 });
