@@ -24,15 +24,24 @@ type Result struct {
 	SubID     string
 	// Credential is the new credential to store after registration and add passkey.
 	Credential *model.Credential
-	// CredentialID and SignCount identify the credential a login or reauth asserted
-	// and its new signature counter.
+	// CredentialID, SignCount and Flags identify the credential a login or reauth
+	// asserted, with its new signature counter and the assertion's flags.
 	CredentialID []byte
 	SignCount    uint32
+	Flags        model.CredentialFlags
 }
+
+// requireUserVerification makes a new credential verify the user, so a passkey sign-in
+// counts as two factors. The relying party sets this per operation and the library
+// rejects a response without the UV flag (W3C WebAuthn L3 §5.8.6, §7.1 step 16).
+// Login and reauth keep the library default.
+var requireUserVerification = gowebauthn.WithAuthenticatorSelection(protocol.AuthenticatorSelection{
+	UserVerification: protocol.VerificationRequired,
+})
 
 // BeginRegistration starts the signup ceremony. subID is returned by FinishRegistration.
 func (rp *RelyingParty) BeginRegistration(ctx context.Context, user User, subID string) (*CredentialCreation, string, error) {
-	creation, sessionData, err := rp.lib.BeginRegistration(newLibUser(user))
+	creation, sessionData, err := rp.lib.BeginRegistration(newLibUser(user), requireUserVerification)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to begin registration: %w", err)
 	}
@@ -54,7 +63,7 @@ func (rp *RelyingParty) BeginAddPasskey(ctx context.Context, user User) (*Creden
 	// An authenticator keeps one discoverable credential per (RP ID, user handle) and
 	// replaces it on a new registration (W3C WebAuthn L3 §6.3.2 step 7.4.4). Excluding the
 	// account's credentials makes it refuse instead (§6.3.2 step 3, §5.4).
-	creation, sessionData, err := rp.lib.BeginRegistration(libUser, gowebauthn.WithExclusions(excluded))
+	creation, sessionData, err := rp.lib.BeginRegistration(libUser, gowebauthn.WithExclusions(excluded), requireUserVerification)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to begin add passkey: %w", err)
 	}
@@ -151,7 +160,7 @@ func (rp *RelyingParty) finishAssertion(ctx context.Context, token string, cerem
 	if cred.Authenticator.CloneWarning {
 		return nil, ErrCloneDetected
 	}
-	return &Result{AccountID: c.AccountID, Purpose: c.Purpose, CredentialID: cred.ID, SignCount: cred.Authenticator.SignCount}, nil
+	return &Result{AccountID: c.AccountID, Purpose: c.Purpose, CredentialID: cred.ID, SignCount: cred.Authenticator.SignCount, Flags: toRecordFlags(cred.Flags)}, nil
 }
 
 // verificationError marks a refusal by the WebAuthn library with ErrVerificationFailed.

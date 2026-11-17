@@ -10,7 +10,8 @@ import (
 // WebAuthnCredentialRepository defines the interface for credential operations
 type WebAuthnCredentialRepository interface {
 	SaveCredential(ctx context.Context, credential *model.Credential) error
-	UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32) error
+	// UpdateCredential stores the signature counter and flags of the latest assertion.
+	UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error
 	GetCredentials(ctx context.Context, accountID primitive.ObjectID) ([]model.Credential, error)
 	GetCredentialByID(ctx context.Context, credentialID primitive.ObjectID) (*model.Credential, error)
 	DeleteCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID) error

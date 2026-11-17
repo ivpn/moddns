@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { ModelProfile } from '@/api/client/api';
-import { AuthContext, AuthProvider, rootLoader, profilesOnlyLoader } from '@/App';
+import { AuthContext, AuthProvider, rootLoader, accountOptionalLoader } from '@/App';
 import api from '@/api/api';
 import { useAppStore } from '@/store/general';
 import { AUTH_KEY } from '@/lib/consts';
@@ -166,16 +166,122 @@ describe('background refresh after logout', () => {
         expectAccountStateCleared();
     });
 
-    it('profilesOnlyLoader drops profiles that arrive after logout', async () => {
+    it('accountOptionalLoader drops an account that arrives after logout', async () => {
+        seedSignedIn();
+        const account = deferred<unknown>();
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockReturnValue(account.promise as never);
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        await accountOptionalLoader();
+        logoutElsewhere();
+        account.resolve({ data: { id: 'acc-1' } });
+        await flush();
+
+        expect(useAppStore.getState().account).toBeNull();
+    });
+
+    it('accountOptionalLoader drops profiles of a first load that arrive after logout', async () => {
+        localStorage.setItem(AUTH_KEY, 'true');
+        const profiles = deferred<unknown>();
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockResolvedValue({ data: { id: 'acc-1' } } as never);
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockReturnValue(profiles.promise as never);
+
+        const loading = accountOptionalLoader();
+        logoutElsewhere();
+        profiles.resolve({ data: [PROFILE] });
+        await loading;
+
+        expectAccountStateCleared();
+    });
+
+    it('accountOptionalLoader reports an expired session once, from the profiles request', async () => {
+        localStorage.setItem(AUTH_KEY, 'true');
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockRejectedValue({ response: { status: 401 } });
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockRejectedValue({ response: { status: 401 } });
+        const events: string[] = [];
+        const { subscribe } = await import('@/lib/eventBus');
+        const unsubscribe = subscribe((ev) => events.push(ev.type));
+
+        await accountOptionalLoader().catch(() => undefined);
+        await flush();
+        unsubscribe();
+
+        expect(events.filter((t) => t === 'auth/sessionExpired')).toHaveLength(1);
+    });
+
+    it('accountOptionalLoader drops profiles that arrive after logout', async () => {
         seedWarmCache();
         const profiles = deferred<unknown>();
         vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockReturnValue(profiles.promise as never);
 
-        await profilesOnlyLoader();
+        await accountOptionalLoader();
         logoutElsewhere();
         profiles.resolve({ data: [PROFILE] });
         await flush();
 
         expectAccountStateCleared();
+    });
+});
+
+// specRef: api-endpoint-behaviour F17
+describe('accountOptionalLoader loads the account the banner needs', () => {
+    const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    const ACCOUNT = { id: 'acc-1', auth_methods: ['password', 'passkey'] };
+
+    beforeEach(() => {
+        localStorage.clear();
+        useAppStore.getState().resetAccountState();
+        vi.restoreAllMocks();
+        localStorage.setItem(AUTH_KEY, 'true');
+    });
+
+    it('on a first load, alongside the profiles', async () => {
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockResolvedValue({ data: ACCOUNT } as never);
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        await accountOptionalLoader();
+
+        expect(useAppStore.getState().account).toEqual(ACCOUNT);
+        expect(useAppStore.getState().profiles).toEqual([PROFILE]);
+    });
+
+    it('in the background when profiles are cached but the account is not', async () => {
+        useAppStore.getState().setProfiles([PROFILE]);
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockResolvedValue({ data: ACCOUNT } as never);
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        await accountOptionalLoader();
+        await flush();
+
+        expect(useAppStore.getState().account).toEqual(ACCOUNT);
+    });
+
+    it('not again when the account is already loaded', async () => {
+        useAppStore.getState().setProfiles([PROFILE]);
+        useAppStore.getState().setAccount(ACCOUNT as never);
+        const accountGet = vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet');
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        await accountOptionalLoader();
+        await flush();
+
+        expect(accountGet).not.toHaveBeenCalled();
+    });
+
+    it('still serves the profiles when the account request fails', async () => {
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockRejectedValue({ response: { status: 500 } });
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        const result = await accountOptionalLoader();
+
+        expect(result).toEqual({ account: null, profiles: [PROFILE] });
+        expect(useAppStore.getState().account).toBeNull();
+    });
+
+    it('returns the account it loaded', async () => {
+        vi.spyOn(api.Client.accountsApi, 'apiV1AccountsCurrentGet').mockResolvedValue({ data: ACCOUNT } as never);
+        vi.spyOn(api.Client.profilesApi, 'apiV1ProfilesGet').mockResolvedValue({ data: [PROFILE] } as never);
+
+        expect(await accountOptionalLoader()).toEqual({ account: ACCOUNT, profiles: [PROFILE] });
     });
 });
