@@ -31,6 +31,7 @@ func (suite *ReauthTokenSuite) SetupSuite() {
 	// minimal env vars
 	t := suite.T()
 	t.Setenv("SERVER_ALLOWED_DOMAINS", "example.com")
+	t.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	t.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
 	t.Setenv("API_PORT", "8080")
 	t.Setenv("DB_NAME", "test_db")

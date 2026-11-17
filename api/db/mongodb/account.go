@@ -57,6 +57,9 @@ func (r *AccountRepository) UpdateAccount(ctx context.Context, account *model.Ac
 	if err != nil {
 		return nil, err
 	}
+	// 2FA state changes only through the atomic TOTP methods below; a
+	// whole-document write would put back a stale copy of it.
+	delete(update, "mfa")
 
 	updateQuery := bson.D{{Key: "$set", Value: update}}
 
@@ -208,4 +211,97 @@ func (r *AccountRepository) RemoveProfileFromAccount(ctx context.Context, accoun
 	}
 	log.Ctx(ctx).Info().Int64("modified_count", res.ModifiedCount).Msgf("Removed profile from account")
 	return nil
+}
+
+// EnableTOTP implements repository.AccountRepository.
+func (r *AccountRepository) EnableTOTP(ctx context.Context, accountId, sealedSecret string, backupCodeHashes []string) error {
+	accId, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	filter := bson.D{{Key: "_id", Value: accId}, {Key: "mfa.totp.enabled", Value: bson.D{{Key: "$ne", Value: true}}}}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "mfa.totp.enabled", Value: true},
+			{Key: "mfa.totp.secret_sealed", Value: sealedSecret},
+			{Key: "mfa.totp.backup_code_hashes", Value: backupCodeHashes},
+		}},
+		{Key: "$unset", Value: legacyTOTPFields()},
+	}
+	res, err := r.accountsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.ErrTOTPStateChanged
+	}
+	return nil
+}
+
+// DisableTOTP implements repository.AccountRepository.
+func (r *AccountRepository) DisableTOTP(ctx context.Context, accountId string) error {
+	accId, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	unset := legacyTOTPFields()
+	unset = append(unset,
+		bson.E{Key: "mfa.totp.secret_sealed", Value: ""},
+		bson.E{Key: "mfa.totp.backup_code_hashes", Value: ""},
+	)
+	update := bson.D{
+		{Key: "$set", Value: bson.D{{Key: "mfa.totp.enabled", Value: false}}},
+		{Key: "$unset", Value: unset},
+	}
+	res, err := r.accountsCollection.UpdateByID(ctx, accId, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.ErrAccountNotFound
+	}
+	return nil
+}
+
+// ConsumeBackupCode implements repository.AccountRepository.
+func (r *AccountRepository) ConsumeBackupCode(ctx context.Context, accountId, backupCodeHash string) (bool, error) {
+	return r.consumeBackupCode(ctx, accountId, "mfa.totp.backup_code_hashes", backupCodeHash)
+}
+
+// ConsumeLegacyBackupCode implements repository.AccountRepository.
+func (r *AccountRepository) ConsumeLegacyBackupCode(ctx context.Context, accountId, backupCode string) (bool, error) {
+	return r.consumeBackupCode(ctx, accountId, "mfa.totp.backup_codes", backupCode)
+}
+
+// consumeBackupCode removes the code in one conditional update, so concurrent
+// requests with the same code cannot both succeed. A used code is not kept
+// (NIST SP 800-63B-4 §3.1.2.2: a look-up secret is used successfully only once).
+func (r *AccountRepository) consumeBackupCode(ctx context.Context, accountId, field, value string) (bool, error) {
+	accId, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return false, err
+	}
+	filter := bson.D{
+		{Key: "_id", Value: accId},
+		{Key: "mfa.totp.enabled", Value: true},
+		{Key: field, Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "$eq", Value: value}}}}},
+	}
+	update := bson.D{{Key: "$pull", Value: bson.D{{Key: field, Value: value}}}}
+	res, err := r.accountsCollection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return false, err
+	}
+	return res.ModifiedCount == 1, nil
+}
+
+// legacyTOTPFields are cleared by a new enrolment: the plaintext fields, the
+// legacy-codes marker and the used-code lists of earlier formats.
+func legacyTOTPFields() bson.D {
+	return bson.D{
+		{Key: "mfa.totp.secret", Value: ""},
+		{Key: "mfa.totp.backup_codes", Value: ""},
+		{Key: "mfa.totp.backup_codes_used", Value: ""},
+		{Key: "mfa.totp.backup_codes_legacy", Value: ""},
+		{Key: "mfa.totp.backup_code_hashes_used", Value: ""},
+	}
 }

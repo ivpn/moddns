@@ -45,6 +45,7 @@ type ProfileTestSuite struct {
 func (suite *ProfileTestSuite) SetupSuite() {
 	// Set required environment variables
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "test.com,allowed.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53,1.1.1.1:53")
 
 	// Set optional environment variables with default values

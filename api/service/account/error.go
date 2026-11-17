@@ -100,7 +100,6 @@ var (
 	ErrIncorrectOTP          = NewTOTPError("incorrect OTP")
 	ErrTotpDisabled          = NewTOTPError("2FA is disabled")
 	ErrGetTotp               = NewTOTPError("could not get 2FA code")
-	ErrTotpBackupAlreadyUsed = NewTOTPError("2FA backup is already used")
 	ErrTotpBackupNotFound    = NewTOTPError("2FA backup not found")
 	ErrTotpSetBackup         = NewTOTPError("could not set 2FA backup")
 	ErrTotpDisable           = NewTOTPError("could not disable 2FA")
@@ -109,4 +108,5 @@ var (
 	ErrTOTPNotConfigured     = NewTOTPError("2FA is not configured")
 	ErrTOTPAlreadyDisabled   = NewTOTPError("2FA already disabled")
 	ErrTOTPRequired          = NewTOTPError("TOTP is required")
+	ErrTOTPTooManyAttempts   = NewTOTPError("too many failed 2FA attempts, try again later")
 )

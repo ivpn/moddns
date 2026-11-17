@@ -33,6 +33,7 @@ type EmailVerificationOTPSuite struct {
 func (suite *EmailVerificationOTPSuite) SetupSuite() {
 	// Set minimal required env variables for config.New()
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "example.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
 	os.Setenv("API_PORT", "8080")
 	os.Setenv("DB_NAME", "test_db")

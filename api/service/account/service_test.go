@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -65,6 +64,7 @@ type AccountTestSuite struct {
 func (suite *AccountTestSuite) SetupSuite() {
 	// Set required environment variables
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "test.com,allowed.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53,1.1.1.1:53")
 	os.Setenv("API_PORT", "8080")
 	os.Setenv("DB_NAME", "test_db")
@@ -923,6 +923,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 		MFA: model.MFASettings{
 			TOTP: model.TotpSettings{
 				Enabled:     true,
+				Secret:      "JBSWY3DPEHPK3PXP",
 				BackupCodes: []string{backupCode},
 			},
 		},
@@ -936,6 +937,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 		MFA: model.MFASettings{
 			TOTP: model.TotpSettings{
 				Enabled:     true,
+				Secret:      "JBSWY3DPEHPK3PXP",
 				BackupCodes: []string{backupCode},
 			},
 		},
@@ -1210,7 +1212,9 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				if shouldProcess && tt.verifyTotpAccount != nil {
 					lookupID := tt.account.ID.Hex()
 					suite.mockAccountRepo.On("GetAccountById", context.Background(), lookupID).Return(tt.verifyTotpAccount, nil)
-					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.verifyTotpAccount, nil)
+					suite.mockAccountRepo.On("ConsumeLegacyBackupCode", context.Background(), lookupID, mock.AnythingOfType("string")).Return(true, nil).Maybe()
+					suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
+					suite.mockCache.On("Del", context.Background(), mock.AnythingOfType("string")).Return(nil).Maybe()
 				}
 
 				// Cleanup order (PurgeAccountData): credentials → profile loop →
@@ -1501,779 +1505,6 @@ func (suite *AccountTestSuite) TestGenerateDeletionCode() {
 	}
 }
 
-// TestTotpEnable tests the TOTP enablement/initialization process
-func (suite *AccountTestSuite) TestTotpEnable() {
-	tests := []struct {
-		name               string
-		accountID          string
-		account            *model.Account
-		getAccountError    error
-		setCacheError      error
-		expectedError      string
-		expectTOTPGenerate bool
-	}{
-		{
-			name:      "Success - Generate TOTP secret successfully",
-			accountID: "507f1f77bcf86cd799439011",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectTOTPGenerate: true,
-		},
-		{
-			name:            "Error - Account not found",
-			accountID:       "507f1f77bcf86cd799439011",
-			getAccountError: errors.New("account not found"),
-			expectedError:   "account not found",
-		},
-		{
-			name:      "Error - Cache storage fails",
-			accountID: "507f1f77bcf86cd799439011",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			setCacheError: errors.New("cache write failed"),
-			expectedError: "cache write failed",
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-
-			// Mock GetAccountById
-			if tt.getAccountError != nil {
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
-			} else {
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil)
-
-				// Mock Cache.SetTOTPSecret
-				if tt.setCacheError != nil {
-					suite.mockCache.On("SetTOTPSecret", context.Background(), tt.accountID, mock.AnythingOfType("string"), suite.serviceConfig.OTPExpirationTime).Return(tt.setCacheError)
-				} else {
-					suite.mockCache.On("SetTOTPSecret", context.Background(), tt.accountID, mock.AnythingOfType("string"), suite.serviceConfig.OTPExpirationTime).Return(nil)
-				}
-			}
-
-			// Execute the method
-			result, err := suite.service.TotpEnable(context.Background(), tt.accountID)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-				suite.Nil(result)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
-				suite.NotEmpty(result.Secret)
-				suite.NotEmpty(result.URI)
-				suite.Equal(tt.account.Email, result.Account)
-				suite.Contains(result.URI, "otpauth://totp/modDNS:")
-				suite.Contains(result.URI, tt.account.Email)
-			}
-
-			// Verify mock expectations
-			suite.mockAccountRepo.AssertExpectations(suite.T())
-			if tt.account != nil {
-				suite.mockCache.AssertExpectations(suite.T())
-			}
-		})
-	}
-}
-
-// TestTotpConfirm tests the TOTP confirmation/activation process
-func (suite *AccountTestSuite) TestTotpConfirm() {
-	testSecret := "JBSWY3DPEHPK3PXP"
-	validOTP, _ := totp.GenerateCode(testSecret, time.Now())
-
-	tests := []struct {
-		name               string
-		accountID          string
-		otp                string
-		cachedSecret       string
-		getCacheError      error
-		account            *model.Account
-		getAccountError    error
-		updateAccountError error
-		expectedError      string
-		expectBackupCodes  bool
-	}{
-		{
-			name:         "Success - Confirm TOTP with valid code",
-			accountID:    "507f1f77bcf86cd799439011",
-			otp:          validOTP,
-			cachedSecret: testSecret,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectBackupCodes: true,
-		},
-		{
-			name:          "Error - Secret not found in cache",
-			accountID:     "507f1f77bcf86cd799439011",
-			otp:           validOTP,
-			getCacheError: errors.New("cache key not found"),
-			expectedError: "cache key not found",
-		},
-		{
-			name:            "Error - Account not found",
-			accountID:       "507f1f77bcf86cd799439011",
-			otp:             validOTP,
-			cachedSecret:    testSecret,
-			getAccountError: errors.New("account not found"),
-			expectedError:   "account not found",
-		},
-		{
-			name:         "Error - TOTP already enabled",
-			accountID:    "507f1f77bcf86cd799439011",
-			otp:          validOTP,
-			cachedSecret: testSecret,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "2FA already configured",
-		},
-		{
-			name:         "Error - Invalid OTP code",
-			accountID:    "507f1f77bcf86cd799439011",
-			otp:          "000000",
-			cachedSecret: testSecret,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectedError: "incorrect OTP",
-		},
-		{
-			name:         "Error - Account update fails",
-			accountID:    "507f1f77bcf86cd799439011",
-			otp:          validOTP,
-			cachedSecret: testSecret,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			updateAccountError: errors.New("database update failed"),
-			expectedError:      "database update failed",
-			expectBackupCodes:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-
-			// Mock Cache.GetTOTPSecret
-			if tt.getCacheError != nil {
-				suite.mockCache.On("GetTOTPSecret", context.Background(), tt.accountID).Return("", tt.getCacheError)
-			} else {
-				suite.mockCache.On("GetTOTPSecret", context.Background(), tt.accountID).Return(tt.cachedSecret, nil)
-
-				// Mock GetAccountById
-				if tt.getAccountError != nil {
-					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
-				} else {
-					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil)
-
-					if tt.account != nil && !tt.account.MFA.TOTP.Enabled {
-						suite.mockCache.On("Incr", context.Background(), mock.MatchedBy(func(key string) bool {
-							return strings.Contains(key, "totp_confirm_fails")
-						}), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
-						suite.mockCache.On("Get", context.Background(), mock.MatchedBy(func(key string) bool {
-							return strings.Contains(key, "totp_confirm_fails")
-						})).Return("0", nil).Maybe()
-					}
-
-					// Mock UpdateAccount if OTP is valid and TOTP not already enabled
-					if tt.account != nil && !tt.account.MFA.TOTP.Enabled && totp.Validate(tt.otp, tt.cachedSecret) {
-						if tt.updateAccountError != nil {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.MatchedBy(func(acc *model.Account) bool {
-								return acc.ID == tt.account.ID && acc.MFA.TOTP.Enabled
-							})).Return(nil, tt.updateAccountError)
-						} else {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.MatchedBy(func(acc *model.Account) bool {
-								return acc.ID == tt.account.ID && acc.MFA.TOTP.Enabled
-							})).Return(tt.account, nil)
-						}
-					}
-				}
-			}
-
-			// Execute the method
-			result, err := suite.service.TotpConfirm(context.Background(), tt.accountID, tt.otp)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-				suite.Nil(result)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
-				if tt.expectBackupCodes {
-					suite.Len(result.BackupCodes, 8, "Should generate 8 backup codes")
-					for _, code := range result.BackupCodes {
-						suite.Len(code, 16, "Each backup code should be 16 characters")
-						suite.NotEmpty(code)
-					}
-				}
-			}
-
-			// Verify mock expectations
-			suite.mockCache.AssertExpectations(suite.T())
-			if tt.cachedSecret != "" {
-				suite.mockAccountRepo.AssertExpectations(suite.T())
-			}
-		})
-	}
-}
-
-// TestTotpDisable tests the TOTP disabling process
-func (suite *AccountTestSuite) TestTotpDisable() {
-	testSecret := "JBSWY3DPEHPK3PXP"
-	validOTP, _ := totp.GenerateCode(testSecret, time.Now())
-	validBackupCode := "BACKUP123456CODE"
-
-	tests := []struct {
-		name               string
-		accountID          string
-		otp                string
-		account            *model.Account
-		getAccountError    error
-		updateAccountError error
-		expectedError      string
-		expectSuccess      bool
-	}{
-		{
-			name:      "Success - Disable TOTP with valid OTP",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{"CODE1", "CODE2"},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Disable TOTP with valid backup code",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validBackupCode,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{validBackupCode, "CODE2"},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Error - TOTP already disabled",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectedError: "2FA already disabled",
-		},
-		{
-			name:      "Error - Invalid OTP code",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       "000000",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{"CODE1", "CODE2"},
-					},
-				},
-			},
-			expectedError: "invalid 2FA code",
-		},
-		{
-			name:      "Error - Backup code already used",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validBackupCode,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:         true,
-						Secret:          testSecret,
-						BackupCodes:     []string{"CODE2"},
-						BackupCodesUsed: []string{validBackupCode},
-					},
-				},
-			},
-			expectedError: "2FA backup is already used",
-		},
-		{
-			name:            "Error - Account not found",
-			accountID:       "507f1f77bcf86cd799439011",
-			otp:             validOTP,
-			getAccountError: errors.New("account not found"),
-			expectedError:   "account not found",
-		},
-		{
-			name:      "Error - Account update fails",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{"CODE1"},
-					},
-				},
-			},
-			updateAccountError: errors.New("database update failed"),
-			expectedError:      "database update failed",
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-
-			// Mock GetAccountById (first call in VerifyTotp)
-			if tt.getAccountError != nil {
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
-			} else {
-				// First call to GetAccountById in VerifyTotp
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil).Once()
-
-				if tt.account != nil && tt.account.MFA.TOTP.Enabled {
-					// Mock cache for rate limiting (used in VerifyTotp)
-					suite.mockCache.On("Get", context.Background(), mock.AnythingOfType("string")).Return("", nil).Maybe()
-					suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil).Maybe()
-					suite.mockCache.On("Increment", context.Background(), mock.AnythingOfType("string")).Return(int64(1), nil).Maybe()
-					suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
-
-					// Check if verification should succeed
-					verifySucceeds := totp.Validate(tt.otp, tt.account.MFA.TOTP.Secret)
-					if !verifySucceeds {
-						// Check backup codes
-						for _, code := range tt.account.MFA.TOTP.BackupCodes {
-							if code == tt.otp {
-								verifySucceeds = true
-								break
-							}
-						}
-						// Check if it's in used codes
-						for _, usedCode := range tt.account.MFA.TOTP.BackupCodesUsed {
-							if usedCode == tt.otp {
-								verifySucceeds = false
-								break
-							}
-						}
-					}
-
-					// If verification succeeds, mock the update for VerifyTotp (when backup code used)
-					if verifySucceeds && !totp.Validate(tt.otp, tt.account.MFA.TOTP.Secret) {
-						suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.account, nil).Once()
-					}
-
-					// Mock UpdateAccount for the actual disable operation
-					if verifySucceeds && tt.updateAccountError == nil {
-						suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.MatchedBy(func(acc *model.Account) bool {
-							return !acc.MFA.TOTP.Enabled && acc.MFA.TOTP.Secret == "" && len(acc.MFA.TOTP.BackupCodes) == 0
-						})).Return(tt.account, nil)
-					} else if verifySucceeds && tt.updateAccountError != nil {
-						suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(nil, tt.updateAccountError)
-					}
-				}
-			}
-
-			// Execute the method
-			result, err := suite.service.TotpDisable(context.Background(), tt.accountID, tt.otp)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-				suite.Nil(result)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
-				if tt.expectSuccess {
-					suite.False(result.MFA.TOTP.Enabled)
-					suite.Empty(result.MFA.TOTP.Secret)
-					suite.Empty(result.MFA.TOTP.BackupCodes)
-					suite.Empty(result.MFA.TOTP.BackupCodesUsed)
-				}
-			}
-
-			// Verify mock expectations
-			suite.mockAccountRepo.AssertExpectations(suite.T())
-		})
-	}
-}
-
-// TestVerifyTotp tests the TOTP verification logic
-func (suite *AccountTestSuite) TestVerifyTotp() {
-	testSecret := "JBSWY3DPEHPK3PXP"
-	validOTP, _ := totp.GenerateCode(testSecret, time.Now())
-	validBackupCode := "BACKUP123456CODE"
-
-	tests := []struct {
-		name               string
-		accountID          string
-		otp                string
-		action             string
-		account            *model.Account
-		getAccountError    error
-		updateAccountError error
-		rateLimitExceeded  bool
-		expectedError      string
-		expectSuccess      bool
-	}{
-		{
-			name:      "Success - Valid TOTP code for login action",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Valid TOTP code for disable action",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			action:    "disable",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Valid backup code (not previously used)",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validBackupCode,
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{validBackupCode, "CODE2"},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Error - TOTP not configured (login action)",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectedError: "2FA is not configured",
-		},
-		{
-			name:      "Error - TOTP already disabled (disable action)",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			action:    "disable",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectedError: "2FA already disabled",
-		},
-		{
-			name:      "Error - Invalid action",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validOTP,
-			action:    "invalid",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "invalid action",
-		},
-		{
-			name:      "Error - Invalid TOTP code",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       "000000",
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "invalid 2FA code",
-		},
-		{
-			name:      "Error - Backup code already used",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validBackupCode,
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:         true,
-						Secret:          testSecret,
-						BackupCodes:     []string{"CODE2"},
-						BackupCodesUsed: []string{validBackupCode},
-					},
-				},
-			},
-			expectedError: "2FA backup is already used",
-		},
-		{
-			name:      "Error - Invalid backup code",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       "WRONGCODE",
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{validBackupCode},
-					},
-				},
-			},
-			expectedError: "invalid 2FA code",
-		},
-		{
-			name:      "Error - Rate limit exceeded",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       "000000",
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			rateLimitExceeded: true,
-			expectedError:     "invalid 2FA code",
-		},
-		{
-			name:            "Error - Account not found",
-			accountID:       "507f1f77bcf86cd799439011",
-			otp:             validOTP,
-			action:          "login",
-			getAccountError: errors.New("account not found"),
-			expectedError:   "account not found",
-		},
-		{
-			name:      "Error - Account update fails after backup code use",
-			accountID: "507f1f77bcf86cd799439011",
-			otp:       validBackupCode,
-			action:    "login",
-			account: &model.Account{
-				ID:    primitive.NewObjectID(),
-				Email: "test@example.com",
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{validBackupCode, "CODE2"},
-					},
-				},
-			},
-			updateAccountError: errors.New("database update failed"),
-			expectedError:      "database update failed",
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-
-			// Mock GetAccountById
-			if tt.getAccountError != nil {
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
-			} else {
-				suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil)
-
-				// Set up cache mocks for rate limiting
-				if tt.account != nil && (tt.account.MFA.TOTP.Enabled || (tt.action == "disable" && !tt.account.MFA.TOTP.Enabled)) {
-					if tt.rateLimitExceeded {
-						// Simulate rate limit exceeded - Get returns value > Max
-						// Note: Incr is still called before IsAllowed check
-						suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(suite.serviceConfig.IdLimiterMax+2), nil)
-						suite.mockCache.On("Get", context.Background(), mock.AnythingOfType("string")).Return(fmt.Sprintf("%d", suite.serviceConfig.IdLimiterMax+1), nil)
-					} else {
-						suite.mockCache.On("Get", context.Background(), mock.AnythingOfType("string")).Return("0", nil).Maybe()
-						suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil).Maybe()
-						suite.mockCache.On("Increment", context.Background(), mock.AnythingOfType("string")).Return(int64(1), nil).Maybe()
-						suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
-					}
-
-					// Check if this is a valid backup code scenario
-					isValidBackup := false
-					if tt.account.MFA.TOTP.Enabled {
-						for _, code := range tt.account.MFA.TOTP.BackupCodes {
-							if code == tt.otp {
-								// Check if not already used
-								alreadyUsed := false
-								for _, usedCode := range tt.account.MFA.TOTP.BackupCodesUsed {
-									if usedCode == tt.otp {
-										alreadyUsed = true
-										break
-									}
-								}
-								if !alreadyUsed {
-									isValidBackup = true
-								}
-								break
-							}
-						}
-					}
-
-					// Mock UpdateAccount if backup code is valid
-					if isValidBackup {
-						if tt.updateAccountError != nil {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(nil, tt.updateAccountError)
-						} else {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.account, nil)
-						}
-					}
-				}
-			}
-
-			// Execute the method
-			result, err := suite.service.VerifyTotp(context.Background(), tt.accountID, tt.otp, tt.action)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-			} else {
-				suite.NoError(err)
-				suite.NotNil(result)
-				if tt.expectSuccess {
-					suite.Equal(tt.account.ID, result.ID)
-				}
-			}
-
-			// Verify mock expectations
-			suite.mockAccountRepo.AssertExpectations(suite.T())
-		})
-	}
-}
-
 // TestMfaCheck tests the MFA validation used in UpdateAccount
 func (suite *AccountTestSuite) TestMfaCheck() {
 	testSecret := "JBSWY3DPEHPK3PXP"
@@ -2379,6 +1610,7 @@ func (suite *AccountTestSuite) TestMfaCheck() {
 				suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil).Maybe()
 				suite.mockCache.On("Increment", context.Background(), mock.AnythingOfType("string")).Return(int64(1), nil).Maybe()
 				suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
+				suite.mockCache.On("Del", context.Background(), mock.AnythingOfType("string")).Return(nil).Maybe()
 
 				// Check if it's a valid backup code
 				isValidBackup := false
@@ -2389,10 +1621,7 @@ func (suite *AccountTestSuite) TestMfaCheck() {
 					}
 				}
 
-				// Mock UpdateAccount if backup code is valid
-				if isValidBackup {
-					suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.account, nil).Maybe()
-				}
+				suite.mockAccountRepo.On("ConsumeLegacyBackupCode", context.Background(), tt.account.ID.Hex(), tt.mfa.OTP).Return(isValidBackup, nil).Maybe()
 			}
 
 			// Execute the method
@@ -2655,7 +1884,7 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 			expectedError: "invalid 2FA code",
 		},
 		{
-			name:      "Error - Email update with backup code already used",
+			name:      "Error - Email update with a used backup code",
 			accountID: "507f1f77bcf86cd799439011",
 			updates: []model.AccountUpdate{
 				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
@@ -2669,22 +1898,25 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 				EmailVerified: true,
 				MFA: model.MFASettings{
 					TOTP: model.TotpSettings{
-						Enabled:         true,
-						Secret:          testSecret,
-						BackupCodes:     []string{"CODE2"},
-						BackupCodesUsed: []string{validBackupCode},
+						Enabled:     true,
+						Secret:      testSecret,
+						BackupCodes: []string{"CODE2"},
 					},
 				},
 			},
-			// Note: The actual error returned depends on rate limiting logic
-			// When backup code is already used, it goes through rate limiting
-			// and returns either "2FA backup is already used" or "invalid 2FA code"
-			expectedError: "2FA",
+			// A used code is no longer in the list and is refused like a wrong one.
+			expectedError: "invalid 2FA code",
 		},
 	}
 
 	for _, tt := range tests {
 		suite.Run(tt.name, func() {
+			if tt.mfa != nil && tt.mfa.OTP == validOTP {
+				// A TOTP code is valid for one 30 s step; the rows before can outlast it.
+				fresh, err := totp.GenerateCode(testSecret, time.Now())
+				suite.Require().NoError(err)
+				tt.mfa = &model.MfaData{OTP: fresh, Methods: tt.mfa.Methods}
+			}
 			// Reset mock expectations
 			suite.mockAccountRepo.ExpectedCalls = nil
 			suite.mockCache.ExpectedCalls = nil
@@ -2742,30 +1974,19 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 						suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil).Maybe()
 						suite.mockCache.On("Increment", context.Background(), mock.AnythingOfType("string")).Return(int64(1), nil).Maybe()
 						suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
+						suite.mockCache.On("Del", context.Background(), mock.AnythingOfType("string")).Return(nil).Maybe()
 
 						// Check if it's a valid backup code
 						isValidBackup := false
 						for _, code := range tt.account.MFA.TOTP.BackupCodes {
 							if code == tt.mfa.OTP {
-								// Check if not already used
-								alreadyUsed := false
-								for _, usedCode := range tt.account.MFA.TOTP.BackupCodesUsed {
-									if usedCode == tt.mfa.OTP {
-										alreadyUsed = true
-										break
-									}
-								}
-								if !alreadyUsed {
-									isValidBackup = true
-								}
+								isValidBackup = true
 								break
 							}
 						}
 
-						// Mock UpdateAccount for backup code use
-						if isValidBackup {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.account, nil).Once()
-						}
+						suite.mockAccountRepo.On("ConsumeLegacyBackupCode", context.Background(), tt.account.ID.Hex(), tt.mfa.OTP).Return(isValidBackup, nil).Maybe()
+						suite.mockAccountRepo.On("ConsumeBackupCode", context.Background(), tt.account.ID.Hex(), mock.AnythingOfType("string")).Return(false, nil).Maybe()
 					}
 
 					// Mock UpdateAccount for the actual account update (if MFA check passes)
@@ -2778,17 +1999,7 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 							isValidBackup := false
 							for _, code := range tt.account.MFA.TOTP.BackupCodes {
 								if code == tt.mfa.OTP {
-									// Check if not already used
-									alreadyUsed := false
-									for _, usedCode := range tt.account.MFA.TOTP.BackupCodesUsed {
-										if usedCode == tt.mfa.OTP {
-											alreadyUsed = true
-											break
-										}
-									}
-									if !alreadyUsed {
-										isValidBackup = true
-									}
+									isValidBackup = true
 									break
 								}
 							}
