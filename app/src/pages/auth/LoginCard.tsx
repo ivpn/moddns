@@ -153,9 +153,13 @@ const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, 
                                             data-testid="input-otp"
                                             type="text"
                                             placeholder="2FA code"
+                                            autoComplete="one-time-code"
+                                            autoCapitalize="none"
+                                            autoCorrect="off"
+                                            spellCheck={false}
                                             value={otp}
                                             onChange={(e) => setOtp(e.target.value)}
-                                            maxLength={16}
+                                            maxLength={64}
                                             className="pl-10 bg-[var(--shadcn-ui-app-muted)] focus:bg-[var(--tailwind-colors-slate-700)] border border-[var(--shadcn-ui-app-border)] text-[var(--shadcn-ui-app-foreground)] placeholder:text-[var(--tailwind-colors-slate-400)] font-normal text-sm rounded-md"
                                             disabled={loading}
                                             required

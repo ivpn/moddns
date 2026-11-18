@@ -13,6 +13,7 @@ import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
+import { formatBackupCode } from "@/lib/backupCodes";
 
 interface TwoFactorAuthDialogProps {
     open: boolean;
@@ -117,7 +118,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
         >
             <DialogContent
                 className={`
-                    w-[95vw] max-w-[900px] max-h-[90dvh] overflow-y-auto overscroll-contain p-0 border-[var(--tailwind-colors-slate-600)]
+                    w-[95vw] sm:max-w-2xl max-h-[90dvh] overflow-y-auto overscroll-contain p-0 border-[var(--tailwind-colors-slate-600)]
                     bg-[var(--shadcn-ui-app-background)] 
                     [&_[data-slot=dialog-close]_svg]:text-[var(--tailwind-colors-rdns-600)]
                     transition-opacity duration-200
@@ -144,13 +145,14 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                             <p className="text-sm text-[var(--tailwind-colors-slate-200)]">
                                 Save these backup codes in a safe place. Each code can be used once if you lose access to your authenticator app.
                             </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[var(--tailwind-colors-slate-900)] p-4 rounded">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[var(--tailwind-colors-slate-900)] p-3 sm:p-4 rounded">
                                 {backupCodes.map(code => (
                                     <span
                                         key={code}
-                                        className="font-mono text-[var(--tailwind-colors-slate-50)] text-base px-2 py-1 bg-[var(--tailwind-colors-slate-800)] rounded"
+                                        data-testid="backup-code"
+                                        className="font-mono text-[var(--tailwind-colors-slate-50)] text-[length:min(1rem,calc((100vw_-_6.5rem)/18))] sm:text-sm px-2 py-1 bg-[var(--tailwind-colors-slate-800)] rounded whitespace-nowrap select-all"
                                     >
-                                        {code}
+                                        {formatBackupCode(code)}
                                     </span>
                                 ))}
                             </div>
@@ -161,7 +163,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                                     className="flex-1 sm:flex-none min-w-32 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-rdns-600)]"
                                     onClick={async () => {
                                         try {
-                                            await navigator.clipboard.writeText(backupCodes.join("\n"));
+                                            await navigator.clipboard.writeText(backupCodes.map(formatBackupCode).join("\n"));
                                             toast.success("Backup codes copied to clipboard");
                                         } catch {
                                             toast.error("Failed to copy backup codes");
