@@ -121,7 +121,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'November 13, 2026';
+const FAQ_LAST_UPDATED = 'November 19, 2026';
 
 // The base stylesheet colours every <a>; only an important utility overrides it.
 const LINK_CLASS = "!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]";
@@ -190,9 +190,8 @@ export default function FAQ(): JSX.Element {
     const supportedProtocols = (
         <div className="space-y-2">
             <ul className="list-disc pl-5 space-y-1">
-                <li>DNS-over-HTTPS (DoH) - Port 443</li>
-                <li>DNS-over-HTTP/3 (DoH3) - Port 443 (UDP), same address as DoH; supporting clients switch to it automatically</li>
-                <li>DNS-over-TLS (DoT) - Port 853</li>
+                <li>DNS-over-HTTPS (DoH) - Port 443 (TCP)</li>
+                <li>DNS-over-TLS (DoT) - Port 853 (TCP)</li>
                 <li>DNS-over-QUIC (DoQ) - Port 853 (UDP)</li>
             </ul>
             <p>We do not offer unencrypted DNS on port 53. The modDNS address answers encrypted queries only, so it cannot serve as a bootstrap or fallback resolver in AdGuard Home, routers or similar clients; use any plain resolver for that role.</p>
