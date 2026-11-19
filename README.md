@@ -101,7 +101,7 @@ modDNS is a set of Go microservices with a React frontend:
 - Docker and Docker Compose
 - Make
 - Go 1.26.11+ (pinned in each `go.mod`)
-- Node.js 22+ and npm
+- Node.js 26 (LTS) and npm
 - Python 3.11 (backend end-to-end tests)
 - mkcert (optional, for trusted local TLS certificates)
 
