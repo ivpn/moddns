@@ -13,7 +13,7 @@ export default defineConfig({
   globalTimeout: 20 * 60 * 1000,
   maxFailures: 10,
   fullyParallel: true,
-  // Public-repo ubuntu-latest runners have 4 vCPUs; leave one for the vite server.
+  // GitHub-hosted Linux runners for public repos have 4 vCPUs; leave one for the vite server.
   workers: process.env.CI ? 3 : undefined,
   retries: 1,
   reportSlowTests: { max: 10, threshold: 30 * 1000 },
