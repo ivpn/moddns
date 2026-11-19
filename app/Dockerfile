@@ -1,4 +1,4 @@
-FROM node:23-alpine AS build-stage
+FROM node:26-alpine AS build-stage
 
 ARG ENVIRONMENT=local
 

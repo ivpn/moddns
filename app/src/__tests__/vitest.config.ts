@@ -24,6 +24,9 @@ export default defineConfig({
       '__tests__/e2e',
     ],
     environment: 'jsdom',
+    // Node 25+ defines its own global localStorage (undefined without
+    // --localstorage-file), which shadows jsdom's Storage in test workers.
+    execArgv: ['--no-experimental-webstorage'],
     setupFiles: ['src/__tests__/unit/setupTests.ts'],
     globals: true,
   },
