@@ -1548,6 +1548,15 @@ definitions:
     required:
     - sessionid
     type: object
+  requests.TotpDisableReq:
+    properties:
+      otp:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - otp
+    type: object
   requests.TotpReq:
     properties:
       otp:
@@ -1939,7 +1948,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/requests.TotpReq'
+          $ref: '#/definitions/requests.TotpDisableReq'
       produces:
       - application/json
       responses:
@@ -1949,6 +1958,10 @@ paths:
             $ref: '#/definitions/model.Account'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "500":

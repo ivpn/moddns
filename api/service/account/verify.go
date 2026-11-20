@@ -135,10 +135,6 @@ func (a *AccountService) VerifyPasswordReset(ctx context.Context, tokenValue, ne
 	if !acc.EmailVerified {
 		log.Ctx(ctx).Warn().Str("account_id", acc.ID.Hex()).Msg("Email not verified")
 	}
-	if err := a.MfaCheck(ctx, acc, mfa); err != nil {
-		return err
-	}
-
 	var others []model.Token
 	var found bool
 	for _, token := range acc.Tokens {
@@ -153,6 +149,10 @@ func (a *AccountService) VerifyPasswordReset(ctx context.Context, tokenValue, ne
 	}
 	if !found {
 		return ErrInvalidVerificationToken
+	}
+	// After the token checks, so an expired link never counts or uses up a 2FA code.
+	if err := a.MfaCheck(ctx, acc, mfa); err != nil {
+		return err
 	}
 
 	if err := acc.SetPassword(newPassword); err != nil {

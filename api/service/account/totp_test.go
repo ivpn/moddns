@@ -467,6 +467,52 @@ func TestVerifyTotp_MigratedLegacyCodeIsCaseSensitive(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// Password reset and turning 2FA off take a backup code of an earlier format,
+// as stored before or after the storage migration, matched only as typed.
+// specRef: api-endpoint-behaviour.md C2, E3, E8
+func TestLegacyBackupCodeInResetAndDisable(t *testing.T) {
+	const code = "LegacyCodeAAAAA1"
+	records := map[string]func(t *testing.T, f *totpFixture) model.TotpSettings{
+		"plaintext": func(*testing.T, *totpFixture) model.TotpSettings {
+			return model.TotpSettings{Enabled: true, Secret: legacySecret, BackupCodes: []string{code}}
+		},
+		"migrated": func(t *testing.T, f *totpFixture) model.TotpSettings {
+			sealed, err := f.keeper.SealSecret(f.id, legacySecret)
+			require.NoError(t, err)
+			return model.TotpSettings{
+				Enabled: true, SecretSealed: sealed, BackupCodesLegacy: true,
+				BackupCodeHashes: []string{f.keeper.HashBackupCode(f.id, code)},
+			}
+		},
+	}
+	ctx := context.Background()
+	for name, record := range records {
+		t.Run(name+"/reset", func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			f.setLegacy(record(t, f))
+			acc, err := f.repo.GetAccountById(ctx, f.id)
+			require.NoError(t, err)
+
+			require.ErrorIs(t, f.svc.MfaCheck(ctx, acc, &model.MfaData{OTP: strings.ToUpper(code)}), account.ErrInvalidTOTPCode)
+			require.NoError(t, f.svc.MfaCheck(ctx, acc, &model.MfaData{OTP: code}))
+			require.ErrorIs(t, f.svc.MfaCheck(ctx, acc, &model.MfaData{OTP: code}), account.ErrInvalidTOTPCode, "single use")
+		})
+		t.Run(name+"/disable", func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			f.setLegacy(record(t, f))
+
+			_, err := f.svc.TotpDisable(ctx, f.id, strings.ToLower(code))
+			require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
+			require.True(t, f.repo.stored(f.id).Enabled)
+
+			acc, err := f.svc.TotpDisable(ctx, f.id, code)
+			require.NoError(t, err)
+			require.Equal(t, model.TotpSettings{Enabled: false}, acc.MFA.TOTP)
+			require.Equal(t, model.TotpSettings{Enabled: false}, f.repo.stored(f.id))
+		})
+	}
+}
+
 // A secret the configured key cannot open is an operator error, not a wrong
 // code: verification fails with an internal error and nothing is consumed.
 // specRef: api-endpoint-behaviour.md E10

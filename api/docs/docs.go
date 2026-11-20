@@ -314,7 +314,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.TotpReq"
+                            "$ref": "#/definitions/requests.TotpDisableReq"
                         }
                     }
                 ],
@@ -327,6 +327,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -5511,6 +5517,19 @@ const docTemplate = `{
             "properties": {
                 "sessionid": {
                     "type": "string"
+                }
+            }
+        },
+        "requests.TotpDisableReq": {
+            "type": "object",
+            "required": [
+                "otp"
+            ],
+            "properties": {
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
                 }
             }
         },
