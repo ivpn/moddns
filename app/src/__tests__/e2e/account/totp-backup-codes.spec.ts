@@ -81,3 +81,103 @@ test.describe('2FA login', { tag: '@desktop' }, () => {
     await expect.poll(() => sentCode).toBe(grouped);
   });
 });
+
+// Someone who lost the authenticator turns 2FA off with a backup code, then enrols again.
+test.describe('backup code recovery', { tag: '@desktop' }, () => {
+  test('disable 2FA accepts a grouped backup code', async ({ page }) => {
+    let sentCode: string | undefined;
+    const account = { id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: true } } };
+    await registerMocks(page, { authenticated: true, accountOverride: account });
+    // registerMocks' catch-all answers /accounts/current itself; register the account after it.
+    await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
+    await page.route('**/api/v1/sub', route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
+    await page.route('**/api/v1/webauthn/passkeys', route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+    await page.route('**/api/v1/accounts/mfa/totp/disable', route => {
+      sentCode = (route.request().postDataJSON() as { otp: string }).otp;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'abc', mfa: { totp: { enabled: false } } }) });
+    });
+
+    await page.goto('/account-preferences');
+    const toggle = page.getByRole('radio', { name: /^Disable$/ }).first();
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await toggle.click();
+
+    const input = page.locator('#disable-totp-code');
+    await expect(input).not.toHaveAttribute('inputmode', 'numeric');
+    await expect(input).toHaveAttribute('autocorrect', 'off');
+    await expect(input).toHaveAttribute('autocapitalize', 'none');
+    await expect(input).toHaveAttribute('spellcheck', 'false');
+
+    const grouped = formatBackupCode(BACKUP_CODES[0]);
+    await input.fill(grouped);
+    await expect(input).toHaveValue(grouped);
+    await page.getByRole('button', { name: /^Disable 2FA$/ }).click();
+    await expect.poll(() => sentCode).toBe(grouped);
+  });
+
+  test('a wrong code keeps the user signed in and shows why', async ({ page }) => {
+    const account = { id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: true } } };
+    await registerMocks(page, { authenticated: true, accountOverride: account });
+    await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
+    await page.route('**/api/v1/accounts/mfa/totp/disable', route =>
+      route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'invalid 2FA code' }) }));
+
+    await page.goto('/account-preferences');
+    await page.getByRole('radio', { name: /^Disable$/ }).first().click();
+    await page.locator('#disable-totp-code').fill(formatBackupCode(BACKUP_CODES[2]));
+    await page.getByRole('button', { name: /^Disable 2FA$/ }).click();
+
+    await expect(page.getByText('invalid 2FA code')).toBeVisible();
+    await expect(page.locator('#disable-totp-code')).toBeVisible();
+    await expect(page).toHaveURL(/\/account-preferences/);
+  });
+
+  test('password reset accepts a grouped backup code', async ({ page }) => {
+    let sentCode: string | undefined;
+    await page.route('**/api/v1/verify/reset-password', route => {
+      const code = route.request().headers()['x-mfa-code'];
+      if (!code) {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
+      }
+      sentCode = code;
+      return route.fulfill({ status: 204, body: '' });
+    });
+
+    await page.goto('/reset-password/reset-token');
+    await page.getByPlaceholder('New password').fill('N3w-Passw0rd-Long!');
+    await page.getByPlaceholder('Confirm password').fill('N3w-Passw0rd-Long!');
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+
+    const input = page.getByPlaceholder('2FA code');
+    await expect(input).toBeVisible();
+    await expect(input).toHaveAttribute('autocorrect', 'off');
+    await expect(input).toHaveAttribute('autocapitalize', 'none');
+
+    const grouped = formatBackupCode(BACKUP_CODES[1]);
+    await input.fill(grouped);
+    await expect(input).toHaveValue(grouped);
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+    await expect.poll(() => sentCode).toBe(grouped);
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('password reset reports a wrong 2FA code', async ({ page }) => {
+    await page.route('**/api/v1/verify/reset-password', route => {
+      const code = route.request().headers()['x-mfa-code'];
+      const error = code ? 'invalid 2FA code' : 'TOTP is required';
+      return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error }) });
+    });
+
+    await page.goto('/reset-password/reset-token');
+    await page.getByPlaceholder('New password').fill('N3w-Passw0rd-Long!');
+    await page.getByPlaceholder('Confirm password').fill('N3w-Passw0rd-Long!');
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+    await page.getByPlaceholder('2FA code').fill('123456');
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+    await expect(page.getByText(/invalid 2FA code/i)).toBeVisible();
+  });
+});

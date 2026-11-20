@@ -80,6 +80,8 @@ export default function PasswordResetConfirm(): JSX.Element {
                     if (axiosErr?.response?.data?.error === "TOTP is required") {
                         setShowOtp(true);
                         toast.info("Two-factor authentication required. Please enter your code.");
+                    } else {
+                        toast.error(axiosErr?.response?.data?.error || "Failed to reset password.");
                     }
                     break;
                 case 500:
@@ -159,7 +161,11 @@ export default function PasswordResetConfirm(): JSX.Element {
                                                     className="flex items-center gap-2 py-2.5 px-3 w-full bg-[var(--shadcn-ui-app-background)] rounded-[var(--primitives-radius-radius-md)] border-0 text-[var(--shadcn-ui-app-muted-foreground)] font-normal text-sm tracking-[0] leading-6"
                                                     value={otp}
                                                     onChange={e => setOtp(e.target.value)}
-                                                    maxLength={8}
+                                                    autoComplete="one-time-code"
+                                                    autoCapitalize="none"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                    maxLength={64}
                                                     autoFocus
                                                     disabled={loading}
                                                     required
