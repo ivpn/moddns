@@ -60,9 +60,7 @@ export async function registerPasskey(email: string, subid: string): Promise<voi
     }
 
     // Send the registration response to the server
-    const finishResponse = await api.Client.authApi.apiV1WebauthnRegisterFinishPost({
-      data: JSON.stringify(registrationResponse)
-    });
+    const finishResponse = await api.Client.authApi.apiV1WebauthnRegisterFinishPost(registrationResponse);
 
     if (finishResponse.status !== 201) {
       throw new Error("Failed to complete passkey registration");
@@ -78,7 +76,7 @@ export async function registerPasskey(email: string, subid: string): Promise<voi
     }
 
     if (webauthnErr.name === 'NotAllowedError') {
-      throw new Error("Passkey registration was cancelled or timed out");
+      throw new Error("Passkey registration was cancelled or timed out. If you use a security key, it needs a PIN: set one in your browser's security key settings.");
     } else if (webauthnErr.name === 'InvalidStateError') {
       throw new Error("A passkey is already registered for this account on this device");
     } else if (webauthnErr.name === 'NotSupportedError') {
@@ -133,10 +131,8 @@ export async function authenticateWithPasskey(
 
     // Send the authentication response to the server
     const finishResponse = await api.Client.authApi.apiV1WebauthnLoginFinishPost(
+      authenticationResponse,
       xSessionsRemove ? "true" : undefined, // xSessionsRemove parameter
-      {
-        data: JSON.stringify(authenticationResponse)
-      }
     );
 
     if (finishResponse.status !== 201) {
@@ -248,9 +244,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Send the registration response to the server
-    const finishResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddFinishPost({
-      data: JSON.stringify(registrationResponse)
-    });
+    const finishResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddFinishPost(registrationResponse);
 
     if (finishResponse.status !== 201) {
       throw new Error("Failed to complete passkey addition");
@@ -266,7 +260,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     if (webauthnErr.name === 'NotAllowedError') {
-      throw new Error("Passkey addition was cancelled or timed out");
+      throw new Error("Passkey addition was cancelled or timed out. If you use a security key, it needs a PIN: set one in your browser's security key settings.");
     } else if (webauthnErr.name === 'InvalidStateError') {
       throw new Error(ALREADY_HOLDS_PASSKEY);
     } else if (webauthnErr.name === 'NotSupportedError') {
@@ -315,7 +309,7 @@ async function beginReauthForPurpose(purpose: RequestsWebAuthnReauthBeginRequest
     const optionsRecord = options as Record<string, unknown>;
     const opts = optionsRecord.publicKey ? optionsRecord.publicKey : options;
     const assertionResponse = await startAuthentication({ optionsJSON: opts as PublicKeyCredentialRequestOptionsJSON });
-    const finish = await api.Client.authApi.apiV1WebauthnPasskeyReauthFinishPost({ data: JSON.stringify(assertionResponse) });
+    const finish = await api.Client.authApi.apiV1WebauthnPasskeyReauthFinishPost(assertionResponse);
     const token = finish.data.reauth_token;
     if (!token) throw new Error('Missing reauth token');
     return token;

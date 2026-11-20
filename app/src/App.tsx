@@ -54,6 +54,7 @@ import { AUTH_KEY } from "@/lib/consts"
 import { useAppStore } from "@/store/general"
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard"
 import { Toaster } from "@/components/ui/sonner"
+import { useLoadPasskeysOnce } from "@/hooks/useLoadPasskeysOnce";
 import { checkForAppUpdate } from "@/lib/swUpdate"
 import { ApiErrorBoundary } from "@/components/errors/ApiErrorBoundary";
 import { RouterErrorBoundary } from "@/components/errors/RouterErrorBoundary";
@@ -119,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [isAuthenticated, navigate]);
 
   const login = (showToast: boolean = true) => {
+    useAppStore.getState().resetAccountState();
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_KEY, "true");
     if (showToast) authToasts.loginSuccess();
@@ -126,11 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const performLogoutSideEffects = () => {
     localStorage.removeItem(AUTH_KEY);
-    useAppStore.getState().setAccount(null);
-    useAppStore.getState().setProfiles([]);
-    useAppStore.getState().setActiveProfile(null);
-    useAppStore.getState().setSubscriptionStatus(null);
-    useAppStore.getState().setSubscriptionType(null);
+    useAppStore.getState().resetAccountState();
   };
 
   const logout = (toastMessage?: string, toastType: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -166,6 +164,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { unsub(); };
   }, [isAuthenticated, navigate]);
 
+  // `storage` fires only in other tabs, so a logout there also clears this tab
+  // before it can write account state back to localStorage.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== AUTH_KEY && e.key !== null) return;
+      if (!isAuthenticated || localStorage.getItem(AUTH_KEY) === "true") return;
+      setIsAuthenticated(false);
+      performLogoutSideEffects();
+      toast.info("You were logged out in another tab.");
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [isAuthenticated]);
+
   // Removed legacy __session_expired_flag__ flush (event bus handles timing via queue)
 
   return (
@@ -187,11 +199,13 @@ function isAuthExpiryError(error: unknown): boolean {
 // blocking loader path uses, so a stale-cache navigation still logs the user out
 // if their session died.
 function revalidateAccountAndProfiles() {
+  const epoch = useAppStore.getState().authEpoch;
   void Promise.allSettled([
     api.Client.accountsApi.apiV1AccountsCurrentGet(),
     api.Client.profilesApi.apiV1ProfilesGet(),
   ]).then(([accountResult, profilesResult]) => {
-    const { setAccount, setProfiles, restoreActiveProfile } = useAppStore.getState();
+    const { setAccount, setProfiles, restoreActiveProfile, authEpoch } = useAppStore.getState();
+    if (authEpoch !== epoch) return;
     if (accountResult.status === 'fulfilled') {
       setAccount(accountResult.value.data as ModelAccount);
     }
@@ -298,8 +312,21 @@ async function rootLoader() {
   }
 }
 
-// Lighter loader for pages that only need profiles data (no account data needed)
-async function profilesOnlyLoader() {
+// Loads the account into the store without failing the page; it settles either way. An expired
+// session is reported by the profiles request that always runs alongside, so only once.
+function loadAccountIntoStore(): Promise<void> {
+  const epoch = useAppStore.getState().authEpoch;
+  return api.Client.accountsApi.apiV1AccountsCurrentGet()
+    .then((res) => {
+      const { setAccount, authEpoch } = useAppStore.getState();
+      if (authEpoch === epoch) setAccount(res.data as ModelAccount);
+    })
+    .catch(() => undefined);
+}
+
+// Like rootLoader, but the account is best-effort: the page renders from profiles, and the account
+// is loaded only for app-wide UI such as the passkey banner, never blocking a warm navigation.
+async function accountOptionalLoader() {
   try {
     // Check if user is authenticated before making API calls
     const authToken = localStorage.getItem(AUTH_KEY);
@@ -308,6 +335,11 @@ async function profilesOnlyLoader() {
       throw redirect("/login");
     }
 
+    const epoch = useAppStore.getState().authEpoch;
+    const accountLoaded = typeof window !== "undefined" && !useAppStore.getState().account
+      ? loadAccountIntoStore()
+      : Promise.resolve();
+
     // Render-from-cache: serve the hydrated store synchronously on warm
     // navigations and revalidate profiles in the background (see rootLoader).
     if (typeof window !== "undefined") {
@@ -315,31 +347,33 @@ async function profilesOnlyLoader() {
       if (cached.profiles.length > 0) {
         void api.Client.profilesApi.apiV1ProfilesGet()
           .then((res) => {
-            const { setProfiles, restoreActiveProfile } = useAppStore.getState();
+            const { setProfiles, restoreActiveProfile, authEpoch } = useAppStore.getState();
+            if (authEpoch !== epoch) return;
             const fresh = res.data as ModelProfile[];
             setProfiles(fresh);
             restoreActiveProfile(fresh);
           })
           .catch((e) => { if (isAuthExpiryError(e)) dispatch({ type: 'auth/sessionExpired' }); });
-        return { account: null, profiles: cached.profiles };
+        return { account: cached.account, profiles: cached.profiles };
       }
     }
 
-    const profilesRes = await api.Client.profilesApi.apiV1ProfilesGet();
+    const [profilesRes] = await Promise.all([api.Client.profilesApi.apiV1ProfilesGet(), accountLoaded]);
 
     // Save to Zustand store
     const profiles = profilesRes.data as ModelProfile[];
 
     // This will run on the client, so we can update the store here:
     if (typeof window !== "undefined") {
-      const { setProfiles, restoreActiveProfile } = useAppStore.getState();
+      const { setProfiles, restoreActiveProfile, authEpoch } = useAppStore.getState();
+      if (authEpoch !== epoch) return { account: null, profiles: [] };
       setProfiles(profiles);
       // Restore the previously selected profile or set the first one
       restoreActiveProfile(profiles);
     }
 
     return {
-      account: null,
+      account: typeof window !== "undefined" ? useAppStore.getState().account : null,
       profiles,
     };
   } catch (error: unknown) {
@@ -437,6 +471,7 @@ function ProtectedLayout() {
   // not run and the UI does not advertise functionality the user has lost.
   const { isCutOff } = useSubscriptionGuard();
   const { isDesktop, navDesktop, width: viewportWidth } = useScreenDetector();
+  useLoadPasskeysOnce(isAuthenticated);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const handleMoreClick = useCallback(() => setMobileNavOpen(true), []);
 
@@ -455,15 +490,6 @@ function ProtectedLayout() {
   }, [location.pathname, rightPanelOpen, setRightPanelOpen]);
 
   const localAuthed = typeof window !== 'undefined' ? localStorage.getItem(AUTH_KEY) === 'true' : isAuthenticated;
-
-  useEffect(() => {
-    const revalidate = () => { };
-    window.addEventListener('auth:logout', revalidate);
-    window.addEventListener('storage', (e) => { if (e.key === AUTH_KEY) revalidate(); });
-    return () => {
-      window.removeEventListener('auth:logout', revalidate);
-    };
-  }, []);
 
   if (!isAuthenticated || !localAuthed) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -781,7 +807,7 @@ const router = createBrowserRouter([
           { loader: rootLoader, path: "home", element: <Suspense fallback={<div />}><HomeScreen /></Suspense> },
           { loader: rootLoader, path: "setup", element: <SetupWithLoader /> },
           { loader: rootLoader, path: "settings", element: <SettingsWithLoader /> },
-          { loader: profilesOnlyLoader, path: "blocklists", element: <BlocklistsWithLoader /> },
+          { loader: accountOptionalLoader, path: "blocklists", element: <BlocklistsWithLoader /> },
           { loader: rootLoader, path: "custom-rules", element: <CustomRulesWithLoader /> },
           { loader: rootLoader, path: "account-preferences", element: <AccountPreferencesWithLoader /> },
           { loader: rootLoader, path: "mobileconfig", element: <MobileconfigWithLoader /> },
@@ -814,4 +840,4 @@ function App() {
 
 export default App;
 // eslint-disable-next-line react-refresh/only-export-components
-export { useAuth, AuthContext, RootIndexRedirect, routePreload };
+export { useAuth, AuthContext, RootIndexRedirect, routePreload, rootLoader, accountOptionalLoader };

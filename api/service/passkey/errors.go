@@ -37,8 +37,8 @@ var (
 	ErrFinishRegistration = NewPasskeyError("Unable to complete registration. Please try again.")
 	ErrBeginLogin         = NewPasskeyError("Unable to start login. Please try again.")
 	ErrFinishLogin        = NewPasskeyError("Unable to complete login. Please try again.")
-	ErrBeginAddPasskey    = NewPasskeyError("Unable to start add passkey. Please try again.")
-	ErrFinishAddPasskey   = NewPasskeyError("Unable to complete add passkey. Please try again.")
+	ErrBeginAddPasskey    = NewPasskeyError("Unable to start adding a passkey. Please try again.")
+	ErrFinishAddPasskey   = NewPasskeyError("Unable to add passkey. Please try again.")
 	ErrGetPasskeys        = NewPasskeyError("Unable to retrieve passkeys. Please try again.")
 	// ErrGetSession             = "Unable to retrieve session. Please try again."
 	// ErrSaveSession            = "Unable to save session. Please try again."

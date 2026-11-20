@@ -21,13 +21,13 @@ from typing import Any, Dict, List, Optional
 from typing_extensions import Annotated
 from moddns.models.api_web_authn_login_begin_request import ApiWebAuthnLoginBeginRequest
 from moddns.models.api_web_authn_register_begin_request import ApiWebAuthnRegisterBeginRequest
-from moddns.models.model_credential import ModelCredential
 from moddns.models.protocol_credential_assertion import ProtocolCredentialAssertion
 from moddns.models.protocol_credential_creation import ProtocolCredentialCreation
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_web_authn_add_passkey_begin_request import RequestsWebAuthnAddPasskeyBeginRequest
 from moddns.models.requests_web_authn_delete_passkey_request import RequestsWebAuthnDeletePasskeyRequest
 from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAuthnReauthBeginRequest
+from moddns.models.responses_passkey import ResponsesPasskey
 from moddns.models.responses_web_authn_reauth_finish_response import ResponsesWebAuthnReauthFinishResponse
 
 from moddns.api_client import ApiClient, RequestSerialized
@@ -906,6 +906,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_login_finish_post(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all other active sessions during login")] = None,
         _request_timeout: Union[
             None,
@@ -924,6 +925,8 @@ class AuthenticationApi:
 
         Complete WebAuthn login process
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param x_sessions_remove: Remove all other active sessions during login
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -949,6 +952,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_login_finish_post_serialize(
+            body=body,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -975,6 +979,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_login_finish_post_with_http_info(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all other active sessions during login")] = None,
         _request_timeout: Union[
             None,
@@ -993,6 +998,8 @@ class AuthenticationApi:
 
         Complete WebAuthn login process
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param x_sessions_remove: Remove all other active sessions during login
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1018,6 +1025,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_login_finish_post_serialize(
+            body=body,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1044,6 +1052,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_login_finish_post_without_preload_content(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all other active sessions during login")] = None,
         _request_timeout: Union[
             None,
@@ -1062,6 +1071,8 @@ class AuthenticationApi:
 
         Complete WebAuthn login process
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param x_sessions_remove: Remove all other active sessions during login
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -1087,6 +1098,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_login_finish_post_serialize(
+            body=body,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -1108,6 +1120,7 @@ class AuthenticationApi:
 
     def _api_v1_webauthn_login_finish_post_serialize(
         self,
+        body,
         x_sessions_remove,
         _request_auth,
         _content_type,
@@ -1136,6 +1149,8 @@ class AuthenticationApi:
             _header_params['x-sessions-remove'] = x_sessions_remove
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -1146,6 +1161,19 @@ class AuthenticationApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -1479,6 +1507,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_add_finish_post(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1496,6 +1525,8 @@ class AuthenticationApi:
 
         Complete adding a new passkey to authenticated account
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1519,6 +1550,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_add_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1543,6 +1575,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_add_finish_post_with_http_info(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1560,6 +1593,8 @@ class AuthenticationApi:
 
         Complete adding a new passkey to authenticated account
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1583,6 +1618,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_add_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1607,6 +1643,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_add_finish_post_without_preload_content(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1624,6 +1661,8 @@ class AuthenticationApi:
 
         Complete adding a new passkey to authenticated account
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1647,6 +1686,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_add_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1666,6 +1706,7 @@ class AuthenticationApi:
 
     def _api_v1_webauthn_passkey_add_finish_post_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -1691,6 +1732,8 @@ class AuthenticationApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -1701,6 +1744,19 @@ class AuthenticationApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -2328,6 +2384,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_reauth_finish_post(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2345,6 +2402,8 @@ class AuthenticationApi:
 
         Complete WebAuthn assertion and issue a short-lived reauth token
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2368,6 +2427,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_reauth_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2392,6 +2452,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_reauth_finish_post_with_http_info(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2409,6 +2470,8 @@ class AuthenticationApi:
 
         Complete WebAuthn assertion and issue a short-lived reauth token
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2432,6 +2495,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_reauth_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2456,6 +2520,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_passkey_reauth_finish_post_without_preload_content(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2473,6 +2538,8 @@ class AuthenticationApi:
 
         Complete WebAuthn assertion and issue a short-lived reauth token
 
+        :param body: Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2496,6 +2563,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_passkey_reauth_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2515,6 +2583,7 @@ class AuthenticationApi:
 
     def _api_v1_webauthn_passkey_reauth_finish_post_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -2540,6 +2609,8 @@ class AuthenticationApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -2550,6 +2621,19 @@ class AuthenticationApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [
@@ -2588,7 +2672,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> List[ModelCredential]:
+    ) -> List[ResponsesPasskey]:
         """Get user passkeys
 
         Get list of passkeys for authenticated user
@@ -2623,7 +2707,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2652,7 +2736,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[List[ModelCredential]]:
+    ) -> ApiResponse[List[ResponsesPasskey]]:
         """Get user passkeys
 
         Get list of passkeys for authenticated user
@@ -2687,7 +2771,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2751,7 +2835,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '200': "List[ModelCredential]",
+            '200': "List[ResponsesPasskey]",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -3100,6 +3184,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_register_finish_post(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -3117,6 +3202,8 @@ class AuthenticationApi:
 
         Complete WebAuthn registration process
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3140,6 +3227,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_register_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3164,6 +3252,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_register_finish_post_with_http_info(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -3181,6 +3270,8 @@ class AuthenticationApi:
 
         Complete WebAuthn registration process
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3204,6 +3295,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_register_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3228,6 +3320,7 @@ class AuthenticationApi:
     @validate_call
     def api_v1_webauthn_register_finish_post_without_preload_content(
         self,
+        body: Annotated[Dict[str, Any], Field(description="Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -3245,6 +3338,8 @@ class AuthenticationApi:
 
         Complete WebAuthn registration process
 
+        :param body: Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1) (required)
+        :type body: object
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -3268,6 +3363,7 @@ class AuthenticationApi:
         """ # noqa: E501
 
         _param = self._api_v1_webauthn_register_finish_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -3287,6 +3383,7 @@ class AuthenticationApi:
 
     def _api_v1_webauthn_register_finish_post_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -3312,6 +3409,8 @@ class AuthenticationApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -3322,6 +3421,19 @@ class AuthenticationApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [

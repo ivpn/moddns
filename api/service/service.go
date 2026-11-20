@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/api/responses"
 	"github.com/ivpn/dns/api/cache"
@@ -17,6 +15,7 @@ import (
 	"github.com/ivpn/dns/api/internal/geoip"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/validator"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/apple"
@@ -39,7 +38,7 @@ type Service struct {
 	Cfg      config.Config
 	Store    db.Db
 	Cache    cache.Cache
-	Webauthn *webauthn.WebAuthn
+	Webauthn *webauthn.RelyingParty
 	HTTP     webhookClient.Http
 	AccountServicer
 	ProfileServicer
@@ -62,7 +61,7 @@ func newStatisticsReadCache(c cache.Cache) *cache.StatisticsReadCache {
 // New constructs the service layer. servicesCatalog is used by ProfileService
 // for service-ID validation on import (spec row V9); pass nil to skip catalog
 // validation (safe-default for environments without a catalog file).
-func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, webauthn *webauthn.WebAuthn, servicesCatalog servicesCatalogReader) Service {
+func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generator, apiValidator *validator.APIValidator, mailer email.Mailer, shortener *urlshort.URLShortener, relyingParty *webauthn.RelyingParty, servicesCatalog servicesCatalogReader) Service {
 	blocklistSrv := blocklist.NewBlocklistService(store, cache)
 	queryLogsSrv := querylogs.NewQueryLogsService(store)
 	statsSrv := statistics.NewStatisticsService(store, statistics.WithProfiles(store), statistics.WithReadCache(newStatisticsReadCache(cache)))
@@ -87,7 +86,7 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 		AppleServicer:        appleSrv,
 		BlocklistServicer:    blocklistSrv,
 		SubscriptionServicer: subSrv,
-		Webauthn:             webauthn,
+		Webauthn:             relyingParty,
 		HTTP:                 *httpClient,
 		DNSStampServicer:     dnsstampSrv,
 		Statistics:           statsSrv,
@@ -109,26 +108,25 @@ type Servicer interface {
 
 type CredentialServicer interface {
 	GetCredentials(context.Context, primitive.ObjectID) ([]model.Credential, error)
-	SaveCredential(context.Context, webauthn.Credential, primitive.ObjectID) error
-	UpdateCredential(context.Context, webauthn.Credential, primitive.ObjectID) error
+	SaveCredential(context.Context, *model.Credential) error
 	DeleteCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID) error
 	DeleteCredentialByID(context.Context, primitive.ObjectID, primitive.ObjectID) error
 }
 
 type PasskeyServicer interface {
-	BeginRegistration(ctx context.Context, account *model.Account, subID string) (*protocol.CredentialCreation, string, error)
+	BeginRegistration(ctx context.Context, account *model.Account, subID string) (*webauthn.CredentialCreation, string, error)
 	FinishRegistration(ctx context.Context, token string, httpReq *http.Request, paSessionID string) error
-	BeginLogin(ctx context.Context, email string) (*protocol.CredentialAssertion, string, error)
+	BeginLogin(ctx context.Context, email string) (*webauthn.CredentialAssertion, string, error)
 	FinishLogin(ctx context.Context, token string, httpReq *http.Request, saveSession bool) (*model.Account, string, string, error)
 	GetPasskeys(ctx context.Context, account *model.Account) ([]model.Credential, error)
 	// DeletePasskey(ctx context.Context, account *model.Account, credentialID []byte) error
-	BeginReauth(ctx context.Context, purpose, accountID string) (*protocol.CredentialAssertion, string, error)
+	BeginReauth(ctx context.Context, purpose, accountID string) (*webauthn.CredentialAssertion, string, error)
 	FinishReauth(ctx context.Context, accountID, token string, httpReq *http.Request) (*model.Token, error)
 }
 
 type SessionServicer interface {
 	GetSession(context.Context, string) (model.Session, bool, error)
-	SaveSession(context.Context, webauthn.SessionData, string, string) error
+	SaveSession(context.Context, model.SessionPayload, string, string) error
 	DeleteSession(context.Context, string) error
 	DeleteSessionsByAccountID(ctx context.Context, accID string) error
 	DeleteSessionsByAccountIDExceptCurrent(ctx context.Context, accID, currentToken string) error

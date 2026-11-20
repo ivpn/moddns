@@ -3002,6 +3002,15 @@ const docTemplate = `{
                 "summary": "Finish passkey login",
                 "parameters": [
                     {
+                        "description": "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    {
                         "type": "string",
                         "description": "Remove all other active sessions during login",
                         "name": "x-sessions-remove",
@@ -3094,6 +3103,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Complete adding new passkey",
+                "parameters": [
+                    {
+                        "description": "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Passkey addition completed successfully"
@@ -3166,6 +3186,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Finish reauthentication via passkey",
+                "parameters": [
+                    {
+                        "description": "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Created",
@@ -3255,7 +3286,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/model.Credential"
+                                "$ref": "#/definitions/responses.Passkey"
                             }
                         }
                     },
@@ -3321,6 +3352,17 @@ const docTemplate = `{
                     "Authentication"
                 ],
                 "summary": "Finish passkey registration",
+                "parameters": [
+                    {
+                        "description": "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
                 "responses": {
                     "201": {
                         "description": "Registration completed successfully"
@@ -3666,17 +3708,6 @@ const docTemplate = `{
                 },
                 "type": {
                     "description": "ownership: currently always \"public\" (platform-provided)",
-                    "type": "string"
-                }
-            }
-        },
-        "model.Credential": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
                     "type": "string"
                 }
             }
@@ -5640,6 +5671,21 @@ const docTemplate = `{
                 },
                 "expires_at": {
                     "type": "string"
+                }
+            }
+        },
+        "responses.Passkey": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "user_verified": {
+                    "description": "UserVerified tells whether the latest ceremony with this passkey verified the user.",
+                    "type": "boolean"
                 }
             }
         },

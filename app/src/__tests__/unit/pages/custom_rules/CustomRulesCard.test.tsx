@@ -52,7 +52,7 @@ const showMore = (n: number) => screen.queryByText(`Show ${n} more`);
 describe('CustomRulesCard rendering budget', { timeout: 20_000 }, () => {
     beforeEach(() => {
         useAppStore.setState({
-            activeProfile: { profile_id: PROFILE_ID } as ModelProfile,
+            activeProfile: { id: PROFILE_ID } as ModelProfile,
             customRulesCollapsed: {},
         });
     });

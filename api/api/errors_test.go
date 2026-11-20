@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,8 +12,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/service/account"
+	"github.com/ivpn/dns/api/service/passkey"
 	"github.com/ivpn/dns/api/service/profile"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -196,6 +200,14 @@ func TestHandleError(t *testing.T) {
 			expectedError:  profile.ErrUnsupportedImportMode.Error(),
 		},
 		{
+			// specRef: api-endpoint-behaviour.md F12
+			name:           "Passkey refusal answers with the passkey error only",
+			err:            fmt.Errorf("%w: %w", passkey.ErrFinishLogin, fmt.Errorf("failed to finish login: %w", webauthn.ErrVerificationFailed)),
+			errMsg:         "Failed to finish login",
+			expectedStatus: 400,
+			expectedError:  passkey.ErrFinishLogin.Error(),
+		},
+		{
 			name:           "Profile: Invalid Export Scope",
 			err:            profile.ErrInvalidExportScope,
 			errMsg:         "export failed",
@@ -226,6 +238,44 @@ func TestHandleError(t *testing.T) {
 			} else {
 				assert.Empty(t, errResp.Details)
 			}
+		})
+	}
+}
+
+// A refused passkey ceremony is logged below the Error level reported to Sentry,
+// except a signature counter that did not increase, which may mean a cloned authenticator.
+// Any other passkey error stays at Error.
+// specRef: api-endpoint-behaviour.md F12, F13
+func TestHandleErrorPasskeyRefusalLogLevel(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		wantLevel string
+	}{
+		{"verification failed", fmt.Errorf("%w: %w", passkey.ErrFinishLogin, webauthn.ErrVerificationFailed), "warn"},
+		{"ceremony not found", fmt.Errorf("%w: %w", passkey.ErrFinishRegistration, webauthn.ErrCeremonyNotFound), "warn"},
+		{"clone detected", fmt.Errorf("%w: %w", passkey.ErrFinishReauth, webauthn.ErrCloneDetected), "error"},
+		{"server failure reported as a passkey error", passkey.ErrBeginLogin, "error"},
+		{"finish error that is not a refusal", fmt.Errorf("%w: %w", passkey.ErrFinishLogin, errors.New("store down")), "error"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			logger := zerolog.New(&buf)
+			app := fiber.New()
+			app.Get("/test", func(c *fiber.Ctx) error {
+				c.SetUserContext(logger.WithContext(c.UserContext()))
+				return HandleError(c, tt.err, "Failed to finish")
+			})
+
+			resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/test", nil))
+			assert.NoError(t, err)
+			assert.Equal(t, 400, resp.StatusCode)
+
+			var entry map[string]any
+			assert.NoError(t, json.Unmarshal(buf.Bytes(), &entry))
+			assert.Equal(t, tt.wantLevel, entry["level"])
+			assert.Equal(t, tt.err.Error(), entry["error"], "the cause is logged")
 		})
 	}
 }

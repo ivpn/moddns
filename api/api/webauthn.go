@@ -90,6 +90,7 @@ func (s *APIServer) beginRegistration() fiber.Handler {
 // @Description Complete WebAuthn registration process
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 "Registration completed successfully"
 // @Failure 400 {object} ErrResponse
@@ -105,9 +106,7 @@ func (s *APIServer) finishRegistration() fiber.Handler {
 		// Finish registration
 		httpReq, err := adaptor.ConvertRequest(c, true)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": passkey.ErrFinishRegistration,
-			})
+			return HandleError(c, passkey.ErrFinishRegistration, err.Error())
 		}
 
 		paSessionID := c.Cookies(PASessionCookie)
@@ -115,6 +114,7 @@ func (s *APIServer) finishRegistration() fiber.Handler {
 			return HandleError(c, err, "Failed to finish registration")
 		}
 
+		ClearCookies(c, PASessionCookie)
 		return c.SendStatus(201)
 	}
 
@@ -171,6 +171,7 @@ func (s *APIServer) beginLogin() fiber.Handler {
 // @Description Complete WebAuthn login process
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Param x-sessions-remove header string false "Remove all other active sessions during login"
 // @Success 201 "Login completed successfully"
@@ -180,9 +181,6 @@ func (s *APIServer) beginLogin() fiber.Handler {
 func (s *APIServer) finishLogin() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
 		tmpToken := c.Cookies(WebAuthnTempCookie)
-		if tmpToken == "" {
-			return HandleError(c, ErrUnauthorized, "unauthorized")
-		}
 
 		// Clear temporary session cookie on client side
 		defer ClearCookies(c, WebAuthnTempCookie)
@@ -190,9 +188,7 @@ func (s *APIServer) finishLogin() fiber.Handler {
 		// Convert request to HTTP request
 		httpReq, err := adaptor.ConvertRequest(c, true)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": passkey.ErrFinishLogin,
-			})
+			return HandleError(c, passkey.ErrFinishLogin, err.Error())
 		}
 
 		account, token, purpose, err := s.Service.FinishLogin(c.UserContext(), tmpToken, httpReq, true)
@@ -339,6 +335,7 @@ func (s *APIServer) beginReauth() fiber.Handler {
 // @Description Complete WebAuthn assertion and issue a short-lived reauth token
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 {object} responses.WebAuthnReauthFinishResponse
 // @Failure 400 {object} ErrResponse
@@ -350,14 +347,11 @@ func (s *APIServer) finishReauth() fiber.Handler {
 			return HandleError(c, ErrUnauthorized, "unauthorized")
 		}
 		tmpToken := c.Cookies(WebAuthnTempCookie)
-		if tmpToken == "" {
-			return HandleError(c, ErrUnauthorized, "unauthorized")
-		}
 		defer ClearCookies(c, WebAuthnTempCookie)
 
 		httpReq, err := adaptor.ConvertRequest(c, true)
 		if err != nil {
-			return HandleError(c, passkey.ErrFinishLogin, err.Error())
+			return HandleError(c, passkey.ErrFinishReauth, err.Error())
 		}
 
 		reauthToken, err := s.Service.FinishReauth(c.UserContext(), accountId, tmpToken, httpReq)
@@ -380,6 +374,7 @@ func (s *APIServer) finishReauth() fiber.Handler {
 // @Description Complete adding a new passkey to authenticated account
 // @Tags Authentication
 // @Accept json
+// @Param body body object true "Credential returned by navigator.credentials.create() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
 // @Success 201 "Passkey addition completed successfully"
 // @Failure 400 {object} ErrResponse
@@ -392,9 +387,6 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 		}
 
 		tmpToken := c.Cookies(WebAuthnTempCookie)
-		if tmpToken == "" {
-			return HandleError(c, ErrUnauthorized, "unauthorized")
-		}
 
 		// Clear temporary session cookie
 		defer ClearCookies(c, WebAuthnTempCookie)
@@ -402,9 +394,7 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 		// Convert request to HTTP request
 		httpReq, err := adaptor.ConvertRequest(c, true)
 		if err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": passkey.ErrFinishAddPasskey,
-			})
+			return HandleError(c, passkey.ErrFinishAddPasskey, err.Error())
 		}
 
 		err = s.Service.FinishAddPasskey(c.UserContext(), accountId, tmpToken, httpReq)
@@ -421,7 +411,7 @@ func (s *APIServer) finishAddPasskey() fiber.Handler {
 // @Description Get list of passkeys for authenticated user
 // @Tags Authentication
 // @Produce json
-// @Success 200 {array} model.Credential
+// @Success 200 {array} responses.Passkey
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkeys [get]
 func (s *APIServer) getPasskeys() fiber.Handler {
@@ -443,7 +433,7 @@ func (s *APIServer) getPasskeys() fiber.Handler {
 			return HandleError(c, err, "Failed to get passkeys")
 		}
 
-		return c.Status(200).JSON(passkeys)
+		return c.Status(200).JSON(responses.NewPasskeys(passkeys))
 	}
 	return handler
 }

@@ -38,6 +38,16 @@ func (s *Server) newProxy(proxyType string, serverConfig *config.Config) (dnsPro
 		if err != nil {
 			log.Fatal().AnErr("creating proxy: %s", err).Msg("Failed to create proxy")
 		}
+
+		if serverConfig.DoH.HTTP3Enabled && config.HTTPConfig != nil {
+			// Same IP:port as the HTTPS listener, over UDP (RFC 9114 §3.1).
+			listenAddr := config.HTTPConfig.ListenAddresses[0]
+			ipv6PrefixLen := 0
+			if serverConfig.RateLimit != nil {
+				ipv6PrefixLen = serverConfig.RateLimit.IPv6PrefixLen
+			}
+			s.doh3 = newDoH3Server(listenAddr, config.TLSConfig, dnsProxy, serverConfig.DoH.HTTP3, serverConfig.Server.MaxGoroutines, ipv6PrefixLen, s.Metrics)
+		}
 	default:
 		return nil, errors.New("unknown proxy type")
 	}

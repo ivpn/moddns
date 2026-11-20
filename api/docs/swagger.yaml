@@ -232,13 +232,6 @@ definitions:
     - description
     - name
     type: object
-  model.Credential:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: string
-    type: object
   model.CustomRule:
     properties:
       action:
@@ -1663,6 +1656,17 @@ definitions:
         type: string
       expires_at:
         type: string
+    type: object
+  responses.Passkey:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      user_verified:
+        description: UserVerified tells whether the latest ceremony with this passkey
+          verified the user.
+        type: boolean
     type: object
   responses.RegistrationSuccessResponse:
     properties:
@@ -3721,6 +3725,13 @@ paths:
       - application/json
       description: Complete WebAuthn login process
       parameters:
+      - description: Assertion returned by navigator.credentials.get() (PublicKeyCredential
+          JSON, W3C WebAuthn L3 §5.1)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
       - description: Remove all other active sessions during login
         in: header
         name: x-sessions-remove
@@ -3824,6 +3835,14 @@ paths:
       consumes:
       - application/json
       description: Complete adding a new passkey to authenticated account
+      parameters:
+      - description: Credential returned by navigator.credentials.create() (PublicKeyCredential
+          JSON, W3C WebAuthn L3 §5.1)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
       produces:
       - application/json
       responses:
@@ -3872,6 +3891,14 @@ paths:
       consumes:
       - application/json
       description: Complete WebAuthn assertion and issue a short-lived reauth token
+      parameters:
+      - description: Assertion returned by navigator.credentials.get() (PublicKeyCredential
+          JSON, W3C WebAuthn L3 §5.1)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
       produces:
       - application/json
       responses:
@@ -3896,7 +3923,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/model.Credential'
+              $ref: '#/definitions/responses.Passkey'
             type: array
         "400":
           description: Bad Request
@@ -3936,6 +3963,14 @@ paths:
       consumes:
       - application/json
       description: Complete WebAuthn registration process
+      parameters:
+      - description: Credential returned by navigator.credentials.create() (PublicKeyCredential
+          JSON, W3C WebAuthn L3 §5.1)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
       produces:
       - application/json
       responses:

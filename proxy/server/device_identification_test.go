@@ -1,13 +1,18 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
+	"github.com/ivpn/dns/proxy/config"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeviceIdentification(t *testing.T) {
@@ -55,23 +60,23 @@ func testDoHDeviceIdentification(t *testing.T) {
 		expectedDevice string
 		expectedClient string
 	}{
-		{"/dns-query/abc123", "", "abc123"},
-		{"/dns-query/abc123/my-laptop", "my-laptop", "abc123"},
+		{"/dns-query/abc123defg", "", "abc123defg"},
+		{"/dns-query/abc123defg/my-laptop", "my-laptop", "abc123defg"},
 		// Apostrophe removed by normalization
-		{"/dns-query/abc123/John%27s%20iPhone", "Johns iPhone", "abc123"},
-		{"/dns-query/abc123/Home%20Router", "Home Router", "abc123"},
+		{"/dns-query/abc123defg/John%27s%20iPhone", "Johns iPhone", "abc123defg"},
+		{"/dns-query/abc123defg/Home%20Router", "Home Router", "abc123defg"},
 		// Previously truncated at 16; now length < 36 so remains whole
-		{"/dns-query/abc123/ThisDeviceNameIsWayTooLong", "ThisDeviceNameIsWayTooLong", "abc123"},
+		{"/dns-query/abc123defg/ThisDeviceNameIsWayTooLong", "ThisDeviceNameIsWayTooLong", "abc123defg"},
 		// Script tag & angle brackets removed. No truncation now (length 19 < 36)
-		{"/dns-query/abc123/%3Cscript%3Ealert(1)%3Cscript%3E", "scriptalert1script", "abc123"},
+		{"/dns-query/abc123defg/%3Cscript%3Ealert(1)%3Cscript%3E", "scriptalert1script", "abc123defg"},
 		// CRLF removed; length (18) < 36 so no truncation
-		{"/dns-query/abc123/DeviceName%0d%0aAnother", "DeviceNameAnother", "abc123"},
+		{"/dns-query/abc123defg/DeviceName%0d%0aAnother", "DeviceNameAnother", "abc123defg"},
 		// ANSI escape sequences stripped (ESC = %1b)
-		{"/dns-query/abc123/Name%1b[31mRED%1b[0m", "Name31mRED0m", "abc123"},
+		{"/dns-query/abc123defg/Name%1b[31mRED%1b[0m", "Name31mRED0m", "abc123defg"},
 		// Mixed special chars
-		{"/dns-query/abc123/@@@My__Device!!!", "MyDevice", "abc123"},
+		{"/dns-query/abc123defg/@@@My__Device!!!", "MyDevice", "abc123defg"},
 		// New truncation test >36 chars
-		{"/dns-query/abc123/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789EXTRA", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "abc123"},
+		{"/dns-query/abc123defg/ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789EXTRA", "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", "abc123defg"},
 	}
 
 	for _, tc := range testCases {
@@ -356,5 +361,49 @@ func TestClientIDFromClientServerNameProfileIDSelection(t *testing.T) {
 				t.Errorf("deviceId = %q, want %q", deviceId, tt.wantDeviceID)
 			}
 		})
+	}
+}
+
+// specRef: proxy-request-admission-behaviour.md #Q5 #Q15 — DoH takes the profile
+// only from the URL path; the TLS server name is never consulted, so h2 and h3
+// resolve the same URL to the same profile.
+func TestClientIDFromDNSContext_DoHIgnoresServerName(t *testing.T) {
+	s := &Server{Config: &config.Config{
+		Server: &config.ServerConfig{Names: []string{"dns.example.com", "ams1.dns.example.com"}},
+	}}
+
+	tests := []struct {
+		name        string
+		path        string
+		serverName  string
+		wantProfile string
+		wantDevice  string
+	}{
+		{"profile in server name only", "/dns-query", "3mdq3851b9.dns.example.com", "", ""},
+		{"device and profile in server name only", "/dns-query", "laptop-3mdq3851b9.dns.example.com", "", ""},
+		{"location name without path profile", "/dns-query", "ams1.dns.example.com", "", ""},
+		{"non-profile label without path profile", "/dns-query", "ams1x.dns.example.com", "", ""},
+		{"path wins over server name", "/dns-query/zzz999yyy8", "3mdq3851b9.dns.example.com", "zzz999yyy8", ""},
+		{"path profile and device on location name", "/dns-query/3mdq3851b9/laptop", "ams1.dns.example.com", "3mdq3851b9", "laptop"},
+	}
+
+	for _, tt := range tests {
+		for _, protoMajor := range []int{2, 3} {
+			t.Run(fmt.Sprintf("%s/h%d", tt.name, protoMajor), func(t *testing.T) {
+				dctx := &proxy.DNSContext{
+					Proto: proxy.ProtoHTTPS,
+					HTTPRequest: &http.Request{
+						URL:        &url.URL{Path: tt.path},
+						ProtoMajor: protoMajor,
+						TLS:        &tls.ConnectionState{ServerName: tt.serverName},
+					},
+				}
+
+				profile, device, err := s.clientIDFromDNSContext(dctx)
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantProfile, profile)
+				assert.Equal(t, tt.wantDevice, device)
+			})
+		}
 	}
 }

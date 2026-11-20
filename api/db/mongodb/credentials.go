@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -13,8 +12,7 @@ import (
 )
 
 const (
-	CredentialsCollection      = "credentials"
-	WebAuthnSessionsCollection = "webauthn_sessions"
+	CredentialsCollection = "credentials"
 )
 
 // CredentialRepository handles WebAuthn credential operations
@@ -35,10 +33,8 @@ func NewCredentialRepository(client *mongo.Client, dbName, collectionName string
 }
 
 // SaveCredential saves a WebAuthn credential to the database
-func (r *CredentialRepository) SaveCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
-	cred := model.NewCredentialFromWebAuthn(credential, accountID)
-
-	_, err := r.credentialsColl.InsertOne(ctx, cred)
+func (r *CredentialRepository) SaveCredential(ctx context.Context, credential *model.Credential) error {
+	_, err := r.credentialsColl.InsertOne(ctx, credential)
 	if err != nil {
 		return fmt.Errorf("failed to save credential: %w", err)
 	}
@@ -46,17 +42,18 @@ func (r *CredentialRepository) SaveCredential(ctx context.Context, credential we
 	return nil
 }
 
-// UpdateCredential updates an existing WebAuthn credential
-func (r *CredentialRepository) UpdateCredential(ctx context.Context, credential webauthn.Credential, accountID primitive.ObjectID) error {
+// UpdateCredential stores the signature counter and flags of the credential's latest assertion
+func (r *CredentialRepository) UpdateCredential(ctx context.Context, credentialID []byte, accountID primitive.ObjectID, signCount uint32, flags model.CredentialFlags) error {
 
 	filter := bson.M{
-		"credential_id": credential.ID,
+		"credential_id": credentialID,
 		"account_id":    accountID,
 	}
 
 	update := bson.M{
 		"$set": bson.M{
-			"authenticator.sign_count": credential.Authenticator.SignCount,
+			"authenticator.sign_count": signCount,
+			"flags":                    flags,
 			"updated_at":               time.Now(),
 		},
 	}

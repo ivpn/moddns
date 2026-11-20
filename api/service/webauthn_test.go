@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/go-webauthn/webauthn/protocol"
-	"github.com/go-webauthn/webauthn/webauthn"
-
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/passkey"
@@ -71,16 +70,26 @@ func TestDeletePasskeyByIDKeepsASignInMethod(t *testing.T) {
 	}
 }
 
-func newTestWebAuthn(t *testing.T) *webauthn.WebAuthn {
+func newTestWebAuthn(t *testing.T, store webauthn.CeremonyStore) *webauthn.RelyingParty {
 	t.Helper()
-	wa, err := webauthn.New(&webauthn.Config{RPDisplayName: "modDNS Test", RPID: "test.local", RPOrigins: []string{"https://app.test.local"}})
+	rp, err := webauthn.New(webauthn.Config{RPDisplayName: "modDNS Test", RPID: "test.local", RPOrigins: []string{"https://app.test.local"}}, store)
 	require.NoError(t, err)
-	return wa
+	return rp
 }
 
-func ceremonyFor(ceremonyType string, accountID primitive.ObjectID, purpose, subID string) any {
-	return mock.MatchedBy(func(c *model.Ceremony) bool {
-		return c.Type == ceremonyType && c.AccountID == accountID.Hex() && c.Purpose == purpose && c.SubID == subID && c.SessionData.Challenge != ""
+func ceremonyFor(ceremonyType webauthn.CeremonyType, accountID primitive.ObjectID, purpose, subID string) any {
+	return mock.MatchedBy(func(state []byte) bool {
+		var c struct {
+			Type        webauthn.CeremonyType `json:"type"`
+			AccountID   string                `json:"account_id"`
+			Purpose     string                `json:"purpose"`
+			SubID       string                `json:"sub_id"`
+			SessionData struct {
+				Challenge string `json:"challenge"`
+			} `json:"session_data"`
+		}
+		return json.Unmarshal(state, &c) == nil &&
+			c.Type == ceremonyType && c.AccountID == accountID.Hex() && c.Purpose == purpose && c.SubID == subID && c.SessionData.Challenge != ""
 	})
 }
 
@@ -105,7 +114,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginRegistration(ctx, account, "sub-1")
 				return token, err
 			},
-			match: ceremonyFor(model.CeremonyRegistration, account.ID, "", "sub-1"),
+			match: ceremonyFor(webauthn.CeremonyRegistration, account.ID, "", "sub-1"),
 		},
 		{
 			name: "login",
@@ -117,7 +126,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginLogin(ctx, account.Email)
 				return token, err
 			},
-			match: ceremonyFor(model.CeremonyLogin, account.ID, "", ""),
+			match: ceremonyFor(webauthn.CeremonyLogin, account.ID, "", ""),
 		},
 		{
 			name: "add passkey",
@@ -133,7 +142,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 				_, token, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
 				return token, err
 			},
-			match: ceremonyFor(model.CeremonyAddPasskey, account.ID, "", ""),
+			match: ceremonyFor(webauthn.CeremonyAddPasskey, account.ID, "", ""),
 		},
 	}
 
@@ -142,11 +151,11 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 			t.Parallel()
 			store := mocks.NewDb(t)
 			c := mocks.NewCachecache(t)
-			svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t)}
+			svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t, c)}
 			tt.setup(store)
 
 			var savedToken string
-			c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), tt.match, model.CeremonyTimeout).
+			c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), tt.match, webauthn.CeremonyTimeout).
 				Run(func(args mock.Arguments) { savedToken = args.String(1) }).Return(nil).Once()
 
 			token, err := tt.begin(svc)
@@ -177,7 +186,7 @@ func TestFinishCeremoniesConsumeStateFromCache(t *testing.T) {
 			t.Parallel()
 			store := mocks.NewDb(t)
 			c := mocks.NewCachecache(t)
-			svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t)}
+			svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t, c)}
 			c.On("ConsumeCeremony", mock.Anything, "token").Return(nil, errors.New("redis: nil")).Once()
 
 			require.Error(t, tt.finish(svc))
@@ -227,20 +236,34 @@ func TestBeginAddPasskeyExcludesExistingCredentials(t *testing.T) {
 
 	store := mocks.NewDb(t)
 	c := mocks.NewCachecache(t)
-	svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t)}
+	svc := &Service{Store: store, Cache: c, Webauthn: newTestWebAuthn(t, c)}
 	store.On("GetAccountById", mock.Anything, account.ID.Hex()).Return(account, nil).Once()
 	store.On("UpdateAccount", mock.Anything, mock.Anything).Return(account, nil).Once()
 	store.On("GetCredentials", mock.Anything, account.ID).Return(credentials, nil).Once()
-	c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.Anything, model.CeremonyTimeout).Return(nil).Once()
+	c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.Anything, webauthn.CeremonyTimeout).Return(nil).Once()
 
 	reauthToken := "reauth-token"
 	creation, _, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
 	require.NoError(t, err)
 
-	excluded := creation.Response.CredentialExcludeList
-	require.Len(t, excluded, 2)
-	require.Equal(t, protocol.URLEncodedBase64{0x01}, excluded[0].CredentialID)
-	require.Equal(t, []protocol.AuthenticatorTransport{"internal", "hybrid"}, excluded[0].Transport)
-	require.Equal(t, protocol.URLEncodedBase64{0x02}, excluded[1].CredentialID)
-	require.Equal(t, []protocol.AuthenticatorTransport{"usb"}, excluded[1].Transport)
+	raw, err := json.Marshal(creation)
+	require.NoError(t, err)
+	require.JSONEq(t, `[
+		{"type": "public-key", "id": "AQ", "transports": ["internal", "hybrid"]},
+		{"type": "public-key", "id": "Ag", "transports": ["usb"]}
+	]`, string(mustField(t, raw, "publicKey", "excludeCredentials")))
+}
+
+// mustField returns the JSON value at path in doc.
+func mustField(t *testing.T, doc []byte, path ...string) json.RawMessage {
+	t.Helper()
+	value := json.RawMessage(doc)
+	for _, key := range path {
+		var obj map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(value, &obj))
+		var ok bool
+		value, ok = obj[key]
+		require.True(t, ok, key)
+	}
+	return value
 }

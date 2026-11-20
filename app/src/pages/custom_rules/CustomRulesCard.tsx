@@ -643,11 +643,10 @@ export default function CustomRulesCard({
 }: CustomRulesCardProps): JSX.Element {
     const [removingIds, setRemovingIds] = useState<string[]>([]);
     // Collapsed group folders are persisted per-device in the app store, keyed by
-    // profile + list type, so open/closed state survives navigation and reload.
+    // the internal profile id + list type, so open/closed state survives
+    // navigation and reload until logout.
     const activeProfile = useAppStore((s) => s.activeProfile);
-    const profileId = (activeProfile as (typeof activeProfile) & { profile_id?: string })?.profile_id
-        ?? activeProfile?.id ?? "";
-    const storageKey = `${profileId}:${type}`;
+    const storageKey = `${activeProfile?.id ?? ""}:${type}`;
     const persistedCollapsed = useAppStore((s) => s.customRulesCollapsed[storageKey]);
     const setCustomRulesCollapsed = useAppStore((s) => s.setCustomRulesCollapsed);
     const collapsed = useMemo(() => new Set(persistedCollapsed ?? []), [persistedCollapsed]);

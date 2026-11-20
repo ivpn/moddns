@@ -13,12 +13,14 @@ import (
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/reauth"
 	intvldtr "github.com/ivpn/dns/api/internal/validator"
+	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service"
 	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/passkey"
 	"github.com/ivpn/dns/api/service/profile"
 	"github.com/ivpn/dns/api/service/subscription"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -140,6 +142,11 @@ func friendlyJSONType(goType string) string {
 }
 
 func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) error {
+	var passkeyErr *passkey.PasskeyError
+	if errors.As(err, &passkeyErr) {
+		return passkeyRefusal(c, err, passkeyErr, errMsg, details)
+	}
+
 	log.Ctx(c.UserContext()).Error().Err(err).Msg(errMsg)
 	resp := new(ErrResponse)
 
@@ -214,10 +221,6 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		}
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
-	case *passkey.PasskeyError:
-		log.Printf("Passkey Error: %s, Code: %s", e.Message, e.Code)
-		resp.Error = err.Error()
-		return c.Status(400).JSON(resp)
 	case *service.CredentialError:
 		log.Printf("Credential Error: %s, Code: %s", e.Message, e.Code)
 		resp.Error = e.Error()
@@ -255,6 +258,20 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Error = errMsg
 		return c.Status(500).JSON(resp)
 	}
+}
+
+// passkeyRefusal answers a passkey error with 400 and its own text; the cause in err's
+// chain is only logged. A refused ceremony is the client's, so it is logged below the
+// Error level reported to Sentry, except a signature counter that did not increase,
+// which may mean a cloned authenticator (W3C WebAuthn L3 §6.1.1). Other passkey errors
+// can carry a server failure and stay at Error.
+func passkeyRefusal(c *fiber.Ctx, err error, passkeyErr *passkey.PasskeyError, errMsg string, details []string) error {
+	level := zerolog.ErrorLevel
+	if webauthn.IsRefusal(err) && !errors.Is(err, webauthn.ErrCloneDetected) {
+		level = zerolog.WarnLevel
+	}
+	log.Ctx(c.UserContext()).WithLevel(level).Err(err).Str("code", passkeyErr.Code).Msg(errMsg)
+	return c.Status(400).JSON(&ErrResponse{Error: passkeyErr.Error(), Details: details})
 }
 
 // validationFailed answers 400 "validation failed" with one "<field> <rule>" detail per rejected

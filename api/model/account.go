@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -80,26 +79,19 @@ func NewAccount(email, password, accountId, profileId string) (*Account, error) 
 	return acc, nil
 }
 
-// WebAuthnID implements webauthn.User
+// WebAuthnID returns the account's WebAuthn user handle (user.id); changing it orphans every passkey.
 func (a *Account) WebAuthnID() []byte {
 	return []byte(a.ID.Hex())
 }
 
-// WebAuthnName implements webauthn.User
+// WebAuthnName returns the user name authenticators show for the account.
 func (a *Account) WebAuthnName() string {
 	return a.Email
 }
 
-// WebAuthnDisplayName implements webauthn.User
+// WebAuthnDisplayName returns the display name authenticators show for the account.
 func (a *Account) WebAuthnDisplayName() string {
 	return a.Email
-}
-
-// WebAuthnCredentials implements webauthn.User
-func (a *Account) WebAuthnCredentials() []webauthn.Credential {
-	// webauthn User interface requires this method, but we don't use it here
-	// []webauthn.Credentials is taken from the User model (webauthn package)
-	return nil
 }
 
 // SetPassword hashes provided plaintext password and updates account password & auth methods.

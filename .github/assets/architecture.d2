@@ -1,0 +1,51 @@
+# Diagram source. Colours come from vars set by the theme entry files:
+#   architecture-light.d2 and architecture-dark.d2 (values picked to match app/src/tailwind.css).
+# Render with D2 v0.9.0 from this directory:
+#   d2 --pad 24 -l elk architecture-light.d2 architecture-light.svg
+#   d2 --pad 24 -l elk architecture-dark.d2  architecture-dark.svg
+
+style: {fill: transparent}
+
+direction: right
+
+classes: {
+  actor: {
+    style: {fill: transparent; stroke: ${muted}; stroke-dash: 4; font-color: ${fg}; border-radius: 8; font-size: 15}
+  }
+  svc: {
+    style: {fill: ${card}; stroke: ${accent}; stroke-width: 2; font-color: ${fg}; border-radius: 8; font-size: 15; bold: true}
+  }
+  store: {
+    shape: cylinder
+    style: {fill: ${card}; stroke: ${accent}; stroke-width: 2; font-color: ${fg}; font-size: 15; bold: true}
+  }
+  flow: {style: {stroke: ${muted}; font-color: ${muted}; font-size: 13}}
+  dns: {style: {stroke: ${accent}; stroke-width: 2; font-color: ${accent-text}; font-size: 13; bold: true}}
+}
+
+clients: "DNS clients" {class: actor}
+browser: "Web browser" {class: actor}
+proxy: "DNS proxy\nfiltering" {class: svc}
+knot: "Knot Resolver" {class: svc}
+app: "Web app\nReact PWA" {class: svc}
+api: "API\nGo, Fiber" {class: svc}
+dnscheck: "dnscheck\nconnection check" {class: svc}
+blocklists: "blocklists\nscheduled ingestion" {class: svc}
+sources: "Third-party\nlist sources" {class: actor}
+redis: Redis {class: store}
+mongo: MongoDB {class: store}
+
+clients -> proxy: "DoH / DoT / DoQ" {class: dns}
+proxy -> knot: "recursive queries" {class: dns}
+proxy -> redis: "profile settings, rules" {class: flow}
+proxy -> mongo: "query logs, statistics" {class: flow}
+
+browser -> app {class: flow}
+app -> api: REST {class: flow}
+app -> dnscheck {class: flow}
+api -> redis: "writes profile settings" {class: flow}
+api -> mongo: "accounts, profiles;\nreads logs, statistics" {class: flow}
+
+sources -> blocklists: HTTPS {class: flow}
+blocklists -> redis: "filter lists" {class: flow}
+blocklists -> mongo: "lists, metadata" {class: flow}

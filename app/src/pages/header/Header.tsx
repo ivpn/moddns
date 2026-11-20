@@ -1,5 +1,5 @@
 import { Settings2, LogOutIcon } from "lucide-react";
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { Button } from "@/components/ui/button";
 import type { ModelProfile } from "@/api/client/api";
@@ -8,9 +8,7 @@ import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import ProfileDropdown from "@/pages/header/ProfileDropdown";
 import BlocklistsPreferencesDialog from '@/pages/header/BlocklistsPreferencesDialog';
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
-import { AuthContext } from "@/App";
-import api from "@/api/api";
-import { toast } from "sonner";
+import { useLogout } from "@/hooks/useLogout";
 import { useNavigate, useLocation } from "react-router-dom";
 import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg';
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg';
@@ -53,7 +51,6 @@ export default function Header({
     const currentProfile = useAppStore((state) => state.activeProfile);
     const setActiveProfile = useAppStore((state) => state.setActiveProfile);
     const setProfiles = useAppStore((state) => state.setProfiles);
-    const auth = useContext(AuthContext);
     const { theme } = useTheme();
     const isDarkMode = theme === 'dark';
 
@@ -63,19 +60,9 @@ export default function Header({
     // which is blocked in LA / PD. Disable the trigger and show cursor-not-allowed.
     const { isRestricted } = useSubscriptionGuard();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-    const [logoutLoading, setLogoutLoading] = useState(false);
-    // Logout handler
+    const { logout, loading: logoutLoading } = useLogout();
     const handleLogout = async () => {
-        setLogoutLoading(true);
-        try {
-            await api.Client.authApi.apiV1AccountsLogoutPost();
-            auth?.logout?.();
-        } catch {
-            toast.error("Logout failed.");
-        } finally {
-            setLogoutLoading(false);
-            setShowLogoutDialog(false);
-        }
+        if (await logout()) setShowLogoutDialog(false);
     };
 
     // Note: Active profile restoration is now handled by the store's restoreActiveProfile function

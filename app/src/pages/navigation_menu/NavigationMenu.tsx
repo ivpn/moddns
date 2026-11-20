@@ -21,12 +21,12 @@ import modDNSLogoDarkTheme from '@/assets/logos/modDNS-dark-theme.svg'
 import modDNSLogoLightTheme from '@/assets/logos/modDNS-light-theme.svg'
 import modDNSLogoCollapsedWhite from '@/assets/logos/o_white_250.png';
 import modDNSLogoCollapsedBlack from '@/assets/logos/o_black_250.png';
-import { type JSX, useContext, useState } from "react";
+import { type JSX, useState } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNavigationCollapse } from "@/context/NavigationCollapseContext";
-import { AuthContext, routePreload } from "@/App";
+import { routePreload } from "@/App";
 import LogoutConfirmDialog from "@/components/dialogs/LogoutConfirmDialog";
-import api from "@/api/api";
+import { useLogout } from "@/hooks/useLogout";
 import { useAnnouncementsIndicator } from "@/hooks/useAnnouncementsIndicator";
 
 // Routes whose menu entry carries the "New" pill; remove an entry to retire it.
@@ -41,9 +41,8 @@ interface NavigationSectionProps {
 export default function NavigationSection({ isMobile = false, onClose, offsetLeft = 0 }: NavigationSectionProps): JSX.Element {
     const { collapsed } = useNavigationCollapse();
     const navigate = useNavigate();
-    const auth = useContext(AuthContext);
     const { hasUnread: hasUnreadAnnouncements, hasCriticalUnread: hasCriticalAnnouncement } = useAnnouncementsIndicator();
-    const [loading, setLoading] = useState(false);
+    const { logout, loading } = useLogout();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
     const { theme, setTheme } = useTheme();
     const isDarkMode = theme === 'dark';
@@ -58,23 +57,11 @@ export default function NavigationSection({ isMobile = false, onClose, offsetLef
         return theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />;
     };
 
-    // Logout logic
     const handleLogout = async () => {
-        setLoading(true);
-
-        try {
-            auth?.logout?.();
-            // Call the backend logout endpoint using API client
-            await api.Client.authApi.apiV1AccountsLogoutPost();
-        } catch (err: unknown) {
-            console.error('Logout failed:', err);
-        } finally {
-            setLoading(false);
-            setShowLogoutDialog(false);
-            // Close mobile nav after logout
-            if (isMobile && onClose) {
-                onClose();
-            }
+        if (!(await logout())) return;
+        setShowLogoutDialog(false);
+        if (isMobile && onClose) {
+            onClose();
         }
     };
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/config"
@@ -781,17 +782,29 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_WithValidTOTP() {
 
 // -------- Registration handler tests --------
 
+// cookieCleared reports whether resp expires the named cookie (empty value, expiry in the past).
+func cookieCleared(resp *http.Response, name string) bool {
+	for _, c := range resp.Cookies() {
+		if c.Name == name && c.Value == "" && (c.MaxAge < 0 || (!c.Expires.IsZero() && c.Expires.Before(time.Now()))) {
+			return true
+		}
+	}
+	return false
+}
+
 // helper to perform registration request
 func (suite *AccountsAPITestSuite) doRegister(email, password, subID string) (*http.Response, error) {
 	bodyMap := map[string]string{"email": email, "password": password, "subid": subID}
 	b, _ := json.Marshal(bodyMap)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
 	server := suite.createTestServer()
 	return server.App.Test(req, -1)
 }
 
 // Scenario 3: cache key exists, account does NOT exist, subscription absent -> success 201
+// specRef: R14a
 func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessNewAccount() {
 	email := "new@example.com"
 	password := "StrongPass123!"                    // satisfies password validator
@@ -804,12 +817,14 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessNewAccount() {
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
 	suite.Equal(http.StatusCreated, resp.StatusCode)
+	suite.True(cookieCleared(resp, PASessionCookie), "pa_session must be cleared once signup completes")
 	var m map[string]string
 	suite.NoError(json.NewDecoder(resp.Body).Decode(&m))
 	suite.Equal("Account created successfully.", m["message"])
 }
 
 // Scenario 4A: cache key exists, unfinished account + subscription -> success 201
+// specRef: R14a
 func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessUnfinishedReuse() {
 	email := "unfinished@example.com"
 	password := "StrongPass123!" // user now provides password to finish
@@ -822,12 +837,14 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_SuccessUnfinishedReuse() 
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
 	suite.Equal(http.StatusCreated, resp.StatusCode)
+	suite.True(cookieCleared(resp, PASessionCookie), "pa_session must be cleared once signup completes")
 	var m map[string]string
 	suite.NoError(json.NewDecoder(resp.Body).Decode(&m))
 	suite.Equal("Account created successfully.", m["message"])
 }
 
 // Scenario 1: missing subscription cache key -> error 400 unified message
+// specRef: R14a
 func (suite *AccountsAPITestSuite) TestRegisterAccount_ErrorCacheMissing() {
 	email := "cachemiss@example.com"
 	password := "StrongPass123!"
@@ -838,6 +855,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ErrorCacheMissing() {
 	resp, err := suite.doRegister(email, password, subID)
 	suite.Require().NoError(err)
 	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+	suite.False(cookieCleared(resp, PASessionCookie), "a failed signup keeps pa_session so the user can retry")
 	var errResp ErrResponse
 	suite.NoError(json.NewDecoder(resp.Body).Decode(&errResp))
 	suite.Equal(account.ErrUnableToCreateAccount.Error(), errResp.Error)
@@ -892,6 +910,7 @@ func (suite *AccountsAPITestSuite) TestRegisterAccount_ValidationFailureInvalidU
 
 // TestDeleteAccount_Success exercises the happy path: handler reaches Service.DeleteAccount
 // (which the wrapper covers) and returns 204.
+// specRef: B5
 func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
 	accountID := testAccountID
 	reauth := "reauth-token"
@@ -925,6 +944,8 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
 	resp, err := server.App.Test(req, -1)
 	suite.NoError(err)
 	suite.Equal(http.StatusNoContent, resp.StatusCode)
+	suite.True(cookieCleared(resp, auth.AUTH_COOKIE), "auth cookie must be cleared")
+	suite.False(cookieCleared(resp, PASessionCookie), "pa_session belongs to the signup link, not the account")
 }
 
 // TestDeleteAccount_ServiceError surfaces a service-layer error (e.g. cleanup failure)
@@ -960,6 +981,9 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_ServiceError() {
 	suite.NoError(err)
 	suite.NotEqual(http.StatusNoContent, resp.StatusCode)
 
+	suite.False(cookieCleared(resp, auth.AUTH_COOKIE), "a failed deletion keeps the auth cookie")
+	suite.False(cookieCleared(resp, PASessionCookie), "a failed deletion keeps pa_session")
+
 	var errResp ErrResponse
 	suite.NoError(json.NewDecoder(resp.Body).Decode(&errResp))
 	suite.Equal(ErrFailedToDeleteAccount.Error(), errResp.Error)
@@ -985,6 +1009,27 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_ValidationFailure() {
 	resp, err := server.App.Test(req, -1)
 	suite.NoError(err)
 	suite.Equal(http.StatusBadRequest, resp.StatusCode)
+}
+
+// specRef: A2
+func (suite *AccountsAPITestSuite) TestLogout_ClearsAuthCookieOnly() {
+	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
+		model.Session{AccountID: testAccountID},
+		true,
+		nil,
+	)
+	suite.mockDB.On("DeleteSession", mock.Anything, testSessionToken).Return(nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/logout", nil)
+	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: testSessionToken})
+	req.AddCookie(&http.Cookie{Name: PASessionCookie, Value: "pa-session-cookie-value"})
+
+	server := suite.createTestServer()
+	resp, err := server.App.Test(req, -1)
+	suite.NoError(err)
+	suite.Equal(http.StatusOK, resp.StatusCode)
+	suite.True(cookieCleared(resp, auth.AUTH_COOKIE), "auth cookie must be cleared")
+	suite.False(cookieCleared(resp, PASessionCookie), "pa_session belongs to the signup link, not the login session")
 }
 
 func TestAccountsAPITestSuite(t *testing.T) {

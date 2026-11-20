@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Must match API_PSK in config/api.env — the PSK middleware fails closed
     # when the secret is unset, so an empty value no longer passes.
     API_PSK: str = "e2e-test-psk"
+    # The browser origin the passkey tests sign as; must be API_ALLOW_ORIGIN in
+    # config/api.env, whose host is the RP ID (SERVER_FQDN).
+    API_ALLOW_ORIGIN: str = "http://localhost:5173"
     # Third-party resolver clients from docker-compose.yml (test_adguard_home.py,
     # test_pihole.py), reached on their published host ports like everything else.
     ADGUARD_HOME_API_ADDR: str = "http://localhost:5391"

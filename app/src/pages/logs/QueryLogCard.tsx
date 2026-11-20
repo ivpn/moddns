@@ -11,6 +11,7 @@ import { cn, INTERACTIVE_CARD, stripTrailingDot } from "@/lib/utils";
 import type { ModelQueryLog } from "@/api/client";
 import type { ConsolidatedLogGroup } from "@/lib/consolidateLogs";
 import { outcomePairs, hasUnansweredMember } from "@/lib/formatOutcome";
+import { formatProtocol, formatProtocolDetail } from "@/lib/formatProtocol";
 
 interface QueryLogCardProps {
     log: ModelQueryLog;
@@ -133,7 +134,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
     const DOMAIN_TRUNCATE_THRESHOLD = 65; // existing logic threshold
     const isDomainTruncatable = displayDomain ? displayDomain.length > DOMAIN_TRUNCATE_THRESHOLD : false;
     const truncatedDomain = displayDomain && isDomainTruncatable ? displayDomain.slice(0, DOMAIN_TRUNCATE_THRESHOLD) + '…' : displayDomain;
-    const protocolLabel = log?.protocol ? log.protocol.toUpperCase() : '—';
+    const protocolLabel = formatProtocol(log?.protocol);
 
     // DNSSEC status shown inline next to the protocol as a plain text badge (styled like the
     // protocol label — no outline/background):
@@ -413,7 +414,7 @@ const QueryLogCard = ({ log, group, isLast, lastLogRef, onQuickRule, quickRuleRe
                             {queryTypeText && renderDetailField(isConsolidated ? "Query types" : "Query type", queryTypeText, "querylog-detail-query-type")}
                             {responseCodeText && renderDetailField(isConsolidated ? "Response codes" : "Response code", responseCodeText, "querylog-detail-response-code")}
                             {(log.dns_request?.dnssec !== undefined || dnssecFailed) && renderDetailField("DNSSEC", dnssecDetail.text, "querylog-detail-dnssec", dnssecDetail.className)}
-                            {renderDetailField("Protocol", protocolLabel, "querylog-detail-protocol")}
+                            {renderDetailField("Protocol", formatProtocolDetail(log?.protocol), "querylog-detail-protocol")}
                             {/* Always rendered ("1" for single rows) so grid field positions
                                 never shift between single and consolidated cards. */}
                             {renderDetailField("Occurrences", String(count), "querylog-detail-occurrences")}

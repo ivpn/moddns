@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
@@ -84,7 +83,7 @@ func (s *APIServer) login() fiber.Handler {
 
 		expires := time.Now().Add(s.Config.API.SessionExpirationTime)
 		// Save the session
-		sessionData := webauthn.SessionData{
+		sessionData := model.SessionPayload{
 			UserID:  acc.WebAuthnID(),
 			Expires: expires,
 		}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/ivpn/dns/api/model"
 )
 
@@ -23,7 +22,7 @@ func (s *Service) GetSession(ctx context.Context, token string) (model.Session, 
 	return session, exists, nil
 }
 
-func (s *Service) SaveSession(ctx context.Context, session webauthn.SessionData, token string, accID string) error {
+func (s *Service) SaveSession(ctx context.Context, session model.SessionPayload, token string, accID string) error {
 	err := s.Store.SaveSession(ctx, session, token, accID)
 	if err != nil {
 		return ErrSaveSession

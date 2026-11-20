@@ -1,4 +1,4 @@
-FROM node:23-alpine AS build-stage
+FROM node:26-alpine AS build-stage
 
 ARG ENVIRONMENT=local
 
@@ -16,7 +16,7 @@ COPY env/.env.$ENVIRONMENT .env
 
 RUN npm run build
 
-FROM nginx:1.29.5-alpine
+FROM nginx:1.31.9-alpine
 
 ARG ENVIRONMENT=local
 

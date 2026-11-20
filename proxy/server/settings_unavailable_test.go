@@ -26,9 +26,44 @@ import (
 // recordingMetrics implements Metrics and records stage-error pairs and
 // settings-cache lookup outcomes.
 type recordingMetrics struct {
-	mu           sync.Mutex
-	stageErrors  [][2]string
-	cacheLookups []string
+	mu             sync.Mutex
+	stageErrors    [][2]string
+	cacheLookups   []string
+	dohVersions    []string
+	doh3Rejected   []string
+	doh3BusyCount  int
+	doh3ListenerUp []bool
+}
+
+func (m *recordingMetrics) RecordDoHRequest(httpVersion string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dohVersions = append(m.dohVersions, httpVersion)
+}
+func (m *recordingMetrics) RecordDoH3ConnRejected(reason string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.doh3Rejected = append(m.doh3Rejected, reason)
+}
+func (m *recordingMetrics) RecordDoH3Busy() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.doh3BusyCount++
+}
+func (m *recordingMetrics) SetDoH3ListenerUp(up bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.doh3ListenerUp = append(m.doh3ListenerUp, up)
+}
+func (m *recordingMetrics) snapshot() recordingMetrics {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return recordingMetrics{
+		dohVersions:    append([]string(nil), m.dohVersions...),
+		doh3Rejected:   append([]string(nil), m.doh3Rejected...),
+		doh3BusyCount:  m.doh3BusyCount,
+		doh3ListenerUp: append([]bool(nil), m.doh3ListenerUp...),
+	}
 }
 
 func (m *recordingMetrics) RecordQuery(string) {}

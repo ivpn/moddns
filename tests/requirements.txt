@@ -15,3 +15,4 @@ requests==2.32.3
 docker==7.1.0
 testcontainers==4.7.0
 mmdb-writer==0.2.5
+fido2==2.2.1  # encodes the software authenticator's responses (libs/webauthn_authenticator.py)

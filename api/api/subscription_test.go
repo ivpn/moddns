@@ -125,7 +125,7 @@ func (suite *SubscriptionAPITestSuite) TestGetSubscription_NotFound() {
 // TestUpdateSubscription_NoBody verifies that PUT /sub/update with no request
 // body succeeds, and the service is called with an empty subID (so the
 // downstream signup webhook is skipped).
-// specRef: SY7
+// specRef: SY7, SY8
 func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_NoBody() {
 	accountID := "507f1f77bcf86cd799439011"
 	sessionToken := "test-session-token"
@@ -149,6 +149,8 @@ func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_NoBody() {
 	resp, err := server.App.Test(req, -1)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusOK, resp.StatusCode)
+	assert.False(suite.T(), cookieCleared(resp, PASessionCookie), "pa_session stays usable until its cache entry expires")
+	assert.False(suite.T(), cookieCleared(resp, auth.AUTH_COOKIE), "resync keeps the login session")
 }
 
 // TestUpdateSubscription_WithSubID verifies that a valid `subid` in the body
@@ -205,6 +207,7 @@ func (suite *SubscriptionAPITestSuite) TestUpdateSubscription_InvalidSubID() {
 	resp, err := server.App.Test(req, -1)
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
+	assert.False(suite.T(), cookieCleared(resp, PASessionCookie), "a failed resync keeps pa_session so the user can retry")
 
 	respBody, _ := io.ReadAll(resp.Body)
 	assert.Contains(suite.T(), string(respBody), "uuid4")

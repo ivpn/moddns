@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Info } from "lucide-react";
 import { toast } from "sonner";
@@ -12,12 +12,18 @@ const RESYNC_URL = import.meta.env.VITE_RESYNC_URL || "https://www.ivpn.net/en/a
 
 const UUID_V4_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 const isUUIDv4 = (id: string): boolean => UUID_V4_RE.test(id);
+const errorStatus = (e: unknown) => (e as { response?: { status?: number } })?.response?.status;
+
+// Links already synced or in flight in this page load; a remount must not send the
+// signup webhook twice. A full reload starts empty, so a reload can still retry.
+const startedSessions = new Set<string>();
 
 export default function AccountSubscription() {
     const [sub, setSub] = useState<ModelSubscription | null>(null);
     const [error, setError] = useState("");
     const [syncing, setSyncing] = useState(false);
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const mountedRef = useRef(false);
     const setSubscriptionStatus = useAppStore(s => s.setSubscriptionStatus);
     const setSubscriptionType = useAppStore(s => s.setSubscriptionType);
     const setSubscriptionDeletionScheduled = useAppStore(s => s.setSubscriptionDeletionScheduled);
@@ -37,32 +43,59 @@ export default function AccountSubscription() {
         }
     };
 
+    // The rotate step consumes the link's sessionid, so drop it from the URL to keep
+    // a reload or history navigation from replaying a used link.
+    const removeLinkParams = () => {
+        // The router still navigates after unmount; do not pull the user back here.
+        if (!mountedRef.current) return;
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete("sessionid");
+            next.delete("subid");
+            return next;
+        }, { replace: true });
+    };
+
     const resync = async () => {
-        if (!sessionid) return;
+        if (!sessionid || startedSessions.has(sessionid)) return;
+        startedSessions.add(sessionid);
 
         setSyncing(true);
         setError("");
+        let rotated = false;
         try {
             await api.Client.paSessionApi.apiV1PasessionRotatePut({ sessionid });
+            rotated = true;
             // Only forward subid when it's a valid UUIDv4; backend skips the
             // signup webhook entirely when subid is absent.
             const body = isUUIDv4(subid) ? { subid } : undefined;
             await api.Client.subscriptionApi.apiV1SubUpdatePut(body);
+            removeLinkParams();
             await fetchSubscription();
             toast.success("Your account has been successfully synced.");
         } catch (e) {
-            // 409 = the account was retired by a signup reset; it can't be
-            // resynced (a new modDNS account has replaced it).
-            const status = (e as { response?: { status?: number } })?.response?.status;
-            if (status === 409) {
+            const status = errorStatus(e);
+            // Rotate 400: the link is expired, used or malformed. Update 409: the account was
+            // retired by a signup reset. Retrying the same link cannot succeed in either case.
+            if (!rotated && status === 400) {
+                removeLinkParams();
+                setError("This signup link has expired. Please request a new one from your IVPN account.");
+            } else if (rotated && status === 409) {
+                removeLinkParams();
                 setError("This modDNS account has been replaced by a new signup and can no longer be synced.");
             } else {
+                startedSessions.delete(sessionid);
                 setError("Failed to sync subscription. Please try again.");
             }
         } finally {
             setSyncing(false);
         }
     };
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
 
     useEffect(() => { fetchSubscription(); }, []);
 
