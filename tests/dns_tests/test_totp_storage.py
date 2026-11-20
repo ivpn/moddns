@@ -17,12 +17,18 @@ from bson import ObjectId
 from moddns import ApiClient, Configuration
 from moddns.api.account_api import AccountApi
 from moddns.api.authentication_api import AuthenticationApi
+from moddns.api.verification_api import VerificationApi
 from moddns.exceptions import ApiException
+from moddns.models.requests_confirm_reset_password_body import (
+    RequestsConfirmResetPasswordBody,
+)
 from moddns.models.requests_login_body import RequestsLoginBody
+from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
+from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from pymongo import MongoClient
 
-from libs.accounts import create_account, delete_account
+from libs.accounts import create_account, delete_account, generate_complex_password
 from libs.settings import get_settings
 
 LEGACY_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"
@@ -50,15 +56,16 @@ def mongo_db():
 @pytest.fixture
 def fresh_account():
     account, cookie, password, email = create_account()
-    state = {"secret": None}
+    # A test that changes the password or session updates them here for cleanup.
+    state = {"secret": None, "cookie": cookie, "password": password}
     yield account, cookie, password, email, state
     # Account deletion needs a second factor while 2FA is on.
     if state["secret"]:
-        with _api(cookie) as api_client, contextlib.suppress(ApiException):
+        with _api(state["cookie"]) as api_client, contextlib.suppress(ApiException):
             AccountApi(api_client).api_v1_accounts_mfa_totp_disable_post(
-                RequestsTotpReq(otp=totp_code(state["secret"]))
+                RequestsTotpDisableReq(otp=totp_code(state["secret"]))
             )
-    delete_account(cookie, password, account_id=account.id)
+    delete_account(state["cookie"], state["password"], account_id=account.id)
 
 
 def _api(cookie: str | None = None) -> ApiClient:
@@ -79,6 +86,10 @@ def _enable_totp(cookie: str) -> tuple[str, list[str]]:
 
 
 def _login(email: str, password: str, otp: str) -> int:
+    return _login_session(email, password, otp)[0]
+
+
+def _login_session(email: str, password: str, otp: str) -> tuple[int, str | None]:
     with _api() as api_client:
         try:
             resp = AuthenticationApi(api_client).api_v1_login_post_with_http_info(
@@ -86,9 +97,48 @@ def _login(email: str, password: str, otp: str) -> int:
                 x_mfa_code=otp,
                 x_mfa_methods=["totp"],
             )
-            return resp.status_code
+            return resp.status_code, resp.headers.get("Set-Cookie")
+        except ApiException as e:
+            return e.status, None
+
+
+def _disable(cookie: str, otp: str) -> int:
+    with _api(cookie) as api_client:
+        try:
+            return AccountApi(api_client).api_v1_accounts_mfa_totp_disable_post_with_http_info(
+                RequestsTotpDisableReq(otp=otp)
+            ).status_code
         except ApiException as e:
             return e.status
+
+
+def _reset_token(db, account_id: str, email: str) -> str:
+    """Requests a password reset and returns the token the email would carry."""
+    # Reset emails go only to verified addresses.
+    db.accounts.update_one({"_id": ObjectId(account_id)}, {"$set": {"email_verified": True}})
+    with _api() as api_client:
+        AccountApi(api_client).api_v1_accounts_reset_password_post(
+            RequestsResetPasswordBody(email=email)
+        )
+    tokens = db.accounts.find_one({"_id": ObjectId(account_id)})["tokens"]
+    return next(t["value"] for t in tokens if t["type"] == "password_reset")
+
+
+def _confirm_reset(token: str, new_password: str, otp: str) -> int:
+    with _api() as api_client:
+        try:
+            return VerificationApi(api_client).api_v1_verify_reset_password_post_with_http_info(
+                RequestsConfirmResetPasswordBody(token=token, new_password=new_password),
+                x_mfa_code=otp,
+                x_mfa_methods=["totp"],
+            ).status_code
+        except ApiException as e:
+            return e.status
+
+
+def _grouped(code: str) -> str:
+    """A backup code as the app displays it: blocks of five joined by hyphens."""
+    return "-".join(code[i : i + 5] for i in range(0, len(code), 5))
 
 
 def _totp_doc(db, account_id: str) -> dict:
@@ -135,7 +185,7 @@ class TestTotpStorage:
         # A backup code is single-use.
         assert _login(email, password, codes[0]) == 401
         # The app shows codes in groups of five; the separators are ignored.
-        grouped = "-".join(codes[1][i : i + 5] for i in range(0, len(codes[1]), 5))
+        grouped = _grouped(codes[1])
         assert _login(email, password, grouped) == 200
         assert _login(email, password, codes[1]) == 401
         # Case is not part of the code.
@@ -149,9 +199,84 @@ class TestTotpStorage:
 
         with _api(cookie) as api_client:
             AccountApi(api_client).api_v1_accounts_mfa_totp_disable_post(
-                RequestsTotpReq(otp=totp_code(secret))
+                RequestsTotpDisableReq(otp=totp_code(secret))
             )
 
+        doc = _totp_doc(mongo_db, account.id)
+        assert doc.get("enabled") is False
+        assert _strings(doc) == [], f"TOTP material left after disable: {sorted(doc)}"
+
+    def test_disable_with_backup_code(self, mongo_db, fresh_account):
+        """A lost authenticator: a backup code turns 2FA off. specRef: E3, E6, E7."""
+        account, cookie, password, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+
+        # A used code is refused without ending the session; 2FA stays on.
+        assert _login(email, password, codes[0]) == 200
+        assert _disable(cookie, codes[0]) == 400
+        assert _totp_doc(mongo_db, account.id).get("enabled") is True
+
+        # The grouped form the app shows, typed in lowercase.
+        assert _disable(cookie, _grouped(codes[1]).lower()) == 200
+        state["secret"] = None
+        doc = _totp_doc(mongo_db, account.id)
+        assert doc.get("enabled") is False
+        assert _strings(doc) == [], f"TOTP material left after disable: {sorted(doc)}"
+
+        # A new device can be enrolled afterwards.
+        state["secret"], _ = _enable_totp(cookie)
+
+    def test_password_reset_with_backup_code(self, mongo_db, fresh_account):
+        """specRef: C2, E6."""
+        account, cookie, _, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+
+        token = _reset_token(mongo_db, account.id, email)
+        new_password = generate_complex_password()
+        assert _confirm_reset(token, new_password, _grouped(codes[0])) == 204
+        state["password"] = new_password
+
+        # The code was used up by the reset.
+        assert _login(email, new_password, codes[0]) == 401
+        status, new_cookie = _login_session(email, new_password, codes[1])
+        assert status == 200 and new_cookie
+        state["cookie"] = new_cookie
+
+    def _set_legacy_record(self, db, account_id: str, state: dict) -> None:
+        db.accounts.update_one(
+            {"_id": ObjectId(account_id)},
+            {"$set": {"mfa.totp": {"enabled": True, "secret": LEGACY_SECRET, "backup_codes": list(LEGACY_CODES)}}},
+        )
+        state["secret"] = LEGACY_SECRET
+
+    def test_password_reset_with_legacy_backup_code(self, mongo_db, fresh_account):
+        """Codes issued before encrypted storage match only as typed. specRef: C2, E8."""
+        account, _, _, email, state = fresh_account
+        self._set_legacy_record(mongo_db, account.id, state)
+
+        token = _reset_token(mongo_db, account.id, email)
+        new_password = generate_complex_password()
+        assert _confirm_reset(token, new_password, LEGACY_CODES[0].upper()) == 401
+        assert _confirm_reset(token, new_password, LEGACY_CODES[0]) == 204
+        state["password"] = new_password
+
+        assert _login(email, new_password, LEGACY_CODES[0]) == 401
+        status, new_cookie = _login_session(email, new_password, LEGACY_CODES[1])
+        assert status == 200 and new_cookie
+        state["cookie"] = new_cookie
+
+    def test_disable_with_legacy_backup_code(self, mongo_db, fresh_account):
+        """Codes issued before encrypted storage match only as typed. specRef: E3, E7, E8."""
+        account, cookie, _, _, state = fresh_account
+        self._set_legacy_record(mongo_db, account.id, state)
+
+        assert _disable(cookie, LEGACY_CODES[0].lower()) == 400
+        assert _totp_doc(mongo_db, account.id).get("enabled") is True
+
+        assert _disable(cookie, LEGACY_CODES[0]) == 200
+        state["secret"] = None
         doc = _totp_doc(mongo_db, account.id)
         assert doc.get("enabled") is False
         assert _strings(doc) == [], f"TOTP material left after disable: {sorted(doc)}"

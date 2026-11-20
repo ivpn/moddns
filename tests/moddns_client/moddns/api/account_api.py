@@ -26,6 +26,7 @@ from moddns.models.model_totp_new import ModelTOTPNew
 from moddns.models.requests_account_deletion_request import RequestsAccountDeletionRequest
 from moddns.models.requests_account_updates import RequestsAccountUpdates
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
+from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from moddns.models.responses_deletion_code_response import ResponsesDeletionCodeResponse
 from moddns.models.responses_registration_success_response import ResponsesRegistrationSuccessResponse
@@ -841,7 +842,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_disable_post(
         self,
-        body: Annotated[RequestsTotpReq, Field(description="Disable TOTP request")],
+        body: Annotated[RequestsTotpDisableReq, Field(description="Disable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -860,7 +861,7 @@ class AccountApi:
         Disable TOTP
 
         :param body: Disable TOTP request (required)
-        :type body: RequestsTotpReq
+        :type body: RequestsTotpDisableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -894,6 +895,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelAccount",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -910,7 +912,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_disable_post_with_http_info(
         self,
-        body: Annotated[RequestsTotpReq, Field(description="Disable TOTP request")],
+        body: Annotated[RequestsTotpDisableReq, Field(description="Disable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -929,7 +931,7 @@ class AccountApi:
         Disable TOTP
 
         :param body: Disable TOTP request (required)
-        :type body: RequestsTotpReq
+        :type body: RequestsTotpDisableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -963,6 +965,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelAccount",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -979,7 +982,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_disable_post_without_preload_content(
         self,
-        body: Annotated[RequestsTotpReq, Field(description="Disable TOTP request")],
+        body: Annotated[RequestsTotpDisableReq, Field(description="Disable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -998,7 +1001,7 @@ class AccountApi:
         Disable TOTP
 
         :param body: Disable TOTP request (required)
-        :type body: RequestsTotpReq
+        :type body: RequestsTotpDisableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1032,6 +1035,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelAccount",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
