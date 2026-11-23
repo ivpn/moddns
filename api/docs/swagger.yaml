@@ -1560,7 +1560,7 @@ definitions:
   requests.TotpReq:
     properties:
       otp:
-        maxLength: 8
+        maxLength: 16
         minLength: 6
         type: string
     required:
@@ -2015,6 +2015,10 @@ paths:
             $ref: '#/definitions/model.TOTPBackup'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "500":

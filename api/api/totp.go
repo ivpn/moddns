@@ -41,6 +41,7 @@ func (s *APIServer) TotpEnable() fiber.Handler {
 // @Param body body requests.TotpReq true "Confirm TOTP request"
 // @Success 200 {object} model.TOTPBackup
 // @Failure 400 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/accounts/mfa/totp/enable/confirm [post]
 func (s *APIServer) confirm2FA() fiber.Handler {
@@ -57,7 +58,7 @@ func (s *APIServer) confirm2FA() fiber.Handler {
 		accountId := auth.GetAccountID(c)
 		backup, err := s.Service.TotpConfirm(c.UserContext(), accountId, p.OTP)
 		if err != nil {
-			return HandleError(c, err, ErrFailedToConfirm2FA.Error())
+			return handleSessionTotpError(c, err, ErrFailedToConfirm2FA.Error())
 		}
 		return c.Status(200).JSON(backup)
 	}
@@ -88,17 +89,22 @@ func (s *APIServer) disable2FA() fiber.Handler {
 		}
 		accountId := auth.GetAccountID(c)
 		acc, err := s.Service.TotpDisable(c.UserContext(), accountId, p.OTP)
-		var totpErr *account.TOTPError
-		if errors.As(err, &totpErr) && !errors.Is(err, account.ErrTOTPTooManyAttempts) {
-			// The session is valid; a wrong code is a bad request body. 401 would
-			// read as an expired session (same rule as the reauth errors in errors.go).
-			log.Ctx(c.UserContext()).Warn().Err(err).Msg(ErrFailedToDisable2FA.Error())
-			return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
-		}
 		if err != nil {
-			return HandleError(c, err, ErrFailedToDisable2FA.Error())
+			return handleSessionTotpError(c, err, ErrFailedToDisable2FA.Error())
 		}
 		return c.Status(200).JSON(acc)
 	}
 	return handler
+}
+
+// handleSessionTotpError answers a refused 2FA code on a signed-in request. The
+// session is valid, so a wrong code is a bad request body: 401 would read as an
+// expired session (same rule as the reauth errors in errors.go).
+func handleSessionTotpError(c *fiber.Ctx, err error, msg string) error {
+	var totpErr *account.TOTPError
+	if errors.As(err, &totpErr) && !errors.Is(err, account.ErrTOTPTooManyAttempts) {
+		log.Ctx(c.UserContext()).Warn().Err(err).Msg(msg)
+		return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
+	}
+	return HandleError(c, err, msg)
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -62,6 +63,39 @@ func (suite *AccountsAPITestSuite) TestDisableWrongCodeIsBadRequest() {
 			suite.SetupTest()
 			suite.mockService.On("TotpDisable", mock.Anything, testAccountID, "123456").Return(nil, tc.err).Once()
 			suite.Equal(tc.status, suite.postTotp("/api/v1/accounts/mfa/totp/disable", "123456"))
+		})
+	}
+}
+
+// Set-up takes the code as authenticator apps display it, separators and
+// surrounding spaces included. specRef: api-endpoint-behaviour.md E2
+func (suite *AccountsAPITestSuite) TestConfirmAcceptsSeparatedCode() {
+	for _, otp := range []string{"123 456", "123 - 456", " 123 456 ", "1 2 3 4 5 6"} {
+		suite.Run(otp, func() {
+			suite.SetupTest()
+			suite.mockService.On("TotpConfirm", mock.Anything, testAccountID, otp).Return(&model.TOTPBackup{}, nil).Once()
+			suite.Equal(http.StatusOK, suite.postTotp("/api/v1/accounts/mfa/totp/enable/confirm", otp))
+		})
+	}
+}
+
+// A refused code at set-up is a bad request on a valid session, not an
+// expired session. specRef: api-endpoint-behaviour.md E2
+func (suite *AccountsAPITestSuite) TestConfirmRefusedCodeIsBadRequest() {
+	cases := map[string]struct {
+		err    error
+		status int
+	}{
+		"incorrect code":     {account.ErrIncorrectOTP, http.StatusBadRequest},
+		"already configured": {account.ErrTOTPAlreadyConfigured, http.StatusBadRequest},
+		"lockout":            {account.ErrTOTPTooManyAttempts, http.StatusTooManyRequests},
+		"internal error":     {errors.New("storage unavailable"), http.StatusInternalServerError},
+	}
+	for name, tc := range cases {
+		suite.Run(name, func() {
+			suite.SetupTest()
+			suite.mockService.On("TotpConfirm", mock.Anything, testAccountID, "123456").Return(nil, tc.err).Once()
+			suite.Equal(tc.status, suite.postTotp("/api/v1/accounts/mfa/totp/enable/confirm", "123456"))
 		})
 	}
 }

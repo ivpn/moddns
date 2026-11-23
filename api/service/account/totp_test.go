@@ -278,6 +278,24 @@ func TestTotpConfirm_AcceptsPlaintextPendingSecret(t *testing.T) {
 	require.Equal(t, legacySecret, opened)
 }
 
+// Set-up takes the code as authenticator apps display it, like login does.
+// specRef: api-endpoint-behaviour.md E2
+func TestTotpConfirm_SeparatedCode(t *testing.T) {
+	for _, sep := range []string{" ", "-"} {
+		t.Run(strconv.Quote(sep), func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			newTOTP, err := f.svc.TotpEnable(context.Background(), f.id)
+			require.NoError(t, err)
+			code, err := totp.GenerateCode(newTOTP.Secret, time.Now())
+			require.NoError(t, err)
+
+			_, err = f.svc.TotpConfirm(context.Background(), f.id, code[:3]+sep+code[3:])
+			require.NoError(t, err)
+			require.True(t, f.repo.stored(f.id).Enabled)
+		})
+	}
+}
+
 // specRef: api-endpoint-behaviour.md E2
 func TestTotpConfirm_ConcurrentEnableReportsAlreadyConfigured(t *testing.T) {
 	f := newTOTPFixture(t, testStorageKey(1))

@@ -116,7 +116,7 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		}
 	}
 
-	if !totp.Validate(otp, secret) {
+	if !totp.Validate(normalizeCode(otp), secret) {
 		log.Ctx(ctx).Info().Msg("Invalid TOTP code")
 		return nil, ErrIncorrectOTP
 	}

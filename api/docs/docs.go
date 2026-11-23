@@ -418,6 +418,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -5541,7 +5547,7 @@ const docTemplate = `{
             "properties": {
                 "otp": {
                     "type": "string",
-                    "maxLength": 8,
+                    "maxLength": 16,
                     "minLength": 6
                 }
             }
