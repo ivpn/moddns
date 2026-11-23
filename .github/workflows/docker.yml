@@ -28,7 +28,7 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS API
         id: trivy_api
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # v0.34.2
         with:
           image-ref: ${{ env.DNS_API_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -42,7 +42,7 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS Proxy
         id: trivy_proxy
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # v0.34.2
         with:
           image-ref: ${{ env.DNS_PROXY_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -56,7 +56,7 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS Frontend
         id: trivy_frontend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # v0.34.2
         with:
           image-ref: ${{ env.DNS_FRONTEND_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -70,7 +70,7 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS blocklists
         id: trivy_blocklists
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # v0.34.2
         with:
           image-ref: ${{ env.DNS_BLOCKLISTS_IMAGE }}
           trivy-config: ./.github/trivy.yaml
@@ -84,7 +84,7 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS check
         id: trivy_dnscheck
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # v0.34.2
         with:
           image-ref: ${{ env.DNS_CHECK_IMAGE }}
           trivy-config: ./.github/trivy.yaml
