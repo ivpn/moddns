@@ -11,8 +11,7 @@ COPY proxy/go.sum .
 COPY ../libs/ /libs
 
 # Cache the downloaded dependency in the layer
-RUN go mod download
-RUN go mod verify
+RUN go mod download && go mod verify
 
 # Copy the source code
 COPY proxy/ .
