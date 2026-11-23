@@ -1,0 +1,177 @@
+# Dependabot version updates: weekly grouped PRs per ecosystem and directory.
+#
+# Version updates run as soon as this file is on the default branch (develop).
+# Security updates (PRs for open Dependabot alerts) are a separate repository
+# setting; once it is on, the groups below marked `applies-to:
+# security-updates` bundle those PRs per directory instead of one PR per alert.
+#
+# Dependabot labels its PRs "dependencies" (plus the ecosystem label) and
+# creates those labels on first use.
+#
+# Grouping: minor/patch bumps go into one weekly PR per directory; major bumps
+# are left out of the group so they still arrive individually and get
+# reviewed on their own.
+#
+# Go modules are vendored with `go mod vendor` in CI (see go.yml), not
+# committed to git, so a gomod PR needs no extra manual vendoring step.
+# api/, proxy/, blocklists/ and dnscheck/ all
+# `replace github.com/ivpn/dns/libs => ../libs`, and go.yml re-runs the full
+# Go suite on a libs/ change, so a libs/ dependency PR is validated against
+# every consumer.
+
+version: 2
+
+updates:
+  # --- GitHub Actions ---------------------------------------------------
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
+      actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # --- Docker base images -------------------------------------------------
+  # One entry covering every production Dockerfile; `directories:` (plural)
+  # accepts an explicit list of paths, not just globs.
+  - package-ecosystem: "docker"
+    directories:
+      - "/api"
+      - "/proxy"
+      - "/blocklists"
+      - "/dnscheck"
+      - "/app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      docker-minor-patch:
+        update-types: ["minor", "patch"]
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # --- Go modules ----------------------------------------------------------
+  # One entry per module, since each is independently versioned with its own
+  # go.sum. Version updates cover direct dependencies only (the Dependabot
+  # default); indirect modules move when their parent is upgraded.
+  - package-ecosystem: "gomod"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "gomod"
+    directory: "/proxy"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "gomod"
+    directory: "/blocklists"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "gomod"
+    directory: "/dnscheck"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: "gomod"
+    directory: "/libs"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      go-minor-patch:
+        update-types: ["minor", "patch"]
+      go-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # --- Frontend (npm) ------------------------------------------------------
+  - package-ecosystem: "npm"
+    directory: "/app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  # --- E2E test tooling (pip) ----------------------------------------------
+  # Test-only dependencies, never shipped in an image, but they carry most of
+  # the open Dependabot alerts, so they get the same weekly grouped PRs.
+  - package-ecosystem: "pip"
+    directories:
+      - "/tests"
+      - "/tests/moddns_client"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      pip-minor-patch:
+        update-types: ["minor", "patch"]
+      pip-security:
+        applies-to: security-updates
+        patterns: ["*"]
