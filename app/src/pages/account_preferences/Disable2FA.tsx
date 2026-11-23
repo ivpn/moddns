@@ -8,6 +8,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { totpErrorMessage } from "@/lib/authToasts";
 import api from "@/api/api";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/general";
@@ -55,7 +56,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
             onOpenChange(false);
         } catch (e: unknown) {
             const axiosErr = e as { response?: { data?: { error?: string } } };
-            toast.error(axiosErr?.response?.data?.error || "Failed to disable 2FA.");
+            toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to disable 2FA."));
         } finally {
             setLoading(false);
         }

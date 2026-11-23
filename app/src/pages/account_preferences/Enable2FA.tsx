@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
 import { formatBackupCode } from "@/lib/backupCodes";
+import { totpErrorMessage } from "@/lib/authToasts";
 
 interface TwoFactorAuthDialogProps {
     open: boolean;
@@ -81,8 +82,8 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             toast.success("2FA enabled successfully.");
             // Do NOT call onEnabled here, wait for user confirmation
         } catch (e: unknown) {
-            const axiosErr = e as { response?: { data?: { detail?: string } } };
-            toast.error(axiosErr?.response?.data?.detail || "Failed to enable 2FA.");
+            const axiosErr = e as { response?: { data?: { error?: string } } };
+            toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to enable 2FA."));
         } finally {
             setEnabling(false);
         }

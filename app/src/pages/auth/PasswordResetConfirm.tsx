@@ -12,6 +12,7 @@ import api from "@/api/api";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { PASSWORD_COMPLEXITY_RULES } from '@/lib/consts';
+import { totpErrorMessage } from '@/lib/authToasts';
 
 export default function PasswordResetConfirm(): JSX.Element {
     const navigate = useNavigate();
@@ -88,7 +89,7 @@ export default function PasswordResetConfirm(): JSX.Element {
                     toast.error("Server error. Please try again later.");
                     break;
                 default:
-                    toast.error(axiosErr?.response?.data?.error || "Failed to reset password.");
+                    toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to reset password."));
             }
         } finally {
             setLoading(false);

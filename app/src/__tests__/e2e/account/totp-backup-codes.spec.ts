@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 import { formatBackupCode } from '../../../lib/backupCodes';
+import { TOTP_TOO_MANY_ATTEMPTS_MESSAGE } from '../../../lib/authToasts';
 
 // Backup codes are 25 characters over the 32-symbol uppercase alphabet (125 bits).
 const BACKUP_CODES = [
@@ -179,5 +180,76 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
     await page.getByPlaceholder('2FA code').fill('123456');
     await page.getByRole('button', { name: /^Reset password$/ }).click();
     await expect(page.getByText(/invalid 2FA code/i)).toBeVisible();
+  });
+});
+
+const LOCKOUT = { error: 'too many failed 2FA attempts, try again later' };
+
+async function openEnable2FA(page: Page, confirm: { status: number; body: object }) {
+  await registerMocks(page, {
+    authenticated: true,
+    accountOverride: { id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: false } } },
+  });
+  await page.route('**/api/v1/sub', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
+  await page.route('**/api/v1/webauthn/passkeys', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  await page.route('**/api/v1/accounts/mfa/totp/enable', route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP', uri: 'otpauth://totp/modDNS:user@example.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=modDNS', account: 'user@example.com' }) }));
+  await page.route('**/api/v1/accounts/mfa/totp/enable/confirm', route =>
+    route.fulfill({ status: confirm.status, contentType: 'application/json', body: JSON.stringify(confirm.body) }));
+
+  await page.goto('/account-preferences');
+  const toggle = page.getByRole('radio', { name: /^Enable$/ }).first();
+  await expect(toggle).toBeVisible({ timeout: 10_000 });
+  await toggle.click();
+  await page.locator('#totp-code').fill('123456');
+  await page.getByRole('button', { name: /Enable 2FA/i }).click();
+}
+
+test.describe('refused 2FA codes', { tag: '@desktop' }, () => {
+  test('set-up: a wrong code keeps the user signed in and shows why', async ({ page }) => {
+    await openEnable2FA(page, { status: 400, body: { error: 'incorrect OTP' } });
+    await expect(page.getByText('incorrect OTP')).toBeVisible();
+    await expect(page.locator('#totp-code')).toBeVisible();
+    await expect(page).toHaveURL(/\/account-preferences/);
+  });
+
+  // The lockout reads the same at set-up, disable, password reset and login.
+  test('set-up: lockout', async ({ page }) => {
+    await openEnable2FA(page, { status: 429, body: LOCKOUT });
+    await expect(page.getByText(TOTP_TOO_MANY_ATTEMPTS_MESSAGE)).toBeVisible();
+  });
+
+  test('disable: lockout', async ({ page }) => {
+    const account = { id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: true } } };
+    await registerMocks(page, { authenticated: true, accountOverride: account });
+    await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
+    await page.route('**/api/v1/accounts/mfa/totp/disable', route =>
+      route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify(LOCKOUT) }));
+
+    await page.goto('/account-preferences');
+    await page.getByRole('radio', { name: /^Disable$/ }).first().click();
+    await page.locator('#disable-totp-code').fill('123456');
+    await page.getByRole('button', { name: /^Disable 2FA$/ }).click();
+    await expect(page.getByText(TOTP_TOO_MANY_ATTEMPTS_MESSAGE)).toBeVisible();
+  });
+
+  test('password reset: lockout', async ({ page }) => {
+    await page.route('**/api/v1/verify/reset-password', route => {
+      if (!route.request().headers()['x-mfa-code']) {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
+      }
+      return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify(LOCKOUT) });
+    });
+
+    await page.goto('/reset-password/reset-token');
+    await page.getByPlaceholder('New password').fill('N3w-Passw0rd-Long!');
+    await page.getByPlaceholder('Confirm password').fill('N3w-Passw0rd-Long!');
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+    await page.getByPlaceholder('2FA code').fill('123456');
+    await page.getByRole('button', { name: /^Reset password$/ }).click();
+    await expect(page.getByText(TOTP_TOO_MANY_ATTEMPTS_MESSAGE)).toBeVisible();
   });
 });

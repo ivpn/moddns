@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
-import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
+import { AUTH_TOAST_IDS, TOTP_TOO_MANY_ATTEMPTS_MESSAGE } from '../../../lib/authToasts';
 
 test.describe('Login basic flows', { tag: '@desktop' }, () => {
   test('successful password login shows toast and redirects', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('Login basic flows', { tag: '@desktop' }, () => {
     await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toBeVisible();
   });
 
-  test('too many failed 2FA attempts shows the try-again-later message', async ({ page }) => {
+  test('too many failed 2FA attempts says the 2FA code is the problem', async ({ page }) => {
     await registerMocks(page, { authenticated: false });
     let attempt = 0;
     await page.route(/\/api\/v1\/login(\/?|\?.*)$/i, async route => {
@@ -129,7 +129,9 @@ test.describe('Login basic flows', { tag: '@desktop' }, () => {
     await page.getByTestId('btn-login-password-submit').click();
     await page.getByTestId('input-otp').fill('123456');
     await page.getByTestId('btn-login-password-submit').click();
-    await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toBeVisible();
+    // The password was right; the message must point at the 2FA code.
+    await expect(page.getByTestId(AUTH_TOAST_IDS.loginTotpTooManyAttempts)).toHaveText(TOTP_TOO_MANY_ATTEMPTS_MESSAGE);
+    await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toHaveCount(0);
   });
 
   test('clicking the modDNS logo navigates to the landing page', async ({ page }) => {
