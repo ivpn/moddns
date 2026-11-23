@@ -51,7 +51,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mdelapenya/tlscert v0.2.0 // indirect
@@ -106,13 +106,13 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.3
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
-	golang.org/x/mod v0.39.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	gonum.org/v1/gonum v0.17.0 // indirect
 )
