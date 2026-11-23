@@ -6,10 +6,20 @@ services:
     networks:
       - dnsnetwork
     container_name: dnsapi
+    # Exits at startup when no sentinel in CACHE_ADDRESSES answers.
     depends_on:
-      - cache
-      - mongodb
-      - mock-preauth
+      cache:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      mock-preauth:
+        condition: service_started
+      sentinel1:
+        condition: service_healthy
+      sentinel2:
+        condition: service_healthy
+      sentinel3:
+        condition: service_healthy
     ports:
       - 3000:3000
     volumes:
@@ -35,12 +45,24 @@ services:
         # for the public zone that resolves dns.moddns.net for real clients.
         ipv4_address: 10.5.0.100
     container_name: dnsproxy
+    # Exits at startup when no sentinel in CACHE_ADDRESSES answers.
     depends_on:
-      - cache
-      - redis-replica-dns
-      - mongodb
-      - sdns
-      - knot
+      cache:
+        condition: service_healthy
+      redis-replica-dns:
+        condition: service_started
+      mongodb:
+        condition: service_started
+      sdns:
+        condition: service_started
+      knot:
+        condition: service_started
+      sentinel1:
+        condition: service_healthy
+      sentinel2:
+        condition: service_healthy
+      sentinel3:
+        condition: service_healthy
     ports:
       # Plain DNS is deliberately not published — the product only exposes
       # encrypted transports (DoH/DoT/DoQ).
@@ -87,10 +109,20 @@ services:
     networks:
       - dnsnetwork
     container_name: dnsblocklists
+    # Exits at startup when no sentinel in CACHE_ADDRESSES answers.
     depends_on:
-      - cache
-      - mongodb
-      - sdns
+      cache:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+      sdns:
+        condition: service_started
+      sentinel1:
+        condition: service_healthy
+      sentinel2:
+        condition: service_healthy
+      sentinel3:
+        condition: service_healthy
     volumes:
       - ./blocklists_sources/:/sources
     env_file:
