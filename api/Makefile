@@ -45,7 +45,7 @@ build: ## Build DNS Proxy application
 	go build -o dnsapi
 
 test: ## Run all go-based tests
-	go test -coverprofile=coverage.txt -covermode=atomic -v ./...
+	go test -p 1 -coverprofile=coverage.txt -covermode=atomic -v ./...
 
 help: ## Display this help screen
 	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
