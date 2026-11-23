@@ -11,8 +11,7 @@ COPY api/go.sum .
 COPY ../libs/ /libs
 
 # Cache the downloaded dependency in the layer
-RUN go mod download
-RUN go mod verify
+RUN go mod download && go mod verify
 
 # Copy the source code
 COPY api/ .
@@ -25,8 +24,8 @@ ARG APP_VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build \
       -ldflags="-X github.com/ivpn/dns/api/internal/version.Version=${APP_VERSION}" \
-      -o /app/dnsapi .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
+      -o /app/dnsapi . && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
 
 FROM scratch AS run
 
