@@ -1177,6 +1177,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPBackup",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -1246,6 +1247,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPBackup",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -1315,6 +1317,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPBackup",
             '400': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(

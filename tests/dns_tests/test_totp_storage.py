@@ -174,6 +174,27 @@ class TestTotpStorage:
             for code in codes:
                 assert code not in value, "backup code stored in plaintext"
 
+    def test_enable_accepts_separated_code(self, mongo_db, fresh_account):
+        """Set-up takes the code as authenticator apps display it; a wrong code
+        does not end the session. specRef: E2."""
+        account, cookie, _, _, state = fresh_account
+        with _api(cookie) as api_client:
+            acc_api = AccountApi(api_client)
+            new = acc_api.api_v1_accounts_mfa_totp_enable_post()
+            state["secret"] = new.secret
+            code = totp_code(new.secret)
+            wrong = f"{(int(code) + 1) % 1_000_000:06d}"
+
+            with pytest.raises(ApiException) as refused:
+                acc_api.api_v1_accounts_mfa_totp_enable_confirm_post(RequestsTotpReq(otp=wrong))
+            assert refused.value.status == 400
+            assert _totp_doc(mongo_db, account.id).get("enabled") is not True
+
+            acc_api.api_v1_accounts_mfa_totp_enable_confirm_post(
+                RequestsTotpReq(otp=f" {code[:3]} - {code[3:]} ")
+            )
+        assert _totp_doc(mongo_db, account.id).get("enabled") is True
+
     def test_totp_and_backup_code_login_after_enable(self, mongo_db, fresh_account):
         """specRef: E4, E6."""
         _, cookie, password, email, state = fresh_account
