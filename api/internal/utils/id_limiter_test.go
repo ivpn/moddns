@@ -124,3 +124,39 @@ func TestIDLimiter_IsAllowed(t *testing.T) {
 		})
 	}
 }
+
+// A success clears the count: the limit applies to consecutive failures.
+func TestIDLimiter_Reset(t *testing.T) {
+	mockCache := mocks.NewCacheutils(t)
+	mockCache.On("Del", context.Background(), "totp_fails:user1").Return(nil)
+
+	limiter := utils.IDLimiter{ID: "user1", Label: "totp_fails", Max: 5, Exp: time.Minute, Cache: mockCache}
+	assert.NoError(t, limiter.Reset())
+}
+
+// specRef: api-endpoint-behaviour.md E12
+func TestIDLimiter_Attempt(t *testing.T) {
+	tests := []struct {
+		name    string
+		count   int64
+		incrErr error
+		allowed bool
+		wantErr bool
+	}{
+		{name: "first attempt", count: 1, allowed: true},
+		{name: "last allowed attempt", count: 5, allowed: true},
+		{name: "over the limit", count: 6, allowed: false},
+		{name: "cache error refuses", incrErr: errors.New("redis down"), allowed: false, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockCache := mocks.NewCacheutils(t)
+			mockCache.On("Incr", context.Background(), "totp_fails:user1", time.Minute).Return(tt.count, tt.incrErr)
+
+			limiter := utils.IDLimiter{ID: "user1", Label: "totp_fails", Max: 5, Exp: time.Minute, Cache: mockCache}
+			allowed, err := limiter.Attempt()
+			assert.Equal(t, tt.allowed, allowed)
+			assert.Equal(t, tt.wantErr, err != nil)
+		})
+	}
+}

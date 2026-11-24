@@ -76,6 +76,7 @@ func newImportTestEnv(t *testing.T, password string, maxProfiles int) *importTes
 
 	// Env vars required by config.New().
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "test.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
 
 	cfg, err := config.New()

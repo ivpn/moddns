@@ -157,6 +157,10 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 		resp.Error = err.Error()
 		return c.Status(400).JSON(resp)
 	}
+	if errors.Is(err, account.ErrTOTPTooManyAttempts) {
+		resp.Error = err.Error()
+		return c.Status(429).JSON(resp)
+	}
 
 	// Unified reauth-credential failures map to 400. Checked BEFORE the
 	// *ServiceAccountError type switch because the reauth sentinels (plus the

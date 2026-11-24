@@ -102,6 +102,150 @@ func (_c *AccountRepository_AddProfileToAccount_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// ConsumeBackupCode provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) ConsumeBackupCode(ctx context.Context, accountId string, backupCodeHash string) (bool, error) {
+	ret := _mock.Called(ctx, accountId, backupCodeHash)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ConsumeBackupCode")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return returnFunc(ctx, accountId, backupCodeHash)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = returnFunc(ctx, accountId, backupCodeHash)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accountId, backupCodeHash)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// AccountRepository_ConsumeBackupCode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConsumeBackupCode'
+type AccountRepository_ConsumeBackupCode_Call struct {
+	*mock.Call
+}
+
+// ConsumeBackupCode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - backupCodeHash string
+func (_e *AccountRepository_Expecter) ConsumeBackupCode(ctx interface{}, accountId interface{}, backupCodeHash interface{}) *AccountRepository_ConsumeBackupCode_Call {
+	return &AccountRepository_ConsumeBackupCode_Call{Call: _e.mock.On("ConsumeBackupCode", ctx, accountId, backupCodeHash)}
+}
+
+func (_c *AccountRepository_ConsumeBackupCode_Call) Run(run func(ctx context.Context, accountId string, backupCodeHash string)) *AccountRepository_ConsumeBackupCode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_ConsumeBackupCode_Call) Return(b bool, err error) *AccountRepository_ConsumeBackupCode_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *AccountRepository_ConsumeBackupCode_Call) RunAndReturn(run func(ctx context.Context, accountId string, backupCodeHash string) (bool, error)) *AccountRepository_ConsumeBackupCode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ConsumeLegacyBackupCode provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) ConsumeLegacyBackupCode(ctx context.Context, accountId string, backupCode string) (bool, error) {
+	ret := _mock.Called(ctx, accountId, backupCode)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ConsumeLegacyBackupCode")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (bool, error)); ok {
+		return returnFunc(ctx, accountId, backupCode)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) bool); ok {
+		r0 = returnFunc(ctx, accountId, backupCode)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accountId, backupCode)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// AccountRepository_ConsumeLegacyBackupCode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ConsumeLegacyBackupCode'
+type AccountRepository_ConsumeLegacyBackupCode_Call struct {
+	*mock.Call
+}
+
+// ConsumeLegacyBackupCode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - backupCode string
+func (_e *AccountRepository_Expecter) ConsumeLegacyBackupCode(ctx interface{}, accountId interface{}, backupCode interface{}) *AccountRepository_ConsumeLegacyBackupCode_Call {
+	return &AccountRepository_ConsumeLegacyBackupCode_Call{Call: _e.mock.On("ConsumeLegacyBackupCode", ctx, accountId, backupCode)}
+}
+
+func (_c *AccountRepository_ConsumeLegacyBackupCode_Call) Run(run func(ctx context.Context, accountId string, backupCode string)) *AccountRepository_ConsumeLegacyBackupCode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_ConsumeLegacyBackupCode_Call) Return(b bool, err error) *AccountRepository_ConsumeLegacyBackupCode_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *AccountRepository_ConsumeLegacyBackupCode_Call) RunAndReturn(run func(ctx context.Context, accountId string, backupCode string) (bool, error)) *AccountRepository_ConsumeLegacyBackupCode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateAccount provides a mock function for the type AccountRepository
 func (_mock *AccountRepository) CreateAccount(ctx context.Context, email string, password string, accountId string, profileId string) (*model.Account, error) {
 	ret := _mock.Called(ctx, email, password, accountId, profileId)
@@ -241,6 +385,132 @@ func (_c *AccountRepository_DeleteAccountById_Call) Return(err error) *AccountRe
 }
 
 func (_c *AccountRepository_DeleteAccountById_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *AccountRepository_DeleteAccountById_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DisableTOTP provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) DisableTOTP(ctx context.Context, accountId string) error {
+	ret := _mock.Called(ctx, accountId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableTOTP")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, accountId)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// AccountRepository_DisableTOTP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableTOTP'
+type AccountRepository_DisableTOTP_Call struct {
+	*mock.Call
+}
+
+// DisableTOTP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+func (_e *AccountRepository_Expecter) DisableTOTP(ctx interface{}, accountId interface{}) *AccountRepository_DisableTOTP_Call {
+	return &AccountRepository_DisableTOTP_Call{Call: _e.mock.On("DisableTOTP", ctx, accountId)}
+}
+
+func (_c *AccountRepository_DisableTOTP_Call) Run(run func(ctx context.Context, accountId string)) *AccountRepository_DisableTOTP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_DisableTOTP_Call) Return(err error) *AccountRepository_DisableTOTP_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *AccountRepository_DisableTOTP_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *AccountRepository_DisableTOTP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableTOTP provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) EnableTOTP(ctx context.Context, accountId string, sealedSecret string, backupCodeHashes []string) error {
+	ret := _mock.Called(ctx, accountId, sealedSecret, backupCodeHashes)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableTOTP")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string) error); ok {
+		r0 = returnFunc(ctx, accountId, sealedSecret, backupCodeHashes)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// AccountRepository_EnableTOTP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableTOTP'
+type AccountRepository_EnableTOTP_Call struct {
+	*mock.Call
+}
+
+// EnableTOTP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - sealedSecret string
+//   - backupCodeHashes []string
+func (_e *AccountRepository_Expecter) EnableTOTP(ctx interface{}, accountId interface{}, sealedSecret interface{}, backupCodeHashes interface{}) *AccountRepository_EnableTOTP_Call {
+	return &AccountRepository_EnableTOTP_Call{Call: _e.mock.On("EnableTOTP", ctx, accountId, sealedSecret, backupCodeHashes)}
+}
+
+func (_c *AccountRepository_EnableTOTP_Call) Run(run func(ctx context.Context, accountId string, sealedSecret string, backupCodeHashes []string)) *AccountRepository_EnableTOTP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_EnableTOTP_Call) Return(err error) *AccountRepository_EnableTOTP_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *AccountRepository_EnableTOTP_Call) RunAndReturn(run func(ctx context.Context, accountId string, sealedSecret string, backupCodeHashes []string) error) *AccountRepository_EnableTOTP_Call {
 	_c.Call.Return(run)
 	return _c
 }

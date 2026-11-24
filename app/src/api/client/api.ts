@@ -2863,6 +2863,19 @@ export interface RequestsRotatePASessionReq {
 /**
  * 
  * @export
+ * @interface RequestsTotpDisableReq
+ */
+export interface RequestsTotpDisableReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpDisableReq
+     */
+    'otp': string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpReq
  */
 export interface RequestsTotpReq {
@@ -3358,11 +3371,11 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * Disable TOTP
          * @summary Disable TOTP
-         * @param {RequestsTotpReq} body Disable TOTP request
+         * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpDisablePost: async (body: RequestsTotpReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1AccountsMfaTotpDisablePost: async (body: RequestsTotpDisableReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
             assertParamExists('apiV1AccountsMfaTotpDisablePost', 'body', body)
             const localVarPath = `/api/v1/accounts/mfa/totp/disable`;
@@ -3624,11 +3637,11 @@ export const AccountApiFp = function(configuration?: Configuration) {
         /**
          * Disable TOTP
          * @summary Disable TOTP
-         * @param {RequestsTotpReq} body Disable TOTP request
+         * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1AccountsMfaTotpDisablePost(body: RequestsTotpReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelAccount>> {
+        async apiV1AccountsMfaTotpDisablePost(body: RequestsTotpDisableReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelAccount>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpDisablePost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsMfaTotpDisablePost']?.[localVarOperationServerIndex]?.url;
@@ -3741,11 +3754,11 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
         /**
          * Disable TOTP
          * @summary Disable TOTP
-         * @param {RequestsTotpReq} body Disable TOTP request
+         * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpDisablePost(body: RequestsTotpReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelAccount> {
+        apiV1AccountsMfaTotpDisablePost(body: RequestsTotpDisableReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelAccount> {
             return localVarFp.apiV1AccountsMfaTotpDisablePost(body, options).then((request) => request(axios, basePath));
         },
         /**
@@ -3846,12 +3859,12 @@ export class AccountApi extends BaseAPI {
     /**
      * Disable TOTP
      * @summary Disable TOTP
-     * @param {RequestsTotpReq} body Disable TOTP request
+     * @param {RequestsTotpDisableReq} body Disable TOTP request
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AccountApi
      */
-    public apiV1AccountsMfaTotpDisablePost(body: RequestsTotpReq, options?: RawAxiosRequestConfig) {
+    public apiV1AccountsMfaTotpDisablePost(body: RequestsTotpDisableReq, options?: RawAxiosRequestConfig) {
         return AccountApiFp(this.configuration).apiV1AccountsMfaTotpDisablePost(body, options).then((request) => request(this.axios, this.basePath));
     }
 

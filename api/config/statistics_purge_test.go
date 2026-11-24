@@ -11,7 +11,11 @@ func setRequiredEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("SERVER_ALLOWED_DOMAINS", "test.com")
 	t.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
+	t.Setenv("TOTP_STORAGE_KEY", testTOTPStorageKey)
 }
+
+// testTOTPStorageKey is 32 zero bytes, standard base64.
+const testTOTPStorageKey = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
 // specRef: api-endpoint-behaviour.md J9 — the statistics purge cadence defaults to one hour and can be changed.
 func TestStatisticsPurgeIntervalConfig(t *testing.T) {

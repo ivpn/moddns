@@ -33,6 +33,7 @@ type EmailVerificationOTPSuite struct {
 func (suite *EmailVerificationOTPSuite) SetupSuite() {
 	// Set minimal required env variables for config.New()
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "example.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
 	os.Setenv("API_PORT", "8080")
 	os.Setenv("DB_NAME", "test_db")
@@ -549,4 +550,24 @@ func (suite *EmailVerificationOTPSuite) TestVerifyPasswordReset() {
 
 func TestEmailVerificationOTPSuite(t *testing.T) {
 	suite.Run(t, new(EmailVerificationOTPSuite))
+}
+
+// An expired reset link is refused before the 2FA code is checked, so the code
+// is neither counted nor used up. specRef: api-endpoint-behaviour.md C2
+func (suite *EmailVerificationOTPSuite) TestVerifyPasswordResetExpiredTokenSkipsMfa() {
+	suite.mockAccountRepo.ExpectedCalls = nil
+	suite.mockCache.ExpectedCalls = nil
+	acc := &model.Account{
+		ID:            primitive.NewObjectID(),
+		Email:         "user@example.com",
+		EmailVerified: true,
+		MFA:           model.MFASettings{TOTP: model.TotpSettings{Enabled: true, SecretSealed: "v1.kid.x", BackupCodeHashes: []string{"h1"}}},
+		Tokens:        []model.Token{{Type: "password_reset", Value: "expired-token", ExpiresAt: time.Now().Add(-time.Minute)}},
+	}
+	suite.mockAccountRepo.On("GetAccountByToken", context.Background(), "expired-token", "password_reset").Return(acc, nil)
+
+	err := suite.service.VerifyPasswordReset(context.Background(), "expired-token", "NewSecurePass123!", &model.MfaData{OTP: "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5", Methods: []string{"totp"}})
+	suite.ErrorIs(err, account.ErrTokenExpired)
+	suite.mockAccountRepo.AssertNotCalled(suite.T(), "ConsumeBackupCode", mock.Anything, mock.Anything, mock.Anything)
+	suite.mockCache.AssertExpectations(suite.T())
 }

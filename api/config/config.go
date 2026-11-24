@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
@@ -70,9 +71,14 @@ type ServiceConfig struct {
 	GeoIPASNFile     string
 	GeoIPCountryFile string
 	GeoIPReloadEvery time.Duration
+	// TOTPStorageKey protects stored TOTP secrets and backup codes (internal/totpcrypt).
+	TOTPStorageKey []byte //nolint:gosec // G117 - intentional sensitive field
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
+	// MigrateTOTPStorage converts plaintext TOTP records; enable only once
+	// every API instance reads both formats.
+	MigrateTOTPStorage bool
 }
 
 // SentryConfig represents the Sentry configuration
@@ -226,6 +232,11 @@ func New() (*Config, error) {
 		return nil, err
 	}
 
+	totpStorageKey, err := totpcrypt.ParseKey(os.Getenv("TOTP_STORAGE_KEY"))
+	if err != nil {
+		return nil, fmt.Errorf("TOTP_STORAGE_KEY: %w", err)
+	}
+
 	// Warn about missing security-critical configuration.
 	if os.Getenv("API_PSK") == "" {
 		log.Warn().Msg("API_PSK is not set; the subscription provisioning endpoint will reject all requests")
@@ -322,7 +333,9 @@ func New() (*Config, error) {
 			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
 			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
 			GeoIPReloadEvery:               geoIPReloadEvery,
+			TOTPStorageKey:                 totpStorageKey,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
+			MigrateTOTPStorage:             parseBoolEnv("MIGRATE_TOTP_STORAGE"),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),

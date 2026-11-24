@@ -14,6 +14,7 @@ import (
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/migrations"
+	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/service"
@@ -103,6 +104,20 @@ func main() {
 		if stats.Migrated > 0 {
 			log.Info().Int("migrated", stats.Migrated).Int("skipped", stats.Skipped).Msg("Subscription UUID subtype migration applied")
 		}
+	}
+
+	if appConfig.Service.MigrateTOTPStorage {
+		keeper, keyErr := totpcrypt.New(appConfig.Service.TOTPStorageKey)
+		if keyErr != nil {
+			log.Panic().Err(keyErr).Msg("TOTP storage migration: invalid key")
+		}
+		migCtx, migCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		stats, migErr := migrations.MigrateTOTPStorage(migCtx, storeI.GetClient(), appConfig.DB.Name, keeper)
+		migCancel()
+		if migErr != nil {
+			log.Panic().Err(migErr).Msg("TOTP storage migration failed")
+		}
+		log.Info().Int("scanned", stats.Scanned).Int("migrated", stats.Migrated).Int("failed", stats.Failed).Msg("TOTP storage migration finished")
 	}
 
 	// Build a single Redis client so the cache and the cron locker share

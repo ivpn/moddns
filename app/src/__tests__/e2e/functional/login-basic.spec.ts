@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
-import { AUTH_TOAST_IDS } from '../../../lib/authToasts';
+import { AUTH_TOAST_IDS, TOTP_TOO_MANY_ATTEMPTS_MESSAGE } from '../../../lib/authToasts';
 
 test.describe('Login basic flows', { tag: '@desktop' }, () => {
   test('successful password login shows toast and redirects', async ({ page }) => {
@@ -106,6 +106,32 @@ test.describe('Login basic flows', { tag: '@desktop' }, () => {
     await page.getByTestId('btn-login-password-submit').click();
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toBeVisible();
+  });
+
+  test('too many failed 2FA attempts says the 2FA code is the problem', async ({ page }) => {
+    await registerMocks(page, { authenticated: false });
+    let attempt = 0;
+    await page.route(/\/api\/v1\/login(\/?|\?.*)$/i, async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      attempt++;
+      if (attempt === 1) {
+        return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
+      }
+      return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'too many failed 2FA attempts, try again later' }) });
+    });
+    await page.goto('/login');
+    await page.getByTestId('login-page').waitFor();
+    if (await page.getByTestId('login-passkey-form').count()) {
+      await page.getByTestId('btn-login-toggle-mode').click();
+    }
+    await page.getByTestId('input-email').fill('user@example.com');
+    await page.getByTestId('input-password').fill('secret');
+    await page.getByTestId('btn-login-password-submit').click();
+    await page.getByTestId('input-otp').fill('123456');
+    await page.getByTestId('btn-login-password-submit').click();
+    // The password was right; the message must point at the 2FA code.
+    await expect(page.getByTestId(AUTH_TOAST_IDS.loginTotpTooManyAttempts)).toHaveText(TOTP_TOO_MANY_ATTEMPTS_MESSAGE);
+    await expect(page.getByTestId(AUTH_TOAST_IDS.loginTooManyAttempts)).toHaveCount(0);
   });
 
   test('clicking the modDNS logo navigates to the landing page', async ({ page }) => {

@@ -34,3 +34,12 @@ func (c *RedisCache) GetTOTPSecret(ctx context.Context, accountId string) (strin
 	log.Ctx(ctx).Trace().Msg("Got totp secret")
 	return secret, nil
 }
+
+// DeleteTOTPSecret removes the pending TOTP secret for the given account
+func (c *RedisCache) DeleteTOTPSecret(ctx context.Context, accountId string) error {
+	if err := c.client.Del(ctx, fmt.Sprintf("totp:%s", accountId)).Err(); err != nil {
+		log.Ctx(ctx).Err(err).Msg("Cache: failed to delete TOTP secret")
+		return err
+	}
+	return nil
+}

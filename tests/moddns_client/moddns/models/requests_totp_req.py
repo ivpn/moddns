@@ -27,7 +27,7 @@ class RequestsTotpReq(BaseModel):
     """
     RequestsTotpReq
     """ # noqa: E501
-    otp: Annotated[str, Field(min_length=6, strict=True, max_length=8)]
+    otp: Annotated[str, Field(min_length=6, strict=True, max_length=16)]
     __properties: ClassVar[List[str]] = ["otp"]
 
     model_config = ConfigDict(

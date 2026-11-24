@@ -9,10 +9,19 @@ type MFASettings struct {
 
 // TotpSettings represents the settings for TOTP.
 type TotpSettings struct {
-	Enabled         bool     `json:"enabled" bson:"enabled"`     // Indicates if TOTP is enabled.
-	Secret          string   `json:"-" bson:"secret"`            // The secret key used for TOTP generation.
-	BackupCodes     []string `json:"-" bson:"backup_codes"`      // The backup codes for TOTP.
-	BackupCodesUsed []string `json:"-" bson:"backup_codes_used"` // Indicates which of the backup codes have been used.
+	Enabled bool `json:"enabled" bson:"enabled"` // Indicates if TOTP is enabled.
+
+	// SecretSealed is the TOTP secret encrypted with totpcrypt.Keeper.SealSecret.
+	SecretSealed string `json:"-" bson:"secret_sealed,omitempty"`
+	// BackupCodeHashes are the unused backup codes, as totpcrypt.Keeper.HashBackupCode digests.
+	BackupCodeHashes []string `json:"-" bson:"backup_code_hashes,omitempty"`
+	// BackupCodesLegacy marks a code set the account holder should replace.
+	BackupCodesLegacy bool `json:"-" bson:"backup_codes_legacy,omitempty"`
+
+	// Plaintext fields, read until the TOTP storage migration converts them.
+	// Never written.
+	Secret      string   `json:"-" bson:"secret,omitempty"`
+	BackupCodes []string `json:"-" bson:"backup_codes,omitempty"`
 }
 
 type TOTPNew struct {
