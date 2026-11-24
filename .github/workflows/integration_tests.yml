@@ -24,7 +24,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install test dependencies
-        run: cd tests/; pip install dnspython[doh]; make install_test_dependencies
+        run: cd tests/; make install_test_dependencies
 
       - name: SSL certs location
         run: |
