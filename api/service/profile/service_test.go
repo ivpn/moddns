@@ -45,6 +45,7 @@ type ProfileTestSuite struct {
 func (suite *ProfileTestSuite) SetupSuite() {
 	// Set required environment variables
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "test.com,allowed.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53,1.1.1.1:53")
 
 	// Set optional environment variables with default values
@@ -107,6 +108,7 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 		repoCreateError  error
 		repoGetError     error
 		idGenError       error
+		cacheError       error
 		expectedError    string
 		expectedName     string
 	}{
@@ -195,6 +197,14 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 			expectedError:   "repo create error",
 		},
 		{
+			name:          "Settings cache write fails removes the inserted profile",
+			profileName:   "Test Profile",
+			accountID:     "account123",
+			maxProfiles:   5,
+			cacheError:    errors.New("cache write error"),
+			expectedError: "cache write error",
+		},
+		{
 			name:          "Repository get fails",
 			profileName:   "Test Profile",
 			accountID:     "account123",
@@ -210,6 +220,7 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 			suite.mockProfileRepo.ExpectedCalls = nil
 			suite.mockIDGen.ExpectedCalls = nil
 			suite.mockBlocklistRepo.ExpectedCalls = nil
+			suite.mockCache.ExpectedCalls = nil
 
 			// Update service config for this test case
 			originalMaxProfiles := suite.service.ServiceConfig.MaxProfiles
@@ -225,43 +236,29 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 				suite.mockProfileRepo.On("GetProfilesByAccountId", context.Background(), tt.accountID).Return(tt.existingProfiles, nil)
 			}
 
-			if tt.profileName != "" {
-				// ID generation happens early, so mock it for any non-empty name
+			nameExists := false
+			for _, p := range tt.existingProfiles {
+				if p.Name == tt.profileName && p.AccountId == tt.accountID {
+					nameExists = true
+					break
+				}
+			}
+			// Settings, ID and inserts come only after the name, limit and
+			// duplicate checks pass; nothing is cached before the insert.
+			if tt.profileName != "" && tt.repoGetError == nil && !nameExists && len(tt.existingProfiles) < tt.maxProfiles {
+				defaultBlocklists := []*model.Blocklist{{Name: "Default Blocklist", Default: true}}
+				suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
+
 				if tt.idGenError != nil {
 					suite.mockIDGen.On("Generate").Return("", tt.idGenError)
 				} else {
 					suite.mockIDGen.On("Generate").Return("profile123", nil)
-
-					// Mock blocklist service call (for createSettings)
-					defaultBlocklists := []*model.Blocklist{
-						{
-							Name:    "Default Blocklist",
-							Default: true,
-						},
-					}
-					suite.mockBlocklistRepo.On("Get", context.Background(), map[string]any{"default": true}, "updated").Return(defaultBlocklists, nil)
-
-					// Mock cache call for saving profile settings
-					suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(nil)
-				}
-
-				if tt.repoGetError == nil && tt.idGenError == nil {
-					// Repository calls happen after profile creation and settings setup
-					// Check if we should expect CreateProfile to be called
-					nameExists := false
-					for _, p := range tt.existingProfiles {
-						if p.Name == tt.profileName && p.AccountId == tt.accountID {
-							nameExists = true
-							break
-						}
-					}
-
-					// Only expect CreateProfile call if name doesn't exist AND max profiles not reached
-					if !nameExists && len(tt.existingProfiles) < tt.maxProfiles {
-						if tt.repoCreateError != nil {
-							suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(tt.repoCreateError)
-						} else {
-							suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(nil)
+					suite.mockProfileRepo.On("CreateProfile", context.Background(), mock.AnythingOfType("*model.Profile")).Return(tt.repoCreateError)
+					if tt.repoCreateError == nil {
+						suite.mockCache.On("CreateOrUpdateProfileSettings", context.Background(), mock.AnythingOfType("*model.ProfileSettings")).Return(tt.cacheError).Once()
+						if tt.cacheError != nil {
+							suite.mockCache.On("DeleteProfileSettings", mock.Anything, "profile123").Return(nil).Once()
+							suite.mockProfileRepo.On("DeleteProfileById", mock.Anything, "profile123").Return(nil).Once()
 						}
 					}
 				}
@@ -269,6 +266,10 @@ func (suite *ProfileTestSuite) TestCreateProfile() {
 
 			// Call the method under test
 			profile, err := suite.service.CreateProfile(context.Background(), tt.profileName, tt.accountID)
+			if tt.cacheError != nil {
+				suite.mockCache.AssertCalled(suite.T(), "DeleteProfileSettings", mock.Anything, "profile123")
+				suite.mockProfileRepo.AssertCalled(suite.T(), "DeleteProfileById", mock.Anything, "profile123")
+			}
 
 			// Assert results
 			if tt.expectedError != "" {

@@ -112,6 +112,14 @@ func TestHandleError(t *testing.T) {
 			expectedError:  account.ErrEmailOTPRateLimited.Error(),
 		},
 		{
+			// specRef: api-endpoint-behaviour.md E12
+			name:           "Too many failed 2FA attempts",
+			err:            account.ErrTOTPTooManyAttempts,
+			errMsg:         "failed to login",
+			expectedStatus: 429,
+			expectedError:  account.ErrTOTPTooManyAttempts.Error(),
+		},
+		{
 			name:           "Same Email Address",
 			err:            account.ErrSameEmailAddress,
 			errMsg:         "failed to update email",

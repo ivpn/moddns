@@ -1,43 +1,41 @@
 package utils
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"errors"
+	"math/big"
 	"strings"
-	"time"
 )
 
 // AlphaNumericUserFriendly contains letters without those which looks similar to one another
 const AlphaNumericUserFriendly = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+
+// AlphaNumericUserFriendlyUppercase is AlphaNumericUserFriendly without lowercase letters.
 const AlphaNumericUserFriendlyUppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-const ALPHANUMERICLOWERUPPER = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
-
-const ALPHALOWER = "abcdefghijkmnopqrstuvwxyz"
-const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+var (
+	ErrInvalidLength = errors.New("random string: length must be positive")
+	ErrEmptyCharset  = errors.New("random string: charset is empty")
 )
 
-var src = rand.NewSource(time.Now().UnixNano())
-
-// RandomString Generate a random string fast
-// Why so complicated? See https://stackoverflow.com/a/31832326
-func RandomString(n int, letterBytes string) string {
-	sb := strings.Builder{}
-	sb.Grow(n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			sb.WriteByte(letterBytes[idx])
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
+// RandomString returns n characters drawn uniformly from charset with crypto/rand.
+func RandomString(n int, charset string) (string, error) {
+	if n <= 0 {
+		return "", ErrInvalidLength
+	}
+	if charset == "" {
+		return "", ErrEmptyCharset
 	}
 
-	return sb.String()
+	sb := strings.Builder{}
+	sb.Grow(n)
+	maxIdx := big.NewInt(int64(len(charset)))
+	for range n {
+		idx, err := rand.Int(rand.Reader, maxIdx)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteByte(charset[idx.Int64()])
+	}
+	return sb.String(), nil
 }

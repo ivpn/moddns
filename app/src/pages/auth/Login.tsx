@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import api from "@/api/api";
 import LoginCard from "@/pages/auth/LoginCard";
 import AuthFooter from "@/components/auth/AuthFooter";
-import { authToasts } from "@/lib/authToasts";
+import { authToasts, isTotpLockoutError, TOTP_TOO_MANY_ATTEMPTS_MESSAGE } from "@/lib/authToasts";
 import { AuthContext } from "@/App";
 import { authenticateWithPasskey, isWebAuthnSupported } from "@/lib/webauthn";
 import SessionLimitDialog from "@/components/dialogs/SessionLimitDialog";
@@ -165,10 +165,14 @@ export default function Login() {
                 }
             } else if (axiosErr?.response?.status === 429) {
                 // Check if it's session limit error
-                if (axiosErr?.response?.data?.error === "maximum number of active sessions reached") {
+                const apiErr = axiosErr?.response?.data?.error || '';
+                if (apiErr === "maximum number of active sessions reached") {
                     setShowSessionLimitDialog(true);
                     setPendingEmail(email);
                     setPendingPassword(password);
+                } else if (isTotpLockoutError(apiErr)) {
+                    setError(TOTP_TOO_MANY_ATTEMPTS_MESSAGE);
+                    authToasts.totpTooManyAttempts();
                 } else {
                     setError("Too many login attempts. Please try again later.");
                     authToasts.tooManyAttempts();

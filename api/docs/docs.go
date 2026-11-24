@@ -314,7 +314,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.TotpReq"
+                            "$ref": "#/definitions/requests.TotpDisableReq"
                         }
                     }
                 ],
@@ -327,6 +327,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -408,6 +414,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -5514,6 +5526,19 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.TotpDisableReq": {
+            "type": "object",
+            "required": [
+                "otp"
+            ],
+            "properties": {
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
+                }
+            }
+        },
         "requests.TotpReq": {
             "type": "object",
             "required": [
@@ -5522,7 +5547,7 @@ const docTemplate = `{
             "properties": {
                 "otp": {
                     "type": "string",
-                    "maxLength": 8,
+                    "maxLength": 16,
                     "minLength": 6
                 }
             }

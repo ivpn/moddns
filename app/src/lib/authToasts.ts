@@ -1,4 +1,15 @@
+import { createElement } from 'react';
 import { toast } from 'sonner';
+
+export const TOTP_TOO_MANY_ATTEMPTS_MESSAGE = 'Too many wrong 2FA codes. Please try again later.';
+
+/** True when the API refused a 2FA code because the account is locked after repeated failures. */
+export const isTotpLockoutError = (apiErr?: string): boolean =>
+    !!apiErr?.startsWith('too many failed 2FA attempts');
+
+/** The message for a refused 2FA code: the lockout in plain words, otherwise the API's own text. */
+export const totpErrorMessage = (apiErr: string | undefined, fallback: string): string =>
+    isTotpLockoutError(apiErr) ? TOTP_TOO_MANY_ATTEMPTS_MESSAGE : (apiErr || fallback);
 
 export const AUTH_TOAST_IDS = {
     loginSuccess: 'toast-login-success',
@@ -7,6 +18,7 @@ export const AUTH_TOAST_IDS = {
     loginInvalid: 'toast-login-invalid',
     loginUnauthorized: 'toast-login-unauthorized',
     loginTooManyAttempts: 'toast-login-rate-limit',
+    loginTotpTooManyAttempts: 'toast-login-totp-rate-limit',
     loginUnexpectedError: 'toast-login-error',
     loginTOTPRequired: 'toast-login-totp-required',
     passkeyError: 'toast-passkey-error',
@@ -23,8 +35,7 @@ export const AUTH_TOAST_IDS = {
 
 type AuthToastId = keyof typeof AUTH_TOAST_IDS;
 
-// Inline JSX factory without importing entire React namespace
-const span = (id: (typeof AUTH_TOAST_IDS)[AuthToastId], message: string) => (<span data-testid={id}>{message}</span>);
+const span = (id: (typeof AUTH_TOAST_IDS)[AuthToastId], message: string) => createElement('span', { 'data-testid': id }, message);
 
 export const authToasts = {
     loginSuccess: () => toast.success(span(AUTH_TOAST_IDS.loginSuccess, 'Logged in successfully.')),
@@ -33,6 +44,7 @@ export const authToasts = {
     invalidCredentials: () => toast.error(span(AUTH_TOAST_IDS.loginInvalid, 'Invalid credentials or login failed.')),
     unauthorized: () => toast.error(span(AUTH_TOAST_IDS.loginUnauthorized, 'Unauthorized. Please check your credentials.')),
     tooManyAttempts: () => toast.error(span(AUTH_TOAST_IDS.loginTooManyAttempts, 'Too many login attempts. Please try again later.')),
+    totpTooManyAttempts: () => toast.error(span(AUTH_TOAST_IDS.loginTotpTooManyAttempts, TOTP_TOO_MANY_ATTEMPTS_MESSAGE)),
     unexpectedError: (msg?: string) => toast.error(span(AUTH_TOAST_IDS.loginUnexpectedError, msg || 'An unexpected error occurred.')),
     totpRequired: () => toast.info(span(AUTH_TOAST_IDS.loginTOTPRequired, 'Two-factor authentication required. Please enter your code.')),
     passkeyError: (msg?: string) => toast.error(span(AUTH_TOAST_IDS.passkeyError, msg || 'Passkey authentication failed')),

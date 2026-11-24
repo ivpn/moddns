@@ -56,6 +56,7 @@ var (
 	ErrQueryLogsRateLimited         = errors.New("query logs rate limited")
 	ErrStatisticsRateLimited        = errors.New("statistics rate limited")
 	ErrServiceNotFound              = errors.New("service not found")
+	ErrProfileIdUnavailable         = errors.New("could not generate an unused profile ID")
 	ErrServiceAlreadyEnabled        = errors.New("service already enabled")
 	ErrInvalidServiceValue          = errors.New("invalid service value")
 

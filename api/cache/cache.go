@@ -31,6 +31,7 @@ type Cache interface {
 	DeleteProfileSettings(ctx context.Context, profileId string) error
 	SetTOTPSecret(ctx context.Context, accountID, secret string, expiresIn time.Duration) error
 	GetTOTPSecret(ctx context.Context, accountId string) (string, error)
+	DeleteTOTPSecret(ctx context.Context, accountId string) error
 	AppendBlocklistsToProfileSettings(ctx context.Context, profileId string, blocklistIds ...string) error
 	RemoveBlocklistsFromProfileSettings(ctx context.Context, profileId string, blocklistIds ...string) error
 	AppendServicesBlockedToProfileSettings(ctx context.Context, profileId string, serviceIds ...string) error

@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/spf13/cast"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -41,18 +40,14 @@ type Profile struct {
 	Settings  *ProfileSettings   `json:"settings" bson:"settings" binding:"required"`
 }
 
-// New creates a new profile
-func NewProfile(idGen idgen.Generator, name, accountId string) (*Profile, error) {
-	profileId, err := idGen.Generate()
-	if err != nil {
-		return nil, err
-	}
+// NewProfile creates a new profile with the given profile ID
+func NewProfile(profileId, name, accountId string) *Profile {
 	return &Profile{
 		ID:        primitive.NewObjectID(),
 		ProfileId: profileId,
 		AccountId: accountId,
 		Name:      name,
-	}, nil
+	}
 }
 
 // ProfileUpdate represents profile settings update

@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
+	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/libs/cache"
 	"github.com/ivpn/dns/libs/logging"
 	"github.com/ivpn/dns/libs/store"
@@ -70,9 +71,14 @@ type ServiceConfig struct {
 	GeoIPASNFile     string
 	GeoIPCountryFile string
 	GeoIPReloadEvery time.Duration
+	// TOTPStorageKey protects stored TOTP secrets and backup codes (internal/totpcrypt).
+	TOTPStorageKey []byte //nolint:gosec // G117 - intentional sensitive field
 
 	// Startup migrations (removable after all environments are migrated)
 	MigrateSubscriptionUUIDSubtype bool
+	// MigrateTOTPStorage converts plaintext TOTP records; enable only once
+	// every API instance reads both formats.
+	MigrateTOTPStorage bool
 }
 
 // SentryConfig represents the Sentry configuration
@@ -110,7 +116,6 @@ type APIConfig struct {
 	ApiAllowIP            string
 	SessionExpirationTime time.Duration
 	SessionLimit          int64
-	ProfileIDMinLength    int
 	PSK                   string
 	SignupWebhookURL      string
 	SignupWebhookPSK      string
@@ -195,14 +200,6 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	profileIDMinLen, err := strconv.Atoi(envOrDefault("PROFILE_ID_MIN_LENGTH", "10"))
-	if err != nil {
-		return nil, err
-	}
-	if profileIDMinLen <= 0 {
-		profileIDMinLen = 10
-	}
-
 	idLimiterMax, err := strconv.Atoi(envOrDefault("ID_LIMITER_MAX", "5"))
 	if err != nil {
 		return nil, err
@@ -233,6 +230,11 @@ func New() (*Config, error) {
 	announcementsReloadEvery, err := time.ParseDuration(envOrDefault("ANNOUNCEMENTS_RELOAD", "5m"))
 	if err != nil {
 		return nil, err
+	}
+
+	totpStorageKey, err := totpcrypt.ParseKey(os.Getenv("TOTP_STORAGE_KEY"))
+	if err != nil {
+		return nil, fmt.Errorf("TOTP_STORAGE_KEY: %w", err)
 	}
 
 	// Warn about missing security-critical configuration.
@@ -268,7 +270,6 @@ func New() (*Config, error) {
 			ApiAllowIP:            os.Getenv("API_ALLOW_IP"),
 			SessionExpirationTime: sessionExp,
 			SessionLimit:          sessionLimitInt,
-			ProfileIDMinLength:    profileIDMinLen,
 			PSK:                   os.Getenv("API_PSK"),
 			SignupWebhookURL:      os.Getenv("API_SIGNUP_WEBHOOK_URL"),
 			SignupWebhookPSK:      os.Getenv("API_SIGNUP_WEBHOOK_PSK"),
@@ -332,7 +333,9 @@ func New() (*Config, error) {
 			GeoIPASNFile:                   strings.TrimSpace(os.Getenv("GEOIP_DB_ASN_FILE")),
 			GeoIPCountryFile:               strings.TrimSpace(os.Getenv("GEOIP_DB_COUNTRY_FILE")),
 			GeoIPReloadEvery:               geoIPReloadEvery,
+			TOTPStorageKey:                 totpStorageKey,
 			MigrateSubscriptionUUIDSubtype: parseBoolEnv("MIGRATE_SUBSCRIPTION_UUID_SUBTYPE"),
+			MigrateTOTPStorage:             parseBoolEnv("MIGRATE_TOTP_STORAGE"),
 		},
 		Sentry: &SentryConfig{
 			DSN:         os.Getenv("SENTRY_DSN"),

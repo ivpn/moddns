@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"strconv"
 	"testing"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
@@ -29,29 +27,6 @@ func TestDeviceIdentification(t *testing.T) {
 	t.Run("DoT/DoQ Device Identification", func(t *testing.T) {
 		testDoTDeviceIdentification(t)
 	})
-}
-
-func TestProfileIDMinLengthConfigurable(t *testing.T) {
-	original := profileIDMinLength
-	defer func() { profileIDMinLength = original }()
-	os.Setenv("PROFILE_ID_MIN_LENGTH", "12")
-	defer os.Unsetenv("PROFILE_ID_MIN_LENGTH")
-
-	// Simulate server init override
-	if v := os.Getenv("PROFILE_ID_MIN_LENGTH"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n < 64 {
-			profileIDMinLength = n
-		}
-	}
-
-	shortID := "abcdefghijk"  // 11 chars
-	validID := "abcdefghijkl" // 12 chars
-	if isValidProfileID(shortID) {
-		t.Fatalf("expected shortID (%d chars) to be invalid when min len 12", len(shortID))
-	}
-	if !isValidProfileID(validID) {
-		t.Fatalf("expected validID (%d chars) to be valid when min len 12", len(validID))
-	}
 }
 
 func testDoHDeviceIdentification(t *testing.T) {
@@ -272,7 +247,7 @@ func TestMultiServerNameIteration(t *testing.T) {
 // length, checked per rune. This predicate is the selection gate for
 // untrusted SNI input, so both accept and reject sides are pinned here.
 func TestIsValidProfileIDCharacterClasses(t *testing.T) {
-	// Default minimum length (10) applies; every reject case below that is
+	// The minimum is profileid.Length (10); every reject case below that is
 	// long enough fails on characters, not length.
 	tests := []struct {
 		name string

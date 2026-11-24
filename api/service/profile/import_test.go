@@ -76,6 +76,7 @@ func newImportTestEnv(t *testing.T, password string, maxProfiles int) *importTes
 
 	// Env vars required by config.New().
 	os.Setenv("SERVER_ALLOWED_DOMAINS", "test.com")
+	os.Setenv("TOTP_STORAGE_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
 	os.Setenv("SERVER_DNS_SERVER_ADDRESSES", "8.8.8.8:53")
 
 	cfg, err := config.New()
@@ -1323,4 +1324,28 @@ func TestImport_StatisticsEnabledAt(t *testing.T) {
 			}
 		})
 	}
+}
+
+// specRef: I22 — a profile inserted before a later step failed is rolled back
+// together with the rest of the batch (registration-subscription-behaviour.md #R12).
+func TestImport_CacheWriteFailure_RollsBackInsertedProfile(t *testing.T) {
+	env := newImportTestEnv(t, "secret", 100)
+	env.profileRepo.On("GetProfilesByAccountId", mock.Anything, "acct1").Return([]model.Profile{}, nil).Once()
+	env.idGen.On("Generate").Return("fresh-id-1", nil).Once()
+	env.profileRepo.On("CreateProfile", mock.Anything, mock.AnythingOfType("*model.Profile")).Return(nil).Once()
+	cacheErr := fmt.Errorf("cache write error")
+	env.cache.On("CreateOrUpdateProfileSettings", mock.Anything, mock.AnythingOfType("*model.ProfileSettings")).Return(cacheErr).Once()
+	env.profileRepo.On("DeleteProfileById", mock.Anything, "fresh-id-1").Return(nil).Once()
+	env.cache.On("DeleteProfileSettings", mock.Anything, "fresh-id-1").Return(nil).Once()
+
+	_, err := env.svc.Import(
+		context.Background(), "acct1",
+		profile.ImportModeCreateNew,
+		minimalEnvelope(1),
+		ptr("secret"), nil, nil,
+	)
+
+	require.ErrorIs(t, err, cacheErr)
+	env.profileRepo.AssertCalled(t, "DeleteProfileById", mock.Anything, "fresh-id-1")
+	env.cache.AssertCalled(t, "DeleteProfileSettings", mock.Anything, "fresh-id-1")
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/ivpn/dns/api/internal/email"
 	"github.com/ivpn/dns/api/internal/idgen"
 	"github.com/ivpn/dns/api/internal/reauth"
+	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/profile"
@@ -49,6 +50,10 @@ type AccountService struct {
 	Validate             *validatorv10.Validate
 	Http                 client.Http
 
+	// totpKeeper protects stored TOTP material; nil when the configured key
+	// is unusable, which makes every TOTP operation fail closed.
+	totpKeeper *totpcrypt.Keeper
+
 	// bgTasks tracks fire-and-forget goroutines spawned for best-effort work
 	// (e.g. welcome email send). Used by tests to deterministically wait for
 	// completion via WaitBackground().
@@ -65,7 +70,10 @@ func (a *AccountService) WaitBackground() {
 
 // NewAccountService creates a new profile service
 func NewAccountService(serviceCfg config.ServiceConfig, db repository.AccountRepository, profileSrv *profile.ProfileService, statsSrv *statistics.StatisticsService, subSrv *subscription.SubscriptionService, credRepo repository.WebAuthnCredentialRepository, cache cache.Cache, mailer email.Mailer, idGen idgen.Generator, validate *validatorv10.Validate, http client.Http) *AccountService {
+	// config.New rejects an invalid key, so a nil keeper only occurs in tests.
+	keeper, _ := totpcrypt.New(serviceCfg.TOTPStorageKey)
 	return &AccountService{
+		totpKeeper:           keeper,
 		AccountRepository:    db,
 		ServiceCfg:           serviceCfg,
 		ProfileService:       profileSrv,
@@ -739,7 +747,7 @@ func (a *AccountService) MfaCheck(ctx context.Context, acc *model.Account, mfa *
 // GenerateDeletionCode generates a deletion code for account deletion
 func (a *AccountService) GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error) {
 	// Generate deletion code using the deletion code generator
-	deletionCodeGen, err := idgen.NewGenerator(idgen.TypeDeletionCode, 0)
+	deletionCodeGen, err := idgen.NewGenerator(idgen.TypeDeletionCode)
 	if err != nil {
 		return nil, err
 	}

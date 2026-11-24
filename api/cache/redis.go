@@ -48,26 +48,25 @@ func (c *RedisCache) Client() *redis.Client {
 	return c.client
 }
 
-// Incr atomically increments the integer value of a key by one.
-// Returns the new value after incrementing, or an error if the operation fails.
+// incrScript increments a counter and, in the same atomic step, gives it the
+// expiry when it has none, so a counter can never outlive its window.
+var incrScript = redis.NewScript(`
+local v = redis.call('INCR', KEYS[1])
+local ttl = tonumber(ARGV[1])
+if ttl > 0 and redis.call('PTTL', KEYS[1]) < 0 then
+	redis.call('PEXPIRE', KEYS[1], ttl)
+end
+return v`)
+
+// Incr atomically increments the integer value of a key by one. A positive
+// expiration starts the key's window on its first increment.
 func (c *RedisCache) Incr(ctx context.Context, key string, expiration time.Duration) (int64, error) {
-	incrCmd := c.client.Incr(ctx, key)
-	if err := incrCmd.Err(); err != nil {
+	val, err := incrScript.Run(ctx, c.client, []string{key}, expiration.Milliseconds()).Int64()
+	if err != nil {
 		log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to increment value")
 		return 0, err
 	}
-	val := incrCmd.Val()
 	log.Ctx(ctx).Trace().Str("key", key).Int64("value", val).Msg("Cache: incremented value")
-
-	// Set expiration only when the key is first created (val == 1)
-	if expiration > 0 && val == 1 {
-		expireCmd := c.client.Expire(ctx, key, expiration)
-		if err := expireCmd.Err(); err != nil {
-			log.Ctx(ctx).Err(err).Str("key", key).Msg("Cache: failed to set expiration after increment")
-			return val, err
-		}
-	}
-
 	return val, nil
 }
 
