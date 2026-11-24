@@ -1,0 +1,4 @@
+# DS-0002: "Specify at least 1 USER command" - none of the five production
+# images run as non-root yet; that migration is separate, in-progress work.
+# Remove this entry once every image sets a non-root USER.
+DS-0002

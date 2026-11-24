@@ -11,14 +11,13 @@ COPY blocklists/go.sum .
 COPY ../libs/ /libs
 
 # Cache the downloaded dependency in the layer
-RUN go mod download
-RUN go mod verify
+RUN go mod download && go mod verify
 
 # Copy the source code
 COPY blocklists/ .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/blocklists .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/blocklists . && \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/healthcheck ./cmd/healthcheck
 
 FROM scratch AS run
 

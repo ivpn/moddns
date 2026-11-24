@@ -7,6 +7,10 @@ on:
 permissions: read-all
 
 jobs:
+  # Builds every production image and scans it for known vulnerabilities.
+  # The scans are report-only: new CVEs are published daily, so a blocking
+  # image scan would fail PRs that changed nothing. Dependency bumps are
+  # handled in their own PRs instead.
   docker:
     runs-on: ubuntu-latest
     permissions:
@@ -28,10 +32,11 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS API
         id: trivy_api
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.DNS_API_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
 
       - name: Build Proxy image
         run: |
@@ -42,10 +47,11 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS Proxy
         id: trivy_proxy
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.DNS_PROXY_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
 
       - name: Build Frontend image
         run: |
@@ -56,10 +62,11 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS Frontend
         id: trivy_frontend
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.DNS_FRONTEND_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
 
       - name: Build DNS blocklists image
         run: |
@@ -70,10 +77,11 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS blocklists
         id: trivy_blocklists
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.DNS_BLOCKLISTS_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
 
       - name: Build DNS check image
         run: |
@@ -84,10 +92,11 @@ jobs:
       - name: Run Trivy vulnerability scanner - DNS check
         id: trivy_dnscheck
         continue-on-error: true
-        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.DNS_CHECK_IMAGE }}
           trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
 
       - name: Trivy scan summary
         if: >-
@@ -96,15 +105,82 @@ jobs:
           steps.trivy_frontend.outcome == 'failure' ||
           steps.trivy_blocklists.outcome == 'failure' ||
           steps.trivy_dnscheck.outcome == 'failure'
+        env:
+          API: ${{ steps.trivy_api.outcome }}
+          PROXY: ${{ steps.trivy_proxy.outcome }}
+          FRONTEND: ${{ steps.trivy_frontend.outcome }}
+          BLOCKLISTS: ${{ steps.trivy_blocklists.outcome }}
+          DNSCHECK: ${{ steps.trivy_dnscheck.outcome }}
         run: |
-          echo "## :warning: Trivy vulnerability scan findings" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The following images have HIGH/CRITICAL vulnerabilities:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          [ "${{ steps.trivy_api.outcome }}" = "failure" ] && echo "- **DNS API** (dnsapi)" >> $GITHUB_STEP_SUMMARY
-          [ "${{ steps.trivy_proxy.outcome }}" = "failure" ] && echo "- **DNS Proxy** (dnsproxy)" >> $GITHUB_STEP_SUMMARY
-          [ "${{ steps.trivy_frontend.outcome }}" = "failure" ] && echo "- **DNS Frontend** (dnswebapp)" >> $GITHUB_STEP_SUMMARY
-          [ "${{ steps.trivy_blocklists.outcome }}" = "failure" ] && echo "- **DNS Blocklists** (dnsblocklists)" >> $GITHUB_STEP_SUMMARY
-          [ "${{ steps.trivy_dnscheck.outcome }}" = "failure" ] && echo "- **DNS Check** (dnscheck)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Review the Trivy scan steps above for details. Consider creating a separate PR to upgrade affected dependencies." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## :warning: Trivy vulnerability scan findings"
+            echo ""
+            echo "The following images have fixable HIGH/CRITICAL vulnerabilities:"
+            echo ""
+            [ "$API" = "failure" ] && echo "- **DNS API** (dnsapi)"
+            [ "$PROXY" = "failure" ] && echo "- **DNS Proxy** (dnsproxy)"
+            [ "$FRONTEND" = "failure" ] && echo "- **DNS Frontend** (dnswebapp)"
+            [ "$BLOCKLISTS" = "failure" ] && echo "- **DNS Blocklists** (dnsblocklists)"
+            [ "$DNSCHECK" = "failure" ] && echo "- **DNS Check** (dnscheck)"
+            echo ""
+            echo "This check does not block the PR. Review the Trivy scan steps above and upgrade the affected dependencies in a separate PR."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Blocking: Trivy misconfiguration scan of each service's Dockerfile.
+  # Its result only changes when a Dockerfile changes, so it is safe to gate on.
+  trivy-config:
+    name: trivy config (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - api
+          - proxy
+          - blocklists
+          - dnscheck
+          - app
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run Trivy misconfiguration scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: ${{ matrix.service }}
+          trivy-config: ./.github/trivy.yaml
+          version: v0.74.0
+
+  # Blocking: Dockerfile lint. Like the config scan, it only changes when a
+  # Dockerfile changes.
+  hadolint:
+    name: hadolint (${{ matrix.dockerfile }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # The .dev Dockerfiles are local-only dev images (see Makefile dev_*
+        # targets); they are never built by this workflow or by
+        # ansible/build-and-push-images.yml, so they are excluded here.
+        dockerfile:
+          - api/Dockerfile
+          - proxy/Dockerfile
+          - blocklists/Dockerfile
+          - dnscheck/Dockerfile
+          - app/Dockerfile
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          config: .hadolint.yaml

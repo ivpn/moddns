@@ -1,0 +1,8 @@
+# Ignores reviewed 2026-10-02.
+#
+# SC2016: app/Dockerfile's nginx stage intentionally passes an unexpanded
+# `${VAR}` allowlist string to envsubst(1); switching to double quotes would
+# let the shell expand the variables before envsubst sees them, defeating
+# the substitution restriction.
+ignored:
+  - SC2016
