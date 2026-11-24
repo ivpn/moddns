@@ -253,8 +253,11 @@ class DNSLib:
 
         if stamp.protocol == Protocol.DOH:
             url = f"https://{stamp.hostname}{stamp.path}"
-            with httpx.Client(verify=ssl.create_default_context(cafile=ca)) as client:
-                return query_https(query, url, session=client, bootstrap_address=LOCAL_PROXY_HOST)
+            # No session: dnspython applies bootstrap_address only to the transport it builds itself.
+            return query_https(
+                query, url, timeout=10, bootstrap_address=LOCAL_PROXY_HOST,
+                verify=ssl.create_default_context(cafile=ca),
+            )
         if stamp.protocol == Protocol.DOT:
             port = _port_from_address(stamp.address, default=853)
             return query_tls(
