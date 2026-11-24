@@ -145,7 +145,6 @@ func NewServer(serverConfig *config.Config, collectorChannels map[string]channel
 	server.IPFilter = ipFilter
 	server.Proxy = dnsProxy
 
-	profileIDMinLength = serverConfig.ProfileIDMinLength
 	return server, nil
 }
 

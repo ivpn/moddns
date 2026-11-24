@@ -739,7 +739,7 @@ func (a *AccountService) MfaCheck(ctx context.Context, acc *model.Account, mfa *
 // GenerateDeletionCode generates a deletion code for account deletion
 func (a *AccountService) GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error) {
 	// Generate deletion code using the deletion code generator
-	deletionCodeGen, err := idgen.NewGenerator(idgen.TypeDeletionCode, 0)
+	deletionCodeGen, err := idgen.NewGenerator(idgen.TypeDeletionCode)
 	if err != nil {
 		return nil, err
 	}

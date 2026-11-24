@@ -115,7 +115,7 @@ func main() {
 	cache := cache.NewRedisCacheFromClient(redisClient)
 	cronLocker := cron.NewRedisLocker(redisClient, cronLockTTL)
 
-	idGen, err := idgen.NewGenerator(idgen.TypeSqids, appConfig.API.ProfileIDMinLength)
+	idGen, err := idgen.NewGenerator(idgen.TypeRandom)
 	if err != nil {
 		log.Panic().Err(err).Msg("Failed to create ID generator")
 	}

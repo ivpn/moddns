@@ -110,7 +110,6 @@ type APIConfig struct {
 	ApiAllowIP            string
 	SessionExpirationTime time.Duration
 	SessionLimit          int64
-	ProfileIDMinLength    int
 	PSK                   string
 	SignupWebhookURL      string
 	SignupWebhookPSK      string
@@ -195,14 +194,6 @@ func New() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	profileIDMinLen, err := strconv.Atoi(envOrDefault("PROFILE_ID_MIN_LENGTH", "10"))
-	if err != nil {
-		return nil, err
-	}
-	if profileIDMinLen <= 0 {
-		profileIDMinLen = 10
-	}
-
 	idLimiterMax, err := strconv.Atoi(envOrDefault("ID_LIMITER_MAX", "5"))
 	if err != nil {
 		return nil, err
@@ -268,7 +259,6 @@ func New() (*Config, error) {
 			ApiAllowIP:            os.Getenv("API_ALLOW_IP"),
 			SessionExpirationTime: sessionExp,
 			SessionLimit:          sessionLimitInt,
-			ProfileIDMinLength:    profileIDMinLen,
 			PSK:                   os.Getenv("API_PSK"),
 			SignupWebhookURL:      os.Getenv("API_SIGNUP_WEBHOOK_URL"),
 			SignupWebhookPSK:      os.Getenv("API_SIGNUP_WEBHOOK_PSK"),

@@ -374,3 +374,20 @@ func ptr[T any](v T) *T { return &v }
 func TestProfileRepositorySuite(t *testing.T) {
 	suite.Run(t, new(ProfileRepositorySuite))
 }
+
+// specRef: registration-subscription-behaviour.md #R12
+func (s *ProfileRepositorySuite) TestCreateProfile_DuplicateProfileIdIsReported() {
+	ctx := context.Background()
+	// Same index as migration 002_profiles_indexes.
+	_, err := s.repo.profilesCollection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "profile_id", Value: 1}},
+		Options: options.Index().SetName("profile_id_unique").SetUnique(true),
+	})
+	s.Require().NoError(err)
+	defer func() { _, _ = s.repo.profilesCollection.Indexes().DropOne(ctx, "profile_id_unique") }()
+
+	s.Require().NoError(s.repo.CreateProfile(ctx, model.NewProfile("dupprofile1", "One", "account1")))
+	err = s.repo.CreateProfile(ctx, model.NewProfile("dupprofile1", "Two", "account2"))
+
+	s.Require().ErrorIs(err, dbErrors.ErrProfileIdAlreadyExists)
+}

@@ -4,7 +4,7 @@ import "errors"
 
 const (
 	TypeShortId      = "shortid"
-	TypeSqids        = "sqids"
+	TypeRandom       = "random"
 	TypeDeletionCode = "deletion-code"
 )
 
@@ -18,12 +18,12 @@ type Generator interface {
 }
 
 // NewGenerator creates a new Generator instance
-func NewGenerator(genType string, sqidsMinLength int) (Generator, error) {
+func NewGenerator(genType string) (Generator, error) {
 	switch genType {
 	case TypeShortId:
 		return NewShortIdGenerator()
-	case TypeSqids:
-		return NewSqidsGenerator(sqidsMinLength)
+	case TypeRandom:
+		return NewRandomGenerator(), nil
 	case TypeDeletionCode:
 		return NewDeletionCodeGenerator()
 	}

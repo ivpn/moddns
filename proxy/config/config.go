@@ -53,7 +53,6 @@ type Config struct {
 	Metrics             *MetricsConfig
 	Rebinding           *RebindingConfig
 	TrustedProxies      []string
-	ProfileIDMinLength  int
 }
 
 // RebindingConfig configures DNS rebinding protection (block answers where a public
@@ -358,13 +357,6 @@ func New() (*Config, error) {
 		}
 	}
 
-	// Profile ID min length (default 10)
-	profileIdMinLen := 10
-	if v := os.Getenv("PROFILE_ID_MIN_LENGTH"); v != "" {
-		if parsed, err := strconv.Atoi(v); err == nil && parsed > 0 && parsed < 64 { // bound
-			profileIdMinLen = parsed
-		}
-	}
 	udpListenAddr, err := GetEnvInt("PLAIN_DNS_UDP_LISTEN_ADDR")
 	if err != nil {
 		return nil, err
@@ -478,10 +470,9 @@ func New() (*Config, error) {
 		Filtering: &FilteringConfig{
 			CNAMEUncloakingEnabled: getEnvBoolDefault("CNAME_UNCLOAKING_ENABLED", true),
 		},
-		DNSCache:           dnsCacheCfg,
-		Rebinding:          rebindingCfg,
-		TrustedProxies:     trustedProxies,
-		ProfileIDMinLength: profileIdMinLen,
+		DNSCache:       dnsCacheCfg,
+		Rebinding:      rebindingCfg,
+		TrustedProxies: trustedProxies,
 		Cache: &cache.Config{
 			CommandTimeout:        loadCacheCommandTimeout(),
 			Address:               os.Getenv("CACHE_ADDRESS"),

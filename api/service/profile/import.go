@@ -231,8 +231,12 @@ func (p *ProfileService) Import(
 
 		profileId, profileWarnings, err := p.importOneProfile(ctx, accountId, ep, resolvedName)
 		if err != nil {
-			// specRef: I21, I22 -- rollback: delete every profile created so far in this batch.
-			p.rollbackImportedProfiles(ctx, accountId, createdIds)
+			// specRef: I21, I22 -- rollback: delete every profile created so far in this batch,
+			// including this one when it was inserted before the failure.
+			if profileId != "" {
+				createdIds = append(createdIds, profileId)
+			}
+			p.rollbackImportedProfiles(context.WithoutCancel(ctx), accountId, createdIds)
 			return nil, err
 		}
 		createdIds = append(createdIds, profileId)
@@ -262,14 +266,9 @@ func (p *ProfileService) importOneProfile(
 ) (profileId string, warnings []string, err error) {
 	warnings = make([]string, 0)
 
-	// specRef: S3 -- generate a fresh ProfileId; never carry source IDs.
-	freshProfileId, err := p.IdGen.Generate()
-	if err != nil {
-		return "", nil, err
-	}
-
-	// Build the ProfileSettings from the exported data.
-	settings := p.mapExportedSettings(ep.Settings, freshProfileId)
+	// Build the ProfileSettings from the exported data. The profile ID is
+	// generated when the profile is inserted.
+	settings := p.mapExportedSettings(ep.Settings)
 
 	// specRef: V8, V9 -- validate blocklists and services against their catalogs;
 	// missing IDs produce a warning and are dropped from the imported profile.
@@ -300,30 +299,27 @@ func (p *ProfileService) importOneProfile(
 	settings.CustomRuleGroups.Allow, warnings = capGroups(settings.CustomRuleGroups.Allow, "allowlist", resolvedName, warnings)
 
 	// Persist the profile document (without custom rules — those go via CreateCustomRules).
-	newProfile := &model.Profile{
-		ID:        primitive.NewObjectID(),
-		ProfileId: freshProfileId,
-		AccountId: accountId,
-		Name:      apivalidator.NormalizeName(resolvedName),
-		Settings:  settings,
-	}
+	newProfile := model.NewProfile("", apivalidator.NormalizeName(resolvedName), accountId)
+	newProfile.Settings = settings
 
-	if err := p.ProfileRepository.CreateProfile(ctx, newProfile); err != nil {
+	// specRef: S3 -- generate a fresh ProfileId; never carry source IDs.
+	if err := p.insertWithNewProfileId(ctx, newProfile); err != nil {
 		return "", nil, err
 	}
+	freshProfileId := newProfile.ProfileId
 
-	// Populate cache for the new profile.
+	// From here on the profile exists, so failures return its ID for the rollback.
 	if err := p.Cache.CreateOrUpdateProfileSettings(ctx, settings); err != nil {
-		return "", nil, err
+		return freshProfileId, nil, err
 	}
 
 	// specRef: V11, V12 -- bulk-insert the validated custom rules.
 	if len(validRules) > 0 {
 		if err := p.ProfileRepository.CreateCustomRules(ctx, freshProfileId, validRules); err != nil {
-			return "", nil, err
+			return freshProfileId, nil, err
 		}
 		if err := p.Cache.AddCustomRules(ctx, freshProfileId, validRules); err != nil {
-			return "", nil, err
+			return freshProfileId, nil, err
 		}
 	}
 
@@ -333,9 +329,8 @@ func (p *ProfileService) importOneProfile(
 // mapExportedSettings converts model.ExportedSettings into model.ProfileSettings,
 // falling back to model.NewSettings() defaults for any nil section.
 // specRef: F1-F7
-func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings, profileId string) *model.ProfileSettings {
+func (p *ProfileService) mapExportedSettings(src *model.ExportedSettings) *model.ProfileSettings {
 	s := model.NewSettings()
-	s.ProfileId = profileId
 
 	if src == nil {
 		return s
@@ -553,7 +548,7 @@ func capGroups(list []model.CustomRuleGroup, listName, profileName string, warni
 // this is best-effort cleanup. See the # Failure mode section in Import()
 // for what happens when the process dies before this function runs.
 //
-// Mirror the cleanup of the regular DeleteProfile path (service.go:171-173):
+// Mirror the cleanup of the regular DeleteProfile path:
 // importOneProfile populates Redis via Cache.CreateOrUpdateProfileSettings and
 // Cache.AddCustomRules, so the rollback must also evict the cached settings
 // for every profileId in the batch. Without this, the proxy would treat the

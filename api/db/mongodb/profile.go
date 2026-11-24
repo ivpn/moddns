@@ -3,6 +3,7 @@ package mongodb
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ivpn/dns/api/db/errors"
@@ -38,6 +39,9 @@ func NewProfileRepository(client *mongo.Client, dbName, collectionName string) P
 func (r *ProfileRepository) CreateProfile(ctx context.Context, profile *model.Profile) error {
 	_, err := r.profilesCollection.InsertOne(ctx, profile)
 	if err != nil {
+		if mongo.IsDuplicateKeyError(err) && strings.Contains(err.Error(), "profile_id") {
+			return errors.ErrProfileIdAlreadyExists
+		}
 		return err
 	}
 	log.Ctx(ctx).Info().Msgf("Created new profile")
