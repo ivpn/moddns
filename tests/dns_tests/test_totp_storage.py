@@ -23,6 +23,8 @@ from moddns.exceptions import ApiException
 from moddns.models.requests_confirm_reset_password_body import (
     RequestsConfirmResetPasswordBody,
 )
+from moddns.models.model_account_update import ModelAccountUpdate
+from moddns.models.requests_account_updates import RequestsAccountUpdates
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
@@ -400,6 +402,30 @@ class TestTotpStorage:
         status, new_cookie = _login_session(email, password, totp_code(secret))
         assert status == 200 and new_cookie
         state["cookie"] = new_cookie
+
+    def test_wrong_password_leaves_backup_code_unused(self, fresh_account):
+        """Changing the email checks the current password before the 2FA code, so
+        a wrong password uses no backup code up and does not lock 2FA. specRef: B3, E6, E12."""
+        _, cookie, password, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+
+        def change_email(current: str, otp: str) -> int:
+            body = RequestsAccountUpdates(updates=[ModelAccountUpdate(
+                operation="replace", path="/email",
+                value={"current_password": current, "new_email": f"new-{email}"},
+            )])
+            with _api(cookie) as api_client:
+                try:
+                    return AccountApi(api_client).api_v1_accounts_patch_with_http_info(
+                        body, x_mfa_code=otp, x_mfa_methods=["totp"]
+                    ).status_code
+                except ApiException as e:
+                    return e.status
+
+        for _ in range(6):  # past ID_LIMITER_MAX
+            assert change_email("wrong-password", codes[0]) == 400
+        assert _login(email, password, codes[0]) == 200, "code still unused, 2FA not locked"
 
     def test_failed_attempts_lock_out_valid_codes(self, fresh_account, redis_client):
         """After ID_LIMITER_MAX (default 5) failed attempts every code is refused. specRef: E12."""
