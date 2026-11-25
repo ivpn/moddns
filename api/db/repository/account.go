@@ -23,8 +23,13 @@ type AccountRepository interface {
 	// EnableTOTP stores the sealed secret and backup-code digests and enables
 	// TOTP; errors.ErrTOTPStateChanged when TOTP is already enabled.
 	EnableTOTP(ctx context.Context, accountId, sealedSecret string, backupCodeHashes []string) error
-	// DisableTOTP disables TOTP and removes every stored secret and backup code.
-	DisableTOTP(ctx context.Context, accountId string) error
+	// DisableTOTP disables TOTP and removes every stored secret and backup
+	// code, if the 2FA state still matches proof (a backup code in proof is
+	// still unused); errors.ErrTOTPStateChanged otherwise.
+	DisableTOTP(ctx context.Context, accountId string, proof model.TOTPProof) error
+	// ReplaceBackupCodes replaces every backup code with backupCodeHashes and
+	// clears the legacy-codes marker, under the same condition as DisableTOTP.
+	ReplaceBackupCodes(ctx context.Context, accountId string, proof model.TOTPProof, backupCodeHashes []string) error
 	// ConsumeBackupCode atomically moves a digest from unused to used; false
 	// when the account has no such unused code.
 	ConsumeBackupCode(ctx context.Context, accountId, backupCodeHash string) (bool, error)

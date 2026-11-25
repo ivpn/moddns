@@ -36,6 +36,7 @@ type totpRepo struct {
 	mu        sync.Mutex
 	accounts  map[string]model.Account
 	enableErr error
+	writeErr  error // returned by DisableTOTP and ReplaceBackupCodes
 }
 
 func (r *totpRepo) GetAccountById(_ context.Context, id string) (*model.Account, error) {
@@ -67,13 +68,41 @@ func (r *totpRepo) EnableTOTP(_ context.Context, id, sealed string, hashes []str
 	return nil
 }
 
-func (r *totpRepo) DisableTOTP(_ context.Context, id string) error {
+func (r *totpRepo) DisableTOTP(_ context.Context, id string, proof model.TOTPProof) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.writeErr != nil {
+		return r.writeErr
+	}
 	acc := r.accounts[id]
+	if !matchesProof(acc.MFA.TOTP, proof) {
+		return dbErrors.ErrTOTPStateChanged
+	}
 	acc.MFA.TOTP = model.TotpSettings{Enabled: false}
 	r.accounts[id] = acc
 	return nil
+}
+
+func (r *totpRepo) ReplaceBackupCodes(_ context.Context, id string, proof model.TOTPProof, hashes []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.writeErr != nil {
+		return r.writeErr
+	}
+	acc := r.accounts[id]
+	if !matchesProof(acc.MFA.TOTP, proof) {
+		return dbErrors.ErrTOTPStateChanged
+	}
+	acc.MFA.TOTP = model.TotpSettings{Enabled: true, SecretSealed: acc.MFA.TOTP.SecretSealed, BackupCodeHashes: slices.Clone(hashes)}
+	r.accounts[id] = acc
+	return nil
+}
+
+func matchesProof(t model.TotpSettings, proof model.TOTPProof) bool {
+	if !t.Enabled || proof.SecretSealed == "" || t.SecretSealed != proof.SecretSealed {
+		return false
+	}
+	return proof.BackupCodeHash == "" || slices.Contains(t.BackupCodeHashes, proof.BackupCodeHash)
 }
 
 func (r *totpRepo) ConsumeBackupCode(_ context.Context, id, hash string) (bool, error) {
@@ -317,10 +346,10 @@ func TestVerifyTotp_SealedSecret(t *testing.T) {
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
 
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, code, "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, code)
 	require.NoError(t, err)
 
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, "000000", "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, "000000")
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 }
 
@@ -332,15 +361,15 @@ func TestVerifyTotp_SeparatedTOTPCode(t *testing.T) {
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
 
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, " "+code[:3]+" "+code[3:]+" ", "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, " "+code[:3]+" "+code[3:]+" ")
 	require.NoError(t, err)
 	// The previous time step is still valid (RFC 6238 §5.2 skew of one step).
 	prev, err := totp.GenerateCode(secret, time.Now().Add(-30*time.Second))
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, prev[:3]+"-"+prev[3:], "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, prev[:3]+"-"+prev[3:])
 	require.NoError(t, err)
 
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, strings.Repeat("-", 1<<20)+code, "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, strings.Repeat("-", 1<<20)+code)
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 }
 
@@ -350,14 +379,14 @@ func TestVerifyTotp_BackupCodeIsSingleUse(t *testing.T) {
 	_, codes := f.enable(t)
 	ctx := context.Background()
 
-	_, err := f.svc.VerifyTotp(ctx, f.id, codes[0], "login")
+	_, err := f.svc.VerifyTotp(ctx, f.id, codes[0])
 	require.NoError(t, err)
 
 	// A used code is gone: it is refused like any wrong code.
-	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0], "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 
-	_, err = f.svc.VerifyTotp(ctx, f.id, "ZZZZZZZZZZZZZZZZZZZZ", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, "ZZZZZZZZZZZZZZZZZZZZ")
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 
 	stored := f.repo.stored(f.id)
@@ -380,23 +409,23 @@ func TestVerifyTotp_GroupedBackupCode(t *testing.T) {
 		return strings.Join(parts, sep)
 	}
 
-	_, err := f.svc.VerifyTotp(ctx, f.id, group(codes[0], "-"), "login")
+	_, err := f.svc.VerifyTotp(ctx, f.id, group(codes[0], "-"))
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, " "+group(codes[1], " ")+" ", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, " "+group(codes[1], " ")+" ")
 	require.NoError(t, err)
 
 	// A grouped code is the same code: it is single-use.
-	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0], "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
-	_, err = f.svc.VerifyTotp(ctx, f.id, strings.ToLower(codes[0]), "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, strings.ToLower(codes[0]))
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 
 	// Codes are uppercase; case is not part of the code.
-	_, err = f.svc.VerifyTotp(ctx, f.id, strings.ToLower(group(codes[3], "-")), "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, strings.ToLower(group(codes[3], "-")))
 	require.NoError(t, err)
 
 	// Grouping does not stretch a code past the stored length.
-	_, err = f.svc.VerifyTotp(ctx, f.id, group(codes[2]+"X", "-"), "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, group(codes[2]+"X", "-"))
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 5)
 }
@@ -412,7 +441,7 @@ func TestVerifyTotp_ConcurrentBackupCodeUseSucceedsOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := f.svc.VerifyTotp(context.Background(), f.id, codes[1], "login"); err == nil {
+			if _, err := f.svc.VerifyTotp(context.Background(), f.id, codes[1]); err == nil {
 				wins.Add(1)
 			}
 		}()
@@ -429,16 +458,16 @@ func TestVerifyTotp_LegacyPlaintextRecord(t *testing.T) {
 
 	code, err := totp.GenerateCode(legacySecret, time.Now())
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, code, "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, code)
 	require.NoError(t, err)
 
 	// Legacy codes are mixed case; only the exact case matches.
-	_, err = f.svc.VerifyTotp(ctx, f.id, "LEGACYCODEAAAAA1", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, "LEGACYCODEAAAAA1")
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 
-	_, err = f.svc.VerifyTotp(ctx, f.id, "LegacyCodeAAAAA1", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, "LegacyCodeAAAAA1")
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, "LegacyCodeAAAAA1", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, "LegacyCodeAAAAA1")
 	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 
 	require.Equal(t, []string{"LegacyCodeBBBBB2"}, f.repo.stored(f.id).BackupCodes)
@@ -449,12 +478,12 @@ func TestVerifyTotp_LegacyPlaintextRecord(t *testing.T) {
 func TestVerifyTotp_ShortLegacyBackupCode(t *testing.T) {
 	f := newTOTPFixture(t, testStorageKey(1))
 	f.setLegacy(model.TotpSettings{Enabled: true, Secret: legacySecret, BackupCodes: []string{"Abc2Def3"}})
-	_, err := f.svc.VerifyTotp(context.Background(), f.id, "Abc2Def3", "login")
+	_, err := f.svc.VerifyTotp(context.Background(), f.id, "Abc2Def3")
 	require.NoError(t, err)
 
 	// The same length stored as a digest.
 	f.setLegacy(model.TotpSettings{Enabled: true, Secret: legacySecret, BackupCodesLegacy: true, BackupCodeHashes: []string{f.keeper.HashBackupCode(f.id, "Xyz4Uvw5")}})
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, "Xyz4Uvw5", "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, "Xyz4Uvw5")
 	require.NoError(t, err)
 }
 
@@ -474,14 +503,14 @@ func TestVerifyTotp_MigratedLegacyCodeIsCaseSensitive(t *testing.T) {
 	ctx := context.Background()
 
 	for _, wrongCase := range []string{"ABCDEFGH2345JKMN", "abcdefgh2345jkmn", "ab23cd45"} {
-		_, err := f.svc.VerifyTotp(ctx, f.id, wrongCase, "login")
+		_, err := f.svc.VerifyTotp(ctx, f.id, wrongCase)
 		require.ErrorIs(t, err, account.ErrInvalidTOTPCode, wrongCase)
 	}
 	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 2)
 
-	_, err := f.svc.VerifyTotp(ctx, f.id, "AbCdE-fGh23-45JkMn", "login")
+	_, err := f.svc.VerifyTotp(ctx, f.id, "AbCdE-fGh23-45JkMn")
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, "AB23CD45", "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, "AB23CD45")
 	require.NoError(t, err)
 }
 
@@ -516,6 +545,9 @@ func TestLegacyBackupCodeInResetAndDisable(t *testing.T) {
 			require.ErrorIs(t, f.svc.MfaCheck(ctx, acc, &model.MfaData{OTP: code}), account.ErrInvalidTOTPCode, "single use")
 		})
 		t.Run(name+"/disable", func(t *testing.T) {
+			if name == "plaintext" {
+				t.Skip("turning 2FA off needs a converted record: TestTotpChangesNeedAConvertedRecord")
+			}
 			f := newTOTPFixture(t, testStorageKey(1))
 			f.setLegacy(record(t, f))
 
@@ -544,7 +576,7 @@ func TestVerifyTotp_UnreadableSecretFailsClosed(t *testing.T) {
 	code, err := totp.GenerateCode(legacySecret, time.Now())
 	require.NoError(t, err)
 
-	_, err = f.svc.VerifyTotp(context.Background(), other.id, code, "login")
+	_, err = f.svc.VerifyTotp(context.Background(), other.id, code)
 	require.Error(t, err)
 	var totpErr *account.TOTPError
 	require.False(t, errors.As(err, &totpErr), "must not look like a wrong code: %v", err)
@@ -582,15 +614,13 @@ func TestVerifyTotp_Preconditions(t *testing.T) {
 	ctx := context.Background()
 	f := newTOTPFixture(t, testStorageKey(1))
 
-	_, err := f.svc.VerifyTotp(ctx, f.id, "123456", "login")
+	_, err := f.svc.VerifyTotp(ctx, f.id, "123456")
 	require.ErrorIs(t, err, account.ErrTOTPNotConfigured)
-	_, err = f.svc.VerifyTotp(ctx, f.id, "123456", "disable")
+	_, err = f.svc.TotpDisable(ctx, f.id, "123456")
 	require.ErrorIs(t, err, account.ErrTOTPAlreadyDisabled)
 
 	f.enable(t)
-	_, err = f.svc.VerifyTotp(ctx, f.id, "123456", "rename")
-	require.ErrorContains(t, err, "invalid action")
-	_, err = f.svc.VerifyTotp(ctx, primitive.NewObjectID().Hex(), "123456", "login")
+	_, err = f.svc.VerifyTotp(ctx, primitive.NewObjectID().Hex(), "123456")
 	require.ErrorIs(t, err, dbErrors.ErrAccountNotFound)
 }
 
@@ -602,16 +632,16 @@ func TestVerifyTotp_LockoutRefusesValidCodes(t *testing.T) {
 	secret, codes := f.enable(t)
 
 	for range 5 {
-		_, err := f.svc.VerifyTotp(ctx, f.id, "000000", "login")
+		_, err := f.svc.VerifyTotp(ctx, f.id, "000000")
 		require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 	}
 
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, code, "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, code)
 	require.ErrorIs(t, err, account.ErrTOTPTooManyAttempts)
 
-	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0], "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
 	require.ErrorIs(t, err, account.ErrTOTPTooManyAttempts)
 	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 8, "no backup code consumed while locked")
 }
@@ -623,20 +653,20 @@ func TestVerifyTotp_SuccessResetsFailureCount(t *testing.T) {
 	secret, codes := f.enable(t)
 
 	for range 4 {
-		_, err := f.svc.VerifyTotp(ctx, f.id, "000000", "login")
+		_, err := f.svc.VerifyTotp(ctx, f.id, "000000")
 		require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 	}
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(ctx, f.id, code, "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, code)
 	require.NoError(t, err)
 	require.Zero(t, f.cache.ctr["totp_fails:"+f.id])
 
 	for range 4 {
-		_, err := f.svc.VerifyTotp(ctx, f.id, "000000", "login")
+		_, err := f.svc.VerifyTotp(ctx, f.id, "000000")
 		require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 	}
-	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0], "login")
+	_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
 	require.NoError(t, err)
 	require.Zero(t, f.cache.ctr["totp_fails:"+f.id])
 }
@@ -693,7 +723,7 @@ func TestVerifyTotp_ConcurrentAttemptsBoundedByLimit(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := f.svc.VerifyTotp(context.Background(), f.id, "000000", "login")
+			_, err := f.svc.VerifyTotp(context.Background(), f.id, "000000")
 			switch {
 			case errors.Is(err, account.ErrInvalidTOTPCode):
 				checked.Add(1)
@@ -716,9 +746,9 @@ func TestVerifyTotp_CounterErrorRefusesValidCode(t *testing.T) {
 
 	code, err := totp.GenerateCode(secret, time.Now())
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, code, "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, code)
 	require.Error(t, err)
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, codes[0], "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, codes[0])
 	require.Error(t, err)
 	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 8)
 }
@@ -731,8 +761,202 @@ func TestVerifyTotp_EnabledWithoutSecretFailsClosed(t *testing.T) {
 
 	code, err := totp.GenerateCode("", time.Now())
 	require.NoError(t, err)
-	_, err = f.svc.VerifyTotp(context.Background(), f.id, code, "login")
+	_, err = f.svc.VerifyTotp(context.Background(), f.id, code)
 	require.Error(t, err)
 	var totpErr *account.TOTPError
 	require.False(t, errors.As(err, &totpErr), "must not look like a wrong code: %v", err)
+}
+
+// A backup code that authorised turning 2FA off is used up only together with
+// the change: a failed write leaves both the code and 2FA in place.
+// specRef: api-endpoint-behaviour.md E3, E7
+func TestTotpDisable_FailedWriteKeepsTheBackupCode(t *testing.T) {
+	f := newTOTPFixture(t, testStorageKey(1))
+	_, codes := f.enable(t)
+	ctx := context.Background()
+
+	f.repo.writeErr = errors.New("write failed")
+	_, err := f.svc.TotpDisable(ctx, f.id, codes[0])
+	require.ErrorIs(t, err, f.repo.writeErr)
+	stored := f.repo.stored(f.id)
+	require.True(t, stored.Enabled)
+	require.Contains(t, stored.BackupCodeHashes, f.keeper.HashBackupCode(f.id, codes[0]))
+
+	f.repo.writeErr = nil
+	_, err = f.svc.TotpDisable(ctx, f.id, codes[0])
+	require.NoError(t, err)
+	require.False(t, f.repo.stored(f.id).Enabled)
+}
+
+// specRef: api-endpoint-behaviour.md E13, E5
+func TestTotpRegenerate_ReplacesEveryCode(t *testing.T) {
+	for name, authorise := range map[string]func(t *testing.T, secret string, codes []string) string{
+		"authenticator code": func(t *testing.T, secret string, _ []string) string {
+			code, err := totp.GenerateCode(secret, time.Now())
+			require.NoError(t, err)
+			return code
+		},
+		"backup code": func(_ *testing.T, _ string, codes []string) string { return codes[3] },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			secret, oldCodes := f.enable(t)
+			ctx := context.Background()
+			sealedBefore := f.repo.stored(f.id).SecretSealed
+
+			backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, authorise(t, secret, oldCodes))
+			require.NoError(t, err)
+			require.Len(t, backup.BackupCodes, 8)
+			for _, code := range backup.BackupCodes {
+				require.Len(t, code, 25)
+				require.Empty(t, strings.Trim(code, utils.AlphaNumericUserFriendlyUppercase), code)
+				require.NotContains(t, oldCodes, code)
+			}
+
+			stored := f.repo.stored(f.id)
+			require.True(t, stored.Enabled)
+			require.Equal(t, sealedBefore, stored.SecretSealed, "the authenticator keeps working")
+			require.Len(t, stored.BackupCodeHashes, 8)
+
+			for _, old := range oldCodes {
+				_, err = f.svc.VerifyTotp(ctx, f.id, old)
+				require.ErrorIs(t, err, account.ErrInvalidTOTPCode, old)
+				f.cache.ctr = map[string]int64{}
+			}
+			_, err = f.svc.VerifyTotp(ctx, f.id, backup.BackupCodes[0])
+			require.NoError(t, err)
+		})
+	}
+}
+
+// Regenerating replaces a code set of an earlier format and clears its marker.
+// specRef: api-endpoint-behaviour.md E13, E14
+func TestTotpRegenerate_ClearsLegacyMarker(t *testing.T) {
+	const legacyCode = "LegacyCodeAAAAA1"
+	f := newTOTPFixture(t, testStorageKey(1))
+	sealed, err := f.keeper.SealSecret(f.id, legacySecret)
+	require.NoError(t, err)
+	f.setLegacy(model.TotpSettings{
+		Enabled: true, SecretSealed: sealed, BackupCodesLegacy: true,
+		BackupCodeHashes: []string{f.keeper.HashBackupCode(f.id, legacyCode), f.keeper.HashBackupCode(f.id, "LegacyCodeBBBBB2")},
+	})
+	ctx := context.Background()
+
+	backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, legacyCode)
+	require.NoError(t, err)
+
+	stored := f.repo.stored(f.id)
+	require.False(t, stored.BackupCodesLegacy)
+	require.Len(t, stored.BackupCodeHashes, len(backup.BackupCodes))
+	_, err = f.svc.VerifyTotp(ctx, f.id, "LegacyCodeBBBBB2")
+	require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
+}
+
+// specRef: api-endpoint-behaviour.md E13, E12
+func TestTotpRegenerate_Refusals(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("2FA off", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, "123456")
+		require.ErrorIs(t, err, account.ErrTOTPNotConfigured)
+	})
+
+	t.Run("wrong code", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		f.enable(t)
+		before := f.repo.stored(f.id)
+		for _, code := range []string{"000000", "ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ", strings.Repeat("A", 65)} {
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, code)
+			require.ErrorIs(t, err, account.ErrInvalidTOTPCode, code)
+		}
+		require.Equal(t, before, f.repo.stored(f.id))
+	})
+
+	t.Run("locked", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		secret, codes := f.enable(t)
+		for range 5 {
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, "000000")
+			require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
+		}
+		before := f.repo.stored(f.id)
+		code, err := totp.GenerateCode(secret, time.Now())
+		require.NoError(t, err)
+		for _, valid := range []string{code, codes[0]} {
+			_, err = f.svc.TotpRegenerateBackupCodes(ctx, f.id, valid)
+			require.ErrorIs(t, err, account.ErrTOTPTooManyAttempts)
+		}
+		require.Equal(t, before, f.repo.stored(f.id), "nothing consumed or replaced")
+	})
+
+	t.Run("failed write keeps the old set", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		_, codes := f.enable(t)
+		f.repo.writeErr = errors.New("write failed")
+		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, codes[0])
+		require.ErrorIs(t, err, f.repo.writeErr)
+		f.repo.writeErr = nil
+		_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
+		require.NoError(t, err)
+	})
+}
+
+// A backup code may authorise one change only, however many requests race.
+// specRef: api-endpoint-behaviour.md E13, E6
+func TestTotpRegenerate_ConcurrentUseOfOneBackupCodeSucceedsOnce(t *testing.T) {
+	f := newTOTPFixture(t, testStorageKey(1))
+	_, codes := f.enable(t)
+
+	var wins atomic.Int32
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := f.svc.TotpRegenerateBackupCodes(context.Background(), f.id, codes[0])
+			switch {
+			case err == nil:
+				wins.Add(1)
+			case !errors.Is(err, account.ErrInvalidTOTPCode):
+				t.Errorf("unexpected error: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+	require.Equal(t, int32(1), wins.Load())
+}
+
+// Turning 2FA off and regenerating write against the sealed secret, so a
+// record the storage migration has not converted is refused as an internal
+// error and left unchanged.
+// specRef: api-endpoint-behaviour.md E8, E13
+func TestTotpChangesNeedAConvertedRecord(t *testing.T) {
+	ctx := context.Background()
+	code, err := totp.GenerateCode(legacySecret, time.Now())
+	require.NoError(t, err)
+	record := model.TotpSettings{Enabled: true, Secret: legacySecret, BackupCodes: []string{"LegacyCodeAAAAA1"}}
+
+	for name, change := range map[string]func(f *totpFixture, otp string) error{
+		"disable": func(f *totpFixture, otp string) error {
+			_, err := f.svc.TotpDisable(ctx, f.id, otp)
+			return err
+		},
+		"regenerate": func(f *totpFixture, otp string) error {
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, otp)
+			return err
+		},
+	} {
+		for _, otp := range []string{code, "LegacyCodeAAAAA1"} {
+			t.Run(name+"/"+otp, func(t *testing.T) {
+				f := newTOTPFixture(t, testStorageKey(1))
+				f.setLegacy(record)
+				err := change(f, otp)
+				require.Error(t, err)
+				var totpErr *account.TOTPError
+				require.False(t, errors.As(err, &totpErr), "must not look like a wrong code: %v", err)
+				require.Equal(t, record, f.repo.stored(f.id))
+			})
+		}
+	}
 }

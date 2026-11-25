@@ -986,6 +986,15 @@ definitions:
     type: object
   model.TotpSettings:
     properties:
+      backup_codes_legacy:
+        description: |-
+          BackupCodesLegacy marks a code set of an earlier format, which the
+          account holder should replace.
+        type: boolean
+      backup_codes_remaining:
+        description: BackupCodesRemaining is the number of unused backup codes; derived,
+          not stored.
+        type: integer
       enabled:
         description: Indicates if TOTP is enabled.
         type: boolean
@@ -1557,6 +1566,15 @@ definitions:
     required:
     - otp
     type: object
+  requests.TotpRegenerateReq:
+    properties:
+      otp:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - otp
+    type: object
   requests.TotpReq:
     properties:
       otp:
@@ -1937,6 +1955,45 @@ paths:
       summary: Logout
       tags:
       - Authentication
+  /api/v1/accounts/mfa/totp/backup-codes/regenerate:
+    post:
+      consumes:
+      - application/json
+      description: Replace every backup code with a new set, authorised by an authenticator
+        code or a backup code. The new codes are returned only in this response.
+      parameters:
+      - description: Regenerate backup codes request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.TotpRegenerateReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.TOTPBackup'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      summary: Regenerate TOTP backup codes
+      tags:
+      - Account
   /api/v1/accounts/mfa/totp/disable:
     post:
       consumes:
@@ -1958,6 +2015,10 @@ paths:
             $ref: '#/definitions/model.Account'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "429":
@@ -2015,6 +2076,10 @@ paths:
             $ref: '#/definitions/model.TOTPBackup'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "429":

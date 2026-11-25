@@ -736,7 +736,7 @@ func (a *AccountService) MfaCheck(ctx context.Context, acc *model.Account, mfa *
 	}
 
 	if acc.MFA.TOTP.Enabled && mfa.OTP != "" {
-		_, err := a.VerifyTotp(ctx, acc.ID.Hex(), mfa.OTP, "login")
+		_, err := a.VerifyTotp(ctx, acc.ID.Hex(), mfa.OTP)
 		if err != nil {
 			return err
 		}

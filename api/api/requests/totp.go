@@ -11,3 +11,9 @@ type TotpReq struct {
 type TotpDisableReq struct {
 	OTP string `json:"otp" validate:"required,min=6,max=64"`
 }
+
+// TotpRegenerateReq takes an authenticator code or a backup code, which may be
+// entered grouped with hyphens or spaces.
+type TotpRegenerateReq struct {
+	OTP string `json:"otp" validate:"required,min=6,max=64"`
+}

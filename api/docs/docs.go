@@ -294,6 +294,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/accounts/mfa/totp/backup-codes/regenerate": {
+            "post": {
+                "description": "Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Regenerate TOTP backup codes",
+                "parameters": [
+                    {
+                        "description": "Regenerate backup codes request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.TotpRegenerateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TOTPBackup"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/accounts/mfa/totp/disable": {
             "post": {
                 "description": "Disable TOTP",
@@ -327,6 +385,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -414,6 +478,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -4777,6 +4847,14 @@ const docTemplate = `{
         "model.TotpSettings": {
             "type": "object",
             "properties": {
+                "backup_codes_legacy": {
+                    "description": "BackupCodesLegacy marks a code set of an earlier format, which the\naccount holder should replace.",
+                    "type": "boolean"
+                },
+                "backup_codes_remaining": {
+                    "description": "BackupCodesRemaining is the number of unused backup codes; derived, not stored.",
+                    "type": "integer"
+                },
                 "enabled": {
                     "description": "Indicates if TOTP is enabled.",
                     "type": "boolean"
@@ -5527,6 +5605,19 @@ const docTemplate = `{
             }
         },
         "requests.TotpDisableReq": {
+            "type": "object",
+            "required": [
+                "otp"
+            ],
+            "properties": {
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
+                }
+            }
+        },
+        "requests.TotpRegenerateReq": {
             "type": "object",
             "required": [
                 "otp"

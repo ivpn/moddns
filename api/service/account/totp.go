@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -32,6 +33,10 @@ var errTOTPStorageUnavailable = errors.New("totp storage key unavailable")
 
 // errTOTPSecretMissing means TOTP is enabled but no secret is stored.
 var errTOTPSecretMissing = errors.New("totp enabled without a stored secret")
+
+// errTOTPRecordNotConverted means a 2FA change was requested on a record the
+// TOTP storage migration has not converted.
+var errTOTPRecordNotConverted = errors.New("totp record not converted to protected storage")
 
 func (a *AccountService) keeper() (*totpcrypt.Keeper, error) {
 	if a.totpKeeper == nil {
@@ -121,15 +126,9 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		return nil, ErrIncorrectOTP
 	}
 
-	codes := make([]string, 0, backupCodeCount)
-	hashes := make([]string, 0, backupCodeCount)
-	for range backupCodeCount {
-		code, err := utils.RandomString(backupCodeLength, utils.AlphaNumericUserFriendlyUppercase)
-		if err != nil {
-			return nil, err
-		}
-		codes = append(codes, code)
-		hashes = append(hashes, keeper.HashBackupCode(acc.ID.Hex(), code))
+	codes, hashes, err := newBackupCodes(keeper, acc.ID.Hex())
+	if err != nil {
+		return nil, err
 	}
 
 	sealed, err := keeper.SealSecret(acc.ID.Hex(), secret)
@@ -152,15 +151,18 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 	return &model.TOTPBackup{BackupCodes: codes}, nil
 }
 
+// TotpDisable turns 2FA off, authorised by an authenticator or backup code.
 func (a *AccountService) TotpDisable(ctx context.Context, accountId, otp string) (*model.Account, error) {
-	acc, err := a.VerifyTotp(ctx, accountId, otp, "disable")
+	acc, proof, done, err := a.checkTotp(ctx, accountId, otp, "disable")
 	if err != nil {
 		return nil, err
 	}
-
-	if err = a.AccountRepository.DisableTOTP(ctx, acc.ID.Hex()); err != nil {
+	if err = a.applyVerifiedTotp(proof, func(p model.TOTPProof) error {
+		return a.AccountRepository.DisableTOTP(ctx, acc.ID.Hex(), p)
+	}); err != nil {
 		return nil, err
 	}
+	done()
 	acc.MFA.TOTP = model.TotpSettings{Enabled: false}
 
 	log.Ctx(ctx).Info().Msg("TOTP disabled successfully")
@@ -168,73 +170,181 @@ func (a *AccountService) TotpDisable(ctx context.Context, accountId, otp string)
 	return acc, nil
 }
 
-func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp, action string) (*model.Account, error) {
-	acc, err := a.AccountRepository.GetAccountById(ctx, accountId)
+// TotpRegenerateBackupCodes replaces every backup code with a new set,
+// authorised by an authenticator or backup code. The new codes are returned
+// only here.
+func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error) {
+	keeper, err := a.keeper()
 	if err != nil {
 		return nil, err
 	}
-	switch action {
-	case "login":
-		if !acc.MFA.TOTP.Enabled {
-			log.Ctx(ctx).Warn().Msg("TOTP is not configured")
-			return nil, ErrTOTPNotConfigured
+	acc, proof, done, err := a.checkTotp(ctx, accountId, otp, "regenerate")
+	if err != nil {
+		return nil, err
+	}
+	codes, hashes, err := newBackupCodes(keeper, acc.ID.Hex())
+	if err != nil {
+		return nil, err
+	}
+	if err = a.applyVerifiedTotp(proof, func(p model.TOTPProof) error {
+		return a.AccountRepository.ReplaceBackupCodes(ctx, acc.ID.Hex(), p, hashes)
+	}); err != nil {
+		return nil, err
+	}
+	done()
+
+	log.Ctx(ctx).Info().Msg("TOTP backup codes regenerated")
+
+	return &model.TOTPBackup{BackupCodes: codes}, nil
+}
+
+// VerifyTotp checks a 2FA code for login and the account checks that require
+// one, and uses up a backup code.
+func (a *AccountService) VerifyTotp(ctx context.Context, accountId, otp string) (*model.Account, error) {
+	acc, proof, done, err := a.checkTotp(ctx, accountId, otp, "verification")
+	if err != nil {
+		return nil, err
+	}
+	if proof.legacyBackupCode != "" {
+		ok, err := a.AccountRepository.ConsumeLegacyBackupCode(ctx, acc.ID.Hex(), proof.legacyBackupCode)
+		if err != nil {
+			return nil, err
 		}
-	case "disable":
-		if !acc.MFA.TOTP.Enabled {
+		if !ok {
+			return nil, ErrInvalidTOTPCode
+		}
+	}
+	if proof.BackupCodeHash != "" {
+		ok, err := a.AccountRepository.ConsumeBackupCode(ctx, acc.ID.Hex(), proof.BackupCodeHash)
+		if err != nil {
+			log.Ctx(ctx).Err(err).Msg("error consuming TOTP backup code")
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrInvalidTOTPCode
+		}
+	}
+	if proof.isBackupCode() {
+		log.Ctx(ctx).Info().Msg("TOTP backup code consumed successfully")
+	}
+	done()
+	return acc, nil
+}
+
+// totpCheck is a 2FA code that matched but whose backup code, if any, is not
+// used up yet.
+type totpCheck struct {
+	model.TOTPProof
+	// legacyBackupCode is a plaintext backup code of a record the storage
+	// migration has not converted.
+	legacyBackupCode string
+}
+
+func (c totpCheck) isBackupCode() bool {
+	return c.BackupCodeHash != "" || c.legacyBackupCode != ""
+}
+
+// checkTotp verifies otp without using a backup code up; the caller does that
+// in the write the code authorises, then calls done to clear the E12 count.
+func (a *AccountService) checkTotp(ctx context.Context, accountId, otp, action string) (*model.Account, totpCheck, func(), error) {
+	acc, err := a.AccountRepository.GetAccountById(ctx, accountId)
+	if err != nil {
+		return nil, totpCheck{}, nil, err
+	}
+	if !acc.MFA.TOTP.Enabled {
+		switch action {
+		case "disable":
 			log.Ctx(ctx).Warn().Msg("TOTP already disabled")
-			return nil, ErrTOTPAlreadyDisabled
+			return nil, totpCheck{}, nil, ErrTOTPAlreadyDisabled
+		default:
+			log.Ctx(ctx).Warn().Msg("TOTP is not configured")
+			return nil, totpCheck{}, nil, ErrTOTPNotConfigured
 		}
-	default:
-		return nil, errors.New("verify totp: invalid action")
 	}
 
 	// Each attempt is counted before any code is matched; past the limit every
 	// code is refused and nothing is consumed (NIST SP 800-63B-4 §3.2.2,
-	// RFC 6238 §5.2). A success clears the count.
+	// RFC 4226 §7.3). A success clears the count.
 	limiter := a.totpLimiter(acc.ID.Hex(), "totp_fails")
 	allowed, err := limiter.Attempt()
 	if err != nil {
-		return nil, err
+		return nil, totpCheck{}, nil, err
 	}
 	if !allowed {
 		log.Ctx(ctx).Warn().Msgf("2FA %s: too many failed attempts", action)
-		return nil, ErrTOTPTooManyAttempts
+		return nil, totpCheck{}, nil, ErrTOTPTooManyAttempts
 	}
+	done := func() { _ = limiter.Reset() }
 
 	if len(otp) > maxCodeInputLength {
-		return nil, ErrInvalidTOTPCode
+		return nil, totpCheck{}, nil, ErrInvalidTOTPCode
 	}
 	otp = normalizeCode(otp)
 
 	secret, err := a.storedTotpSecret(acc)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("2FA: cannot read stored TOTP secret")
-		return nil, err
+		return nil, totpCheck{}, nil, err
 	}
+	check := totpCheck{TOTPProof: model.TOTPProof{SecretSealed: acc.MFA.TOTP.SecretSealed}}
 
 	if totp.Validate(otp, secret) {
 		log.Ctx(ctx).Trace().Msg("2FA verification successful")
-		_ = limiter.Reset()
-		return acc, nil
+		return acc, check, done, nil
 	}
 	log.Ctx(ctx).Debug().Msgf("2FA %s: invalid TOTP code", action)
 
-	ok, err := a.consumeBackupCode(ctx, acc, otp)
-	var codeErr *TOTPError
-	if err != nil && !errors.As(err, &codeErr) {
-		log.Ctx(ctx).Err(err).Msg("error consuming TOTP backup code")
-		return nil, err
+	if len(otp) < minBackupCodeLength || len(otp) > backupCodeLength {
+		return nil, totpCheck{}, nil, ErrInvalidTOTPCode
 	}
-	if ok {
-		log.Ctx(ctx).Info().Msg("TOTP backup code consumed successfully")
-		_ = limiter.Reset()
-		return acc, nil
+	t := acc.MFA.TOTP
+	if slices.Contains(t.BackupCodes, otp) {
+		check.legacyBackupCode = otp
+		return acc, check, done, nil
 	}
+	keeper, err := a.keeper()
+	if err != nil {
+		return nil, totpCheck{}, nil, err
+	}
+	// Current codes are uppercase and accepted in any case. Codes of earlier
+	// formats are mixed case and match only as typed.
+	if !t.BackupCodesLegacy {
+		otp = upperASCII(otp)
+	}
+	if hash := keeper.HashBackupCode(acc.ID.Hex(), otp); slices.Contains(t.BackupCodeHashes, hash) {
+		check.BackupCodeHash = hash
+		return acc, check, done, nil
+	}
+	log.Ctx(ctx).Warn().Msg("2FA: invalid backup code")
+	return nil, totpCheck{}, nil, ErrInvalidTOTPCode
+}
 
-	if codeErr == nil {
-		return nil, ErrInvalidTOTPCode
+// applyVerifiedTotp runs a write conditioned on the checked state; a state
+// changed since the check means the code is no longer valid.
+func (a *AccountService) applyVerifiedTotp(check totpCheck, write func(model.TOTPProof) error) error {
+	if check.SecretSealed == "" || check.legacyBackupCode != "" {
+		return errTOTPRecordNotConverted
 	}
-	return nil, codeErr
+	err := write(check.TOTPProof)
+	if errors.Is(err, dbErrors.ErrTOTPStateChanged) {
+		return ErrInvalidTOTPCode
+	}
+	return err
+}
+
+// newBackupCodes draws a set of backup codes and their digests (E5).
+func newBackupCodes(keeper *totpcrypt.Keeper, accountID string) ([]string, []string, error) {
+	codes := make([]string, 0, backupCodeCount)
+	hashes := make([]string, 0, backupCodeCount)
+	for range backupCodeCount {
+		code, err := utils.RandomString(backupCodeLength, utils.AlphaNumericUserFriendlyUppercase)
+		if err != nil {
+			return nil, nil, err
+		}
+		codes = append(codes, code)
+		hashes = append(hashes, keeper.HashBackupCode(accountID, code))
+	}
+	return codes, hashes, nil
 }
 
 func (a *AccountService) totpLimiter(accountID, label string) utils.IDLimiter {
@@ -264,39 +374,6 @@ func (a *AccountService) storedTotpSecret(acc *model.Account) (string, error) {
 		return "", err
 	}
 	return keeper.OpenSecret(acc.ID.Hex(), t.SecretSealed)
-}
-
-// consumeBackupCode uses up the backup code otp. A *TOTPError reports a code
-// that is not, or no longer, valid; any other error is a storage failure.
-func (a *AccountService) consumeBackupCode(ctx context.Context, acc *model.Account, otp string) (bool, error) {
-	if len(otp) < minBackupCodeLength || len(otp) > backupCodeLength {
-		return false, ErrInvalidTOTPCode
-	}
-	id := acc.ID.Hex()
-	t := acc.MFA.TOTP
-
-	if len(t.BackupCodes) > 0 {
-		ok, err := a.AccountRepository.ConsumeLegacyBackupCode(ctx, id, otp)
-		if err != nil || ok {
-			return ok, err
-		}
-	}
-
-	keeper, err := a.keeper()
-	if err != nil {
-		return false, err
-	}
-	// Current codes are uppercase and accepted in any case. Codes of earlier
-	// formats are mixed case and match only as typed.
-	if !t.BackupCodesLegacy {
-		otp = upperASCII(otp)
-	}
-	ok, err := a.AccountRepository.ConsumeBackupCode(ctx, id, keeper.HashBackupCode(id, otp))
-	if err != nil || ok {
-		return ok, err
-	}
-	log.Ctx(ctx).Warn().Msg("2FA: invalid backup code")
-	return false, ErrInvalidTOTPCode
 }
 
 // normalizeCode drops the group separators of a displayed code ("123 456",

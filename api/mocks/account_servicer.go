@@ -856,6 +856,80 @@ func (_c *AccountServicer_TotpEnable_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// TotpRegenerateBackupCodes provides a mock function for the type AccountServicer
+func (_mock *AccountServicer) TotpRegenerateBackupCodes(ctx context.Context, accountId string, otp string) (*model.TOTPBackup, error) {
+	ret := _mock.Called(ctx, accountId, otp)
+
+	if len(ret) == 0 {
+		panic("no return value specified for TotpRegenerateBackupCodes")
+	}
+
+	var r0 *model.TOTPBackup
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*model.TOTPBackup, error)); ok {
+		return returnFunc(ctx, accountId, otp)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *model.TOTPBackup); ok {
+		r0 = returnFunc(ctx, accountId, otp)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.TOTPBackup)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accountId, otp)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// AccountServicer_TotpRegenerateBackupCodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TotpRegenerateBackupCodes'
+type AccountServicer_TotpRegenerateBackupCodes_Call struct {
+	*mock.Call
+}
+
+// TotpRegenerateBackupCodes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - otp string
+func (_e *AccountServicer_Expecter) TotpRegenerateBackupCodes(ctx interface{}, accountId interface{}, otp interface{}) *AccountServicer_TotpRegenerateBackupCodes_Call {
+	return &AccountServicer_TotpRegenerateBackupCodes_Call{Call: _e.mock.On("TotpRegenerateBackupCodes", ctx, accountId, otp)}
+}
+
+func (_c *AccountServicer_TotpRegenerateBackupCodes_Call) Run(run func(ctx context.Context, accountId string, otp string)) *AccountServicer_TotpRegenerateBackupCodes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountServicer_TotpRegenerateBackupCodes_Call) Return(tOTPBackup *model.TOTPBackup, err error) *AccountServicer_TotpRegenerateBackupCodes_Call {
+	_c.Call.Return(tOTPBackup, err)
+	return _c
+}
+
+func (_c *AccountServicer_TotpRegenerateBackupCodes_Call) RunAndReturn(run func(ctx context.Context, accountId string, otp string) (*model.TOTPBackup, error)) *AccountServicer_TotpRegenerateBackupCodes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAccount provides a mock function for the type AccountServicer
 func (_mock *AccountServicer) UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error {
 	ret := _mock.Called(ctx, accountId, updates, mfa)
@@ -1058,8 +1132,8 @@ func (_c *AccountServicer_VerifyPasswordReset_Call) RunAndReturn(run func(ctx co
 }
 
 // VerifyTotp provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) VerifyTotp(ctx context.Context, accountId string, otp string, action string) (*model.Account, error) {
-	ret := _mock.Called(ctx, accountId, otp, action)
+func (_mock *AccountServicer) VerifyTotp(ctx context.Context, accountId string, otp string) (*model.Account, error) {
+	ret := _mock.Called(ctx, accountId, otp)
 
 	if len(ret) == 0 {
 		panic("no return value specified for VerifyTotp")
@@ -1067,18 +1141,18 @@ func (_mock *AccountServicer) VerifyTotp(ctx context.Context, accountId string, 
 
 	var r0 *model.Account
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*model.Account, error)); ok {
-		return returnFunc(ctx, accountId, otp, action)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*model.Account, error)); ok {
+		return returnFunc(ctx, accountId, otp)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *model.Account); ok {
-		r0 = returnFunc(ctx, accountId, otp, action)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *model.Account); ok {
+		r0 = returnFunc(ctx, accountId, otp)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.Account)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, accountId, otp, action)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accountId, otp)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1094,12 +1168,11 @@ type AccountServicer_VerifyTotp_Call struct {
 //   - ctx context.Context
 //   - accountId string
 //   - otp string
-//   - action string
-func (_e *AccountServicer_Expecter) VerifyTotp(ctx interface{}, accountId interface{}, otp interface{}, action interface{}) *AccountServicer_VerifyTotp_Call {
-	return &AccountServicer_VerifyTotp_Call{Call: _e.mock.On("VerifyTotp", ctx, accountId, otp, action)}
+func (_e *AccountServicer_Expecter) VerifyTotp(ctx interface{}, accountId interface{}, otp interface{}) *AccountServicer_VerifyTotp_Call {
+	return &AccountServicer_VerifyTotp_Call{Call: _e.mock.On("VerifyTotp", ctx, accountId, otp)}
 }
 
-func (_c *AccountServicer_VerifyTotp_Call) Run(run func(ctx context.Context, accountId string, otp string, action string)) *AccountServicer_VerifyTotp_Call {
+func (_c *AccountServicer_VerifyTotp_Call) Run(run func(ctx context.Context, accountId string, otp string)) *AccountServicer_VerifyTotp_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1113,15 +1186,10 @@ func (_c *AccountServicer_VerifyTotp_Call) Run(run func(ctx context.Context, acc
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -1132,7 +1200,7 @@ func (_c *AccountServicer_VerifyTotp_Call) Return(account *model.Account, err er
 	return _c
 }
 
-func (_c *AccountServicer_VerifyTotp_Call) RunAndReturn(run func(ctx context.Context, accountId string, otp string, action string) (*model.Account, error)) *AccountServicer_VerifyTotp_Call {
+func (_c *AccountServicer_VerifyTotp_Call) RunAndReturn(run func(ctx context.Context, accountId string, otp string) (*model.Account, error)) *AccountServicer_VerifyTotp_Call {
 	_c.Call.Return(run)
 	return _c
 }

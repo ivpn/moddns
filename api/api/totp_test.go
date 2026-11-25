@@ -99,3 +99,48 @@ func (suite *AccountsAPITestSuite) TestConfirmRefusedCodeIsBadRequest() {
 		})
 	}
 }
+
+const regeneratePath = "/api/v1/accounts/mfa/totp/backup-codes/regenerate"
+
+// Regenerating takes an authenticator code or a backup code as displayed and
+// returns the new codes. specRef: api-endpoint-behaviour.md E13
+func (suite *AccountsAPITestSuite) TestRegenerateAcceptsEitherCode() {
+	for _, otp := range []string{"123456", "123 456", "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5", "LegacyCodeAAAAA1", strings.Repeat("A", 64)} {
+		suite.Run(otp, func() {
+			suite.SetupTest()
+			suite.mockService.On("TotpRegenerateBackupCodes", mock.Anything, testAccountID, otp).Return(&model.TOTPBackup{BackupCodes: []string{"NEW"}}, nil).Once()
+			suite.Equal(http.StatusOK, suite.postTotp(regeneratePath, otp))
+		})
+	}
+}
+
+// specRef: api-endpoint-behaviour.md E13
+func (suite *AccountsAPITestSuite) TestRegenerateRejectsMalformedCode() {
+	for _, otp := range []string{"", "12345", strings.Repeat("A", 65)} {
+		suite.Run(otp, func() {
+			suite.SetupTest()
+			suite.Equal(http.StatusBadRequest, suite.postTotp(regeneratePath, otp))
+		})
+	}
+}
+
+// A refused code is a bad request on a valid session, not an expired session.
+// specRef: api-endpoint-behaviour.md E13, E12
+func (suite *AccountsAPITestSuite) TestRegenerateRefusedCode() {
+	cases := map[string]struct {
+		err    error
+		status int
+	}{
+		"invalid code":   {account.ErrInvalidTOTPCode, http.StatusBadRequest},
+		"2FA off":        {account.ErrTOTPNotConfigured, http.StatusBadRequest},
+		"lockout":        {account.ErrTOTPTooManyAttempts, http.StatusTooManyRequests},
+		"internal error": {errors.New("storage unavailable"), http.StatusInternalServerError},
+	}
+	for name, tc := range cases {
+		suite.Run(name, func() {
+			suite.SetupTest()
+			suite.mockService.On("TotpRegenerateBackupCodes", mock.Anything, testAccountID, "123456").Return(nil, tc.err).Once()
+			suite.Equal(tc.status, suite.postTotp(regeneratePath, "123456"))
+		})
+	}
+}
