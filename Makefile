@@ -1,5 +1,5 @@
 CWD=$$(pwd)
-.PHONY: help announcements diff
+.PHONY: help announcements diff tidy_all tidy_check
 
 help: ## Displays the help for each command.
 	@grep -E '^[a-zA-Z_-]+:.*## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
@@ -146,3 +146,15 @@ build_image_dev:
 
 diff: ## Opens the staged changes in Meld.
 	git difftool --cached --tool=meld --dir-diff
+
+GO_MODULES := libs api proxy blocklists dnscheck
+
+tidy_all: ## Runs go mod tidy in every Go module (libs first, consumers replace it locally).
+	@for m in $(GO_MODULES); do echo "go mod tidy: $$m"; (cd $$m && go mod tidy) || exit 1; done
+
+tidy_check: ## Fails if any Go module's go.mod/go.sum is not tidy; fix with make tidy_all.
+	@rc=0; for m in $(GO_MODULES); do \
+		out=$$(cd $$m && go mod tidy -diff) && continue; rc=1; \
+		if [ -n "$$out" ]; then echo "$$out"; echo "::error::$$m/go.mod is not tidy; run make tidy_all"; \
+		else echo "::error::go mod tidy -diff failed in $$m (see error above)"; fi; \
+	done; exit $$rc
