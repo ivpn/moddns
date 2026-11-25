@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Mail, Lock } from "lucide-react";
-import React, { type JSX, useState } from "react";
+import React, { type JSX, useEffect, useState } from "react";
 import modDNSLogoDarkTheme from "@/assets/logos/modDNS-dark-theme.svg";
 import modDNSLogoLightTheme from "@/assets/logos/modDNS-light-theme.svg";
 import { useTheme } from "@/components/theme-provider";
@@ -16,14 +16,20 @@ interface LoginCardProps {
     loading?: boolean;
     showOtp?: boolean;
     initialPasskeyMode?: boolean;
+    /** Changing it empties the 2FA field, e.g. when the code was refused. */
+    otpResetKey?: number;
 }
 
-const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, initialPasskeyMode = false }: LoginCardProps): JSX.Element => {
+const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, initialPasskeyMode = false, otpResetKey = 0 }: LoginCardProps): JSX.Element => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [otp, setOtp] = useState("");
     const [otpValid, setOtpValid] = useState(false);
     const [isPasskeyMode, setIsPasskeyMode] = useState(initialPasskeyMode);
+    useEffect(() => {
+        setOtp("");
+        setOtpValid(false);
+    }, [otpResetKey]);
     const navigate = useNavigate();
     const { theme } = useTheme();
     const isDarkMode = theme === 'dark';
