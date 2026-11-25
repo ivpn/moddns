@@ -128,6 +128,7 @@ moddns/models/requests_reorder_profile_custom_rules_body.py
 moddns/models/requests_reset_password_body.py
 moddns/models/requests_rotate_pa_session_req.py
 moddns/models/requests_totp_disable_req.py
+moddns/models/requests_totp_regenerate_req.py
 moddns/models/requests_totp_req.py
 moddns/models/requests_update_profile_custom_rule_body.py
 moddns/models/requests_web_authn_add_passkey_begin_request.py

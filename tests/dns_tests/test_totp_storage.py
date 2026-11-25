@@ -2,7 +2,7 @@
 
 Drives the real API (enable, confirm, login, disable) and reads the account
 document straight from MongoDB.
-specRef: api-endpoint-behaviour #E2 #E4 #E5 #E6 #E7 #E8 #E12.
+specRef: api-endpoint-behaviour #E2 #E3 #E4 #E5 #E6 #E7 #E8 #E12 #E13 #E14.
 """
 
 import base64
@@ -25,6 +25,7 @@ from moddns.models.requests_confirm_reset_password_body import (
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
+from moddns.models.requests_totp_regenerate_req import RequestsTotpRegenerateReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from pymongo import MongoClient
 
@@ -110,6 +111,23 @@ def _disable(cookie: str, otp: str) -> int:
             ).status_code
         except ApiException as e:
             return e.status
+
+
+def _regenerate(cookie: str, otp: str) -> tuple[int, list[str]]:
+    with _api(cookie) as api_client:
+        try:
+            resp = AccountApi(api_client).api_v1_accounts_mfa_totp_backup_codes_regenerate_post_with_http_info(
+                RequestsTotpRegenerateReq(otp=otp)
+            )
+            return resp.status_code, resp.data.backup_codes
+        except ApiException as e:
+            return e.status, []
+
+
+def _totp_status(cookie: str):
+    """The account's 2FA state as the app sees it (E14)."""
+    with _api(cookie) as api_client:
+        return AccountApi(api_client).api_v1_accounts_current_get().mfa.totp
 
 
 def _reset_token(db, account_id: str, email: str) -> str:
@@ -288,19 +306,21 @@ class TestTotpStorage:
         assert status == 200 and new_cookie
         state["cookie"] = new_cookie
 
-    def test_disable_with_legacy_backup_code(self, mongo_db, fresh_account):
-        """Codes issued before encrypted storage match only as typed. specRef: E3, E7, E8."""
+    def test_disable_needs_converted_record(self, mongo_db, fresh_account):
+        """A record the storage migration has not converted cannot be changed:
+        500 and nothing is touched. specRef: E3, E8."""
         account, cookie, _, _, state = fresh_account
         self._set_legacy_record(mongo_db, account.id, state)
 
-        assert _disable(cookie, LEGACY_CODES[0].lower()) == 400
-        assert _totp_doc(mongo_db, account.id).get("enabled") is True
-
-        assert _disable(cookie, LEGACY_CODES[0]) == 200
-        state["secret"] = None
+        assert _disable(cookie, LEGACY_CODES[0]) == 500
+        assert _regenerate(cookie, totp_code(LEGACY_SECRET))[0] == 500
         doc = _totp_doc(mongo_db, account.id)
-        assert doc.get("enabled") is False
-        assert _strings(doc) == [], f"TOTP material left after disable: {sorted(doc)}"
+        assert doc.get("enabled") is True
+        assert doc.get("backup_codes") == LEGACY_CODES
+
+        # Cleanup cannot turn 2FA off through the API either.
+        mongo_db.accounts.update_one({"_id": ObjectId(account.id)}, {"$set": {"mfa.totp": {"enabled": False}}})
+        state["secret"] = None
 
     # The used list of a plaintext record may be null, empty or missing.
     @pytest.mark.parametrize(
@@ -341,5 +361,93 @@ class TestTotpStorage:
         assert _login(email, password, codes[0]) == 429
 
         # Lockout ends when the counter expires; clear it so cleanup can log in.
+        redis_client.delete(f"totp_fails:{account.id}")
+        assert _login(email, password, codes[0]) == 200, "refused code was not consumed"
+
+
+class TestBackupCodeRegeneration:
+    def test_regenerate_replaces_every_code(self, mongo_db, fresh_account):
+        """specRef: E5, E13, E14."""
+        account, cookie, password, email, state = fresh_account
+        secret, old_codes = _enable_totp(cookie)
+        state["secret"] = secret
+        sealed = _totp_doc(mongo_db, account.id)["secret_sealed"]
+
+        assert _login(email, password, old_codes[0]) == 200
+        assert _totp_status(cookie).backup_codes_remaining == 7
+
+        status, new_codes = _regenerate(cookie, totp_code(secret))
+        assert status == 200
+        assert len(new_codes) == 8
+        assert all(len(c) == 25 and set(c) <= set(CODE_ALPHABET) for c in new_codes)
+        assert not set(new_codes) & set(old_codes)
+
+        doc = _totp_doc(mongo_db, account.id)
+        assert doc["secret_sealed"] == sealed, "the authenticator must keep working"
+        for value in _strings(doc):
+            for code in new_codes:
+                assert code not in value, "backup code stored in plaintext"
+        status = _totp_status(cookie)
+        assert status.backup_codes_remaining == 8
+        assert status.backup_codes_legacy is False
+
+        # Two old codes, below the E12 lockout; the service tests check the whole set.
+        for old in (old_codes[1], old_codes[-1]):
+            assert _login(email, password, old) == 401
+        assert _login(email, password, _grouped(new_codes[0])) == 200
+        assert _login(email, password, totp_code(secret)) == 200
+
+    def test_backup_code_regenerates_and_clears_legacy_marker(self, mongo_db, fresh_account):
+        """Lost authenticator, codes of an earlier format: a backup code
+        authorises the new set and the marker goes. specRef: E9, E13, E14."""
+        account, cookie, _, _, state = fresh_account
+        secret, old_codes = _enable_totp(cookie)
+        state["secret"] = secret
+        mongo_db.accounts.update_one(
+            {"_id": ObjectId(account.id)}, {"$set": {"mfa.totp.backup_codes_legacy": True}}
+        )
+        assert _totp_status(cookie).backup_codes_legacy is True
+
+        status, new_codes = _regenerate(cookie, old_codes[0])
+        assert status == 200 and len(new_codes) == 8
+        assert "backup_codes_legacy" not in _totp_doc(mongo_db, account.id)
+        assert _totp_status(cookie).backup_codes_legacy is False
+
+        # The code that authorised it is gone with the rest of the old set.
+        assert _regenerate(cookie, old_codes[0])[0] == 400
+        assert _regenerate(cookie, old_codes[1])[0] == 400
+
+    def test_refused_code_keeps_session_and_codes(self, mongo_db, fresh_account):
+        """specRef: E13."""
+        account, cookie, password, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+        before = _totp_doc(mongo_db, account.id)["backup_code_hashes"]
+
+        assert _regenerate(cookie, "000000")[0] == 400
+        assert _regenerate(cookie, "ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ")[0] == 400
+        # A wrong code is not an expired session.
+        assert _totp_status(cookie).enabled is True
+        assert _totp_doc(mongo_db, account.id)["backup_code_hashes"] == before
+        assert _login(email, password, codes[0]) == 200
+
+    def test_regenerate_without_2fa(self, fresh_account):
+        """specRef: E13."""
+        _, cookie, _, _, _ = fresh_account
+        assert _regenerate(cookie, "123456")[0] == 400
+
+    def test_locked_account_cannot_regenerate(self, mongo_db, fresh_account, redis_client):
+        """specRef: E12, E13."""
+        account, cookie, password, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+        before = _totp_doc(mongo_db, account.id)["backup_code_hashes"]
+
+        for _ in range(5):
+            assert _regenerate(cookie, "000000")[0] == 400
+        assert _regenerate(cookie, totp_code(secret))[0] == 429
+        assert _regenerate(cookie, codes[0])[0] == 429
+        assert _totp_doc(mongo_db, account.id)["backup_code_hashes"] == before
+
         redis_client.delete(f"totp_fails:{account.id}")
         assert _login(email, password, codes[0]) == 200, "refused code was not consumed"
