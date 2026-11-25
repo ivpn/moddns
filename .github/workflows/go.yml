@@ -76,7 +76,7 @@ jobs:
       blocklists: ${{ steps.filter.outputs.blocklists }}
       dnscheck: ${{ steps.filter.outputs.dnscheck }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Paths filter
@@ -104,7 +104,7 @@ jobs:
     # Every module, on every run: a libs/ dependency bump must be reflected in
     # each consumer's go.mod (they `replace` libs locally), not only in libs/.
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go
@@ -123,7 +123,7 @@ jobs:
     # Also run API job if libs changed (libs change triggers full Go suite)
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.api == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go (API)
@@ -147,7 +147,7 @@ jobs:
       contents: read
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.libs == 'true')) || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.libs == 'true') }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go (Libs)
@@ -170,7 +170,7 @@ jobs:
     # Also run Proxy job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.proxy == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.proxy == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go (Proxy)
@@ -195,7 +195,7 @@ jobs:
     # Also run Blocklists job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.blocklists == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.blocklists == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go (Blocklists)
@@ -220,7 +220,7 @@ jobs:
     # Also run DNSCheck job if libs changed
     if: ${{ (github.event_name == 'workflow_dispatch' && (github.event.inputs.all == 'true' || github.event.inputs.dnscheck == 'true')) || (github.event_name != 'workflow_dispatch' && (needs.changes.outputs.dnscheck == 'true' || needs.changes.outputs.libs == 'true')) }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           persist-credentials: false
       - name: Set up Go (DNSCheck)
