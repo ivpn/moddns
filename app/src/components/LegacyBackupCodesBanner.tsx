@@ -23,11 +23,11 @@ export default function LegacyBackupCodesBanner() {
                     className="flex items-start gap-3 w-full rounded-lg border-2 border-yellow-600 dark:border-yellow-400 bg-yellow-500/10 px-4 py-3"
                 >
                     <KeyRound className="w-5 h-5 mt-0.5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
-                    <div className="min-w-0 flex-1 font-['Figtree',Helvetica] text-sm leading-5">
-                        <p className="font-semibold text-[var(--shadcn-ui-app-foreground)]">
+                    <div className="min-w-0 flex-1 text-sm leading-5">
+                        <p className="font-['Figtree',Helvetica] font-semibold text-[var(--shadcn-ui-app-foreground)]">
                             We strongly advise regenerating your 2FA backup codes.
                         </p>
-                        <p className="mt-0.5 text-[var(--shadcn-ui-app-foreground)]">
+                        <p className="mt-0.5 font-['Figtree',Helvetica] text-[var(--shadcn-ui-app-foreground)]">
                             Your backup codes were created before we improved how backup codes are generated and stored. They still work, but a new set gives your account stronger protection. It takes a minute, and your authenticator app keeps working as before.
                         </p>
                         <Button
@@ -35,9 +35,9 @@ export default function LegacyBackupCodesBanner() {
                             size="sm"
                             data-testid="legacy-backup-codes-banner-regenerate"
                             onClick={() => setRegenerating(true)}
-                            className="mt-3 h-auto min-h-11 lg:min-h-8 w-full sm:w-auto bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
+                            className="mt-3 h-auto min-h-11 lg:min-h-8 w-full sm:w-auto bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-800)] hover:text-[var(--tailwind-colors-rdns-600)]"
                         >
-                            Regenerate backup codes
+                            <span className="text-sm break-words">Regenerate backup codes</span>
                         </Button>
                     </div>
                     <button
