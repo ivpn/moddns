@@ -69,8 +69,10 @@ test.describe('2FA login', { tag: '@desktop' }, () => {
     });
 
     await submitPasswordLogin(page);
+    await page.getByTestId('input-otp-mode-toggle').click();
     // Phone keyboards must not autocorrect or capitalise a typed code.
     const otpInput = page.getByTestId('input-otp');
+    await expect(otpInput).toHaveAttribute('inputmode', 'text');
     await expect(otpInput).toHaveAttribute('autocorrect', 'off');
     await expect(otpInput).toHaveAttribute('autocapitalize', 'none');
     await expect(otpInput).toHaveAttribute('spellcheck', 'false');
@@ -107,7 +109,9 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
     await toggle.click();
 
     const input = page.locator('#disable-totp-code');
-    await expect(input).not.toHaveAttribute('inputmode', 'numeric');
+    await expect(input).toHaveAttribute('inputmode', 'numeric');
+    await page.getByTestId('disable-2fa-code-mode-toggle').click();
+    await expect(input).toHaveAttribute('inputmode', 'text');
     await expect(input).toHaveAttribute('autocorrect', 'off');
     await expect(input).toHaveAttribute('autocapitalize', 'none');
     await expect(input).toHaveAttribute('spellcheck', 'false');
@@ -129,6 +133,7 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
 
     await page.goto('/account-preferences');
     await page.getByRole('radio', { name: /^Disable$/ }).first().click();
+    await page.getByTestId('disable-2fa-code-mode-toggle').click();
     await page.locator('#disable-totp-code').fill(formatBackupCode(BACKUP_CODES[2]));
     await page.getByRole('button', { name: /^Disable 2FA$/ }).click();
 
@@ -153,8 +158,10 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
     await page.getByPlaceholder('Confirm password').fill('N3w-Passw0rd-Long!');
     await page.getByRole('button', { name: /^Reset password$/ }).click();
 
-    const input = page.getByPlaceholder('2FA code');
+    await page.getByTestId('reset-password-code-mode-toggle').click();
+    const input = page.getByPlaceholder('Backup code');
     await expect(input).toBeVisible();
+    await expect(input).toHaveAttribute('inputmode', 'text');
     await expect(input).toHaveAttribute('autocorrect', 'off');
     await expect(input).toHaveAttribute('autocapitalize', 'none');
 

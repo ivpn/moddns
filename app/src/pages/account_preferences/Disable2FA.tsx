@@ -5,18 +5,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
 import api from "@/api/api";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/general";
-
-// An authenticator code has 6 digits; a backup code has at least 8 characters
-// and may be entered grouped with hyphens or spaces, which the API ignores.
-const MIN_BACKUP_CODE_LENGTH = 8;
-const MAX_CODE_LENGTH = 64;
 
 interface Disable2FADialogProps {
     open: boolean;
@@ -28,12 +23,14 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
     const [otp, setOtp] = useState("");
     const [loading, setLoading] = useState(false);
     const setAccount = useAppStore(s => s.setAccount);
-    const code = otp.replace(/[\s-]/g, "");
-    const canSubmit = /^\d{6}$/.test(code) || code.length >= MIN_BACKUP_CODE_LENGTH;
+    const [otpValid, setOtpValid] = useState(false);
 
     // Reset OTP every time dialog is opened
     useEffect(() => {
-        if (open) setOtp("");
+        if (open) {
+            setOtp("");
+            setOtpValid(false);
+        }
     }, [open]);
 
     const handleDisable2FA = async () => {
@@ -72,41 +69,17 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                 </DialogHeader>
                 <div className="flex flex-col items-start gap-6 p-6">
                     <p className="text-sm font-normal text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
-                        Enter the 6-digit code from your authenticator app, or one of your backup codes, to disable 2FA for your account.
+                        Enter the 6-digit code from your authenticator app to disable 2FA for your account. If you lost your device, use one of your backup codes instead.
                     </p>
-                    <div className="flex flex-col items-start gap-2 w-full">
-                        <label
-                            htmlFor="disable-totp-code"
-                            className="text-sm font-medium text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Medium',Helvetica]"
-                        >
-                            Authenticator or backup code
-                        </label>
-                        <Input
-                            id="disable-totp-code"
-                            className="h-10 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] rounded-md"
-                            value={otp}
-                            onChange={e => setOtp(e.target.value)}
-                            disabled={loading}
-                            autoFocus
-                            autoComplete="one-time-code"
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            maxLength={MAX_CODE_LENGTH}
-                            onKeyDown={e => {
-                                if (
-                                    e.key === "Enter" &&
-                                    !loading &&
-                                    canSubmit
-                                ) {
-                                    handleDisable2FA();
-                                }
-                            }}
-                        />
-                        <p className="text-sm text-[var(--tailwind-colors-slate-400)] leading-5 font-text-sm-leading-5-normal">
-                            6-digit code or a backup code
-                        </p>
-                    </div>
+                    <TwoFactorCodeInput
+                        id="disable-totp-code"
+                        value={otp}
+                        onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                        onSubmit={() => { if (!loading) handleDisable2FA(); }}
+                        disabled={loading}
+                        autoFocus
+                        data-testid="disable-2fa-code"
+                    />
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 pt-0">
                     <Button
@@ -121,7 +94,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                     <Button
                         size="lg"
                         className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] flex items-center justify-center text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-700)]"
-                        disabled={loading || !canSubmit}
+                        disabled={loading || !otpValid}
                         onClick={handleDisable2FA}
                     >
                         {loading ? (

@@ -8,6 +8,7 @@ import React, { type JSX, useState } from "react";
 import modDNSLogoDarkTheme from "@/assets/logos/modDNS-dark-theme.svg";
 import modDNSLogoLightTheme from "@/assets/logos/modDNS-light-theme.svg";
 import { useTheme } from "@/components/theme-provider";
+import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 
 interface LoginCardProps {
     onLogin?: (email: string, password: string, otp?: string) => void | Promise<void>;
@@ -21,6 +22,7 @@ const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [otp, setOtp] = useState("");
+    const [otpValid, setOtpValid] = useState(false);
     const [isPasskeyMode, setIsPasskeyMode] = useState(initialPasskeyMode);
     const navigate = useNavigate();
     const { theme } = useTheme();
@@ -147,31 +149,24 @@ const LoginCard = ({ onLogin, onPasskeyLogin, loading = false, showOtp = false, 
 
                                 {/* OTP input if 2FA is required */}
                                 {showOtp && (
-                                    <div className="relative w-full">
-                                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--tailwind-colors-slate-400)]" />
-                                        <Input
-                                            data-testid="input-otp"
-                                            type="text"
-                                            placeholder="2FA code"
-                                            autoComplete="one-time-code"
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                            value={otp}
-                                            onChange={(e) => setOtp(e.target.value)}
-                                            maxLength={64}
-                                            className="pl-10 bg-[var(--shadcn-ui-app-muted)] focus:bg-[var(--tailwind-colors-slate-700)] border border-[var(--shadcn-ui-app-border)] text-[var(--shadcn-ui-app-foreground)] placeholder:text-[var(--tailwind-colors-slate-400)] font-normal text-sm rounded-md"
-                                            disabled={loading}
-                                            required
-                                        />
-                                    </div>
+                                    <TwoFactorCodeInput
+                                        id="login-otp"
+                                        variant="compact"
+                                        data-testid="input-otp"
+                                        leadingIcon={<Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[var(--tailwind-colors-slate-400)] z-10 pointer-events-none" />}
+                                        inputClassName="pl-10 bg-[var(--shadcn-ui-app-muted)] focus:bg-[var(--tailwind-colors-slate-700)] border border-[var(--shadcn-ui-app-border)] text-[var(--shadcn-ui-app-foreground)] placeholder:text-[var(--tailwind-colors-slate-400)] font-normal text-sm rounded-md"
+                                        value={otp}
+                                        onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                                        disabled={loading}
+                                        autoFocus
+                                    />
                                 )}
 
                                 <Button
                                     data-testid="btn-login-password-submit"
                                     type="submit"
                                     className="w-full bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-rdns-700)] text-white dark:text-[var(--shadcn-ui-app-background)] font-medium text-sm rounded-md h-auto py-2.5 min-h-11 lg:min-h-0"
-                                    disabled={loading || !email || !password}
+                                    disabled={loading || !email || !password || (showOtp && !otpValid)}
                                 >
                                     {loading ? "Signing in..." : "Sign in"}
                                 </Button>

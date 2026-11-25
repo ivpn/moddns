@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import TwoFactorCodeInput from '@/components/TwoFactorCodeInput';
 import { Label } from '@/components/ui/label';
 import {
     Dialog,
@@ -33,6 +34,7 @@ export default function DeleteAccountDialog({
     const account = useAppStore(s => s.account);
     const [currentPassword, setCurrentPassword] = useState('');
     const [otp, setOtp] = useState('');
+    const [otpValid, setOtpValid] = useState(false);
     const [reauthToken, setReauthToken] = useState<string | null>(null);
     const [reauthStatus, setReauthStatus] = useState<'idle' | 'in-progress' | 'verified' | 'error'>('idle');
     const [deletionCode, setDeletionCode] = useState<string>('');
@@ -72,6 +74,7 @@ export default function DeleteAccountDialog({
     const handleMethodChange = useCallback(() => {
         setCurrentPassword('');
         setOtp('');
+        setOtpValid(false);
         setReauthToken(null);
         setReauthStatus('idle');
         setDeletionCode('');
@@ -101,6 +104,7 @@ export default function DeleteAccountDialog({
             setIsCopied(false);
             setCurrentPassword('');
             setOtp('');
+            setOtpValid(false);
             setReauthToken(null);
             setReauthStatus('idle');
             setHasAttemptedGeneration(false);
@@ -131,7 +135,7 @@ export default function DeleteAccountDialog({
                 toast.error('Current password is required.');
                 return;
             }
-            if (showOtp && !otp.trim()) {
+            if (showOtp && !otpValid) {
                 toast.error('2FA code is required.');
                 return;
             }
@@ -266,6 +270,7 @@ export default function DeleteAccountDialog({
             setIsCopied(false);
             setCurrentPassword('');
             setOtp('');
+            setOtpValid(false);
             setReauthToken(null);
             setReauthStatus('idle');
             setHasAttemptedGeneration(false);
@@ -338,20 +343,12 @@ export default function DeleteAccountDialog({
                     )}
 
                     {showOtp && (
-                        <div className="space-y-2">
-                            <Label htmlFor="otp" className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]">
-                                2FA code
-                            </Label>
-                            <Input
-                                id="otp"
-                                type="text"
-                                value={otp}
-                                onChange={e => setOtp(e.target.value)}
-                                placeholder="6-digit code"
-                                className="bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)]"
-                            />
-                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">Required for password verification when 2FA is enabled.</p>
-                        </div>
+                        <TwoFactorCodeInput
+                            id="otp"
+                            value={otp}
+                            onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                            data-testid="delete-account-code"
+                        />
                     )}
 
                     {isGenerating ? (
@@ -442,7 +439,7 @@ export default function DeleteAccountDialog({
                             isDeleting ||
                             !deletionCode ||
                             !userCode.trim() ||
-                            (method === 'password' && (!currentPassword.trim() || (showOtp && !otp.trim()))) ||
+                            (method === 'password' && (!currentPassword.trim() || (showOtp && !otpValid))) ||
                             (method === 'passkey' && reauthStatus !== 'verified')
                         }
                     >

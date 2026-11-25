@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
 import { PASSWORD_COMPLEXITY_RULES } from '@/lib/consts';
 import { totpErrorMessage } from '@/lib/authToasts';
+import TwoFactorCodeInput from '@/components/TwoFactorCodeInput';
 
 export default function PasswordResetConfirm(): JSX.Element {
     const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function PasswordResetConfirm(): JSX.Element {
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [otp, setOtp] = useState("");
+    const [otpValid, setOtpValid] = useState(false);
     const [showOtp, setShowOtp] = useState(false);
     const [loading, setLoading] = useState(false);
     const { theme } = useTheme();
@@ -37,6 +39,10 @@ export default function PasswordResetConfirm(): JSX.Element {
         }
         if (newPassword !== confirmPassword) {
             toast.error("Passwords do not match.");
+            return;
+        }
+        if (showOtp && !otpValid) {
+            toast.error("Enter a valid 2FA code.");
             return;
         }
         setLoading(true);
@@ -156,20 +162,15 @@ export default function PasswordResetConfirm(): JSX.Element {
                                             </p>
 
                                             {showOtp && (
-                                                <Input
-                                                    type="text"
-                                                    placeholder="2FA code"
-                                                    className="flex items-center gap-2 py-2.5 px-3 w-full bg-[var(--shadcn-ui-app-background)] rounded-[var(--primitives-radius-radius-md)] border-0 text-[var(--shadcn-ui-app-muted-foreground)] font-normal text-sm tracking-[0] leading-6"
+                                                <TwoFactorCodeInput
+                                                    id="reset-password-otp"
+                                                    variant="compact"
+                                                    inputClassName="flex items-center gap-2 py-2.5 px-3 w-full bg-[var(--shadcn-ui-app-background)] rounded-[var(--primitives-radius-radius-md)] border-0 text-[var(--shadcn-ui-app-muted-foreground)] font-normal text-sm tracking-[0] leading-6"
                                                     value={otp}
-                                                    onChange={e => setOtp(e.target.value)}
-                                                    autoComplete="one-time-code"
-                                                    autoCapitalize="none"
-                                                    autoCorrect="off"
-                                                    spellCheck={false}
-                                                    maxLength={64}
+                                                    onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
                                                     autoFocus
                                                     disabled={loading}
-                                                    required
+                                                    data-testid="reset-password-code"
                                                 />
                                             )}
                                         </div>

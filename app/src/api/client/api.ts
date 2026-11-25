@@ -1930,6 +1930,18 @@ export interface ModelTOTPNew {
  */
 export interface ModelTotpSettings {
     /**
+     * BackupCodesLegacy marks a code set of an earlier format, which the account holder should replace.
+     * @type {boolean}
+     * @memberof ModelTotpSettings
+     */
+    'backup_codes_legacy'?: boolean;
+    /**
+     * BackupCodesRemaining is the number of unused backup codes; derived, not stored.
+     * @type {number}
+     * @memberof ModelTotpSettings
+     */
+    'backup_codes_remaining'?: number;
+    /**
      * Indicates if TOTP is enabled.
      * @type {boolean}
      * @memberof ModelTotpSettings
@@ -2876,6 +2888,19 @@ export interface RequestsTotpDisableReq {
 /**
  * 
  * @export
+ * @interface RequestsTotpRegenerateReq
+ */
+export interface RequestsTotpRegenerateReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
+    'otp': string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpReq
  */
 export interface RequestsTotpReq {
@@ -3369,6 +3394,42 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsMfaTotpBackupCodesRegeneratePost: async (body: RequestsTotpRegenerateReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1AccountsMfaTotpBackupCodesRegeneratePost', 'body', body)
+            const localVarPath = `/api/v1/accounts/mfa/totp/backup-codes/regenerate`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Disable TOTP
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
@@ -3635,6 +3696,19 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPBackup>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsMfaTotpBackupCodesRegeneratePost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Disable TOTP
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
@@ -3752,6 +3826,16 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsCurrentGet(options).then((request) => request(axios, basePath));
         },
         /**
+         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPBackup> {
+            return localVarFp.apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Disable TOTP
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
@@ -3854,6 +3938,18 @@ export class AccountApi extends BaseAPI {
      */
     public apiV1AccountsCurrentGet(options?: RawAxiosRequestConfig) {
         return AccountApiFp(this.configuration).apiV1AccountsCurrentGet(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+     * @summary Regenerate TOTP backup codes
+     * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof AccountApi
+     */
+    public apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

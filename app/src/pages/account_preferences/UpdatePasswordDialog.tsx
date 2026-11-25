@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import api from "@/api/api";
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum, type ModelAccountUpdate } from "@/api/client/api";
 import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { beginPasswordSetReauth } from "@/lib/webauthn";
 
 export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }): JSX.Element {
@@ -24,6 +25,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const [loading, setLoading] = useState(false);
     const [closing, setClosing] = useState(false);
     const [otp, setOtp] = useState("");
+    const [otpValid, setOtpValid] = useState(false);
     const [verification, setVerification] = useState<IdentityVerification | null>(null);
     const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
     const account = useAppStore(s => s.account);
@@ -60,8 +62,8 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             return;
         }
 
-        if (is2FAEnabled && !otp) {
-            toast.error('2FA code is required.');
+        if (is2FAEnabled && !otpValid) {
+            toast.error('Enter a valid 2FA code.');
             return;
         }
 
@@ -112,6 +114,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             setClosing(false);
             onOpenChange(false);
             setOtp("");
+            setOtpValid(false);
             setOldPassword("");
             setNewPassword("");
             setConfirmPassword("");
@@ -195,21 +198,14 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
                         />
                     </div>
                     {is2FAEnabled && (
-                        <div className="space-y-2">
-                            <Label htmlFor="otp-code" className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">2FA code</Label>
-                            <Input
-                                id="otp-code"
-                                value={otp}
-                                onChange={e => setOtp(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                        handleSubmit();
-                                    }
-                                }}
-                                className="border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] h-10"
-                            />
-                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">6-digit code</p>
-                        </div>
+                        <TwoFactorCodeInput
+                            id="otp-code"
+                            value={otp}
+                            onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                            onSubmit={handleSubmit}
+                            disabled={loading}
+                            data-testid="update-password-code"
+                        />
                     )}
                     <p className="text-xs text-[var(--tailwind-colors-slate-400)]">After changing your password, you will need to use the new password to log in next time.</p>
                 </div>

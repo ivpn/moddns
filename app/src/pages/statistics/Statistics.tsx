@@ -12,6 +12,7 @@ import { useScreenDetector } from "@/hooks/useScreenDetector";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import { DataCollectionDialog } from "@/components/data-collection/DataCollectionDialog";
 import { fromProfile, type DataCollectionState } from "@/components/data-collection/model";
 import type { InitialFocus } from "@/components/data-collection/DataCollectionControl";
@@ -246,6 +247,7 @@ export default function Statistics({ profiles }: StatisticsProps): JSX.Element {
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <PasskeyVerificationBanner />
+            <LegacyBackupCodesBanner />
             <p className={cn("text-sm md:text-base leading-5 md:leading-6", mutedText)}>
                 An overview of this profile's DNS queries over time.
             </p>
