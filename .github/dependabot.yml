@@ -10,7 +10,8 @@
 #
 # Grouping: minor/patch bumps go into one weekly PR per entry, across all of
 # its directories; major bumps are left out of the group so they still arrive
-# individually and get reviewed on their own.
+# individually and get reviewed on their own. Go modules split this further;
+# see their entry.
 #
 # Go modules are vendored with `go mod vendor` in CI (see go.yml), not
 # committed to git, so a gomod PR needs no extra manual vendoring step.
@@ -67,8 +68,17 @@ updates:
   # local `replace`, and their go.mod must require at least the versions libs/
   # requires (module graph pruning, Go 1.17+); a libs/-only bump would leave
   # them inconsistent and `go mod vendor` fails with "go mod tidy" needed.
-  # `dependency-type: all` lets version updates also raise a consumer's
-  # indirect requirement on a module that libs/ uses directly.
+  #
+  # Version updates cover direct dependencies only (the default); indirect
+  # ones move with the direct dependency that requires them. A dependency
+  # lands in the first version-update group it matches:
+  # - go-core: DNS stack and MongoDB driver, one PR per dependency (patch
+  #   included), so each gets its own proxy benchmarks or migration review.
+  # - go-patch: every other patch bump, one weekly PR.
+  # - go-minor: every other minor bump, one PR per dependency. For v0 modules
+  #   Dependabot counts 0.x -> 0.y as minor, and those often break the API.
+  # `cooldown` waits a week before proposing a new release; security updates
+  # are not delayed.
   - package-ecosystem: "gomod"
     directories:
       - "/libs"
@@ -78,18 +88,29 @@ updates:
       - "/dnscheck"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
-    allow:
-      - dependency-type: "all"
     commit-message:
       prefix: "chore"
       include: "scope"
     groups:
-      go-minor-patch:
-        update-types: ["minor", "patch"]
       go-security:
         applies-to: security-updates
         patterns: ["*"]
+      go-core:
+        patterns:
+          - "github.com/AdguardTeam/*"
+          - "github.com/miekg/dns"
+          - "github.com/quic-go/*"
+          - "go.mongodb.org/mongo-driver*"
+        update-types: ["minor", "patch"]
+        group-by: dependency-name
+      go-patch:
+        update-types: ["patch"]
+      go-minor:
+        update-types: ["minor"]
+        group-by: dependency-name
 
   # --- Frontend (npm) ------------------------------------------------------
   - package-ecosystem: "npm"
