@@ -135,7 +135,7 @@ jobs:
       - name: Test API
         run: cd api/; make test
       - name: golangci-lint - API
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: api
           args: --config ../.github/golangci.yml
@@ -157,7 +157,7 @@ jobs:
       - name: Test Libs
         run: cd libs/; go mod vendor; make test
       - name: golangci-lint - Libs (non-blocking)
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: libs
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -182,7 +182,7 @@ jobs:
       - name: Test Proxy
         run: cd proxy/; make test
       - name: golangci-lint - Proxy (non-blocking)
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: proxy
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -207,7 +207,7 @@ jobs:
       - name: Test Blocklists
         run: cd blocklists/; make test
       - name: golangci-lint - Blocklists (non-blocking)
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: blocklists
           args: --config ../.github/golangci.yml --issues-exit-code=0
@@ -230,7 +230,7 @@ jobs:
       - name: Build DNSCheck
         run: cd dnscheck/; go mod vendor; make build
       - name: golangci-lint - DNSCheck (non-blocking)
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: dnscheck
           args: --config ../.github/golangci.yml --issues-exit-code=0
