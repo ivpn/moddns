@@ -9,6 +9,7 @@ import base64
 import contextlib
 import hashlib
 import hmac
+import json
 import struct
 import time
 
@@ -86,6 +87,24 @@ def _enable_totp(cookie: str) -> tuple[str, list[str]]:
     return new.secret, backup.backup_codes
 
 
+SESSION_LIMIT_ERROR = "maximum number of active sessions reached"
+LOCKOUT_ERROR = "too many failed 2FA attempts, try again later"
+
+
+def _login_error(email: str, password: str, otp: str) -> tuple[int, str | None]:
+    """Login status and the API's error text, so a 429 is told apart from the route rate limit."""
+    with _api() as api_client:
+        try:
+            resp = AuthenticationApi(api_client).api_v1_login_post_with_http_info(
+                RequestsLoginBody(email=email, password=password),
+                x_mfa_code=otp,
+                x_mfa_methods=["totp"],
+            )
+            return resp.status_code, None
+        except ApiException as e:
+            return e.status, json.loads(e.body or "{}").get("error")
+
+
 def _login(email: str, password: str, otp: str) -> int:
     return _login_session(email, password, otp)[0]
 
@@ -101,6 +120,19 @@ def _login_session(email: str, password: str, otp: str) -> tuple[int, str | None
             return resp.status_code, resp.headers.get("Set-Cookie")
         except ApiException as e:
             return e.status, None
+
+
+def _login_removing_sessions(email: str, password: str, otp: str) -> int:
+    with _api() as api_client:
+        try:
+            return AuthenticationApi(api_client).api_v1_login_post_with_http_info(
+                RequestsLoginBody(email=email, password=password),
+                x_mfa_code=otp,
+                x_mfa_methods=["totp"],
+                x_sessions_remove="true",
+            ).status_code
+        except ApiException as e:
+            return e.status
 
 
 def _disable(cookie: str, otp: str) -> int:
@@ -349,6 +381,26 @@ class TestTotpStorage:
         # Used codes are not recorded: the old list is left as it was.
         assert doc.get("backup_codes_used", "missing") == used
 
+    def test_login_at_session_limit_keeps_backup_code(self, fresh_account):
+        """A login refused for the session limit does not use the backup code up,
+        so the same code signs in once other sessions are removed. specRef: A8a, E6."""
+        _, cookie, password, email, state = fresh_account
+        secret, codes = _enable_totp(cookie)
+        state["secret"] = secret
+        # Fill the session limit (API_SESSION_LIMIT, default 10).
+        for _ in range(50):
+            if (result := _login_error(email, password, totp_code(secret)))[0] != 200:
+                break
+        assert result == (429, SESSION_LIMIT_ERROR), "session limit never reached"
+
+        assert _login_error(email, password, codes[0]) == (429, SESSION_LIMIT_ERROR)
+        assert _login_removing_sessions(email, password, codes[0]) == 200
+        assert _login(email, password, codes[0]) == 401, "a backup code is single-use"
+        # Removing the sessions ended the fixture's session too.
+        status, new_cookie = _login_session(email, password, totp_code(secret))
+        assert status == 200 and new_cookie
+        state["cookie"] = new_cookie
+
     def test_failed_attempts_lock_out_valid_codes(self, fresh_account, redis_client):
         """After ID_LIMITER_MAX (default 5) failed attempts every code is refused. specRef: E12."""
         account, cookie, password, email, state = fresh_account
@@ -357,8 +409,8 @@ class TestTotpStorage:
 
         for _ in range(5):
             assert _login(email, password, "000000") == 401
-        assert _login(email, password, totp_code(secret)) == 429
-        assert _login(email, password, codes[0]) == 429
+        assert _login_error(email, password, totp_code(secret)) == (429, LOCKOUT_ERROR)
+        assert _login_error(email, password, codes[0]) == (429, LOCKOUT_ERROR)
 
         # Lockout ends when the counter expires; clear it so cleanup can log in.
         redis_client.delete(f"totp_fails:{account.id}")
