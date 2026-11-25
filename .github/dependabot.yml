@@ -1,23 +1,23 @@
-# Dependabot version updates: weekly grouped PRs per ecosystem and directory.
+# Dependabot version updates: weekly grouped PRs per ecosystem entry.
 #
 # Version updates run as soon as this file is on the default branch (develop).
 # Security updates (PRs for open Dependabot alerts) are a separate repository
 # setting; once it is on, the groups below marked `applies-to:
-# security-updates` bundle those PRs per directory instead of one PR per alert.
+# security-updates` bundle those PRs per entry instead of one PR per alert.
 #
 # Dependabot labels its PRs "dependencies" (plus the ecosystem label) and
 # creates those labels on first use.
 #
-# Grouping: minor/patch bumps go into one weekly PR per directory; major bumps
-# are left out of the group so they still arrive individually and get
-# reviewed on their own.
+# Grouping: minor/patch bumps go into one weekly PR per entry, across all of
+# its directories; major bumps are left out of the group so they still arrive
+# individually and get reviewed on their own.
 #
 # Go modules are vendored with `go mod vendor` in CI (see go.yml), not
 # committed to git, so a gomod PR needs no extra manual vendoring step.
 # api/, proxy/, blocklists/ and dnscheck/ all
-# `replace github.com/ivpn/dns/libs => ../libs`, and go.yml re-runs the full
-# Go suite on a libs/ change, so a libs/ dependency PR is validated against
-# every consumer.
+# `replace github.com/ivpn/dns/libs => ../libs`, so the Go modules share one
+# multi-directory entry (see below) and go.yml re-runs the full Go suite on a
+# libs/ change.
 
 version: 2
 
@@ -62,74 +62,25 @@ updates:
         patterns: ["*"]
 
   # --- Go modules ----------------------------------------------------------
-  # One entry per module, since each is independently versioned with its own
-  # go.sum. Version updates cover direct dependencies only (the Dependabot
-  # default); indirect modules move when their parent is upgraded.
+  # One entry for all five modules, so a grouped PR bumps a shared dependency
+  # in libs/ and in every consumer at once. Consumers build libs/ through a
+  # local `replace`, and their go.mod must require at least the versions libs/
+  # requires (module graph pruning, Go 1.17+); a libs/-only bump would leave
+  # them inconsistent and `go mod vendor` fails with "go mod tidy" needed.
+  # `dependency-type: all` lets version updates also raise a consumer's
+  # indirect requirement on a module that libs/ uses directly.
   - package-ecosystem: "gomod"
-    directory: "/api"
+    directories:
+      - "/libs"
+      - "/api"
+      - "/proxy"
+      - "/blocklists"
+      - "/dnscheck"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      go-minor-patch:
-        update-types: ["minor", "patch"]
-      go-security:
-        applies-to: security-updates
-        patterns: ["*"]
-
-  - package-ecosystem: "gomod"
-    directory: "/proxy"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      go-minor-patch:
-        update-types: ["minor", "patch"]
-      go-security:
-        applies-to: security-updates
-        patterns: ["*"]
-
-  - package-ecosystem: "gomod"
-    directory: "/blocklists"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      go-minor-patch:
-        update-types: ["minor", "patch"]
-      go-security:
-        applies-to: security-updates
-        patterns: ["*"]
-
-  - package-ecosystem: "gomod"
-    directory: "/dnscheck"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    groups:
-      go-minor-patch:
-        update-types: ["minor", "patch"]
-      go-security:
-        applies-to: security-updates
-        patterns: ["*"]
-
-  - package-ecosystem: "gomod"
-    directory: "/libs"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
+    allow:
+      - dependency-type: "all"
     commit-message:
       prefix: "chore"
       include: "scope"
