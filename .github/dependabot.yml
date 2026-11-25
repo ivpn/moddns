@@ -70,10 +70,12 @@ updates:
   # them inconsistent and `go mod vendor` fails with "go mod tidy" needed.
   #
   # Version updates cover direct dependencies only (the default); indirect
-  # ones move with the direct dependency that requires them. A dependency
-  # lands in the first version-update group it matches:
+  # ones move with the direct dependency that requires them. Version-update
+  # groups (keep the go-core patterns in sync in all three):
   # - go-core: DNS stack and MongoDB driver, one PR per dependency (patch
   #   included), so each gets its own proxy benchmarks or migration review.
+  #   Dependabot evaluates `group-by` groups after plain ones, so go-patch and
+  #   go-minor exclude the go-core patterns explicitly.
   # - go-patch: every other patch bump, one weekly PR.
   # - go-minor: every other minor bump, one PR per dependency. For v0 modules
   #   Dependabot counts 0.x -> 0.y as minor, and those often break the API.
@@ -108,9 +110,19 @@ updates:
         group-by: dependency-name
       go-patch:
         update-types: ["patch"]
+        exclude-patterns:
+          - "github.com/AdguardTeam/*"
+          - "github.com/miekg/dns"
+          - "github.com/quic-go/*"
+          - "go.mongodb.org/mongo-driver*"
       go-minor:
         update-types: ["minor"]
         group-by: dependency-name
+        exclude-patterns:
+          - "github.com/AdguardTeam/*"
+          - "github.com/miekg/dns"
+          - "github.com/quic-go/*"
+          - "go.mongodb.org/mongo-driver*"
 
   # --- Frontend (npm) ------------------------------------------------------
   - package-ecosystem: "npm"
