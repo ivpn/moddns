@@ -586,17 +586,34 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 }
 
 // handlePasswordUpdate applies JSON-Patch password operations; every replace must follow a
-// successful test. An account with a password tests it (after the MFA check). An account
-// without one tests a passkey reauth token issued for setting a password, so a session
-// alone cannot add a second sign-in method.
+// successful test. An account with a password tests it, then its 2FA code (as in reauth:
+// without a code the 2FA prompt comes first). An account without one tests a passkey reauth
+// token issued for setting a password, so a session alone cannot add a second sign-in method.
 func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Account, updates []model.AccountUpdate, mfa *model.MfaData) error {
 	hasPassword := acc.Password != nil
-	if hasPassword {
+	if mfa == nil {
+		mfa = &model.MfaData{}
+	}
+	if hasPassword && mfa.OTP == "" {
 		if err := a.MfaCheck(ctx, acc, mfa); err != nil {
 			return err
 		}
 	}
+	// New passwords are checked before the 2FA code, which is checked last and once.
+	for _, upd := range updates {
+		if upd.Operation != model.UpdateOperationReplace {
+			continue
+		}
+		pass, err := cast.ToStringE(upd.Value)
+		if err != nil {
+			return err
+		}
+		if !validator.ValidatePassword(pass) {
+			return ErrPasswordTooSimple
+		}
+	}
 	verified := false
+	codeChecked := false
 	for _, upd := range updates {
 		switch upd.Operation {
 		case model.UpdateOperationTest:
@@ -607,6 +624,12 @@ func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Ac
 				}
 				if !auth.CheckPasswordHash(currPass, *acc.Password) {
 					return ErrInvalidCurrentPassword
+				}
+				if !codeChecked && mfa.OTP != "" {
+					if err := a.MfaCheck(ctx, acc, mfa); err != nil {
+						return err
+					}
+					codeChecked = true
 				}
 			} else if err := a.verifyPasswordSetReauth(ctx, acc, upd.Value); err != nil {
 				return err
@@ -622,9 +645,6 @@ func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Ac
 			pass, err := cast.ToStringE(upd.Value)
 			if err != nil {
 				return err
-			}
-			if ok := validator.ValidatePassword(pass); !ok {
-				return ErrPasswordTooSimple
 			}
 			if err := acc.SetPassword(pass); err != nil {
 				return err

@@ -83,6 +83,21 @@ func (r *totpRepo) DisableTOTP(_ context.Context, id string, proof model.TOTPPro
 	return nil
 }
 
+func (r *totpRepo) GetAccountByEmail(context.Context, string) (*model.Account, error) {
+	return nil, dbErrors.ErrAccountNotFound
+}
+
+// UpdateAccount stores everything but the 2FA state, like the MongoDB
+// implementation (E11).
+func (r *totpRepo) UpdateAccount(_ context.Context, acc *model.Account) (*model.Account, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	stored := *acc
+	stored.MFA = r.accounts[acc.ID.Hex()].MFA
+	r.accounts[acc.ID.Hex()] = stored
+	return acc, nil
+}
+
 func (r *totpRepo) ReplaceBackupCodes(_ context.Context, id string, proof model.TOTPProof, hashes []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -959,4 +974,77 @@ func TestTotpChangesNeedAConvertedRecord(t *testing.T) {
 			})
 		}
 	}
+}
+
+// Each check that needs the current password and a 2FA code checks the
+// password first: a wrong password leaves a backup code unused and is not
+// counted as a failed 2FA attempt. Without a code the 2FA prompt comes first.
+// specRef: api-endpoint-behaviour.md E6, E12
+func TestPasswordIsCheckedBeforeTheCode(t *testing.T) {
+	ctx := context.Background()
+	changes := map[string]func(f *totpFixture, password string, mfa *model.MfaData) error{
+		"update password": func(f *totpFixture, password string, mfa *model.MfaData) error {
+			return f.svc.UpdateAccount(ctx, f.id, []model.AccountUpdate{
+				{Operation: model.UpdateOperationTest, Path: "/password", Value: password},
+				{Operation: model.UpdateOperationReplace, Path: "/password", Value: "N3w-Passw0rd-Long!"},
+			}, mfa)
+		},
+		"change email": func(f *totpFixture, password string, mfa *model.MfaData) error {
+			return f.svc.UpdateAccount(ctx, f.id, []model.AccountUpdate{
+				{Operation: model.UpdateOperationReplace, Path: "/email", Value: map[string]any{"current_password": password, "new_email": "new@example.com"}},
+			}, mfa)
+		},
+	}
+	for name, change := range changes {
+		t.Run(name, func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			_, codes := f.enable(t)
+			f.repo.mu.Lock()
+			acc := f.repo.accounts[f.id]
+			require.NoError(t, acc.SetPassword("Curr3nt-Passw0rd!"))
+			f.repo.accounts[f.id] = acc
+			f.repo.mu.Unlock()
+
+			require.ErrorIs(t, change(f, "wrong", &model.MfaData{}), account.ErrTOTPRequired)
+
+			for range 6 { // past ID_LIMITER_MAX
+				require.Error(t, change(f, "wrong", &model.MfaData{OTP: codes[0]}))
+			}
+			require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 8, "a wrong password uses no code up")
+
+			require.NoError(t, change(f, "Curr3nt-Passw0rd!", &model.MfaData{OTP: codes[0]}), "no 2FA lockout")
+			require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 7)
+		})
+	}
+}
+
+// A password change checks the code once, after every other check: a refused
+// new password leaves a backup code unused, and two test/replace pairs in one
+// request use one code.
+// specRef: api-endpoint-behaviour.md B3a, E6
+func TestPasswordChangeChecksTheCodeOnceAndLast(t *testing.T) {
+	ctx := context.Background()
+	f := newTOTPFixture(t, testStorageKey(1))
+	_, codes := f.enable(t)
+	f.repo.mu.Lock()
+	acc := f.repo.accounts[f.id]
+	require.NoError(t, acc.SetPassword("Curr3nt-Passw0rd!"))
+	f.repo.accounts[f.id] = acc
+	f.repo.mu.Unlock()
+	mfa := &model.MfaData{OTP: codes[0]}
+
+	err := f.svc.UpdateAccount(ctx, f.id, []model.AccountUpdate{
+		{Operation: model.UpdateOperationTest, Path: "/password", Value: "Curr3nt-Passw0rd!"},
+		{Operation: model.UpdateOperationReplace, Path: "/password", Value: "abc"},
+	}, mfa)
+	require.ErrorIs(t, err, account.ErrPasswordTooSimple)
+	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 8)
+
+	require.NoError(t, f.svc.UpdateAccount(ctx, f.id, []model.AccountUpdate{
+		{Operation: model.UpdateOperationTest, Path: "/password", Value: "Curr3nt-Passw0rd!"},
+		{Operation: model.UpdateOperationReplace, Path: "/password", Value: "N3w-Passw0rd-Long!"},
+		{Operation: model.UpdateOperationTest, Path: "/password", Value: "N3w-Passw0rd-Long!"},
+		{Operation: model.UpdateOperationReplace, Path: "/password", Value: "Th1rd-Passw0rd-Long!"},
+	}, mfa))
+	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 7)
 }

@@ -178,21 +178,23 @@ func VerifyOnAccount(ctx context.Context, account *model.Account, verifier MfaVe
 // ReauthToken is set.
 func verifyOnLoadedAccount(ctx context.Context, account *model.Account, verifier MfaVerifier, p Params) error {
 	if p.Password != nil {
-		// MFA check runs BEFORE password verification so a user with the
-		// wrong password but no OTP code receives ErrTOTPRequired rather than
-		// ErrInvalidPassword — matches the established order in
-		// AccountService.DeleteAccount and handleEmailUpdate.
-		if verifier != nil {
-			mfa := p.Mfa
-			if mfa == nil {
-				mfa = &model.MfaData{}
-			}
+		mfa := p.Mfa
+		if mfa == nil {
+			mfa = &model.MfaData{}
+		}
+		// Without a code, the 2FA prompt comes first so the client can ask for
+		// it. A code is checked only after the password, so a wrong password
+		// uses no backup code up and is not counted as a failed 2FA attempt.
+		if verifier != nil && mfa.OTP == "" {
 			if err := verifier.MfaCheck(ctx, account, mfa); err != nil {
 				return err
 			}
 		}
 		if account.Password == nil || !auth.CheckPasswordHash(*p.Password, *account.Password) {
 			return ErrInvalidPassword
+		}
+		if verifier != nil && mfa.OTP != "" {
+			return verifier.MfaCheck(ctx, account, mfa)
 		}
 		return nil
 	}
