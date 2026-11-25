@@ -47,6 +47,7 @@ on:
       - 'proxy/**'
       - 'blocklists/**'
       - 'dnscheck/**'
+      - 'Makefile'
       - '.github/workflows/go.yml'
   pull_request:
     branches: ["main", "develop", "release/*"]
@@ -56,6 +57,7 @@ on:
       - 'proxy/**'
       - 'blocklists/**'
       - 'dnscheck/**'
+      - 'Makefile'
       - '.github/workflows/go.yml'
 
 permissions: read-all
@@ -92,6 +94,26 @@ jobs:
               - 'blocklists/**'
             dnscheck:
               - 'dnscheck/**'
+
+  go-mod-tidy:
+    name: go.mod tidy (all modules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    # Every module, on every run: a libs/ dependency bump must be reflected in
+    # each consumer's go.mod (they `replace` libs locally), not only in libs/.
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@7b8cf10d4e4a01d4992d18a89f4d7dc5a3e6d6f4 # v4
+        with:
+          go-version: "1.26.11"
+          cache-dependency-path: "*/go.sum"
+      - name: Check go.mod/go.sum are tidy
+        run: make tidy_check
 
   api:
     runs-on: ubuntu-latest
