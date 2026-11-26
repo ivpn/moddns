@@ -35,7 +35,7 @@ updates:
     groups:
       actions-minor-patch:
         update-types: ["minor", "patch"]
-      actions-security:
+      actions-deps:
         applies-to: security-updates
         patterns: ["*"]
 
@@ -58,7 +58,7 @@ updates:
     groups:
       docker-minor-patch:
         update-types: ["minor", "patch"]
-      docker-security:
+      docker-deps:
         applies-to: security-updates
         patterns: ["*"]
 
@@ -81,6 +81,14 @@ updates:
   #   Dependabot counts 0.x -> 0.y as minor, and those often break the API.
   # `cooldown` waits a week before proposing a new release; security updates
   # are not delayed.
+  #
+  # Security-update groups: the DNS stack (as in go-core), the MongoDB driver
+  # and Fiber each get their own PR across every module using them; everything
+  # else shares go-deps. Security groups ignore `group-by`, so go-deps excludes
+  # the others by pattern (keep the two lists in sync).
+  # Security updates also bump vulnerable indirect dependencies: `allow`
+  # dependency-type is not applied to them, and no group rule can tell direct
+  # from indirect.
   - package-ecosystem: "gomod"
     directories:
       - "/libs"
@@ -97,9 +105,30 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      go-security:
+      go-adguard:
+        applies-to: security-updates
+        patterns: ["github.com/AdguardTeam/*"]
+      go-miekg-dns:
+        applies-to: security-updates
+        patterns: ["github.com/miekg/dns"]
+      go-quic:
+        applies-to: security-updates
+        patterns: ["github.com/quic-go/*"]
+      go-mongo:
+        applies-to: security-updates
+        patterns: ["go.mongodb.org/mongo-driver*"]
+      go-fiber:
+        applies-to: security-updates
+        patterns: ["github.com/gofiber/fiber*"]
+      go-deps:
         applies-to: security-updates
         patterns: ["*"]
+        exclude-patterns:
+          - "github.com/AdguardTeam/*"
+          - "github.com/miekg/dns"
+          - "github.com/quic-go/*"
+          - "go.mongodb.org/mongo-driver*"
+          - "github.com/gofiber/fiber*"
       go-core:
         patterns:
           - "github.com/AdguardTeam/*"
@@ -136,7 +165,7 @@ updates:
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
-      npm-security:
+      npm-deps:
         applies-to: security-updates
         patterns: ["*"]
 
@@ -156,6 +185,6 @@ updates:
     groups:
       pip-minor-patch:
         update-types: ["minor", "patch"]
-      pip-security:
+      pip-deps:
         applies-to: security-updates
         patterns: ["*"]
