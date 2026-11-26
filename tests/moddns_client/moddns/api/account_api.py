@@ -1144,7 +1144,7 @@ class AccountApi:
     ) -> ModelAccount:
         """Disable TOTP
 
-        Disable TOTP
+        Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
 
         :param body: Disable TOTP request (required)
         :type body: RequestsTotpDisableReq
@@ -1215,7 +1215,7 @@ class AccountApi:
     ) -> ApiResponse[ModelAccount]:
         """Disable TOTP
 
-        Disable TOTP
+        Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
 
         :param body: Disable TOTP request (required)
         :type body: RequestsTotpDisableReq
@@ -1286,7 +1286,7 @@ class AccountApi:
     ) -> RESTResponseType:
         """Disable TOTP
 
-        Disable TOTP
+        Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
 
         :param body: Disable TOTP request (required)
         :type body: RequestsTotpDisableReq
