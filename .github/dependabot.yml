@@ -154,20 +154,50 @@ updates:
           - "go.mongodb.org/mongo-driver*"
 
   # --- Frontend (npm) ------------------------------------------------------
+  # Version-update groups (npm-patch excludes the family patterns; keep them in
+  # sync):
+  # - npm-radix, npm-tailwind: packages released together move together, in
+  #   one PR per family (minor and patch).
+  # - npm-patch: every other patch bump, one weekly PR. axios is excluded, so
+  #   every axios release arrives as its own PR.
+  # - Every other minor bump is left ungrouped, so it arrives as its own PR.
+  #   For 0.x packages Dependabot counts 0.x -> 0.y as minor, and those often
+  #   break the API.
+  # Security-update groups: axios (the generated API client) gets its own PR,
+  # everything else shares npm-deps.
+  # `cooldown` waits a week before proposing a new release; security updates
+  # are not delayed.
   - package-ecosystem: "npm"
     directory: "/app"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore"
       include: "scope"
     groups:
-      npm-minor-patch:
+      npm-radix:
+        patterns: ["@radix-ui/*"]
         update-types: ["minor", "patch"]
+      npm-tailwind:
+        patterns: ["tailwindcss", "@tailwindcss/vite"]
+        update-types: ["minor", "patch"]
+      npm-patch:
+        update-types: ["patch"]
+        exclude-patterns:
+          - "@radix-ui/*"
+          - "tailwindcss"
+          - "@tailwindcss/vite"
+          - "axios"
+      npm-axios:
+        applies-to: security-updates
+        patterns: ["axios"]
       npm-deps:
         applies-to: security-updates
         patterns: ["*"]
+        exclude-patterns: ["axios"]
 
   # --- E2E test tooling (pip) ----------------------------------------------
   # Test-only dependencies, never shipped in an image, but they carry most of
