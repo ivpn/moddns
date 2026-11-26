@@ -2896,7 +2896,19 @@ export interface RequestsTotpRegenerateReq {
      * @type {string}
      * @memberof RequestsTotpRegenerateReq
      */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
     'otp': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
+    'reauth_token'?: string;
 }
 /**
  * 
@@ -3016,7 +3028,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     ProfileImport: 'profile_import',
     PasswordSet: 'password_set',
     PasskeyAdd: 'passkey_add',
-    PasskeyDelete: 'passkey_delete'
+    PasskeyDelete: 'passkey_delete',
+    BackupCodesRegenerate: 'backup_codes_regenerate'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3394,7 +3407,7 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
          * @summary Regenerate TOTP backup codes
          * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
          * @param {*} [options] Override http request option.
@@ -3696,7 +3709,7 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
          * @summary Regenerate TOTP backup codes
          * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
          * @param {*} [options] Override http request option.
@@ -3826,7 +3839,7 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsCurrentGet(options).then((request) => request(axios, basePath));
         },
         /**
-         * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
          * @summary Regenerate TOTP backup codes
          * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
          * @param {*} [options] Override http request option.
@@ -3941,7 +3954,7 @@ export class AccountApi extends BaseAPI {
     }
 
     /**
-     * Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+     * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
      * @summary Regenerate TOTP backup codes
      * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
      * @param {*} [options] Override http request option.

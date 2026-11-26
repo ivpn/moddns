@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { registerMocks } from '../../mocks/registerMocks';
 import { formatBackupCode } from '../../../lib/backupCodes';
+import { installWebAuthnSuccessStub } from '../utils/webauthn';
 
 const NEW_CODES = [
   'GFUKSZ7KZBVPNDNTMWMSHAKR5', 'M5JUDDGRRKJYDYKZUXMQA9XND', 'WMWMWMWMWMWMWMWMWMWMWMWMW', 'Q8PTTJFA62Y5ATFUATQJE2WMU',
@@ -8,11 +9,14 @@ const NEW_CODES = [
 ];
 const LEGACY_CODE = 'LegacyCodeAAAAA1';
 
+const PASSWORD = 'Curr3nt-Passw0rd!';
+
 type Totp = { enabled: boolean; backup_codes_remaining?: number; backup_codes_legacy?: boolean };
+type RegenerateBody = { otp: string; current_password?: string; reauth_token?: string };
 
 /** The account page for an account with 2FA on; /accounts/current answers with the latest `totp`. */
-async function openAccount(page: Page, initial: Totp, regenerate?: { status: number; body: object }) {
-  const state = { totp: initial, sentCode: undefined as string | undefined };
+async function openAccount(page: Page, initial: Totp, regenerate?: { status: number; body: object }, passkeys: object[] = []) {
+  const state = { totp: initial, sentCode: undefined as string | undefined, sent: undefined as RegenerateBody | undefined, reauthPurpose: undefined as string | undefined };
   const account = () => ({ id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: state.totp } });
   await registerMocks(page, { authenticated: true, accountOverride: account() });
   // registerMocks' catch-all answers /accounts/current itself; register the account after it.
@@ -21,9 +25,16 @@ async function openAccount(page: Page, initial: Totp, regenerate?: { status: num
   await page.route('**/api/v1/sub', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
   await page.route('**/api/v1/webauthn/passkeys', route =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(passkeys) }));
+  await page.route('**/api/v1/webauthn/passkey/reauth/begin', route => {
+    state.reauthPurpose = JSON.parse(route.request().postData() ?? '{}').purpose;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ publicKey: { challenge: 'abc', rpId: 'localhost', timeout: 60000, userVerification: 'preferred', allowCredentials: [] } }) });
+  });
+  await page.route('**/api/v1/webauthn/passkey/reauth/finish', route =>
+    route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ reauth_token: 'reauth-token', expires_at: '2027-01-01T00:00:00Z' }) }));
   await page.route('**/api/v1/accounts/mfa/totp/backup-codes/regenerate', route => {
-    state.sentCode = (route.request().postDataJSON() as { otp: string }).otp;
+    state.sent = route.request().postDataJSON() as RegenerateBody;
+    state.sentCode = state.sent.otp;
     const res = regenerate ?? { status: 200, body: { backup_codes: NEW_CODES } };
     if (res.status === 200) state.totp = { enabled: true, backup_codes_remaining: 8, backup_codes_legacy: false };
     return route.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
@@ -47,11 +58,12 @@ test.describe('legacy backup codes', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('regenerate-backup-codes-submit')).toBeDisabled();
 
-    // Lost authenticator: a legacy backup code authorises the new set.
+    // Lost authenticator: the password and a legacy backup code authorise the new set.
+    await dialog.getByLabel('Current password').fill(PASSWORD);
     await dialog.getByTestId('regenerate-backup-codes-code-mode-toggle').click();
     await dialog.getByLabel('Backup code').fill(LEGACY_CODE);
     await dialog.getByTestId('regenerate-backup-codes-submit').click();
-    await expect.poll(() => state.sentCode).toBe(LEGACY_CODE);
+    await expect.poll(() => state.sent).toEqual({ otp: LEGACY_CODE, current_password: PASSWORD });
 
     await expect(dialog.getByTestId('backup-code')).toHaveText(NEW_CODES.map(formatBackupCode));
     // The codes are shown only once: Escape does not close the dialog before Done.
@@ -84,6 +96,7 @@ test.describe('backup codes row', () => {
 
     await page.getByTestId('btn-regenerate-backup-codes').click();
     const dialog = page.getByTestId('regenerate-backup-codes-dialog');
+    await dialog.getByLabel('Current password').fill(PASSWORD);
     const input = dialog.getByLabel('2FA code');
     await expect(input).toHaveAttribute('inputmode', 'numeric');
     await input.fill('123 456');
@@ -102,12 +115,44 @@ test.describe('backup codes row', () => {
     await openAccount(page, { enabled: true, backup_codes_remaining: 5 }, { status: 400, body: { error: 'invalid 2FA code' } });
     await page.getByTestId('btn-regenerate-backup-codes').click({ timeout: 10_000 });
     const dialog = page.getByTestId('regenerate-backup-codes-dialog');
+    await dialog.getByLabel('Current password').fill(PASSWORD);
     await dialog.getByLabel('2FA code').fill('123456');
     await dialog.getByTestId('regenerate-backup-codes-submit').click();
 
     await expect(page.getByText('invalid 2FA code')).toBeVisible();
     await expect(dialog.getByLabel('2FA code')).toBeVisible();
     await expect(page).toHaveURL(/\/account-preferences/);
+  });
+
+  test('asks for the password as well as the code', async ({ page }) => {
+    const state = await openAccount(page, { enabled: true, backup_codes_remaining: 5 });
+    await page.getByTestId('btn-regenerate-backup-codes').click({ timeout: 10_000 });
+    const dialog = page.getByTestId('regenerate-backup-codes-dialog');
+    const submit = dialog.getByTestId('regenerate-backup-codes-submit');
+    await dialog.getByLabel('2FA code').fill('123456');
+    await expect(submit).toBeDisabled();
+    await dialog.getByLabel('2FA code').press('Enter');
+    expect(state.sent).toBeUndefined();
+    await dialog.getByLabel('Current password').fill(PASSWORD);
+    await expect(submit).toBeEnabled();
+    await submit.click();
+    await expect.poll(() => state.sent).toEqual({ otp: '123456', current_password: PASSWORD });
+  });
+
+  // The navigator.credentials stub only takes effect in Chromium.
+  test('a passkey replaces the password, the code is still asked for', { tag: '@desktop' }, async ({ page }) => {
+    await installWebAuthnSuccessStub(page);
+    const state = await openAccount(page, { enabled: true, backup_codes_remaining: 5 }, undefined, [{ id: 'p1', created_at: '2026-01-01T00:00:00Z' }]);
+    await page.getByTestId('btn-regenerate-backup-codes').click({ timeout: 10_000 });
+    const dialog = page.getByTestId('regenerate-backup-codes-dialog');
+    await dialog.getByRole('button', { name: 'Verify with passkey' }).click();
+    await expect(dialog.getByRole('button', { name: 'Passkey verified' })).toBeVisible();
+    await expect(dialog.getByTestId('regenerate-backup-codes-submit')).toBeDisabled();
+    await dialog.getByLabel('2FA code').fill('123456');
+    await dialog.getByTestId('regenerate-backup-codes-submit').click();
+    await expect.poll(() => state.sent).toEqual({ otp: '123456', reauth_token: 'reauth-token' });
+    expect(state.reauthPurpose).toBe('backup_codes_regenerate');
+    await expect(dialog.getByTestId('backup-code')).toHaveCount(8);
   });
 
   test('a malformed code is caught before it is sent', async ({ page }) => {

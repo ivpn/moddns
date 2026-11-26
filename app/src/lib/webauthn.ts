@@ -375,6 +375,14 @@ export async function beginPasskeyDeleteReauth(): Promise<string> {
 }
 
 /**
+ * Begin and finish passkey-based reauthentication for regenerating the 2FA backup codes.
+ * Returns a short-lived reauth token consumed by the regenerate request, which also carries a 2FA code.
+ */
+export async function beginBackupCodesRegenerateReauth(): Promise<string> {
+  return beginReauthForPurpose('backup_codes_regenerate');
+}
+
+/**
  * Begin and finish passkey-based reauthentication for profile import.
  * Returns a short-lived reauth token consumed by the import request payload.
  */

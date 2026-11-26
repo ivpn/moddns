@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/api/api';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BackupCodesView from '@/components/dialogs/BackupCodesView';
-import TwoFactorCodeInput from '@/components/TwoFactorCodeInput';
+import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
 import { totpErrorMessage } from '@/lib/authToasts';
+import { beginBackupCodesRegenerateReauth } from '@/lib/webauthn';
 import { useAppStore } from '@/store/general';
 
 interface RegenerateBackupCodesDialogProps {
@@ -14,22 +15,20 @@ interface RegenerateBackupCodesDialogProps {
     onOpenChange: (open: boolean) => void;
 }
 
-/** Replaces every backup code with a new set (api-endpoint-behaviour E13), confirmed with a 2FA code. */
+/** Replaces every backup code with a new set (api-endpoint-behaviour E13), confirmed with the password or a
+ *  passkey and a 2FA code. */
 export default function RegenerateBackupCodesDialog({ open, onOpenChange }: RegenerateBackupCodesDialogProps) {
-    const [otp, setOtp] = useState('');
-    const [otpValid, setOtpValid] = useState(false);
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
     const [submitting, setSubmitting] = useState(false);
     const [codes, setCodes] = useState<string[] | null>(null);
+    const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
     // The new codes are shown only once: the dialog stays open until the user confirms they saved them.
     const holdOpen = codes !== null;
 
     useEffect(() => {
-        if (open) {
-            setOtp('');
-            setOtpValid(false);
-            setCodes(null);
-        }
+        if (open) setCodes(null);
     }, [open]);
 
     const refreshAccount = async () => {
@@ -42,12 +41,15 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
     };
 
     const regenerate = async () => {
-        if (!otpValid || submitting) return;
+        if (!verification?.otp || submitting) return;
         setSubmitting(true);
         try {
-            const res = await api.Client.accountsApi.apiV1AccountsMfaTotpBackupCodesRegeneratePost({ otp });
+            const res = await api.Client.accountsApi.apiV1AccountsMfaTotpBackupCodesRegeneratePost({
+                otp: verification.otp,
+                current_password: verification.currentPassword,
+                reauth_token: verification.reauthToken,
+            });
             setCodes(res.data.backup_codes ?? []);
-            setOtp('');
             toast.success('New backup codes created. Your old codes no longer work.');
             // Update the banner and the 2FA row behind the dialog now; the old set is already gone.
             void refreshAccount();
@@ -82,14 +84,16 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
                             <DialogDescription className="text-sm font-normal text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
                                 You will get 8 new backup codes. Your current backup codes stop working as soon as the new ones are created. Your authenticator app keeps working as before.
                             </DialogDescription>
-                            <TwoFactorCodeInput
-                                id="regenerate-totp-code"
-                                value={otp}
-                                onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                            <VerifyIdentityFields
+                                account={account ?? null}
+                                open={open}
+                                beginPasskeyReauth={beginBackupCodesRegenerateReauth}
+                                onChange={onVerificationChange}
+                                requireCode
                                 onSubmit={regenerate}
-                                disabled={submitting}
+                                codeTestId="regenerate-backup-codes-code"
                                 autoFocus
-                                data-testid="regenerate-backup-codes-code"
+                                disabled={submitting}
                             />
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
                                 <Button
@@ -105,7 +109,7 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
                                     size="lg"
                                     data-testid="regenerate-backup-codes-submit"
                                     className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)] flex items-center justify-center"
-                                    disabled={!otpValid || submitting}
+                                    disabled={!verification || submitting}
                                     onClick={regenerate}
                                 >
                                     {submitting && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
