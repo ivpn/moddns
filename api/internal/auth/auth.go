@@ -50,6 +50,7 @@ const (
 	TokenTypeReauthPasskeyDelete     string        = "reauth_passkey_delete"          //nolint:gosec
 	TokenTypeReauthBackupCodesRegen  string        = "reauth_backup_codes_regenerate" //nolint:gosec
 	TokenTypeReauthTotpDisable       string        = "reauth_totp_disable"            //nolint:gosec
+	TokenTypeReauthTotpEnable        string        = "reauth_totp_enable"             //nolint:gosec
 	passwordResetTokenLength         int           = 48
 	passwordResetTokenExpiration     time.Duration = time.Hour
 	reauthEmailChangeTokenLength     int           = 48
@@ -70,6 +71,8 @@ const (
 	reauthBackupCodesRegenExpiration time.Duration = time.Minute * 5
 	reauthTotpDisableTokenLength     int           = 48
 	reauthTotpDisableExpiration      time.Duration = time.Minute * 5
+	reauthTotpEnableTokenLength      int           = 48
+	reauthTotpEnableExpiration       time.Duration = time.Minute * 5
 )
 
 // NewToken creates a new token and assigns it an expiration date to it
@@ -107,6 +110,9 @@ func NewToken(tokenType string) (*model.Token, error) {
 	case TokenTypeReauthTotpDisable:
 		expiresAt = time.Now().Add(reauthTotpDisableExpiration)
 		tokenLen = reauthTotpDisableTokenLength
+	case TokenTypeReauthTotpEnable:
+		expiresAt = time.Now().Add(reauthTotpEnableExpiration)
+		tokenLen = reauthTotpEnableTokenLength
 	default:
 		return nil, model.ErrInvalidTokenType
 	}

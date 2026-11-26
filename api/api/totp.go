@@ -12,20 +12,30 @@ import (
 )
 
 // @Summary Enable TOTP
-// @Description Enable TOTP
+// @Description Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
 // @Tags Account
 // @Accept json
 // @Produce json
+// @Param body body requests.TotpEnableReq true "Enable TOTP request"
 // @Success 200 {object} model.TOTPNew
 // @Failure 400 {object} ErrResponse
+// @Failure 401 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/accounts/mfa/totp/enable [post]
 func (s *APIServer) TotpEnable() fiber.Handler {
 	handler := func(c *fiber.Ctx) error {
-		accountId := auth.GetAccountID(c)
-		totp, err := s.Service.TotpEnable(c.UserContext(), accountId)
+		p := new(requests.TotpEnableReq)
+		if err := c.BodyParser(p); err != nil {
+			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+
+		errMsgs := s.Validator.ValidateRequest(c, p, ErrFailedToEnable2FA.Error())
+		if len(errMsgs) > 0 {
+			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
+		}
+		totp, err := s.Service.TotpEnable(c.UserContext(), auth.GetAccountID(c), *p)
 		if err != nil {
-			return HandleError(c, err, ErrFailedToEnable2FA.Error())
+			return handleSessionTotpError(c, err, ErrFailedToEnable2FA.Error())
 		}
 
 		return c.Status(200).JSON(totp)

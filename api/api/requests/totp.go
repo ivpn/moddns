@@ -6,6 +6,13 @@ type TotpReq struct {
 	OTP string `json:"otp" validate:"required,min=6,max=16"`
 }
 
+// TotpEnableReq verifies the account owner before 2FA set-up starts: exactly
+// one of the current password or a passkey reauth token of purpose totp_enable.
+type TotpEnableReq struct {
+	CurrentPassword *string `json:"current_password" validate:"excluded_with=ReauthToken,omitempty,min=1"`
+	ReauthToken     *string `json:"reauth_token" validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+}
+
 // TotpDisableReq takes an authenticator code or a backup code, which may be
 // entered grouped with hyphens or spaces, and exactly one of the current
 // password or a passkey reauth token of purpose totp_disable.

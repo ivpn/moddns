@@ -4454,8 +4454,8 @@ func (_c *Servicer_TotpDisable_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // TotpEnable provides a mock function for the type Servicer
-func (_mock *Servicer) TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error) {
-	ret := _mock.Called(ctx, accountId)
+func (_mock *Servicer) TotpEnable(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error) {
+	ret := _mock.Called(ctx, accountId, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TotpEnable")
@@ -4463,18 +4463,18 @@ func (_mock *Servicer) TotpEnable(ctx context.Context, accountId string) (*model
 
 	var r0 *model.TOTPNew
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*model.TOTPNew, error)); ok {
-		return returnFunc(ctx, accountId)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.TotpEnableReq) (*model.TOTPNew, error)); ok {
+		return returnFunc(ctx, accountId, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *model.TOTPNew); ok {
-		r0 = returnFunc(ctx, accountId)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.TotpEnableReq) *model.TOTPNew); ok {
+		r0 = returnFunc(ctx, accountId, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.TOTPNew)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, accountId)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, requests.TotpEnableReq) error); ok {
+		r1 = returnFunc(ctx, accountId, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4489,11 +4489,12 @@ type Servicer_TotpEnable_Call struct {
 // TotpEnable is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountId string
-func (_e *Servicer_Expecter) TotpEnable(ctx interface{}, accountId interface{}) *Servicer_TotpEnable_Call {
-	return &Servicer_TotpEnable_Call{Call: _e.mock.On("TotpEnable", ctx, accountId)}
+//   - req requests.TotpEnableReq
+func (_e *Servicer_Expecter) TotpEnable(ctx interface{}, accountId interface{}, req interface{}) *Servicer_TotpEnable_Call {
+	return &Servicer_TotpEnable_Call{Call: _e.mock.On("TotpEnable", ctx, accountId, req)}
 }
 
-func (_c *Servicer_TotpEnable_Call) Run(run func(ctx context.Context, accountId string)) *Servicer_TotpEnable_Call {
+func (_c *Servicer_TotpEnable_Call) Run(run func(ctx context.Context, accountId string, req requests.TotpEnableReq)) *Servicer_TotpEnable_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4503,9 +4504,14 @@ func (_c *Servicer_TotpEnable_Call) Run(run func(ctx context.Context, accountId 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 requests.TotpEnableReq
+		if args[2] != nil {
+			arg2 = args[2].(requests.TotpEnableReq)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -4516,7 +4522,7 @@ func (_c *Servicer_TotpEnable_Call) Return(tOTPNew *model.TOTPNew, err error) *S
 	return _c
 }
 
-func (_c *Servicer_TotpEnable_Call) RunAndReturn(run func(ctx context.Context, accountId string) (*model.TOTPNew, error)) *Servicer_TotpEnable_Call {
+func (_c *Servicer_TotpEnable_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error)) *Servicer_TotpEnable_Call {
 	_c.Call.Return(run)
 	return _c
 }

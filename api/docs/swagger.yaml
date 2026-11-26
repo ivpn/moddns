@@ -1572,6 +1572,15 @@ definitions:
     required:
     - otp
     type: object
+  requests.TotpEnableReq:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      reauth_token:
+        minLength: 1
+        type: string
+    type: object
   requests.TotpRegenerateReq:
     properties:
       current_password:
@@ -1647,6 +1656,7 @@ definitions:
         - passkey_delete
         - backup_codes_regenerate
         - totp_disable
+        - totp_enable
         type: string
     required:
     - purpose
@@ -2055,7 +2065,16 @@ paths:
     post:
       consumes:
       - application/json
-      description: Enable TOTP
+      description: Start 2FA set-up and return a new secret. The account owner is
+        verified first with the current password or a passkey reauth token issued
+        for the totp_enable purpose. Set-up completes with enable/confirm.
+      parameters:
+      - description: Enable TOTP request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.TotpEnableReq'
       produces:
       - application/json
       responses:
@@ -2065,6 +2084,10 @@ paths:
             $ref: '#/definitions/model.TOTPNew'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "500":

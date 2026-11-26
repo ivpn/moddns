@@ -412,7 +412,7 @@ const docTemplate = `{
         },
         "/api/v1/accounts/mfa/totp/enable": {
             "post": {
-                "description": "Enable TOTP",
+                "description": "Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.",
                 "consumes": [
                     "application/json"
                 ],
@@ -423,6 +423,17 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "Enable TOTP",
+                "parameters": [
+                    {
+                        "description": "Enable TOTP request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.TotpEnableReq"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -432,6 +443,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -5625,6 +5642,19 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.TotpEnableReq": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.TotpRegenerateReq": {
             "type": "object",
             "required": [
@@ -5730,7 +5760,8 @@ const docTemplate = `{
                         "passkey_add",
                         "passkey_delete",
                         "backup_codes_regenerate",
-                        "totp_disable"
+                        "totp_disable",
+                        "totp_enable"
                     ]
                 }
             }

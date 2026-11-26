@@ -16,6 +16,7 @@ import (
 	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
 )
 
@@ -48,8 +49,11 @@ func (a *AccountService) keeper() (*totpcrypt.Keeper, error) {
 	return a.totpKeeper, nil
 }
 
-// TotpEnable enables TOTP for the given account
-func (a *AccountService) TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error) {
+// TotpEnable starts 2FA set-up once the account owner is verified with the
+// current password or a passkey reauth token of purpose totp_enable. Binding a
+// new authenticator needs more than the session (NIST SP 800-63B-4 §4).
+// TotpConfirm completes set-up only for the secret issued here.
+func (a *AccountService) TotpEnable(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error) {
 	keeper, err := a.keeper()
 	if err != nil {
 		return nil, err
@@ -57,6 +61,23 @@ func (a *AccountService) TotpEnable(ctx context.Context, accountId string) (*mod
 	acc, err := a.AccountRepository.GetAccountById(ctx, accountId)
 	if err != nil {
 		return nil, err
+	}
+	// Checked before the reauth: with 2FA on, a password must not be checked
+	// without the code, and a passkey token must not be used up for nothing.
+	if acc.MFA.TOTP.Enabled {
+		return nil, ErrTOTPAlreadyConfigured
+	}
+	if err = reauth.VerifyOnAccount(ctx, acc, nil, reauth.Params{
+		TokenType:   auth.TokenTypeReauthTotpEnable,
+		Password:    req.CurrentPassword,
+		ReauthToken: req.ReauthToken,
+	}); err != nil {
+		return nil, err
+	}
+	if req.ReauthToken != nil {
+		if _, err = a.AccountRepository.UpdateAccount(ctx, acc); err != nil {
+			return nil, err
+		}
 	}
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "modDNS",
@@ -93,6 +114,9 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 		return nil, err
 	}
 	pending, err := a.Cache.GetTOTPSecret(ctx, accountId)
+	if errors.Is(err, redis.Nil) {
+		return nil, ErrTOTPSetupNotStarted
+	}
 	if err != nil {
 		return nil, err
 	}

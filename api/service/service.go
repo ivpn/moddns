@@ -144,7 +144,7 @@ type AccountServicer interface {
 	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error)
 	SendResetPasswordEmail(ctx context.Context, email string) error
 	VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error
-	TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error)
+	TotpEnable(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error)
 	TotpConfirm(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error)
 	TotpDisable(ctx context.Context, accountId string, req requests.TotpDisableReq) (*model.Account, error)
 	TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error)

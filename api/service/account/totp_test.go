@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
@@ -175,7 +176,7 @@ func (c *totpCache) GetTOTPSecret(_ context.Context, id string) (string, error) 
 	defer c.mu.Unlock()
 	v, ok := c.data["totp:"+id]
 	if !ok {
-		return "", errors.New("redis: nil")
+		return "", redis.Nil
 	}
 	return v, nil
 }
@@ -258,6 +259,12 @@ func (f *totpFixture) regenerate(otp string) requests.TotpRegenerateReq {
 	return requests.TotpRegenerateReq{OTP: otp, CurrentPassword: &password}
 }
 
+// enableReq is a set-up request verified with the current password.
+func (f *totpFixture) enableReq() requests.TotpEnableReq {
+	password := testPassword
+	return requests.TotpEnableReq{CurrentPassword: &password}
+}
+
 // disable is a disable request verified with the current password.
 func (f *totpFixture) disable(otp string) requests.TotpDisableReq {
 	password := testPassword
@@ -270,7 +277,7 @@ func testStorageKey(fill byte) []byte { return bytes.Repeat([]byte{fill}, totpcr
 func (f *totpFixture) enable(t *testing.T) (string, []string) {
 	t.Helper()
 	ctx := context.Background()
-	newTOTP, err := f.svc.TotpEnable(ctx, f.id)
+	newTOTP, err := f.svc.TotpEnable(ctx, f.id, f.enableReq())
 	require.NoError(t, err)
 	code, err := totp.GenerateCode(newTOTP.Secret, time.Now())
 	require.NoError(t, err)
@@ -290,7 +297,7 @@ func (f *totpFixture) setLegacy(totpSettings model.TotpSettings) {
 // specRef: api-endpoint-behaviour.md E4
 func TestTotpEnable_PendingSecretIsSealed(t *testing.T) {
 	f := newTOTPFixture(t, testStorageKey(1))
-	newTOTP, err := f.svc.TotpEnable(context.Background(), f.id)
+	newTOTP, err := f.svc.TotpEnable(context.Background(), f.id, f.enableReq())
 	require.NoError(t, err)
 	require.NotEmpty(t, newTOTP.Secret)
 
@@ -355,7 +362,7 @@ func TestTotpConfirm_SeparatedCode(t *testing.T) {
 	for _, sep := range []string{" ", "-"} {
 		t.Run(strconv.Quote(sep), func(t *testing.T) {
 			f := newTOTPFixture(t, testStorageKey(1))
-			newTOTP, err := f.svc.TotpEnable(context.Background(), f.id)
+			newTOTP, err := f.svc.TotpEnable(context.Background(), f.id, f.enableReq())
 			require.NoError(t, err)
 			code, err := totp.GenerateCode(newTOTP.Secret, time.Now())
 			require.NoError(t, err)
@@ -370,7 +377,7 @@ func TestTotpConfirm_SeparatedCode(t *testing.T) {
 // specRef: api-endpoint-behaviour.md E2
 func TestTotpConfirm_ConcurrentEnableReportsAlreadyConfigured(t *testing.T) {
 	f := newTOTPFixture(t, testStorageKey(1))
-	newTOTP, err := f.svc.TotpEnable(context.Background(), f.id)
+	newTOTP, err := f.svc.TotpEnable(context.Background(), f.id, f.enableReq())
 	require.NoError(t, err)
 	f.repo.enableErr = dbErrors.ErrTOTPStateChanged
 	code, err := totp.GenerateCode(newTOTP.Secret, time.Now())
@@ -639,7 +646,7 @@ func TestTotpDisable_RemovesAllMaterial(t *testing.T) {
 // specRef: api-endpoint-behaviour.md E10
 func TestTotpWithoutStorageKeyFailsClosed(t *testing.T) {
 	f := newTOTPFixture(t, nil)
-	_, err := f.svc.TotpEnable(context.Background(), f.id)
+	_, err := f.svc.TotpEnable(context.Background(), f.id, f.enableReq())
 	require.Error(t, err)
 	require.Empty(t, f.cache.data)
 }
@@ -717,7 +724,7 @@ func TestVerifyTotp_SuccessResetsFailureCount(t *testing.T) {
 func TestTotpConfirm_LockoutRefusesValidCode(t *testing.T) {
 	ctx := context.Background()
 	f := newTOTPFixture(t, testStorageKey(1))
-	newTOTP, err := f.svc.TotpEnable(ctx, f.id)
+	newTOTP, err := f.svc.TotpEnable(ctx, f.id, f.enableReq())
 	require.NoError(t, err)
 
 	for range 5 {
@@ -737,9 +744,9 @@ func TestTotpConfirm_Errors(t *testing.T) {
 	f := newTOTPFixture(t, testStorageKey(1))
 
 	_, err := f.svc.TotpConfirm(ctx, f.id, "123456")
-	require.Error(t, err, "no enrolment in progress")
+	require.ErrorIs(t, err, account.ErrTOTPSetupNotStarted)
 
-	_, err = f.svc.TotpEnable(ctx, f.id)
+	_, err = f.svc.TotpEnable(ctx, f.id, f.enableReq())
 	require.NoError(t, err)
 	_, err = f.svc.TotpConfirm(ctx, f.id, "000000")
 	require.ErrorIs(t, err, account.ErrIncorrectOTP)
@@ -747,8 +754,9 @@ func TestTotpConfirm_Errors(t *testing.T) {
 	require.False(t, f.repo.stored(f.id).Enabled)
 
 	f.enable(t)
-	_, err = f.svc.TotpEnable(ctx, f.id)
-	require.NoError(t, err)
+	_, err = f.svc.TotpEnable(ctx, f.id, f.enableReq())
+	require.ErrorIs(t, err, account.ErrTOTPAlreadyConfigured)
+	f.cache.data["totp:"+f.id] = "pending"
 	_, err = f.svc.TotpConfirm(ctx, f.id, "000000")
 	require.ErrorIs(t, err, account.ErrTOTPAlreadyConfigured)
 }
@@ -1148,6 +1156,66 @@ func TestTotpChangesNeedReauth(t *testing.T) {
 		})
 	}
 }
+
+// Set-up starts only after the account owner is verified with the current
+// password or a single-use passkey reauth token of purpose totp_enable. A
+// refused reauth issues no secret. specRef: api-endpoint-behaviour.md E1
+func TestTotpEnableNeedsReauth(t *testing.T) {
+	ctx := context.Background()
+	wrong, tokenValue := "wrong-password", "reauth-token"
+	token := func(tokenType string, expiresIn time.Duration) model.Token {
+		return model.Token{Type: tokenType, Value: tokenValue, ExpiresAt: time.Now().Add(expiresIn)}
+	}
+	refusals := map[string]struct {
+		req    requests.TotpEnableReq
+		stored *model.Token
+		err    error
+	}{
+		"no reauth":                {err: reauth.ErrMissingAuthMethod},
+		"wrong password":           {req: requests.TotpEnableReq{CurrentPassword: &wrong}, err: reauth.ErrInvalidPassword},
+		"token of another purpose": {req: requests.TotpEnableReq{ReauthToken: &tokenValue}, stored: ptr(token(auth.TokenTypeReauthTotpDisable, time.Minute)), err: reauth.ErrInvalidReauthToken},
+		"expired token":            {req: requests.TotpEnableReq{ReauthToken: &tokenValue}, stored: ptr(token(auth.TokenTypeReauthTotpEnable, -time.Minute)), err: reauth.ErrReauthTokenExpired},
+	}
+	for name, tc := range refusals {
+		t.Run(name, func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			if tc.stored != nil {
+				f.addToken(*tc.stored)
+			}
+			_, err := f.svc.TotpEnable(ctx, f.id, tc.req)
+			require.ErrorIs(t, err, tc.err)
+			require.Empty(t, f.cache.data, "no secret issued")
+		})
+	}
+
+	t.Run("2FA already on: refused before the reauth", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		f.enable(t)
+		f.addToken(token(auth.TokenTypeReauthTotpEnable, time.Minute))
+		before := f.repo.stored(f.id)
+		_, err := f.svc.TotpEnable(ctx, f.id, requests.TotpEnableReq{CurrentPassword: &wrong})
+		require.ErrorIs(t, err, account.ErrTOTPAlreadyConfigured, "the password is not checked without the code")
+		_, err = f.svc.TotpEnable(ctx, f.id, requests.TotpEnableReq{ReauthToken: &tokenValue})
+		require.ErrorIs(t, err, account.ErrTOTPAlreadyConfigured)
+		require.Equal(t, before, f.repo.stored(f.id))
+		f.repo.mu.Lock()
+		defer f.repo.mu.Unlock()
+		require.Len(t, f.repo.accounts[f.id].Tokens, 1, "the passkey token is not used up")
+	})
+
+	t.Run("passkey reauth token", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		f.addToken(token(auth.TokenTypeReauthTotpEnable, time.Minute))
+		req := requests.TotpEnableReq{ReauthToken: &tokenValue}
+		newTOTP, err := f.svc.TotpEnable(ctx, f.id, req)
+		require.NoError(t, err)
+		require.NotEmpty(t, newTOTP.Secret)
+		_, err = f.svc.TotpEnable(ctx, f.id, req)
+		require.ErrorIs(t, err, reauth.ErrInvalidReauthToken, "the token is single-use")
+	})
+}
+
+func ptr[T any](v T) *T { return &v }
 
 func (f *totpFixture) addToken(token model.Token) {
 	f.repo.mu.Lock()
