@@ -14,6 +14,7 @@ import struct
 import time
 
 import pytest
+import requests
 from bson import ObjectId
 from moddns import ApiClient, Configuration
 from moddns.api.account_api import AccountApi
@@ -599,6 +600,45 @@ class TestTotpEnableNeedsReauth:
             assert _start_enable(cookie, reauth_token=token) == (400, None), "the token is single-use"
         finally:
             passkeys.delete_passkey_account(user)
+
+
+def _reauth_request(method: str, path: str, cookie: str, body: dict, otp: str) -> int:
+    resp = requests.request(method, f"{get_settings().DNS_API_ADDR}{path}", json=body, timeout=30,
+                            headers={"Cookie": cookie, "x-mfa-code": otp, "x-mfa-methods": "totp"})
+    return resp.status_code
+
+
+def _signed_in(cookie: str) -> bool:
+    resp = requests.get(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/current", headers={"Cookie": cookie}, timeout=30)
+    return resp.status_code == 200
+
+
+def _deletion_code(cookie: str) -> str:
+    resp = requests.post(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/current/deletion-code", json={},
+                         headers={"Cookie": cookie}, timeout=30)
+    return resp.json()["code"]
+
+
+REAUTH_OPERATIONS = {
+    "profile export": ("POST", "/api/v1/profiles/export", lambda pw, _: {"scope": "all", "current_password": pw}),
+    "email change": ("PATCH", "/api/v1/accounts", lambda pw, _: {"updates": [{"operation": "replace", "path": "/email", "value": {"current_password": pw, "new_email": "changed@example.com"}}]}),
+    "passkey add": ("POST", "/api/v1/webauthn/passkey/add/begin", lambda pw, _: {"current_password": pw}),
+    "account deletion": ("DELETE", "/api/v1/accounts/current", lambda pw, cookie: {"deletion_code": _deletion_code(cookie), "current_password": pw}),
+    "sessions": ("DELETE", "/api/v1/sessions", lambda pw, _: {"current_password": pw}),
+}
+
+
+@pytest.mark.parametrize("operation", REAUTH_OPERATIONS)
+def test_wrong_code_in_reauth_keeps_the_session(fresh_account, operation):
+    """A wrong 2FA code with the right password is a refused request on a valid
+    session: 400, and the session still works. specRef: E6, F5."""
+    _, cookie, _, _, state = fresh_account
+    state["secret"], _ = _enable_totp(cookie, state["password"])
+    code = totp_code(state["secret"])
+    wrong = f"{(int(code) + 1) % 1_000_000:06d}"
+    method, path, body = REAUTH_OPERATIONS[operation]
+    assert _reauth_request(method, path, cookie, body(state["password"], cookie), wrong) == 400
+    assert _signed_in(cookie)
 
 
 class TestTotpChangesWithPasskeyReauth:
