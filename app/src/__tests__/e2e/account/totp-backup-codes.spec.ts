@@ -151,7 +151,7 @@ test.describe('2FA login', { tag: '@desktop' }, () => {
       if (attempt === 1) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
       }
-      sentCode = route.request().headers()['x-mfa-code'];
+      sentCode = (route.request().postDataJSON() as { otp?: string }).otp;
       return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'invalid 2FA code' }) });
     });
 
@@ -273,7 +273,7 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
   test('password reset accepts a grouped backup code', async ({ page }) => {
     let sentCode: string | undefined;
     await page.route('**/api/v1/verify/reset-password', route => {
-      const code = route.request().headers()['x-mfa-code'];
+      const code = (route.request().postDataJSON() as { otp?: string }).otp;
       if (!code) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
       }
@@ -303,7 +303,7 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
 
   test('password reset reports a wrong 2FA code', async ({ page }) => {
     await page.route('**/api/v1/verify/reset-password', route => {
-      const code = route.request().headers()['x-mfa-code'];
+      const code = (route.request().postDataJSON() as { otp?: string }).otp;
       const error = code ? 'invalid 2FA code' : 'TOTP is required';
       return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error }) });
     });
@@ -352,7 +352,7 @@ test.describe('refused 2FA codes', { tag: '@desktop' }, () => {
 
   test('password reset: lockout', async ({ page }) => {
     await page.route('**/api/v1/verify/reset-password', route => {
-      if (!route.request().headers()['x-mfa-code']) {
+      if (!(route.request().postDataJSON() as { otp?: string }).otp) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
       }
       return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify(LOCKOUT) });

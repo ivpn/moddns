@@ -16,7 +16,7 @@ import { AuthContext } from '@/App';
 import { useAppStore } from '@/store/general';
 import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
 import { useIdentityVerification } from '@/hooks/useIdentityVerification';
-import { beginAccountDeletionReauth, verificationHeaders } from '@/lib/webauthn';
+import { beginAccountDeletionReauth, verificationBody } from '@/lib/webauthn';
 import { totpErrorMessage } from '@/lib/authToasts';
 import type { RequestsAccountDeletionRequest } from '@/api/client/api';
 
@@ -94,13 +94,12 @@ export default function DeleteAccountDialog({
 
         const payload: RequestsAccountDeletionRequest = {
             deletion_code: userCode.trim(),
-            current_password: verification.currentPassword,
-            reauth_token: verification.reauthToken,
+            ...verificationBody(verification),
         };
 
         setIsDeleting(true);
         try {
-            await API.Client.accountsApi.apiV1AccountsCurrentDelete(payload, { headers: verificationHeaders(verification) });
+            await API.Client.accountsApi.apiV1AccountsCurrentDelete(payload);
             onOpenChange(false);
             auth?.logout('Account deleted.', 'info');
         } catch (err) {

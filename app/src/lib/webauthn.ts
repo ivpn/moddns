@@ -180,18 +180,12 @@ export async function authenticateWithPasskey(
 const ALREADY_HOLDS_PASSKEY =
   "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
 
-/** Request body and MFA header arguments carrying a completed identity verification. */
-export function verificationRequest(verification: IdentityVerification) {
-  const body = verification.reauthToken
+/** The request body fields of a completed identity verification: a passkey reauth token, or the
+ *  current password with the 2FA code when 2FA is on. */
+export function verificationBody(verification: IdentityVerification): { reauth_token?: string; current_password?: string; otp?: string } {
+  return verification.reauthToken
     ? { reauth_token: verification.reauthToken }
-    : { current_password: verification.currentPassword };
-  const mfa: [string?, string[]?] = verification.otp ? [verification.otp, ['totp']] : [];
-  return { body, mfa };
-}
-
-/** The x-mfa-code headers of a reauth-gated call whose client method takes no MFA arguments. */
-export function verificationHeaders(verification: IdentityVerification): Record<string, string> {
-  return verification.otp ? { 'x-mfa-code': verification.otp, 'x-mfa-methods': 'totp' } : {};
+    : { current_password: verification.currentPassword, otp: verification.otp };
 }
 
 /**
@@ -199,8 +193,7 @@ export function verificationHeaders(verification: IdentityVerification): Record<
  * or a passkey reauth token for passkey_delete.
  */
 export async function deletePasskey(id: string, verification: IdentityVerification): Promise<void> {
-  const { body, mfa } = verificationRequest(verification);
-  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, body, ...mfa);
+  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, verificationBody(verification));
 }
 
 /**
@@ -215,8 +208,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Begin WebAuthn add passkey process
-    const { body, mfa } = verificationRequest(verification);
-    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, ...mfa);
+    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(verificationBody(verification));
     
     const options = beginResponse.data;
 

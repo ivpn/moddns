@@ -13,7 +13,7 @@ import { useState, type JSX } from "react";
 import api from "@/api/api";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
-import { beginSessionsDeleteReauth, verificationRequest } from "@/lib/webauthn";
+import { beginSessionsDeleteReauth, verificationBody } from "@/lib/webauthn";
 import { useAppStore } from "@/store/general";
 
 interface DeleteSessionsProps {
@@ -33,8 +33,7 @@ export default function DeleteSessionsDialog({
         if (!verification || loading) return;
         setLoading(true);
         try {
-            const { body, mfa } = verificationRequest(verification);
-            await api.Client.sessionsApi.apiV1SessionsDelete(body, ...mfa);
+            await api.Client.sessionsApi.apiV1SessionsDelete(verificationBody(verification));
             toast.success("All other sessions have been logged out.");
             onOpenChange(false);
         } catch (e: unknown) {

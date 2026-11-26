@@ -92,9 +92,9 @@ describe('UpdatePasswordDialog', () => {
         await waitFor(() => {
             expect(patchMock).toHaveBeenCalledTimes(1);
             const call = patchMock.mock.calls[0];
-            // With 2FA enabled, patch is called with payload, otp, providers array
-            expect(call[1]).toBe('654321');
-            expect(Array.isArray(call[2])).toBe(true);
+            // With 2FA enabled, the code goes in the body next to the updates.
+            expect(call[0].otp).toBe('654321');
+            expect(call).toHaveLength(1);
         });
     });
 

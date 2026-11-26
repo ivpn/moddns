@@ -50,9 +50,9 @@ export default function PasswordResetConfirm(): JSX.Element {
             const data = {
                 token,
                 new_password: newPassword,
+                otp: otp || undefined,
             };
-            const mfaMethods = ["totp"];
-            await api.Client.verificationApi.apiV1VerifyResetPasswordPost(data, otp, mfaMethods);
+            await api.Client.verificationApi.apiV1VerifyResetPasswordPost(data);
             navigate("/login", {
                 state: { passwordResetSuccess: true }
             });

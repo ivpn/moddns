@@ -88,14 +88,13 @@ export default function Login() {
                 // Regular login - use existing logic
                 const data = {
                     email: pendingEmail,
-                    password: pendingPassword
+                    password: pendingPassword,
+                    otp: pendingOtp,
                 };
 
                 // Try login again with session removal header set to "true"
                 const response = await api.Client.authApi.apiV1LoginPost(
                     data,
-                    pendingOtp,
-                    pendingOtp ? ["totp"] : undefined,
                     "true"     // xRemoveSessions
                 );
 
@@ -151,15 +150,12 @@ export default function Login() {
         setLoading(true);
         setError(null);
 
-        const data = { email, password };
-        const mfaMethods = ["totp"];
+        const data = { email, password, otp };
         const xRemoveSessions = "false";
 
         try {
             const response = await api.Client.authApi.apiV1LoginPost(
                 data,
-                otp,
-                mfaMethods,
                 xRemoveSessions
             );
 

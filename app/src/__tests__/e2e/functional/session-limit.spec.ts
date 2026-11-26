@@ -56,8 +56,9 @@ test.describe('Session limit with 2FA', () => {
     await page.route(/\/api\/v1\/login(\/?|\?.*)$/i, async route => {
       if (route.request().method() !== 'POST') return route.continue();
       const h = route.request().headers();
-      sent.push({ code: h['x-mfa-code'], remove: h['x-sessions-remove'] });
-      if (!h['x-mfa-code']) {
+      const code = (route.request().postDataJSON() as { otp?: string }).otp;
+      sent.push({ code, remove: h['x-sessions-remove'] });
+      if (!code) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
       }
       if (h['x-sessions-remove'] !== 'true') {
@@ -94,14 +95,15 @@ test.describe('Session limit with an expired 2FA code', () => {
     await page.route(/\/api\/v1\/login(\/?|\?.*)$/i, async route => {
       if (route.request().method() !== 'POST') return route.continue();
       const h = route.request().headers();
-      sent.push({ code: h['x-mfa-code'], remove: h['x-sessions-remove'] });
-      if (!h['x-mfa-code']) {
+      const code = (route.request().postDataJSON() as { otp?: string }).otp;
+      sent.push({ code, remove: h['x-sessions-remove'] });
+      if (!code) {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'TOTP is required' }) });
       }
       if (h['x-sessions-remove'] !== 'true') {
         return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'maximum number of active sessions reached' }) });
       }
-      if (h['x-mfa-code'] === '111111') {
+      if (code === '111111') {
         return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ error: 'invalid 2FA code' }) });
       }
       return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });

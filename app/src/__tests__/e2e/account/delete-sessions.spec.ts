@@ -57,8 +57,8 @@ test.describe('log out other sessions', { tag: '@desktop' }, () => {
     await dialog.getByLabel('2FA code').fill('123456');
     await dialog.getByRole('button', { name: 'Log out sessions' }).click();
     await expect(page.getByText('All other sessions have been logged out.')).toBeVisible();
-    expect(sent.body).toEqual({ current_password: PASSWORD });
-    expect(sent.mfaCode).toBe('123456');
+    expect(sent.body).toEqual({ current_password: PASSWORD, otp: '123456' });
+    expect(sent.mfaCode).toBeUndefined();
   });
 
   test('a passkey replaces the password', async ({ page }) => {

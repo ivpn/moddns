@@ -84,11 +84,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                 ]
             };
 
-            if (verification.otp) {
-                await api.Client.accountsApi.apiV1AccountsPatch(req, verification.otp, ['totp']);
-            } else {
-                await api.Client.accountsApi.apiV1AccountsPatch(req);
-            }
+            await api.Client.accountsApi.apiV1AccountsPatch({ ...req, otp: verification.otp });
 
             const refreshed = await api.Client.accountsApi.apiV1AccountsCurrentGet();
             setAccount(refreshed.data);

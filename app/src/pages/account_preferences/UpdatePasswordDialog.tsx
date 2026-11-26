@@ -85,12 +85,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             updates,
         };
         try {
-            // If 2FA is enabled, pass the OTP; otherwise, call without it
-            if (is2FAEnabled) {
-                await api.Client.accountsApi.apiV1AccountsPatch(req, otp, ['totp']);
-            } else {
-                await api.Client.accountsApi.apiV1AccountsPatch(req);
-            }
+            await api.Client.accountsApi.apiV1AccountsPatch({ ...req, otp: is2FAEnabled ? otp : undefined });
             const refreshed = await api.Client.accountsApi.apiV1AccountsCurrentGet();
             setAccount(refreshed.data);
             toast.success("Password updated successfully.");

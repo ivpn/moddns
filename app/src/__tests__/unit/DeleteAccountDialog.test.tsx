@@ -101,11 +101,12 @@ describe('DeleteAccountDialog', () => {
 
         await waitFor(() => expect(deleteAccountMock).toHaveBeenCalledTimes(1));
         const [payload, options] = deleteAccountMock.mock.calls[0];
-        expect(payload).toMatchObject({
+        expect(payload).toEqual({
             deletion_code: 'DELETE123',
             current_password: 'Password123!',
+            otp: '123456',
         });
-        expect(options?.headers).toMatchObject({ 'x-mfa-code': '123456', 'x-mfa-methods': 'totp' });
+        expect(options).toBeUndefined();
         expect(logout).toHaveBeenCalledWith('Account deleted.', 'info');
     });
 
@@ -148,7 +149,8 @@ describe('DeleteAccountDialog', () => {
             deletion_code: 'DEL-9999',
             reauth_token: 'reauth-token-1',
         });
-        expect(options?.headers ?? {}).not.toHaveProperty('x-mfa-code');
+        expect(payload).not.toHaveProperty('otp');
+        expect(options).toBeUndefined();
         expect(logout).toHaveBeenCalledWith('Account deleted.', 'info');
     });
 });
