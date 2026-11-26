@@ -40,14 +40,15 @@ func GetHeaderSessionsRemove(c *fiber.Ctx) bool {
 }
 
 const (
-	TokenTypePasswordReset           string        = "password_reset"          //nolint:gosec
-	TokenTypeReauthEmailChange       string        = "reauth_email_change"     //nolint:gosec
-	TokenTypeReauthAccountDeletion   string        = "reauth_account_deletion" //nolint:gosec
-	TokenTypeReauthProfileExport     string        = "reauth_profile_export"   //nolint:gosec
-	TokenTypeReauthProfileImport     string        = "reauth_profile_import"   //nolint:gosec
-	TokenTypeReauthPasswordSet       string        = "reauth_password_set"     //nolint:gosec
-	TokenTypeReauthPasskeyAdd        string        = "reauth_passkey_add"      //nolint:gosec
-	TokenTypeReauthPasskeyDelete     string        = "reauth_passkey_delete"   //nolint:gosec
+	TokenTypePasswordReset           string        = "password_reset"                 //nolint:gosec
+	TokenTypeReauthEmailChange       string        = "reauth_email_change"            //nolint:gosec
+	TokenTypeReauthAccountDeletion   string        = "reauth_account_deletion"        //nolint:gosec
+	TokenTypeReauthProfileExport     string        = "reauth_profile_export"          //nolint:gosec
+	TokenTypeReauthProfileImport     string        = "reauth_profile_import"          //nolint:gosec
+	TokenTypeReauthPasswordSet       string        = "reauth_password_set"            //nolint:gosec
+	TokenTypeReauthPasskeyAdd        string        = "reauth_passkey_add"             //nolint:gosec
+	TokenTypeReauthPasskeyDelete     string        = "reauth_passkey_delete"          //nolint:gosec
+	TokenTypeReauthBackupCodesRegen  string        = "reauth_backup_codes_regenerate" //nolint:gosec
 	passwordResetTokenLength         int           = 48
 	passwordResetTokenExpiration     time.Duration = time.Hour
 	reauthEmailChangeTokenLength     int           = 48
@@ -64,6 +65,8 @@ const (
 	reauthPasskeyAddExpiration       time.Duration = time.Minute * 5
 	reauthPasskeyDeleteTokenLength   int           = 48
 	reauthPasskeyDeleteExpiration    time.Duration = time.Minute * 5
+	reauthBackupCodesRegenLength     int           = 48
+	reauthBackupCodesRegenExpiration time.Duration = time.Minute * 5
 )
 
 // NewToken creates a new token and assigns it an expiration date to it
@@ -95,6 +98,9 @@ func NewToken(tokenType string) (*model.Token, error) {
 	case TokenTypeReauthPasskeyDelete:
 		expiresAt = time.Now().Add(reauthPasskeyDeleteExpiration)
 		tokenLen = reauthPasskeyDeleteTokenLength
+	case TokenTypeReauthBackupCodesRegen:
+		expiresAt = time.Now().Add(reauthBackupCodesRegenExpiration)
+		tokenLen = reauthBackupCodesRegenLength
 	default:
 		return nil, model.ErrInvalidTokenType
 	}

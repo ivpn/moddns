@@ -100,7 +100,7 @@ func (s *APIServer) disable2FA() fiber.Handler {
 }
 
 // @Summary Regenerate TOTP backup codes
-// @Description Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+// @Description Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
 // @Tags Account
 // @Accept json
 // @Produce json
@@ -122,7 +122,7 @@ func (s *APIServer) regenerateBackupCodes() fiber.Handler {
 		if len(errMsgs) > 0 {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
-		backup, err := s.Service.TotpRegenerateBackupCodes(c.UserContext(), auth.GetAccountID(c), p.OTP)
+		backup, err := s.Service.TotpRegenerateBackupCodes(c.UserContext(), auth.GetAccountID(c), *p)
 		if err != nil {
 			return handleSessionTotpError(c, err, ErrFailedToRegenerateBackupCodes.Error())
 		}

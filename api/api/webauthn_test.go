@@ -120,7 +120,7 @@ func readResponseBody(t *testing.T, resp *http.Response) []byte {
 
 // specRef: F5
 func (suite *WebAuthnAPITestSuite) TestBeginReauthSuccess() {
-	for _, purpose := range []string{"email_change", "account_deletion", "profile_export", "profile_import", "password_set", "passkey_add", "passkey_delete"} {
+	for _, purpose := range []string{"email_change", "account_deletion", "profile_export", "profile_import", "password_set", "passkey_add", "passkey_delete", "backup_codes_regenerate"} {
 		suite.Run(purpose, func() {
 			suite.SetupTest()
 			suite.beginReauthSucceeds(purpose)

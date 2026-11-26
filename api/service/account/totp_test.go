@@ -15,12 +15,16 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/crypto/bcrypt"
 
+	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/db/repository"
+	"github.com/ivpn/dns/api/internal/auth"
 	webhookClient "github.com/ivpn/dns/api/internal/client"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
@@ -217,9 +221,8 @@ type totpFixture struct {
 func newTOTPFixture(t *testing.T, storageKey []byte) *totpFixture {
 	t.Helper()
 	id := primitive.NewObjectID()
-	repo := &totpRepo{accounts: map[string]model.Account{
-		id.Hex(): {ID: id, Email: "totp@example.com"},
-	}}
+	acc := model.Account{ID: id, Email: "totp@example.com", Password: &testPasswordHash}
+	repo := &totpRepo{accounts: map[string]model.Account{id.Hex(): acc}}
 	c := &totpCache{data: map[string]string{}, ctr: map[string]int64{}}
 	cfg := config.ServiceConfig{
 		OTPExpirationTime:   5 * time.Minute,
@@ -235,6 +238,24 @@ func newTOTPFixture(t *testing.T, storageKey []byte) *totpFixture {
 		f.keeper = k
 	}
 	return f
+}
+
+const testPassword = "Curr3nt-Passw0rd!"
+
+// testPasswordHash is testPassword at the lowest bcrypt cost, to keep the
+// fixtures fast; verification reads the cost from the hash.
+var testPasswordHash = func() string {
+	h, err := bcrypt.GenerateFromPassword([]byte(testPassword), bcrypt.MinCost)
+	if err != nil {
+		panic(err)
+	}
+	return string(h)
+}()
+
+// regenerate is a regenerate request verified with the current password.
+func (f *totpFixture) regenerate(otp string) requests.TotpRegenerateReq {
+	password := testPassword
+	return requests.TotpRegenerateReq{OTP: otp, CurrentPassword: &password}
 }
 
 func testStorageKey(fill byte) []byte { return bytes.Repeat([]byte{fill}, totpcrypt.KeySize) }
@@ -819,7 +840,7 @@ func TestTotpRegenerate_ReplacesEveryCode(t *testing.T) {
 			ctx := context.Background()
 			sealedBefore := f.repo.stored(f.id).SecretSealed
 
-			backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, authorise(t, secret, oldCodes))
+			backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(authorise(t, secret, oldCodes)))
 			require.NoError(t, err)
 			require.Len(t, backup.BackupCodes, 8)
 			for _, code := range backup.BackupCodes {
@@ -857,7 +878,7 @@ func TestTotpRegenerate_ClearsLegacyMarker(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, legacyCode)
+	backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(legacyCode))
 	require.NoError(t, err)
 
 	stored := f.repo.stored(f.id)
@@ -873,7 +894,7 @@ func TestTotpRegenerate_Refusals(t *testing.T) {
 
 	t.Run("2FA off", func(t *testing.T) {
 		f := newTOTPFixture(t, testStorageKey(1))
-		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, "123456")
+		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate("123456"))
 		require.ErrorIs(t, err, account.ErrTOTPNotConfigured)
 	})
 
@@ -882,7 +903,7 @@ func TestTotpRegenerate_Refusals(t *testing.T) {
 		f.enable(t)
 		before := f.repo.stored(f.id)
 		for _, code := range []string{"000000", "ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ-ZZZZZ", strings.Repeat("A", 65)} {
-			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, code)
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(code))
 			require.ErrorIs(t, err, account.ErrInvalidTOTPCode, code)
 		}
 		require.Equal(t, before, f.repo.stored(f.id))
@@ -892,14 +913,14 @@ func TestTotpRegenerate_Refusals(t *testing.T) {
 		f := newTOTPFixture(t, testStorageKey(1))
 		secret, codes := f.enable(t)
 		for range 5 {
-			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, "000000")
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate("000000"))
 			require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
 		}
 		before := f.repo.stored(f.id)
 		code, err := totp.GenerateCode(secret, time.Now())
 		require.NoError(t, err)
 		for _, valid := range []string{code, codes[0]} {
-			_, err = f.svc.TotpRegenerateBackupCodes(ctx, f.id, valid)
+			_, err = f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(valid))
 			require.ErrorIs(t, err, account.ErrTOTPTooManyAttempts)
 		}
 		require.Equal(t, before, f.repo.stored(f.id), "nothing consumed or replaced")
@@ -909,7 +930,7 @@ func TestTotpRegenerate_Refusals(t *testing.T) {
 		f := newTOTPFixture(t, testStorageKey(1))
 		_, codes := f.enable(t)
 		f.repo.writeErr = errors.New("write failed")
-		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, codes[0])
+		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(codes[0]))
 		require.ErrorIs(t, err, f.repo.writeErr)
 		f.repo.writeErr = nil
 		_, err = f.svc.VerifyTotp(ctx, f.id, codes[0])
@@ -929,7 +950,7 @@ func TestTotpRegenerate_ConcurrentUseOfOneBackupCodeSucceedsOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := f.svc.TotpRegenerateBackupCodes(context.Background(), f.id, codes[0])
+			_, err := f.svc.TotpRegenerateBackupCodes(context.Background(), f.id, f.regenerate(codes[0]))
 			switch {
 			case err == nil:
 				wins.Add(1)
@@ -958,7 +979,7 @@ func TestTotpChangesNeedAConvertedRecord(t *testing.T) {
 			return err
 		},
 		"regenerate": func(f *totpFixture, otp string) error {
-			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, otp)
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(otp))
 			return err
 		},
 	} {
@@ -1047,4 +1068,94 @@ func TestPasswordChangeChecksTheCodeOnceAndLast(t *testing.T) {
 		{Operation: model.UpdateOperationReplace, Path: "/password", Value: "Th1rd-Passw0rd-Long!"},
 	}, mfa))
 	require.Len(t, f.repo.stored(f.id).BackupCodeHashes, 7)
+}
+
+// Regenerating first verifies the account owner, with the current password or
+// a passkey reauth token of its own purpose. A refused reauth checks no code:
+// none is used up and none counts toward the lockout.
+// specRef: api-endpoint-behaviour.md E13, E12
+func TestTotpRegenerate_NeedsReauth(t *testing.T) {
+	ctx := context.Background()
+	wrong := "wrong-password"
+	token := func(tokenType string, expiresIn time.Duration) model.Token {
+		return model.Token{Type: tokenType, Value: "reauth-token", ExpiresAt: time.Now().Add(expiresIn)}
+	}
+	refusals := map[string]struct {
+		req   func(otp string) requests.TotpRegenerateReq
+		token *model.Token
+		err   error
+	}{
+		"no reauth": {
+			req: func(otp string) requests.TotpRegenerateReq { return requests.TotpRegenerateReq{OTP: otp} },
+			err: reauth.ErrMissingAuthMethod,
+		},
+		"wrong password": {
+			req: func(otp string) requests.TotpRegenerateReq {
+				return requests.TotpRegenerateReq{OTP: otp, CurrentPassword: &wrong}
+			},
+			err: reauth.ErrInvalidPassword,
+		},
+		"token of another purpose": {
+			req:   func(otp string) requests.TotpRegenerateReq { return withToken(otp) },
+			token: new(token(auth.TokenTypeReauthPasskeyDelete, time.Minute)),
+			err:   reauth.ErrInvalidReauthToken,
+		},
+		"expired token": {
+			req:   func(otp string) requests.TotpRegenerateReq { return withToken(otp) },
+			token: new(token(auth.TokenTypeReauthBackupCodesRegen, -time.Minute)),
+			err:   reauth.ErrReauthTokenExpired,
+		},
+	}
+	for name, tc := range refusals {
+		t.Run(name, func(t *testing.T) {
+			f := newTOTPFixture(t, testStorageKey(1))
+			_, codes := f.enable(t)
+			if tc.token != nil {
+				f.addToken(*tc.token)
+			}
+			before := f.repo.stored(f.id)
+			for range 6 { // past ID_LIMITER_MAX
+				_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, tc.req(codes[0]))
+				require.ErrorIs(t, err, tc.err)
+			}
+			require.Equal(t, before, f.repo.stored(f.id), "no code used up, nothing replaced")
+			_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate(codes[0]))
+			require.NoError(t, err, "no 2FA lockout")
+		})
+	}
+
+	t.Run("passkey reauth token", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		_, codes := f.enable(t)
+		f.addToken(token(auth.TokenTypeReauthBackupCodesRegen, time.Minute))
+
+		backup, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, withToken(codes[0]))
+		require.NoError(t, err)
+		require.Len(t, backup.BackupCodes, 8)
+
+		_, err = f.svc.TotpRegenerateBackupCodes(ctx, f.id, withToken(backup.BackupCodes[0]))
+		require.ErrorIs(t, err, reauth.ErrInvalidReauthToken, "the token is single-use")
+	})
+
+	t.Run("a valid reauth still needs the code", func(t *testing.T) {
+		f := newTOTPFixture(t, testStorageKey(1))
+		f.enable(t)
+		before := f.repo.stored(f.id)
+		_, err := f.svc.TotpRegenerateBackupCodes(ctx, f.id, f.regenerate("000000"))
+		require.ErrorIs(t, err, account.ErrInvalidTOTPCode)
+		require.Equal(t, before, f.repo.stored(f.id))
+	})
+}
+
+func withToken(otp string) requests.TotpRegenerateReq {
+	token := "reauth-token"
+	return requests.TotpRegenerateReq{OTP: otp, ReauthToken: &token}
+}
+
+func (f *totpFixture) addToken(token model.Token) {
+	f.repo.mu.Lock()
+	defer f.repo.mu.Unlock()
+	acc := f.repo.accounts[f.id]
+	acc.Tokens = append(acc.Tokens, token)
+	f.repo.accounts[f.id] = acc
 }

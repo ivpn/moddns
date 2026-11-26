@@ -1568,9 +1568,15 @@ definitions:
     type: object
   requests.TotpRegenerateReq:
     properties:
+      current_password:
+        minLength: 1
+        type: string
       otp:
         maxLength: 64
         minLength: 6
+        type: string
+      reauth_token:
+        minLength: 1
         type: string
     required:
     - otp
@@ -1633,6 +1639,7 @@ definitions:
         - password_set
         - passkey_add
         - passkey_delete
+        - backup_codes_regenerate
         type: string
     required:
     - purpose
@@ -1959,8 +1966,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Replace every backup code with a new set, authorised by an authenticator
-        code or a backup code. The new codes are returned only in this response.
+      description: Replace every backup code with a new set. The account owner is
+        verified first with the current password or a passkey reauth token issued
+        for the backup_codes_regenerate purpose, then the change is authorised by
+        an authenticator code or a backup code. The new codes are returned only in
+        this response.
       parameters:
       - description: Regenerate backup codes request
         in: body

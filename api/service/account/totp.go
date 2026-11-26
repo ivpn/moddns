@@ -8,7 +8,10 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/ivpn/dns/api/api/requests"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/totpcrypt"
 	"github.com/ivpn/dns/api/internal/utils"
 	"github.com/ivpn/dns/api/model"
@@ -171,14 +174,17 @@ func (a *AccountService) TotpDisable(ctx context.Context, accountId, otp string)
 }
 
 // TotpRegenerateBackupCodes replaces every backup code with a new set,
-// authorised by an authenticator or backup code. The new codes are returned
-// only here.
-func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error) {
+// authorised by reauth and then an authenticator or backup code. The new codes
+// are returned only here.
+func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error) {
 	keeper, err := a.keeper()
 	if err != nil {
 		return nil, err
 	}
-	acc, proof, done, err := a.checkTotp(ctx, accountId, otp, "regenerate")
+	if err = a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthBackupCodesRegen, req.CurrentPassword, req.ReauthToken); err != nil {
+		return nil, err
+	}
+	acc, proof, done, err := a.checkTotp(ctx, accountId, req.OTP, "regenerate")
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +202,22 @@ func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountI
 	log.Ctx(ctx).Info().Msg("TOTP backup codes regenerated")
 
 	return &model.TOTPBackup{BackupCodes: codes}, nil
+}
+
+// reauthTotpChange proves fresh control of the account before a change to its
+// second factor: the current password, or a single-use passkey reauth token of
+// the change's own type (NIST SP 800-63B-4 §4). It runs before the 2FA code
+// is checked, so a session alone neither tests codes nor counts toward the E12
+// lockout. The code itself is checked by the caller and used up in its write.
+func (a *AccountService) reauthTotpChange(ctx context.Context, accountId, tokenType string, password, token *string) error {
+	_, err := reauth.Verify(ctx, a.AccountRepository, nil, reauth.Params{
+		AccountId:        accountId,
+		TokenType:        tokenType,
+		Password:         password,
+		ReauthToken:      token,
+		PersistOnConsume: true,
+	})
+	return err
 }
 
 // VerifyTotp checks a 2FA code for login and the account checks that require

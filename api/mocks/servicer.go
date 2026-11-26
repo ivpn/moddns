@@ -4522,8 +4522,8 @@ func (_c *Servicer_TotpEnable_Call) RunAndReturn(run func(ctx context.Context, a
 }
 
 // TotpRegenerateBackupCodes provides a mock function for the type Servicer
-func (_mock *Servicer) TotpRegenerateBackupCodes(ctx context.Context, accountId string, otp string) (*model.TOTPBackup, error) {
-	ret := _mock.Called(ctx, accountId, otp)
+func (_mock *Servicer) TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error) {
+	ret := _mock.Called(ctx, accountId, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TotpRegenerateBackupCodes")
@@ -4531,18 +4531,18 @@ func (_mock *Servicer) TotpRegenerateBackupCodes(ctx context.Context, accountId 
 
 	var r0 *model.TOTPBackup
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*model.TOTPBackup, error)); ok {
-		return returnFunc(ctx, accountId, otp)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.TotpRegenerateReq) (*model.TOTPBackup, error)); ok {
+		return returnFunc(ctx, accountId, req)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *model.TOTPBackup); ok {
-		r0 = returnFunc(ctx, accountId, otp)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.TotpRegenerateReq) *model.TOTPBackup); ok {
+		r0 = returnFunc(ctx, accountId, req)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.TOTPBackup)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = returnFunc(ctx, accountId, otp)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, requests.TotpRegenerateReq) error); ok {
+		r1 = returnFunc(ctx, accountId, req)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4557,12 +4557,12 @@ type Servicer_TotpRegenerateBackupCodes_Call struct {
 // TotpRegenerateBackupCodes is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountId string
-//   - otp string
-func (_e *Servicer_Expecter) TotpRegenerateBackupCodes(ctx interface{}, accountId interface{}, otp interface{}) *Servicer_TotpRegenerateBackupCodes_Call {
-	return &Servicer_TotpRegenerateBackupCodes_Call{Call: _e.mock.On("TotpRegenerateBackupCodes", ctx, accountId, otp)}
+//   - req requests.TotpRegenerateReq
+func (_e *Servicer_Expecter) TotpRegenerateBackupCodes(ctx interface{}, accountId interface{}, req interface{}) *Servicer_TotpRegenerateBackupCodes_Call {
+	return &Servicer_TotpRegenerateBackupCodes_Call{Call: _e.mock.On("TotpRegenerateBackupCodes", ctx, accountId, req)}
 }
 
-func (_c *Servicer_TotpRegenerateBackupCodes_Call) Run(run func(ctx context.Context, accountId string, otp string)) *Servicer_TotpRegenerateBackupCodes_Call {
+func (_c *Servicer_TotpRegenerateBackupCodes_Call) Run(run func(ctx context.Context, accountId string, req requests.TotpRegenerateReq)) *Servicer_TotpRegenerateBackupCodes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4572,9 +4572,9 @@ func (_c *Servicer_TotpRegenerateBackupCodes_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 string
+		var arg2 requests.TotpRegenerateReq
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(requests.TotpRegenerateReq)
 		}
 		run(
 			arg0,
@@ -4590,7 +4590,7 @@ func (_c *Servicer_TotpRegenerateBackupCodes_Call) Return(tOTPBackup *model.TOTP
 	return _c
 }
 
-func (_c *Servicer_TotpRegenerateBackupCodes_Call) RunAndReturn(run func(ctx context.Context, accountId string, otp string) (*model.TOTPBackup, error)) *Servicer_TotpRegenerateBackupCodes_Call {
+func (_c *Servicer_TotpRegenerateBackupCodes_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error)) *Servicer_TotpRegenerateBackupCodes_Call {
 	_c.Call.Return(run)
 	return _c
 }

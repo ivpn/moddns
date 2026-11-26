@@ -147,7 +147,7 @@ type AccountServicer interface {
 	TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error)
 	TotpConfirm(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error)
 	TotpDisable(ctx context.Context, accountId, otp string) (*model.Account, error)
-	TotpRegenerateBackupCodes(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error)
+	TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error)
 	VerifyTotp(ctx context.Context, accountId, otp string) (*model.Account, error)
 	RequestEmailVerificationOTP(ctx context.Context, accountId string) error
 	VerifyEmailOTP(ctx context.Context, accountId, otp string) error

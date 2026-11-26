@@ -1,6 +1,7 @@
 // Package reauth provides the unified reauthentication primitive used by
 // every privileged operation in the API (account deletion, email change,
-// profile export, profile import).
+// password set, passkey add and delete, profile export and import, backup-code
+// regeneration).
 //
 // A privileged operation must prove fresh control of the account beyond the
 // session cookie. Two credential paths are accepted:
@@ -11,8 +12,9 @@
 //  2. reauth_token — a short-lived (5 min) token issued by the WebAuthn
 //     passkey reauth ceremony in api/service/webauthn.go:FinishReauth. The
 //     ceremony already proved possession of a passkey, so the token path
-//     bypasses MFA. Tokens are single-use: a successful match removes the
-//     token from the account.
+//     bypasses MFA; changes to 2FA itself still ask for a code after it.
+//     Tokens are single-use: a successful match removes the token from the
+//     account.
 //
 // Exactly one of the two credentials must be supplied; supplying neither or
 // both is a validation error.

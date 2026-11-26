@@ -296,7 +296,7 @@ const docTemplate = `{
         },
         "/api/v1/accounts/mfa/totp/backup-codes/regenerate": {
             "post": {
-                "description": "Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.",
+                "description": "Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5623,10 +5623,18 @@ const docTemplate = `{
                 "otp"
             ],
             "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "otp": {
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -5712,7 +5720,8 @@ const docTemplate = `{
                         "profile_import",
                         "password_set",
                         "passkey_add",
-                        "passkey_delete"
+                        "passkey_delete",
+                        "backup_codes_regenerate"
                     ]
                 }
             }
