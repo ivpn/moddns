@@ -9,13 +9,11 @@ import {
     DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { DialogBody, DialogActions } from '@/components/dialogs/DialogLayout';
 import FileDropzone from '@/components/FileDropzone';
 import { MultiSelectProfileList } from '@/components/MultiSelectProfileList';
 import { useAppStore } from '@/store/general';
-import { useAccountVerificationMethod } from '@/hooks/useAccountVerificationMethod';
+import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
 import { useProfileImport } from '@/hooks/useProfileImport';
 import { beginProfileImportReauth } from '@/lib/webauthn';
 import { cn } from '@/lib/utils';
@@ -30,7 +28,6 @@ export interface ImportProfilesDialogProps {
 }
 
 type Step = 'pick' | 'confirm' | 'results';
-type ReauthStatus = 'idle' | 'in-progress' | 'verified' | 'error';
 
 const MAX_PROFILES = 100;
 const MAX_VISIBLE_WARNINGS = 10;
@@ -47,29 +44,13 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
     const [fileError, setFileError] = useState<string | null>(null);
     const [importError, setImportError] = useState<string | null>(null);
 
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [reauthToken, setReauthToken] = useState<string | null>(null);
-    const [reauthStatus, setReauthStatus] = useState<ReauthStatus>('idle');
-
-    const { importProfiles, isImporting, result, reset: resetHook } = useProfileImport();
-
-    const handleMethodChange = useCallback(() => {
-        setCurrentPassword('');
-        setOtp('');
-        setReauthToken(null);
-        setReauthStatus('idle');
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => {
+        setVerification(v);
         setImportError(null);
     }, []);
 
-    const {
-        method,
-        hasPasskeys,
-        passwordAvailable,
-        showOtp,
-        switchMethod,
-        resetMethod,
-    } = useAccountVerificationMethod({ account: account ?? null, open, onMethodChange: handleMethodChange });
+    const { importProfiles, isImporting, result, reset: resetHook } = useProfileImport();
 
     const resetAllState = useCallback(() => {
         setStep('pick');
@@ -77,13 +58,8 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
         setSelectedIds([]);
         setFileError(null);
         setImportError(null);
-        setCurrentPassword('');
-        setOtp('');
-        setReauthToken(null);
-        setReauthStatus('idle');
-        resetMethod();
         resetHook();
-    }, [resetMethod, resetHook]);
+    }, [resetHook]);
 
     useEffect(() => {
         if (!open) {
@@ -155,36 +131,14 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
         : [];
     const remaining = MAX_PROFILES - currentProfileCount;
 
-    const isReauthComplete =
-        method === 'passkey'
-            ? reauthStatus === 'verified'
-            : currentPassword.trim().length > 0 && (!showOtp || otp.trim().length > 0);
-
     const isSubmitDisabled =
         selectedCount === 0 ||
         wouldExceedCap ||
-        !isReauthComplete ||
+        !verification ||
         isImporting;
 
-    const beginPasskeyReauth = async () => {
-        setReauthStatus('in-progress');
-        setImportError(null);
-        try {
-            const token = await beginProfileImportReauth();
-            setReauthToken(token);
-            setReauthStatus('verified');
-            setCurrentPassword('');
-            toast.success('Identity verified via passkey');
-        } catch (err) {
-            const error = err as { message?: string };
-            const msg = error?.message ?? 'Passkey verification failed';
-            setReauthStatus('error');
-            toast.error(msg);
-        }
-    };
-
     const handleImport = async () => {
-        if (!parsedPayload || isSubmitDisabled) return;
+        if (!parsedPayload || isSubmitDisabled || !verification) return;
 
         setImportError(null);
 
@@ -200,10 +154,9 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
         try {
             await importProfiles({
                 payload: filteredPayload,
-                currentPassword: method === 'password' ? currentPassword : undefined,
-                reauthToken: method === 'passkey' ? (reauthToken ?? undefined) : undefined,
-                // OTP is relevant only for the password method when 2FA is enabled
-                otp: method === 'password' && showOtp ? otp : undefined,
+                currentPassword: verification.currentPassword,
+                reauthToken: verification.reauthToken,
+                otp: verification.otp,
             });
             setStep('results');
         } catch (err) {
@@ -272,124 +225,15 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                 Verification
             </p>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="inline-flex text-[11px] rounded-md bg-[var(--tailwind-colors-slate-800)] p-1 shadow-sm w-full sm:w-auto">
-                    <Button
-                        type="button"
-                        variant={method === 'password' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => switchMethod('password')}
-                        disabled={!passwordAvailable}
-                        className={cn(
-                            'flex-1 px-4 py-2 rounded-sm',
-                            method === 'password'
-                                ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-600)]'
-                                : 'text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)]',
-                            !passwordAvailable && 'opacity-50 cursor-not-allowed'
-                        )}
-                    >
-                        Password
-                    </Button>
-                    <Button
-                        type="button"
-                        variant={method === 'passkey' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => switchMethod('passkey')}
-                        disabled={!hasPasskeys}
-                        className={cn(
-                            'flex-1 px-4 py-2 rounded-sm',
-                            method === 'passkey'
-                                ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-600)]'
-                                : 'text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)]',
-                            !hasPasskeys && 'opacity-50 cursor-not-allowed'
-                        )}
-                    >
-                        Passkey
-                    </Button>
-                </div>
-                <span className="text-[11px] text-[var(--tailwind-colors-slate-400)]">
-                    Choose verification method
-                </span>
-            </div>
-
-            {method === 'password' && (
-                <div className="space-y-2">
-                    <Label
-                        htmlFor="import-current-password"
-                        className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]"
-                    >
-                        Current password
-                    </Label>
-                    <Input
-                        id="import-current-password"
-                        type="password"
-                        value={currentPassword}
-                        onChange={e => setCurrentPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] h-10"
-                    />
-                </div>
-            )}
-
-            {method === 'passkey' && (
-                <div className="space-y-3">
-                    <Label className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]">
-                        Passkey verification
-                    </Label>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            type="button"
-                            variant={reauthStatus === 'verified' ? 'default' : 'cancel'}
-                            size="lg"
-                            className={cn(
-                                'flex-1 min-h-11 font-medium transition-colors',
-                                reauthStatus === 'verified'
-                                    ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-800)]'
-                                    : 'border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-rdns-600)] hover:border-[var(--tailwind-colors-slate-400)]'
-                            )}
-                            onClick={() => void beginPasskeyReauth()}
-                            disabled={reauthStatus === 'in-progress' || reauthStatus === 'verified'}
-                        >
-                            {reauthStatus === 'idle' && 'Verify with passkey'}
-                            {reauthStatus === 'in-progress' && 'Verifying...'}
-                            {reauthStatus === 'verified' && 'Passkey verified'}
-                            {reauthStatus === 'error' && 'Retry passkey'}
-                        </Button>
-                    </div>
-                    {reauthStatus !== 'verified' && (
-                        <p className="text-xs text-[var(--tailwind-colors-slate-400)]">
-                            Authenticate with a stored passkey to confirm identity.
-                        </p>
-                    )}
-                </div>
-            )}
-
-            {showOtp && (
-                <div className="space-y-2">
-                    <Label
-                        htmlFor="import-otp"
-                        className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]"
-                    >
-                        2FA code
-                    </Label>
-                    <Input
-                        id="import-otp"
-                        type="text"
-                        value={otp}
-                        onChange={e => setOtp(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === 'Enter' && !isSubmitDisabled) {
-                                void handleImport();
-                            }
-                        }}
-                        placeholder="6-digit code"
-                        className="bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] h-10"
-                    />
-                    <p className="text-xs text-[var(--tailwind-colors-slate-400)]">
-                        Required for password verification when 2FA is enabled.
-                    </p>
-                </div>
-            )}
+            <VerifyIdentityFields
+                account={account ?? null}
+                open={open}
+                beginPasskeyReauth={beginProfileImportReauth}
+                onChange={onVerificationChange}
+                onSubmit={() => void handleImport()}
+                codeTestId="import-code"
+                disabled={isImporting}
+            />
 
             {importError !== null && (
                 <p data-testid="reauth-error" className="text-sm text-[var(--tailwind-colors-red-400)]" role="alert">

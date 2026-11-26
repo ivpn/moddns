@@ -189,6 +189,11 @@ export function verificationRequest(verification: IdentityVerification) {
   return { body, mfa };
 }
 
+/** The x-mfa-code headers of a reauth-gated call whose client method takes no MFA arguments. */
+export function verificationHeaders(verification: IdentityVerification): Record<string, string> {
+  return verification.otp ? { 'x-mfa-code': verification.otp, 'x-mfa-methods': 'totp' } : {};
+}
+
 /**
  * Delete a passkey after the owner has verified with the current password (plus 2FA code)
  * or a passkey reauth token for passkey_delete.

@@ -30,7 +30,8 @@ vi.mock('@/api/api', () => {
     };
 });
 
-vi.mock('@/lib/webauthn', () => ({
+vi.mock('@/lib/webauthn', async importOriginal => ({
+    ...(await importOriginal<typeof import('@/lib/webauthn')>()),
     beginAccountDeletionReauth: vi.fn(),
 }));
 

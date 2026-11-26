@@ -27,7 +27,7 @@ const getAccount = () => useAppStore.getState().account;
 const fillDetailsAndContinue = () => {
     fireEvent.click(screen.getByText('Password'));
     fireEvent.change(screen.getByPlaceholderText('new@example.com'), { target: { value: 'new@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByText('Continue'));
 };
 

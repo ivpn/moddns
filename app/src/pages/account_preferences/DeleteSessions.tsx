@@ -63,6 +63,7 @@ export default function DeleteSessionsDialog({
                         beginPasskeyReauth={beginSessionsDeleteReauth}
                         onChange={onVerificationChange}
                         onSubmit={handleConfirm}
+                        codeTestId="delete-sessions-code"
                         autoFocus
                         disabled={loading}
                     />

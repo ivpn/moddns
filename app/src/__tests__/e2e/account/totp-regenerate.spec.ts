@@ -170,7 +170,7 @@ test.describe('backup codes row', () => {
 });
 
 // Every screen that asks for a 2FA code opens on the numeric keypad and offers the backup-code field.
-// specRef: api-endpoint-behaviour E6
+// specRef: api-endpoint-behaviour A3, E6
 test.describe('2FA code fields on the account page', () => {
   const screens: { name: string; open: (page: Page) => Promise<void>; testId: string }[] = [
     {
@@ -192,6 +192,21 @@ test.describe('2FA code fields on the account page', () => {
       name: 'change email',
       testId: 'change-email-code',
       open: async page => { await page.getByRole('button', { name: /Change email/i }).click(); },
+    },
+    {
+      name: 'log out other sessions',
+      testId: 'delete-sessions-code',
+      open: async page => { await page.getByRole('button', { name: /Log out web sessions/i }).click(); },
+    },
+    {
+      name: 'export profiles',
+      testId: 'export-code',
+      open: async page => { await page.getByTestId('btn-export-profiles').click(); },
+    },
+    {
+      name: 'delete account',
+      testId: 'delete-account-code',
+      open: async page => { await page.getByRole('button', { name: /^Delete account$/ }).click(); },
     },
   ];
 
