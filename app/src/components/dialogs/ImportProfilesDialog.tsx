@@ -166,7 +166,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
 
             // Reauth failures (wrong password etc.) surface as a toast from the
             // hook; only non-reauth errors also get an inline message in the dialog.
-            if (!(status === 401 || (status === 400 && isReauthError(serverError)))) {
+            if (!(status === 400 && isReauthError(serverError))) {
                 setImportError(importErrorMessage(status, serverError));
             }
         }
