@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,7 +28,7 @@ class RequestsConfirmResetPasswordBody(BaseModel):
     RequestsConfirmResetPasswordBody
     """ # noqa: E501
     new_password: StrictStr
-    otp: Optional[StrictStr] = None
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     token: StrictStr
     __properties: ClassVar[List[str]] = ["new_password", "otp", "token"]
 

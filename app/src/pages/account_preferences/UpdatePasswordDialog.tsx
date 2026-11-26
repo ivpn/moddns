@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX } from "react";
 import { useAppStore } from '@/store/general';
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum, type ModelAccountUpdate } from "@/api/client/api";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
+import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { beginPasswordSetReauth } from "@/lib/webauthn";
 
 export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }): JSX.Element {
@@ -24,8 +26,8 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const [loading, setLoading] = useState(false);
     const [closing, setClosing] = useState(false);
     const [otp, setOtp] = useState("");
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const [otpValid, setOtpValid] = useState(false);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
     const passwordAvailable = useMemo(() => {
@@ -60,8 +62,8 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             return;
         }
 
-        if (is2FAEnabled && !otp) {
-            toast.error('2FA code is required.');
+        if (is2FAEnabled && !otpValid) {
+            toast.error('Enter a valid 2FA code.');
             return;
         }
 
@@ -83,17 +85,13 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             updates,
         };
         try {
-            // If 2FA is enabled, pass the OTP; otherwise, call without it
-            if (is2FAEnabled) {
-                await api.Client.accountsApi.apiV1AccountsPatch(req, otp, ['totp']);
-            } else {
-                await api.Client.accountsApi.apiV1AccountsPatch(req);
-            }
+            await api.Client.accountsApi.apiV1AccountsPatch({ ...req, otp: is2FAEnabled ? otp : undefined });
             const refreshed = await api.Client.accountsApi.apiV1AccountsCurrentGet();
             setAccount(refreshed.data);
             toast.success("Password updated successfully.");
             handleClose();
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             let errorMessage = axiosErr.response?.data?.error || "Failed to update password.";
             if (axiosErr.response?.data?.error === "password does not meet complexity requirements") {
@@ -112,6 +110,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             setClosing(false);
             onOpenChange(false);
             setOtp("");
+            setOtpValid(false);
             setOldPassword("");
             setNewPassword("");
             setConfirmPassword("");
@@ -141,6 +140,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
                             open={open}
                             beginPasskeyReauth={beginPasswordSetReauth}
                             onChange={onVerificationChange}
+                            passkeyResetKey={passkeyResetKey}
                             passkeyOnly
                             disabled={loading}
                         />
@@ -195,21 +195,14 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
                         />
                     </div>
                     {is2FAEnabled && (
-                        <div className="space-y-2">
-                            <Label htmlFor="otp-code" className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">2FA code</Label>
-                            <Input
-                                id="otp-code"
-                                value={otp}
-                                onChange={e => setOtp(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                        handleSubmit();
-                                    }
-                                }}
-                                className="border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)] h-10"
-                            />
-                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">6-digit code</p>
-                        </div>
+                        <TwoFactorCodeInput
+                            id="otp-code"
+                            value={otp}
+                            onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                            onSubmit={handleSubmit}
+                            disabled={loading}
+                            data-testid="update-password-code"
+                        />
                     )}
                     <p className="text-xs text-[var(--tailwind-colors-slate-400)]">After changing your password, you will need to use the new password to log in next time.</p>
                 </div>

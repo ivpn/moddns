@@ -16,8 +16,7 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
-from typing import List, Optional
+from pydantic import Field
 from typing_extensions import Annotated
 from moddns.models.api_verify_email_otp_body import ApiVerifyEmailOTPBody
 from moddns.models.requests_confirm_reset_password_body import RequestsConfirmResetPasswordBody
@@ -589,8 +588,6 @@ class VerificationApi:
     def api_v1_verify_reset_password_post(
         self,
         body: Annotated[RequestsConfirmResetPasswordBody, Field(description="Confirm password reset request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -610,10 +607,6 @@ class VerificationApi:
 
         :param body: Confirm password reset request (required)
         :type body: RequestsConfirmResetPasswordBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -638,8 +631,6 @@ class VerificationApi:
 
         _param = self._api_v1_verify_reset_password_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -667,8 +658,6 @@ class VerificationApi:
     def api_v1_verify_reset_password_post_with_http_info(
         self,
         body: Annotated[RequestsConfirmResetPasswordBody, Field(description="Confirm password reset request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -688,10 +677,6 @@ class VerificationApi:
 
         :param body: Confirm password reset request (required)
         :type body: RequestsConfirmResetPasswordBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -716,8 +701,6 @@ class VerificationApi:
 
         _param = self._api_v1_verify_reset_password_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -745,8 +728,6 @@ class VerificationApi:
     def api_v1_verify_reset_password_post_without_preload_content(
         self,
         body: Annotated[RequestsConfirmResetPasswordBody, Field(description="Confirm password reset request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -766,10 +747,6 @@ class VerificationApi:
 
         :param body: Confirm password reset request (required)
         :type body: RequestsConfirmResetPasswordBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -794,8 +771,6 @@ class VerificationApi:
 
         _param = self._api_v1_verify_reset_password_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -818,8 +793,6 @@ class VerificationApi:
     def _api_v1_verify_reset_password_post_serialize(
         self,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         _request_auth,
         _content_type,
         _headers,
@@ -829,7 +802,6 @@ class VerificationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -844,10 +816,6 @@ class VerificationApi:
         # process the path parameters
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         # process the form parameters
         # process the body parameter
         if body is not None:

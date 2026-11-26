@@ -8,6 +8,7 @@ import (
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/api/responses"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/passkey"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -238,13 +239,11 @@ func (s *APIServer) finishLogin() fiber.Handler {
 }
 
 // @Summary Add new passkey
-// @Description Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+// @Description Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
 // @Tags Authentication
 // @Accept json
 // @Produce json
 // @Param body body requests.WebAuthnAddPasskeyBeginRequest true "Verification"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 200 {object} interface{}
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/add/begin [post]
@@ -268,9 +267,9 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 		}
 
 		// Initialize WebAuthn registration ceremony for additional credential
-		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
+		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.CurrentPassword, req.ReauthToken, &model.MfaData{OTP: req.OTP})
 		if err != nil {
-			return HandleError(c, err, "Failed to begin add passkey")
+			return handleSessionTotpError(c, err, "Failed to begin add passkey")
 		}
 
 		// Set temporary session cookie
@@ -439,13 +438,11 @@ func (s *APIServer) getPasskeys() fiber.Handler {
 }
 
 // @Summary Delete passkey
-// @Description Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+// @Description Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
 // @Tags Authentication
 // @Accept json
 // @Param id path string true "Credential ID"
 // @Param body body requests.WebAuthnDeletePasskeyRequest true "Verification"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 204
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/{id} [delete]
@@ -485,9 +482,9 @@ func (s *APIServer) deletePasskey() fiber.Handler {
 		}
 
 		// Delete the passkey
-		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
+		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive, req.CurrentPassword, req.ReauthToken, &model.MfaData{OTP: req.OTP})
 		if err != nil {
-			return HandleError(c, err, "Failed to delete passkey")
+			return handleSessionTotpError(c, err, "Failed to delete passkey")
 		}
 
 		return c.SendStatus(204)

@@ -29,8 +29,9 @@ class RequestsAccountDeletionRequest(BaseModel):
     """ # noqa: E501
     current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     deletion_code: StrictStr
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
-    __properties: ClassVar[List[str]] = ["current_password", "deletion_code", "reauth_token"]
+    __properties: ClassVar[List[str]] = ["current_password", "deletion_code", "otp", "reauth_token"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -85,6 +86,7 @@ class RequestsAccountDeletionRequest(BaseModel):
         _obj = cls.model_validate({
             "current_password": obj.get("current_password"),
             "deletion_code": obj.get("deletion_code"),
+            "otp": obj.get("otp"),
             "reauth_token": obj.get("reauth_token")
         })
         return _obj

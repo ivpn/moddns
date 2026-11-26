@@ -104,6 +104,7 @@ type Servicer interface {
 	PasskeyServicer
 	CredentialServicer
 	dnsstamp.DNSStampServicer
+	DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest) error
 }
 
 type CredentialServicer interface {
@@ -136,7 +137,7 @@ type SessionServicer interface {
 type AccountServicer interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
 	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error
-	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
+	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error
 	PurgeAccountData(ctx context.Context, accountId string) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)
 	MfaCheck(ctx context.Context, acc *model.Account, mfa *model.MfaData) error
@@ -144,10 +145,11 @@ type AccountServicer interface {
 	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error)
 	SendResetPasswordEmail(ctx context.Context, email string) error
 	VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error
-	TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error)
+	TotpEnable(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error)
 	TotpConfirm(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error)
-	TotpDisable(ctx context.Context, accountId, otp string) (*model.Account, error)
-	VerifyTotp(ctx context.Context, accountId, otp, action string) (*model.Account, error)
+	TotpDisable(ctx context.Context, accountId string, req requests.TotpDisableReq) (*model.Account, error)
+	TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error)
+	VerifyTotp(ctx context.Context, accountId, otp string) (*model.Account, error)
 	RequestEmailVerificationOTP(ctx context.Context, accountId string) error
 	VerifyEmailOTP(ctx context.Context, accountId, otp string) error
 }
@@ -228,8 +230,8 @@ type SubscriptionServicer interface {
 }
 
 // DeleteAccount deletes account with all connected data including sessions
-func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req, mfa); err != nil {
+func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
+	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req); err != nil {
 		return err
 	}
 	return s.DeleteSessionsByAccountID(ctx, accountId)

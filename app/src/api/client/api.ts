@@ -1930,6 +1930,18 @@ export interface ModelTOTPNew {
  */
 export interface ModelTotpSettings {
     /**
+     * BackupCodesLegacy marks a code set of an earlier format, which the account holder should replace.
+     * @type {boolean}
+     * @memberof ModelTotpSettings
+     */
+    'backup_codes_legacy'?: boolean;
+    /**
+     * BackupCodesRemaining is the number of unused backup codes; derived, not stored.
+     * @type {number}
+     * @memberof ModelTotpSettings
+     */
+    'backup_codes_remaining'?: number;
+    /**
      * Indicates if TOTP is enabled.
      * @type {boolean}
      * @memberof ModelTotpSettings
@@ -2427,6 +2439,12 @@ export interface RequestsAccountDeletionRequest {
      * @type {string}
      * @memberof RequestsAccountDeletionRequest
      */
+    'otp'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsAccountDeletionRequest
+     */
     'reauth_token'?: string;
 }
 /**
@@ -2435,6 +2453,12 @@ export interface RequestsAccountDeletionRequest {
  * @interface RequestsAccountUpdates
  */
 export interface RequestsAccountUpdates {
+    /**
+     * OTP is the 2FA code that goes with a current password, when 2FA is on.
+     * @type {string}
+     * @memberof RequestsAccountUpdates
+     */
+    'otp'?: string;
     /**
      * 
      * @type {Array<ModelAccountUpdate>}
@@ -2649,6 +2673,12 @@ export interface RequestsExportRequest {
     'current_password'?: string;
     /**
      * 
+     * @type {string}
+     * @memberof RequestsExportRequest
+     */
+    'otp'?: string;
+    /**
+     * 
      * @type {Array<string>}
      * @memberof RequestsExportRequest
      */
@@ -2694,6 +2724,12 @@ export interface RequestsImportRequest {
     'mode': RequestsImportRequestModeEnum;
     /**
      * 
+     * @type {string}
+     * @memberof RequestsImportRequest
+     */
+    'otp'?: string;
+    /**
+     * 
      * @type {ModelExportEnvelope}
      * @memberof RequestsImportRequest
      */
@@ -2724,6 +2760,12 @@ export interface RequestsLoginBody {
      * @memberof RequestsLoginBody
      */
     'email': string;
+    /**
+     * OTP is the 2FA code, required when the account has 2FA on.
+     * @type {string}
+     * @memberof RequestsLoginBody
+     */
+    'otp'?: string;
     /**
      * 
      * @type {string}
@@ -2863,6 +2905,31 @@ export interface RequestsRotatePASessionReq {
 /**
  * 
  * @export
+ * @interface RequestsSessionsDeleteRequest
+ */
+export interface RequestsSessionsDeleteRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSessionsDeleteRequest
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSessionsDeleteRequest
+     */
+    'otp'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSessionsDeleteRequest
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpDisableReq
  */
 export interface RequestsTotpDisableReq {
@@ -2871,7 +2938,63 @@ export interface RequestsTotpDisableReq {
      * @type {string}
      * @memberof RequestsTotpDisableReq
      */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpDisableReq
+     */
     'otp': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpDisableReq
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsTotpEnableReq
+ */
+export interface RequestsTotpEnableReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpEnableReq
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpEnableReq
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface RequestsTotpRegenerateReq
+ */
+export interface RequestsTotpRegenerateReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
+    'otp': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpRegenerateReq
+     */
+    'reauth_token'?: string;
 }
 /**
  * 
@@ -2949,6 +3072,12 @@ export interface RequestsWebAuthnAddPasskeyBeginRequest {
      * @type {string}
      * @memberof RequestsWebAuthnAddPasskeyBeginRequest
      */
+    'otp'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsWebAuthnAddPasskeyBeginRequest
+     */
     'reauth_token'?: string;
 }
 /**
@@ -2963,6 +3092,12 @@ export interface RequestsWebAuthnDeletePasskeyRequest {
      * @memberof RequestsWebAuthnDeletePasskeyRequest
      */
     'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsWebAuthnDeletePasskeyRequest
+     */
+    'otp'?: string;
     /**
      * 
      * @type {string}
@@ -2991,7 +3126,11 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     ProfileImport: 'profile_import',
     PasswordSet: 'password_set',
     PasskeyAdd: 'passkey_add',
-    PasskeyDelete: 'passkey_delete'
+    PasskeyDelete: 'passkey_delete',
+    BackupCodesRegenerate: 'backup_codes_regenerate',
+    TotpDisable: 'totp_disable',
+    TotpEnable: 'totp_enable',
+    SessionsDelete: 'sessions_delete'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3369,7 +3508,43 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Disable TOTP
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsMfaTotpBackupCodesRegeneratePost: async (body: RequestsTotpRegenerateReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1AccountsMfaTotpBackupCodesRegeneratePost', 'body', body)
+            const localVarPath = `/api/v1/accounts/mfa/totp/backup-codes/regenerate`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3441,12 +3616,15 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpEnablePost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1AccountsMfaTotpEnablePost: async (body: RequestsTotpEnableReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1AccountsMfaTotpEnablePost', 'body', body)
             const localVarPath = `/api/v1/accounts/mfa/totp/enable`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3461,9 +3639,12 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3474,12 +3655,10 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
          * Update account
          * @summary Update account
          * @param {RequestsAccountUpdates} body Update account request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsPatch: async (body: RequestsAccountUpdates, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1AccountsPatch: async (body: RequestsAccountUpdates, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
             assertParamExists('apiV1AccountsPatch', 'body', body)
             const localVarPath = `/api/v1/accounts`;
@@ -3498,13 +3677,6 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
     
             localVarHeaderParameter['Content-Type'] = 'application/json';
 
-            if (xMfaCode != null) {
-                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
-            }
-            if (xMfaMethods) {
-                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
-                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
-            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
@@ -3635,7 +3807,20 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Disable TOTP
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPBackup>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsMfaTotpBackupCodesRegeneratePost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3661,13 +3846,14 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPNew>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpEnablePost(options);
+        async apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPNew>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpEnablePost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsMfaTotpEnablePost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3676,13 +3862,11 @@ export const AccountApiFp = function(configuration?: Configuration) {
          * Update account
          * @summary Update account
          * @param {RequestsAccountUpdates} body Update account request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1AccountsPatch(body: RequestsAccountUpdates, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsPatch(body, xMfaCode, xMfaMethods, options);
+        async apiV1AccountsPatch(body: RequestsAccountUpdates, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsPatch(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsPatch']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3752,7 +3936,17 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsCurrentGet(options).then((request) => request(axios, basePath));
         },
         /**
-         * Disable TOTP
+         * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+         * @summary Regenerate TOTP backup codes
+         * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPBackup> {
+            return localVarFp.apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3772,25 +3966,24 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsMfaTotpEnableConfirmPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPNew> {
-            return localVarFp.apiV1AccountsMfaTotpEnablePost(options).then((request) => request(axios, basePath));
+        apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPNew> {
+            return localVarFp.apiV1AccountsMfaTotpEnablePost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Update account
          * @summary Update account
          * @param {RequestsAccountUpdates} body Update account request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsPatch(body: RequestsAccountUpdates, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1AccountsPatch(body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
+        apiV1AccountsPatch(body: RequestsAccountUpdates, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1AccountsPatch(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Register account
@@ -3857,7 +4050,19 @@ export class AccountApi extends BaseAPI {
     }
 
     /**
-     * Disable TOTP
+     * Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+     * @summary Regenerate TOTP backup codes
+     * @param {RequestsTotpRegenerateReq} body Regenerate backup codes request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof AccountApi
+     */
+    public apiV1AccountsMfaTotpBackupCodesRegeneratePost(body: RequestsTotpRegenerateReq, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
      * @summary Disable TOTP
      * @param {RequestsTotpDisableReq} body Disable TOTP request
      * @param {*} [options] Override http request option.
@@ -3881,28 +4086,27 @@ export class AccountApi extends BaseAPI {
     }
 
     /**
-     * Enable TOTP
+     * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
      * @summary Enable TOTP
+     * @param {RequestsTotpEnableReq} body Enable TOTP request
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AccountApi
      */
-    public apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig) {
-        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpEnablePost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpEnablePost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * Update account
      * @summary Update account
      * @param {RequestsAccountUpdates} body Update account request
-     * @param {string} [xMfaCode] MFA OTP code
-     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AccountApi
      */
-    public apiV1AccountsPatch(body: RequestsAccountUpdates, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
-        return AccountApiFp(this.configuration).apiV1AccountsPatch(body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
+    public apiV1AccountsPatch(body: RequestsAccountUpdates, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsPatch(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4323,13 +4527,11 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
          * Login endpoint
          * @summary Login
          * @param {RequestsLoginBody} body Login request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {string} [xSessionsRemove] Remove all active sessions before logging in
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1LoginPost: async (body: RequestsLoginBody, xMfaCode?: string, xMfaMethods?: Array<string>, xSessionsRemove?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1LoginPost: async (body: RequestsLoginBody, xSessionsRemove?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
             assertParamExists('apiV1LoginPost', 'body', body)
             const localVarPath = `/api/v1/login`;
@@ -4348,13 +4550,6 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
     
             localVarHeaderParameter['Content-Type'] = 'application/json';
 
-            if (xMfaCode != null) {
-                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
-            }
-            if (xMfaMethods) {
-                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
-                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
-            }
             if (xSessionsRemove != null) {
                 localVarHeaderParameter['x-sessions-remove'] = String(xSessionsRemove);
             }
@@ -4445,15 +4640,13 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
             };
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddBeginPost: async (body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnPasskeyAddBeginPost: async (body: RequestsWebAuthnAddPasskeyBeginRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
             assertParamExists('apiV1WebauthnPasskeyAddBeginPost', 'body', body)
             const localVarPath = `/api/v1/webauthn/passkey/add/begin`;
@@ -4472,13 +4665,6 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
     
             localVarHeaderParameter['Content-Type'] = 'application/json';
 
-            if (xMfaCode != null) {
-                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
-            }
-            if (xMfaMethods) {
-                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
-                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
-            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
@@ -4526,16 +4712,14 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
             };
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyIdDelete: async (id: string, body: RequestsWebAuthnDeletePasskeyRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1WebauthnPasskeyIdDelete: async (id: string, body: RequestsWebAuthnDeletePasskeyRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'id' is not null or undefined
             assertParamExists('apiV1WebauthnPasskeyIdDelete', 'id', id)
             // verify required parameter 'body' is not null or undefined
@@ -4557,13 +4741,6 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
     
             localVarHeaderParameter['Content-Type'] = 'application/json';
 
-            if (xMfaCode != null) {
-                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
-            }
-            if (xMfaMethods) {
-                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
-                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
-            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
@@ -4774,14 +4951,12 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
          * Login endpoint
          * @summary Login
          * @param {RequestsLoginBody} body Login request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {string} [xSessionsRemove] Remove all active sessions before logging in
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1LoginPost(body: RequestsLoginBody, xMfaCode?: string, xMfaMethods?: Array<string>, xSessionsRemove?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1LoginPost(body, xMfaCode, xMfaMethods, xSessionsRemove, options);
+        async apiV1LoginPost(body: RequestsLoginBody, xSessionsRemove?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1LoginPost(body, xSessionsRemove, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1LoginPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4814,16 +4989,14 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options);
+        async apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<object>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyAddBeginPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyAddBeginPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4842,17 +5015,15 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyIdDelete(id, body, xMfaCode, xMfaMethods, options);
+        async apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyIdDelete(id, body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyIdDelete']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -4944,14 +5115,12 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
          * Login endpoint
          * @summary Login
          * @param {RequestsLoginBody} body Login request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {string} [xSessionsRemove] Remove all active sessions before logging in
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1LoginPost(body: RequestsLoginBody, xMfaCode?: string, xMfaMethods?: Array<string>, xSessionsRemove?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1LoginPost(body, xMfaCode, xMfaMethods, xSessionsRemove, options).then((request) => request(axios, basePath));
+        apiV1LoginPost(body: RequestsLoginBody, xSessionsRemove?: string, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1LoginPost(body, xSessionsRemove, options).then((request) => request(axios, basePath));
         },
         /**
          * Start WebAuthn login process
@@ -4975,16 +5144,14 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
             return localVarFp.apiV1WebauthnLoginFinishPost(body, xSessionsRemove, options).then((request) => request(axios, basePath));
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<object> {
-            return localVarFp.apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
+        apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, options?: RawAxiosRequestConfig): AxiosPromise<object> {
+            return localVarFp.apiV1WebauthnPasskeyAddBeginPost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Complete adding a new passkey to authenticated account
@@ -4997,17 +5164,15 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
             return localVarFp.apiV1WebauthnPasskeyAddFinishPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1WebauthnPasskeyIdDelete(id, body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
+        apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1WebauthnPasskeyIdDelete(id, body, options).then((request) => request(axios, basePath));
         },
         /**
          * Initiate a WebAuthn assertion to elevate privileges (e.g., email change)
@@ -5083,15 +5248,13 @@ export class AuthenticationApi extends BaseAPI {
      * Login endpoint
      * @summary Login
      * @param {RequestsLoginBody} body Login request
-     * @param {string} [xMfaCode] MFA OTP code
-     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {string} [xSessionsRemove] Remove all active sessions before logging in
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1LoginPost(body: RequestsLoginBody, xMfaCode?: string, xMfaMethods?: Array<string>, xSessionsRemove?: string, options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1LoginPost(body, xMfaCode, xMfaMethods, xSessionsRemove, options).then((request) => request(this.axios, this.basePath));
+    public apiV1LoginPost(body: RequestsLoginBody, xSessionsRemove?: string, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1LoginPost(body, xSessionsRemove, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5120,17 +5283,15 @@ export class AuthenticationApi extends BaseAPI {
     }
 
     /**
-     * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+     * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
      * @summary Add new passkey
      * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
-     * @param {string} [xMfaCode] MFA OTP code
-     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddBeginPost(body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnPasskeyAddBeginPost(body: RequestsWebAuthnAddPasskeyBeginRequest, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyAddBeginPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -5146,18 +5307,16 @@ export class AuthenticationApi extends BaseAPI {
     }
 
     /**
-     * Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+     * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
      * @summary Delete passkey
      * @param {string} id Credential ID
      * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
-     * @param {string} [xMfaCode] MFA OTP code
-     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AuthenticationApi
      */
-    public apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
-        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyIdDelete(id, body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
+    public apiV1WebauthnPasskeyIdDelete(id: string, body: RequestsWebAuthnDeletePasskeyRequest, options?: RawAxiosRequestConfig) {
+        return AuthenticationApiFp(this.configuration).apiV1WebauthnPasskeyIdDelete(id, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -7843,12 +8002,15 @@ export class ServicesApi extends BaseAPI {
 export const SessionsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SessionsDelete: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1SessionsDelete: async (body: RequestsSessionsDeleteRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1SessionsDelete', 'body', body)
             const localVarPath = `/api/v1/sessions`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -7863,9 +8025,12 @@ export const SessionsApiAxiosParamCreator = function (configuration?: Configurat
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -7883,13 +8048,14 @@ export const SessionsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = SessionsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1SessionsDelete(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SessionsDelete(options);
+        async apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SessionsDelete(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SessionsApi.apiV1SessionsDelete']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -7905,13 +8071,14 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
     const localVarFp = SessionsApiFp(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SessionsDelete(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1SessionsDelete(options).then((request) => request(axios, basePath));
+        apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1SessionsDelete(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -7924,14 +8091,15 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
  */
 export class SessionsApi extends BaseAPI {
     /**
-     * Delete all sessions for the current account except the current session
+     * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
      * @summary Delete all other sessions
+     * @param {RequestsSessionsDeleteRequest} body Verification
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof SessionsApi
      */
-    public apiV1SessionsDelete(options?: RawAxiosRequestConfig) {
-        return SessionsApiFp(this.configuration).apiV1SessionsDelete(options).then((request) => request(this.axios, this.basePath));
+    public apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, options?: RawAxiosRequestConfig) {
+        return SessionsApiFp(this.configuration).apiV1SessionsDelete(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -8381,12 +8549,10 @@ export const VerificationApiAxiosParamCreator = function (configuration?: Config
          * Confirm password reset
          * @summary Confirm password reset
          * @param {RequestsConfirmResetPasswordBody} body Confirm password reset request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1VerifyResetPasswordPost: async (body: RequestsConfirmResetPasswordBody, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1VerifyResetPasswordPost: async (body: RequestsConfirmResetPasswordBody, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'body' is not null or undefined
             assertParamExists('apiV1VerifyResetPasswordPost', 'body', body)
             const localVarPath = `/api/v1/verify/reset-password`;
@@ -8405,13 +8571,6 @@ export const VerificationApiAxiosParamCreator = function (configuration?: Config
     
             localVarHeaderParameter['Content-Type'] = 'application/json';
 
-            if (xMfaCode != null) {
-                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
-            }
-            if (xMfaMethods) {
-                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
-                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
-            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
@@ -8461,13 +8620,11 @@ export const VerificationApiFp = function(configuration?: Configuration) {
          * Confirm password reset
          * @summary Confirm password reset
          * @param {RequestsConfirmResetPasswordBody} body Confirm password reset request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1VerifyResetPasswordPost(body, xMfaCode, xMfaMethods, options);
+        async apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1VerifyResetPasswordPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['VerificationApi.apiV1VerifyResetPasswordPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -8505,13 +8662,11 @@ export const VerificationApiFactory = function (configuration?: Configuration, b
          * Confirm password reset
          * @summary Confirm password reset
          * @param {RequestsConfirmResetPasswordBody} body Confirm password reset request
-         * @param {string} [xMfaCode] MFA OTP code
-         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1VerifyResetPasswordPost(body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
+        apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1VerifyResetPasswordPost(body, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -8550,14 +8705,12 @@ export class VerificationApi extends BaseAPI {
      * Confirm password reset
      * @summary Confirm password reset
      * @param {RequestsConfirmResetPasswordBody} body Confirm password reset request
-     * @param {string} [xMfaCode] MFA OTP code
-     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof VerificationApi
      */
-    public apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
-        return VerificationApiFp(this.configuration).apiV1VerifyResetPasswordPost(body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
+    public apiV1VerifyResetPasswordPost(body: RequestsConfirmResetPasswordBody, options?: RawAxiosRequestConfig) {
+        return VerificationApiFp(this.configuration).apiV1VerifyResetPasswordPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

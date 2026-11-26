@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/gofiber/swagger"
@@ -248,6 +247,7 @@ func (s *APIServer) RegisterRoutes() {
 	accounts.Post("/mfa/totp/enable", middleware.NewLimit(10, 1*time.Minute), s.TotpEnable())
 	accounts.Post("/mfa/totp/enable/confirm", middleware.NewLimit(10, 1*time.Minute), s.confirm2FA())
 	accounts.Post("/mfa/totp/disable", middleware.NewLimit(10, 1*time.Minute), s.disable2FA())
+	accounts.Post("/mfa/totp/backup-codes/regenerate", middleware.NewLimit(10, 1*time.Minute), s.regenerateBackupCodes())
 
 	// Profiles endpoints
 	profiles.Post("", middleware.NewLimit(30, 1*time.Minute), s.createProfile())
@@ -292,13 +292,7 @@ func (s *APIServer) RegisterRoutes() {
 	profiles.Post("/:id/services", middleware.NewLimit(20, 1*time.Minute), s.enableServices())
 	profiles.Delete("/:id/services", middleware.NewLimit(20, 1*time.Minute), s.disableServices())
 
-	// Session endpoints (respect global disable flag via conditional wrapper)
-	if s.Config.API.DisableRateLimit {
-		sessions.Delete("", func(c *fiber.Ctx) error { return c.Next() }, s.deleteAllOtherSessions())
-	} else {
-		// Using default limiter settings for this destructive operation
-		sessions.Delete("", limiter.New(), s.deleteAllOtherSessions())
-	}
+	sessions.Delete("", middleware.NewLimit(10, 1*time.Minute), s.deleteAllOtherSessions())
 
 	docs := s.App.Group("/docs")
 	docs.Use(middleware.NewBasicAuth(*s.Config.API))

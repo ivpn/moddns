@@ -1,6 +1,7 @@
 import Home from "@/pages/home/Home";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { JSX } from "react";
 
@@ -10,6 +11,7 @@ export default function HomeScreen(): JSX.Element {
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <PasskeyVerificationBanner />
+            <LegacyBackupCodesBanner />
             <Home />
         </div>
     );

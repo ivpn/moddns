@@ -732,24 +732,20 @@ func (s *ProfileExportImportSuite) TestExportImport_OnlyAcceptsPOST() {
 
 // ---- MFA-gate forwarding tests --------------------------------------------
 //
-// These assert that the handler plumbs `x-mfa-code` into the service via
-// the new `mfa *model.MfaData` argument, and that 2FA-failure errors returned
-// by the service are mapped to HTTP 401 by the unified HandleError.
-//
-// Pre-unification the profile export/import handler ignored x-mfa-code
-// entirely; a TOTP-enabled account that reauth'd with password would bypass
-// MFA. This guards against regression.
+// These assert that the handler passes the otp field of the body to the
+// service as the `mfa *model.MfaData` argument, and that 2FA refusals
+// returned by the service are a bad request on a valid session.
 
-// TestExport_ForwardsMfaCodeHeaderToService — the x-mfa-code header is
-// extracted by auth.GetMfaData and passed as the final argument to
-// ProfileServicer.Export.
-func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeHeaderToService() {
+// TestExport_ForwardsMfaCodeToService - the otp body field is passed as the
+// final argument to ProfileServicer.Export.
+// specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeToService() {
 	envelope := &model.ExportEnvelope{
 		SchemaVersion: 1, Kind: "moddns-export",
 		ExportedAt: time.Now().UTC(),
 		Profiles:   []model.ExportedProfile{{Name: "p"}},
 	}
-	// Match the MfaData by content — OTP must be the value of the header.
+	// Match the MfaData by content - OTP must be the value of the otp field.
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
@@ -759,8 +755,9 @@ func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeHeaderToService() {
 		}),
 	).Return(envelope, nil)
 
-	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", minimalExportBody(s.T()))
-	req.Header.Set("x-mfa-code", "123456")
+	body, err := json.Marshal(map[string]any{"scope": "all", "otp": "123456"})
+	require.NoError(s.T(), err)
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/export", body)
 	s.auth(req)
 
 	resp, err := s.createServer().App.Test(req, -1)
@@ -769,10 +766,10 @@ func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeHeaderToService() {
 	s.mockProfileSvc.AssertExpectations(s.T())
 }
 
-// TestExport_TOTPRequiredFromService_Returns401 — when the service returns a
-// TOTP-required error (the unified reauth.Verify path when MFA is enabled
-// but the OTP header is absent), HandleError maps it to 401.
-func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns401() {
+// TestExport_TOTPRequiredFromService_Returns400 - a missing 2FA code with the
+// password is a bad request on a valid session, not an expired session.
+// specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns400() {
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
@@ -784,12 +781,12 @@ func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns401
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 }
 
-// TestImport_ForwardsMfaCodeHeaderToService — same as the Export variant
-// but for the Import handler. Confirms the MFA plumbing is symmetric.
-func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeHeaderToService() {
+// TestImport_ForwardsMfaCodeToService - same as the Export variant but for
+// the Import handler. specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeToService() {
 	result := &profile.ImportResult{CreatedProfileIds: []string{"p1"}, Warnings: []string{}}
 	s.mockProfileSvc.On(
 		"Import",
@@ -800,9 +797,13 @@ func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeHeaderToService() {
 		}),
 	).Return(result, nil)
 
-	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", minimalImportPayload(s.T()))
+	var payload map[string]any
+	require.NoError(s.T(), json.Unmarshal(minimalImportPayload(s.T()), &payload))
+	payload["otp"] = "654321"
+	body, err := json.Marshal(payload)
+	require.NoError(s.T(), err)
+	req := jsonReq(http.MethodPost, "/api/v1/profiles/import", body)
 	req.Header.Set("X-modDNS-Import", "confirm")
-	req.Header.Set("x-mfa-code", "654321")
 	s.authAndSubscription(req)
 
 	resp, err := s.createServer().App.Test(req, -1)
@@ -811,9 +812,10 @@ func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeHeaderToService() {
 	s.mockProfileSvc.AssertExpectations(s.T())
 }
 
-// TestImport_InvalidTOTPCodeFromService_Returns401 — wrong OTP returned by
-// the service must produce 401, matching the password-mismatch shape.
-func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns401() {
+// TestImport_InvalidTOTPCodeFromService_Returns400 - a wrong 2FA code is a
+// bad request on a valid session, matching the password-mismatch shape.
+// specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns400() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
@@ -826,7 +828,7 @@ func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 }
 
 // ---- Friendly validation messages (QA issue #604) -------------------------

@@ -28,8 +28,9 @@ class RequestsWebAuthnDeletePasskeyRequest(BaseModel):
     RequestsWebAuthnDeletePasskeyRequest
     """ # noqa: E501
     current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
-    __properties: ClassVar[List[str]] = ["current_password", "reauth_token"]
+    __properties: ClassVar[List[str]] = ["current_password", "otp", "reauth_token"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,6 +84,7 @@ class RequestsWebAuthnDeletePasskeyRequest(BaseModel):
 
         _obj = cls.model_validate({
             "current_password": obj.get("current_password"),
+            "otp": obj.get("otp"),
             "reauth_token": obj.get("reauth_token")
         })
         return _obj

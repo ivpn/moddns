@@ -8,6 +8,7 @@ import (
 	"github.com/ivpn/dns/api/api/requests"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
 )
 
@@ -94,8 +95,6 @@ func (s *APIServer) getAccount() fiber.Handler {
 // @Accept json
 // @Produce json
 // @Param body body requests.AccountUpdates true "Update account request"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 204
 // @Failure 400 {object} ErrResponse
 // @Failure 404 {object} ErrResponse
@@ -113,10 +112,10 @@ func (s *APIServer) updateAccount() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		mfa := auth.GetMfaData(c)
+		mfa := &model.MfaData{OTP: updates.OTP}
 		accountId := auth.GetAccountID(c)
 		if err := s.Service.UpdateAccount(c.UserContext(), accountId, updates.Updates, mfa); err != nil {
-			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
+			return handleSessionTotpError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
 		return c.SendStatus(204)
@@ -150,10 +149,9 @@ func (s *APIServer) deleteAccount() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		mfa := auth.GetMfaData(c)
-		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload, mfa)
+		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload)
 		if err != nil {
-			return HandleError(c, err, ErrFailedToDeleteAccount.Error())
+			return handleSessionTotpError(c, err, ErrFailedToDeleteAccount.Error())
 		}
 
 		ClearCookies(c, auth.AUTH_COOKIE)

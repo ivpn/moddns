@@ -86,6 +86,7 @@ Class | Method | HTTP request | Description
 *AccountApi* | [**api_v1_accounts_current_delete**](docs/AccountApi.md#api_v1_accounts_current_delete) | **DELETE** /api/v1/accounts/current | Delete account
 *AccountApi* | [**api_v1_accounts_current_deletion_code_post**](docs/AccountApi.md#api_v1_accounts_current_deletion_code_post) | **POST** /api/v1/accounts/current/deletion-code | Generate deletion code
 *AccountApi* | [**api_v1_accounts_current_get**](docs/AccountApi.md#api_v1_accounts_current_get) | **GET** /api/v1/accounts/current | Get account data
+*AccountApi* | [**api_v1_accounts_mfa_totp_backup_codes_regenerate_post**](docs/AccountApi.md#api_v1_accounts_mfa_totp_backup_codes_regenerate_post) | **POST** /api/v1/accounts/mfa/totp/backup-codes/regenerate | Regenerate TOTP backup codes
 *AccountApi* | [**api_v1_accounts_mfa_totp_disable_post**](docs/AccountApi.md#api_v1_accounts_mfa_totp_disable_post) | **POST** /api/v1/accounts/mfa/totp/disable | Disable TOTP
 *AccountApi* | [**api_v1_accounts_mfa_totp_enable_confirm_post**](docs/AccountApi.md#api_v1_accounts_mfa_totp_enable_confirm_post) | **POST** /api/v1/accounts/mfa/totp/enable/confirm | Confirm TOTP
 *AccountApi* | [**api_v1_accounts_mfa_totp_enable_post**](docs/AccountApi.md#api_v1_accounts_mfa_totp_enable_post) | **POST** /api/v1/accounts/mfa/totp/enable | Enable TOTP
@@ -251,7 +252,10 @@ Class | Method | HTTP request | Description
  - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
+ - [RequestsSessionsDeleteRequest](docs/RequestsSessionsDeleteRequest.md)
  - [RequestsTotpDisableReq](docs/RequestsTotpDisableReq.md)
+ - [RequestsTotpEnableReq](docs/RequestsTotpEnableReq.md)
+ - [RequestsTotpRegenerateReq](docs/RequestsTotpRegenerateReq.md)
  - [RequestsTotpReq](docs/RequestsTotpReq.md)
  - [RequestsUpdateProfileCustomRuleBody](docs/RequestsUpdateProfileCustomRuleBody.md)
  - [RequestsWebAuthnAddPasskeyBeginRequest](docs/RequestsWebAuthnAddPasskeyBeginRequest.md)

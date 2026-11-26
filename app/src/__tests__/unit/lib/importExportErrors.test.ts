@@ -48,6 +48,12 @@ describe('importErrorMessage', () => {
 });
 
 describe('isReauthError', () => {
+    it('treats a refused 2FA code as a reauth failure', () => {
+        expect(isReauthError('invalid 2FA code')).toBe(true);
+        expect(isReauthError('TOTP is required')).toBe(true);
+    });
+
+
     it('returns true when message contains "password"', () => {
         expect(isReauthError('invalid current password')).toBe(true);
     });

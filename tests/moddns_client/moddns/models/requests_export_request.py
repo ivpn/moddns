@@ -28,10 +28,11 @@ class RequestsExportRequest(BaseModel):
     RequestsExportRequest
     """ # noqa: E501
     current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     profile_ids: Optional[List[StrictStr]] = None
     reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     scope: StrictStr
-    __properties: ClassVar[List[str]] = ["current_password", "profile_ids", "reauth_token", "scope"]
+    __properties: ClassVar[List[str]] = ["current_password", "otp", "profile_ids", "reauth_token", "scope"]
 
     @field_validator('scope')
     def scope_validate_enum(cls, value):
@@ -92,6 +93,7 @@ class RequestsExportRequest(BaseModel):
 
         _obj = cls.model_validate({
             "current_password": obj.get("current_password"),
+            "otp": obj.get("otp"),
             "profile_ids": obj.get("profile_ids"),
             "reauth_token": obj.get("reauth_token"),
             "scope": obj.get("scope")

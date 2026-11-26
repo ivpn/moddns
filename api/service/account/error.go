@@ -108,5 +108,6 @@ var (
 	ErrTOTPNotConfigured     = NewTOTPError("2FA is not configured")
 	ErrTOTPAlreadyDisabled   = NewTOTPError("2FA already disabled")
 	ErrTOTPRequired          = NewTOTPError("TOTP is required")
+	ErrTOTPSetupNotStarted   = NewTOTPError("no 2FA set-up in progress, start again")
 	ErrTOTPTooManyAttempts   = NewTOTPError("too many failed 2FA attempts, try again later")
 )

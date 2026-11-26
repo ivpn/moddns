@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -31,6 +32,7 @@ var (
 	ErrFailedToRegisterAccount       = errors.New("failed to register account")
 	ErrFailedToUpdateAccount         = errors.New("failed to update account")
 	ErrFailedToDeleteAccount         = errors.New("failed to delete account")
+	ErrFailedToDeleteSessions        = errors.New("failed to delete other sessions")
 	ErrFailedToCreateCustomRule      = errors.New("failed to create custom rule")
 	ErrFailedToUpdateCustomRule      = errors.New("failed to update custom rule")
 	ErrFailedToDeleteCustomRule      = errors.New("failed to delete custom rule")
@@ -63,6 +65,7 @@ var (
 	ErrFailedToEnable2FA             = errors.New("failed to enable 2FA")
 	ErrFailedToConfirm2FA            = errors.New("failed to confirm 2FA")
 	ErrFailedToDisable2FA            = errors.New("failed to disable 2FA")
+	ErrFailedToRegenerateBackupCodes = errors.New("failed to regenerate backup codes")
 	ErrDisableTotpSuccess            = errors.New("2FA is disabled")
 	// ErrTotpRequired                 = errors.New("TOTP is required")
 	ErrInvalidTotpCode              = errors.New("invalid 2FA code")
@@ -153,8 +156,8 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	if len(details) > 0 {
 		resp.Details = details
 	}
-	if errors.Is(err, strconv.ErrSyntax) {
-		resp.Error = err.Error()
+	if msg, ok := unreadableRequest(err); ok {
+		resp.Error = msg
 		return c.Status(400).JSON(resp)
 	}
 	if errors.Is(err, account.ErrTOTPTooManyAttempts) {
@@ -171,7 +174,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	//
 	// Rationale for 400 (not 401): the caller's session is valid — what failed
 	// is a piece of the request body (wrong password, wrong reauth_token, or a
-	// missing/wrong x-mfa-code). Returning 401 would trigger the global axios
+	// missing/wrong 2FA code). Returning 401 would trigger the global axios
 	// interceptor's session-expired logout flow, which is the wrong UX for a
 	// typo'd password. 400 lets the dialog surface the error inline.
 	if errors.Is(err, reauth.ErrMissingAuthMethod) ||
@@ -333,4 +336,35 @@ func intRange(params any, structField string) (lo, hi string, ok bool) {
 		}
 	}
 	return lo, hi, lo != "" && hi != ""
+}
+
+// handleSessionTotpError answers a refused 2FA code on a signed-in request,
+// including the code that goes with the password in a reauth. The session is
+// valid, so a wrong or missing code is a bad request body: 401 would read as an
+// expired session (same rule as the reauth errors above).
+func handleSessionTotpError(c *fiber.Ctx, err error, msg string) error {
+	var totpErr *account.TOTPError
+	if errors.As(err, &totpErr) && !errors.Is(err, account.ErrTOTPTooManyAttempts) {
+		log.Ctx(c.UserContext()).Warn().Err(err).Msg(msg)
+		return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
+	}
+	return HandleError(c, err, msg)
+}
+
+// unreadableRequest returns the 400 message for a request the handler could not
+// read: a number that does not parse, or a body BodyParser could not decode (a
+// missing or unsupported Content-Type, which fiber answers with 422, or JSON
+// that is malformed or does not fit the request type).
+func unreadableRequest(err error) (string, bool) {
+	if errors.Is(err, strconv.ErrSyntax) {
+		return err.Error(), true
+	}
+	var fiberErr *fiber.Error
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if (errors.As(err, &fiberErr) && fiberErr.Code == fiber.StatusUnprocessableEntity) ||
+		errors.As(err, &syntaxErr) || errors.As(err, &typeErr) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return ErrInvalidRequestBody.Error(), true
+	}
+	return "", false
 }

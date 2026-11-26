@@ -199,13 +199,17 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"email_change":     auth.TokenTypeReauthEmailChange,
-		"account_deletion": auth.TokenTypeReauthAccountDeletion,
-		"profile_export":   auth.TokenTypeReauthProfileExport,
-		"profile_import":   auth.TokenTypeReauthProfileImport,
-		"password_set":     auth.TokenTypeReauthPasswordSet,
-		"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
-		"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
+		"email_change":            auth.TokenTypeReauthEmailChange,
+		"account_deletion":        auth.TokenTypeReauthAccountDeletion,
+		"profile_export":          auth.TokenTypeReauthProfileExport,
+		"profile_import":          auth.TokenTypeReauthProfileImport,
+		"password_set":            auth.TokenTypeReauthPasswordSet,
+		"passkey_add":             auth.TokenTypeReauthPasskeyAdd,
+		"passkey_delete":          auth.TokenTypeReauthPasskeyDelete,
+		"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
+		"totp_disable":            auth.TokenTypeReauthTotpDisable,
+		"totp_enable":             auth.TokenTypeReauthTotpEnable,
+		"sessions_delete":         auth.TokenTypeReauthSessionsDelete,
 	}
 	for purpose, want := range tests {
 		got, ok := reauthTokenType(purpose)

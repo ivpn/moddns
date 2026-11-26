@@ -180,13 +180,12 @@ export async function authenticateWithPasskey(
 const ALREADY_HOLDS_PASSKEY =
   "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
 
-/** Request body and MFA header arguments carrying a completed identity verification. */
-function verificationRequest(verification: IdentityVerification) {
-  const body = verification.reauthToken
+/** The request body fields of a completed identity verification: a passkey reauth token, or the
+ *  current password with the 2FA code when 2FA is on. */
+export function verificationBody(verification: IdentityVerification): { reauth_token?: string; current_password?: string; otp?: string } {
+  return verification.reauthToken
     ? { reauth_token: verification.reauthToken }
-    : { current_password: verification.currentPassword };
-  const mfa: [string?, string[]?] = verification.otp ? [verification.otp, ['totp']] : [];
-  return { body, mfa };
+    : { current_password: verification.currentPassword, otp: verification.otp };
 }
 
 /**
@@ -194,8 +193,7 @@ function verificationRequest(verification: IdentityVerification) {
  * or a passkey reauth token for passkey_delete.
  */
 export async function deletePasskey(id: string, verification: IdentityVerification): Promise<void> {
-  const { body, mfa } = verificationRequest(verification);
-  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, body, ...mfa);
+  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, verificationBody(verification));
 }
 
 /**
@@ -210,8 +208,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Begin WebAuthn add passkey process
-    const { body, mfa } = verificationRequest(verification);
-    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(body, ...mfa);
+    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(verificationBody(verification));
     
     const options = beginResponse.data;
 
@@ -372,6 +369,38 @@ export async function beginPasskeyAddReauth(): Promise<string> {
  */
 export async function beginPasskeyDeleteReauth(): Promise<string> {
   return beginReauthForPurpose('passkey_delete');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for regenerating the 2FA backup codes.
+ * Returns a short-lived reauth token consumed by the regenerate request, which also carries a 2FA code.
+ */
+export async function beginBackupCodesRegenerateReauth(): Promise<string> {
+  return beginReauthForPurpose('backup_codes_regenerate');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for signing out the other sessions.
+ * Returns a short-lived reauth token consumed by the sessions request.
+ */
+export async function beginSessionsDeleteReauth(): Promise<string> {
+  return beginReauthForPurpose('sessions_delete');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for turning 2FA on.
+ * Returns a short-lived reauth token consumed by the request that starts set-up.
+ */
+export async function beginTotpEnableReauth(): Promise<string> {
+  return beginReauthForPurpose('totp_enable');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for turning 2FA off.
+ * Returns a short-lived reauth token consumed by the disable request, which also carries a 2FA code.
+ */
+export async function beginTotpDisableReauth(): Promise<string> {
+  return beginReauthForPurpose('totp_disable');
 }
 
 /**

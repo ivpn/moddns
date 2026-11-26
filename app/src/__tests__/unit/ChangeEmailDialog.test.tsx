@@ -27,7 +27,7 @@ const getAccount = () => useAppStore.getState().account;
 const fillDetailsAndContinue = () => {
     fireEvent.click(screen.getByText('Password'));
     fireEvent.change(screen.getByPlaceholderText('new@example.com'), { target: { value: 'new@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByText('Continue'));
 };
 
@@ -73,6 +73,28 @@ describe('ChangeEmailDialog', () => {
         expect(api.Client.accountsApi.apiV1AccountsPatch).toHaveBeenCalledTimes(1);
         expect(getAccount()?.email).toBe('new@example.com');
         expect(getAccount()?.email_verified).toBe(false);
+    });
+
+    // specRef: api-endpoint-behaviour B3, E6
+    it('with 2FA on, sends the code in the body next to the password', async () => {
+        useAppStore.getState().setAccount({ email: 'old@example.com', email_verified: true, mfa: { totp: { enabled: true } } } as ModelAccount);
+        const onChanged = vi.fn();
+        render(<ChangeEmailDialog open account={getAccount()} onOpenChange={() => { }} onChanged={onChanged} />);
+        fireEvent.change(screen.getByPlaceholderText('new@example.com'), { target: { value: 'new@example.com' } });
+        fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'password123' } });
+        fireEvent.change(screen.getByLabelText('2FA code'), { target: { value: '123456' } });
+        await waitFor(() => expect(screen.getByText('Continue')).toBeEnabled());
+        fireEvent.click(screen.getByText('Continue'));
+        fireEvent.change(screen.getByTestId('input-confirm-email'), { target: { value: 'new@example.com' } });
+        fireEvent.click(screen.getByText('Update email'));
+
+        await waitFor(() => expect(onChanged).toHaveBeenCalled());
+        const call = vi.mocked(api.Client.accountsApi.apiV1AccountsPatch).mock.calls[0];
+        expect(call).toHaveLength(1);
+        expect(call[0]).toMatchObject({
+            otp: '123456',
+            updates: [{ value: { current_password: 'password123', new_email: 'new@example.com' } }],
+        });
     });
 
     it('blocks submit and shows an error while the confirm entry mismatches', () => {

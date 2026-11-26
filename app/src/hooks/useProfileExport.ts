@@ -10,7 +10,7 @@ export interface ExportProfilesInput {
   profileIds?: string[];
   currentPassword?: string;
   reauthToken?: string;
-  /** 6-digit TOTP code — forwarded only when password method is used and 2FA is enabled. */
+  /** 2FA code that goes with the current password when 2FA is on. */
   otp?: string;
 }
 
@@ -28,16 +28,10 @@ export function useProfileExport(): {
         ...(input.profileIds !== undefined && { profile_ids: input.profileIds }),
         ...(input.currentPassword !== undefined && { current_password: input.currentPassword }),
         ...(input.reauthToken !== undefined && { reauth_token: input.reauthToken }),
+        ...(input.currentPassword !== undefined && input.otp && { otp: input.otp }),
       };
 
-      // Forward OTP as x-mfa-code header only when password method is active and a code is provided.
-      // Passkey reauth already satisfies the second factor — no OTP needed in that path.
-      const axiosOptions: import('axios').RawAxiosRequestConfig = { responseType: 'blob' };
-      if (input.currentPassword !== undefined && input.otp) {
-        axiosOptions.headers = { 'x-mfa-code': input.otp };
-      }
-
-      const response = await API.Client.profilesApi.apiV1ProfilesExportPost(body, axiosOptions);
+      const response = await API.Client.profilesApi.apiV1ProfilesExportPost(body, { responseType: 'blob' });
 
       const blob = response.data instanceof Blob
         ? response.data

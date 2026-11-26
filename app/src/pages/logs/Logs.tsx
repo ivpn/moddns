@@ -21,6 +21,7 @@ import { useScreenDetector } from "@/hooks/useScreenDetector";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 
 const QUERY_LIMIT = 25;
@@ -629,6 +630,7 @@ const QueryLogs = ({ profiles }: QueryLogsProps): JSX.Element => {
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <PasskeyVerificationBanner />
+            <LegacyBackupCodesBanner />
             {/* GET /profiles/{id}/logs and DELETE /profiles/{id}/logs are LA-allowed; only the per-row Quick rule action (POST custom_rules) is gated below. */}
             <div className="flex flex-col items-start gap-6 relative flex-1 self-stretch grow w-full">
                 {/* Page Description */}

@@ -19,6 +19,7 @@ type ExportRequest struct {
 	ProfileIds      []string `json:"profile_ids,omitempty"`
 	CurrentPassword *string  `json:"current_password,omitempty"   validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string  `json:"reauth_token,omitempty"       validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+	OTP             string   `json:"otp,omitempty" validate:"omitempty,max=64"`
 }
 
 // Validate enforces the cross-field invariant between Scope and ProfileIds.
@@ -46,4 +47,5 @@ type ImportRequest struct {
 	Payload         *model.ExportEnvelope `json:"payload"                      validate:"required"`
 	CurrentPassword *string               `json:"current_password,omitempty"   validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string               `json:"reauth_token,omitempty"       validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+	OTP             string                `json:"otp,omitempty" validate:"omitempty,max=64"`
 }

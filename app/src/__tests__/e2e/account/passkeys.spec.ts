@@ -94,7 +94,7 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     await dialog.getByRole('button', { name: 'Delete passkey' }).click();
 
     await expect.poll(() => captured.deleted).not.toBeNull();
-    expect(captured.deleted).toEqual({ id: 'p1', body: { current_password: 'CurrentPass123!' }, mfaCode: '123456' });
+    expect(captured.deleted).toEqual({ id: 'p1', body: { current_password: 'CurrentPass123!', otp: '123456' }, mfaCode: undefined });
   });
 
   // specRef: F8

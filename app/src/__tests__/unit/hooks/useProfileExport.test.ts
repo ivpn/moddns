@@ -166,3 +166,32 @@ describe('useProfileExport — blob error parsing', () => {
         expect(mockToastError).toHaveBeenCalledWith('Export failed. Please try again.');
     });
 });
+
+// The 2FA code goes in the request body with the password, never in a header,
+// and is left out with a passkey reauth token. specRef: api-endpoint-behaviour E6
+describe('useProfileExport - 2FA code', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPost.mockResolvedValue({ data: new Blob(['{}']), headers: {} } as never);
+        // The hook downloads through a link click, which jsdom cannot navigate.
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    });
+
+    it('sends the code in the body with the password', async () => {
+        const { result } = renderHook(() => useProfileExport());
+        await act(async () => {
+            await result.current.exportProfiles({ ...baseInput, otp: '123456' });
+        });
+        const [body, options] = mockPost.mock.calls[0];
+        expect(body).toEqual({ scope: 'all', current_password: 'secret', otp: '123456' });
+        expect(options).toEqual({ responseType: 'blob' });
+    });
+
+    it('leaves the code out with a passkey reauth token', async () => {
+        const { result } = renderHook(() => useProfileExport());
+        await act(async () => {
+            await result.current.exportProfiles({ scope: 'all', reauthToken: 'reauth-token', otp: '123456' });
+        });
+        expect(mockPost.mock.calls[0][0]).toEqual({ scope: 'all', reauth_token: 'reauth-token' });
+    });
+});

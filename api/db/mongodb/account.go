@@ -239,26 +239,50 @@ func (r *AccountRepository) EnableTOTP(ctx context.Context, accountId, sealedSec
 }
 
 // DisableTOTP implements repository.AccountRepository.
-func (r *AccountRepository) DisableTOTP(ctx context.Context, accountId string) error {
-	accId, err := primitive.ObjectIDFromHex(accountId)
-	if err != nil {
-		return err
-	}
+func (r *AccountRepository) DisableTOTP(ctx context.Context, accountId string, proof model.TOTPProof) error {
 	unset := legacyTOTPFields()
 	unset = append(unset,
 		bson.E{Key: "mfa.totp.secret_sealed", Value: ""},
 		bson.E{Key: "mfa.totp.backup_code_hashes", Value: ""},
 	)
-	update := bson.D{
+	return r.updateVerifiedTOTP(ctx, accountId, proof, bson.D{
 		{Key: "$set", Value: bson.D{{Key: "mfa.totp.enabled", Value: false}}},
 		{Key: "$unset", Value: unset},
+	})
+}
+
+// ReplaceBackupCodes implements repository.AccountRepository.
+func (r *AccountRepository) ReplaceBackupCodes(ctx context.Context, accountId string, proof model.TOTPProof, backupCodeHashes []string) error {
+	return r.updateVerifiedTOTP(ctx, accountId, proof, bson.D{
+		{Key: "$set", Value: bson.D{{Key: "mfa.totp.backup_code_hashes", Value: backupCodeHashes}}},
+		{Key: "$unset", Value: legacyTOTPFields()},
+	})
+}
+
+// updateVerifiedTOTP applies a change only while 2FA is in the verified state, so
+// one backup code authorises at most one change and is used up only with it (E6).
+func (r *AccountRepository) updateVerifiedTOTP(ctx context.Context, accountId string, proof model.TOTPProof, update bson.D) error {
+	if proof.SecretSealed == "" {
+		return errors.ErrTOTPStateChanged
 	}
-	res, err := r.accountsCollection.UpdateByID(ctx, accId, update)
+	accId, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	filter := bson.D{
+		{Key: "_id", Value: accId},
+		{Key: "mfa.totp.enabled", Value: true},
+		{Key: "mfa.totp.secret_sealed", Value: proof.SecretSealed},
+	}
+	if proof.BackupCodeHash != "" {
+		filter = append(filter, bson.E{Key: "mfa.totp.backup_code_hashes", Value: bson.D{{Key: "$elemMatch", Value: bson.D{{Key: "$eq", Value: proof.BackupCodeHash}}}}})
+	}
+	res, err := r.accountsCollection.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return err
 	}
 	if res.MatchedCount == 0 {
-		return errors.ErrAccountNotFound
+		return errors.ErrTOTPStateChanged
 	}
 	return nil
 }

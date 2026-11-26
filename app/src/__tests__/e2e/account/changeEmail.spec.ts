@@ -40,7 +40,7 @@ test('email change requires confirm step and sends patch on match', async ({ pag
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');
-  await page.getByPlaceholder('••••••••').fill('Password123!');
+  await page.getByLabel('Current password').fill('Password123!');
   await page.getByRole('button', { name: /^Continue$/ }).click();
 
   // Confirm step: warning about non-deliverable address is visible, no PATCH yet.
@@ -69,7 +69,7 @@ test('email change blocked while confirm entry mismatches', async ({ page }) => 
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');
-  await page.getByPlaceholder('••••••••').fill('Password123!');
+  await page.getByLabel('Current password').fill('Password123!');
   await page.getByRole('button', { name: /^Continue$/ }).click();
 
   await page.getByTestId('input-confirm-email').fill('wrong@example.com');

@@ -31,7 +31,6 @@ func TestResponseListFields_RenderAsEmptyArray(t *testing.T) {
 		{"QueryLog", QueryLog{}, []string{"reasons"}},
 		{"Account", Account{}, []string{"profiles", "auth_methods"}},
 		{"TOTPBackup", TOTPBackup{}, []string{"backup_codes"}},
-		{"MfaData", MfaData{}, []string{"methods"}},
 	}
 
 	for _, tc := range cases {

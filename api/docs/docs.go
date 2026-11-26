@@ -81,22 +81,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.AccountUpdates"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -294,9 +278,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/accounts/mfa/totp/backup-codes/regenerate": {
+            "post": {
+                "description": "Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Regenerate TOTP backup codes",
+                "parameters": [
+                    {
+                        "description": "Regenerate backup codes request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.TotpRegenerateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.TOTPBackup"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/accounts/mfa/totp/disable": {
             "post": {
-                "description": "Disable TOTP",
+                "description": "Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -331,6 +373,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
@@ -348,7 +396,7 @@ const docTemplate = `{
         },
         "/api/v1/accounts/mfa/totp/enable": {
             "post": {
-                "description": "Enable TOTP",
+                "description": "Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.",
                 "consumes": [
                     "application/json"
                 ],
@@ -359,6 +407,17 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "Enable TOTP",
+                "parameters": [
+                    {
+                        "description": "Enable TOTP request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.TotpEnableReq"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -368,6 +427,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -414,6 +479,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -644,22 +715,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.LoginBody"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     },
                     {
                         "type": "string",
@@ -2618,7 +2673,10 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Delete all sessions for the current account except the current session",
+                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -2626,6 +2684,17 @@ const docTemplate = `{
                     "Sessions"
                 ],
                 "summary": "Delete all other sessions",
+                "parameters": [
+                    {
+                        "description": "Verification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.SessionsDeleteRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "204": {
                         "description": "No Content"
@@ -2636,8 +2705,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -2916,22 +2991,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.ConfirmResetPasswordBody"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -3050,7 +3109,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/add/begin": {
             "post": {
-                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
+                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3070,22 +3129,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.WebAuthnAddPasskeyBeginRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -3227,7 +3270,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/{id}": {
             "delete": {
-                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
+                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3251,22 +3294,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.WebAuthnDeletePasskeyRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -4777,6 +4804,14 @@ const docTemplate = `{
         "model.TotpSettings": {
             "type": "object",
             "properties": {
+                "backup_codes_legacy": {
+                    "description": "BackupCodesLegacy marks a code set of an earlier format, which the\naccount holder should replace.",
+                    "type": "boolean"
+                },
+                "backup_codes_remaining": {
+                    "description": "BackupCodesRemaining is the number of unused backup codes; derived, not stored.",
+                    "type": "integer"
+                },
                 "enabled": {
                     "description": "Indicates if TOTP is enabled.",
                     "type": "boolean"
@@ -5170,6 +5205,10 @@ const docTemplate = `{
                 "deletion_code": {
                     "type": "string"
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
@@ -5182,6 +5221,11 @@ const docTemplate = `{
                 "updates"
             ],
             "properties": {
+                "otp": {
+                    "description": "OTP is the 2FA code that goes with a current password, when 2FA is on.",
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "updates": {
                     "type": "array",
                     "items": {
@@ -5220,7 +5264,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "otp": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "token": {
                     "type": "string"
@@ -5354,6 +5399,10 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "profile_ids": {
                     "type": "array",
                     "items": {
@@ -5390,6 +5439,10 @@ const docTemplate = `{
                         "create_new"
                     ]
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "payload": {
                     "$ref": "#/definitions/model.ExportEnvelope"
                 },
@@ -5408,6 +5461,11 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string"
+                },
+                "otp": {
+                    "description": "OTP is the 2FA code, required when the account has 2FA on.",
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "password": {
                     "type": "string"
@@ -5526,16 +5584,75 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.SessionsDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.TotpDisableReq": {
             "type": "object",
             "required": [
                 "otp"
             ],
             "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "otp": {
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "requests.TotpEnableReq": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
+        "requests.TotpRegenerateReq": {
+            "type": "object",
+            "required": [
+                "otp"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -5587,6 +5704,10 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
@@ -5599,6 +5720,10 @@ const docTemplate = `{
                 "current_password": {
                     "type": "string",
                     "minLength": 1
+                },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "reauth_token": {
                     "type": "string",
@@ -5621,7 +5746,11 @@ const docTemplate = `{
                         "profile_import",
                         "password_set",
                         "passkey_add",
-                        "passkey_delete"
+                        "passkey_delete",
+                        "backup_codes_regenerate",
+                        "totp_disable",
+                        "totp_enable",
+                        "sessions_delete"
                     ]
                 }
             }

@@ -5,18 +5,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
+import { useState } from "react";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
+import { beginTotpDisableReauth } from "@/lib/webauthn";
 import api from "@/api/api";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/general";
-
-// An authenticator code has 6 digits; a backup code has at least 8 characters
-// and may be entered grouped with hyphens or spaces, which the API ignores.
-const MIN_BACKUP_CODE_LENGTH = 8;
-const MAX_CODE_LENGTH = 64;
 
 interface Disable2FADialogProps {
     open: boolean;
@@ -25,22 +22,20 @@ interface Disable2FADialogProps {
 }
 
 export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Disable2FADialogProps) {
-    const [otp, setOtp] = useState("");
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [loading, setLoading] = useState(false);
+    const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
-    const code = otp.replace(/[\s-]/g, "");
-    const canSubmit = /^\d{6}$/.test(code) || code.length >= MIN_BACKUP_CODE_LENGTH;
-
-    // Reset OTP every time dialog is opened
-    useEffect(() => {
-        if (open) setOtp("");
-    }, [open]);
 
     const handleDisable2FA = async () => {
+        if (!verification?.otp || loading) return;
         setLoading(true);
         try {
-            const body = { otp } as unknown as { otp: string };
-            await api.Client.accountsApi.apiV1AccountsMfaTotpDisablePost(body);
+            await api.Client.accountsApi.apiV1AccountsMfaTotpDisablePost({
+                otp: verification.otp,
+                current_password: verification.currentPassword,
+                reauth_token: verification.reauthToken,
+            });
             toast.success("2FA disabled successfully.");
 
             // Update the global account state with latest 2FA status
@@ -55,6 +50,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
             if (onDisabled) onDisabled();
             onOpenChange(false);
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to disable 2FA."));
         } finally {
@@ -72,40 +68,21 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                 </DialogHeader>
                 <div className="flex flex-col items-start gap-6 p-6">
                     <p className="text-sm font-normal text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
-                        Enter the 6-digit code from your authenticator app, or one of your backup codes, to disable 2FA for your account.
+                        Confirm it's you, then enter the 6-digit code from your authenticator app to disable 2FA for your account. If you lost your device, use one of your backup codes instead.
                     </p>
-                    <div className="flex flex-col items-start gap-2 w-full">
-                        <label
-                            htmlFor="disable-totp-code"
-                            className="text-sm font-medium text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Medium',Helvetica]"
-                        >
-                            Authenticator or backup code
-                        </label>
-                        <Input
-                            id="disable-totp-code"
-                            className="h-10 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] rounded-md"
-                            value={otp}
-                            onChange={e => setOtp(e.target.value)}
-                            disabled={loading}
+                    <div className="w-full">
+                        <VerifyIdentityFields
+                            account={account ?? null}
+                            open={open}
+                            beginPasskeyReauth={beginTotpDisableReauth}
+                            onChange={onVerificationChange}
+                            passkeyResetKey={passkeyResetKey}
+                            requireCode
+                            onSubmit={handleDisable2FA}
+                            codeTestId="disable-2fa-code"
                             autoFocus
-                            autoComplete="one-time-code"
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            maxLength={MAX_CODE_LENGTH}
-                            onKeyDown={e => {
-                                if (
-                                    e.key === "Enter" &&
-                                    !loading &&
-                                    canSubmit
-                                ) {
-                                    handleDisable2FA();
-                                }
-                            }}
+                            disabled={loading}
                         />
-                        <p className="text-sm text-[var(--tailwind-colors-slate-400)] leading-5 font-text-sm-leading-5-normal">
-                            6-digit code or a backup code
-                        </p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 pt-0">
@@ -121,7 +98,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                     <Button
                         size="lg"
                         className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] flex items-center justify-center text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-700)]"
-                        disabled={loading || !canSubmit}
+                        disabled={loading || !verification}
                         onClick={handleDisable2FA}
                     >
                         {loading ? (
