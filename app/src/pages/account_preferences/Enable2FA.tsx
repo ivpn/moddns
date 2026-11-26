@@ -7,7 +7,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ClipboardIcon, CheckIcon, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import api from "@/api/api";
@@ -15,6 +15,11 @@ import { useAppStore } from "@/store/general";
 import BackupCodesView from "@/components/dialogs/BackupCodesView";
 import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { totpErrorMessage } from "@/lib/authToasts";
+import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import { beginTotpEnableReauth } from "@/lib/webauthn";
+
+// API answer to a confirm without a pending secret (api-endpoint-behaviour E2).
+const TOTP_SETUP_NOT_STARTED = "no 2FA set-up in progress, start again";
 
 interface TwoFactorAuthDialogProps {
     open: boolean;
@@ -33,26 +38,20 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
     const [enabling, setEnabling] = useState(false);
     const [visible, setVisible] = useState(open);
     const [backupCodesConfirmed, setBackupCodesConfirmed] = useState(false);
+    const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
 
     useEffect(() => {
         if (open) {
             setVisible(true);
-            setLoading(true);
+            setSecret("");
+            setUri("");
             setBackupCodes(null);
             setBackupCodesConfirmed(false);
             setOtp(""); // Clear OTP when opening dialog
             setOtpValid(false);
-            api.Client.accountsApi.apiV1AccountsMfaTotpEnablePost()
-                .then(res => {
-                    setSecret(res.data.secret || "");
-                    setUri(res.data.uri || "");
-                })
-                .catch(() => {
-                    toast.error("Failed to fetch 2FA setup data.");
-                    onOpenChange(false);
-                })
-                .finally(() => setLoading(false));
         } else {
             // Clear OTP when closing dialog
             setOtp("");
@@ -60,8 +59,25 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             const timeout = setTimeout(() => setVisible(false), 200); // 200ms matches Tailwind duration-200
             return () => clearTimeout(timeout);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
+
+    const startSetup = async () => {
+        if (!verification || loading) return;
+        setLoading(true);
+        try {
+            const res = await api.Client.accountsApi.apiV1AccountsMfaTotpEnablePost({
+                current_password: verification.currentPassword,
+                reauth_token: verification.reauthToken,
+            });
+            setSecret(res.data.secret || "");
+            setUri(res.data.uri || "");
+        } catch (e: unknown) {
+            const axiosErr = e as { response?: { data?: { error?: string } } };
+            toast.error(axiosErr?.response?.data?.error || "Failed to fetch 2FA setup data.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleCopy = async () => {
         try {
@@ -85,7 +101,17 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             // Do NOT call onEnabled here, wait for user confirmation
         } catch (e: unknown) {
             const axiosErr = e as { response?: { data?: { error?: string } } };
-            toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to enable 2FA."));
+            const error = axiosErr?.response?.data?.error;
+            if (error === TOTP_SETUP_NOT_STARTED) {
+                // The pending secret expired (or was replaced): set-up starts over with a new one.
+                setSecret("");
+                setUri("");
+                setOtp("");
+                setOtpValid(false);
+                toast.error("2FA set-up timed out. Confirm it's you again.");
+                return;
+            }
+            toast.error(totpErrorMessage(error, "Failed to enable 2FA."));
         } finally {
             setEnabling(false);
         }
@@ -144,6 +170,22 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                 <div className="flex flex-col items-start gap-8 p-4 sm:p-6">
                     {backupCodes ? (
                         <BackupCodesView codes={backupCodes} onDone={handleBackupCodesConfirmed} />
+                    ) : !secret ? (
+                        <div className="flex flex-col items-start gap-6 w-full">
+                            <p className="text-sm font-normal text-[var(--tailwind-colors-slate-50)] tracking-[-0.35px] leading-[19.6px] font-['Roboto_Flex-Regular',Helvetica]">
+                                Confirm it's you before setting up two-factor authentication.
+                            </p>
+                            <div className="w-full">
+                                <VerifyIdentityFields
+                                    account={account ?? null}
+                                    open={open}
+                                    beginPasskeyReauth={beginTotpEnableReauth}
+                                    onChange={onVerificationChange}
+                                    autoFocus
+                                    disabled={loading}
+                                />
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <div className="flex flex-col items-start gap-4 pb-8 w-full border-b border-[var(--tailwind-colors-slate-600)]">
@@ -216,7 +258,31 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                     )}
                 </div>
 
-                {!backupCodes && (
+                {!backupCodes && !secret && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-0 pr-6 pb-6 pl-6">
+                        <Button
+                            variant="cancel"
+                            size="lg"
+                            className="flex-1 min-w-32 font-medium"
+                            onClick={() => onOpenChange(false)}
+                            disabled={loading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="default"
+                            size="lg"
+                            className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)] flex items-center justify-center"
+                            disabled={loading || !verification}
+                            onClick={startSetup}
+                        >
+                            {loading && <Loader2 className="animate-spin w-4 h-4 mr-2" />}
+                            Continue
+                        </Button>
+                    </div>
+                )}
+
+                {!backupCodes && secret && (
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-0 pr-6 pb-6 pl-6">
                         <Button
                             variant="cancel"

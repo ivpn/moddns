@@ -2900,6 +2900,25 @@ export interface RequestsTotpDisableReq {
 /**
  * 
  * @export
+ * @interface RequestsTotpEnableReq
+ */
+export interface RequestsTotpEnableReq {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpEnableReq
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpEnableReq
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpRegenerateReq
  */
 export interface RequestsTotpRegenerateReq {
@@ -3042,7 +3061,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     PasskeyAdd: 'passkey_add',
     PasskeyDelete: 'passkey_delete',
     BackupCodesRegenerate: 'backup_codes_regenerate',
-    TotpDisable: 'totp_disable'
+    TotpDisable: 'totp_disable',
+    TotpEnable: 'totp_enable'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3528,12 +3548,15 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpEnablePost: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1AccountsMfaTotpEnablePost: async (body: RequestsTotpEnableReq, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1AccountsMfaTotpEnablePost', 'body', body)
             const localVarPath = `/api/v1/accounts/mfa/totp/enable`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3548,9 +3571,12 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -3761,13 +3787,14 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPNew>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpEnablePost(options);
+        async apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ModelTOTPNew>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsMfaTotpEnablePost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsMfaTotpEnablePost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3882,13 +3909,14 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsMfaTotpEnableConfirmPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Enable TOTP
+         * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
          * @summary Enable TOTP
+         * @param {RequestsTotpEnableReq} body Enable TOTP request
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPNew> {
-            return localVarFp.apiV1AccountsMfaTotpEnablePost(options).then((request) => request(axios, basePath));
+        apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig): AxiosPromise<ModelTOTPNew> {
+            return localVarFp.apiV1AccountsMfaTotpEnablePost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Update account
@@ -4003,14 +4031,15 @@ export class AccountApi extends BaseAPI {
     }
 
     /**
-     * Enable TOTP
+     * Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
      * @summary Enable TOTP
+     * @param {RequestsTotpEnableReq} body Enable TOTP request
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof AccountApi
      */
-    public apiV1AccountsMfaTotpEnablePost(options?: RawAxiosRequestConfig) {
-        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpEnablePost(options).then((request) => request(this.axios, this.basePath));
+    public apiV1AccountsMfaTotpEnablePost(body: RequestsTotpEnableReq, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsMfaTotpEnablePost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

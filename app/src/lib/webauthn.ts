@@ -383,6 +383,14 @@ export async function beginBackupCodesRegenerateReauth(): Promise<string> {
 }
 
 /**
+ * Begin and finish passkey-based reauthentication for turning 2FA on.
+ * Returns a short-lived reauth token consumed by the request that starts set-up.
+ */
+export async function beginTotpEnableReauth(): Promise<string> {
+  return beginReauthForPurpose('totp_enable');
+}
+
+/**
  * Begin and finish passkey-based reauthentication for turning 2FA off.
  * Returns a short-lived reauth token consumed by the disable request, which also carries a 2FA code.
  */
