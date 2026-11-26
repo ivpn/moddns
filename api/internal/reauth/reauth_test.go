@@ -200,9 +200,9 @@ func TestVerify_Password_MfaFails_PropagatesError(t *testing.T) {
 	assert.ErrorIs(t, err, sentinel)
 }
 
-func TestVerify_Password_MfaCheckedBeforePassword(t *testing.T) {
-	// When both password and OTP are wrong, the MFA error wins — matches
-	// DeleteAccount / handleEmailUpdate ordering.
+// Without a code the 2FA prompt comes first, whatever the password, so the
+// dialog can ask for the code.
+func TestVerify_Password_MissingCodePromptsFirst(t *testing.T) {
 	hashed := bcryptHash(t, "correct")
 	store := &fakeStore{account: totpEnabledAccount(hashed)}
 	mfaErr := errors.New("totp required")
@@ -213,6 +213,29 @@ func TestVerify_Password_MfaCheckedBeforePassword(t *testing.T) {
 		Password:  ptr("wrong-password"),
 	})
 	assert.ErrorIs(t, err, mfaErr)
+}
+
+// A code is checked only after the password, so a wrong password neither uses
+// up a backup code nor counts as a failed 2FA attempt.
+func TestVerify_Password_CodeCheckedAfterPassword(t *testing.T) {
+	hashed := bcryptHash(t, "correct")
+	verifier := &fakeMfa{}
+
+	_, err := reauth.Verify(context.Background(), &fakeStore{account: totpEnabledAccount(hashed)}, verifier, reauth.Params{
+		AccountId: "acct",
+		Password:  ptr("wrong-password"),
+		Mfa:       &model.MfaData{OTP: "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5"},
+	})
+	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
+	assert.Equal(t, 0, verifier.calls, "no code is checked after a wrong password")
+
+	_, err = reauth.Verify(context.Background(), &fakeStore{account: totpEnabledAccount(hashed)}, verifier, reauth.Params{
+		AccountId: "acct",
+		Password:  ptr("correct"),
+		Mfa:       &model.MfaData{OTP: "123456"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, verifier.calls)
 }
 
 func TestVerify_Password_NilMfa_PassesEmptyToVerifier(t *testing.T) {

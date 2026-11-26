@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import TwoFactorCodeInput from '@/components/TwoFactorCodeInput';
 import type { ModelAccount } from '@/api/client/api';
 import { cn } from '@/lib/utils';
 import { useAccountVerificationMethod } from '@/hooks/useAccountVerificationMethod';
 
-/** A completed identity check: the current password (plus a 2FA code when TOTP is on) or a passkey reauth token. */
+/** A completed identity check: the current password (plus a 2FA code when TOTP is on) or a passkey reauth token.
+ *  With `requireCode`, the 2FA code comes with either method. */
 export interface IdentityVerification {
     currentPassword?: string;
     otp?: string;
@@ -22,6 +24,15 @@ interface VerifyIdentityFieldsProps {
     onChange: (verification: IdentityVerification | null) => void;
     /** Offer only passkey verification (e.g. the account has no password yet). */
     passkeyOnly?: boolean;
+    /** Ask for a 2FA code after either method: changes to 2FA itself need the factor as well as reauth. */
+    requireCode?: boolean;
+    /** Called on Enter in the 2FA code field once the code has a valid format; the caller checks the
+     *  verification passed to onChange is complete before submitting. */
+    onSubmit?: () => void;
+    /** Focus the first field of the chosen method when the dialog opens. */
+    autoFocus?: boolean;
+    /** Test id of the 2FA code field. */
+    codeTestId?: string;
     disabled?: boolean;
 }
 
@@ -40,16 +51,22 @@ export default function VerifyIdentityFields({
     beginPasskeyReauth,
     onChange,
     passkeyOnly = false,
+    requireCode = false,
+    onSubmit,
+    codeTestId = 'verify-identity-code',
+    autoFocus = false,
     disabled = false,
 }: VerifyIdentityFieldsProps) {
     const [currentPassword, setCurrentPassword] = useState('');
     const [otp, setOtp] = useState('');
+    const [otpValid, setOtpValid] = useState(false);
     const [reauthToken, setReauthToken] = useState<string | null>(null);
     const [reauthStatus, setReauthStatus] = useState<'idle' | 'in-progress' | 'verified' | 'error'>('idle');
 
     const reset = useCallback(() => {
         setCurrentPassword('');
         setOtp('');
+        setOtpValid(false);
         setReauthToken(null);
         setReauthStatus('idle');
     }, []);
@@ -57,7 +74,7 @@ export default function VerifyIdentityFields({
     const { method: chosenMethod, hasPasskeys, passwordAvailable, showOtp: otpForPassword, switchMethod } =
         useAccountVerificationMethod({ account, open, onMethodChange: reset });
     const method = passkeyOnly ? 'passkey' : chosenMethod;
-    const showOtp = method === 'password' && otpForPassword;
+    const showOtp = requireCode || (method === 'password' && otpForPassword);
 
     useEffect(() => {
         if (!open) reset();
@@ -65,13 +82,14 @@ export default function VerifyIdentityFields({
 
     useEffect(() => {
         if (method === 'passkey') {
-            onChange(reauthToken ? { reauthToken } : null);
-        } else if (currentPassword && (!showOtp || otp)) {
+            if (!reauthToken || (showOtp && !otpValid)) onChange(null);
+            else onChange(showOtp ? { reauthToken, otp } : { reauthToken });
+        } else if (currentPassword && (!showOtp || otpValid)) {
             onChange(showOtp ? { currentPassword, otp } : { currentPassword });
         } else {
             onChange(null);
         }
-    }, [method, reauthToken, currentPassword, otp, showOtp, onChange]);
+    }, [method, reauthToken, currentPassword, otp, otpValid, showOtp, onChange]);
 
     const verifyWithPasskey = async () => {
         setReauthStatus('in-progress');
@@ -109,7 +127,7 @@ export default function VerifyIdentityFields({
                 <div className="space-y-2">
                     <label htmlFor="verify-current-password" className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">Current password</label>
                     <Input id="verify-current-password" type="password" autoComplete="current-password" value={currentPassword}
-                        onChange={e => setCurrentPassword(e.target.value)} disabled={disabled} className={fieldClass} />
+                        onChange={e => setCurrentPassword(e.target.value)} disabled={disabled} autoFocus={autoFocus} className={fieldClass} />
                 </div>
             )}
             {method === 'passkey' && (
@@ -121,6 +139,7 @@ export default function VerifyIdentityFields({
                                 ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-800)]'
                                 : 'border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-rdns-600)] hover:border-[var(--tailwind-colors-slate-400)]')}
                         onClick={verifyWithPasskey}
+                        autoFocus={autoFocus}
                         disabled={disabled || reauthStatus === 'in-progress' || reauthStatus === 'verified'}>
                         {reauthStatus === 'idle' && 'Verify with passkey'}
                         {reauthStatus === 'in-progress' && 'Verifying...'}
@@ -133,12 +152,14 @@ export default function VerifyIdentityFields({
                 </div>
             )}
             {showOtp && (
-                <div className="space-y-2">
-                    <label htmlFor="verify-otp" className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">2FA code</label>
-                    <Input id="verify-otp" inputMode="numeric" autoComplete="one-time-code" value={otp}
-                        onChange={e => setOtp(e.target.value)} disabled={disabled} className={fieldClass} />
-                    <p className="text-xs text-[var(--tailwind-colors-slate-400)]">6-digit code</p>
-                </div>
+                <TwoFactorCodeInput
+                    id="verify-otp"
+                    value={otp}
+                    onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                    onSubmit={onSubmit}
+                    disabled={disabled}
+                    data-testid={codeTestId}
+                />
             )}
         </div>
     );

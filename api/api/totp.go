@@ -41,6 +41,7 @@ func (s *APIServer) TotpEnable() fiber.Handler {
 // @Param body body requests.TotpReq true "Confirm TOTP request"
 // @Success 200 {object} model.TOTPBackup
 // @Failure 400 {object} ErrResponse
+// @Failure 401 {object} ErrResponse
 // @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/accounts/mfa/totp/enable/confirm [post]
@@ -73,6 +74,7 @@ func (s *APIServer) confirm2FA() fiber.Handler {
 // @Param body body requests.TotpDisableReq true "Disable TOTP request"
 // @Success 200 {object} model.Account
 // @Failure 400 {object} ErrResponse
+// @Failure 401 {object} ErrResponse
 // @Failure 429 {object} ErrResponse
 // @Failure 500 {object} ErrResponse
 // @Router /api/v1/accounts/mfa/totp/disable [post]
@@ -95,6 +97,37 @@ func (s *APIServer) disable2FA() fiber.Handler {
 		return c.Status(200).JSON(acc)
 	}
 	return handler
+}
+
+// @Summary Regenerate TOTP backup codes
+// @Description Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+// @Tags Account
+// @Accept json
+// @Produce json
+// @Param body body requests.TotpRegenerateReq true "Regenerate backup codes request"
+// @Success 200 {object} model.TOTPBackup
+// @Failure 400 {object} ErrResponse
+// @Failure 401 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Failure 500 {object} ErrResponse
+// @Router /api/v1/accounts/mfa/totp/backup-codes/regenerate [post]
+func (s *APIServer) regenerateBackupCodes() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		p := new(requests.TotpRegenerateReq)
+		if err := c.BodyParser(p); err != nil {
+			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+
+		errMsgs := s.Validator.ValidateRequest(c, p, ErrFailedToRegenerateBackupCodes.Error())
+		if len(errMsgs) > 0 {
+			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
+		}
+		backup, err := s.Service.TotpRegenerateBackupCodes(c.UserContext(), auth.GetAccountID(c), *p)
+		if err != nil {
+			return handleSessionTotpError(c, err, ErrFailedToRegenerateBackupCodes.Error())
+		}
+		return c.Status(200).JSON(backup)
+	}
 }
 
 // handleSessionTotpError answers a refused 2FA code on a signed-in request. The

@@ -248,6 +248,7 @@ func (s *APIServer) RegisterRoutes() {
 	accounts.Post("/mfa/totp/enable", middleware.NewLimit(10, 1*time.Minute), s.TotpEnable())
 	accounts.Post("/mfa/totp/enable/confirm", middleware.NewLimit(10, 1*time.Minute), s.confirm2FA())
 	accounts.Post("/mfa/totp/disable", middleware.NewLimit(10, 1*time.Minute), s.disable2FA())
+	accounts.Post("/mfa/totp/backup-codes/regenerate", middleware.NewLimit(10, 1*time.Minute), s.regenerateBackupCodes())
 
 	// Profiles endpoints
 	profiles.Post("", middleware.NewLimit(30, 1*time.Minute), s.createProfile())

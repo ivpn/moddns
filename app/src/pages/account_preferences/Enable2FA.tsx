@@ -6,14 +6,14 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { ClipboardIcon, CheckIcon, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { useAppStore } from "@/store/general";
-import { formatBackupCode } from "@/lib/backupCodes";
+import BackupCodesView from "@/components/dialogs/BackupCodesView";
+import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { totpErrorMessage } from "@/lib/authToasts";
 
 interface TwoFactorAuthDialogProps {
@@ -28,6 +28,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
     const [secret, setSecret] = useState<string>("");
     const [uri, setUri] = useState<string>("");
     const [otp, setOtp] = useState<string>("");
+    const [otpValid, setOtpValid] = useState(false);
     const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
     const [enabling, setEnabling] = useState(false);
     const [visible, setVisible] = useState(open);
@@ -41,6 +42,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             setBackupCodes(null);
             setBackupCodesConfirmed(false);
             setOtp(""); // Clear OTP when opening dialog
+            setOtpValid(false);
             api.Client.accountsApi.apiV1AccountsMfaTotpEnablePost()
                 .then(res => {
                     setSecret(res.data.secret || "");
@@ -133,7 +135,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                     if (backupCodes && !backupCodesConfirmed) e.preventDefault();
                 }}
             >
-                <DialogHeader className="p-4 sm:p-6 pb-0">
+                <DialogHeader className="p-4 sm:p-6 pb-0 sm:pb-0">
                     <DialogTitle className="text-lg font-semibold text-[var(--tailwind-colors-slate-50)] tracking-[-0.45px] leading-[18px] font-['Roboto_Flex-SemiBold',Helvetica]">
                         Enable 2-Factor Authentication
                     </DialogTitle>
@@ -141,47 +143,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
 
                 <div className="flex flex-col items-start gap-8 p-4 sm:p-6">
                     {backupCodes ? (
-                        <div className="flex flex-col gap-4 w-full">
-                            <h2 className="text-base font-semibold text-[var(--tailwind-colors-slate-50)]">Backup codes</h2>
-                            <p className="text-sm text-[var(--tailwind-colors-slate-200)]">
-                                Save these backup codes in a safe place. Each code can be used once if you lose access to your authenticator app.
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-[var(--tailwind-colors-slate-900)] p-3 sm:p-4 rounded">
-                                {backupCodes.map(code => (
-                                    <span
-                                        key={code}
-                                        data-testid="backup-code"
-                                        className="font-mono text-[var(--tailwind-colors-slate-50)] text-[length:min(1rem,calc((100vw_-_6.5rem)/18))] sm:text-sm px-2 py-1 bg-[var(--tailwind-colors-slate-800)] rounded whitespace-nowrap select-all"
-                                    >
-                                        {formatBackupCode(code)}
-                                    </span>
-                                ))}
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end mt-4 w-full gap-3">
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    className="flex-1 sm:flex-none min-w-32 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-rdns-600)]"
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(backupCodes.map(formatBackupCode).join("\n"));
-                                            toast.success("Backup codes copied to clipboard");
-                                        } catch {
-                                            toast.error("Failed to copy backup codes");
-                                        }
-                                    }}
-                                >
-                                    Copy all codes
-                                </Button>
-                                <Button
-                                    size="lg"
-                                    className="flex-1 sm:flex-none min-w-32 bg-[var(--tailwind-colors-rdns-600)]"
-                                    onClick={handleBackupCodesConfirmed}
-                                >
-                                    Done
-                                </Button>
-                            </div>
-                        </div>
+                        <BackupCodesView codes={backupCodes} onDone={handleBackupCodesConfirmed} />
                     ) : (
                         <>
                             <div className="flex flex-col items-start gap-4 pb-8 w-full border-b border-[var(--tailwind-colors-slate-600)]">
@@ -238,37 +200,17 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                             </div>
 
                             <div className="flex flex-col items-start gap-2 w-full">
-                                <label
-                                    htmlFor="totp-code"
-                                    className="text-sm font-medium text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Medium',Helvetica]"
-                                >
-                                    Code from TOTP app
-                                </label>
-
-                                <Input
+                                <TwoFactorCodeInput
                                     id="totp-code"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    className="h-10 bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] rounded-md"
-                                    disabled={loading || enabling}
                                     value={otp}
-                                    onChange={e => setOtp(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (
-                                            e.key === "Enter" &&
-                                            !loading &&
-                                            !enabling &&
-                                            !!secret &&
-                                            !!otp
-                                        ) {
-                                            handleEnable2FA();
-                                        }
+                                    onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                                    onSubmit={() => {
+                                        if (!loading && !enabling && !!secret) handleEnable2FA();
                                     }}
+                                    disabled={loading || enabling}
+                                    allowBackupCode={false}
+                                    data-testid="enable-2fa-code"
                                 />
-
-                                <p className="text-sm text-[var(--tailwind-colors-slate-400)] leading-5 font-text-sm-leading-5-normal">
-                                    6-digit code
-                                </p>
                             </div>
                         </>
                     )}
@@ -289,7 +231,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                             variant="default"
                             size="lg"
                             className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)] flex items-center justify-center"
-                            disabled={loading || !secret || !otp || enabling}
+                            disabled={loading || !secret || !otpValid || enabling}
                             onClick={handleEnable2FA}
                         >
                             {enabling && <Loader2 className="animate-spin w-4 h-4 mr-2" />}

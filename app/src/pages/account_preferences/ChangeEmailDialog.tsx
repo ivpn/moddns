@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import api from '@/api/api';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
+import TwoFactorCodeInput from '@/components/TwoFactorCodeInput';
 import type { ModelAccount } from '@/api/client/api';
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum } from '@/api/client/api';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
     const [reauthToken, setReauthToken] = useState<string | null>(null);
     const [reauthStatus, setReauthStatus] = useState<'idle' | 'in-progress' | 'verified' | 'error'>('idle');
     const [otp, setOtp] = useState('');
+    const [otpValid, setOtpValid] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const setAccount = useAppStore(s => s.setAccount);
     const handleMethodChange = useCallback(() => {
@@ -37,6 +39,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
         setReauthToken(null);
         setReauthStatus('idle');
         setOtp('');
+        setOtpValid(false);
     }, []);
 
     const {
@@ -60,6 +63,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
         if (!open) {
             setStep('details');
             setOtp('');
+            setOtpValid(false);
             setConfirmEmail('');
             setCurrentPassword('');
             setReauthToken(null);
@@ -86,7 +90,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
             toast.error('Passkey verification is required.');
             return;
         }
-        if (showOtp && !otp) {
+        if (showOtp && !otpValid) {
             toast.error('2FA code is required.');
             return;
         }
@@ -164,6 +168,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
             // Reset state when closing
             setStep('details');
             setOtp('');
+            setOtpValid(false);
             setNewEmail('');
             setConfirmEmail('');
             setCurrentPassword('');
@@ -273,20 +278,14 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                         </div>
                     )}
                     {showOtp && (
-                        <div className="space-y-2">
-                            <label className="text-sm text-[var(--tailwind-colors-slate-50)] font-medium">2FA code</label>
-                            <Input
-                                value={otp}
-                                onChange={e => setOtp(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                        handleContinue();
-                                    }
-                                }}
-                                className="border-[var(--tailwind-colors-slate-700)] bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-50)] h-10"
-                            />
-                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">6-digit code</p>
-                        </div>
+                        <TwoFactorCodeInput
+                            id="change-email-otp"
+                            value={otp}
+                            onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
+                            onSubmit={handleContinue}
+                            disabled={submitting}
+                            data-testid="change-email-code"
+                        />
                     )}
                     <p className="text-xs text-[var(--tailwind-colors-slate-400)]">After changing your email it will be unverified until you complete the new verification OTP process.</p>
                 </div>
@@ -320,7 +319,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                         className="text-xs leading-5 text-[var(--tailwind-colors-amber-400,#fbbf24)] rounded-md border border-[#fbbf24]/30 bg-[#fbbf24]/10 p-3"
                     >
                         Make sure this address is real and you can receive mail at it. If it has a typo or doesn't
-                        exist, verification and password reset emails will never reach you — and you could lose
+                        exist, verification and password reset emails will never reach you, and you could lose
                         access to your account.
                     </p>
                 </div>
@@ -342,7 +341,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                             size="lg"
                             className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
                             onClick={handleContinue}
-                            disabled={submitting || (method === 'passkey' && reauthStatus !== 'verified') || (showOtp && !otp)}
+                            disabled={submitting || (method === 'passkey' && reauthStatus !== 'verified') || (showOtp && !otpValid)}
                         >
                             {method === 'passkey' && reauthStatus !== 'verified' ? 'Verify passkey first' : 'Continue'}
                         </Button>

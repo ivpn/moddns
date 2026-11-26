@@ -38,6 +38,7 @@ REAUTH_PURPOSES = (
     "password_set",
     "passkey_add",
     "passkey_delete",
+    "backup_codes_regenerate",
 )
 
 

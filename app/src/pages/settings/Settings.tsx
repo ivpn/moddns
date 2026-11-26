@@ -2,6 +2,7 @@ import { type JSX } from "react";
 import ProfileManagementSection from "@/pages/settings/ProfileManagementSection";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { ModelProfile } from "@/api/client/api";
 
@@ -15,6 +16,7 @@ export default function FrameScreen({ profiles }: SettingsProps): JSX.Element {
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <PasskeyVerificationBanner />
+            <LegacyBackupCodesBanner />
 
             {/* Page Description */}
             <section className="w-full">

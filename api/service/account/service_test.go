@@ -898,7 +898,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 	strPtr := func(s string) *string { return &s }
 	reauthValue := "reauth-token"
 	passwordValue := "CurrentPassword123!"
-	backupCode := "backup-code-123"
+	backupCode := "LegacyCodeAAAAA1"
 
 	totpRequireID := primitive.NewObjectID()
 	totpRequireAccount := &model.Account{

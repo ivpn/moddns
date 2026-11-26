@@ -147,13 +147,14 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 // reauthTokenTypes maps each passkey reauth purpose to the token type that the
 // operation it protects consumes.
 var reauthTokenTypes = map[string]string{
-	"email_change":     auth.TokenTypeReauthEmailChange,
-	"account_deletion": auth.TokenTypeReauthAccountDeletion,
-	"profile_export":   auth.TokenTypeReauthProfileExport,
-	"profile_import":   auth.TokenTypeReauthProfileImport,
-	"password_set":     auth.TokenTypeReauthPasswordSet,
-	"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
-	"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
+	"email_change":            auth.TokenTypeReauthEmailChange,
+	"account_deletion":        auth.TokenTypeReauthAccountDeletion,
+	"profile_export":          auth.TokenTypeReauthProfileExport,
+	"profile_import":          auth.TokenTypeReauthProfileImport,
+	"password_set":            auth.TokenTypeReauthPasswordSet,
+	"passkey_add":             auth.TokenTypeReauthPasskeyAdd,
+	"passkey_delete":          auth.TokenTypeReauthPasskeyDelete,
+	"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
 }
 
 func reauthTokenType(purpose string) (string, bool) {

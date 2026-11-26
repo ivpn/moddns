@@ -9,6 +9,7 @@ import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import CustomRulesAccountLimitBanner from "@/pages/custom_rules/CustomRulesAccountLimitBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import api from "@/api/api";
@@ -430,6 +431,7 @@ export default function MainContentSection({ profiles = [] }: Omit<MainContentSe
             <BetaEndingBanner />
             <LimitedAccessBanner />
             <PasskeyVerificationBanner />
+            <LegacyBackupCodesBanner />
             <CustomRulesAccountLimitBanner />
             <div className="flex w-full h-full flex-1 items-start relative min-h-0">
                 <div className="flex flex-col flex-1 h-full w-full min-h-0">

@@ -17,6 +17,7 @@ import { useAppStore } from "@/store/general";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { JSX } from "react";
 
@@ -244,6 +245,7 @@ export default function MobileconfigGenerator(): JSX.Element {
                 <BetaEndingBanner />
                 <LimitedAccessBanner />
                 <PasskeyVerificationBanner />
+                <LegacyBackupCodesBanner />
                 <div className="flex justify-center mb-6">
                     <Button
                         onClick={handleBack}

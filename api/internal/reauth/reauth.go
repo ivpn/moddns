@@ -1,6 +1,7 @@
 // Package reauth provides the unified reauthentication primitive used by
 // every privileged operation in the API (account deletion, email change,
-// profile export, profile import).
+// password set, passkey add and delete, profile export and import, backup-code
+// regeneration).
 //
 // A privileged operation must prove fresh control of the account beyond the
 // session cookie. Two credential paths are accepted:
@@ -11,8 +12,9 @@
 //  2. reauth_token — a short-lived (5 min) token issued by the WebAuthn
 //     passkey reauth ceremony in api/service/webauthn.go:FinishReauth. The
 //     ceremony already proved possession of a passkey, so the token path
-//     bypasses MFA. Tokens are single-use: a successful match removes the
-//     token from the account.
+//     bypasses MFA; changes to 2FA itself still ask for a code after it.
+//     Tokens are single-use: a successful match removes the token from the
+//     account.
 //
 // Exactly one of the two credentials must be supplied; supplying neither or
 // both is a validation error.
@@ -178,21 +180,23 @@ func VerifyOnAccount(ctx context.Context, account *model.Account, verifier MfaVe
 // ReauthToken is set.
 func verifyOnLoadedAccount(ctx context.Context, account *model.Account, verifier MfaVerifier, p Params) error {
 	if p.Password != nil {
-		// MFA check runs BEFORE password verification so a user with the
-		// wrong password but no OTP code receives ErrTOTPRequired rather than
-		// ErrInvalidPassword — matches the established order in
-		// AccountService.DeleteAccount and handleEmailUpdate.
-		if verifier != nil {
-			mfa := p.Mfa
-			if mfa == nil {
-				mfa = &model.MfaData{}
-			}
+		mfa := p.Mfa
+		if mfa == nil {
+			mfa = &model.MfaData{}
+		}
+		// Without a code, the 2FA prompt comes first so the client can ask for
+		// it. A code is checked only after the password, so a wrong password
+		// uses no backup code up and is not counted as a failed 2FA attempt.
+		if verifier != nil && mfa.OTP == "" {
 			if err := verifier.MfaCheck(ctx, account, mfa); err != nil {
 				return err
 			}
 		}
 		if account.Password == nil || !auth.CheckPasswordHash(*p.Password, *account.Password) {
 			return ErrInvalidPassword
+		}
+		if verifier != nil && mfa.OTP != "" {
+			return verifier.MfaCheck(ctx, account, mfa)
 		}
 		return nil
 	}

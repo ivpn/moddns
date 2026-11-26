@@ -63,6 +63,7 @@ var (
 	ErrFailedToEnable2FA             = errors.New("failed to enable 2FA")
 	ErrFailedToConfirm2FA            = errors.New("failed to confirm 2FA")
 	ErrFailedToDisable2FA            = errors.New("failed to disable 2FA")
+	ErrFailedToRegenerateBackupCodes = errors.New("failed to regenerate backup codes")
 	ErrDisableTotpSuccess            = errors.New("2FA is disabled")
 	// ErrTotpRequired                 = errors.New("TOTP is required")
 	ErrInvalidTotpCode              = errors.New("invalid 2FA code")
