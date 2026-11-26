@@ -1557,6 +1557,15 @@ definitions:
     required:
     - sessionid
     type: object
+  requests.SessionsDeleteRequest:
+    properties:
+      current_password:
+        minLength: 1
+        type: string
+      reauth_token:
+        minLength: 1
+        type: string
+    type: object
   requests.TotpDisableReq:
     properties:
       current_password:
@@ -1657,6 +1666,7 @@ definitions:
         - backup_codes_regenerate
         - totp_disable
         - totp_enable
+        - sessions_delete
         type: string
     required:
     - purpose
@@ -3590,8 +3600,30 @@ paths:
       - Services
   /api/v1/sessions:
     delete:
+      consumes:
+      - application/json
       description: Delete all sessions for the current account except the current
-        session
+        session. The account owner is verified first with the current password (plus
+        x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the
+        sessions_delete purpose.
+      parameters:
+      - description: Verification
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.SessionsDeleteRequest'
+      - description: MFA OTP code
+        in: header
+        name: x-mfa-code
+        type: string
+      - collectionFormat: csv
+        description: MFA methods
+        in: header
+        items:
+          type: string
+        name: x-mfa-methods
+        type: array
       produces:
       - application/json
       responses:
@@ -3601,8 +3633,12 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/api.ErrResponse'
-        "404":
-          description: Not Found
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
           schema:
             $ref: '#/definitions/api.ErrResponse'
         "500":

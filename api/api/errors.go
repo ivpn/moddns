@@ -31,6 +31,7 @@ var (
 	ErrFailedToRegisterAccount       = errors.New("failed to register account")
 	ErrFailedToUpdateAccount         = errors.New("failed to update account")
 	ErrFailedToDeleteAccount         = errors.New("failed to delete account")
+	ErrFailedToDeleteSessions        = errors.New("failed to delete other sessions")
 	ErrFailedToCreateCustomRule      = errors.New("failed to create custom rule")
 	ErrFailedToUpdateCustomRule      = errors.New("failed to update custom rule")
 	ErrFailedToDeleteCustomRule      = errors.New("failed to delete custom rule")

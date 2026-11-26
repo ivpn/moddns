@@ -104,6 +104,7 @@ type Servicer interface {
 	PasskeyServicer
 	CredentialServicer
 	dnsstamp.DNSStampServicer
+	DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error
 }
 
 type CredentialServicer interface {

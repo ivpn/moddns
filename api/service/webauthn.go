@@ -157,6 +157,7 @@ var reauthTokenTypes = map[string]string{
 	"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
 	"totp_disable":            auth.TokenTypeReauthTotpDisable,
 	"totp_enable":             auth.TokenTypeReauthTotpEnable,
+	"sessions_delete":         auth.TokenTypeReauthSessionsDelete,
 }
 
 func reauthTokenType(purpose string) (string, bool) {

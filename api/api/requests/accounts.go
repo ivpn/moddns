@@ -28,3 +28,10 @@ type AccountDeletionRequest struct {
 	CurrentPassword *string `json:"current_password" validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string `json:"reauth_token" validate:"excluded_with=CurrentPassword,omitempty,min=1"`
 }
+
+// SessionsDeleteRequest verifies the account owner before every other session
+// is signed out. Exactly one of CurrentPassword or ReauthToken must be provided.
+type SessionsDeleteRequest struct {
+	CurrentPassword *string `json:"current_password" validate:"excluded_with=ReauthToken,omitempty,min=1"`
+	ReauthToken     *string `json:"reauth_token" validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+}

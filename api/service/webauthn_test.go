@@ -209,6 +209,7 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 		"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
 		"totp_disable":            auth.TokenTypeReauthTotpDisable,
 		"totp_enable":             auth.TokenTypeReauthTotpEnable,
+		"sessions_delete":         auth.TokenTypeReauthSessionsDelete,
 	}
 	for purpose, want := range tests {
 		got, ok := reauthTokenType(purpose)

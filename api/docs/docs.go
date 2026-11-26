@@ -2705,7 +2705,10 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Delete all sessions for the current account except the current session",
+                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -2713,6 +2716,33 @@ const docTemplate = `{
                     "Sessions"
                 ],
                 "summary": "Delete all other sessions",
+                "parameters": [
+                    {
+                        "description": "Verification",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.SessionsDeleteRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "MFA OTP code",
+                        "name": "x-mfa-code",
+                        "in": "header"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "MFA methods",
+                        "name": "x-mfa-methods",
+                        "in": "header"
+                    }
+                ],
                 "responses": {
                     "204": {
                         "description": "No Content"
@@ -2723,8 +2753,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.ErrResponse"
                         }
                     },
-                    "404": {
-                        "description": "Not Found",
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
                         "schema": {
                             "$ref": "#/definitions/api.ErrResponse"
                         }
@@ -5621,6 +5657,19 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.SessionsDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
+                }
+            }
+        },
         "requests.TotpDisableReq": {
             "type": "object",
             "required": [
@@ -5761,7 +5810,8 @@ const docTemplate = `{
                         "passkey_delete",
                         "backup_codes_regenerate",
                         "totp_disable",
-                        "totp_enable"
+                        "totp_enable",
+                        "sessions_delete"
                     ]
                 }
             }

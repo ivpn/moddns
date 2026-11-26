@@ -1107,6 +1107,81 @@ func (_c *Servicer_DeleteCustomRule_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// DeleteOtherSessions provides a mock function for the type Servicer
+func (_mock *Servicer) DeleteOtherSessions(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error {
+	ret := _mock.Called(ctx, accID, currentToken, req, mfa)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteOtherSessions")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, requests.SessionsDeleteRequest, *model.MfaData) error); ok {
+		r0 = returnFunc(ctx, accID, currentToken, req, mfa)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Servicer_DeleteOtherSessions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOtherSessions'
+type Servicer_DeleteOtherSessions_Call struct {
+	*mock.Call
+}
+
+// DeleteOtherSessions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accID string
+//   - currentToken string
+//   - req requests.SessionsDeleteRequest
+//   - mfa *model.MfaData
+func (_e *Servicer_Expecter) DeleteOtherSessions(ctx interface{}, accID interface{}, currentToken interface{}, req interface{}, mfa interface{}) *Servicer_DeleteOtherSessions_Call {
+	return &Servicer_DeleteOtherSessions_Call{Call: _e.mock.On("DeleteOtherSessions", ctx, accID, currentToken, req, mfa)}
+}
+
+func (_c *Servicer_DeleteOtherSessions_Call) Run(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData)) *Servicer_DeleteOtherSessions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 requests.SessionsDeleteRequest
+		if args[3] != nil {
+			arg3 = args[3].(requests.SessionsDeleteRequest)
+		}
+		var arg4 *model.MfaData
+		if args[4] != nil {
+			arg4 = args[4].(*model.MfaData)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Servicer_DeleteOtherSessions_Call) Return(err error) *Servicer_DeleteOtherSessions_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Servicer_DeleteOtherSessions_Call) RunAndReturn(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error) *Servicer_DeleteOtherSessions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteProfile provides a mock function for the type Servicer
 func (_mock *Servicer) DeleteProfile(ctx context.Context, accountId string, profileId string, removeLast bool) error {
 	ret := _mock.Called(ctx, accountId, profileId, removeLast)
