@@ -1300,6 +1300,9 @@ definitions:
         type: string
       deletion_code:
         type: string
+      otp:
+        maxLength: 64
+        type: string
       reauth_token:
         minLength: 1
         type: string
@@ -1308,6 +1311,11 @@ definitions:
     type: object
   requests.AccountUpdates:
     properties:
+      otp:
+        description: OTP is the 2FA code that goes with a current password, when 2FA
+          is on.
+        maxLength: 64
+        type: string
       updates:
         items:
           $ref: '#/definitions/model.AccountUpdate'
@@ -1333,6 +1341,7 @@ definitions:
       new_password:
         type: string
       otp:
+        maxLength: 64
         type: string
       token:
         type: string
@@ -1434,6 +1443,9 @@ definitions:
       current_password:
         minLength: 1
         type: string
+      otp:
+        maxLength: 64
+        type: string
       profile_ids:
         items:
           type: string
@@ -1458,6 +1470,9 @@ definitions:
         enum:
         - create_new
         type: string
+      otp:
+        maxLength: 64
+        type: string
       payload:
         $ref: '#/definitions/model.ExportEnvelope'
       reauth_token:
@@ -1470,6 +1485,10 @@ definitions:
   requests.LoginBody:
     properties:
       email:
+        type: string
+      otp:
+        description: OTP is the 2FA code, required when the account has 2FA on.
+        maxLength: 64
         type: string
       password:
         type: string
@@ -1562,6 +1581,9 @@ definitions:
       current_password:
         minLength: 1
         type: string
+      otp:
+        maxLength: 64
+        type: string
       reauth_token:
         minLength: 1
         type: string
@@ -1639,6 +1661,9 @@ definitions:
       current_password:
         minLength: 1
         type: string
+      otp:
+        maxLength: 64
+        type: string
       reauth_token:
         minLength: 1
         type: string
@@ -1647,6 +1672,9 @@ definitions:
     properties:
       current_password:
         minLength: 1
+        type: string
+      otp:
+        maxLength: 64
         type: string
       reauth_token:
         minLength: 1
@@ -1821,17 +1849,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.AccountUpdates'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       produces:
       - application/json
       responses:
@@ -2284,17 +2301,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.LoginBody'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       - description: Remove all active sessions before logging in
         in: header
         name: x-sessions-remove
@@ -3604,8 +3610,8 @@ paths:
       - application/json
       description: Delete all sessions for the current account except the current
         session. The account owner is verified first with the current password (plus
-        x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the
-        sessions_delete purpose.
+        otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete
+        purpose.
       parameters:
       - description: Verification
         in: body
@@ -3613,17 +3619,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.SessionsDeleteRequest'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       produces:
       - application/json
       responses:
@@ -3822,17 +3817,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.ConfirmResetPasswordBody'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       produces:
       - application/json
       responses:
@@ -3917,8 +3901,8 @@ paths:
       consumes:
       - application/json
       description: Delete a specific passkey. The account owner is verified first
-        with the current password (plus x-mfa-code when TOTP is enabled) or a passkey
-        reauth token issued for the passkey_delete purpose.
+        with the current password (plus otp when TOTP is enabled) or a passkey reauth
+        token issued for the passkey_delete purpose.
       parameters:
       - description: Credential ID
         in: path
@@ -3931,17 +3915,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.WebAuthnDeletePasskeyRequest'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       responses:
         "204":
           description: No Content
@@ -3957,8 +3930,8 @@ paths:
       consumes:
       - application/json
       description: Add a new passkey to authenticated account. The account owner is
-        verified first with the current password (plus x-mfa-code when TOTP is enabled)
-        or a passkey reauth token issued for the passkey_add purpose.
+        verified first with the current password (plus otp when TOTP is enabled) or
+        a passkey reauth token issued for the passkey_add purpose.
       parameters:
       - description: Verification
         in: body
@@ -3966,17 +3939,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/requests.WebAuthnAddPasskeyBeginRequest'
-      - description: MFA OTP code
-        in: header
-        name: x-mfa-code
-        type: string
-      - collectionFormat: csv
-        description: MFA methods
-        in: header
-        items:
-          type: string
-        name: x-mfa-methods
-        type: array
       produces:
       - application/json
       responses:

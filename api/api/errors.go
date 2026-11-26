@@ -174,7 +174,7 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	//
 	// Rationale for 400 (not 401): the caller's session is valid — what failed
 	// is a piece of the request body (wrong password, wrong reauth_token, or a
-	// missing/wrong x-mfa-code). Returning 401 would trigger the global axios
+	// missing/wrong 2FA code). Returning 401 would trigger the global axios
 	// interceptor's session-expired logout flow, which is the wrong UX for a
 	// typo'd password. 400 lets the dialog surface the error inline.
 	if errors.Is(err, reauth.ErrMissingAuthMethod) ||

@@ -17,15 +17,14 @@ import (
 
 const sessionsPassword = "Curr3nt-Passw0rd!"
 
-func (suite *AccountsAPITestSuite) deleteOtherSessions(body any, mfaCode string) int {
+func (suite *AccountsAPITestSuite) deleteOtherSessions(body map[string]string, mfaCode string) int {
 	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(model.Session{AccountID: testAccountID}, true, nil).Maybe()
+	if mfaCode != "" {
+		body["otp"] = mfaCode
+	}
 	raw, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/sessions", bytes.NewReader(raw))
 	req.Header.Set("Content-Type", "application/json")
-	if mfaCode != "" {
-		req.Header.Set("x-mfa-code", mfaCode)
-		req.Header.Set("x-mfa-methods", "totp")
-	}
 	req.AddCookie(&http.Cookie{Name: auth.AUTH_COOKIE, Value: testSessionToken})
 	resp, err := suite.createTestServer().App.Test(req, -1)
 	suite.Require().NoError(err)
@@ -62,7 +61,7 @@ func (suite *AccountsAPITestSuite) TestDeleteOtherSessionsNeedsReauth() {
 		suite.SetupTest()
 		acc := suite.sessionsAccount(true)
 		suite.mockDB.On("GetAccountById", mock.Anything, testAccountID).Return(acc, nil).Once()
-		suite.mockService.On("MfaCheck", mock.Anything, acc, &model.MfaData{OTP: "123456", Methods: []string{"totp"}}).Return(nil).Once()
+		suite.mockService.On("MfaCheck", mock.Anything, acc, &model.MfaData{OTP: "123456"}).Return(nil).Once()
 		suite.mockDB.On("DeleteSessionsByAccountIDExceptCurrent", mock.Anything, testAccountID, testSessionToken).Return(nil).Once()
 		suite.Equal(http.StatusNoContent, suite.deleteOtherSessions(map[string]string{"current_password": sessionsPassword}, "123456"))
 	})

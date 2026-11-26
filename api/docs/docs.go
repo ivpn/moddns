@@ -81,22 +81,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.AccountUpdates"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -731,22 +715,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.LoginBody"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     },
                     {
                         "type": "string",
@@ -2705,7 +2673,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.",
+                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2725,22 +2693,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.SessionsDeleteRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -3039,22 +2991,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.ConfirmResetPasswordBody"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -3173,7 +3109,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/add/begin": {
             "post": {
-                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
+                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3193,22 +3129,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.WebAuthnAddPasskeyBeginRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -3350,7 +3270,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/{id}": {
             "delete": {
-                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
+                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3374,22 +3294,6 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/requests.WebAuthnDeletePasskeyRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "MFA OTP code",
-                        "name": "x-mfa-code",
-                        "in": "header"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "MFA methods",
-                        "name": "x-mfa-methods",
-                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -5301,6 +5205,10 @@ const docTemplate = `{
                 "deletion_code": {
                     "type": "string"
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
@@ -5313,6 +5221,11 @@ const docTemplate = `{
                 "updates"
             ],
             "properties": {
+                "otp": {
+                    "description": "OTP is the 2FA code that goes with a current password, when 2FA is on.",
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "updates": {
                     "type": "array",
                     "items": {
@@ -5351,7 +5264,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "otp": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "token": {
                     "type": "string"
@@ -5485,6 +5399,10 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "profile_ids": {
                     "type": "array",
                     "items": {
@@ -5521,6 +5439,10 @@ const docTemplate = `{
                         "create_new"
                     ]
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "payload": {
                     "$ref": "#/definitions/model.ExportEnvelope"
                 },
@@ -5539,6 +5461,11 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string"
+                },
+                "otp": {
+                    "description": "OTP is the 2FA code, required when the account has 2FA on.",
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "password": {
                     "type": "string"
@@ -5664,6 +5591,10 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
@@ -5773,6 +5704,10 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 1
                 },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
                 "reauth_token": {
                     "type": "string",
                     "minLength": 1
@@ -5785,6 +5720,10 @@ const docTemplate = `{
                 "current_password": {
                     "type": "string",
                     "minLength": 1
+                },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
                 },
                 "reauth_token": {
                     "type": "string",

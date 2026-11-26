@@ -6,6 +6,8 @@ import (
 
 type AccountUpdates struct {
 	Updates []model.AccountUpdate `json:"updates" validate:"required,dive"`
+	// OTP is the 2FA code that goes with a current password, when 2FA is on.
+	OTP string `json:"otp,omitempty" validate:"omitempty,max=64"`
 }
 
 // AccountEmailUpdate represents a structured payload for email change inside a JSON-Patch style update.
@@ -27,6 +29,7 @@ type AccountDeletionRequest struct {
 	DeletionCode    string  `json:"deletion_code" validate:"required"`
 	CurrentPassword *string `json:"current_password" validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string `json:"reauth_token" validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+	OTP             string  `json:"otp,omitempty" validate:"omitempty,max=64"`
 }
 
 // SessionsDeleteRequest verifies the account owner before every other session
@@ -34,4 +37,5 @@ type AccountDeletionRequest struct {
 type SessionsDeleteRequest struct {
 	CurrentPassword *string `json:"current_password" validate:"excluded_with=ReauthToken,omitempty,min=1"`
 	ReauthToken     *string `json:"reauth_token" validate:"excluded_with=CurrentPassword,omitempty,min=1"`
+	OTP             string  `json:"otp,omitempty" validate:"omitempty,max=64"`
 }

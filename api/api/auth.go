@@ -20,8 +20,6 @@ import (
 // @Accept json
 // @Produce json
 // @Param body body requests.LoginBody true "Login request"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Param x-sessions-remove header string false "Remove all active sessions before logging in"
 // @Success 200
 // @Failure 400 {object} ErrResponse
@@ -58,7 +56,7 @@ func (s *APIServer) login() fiber.Handler {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		mfa := auth.GetMfaData(c)
+		mfa := &model.MfaData{OTP: p.OTP}
 		if acc.MFA.TOTP.Enabled && mfa.OTP == "" {
 			return HandleError(c, account.ErrTOTPRequired, account.ErrTOTPRequired.Error())
 		}

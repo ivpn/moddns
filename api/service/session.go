@@ -63,13 +63,13 @@ func (s *Service) DeleteSessionsByAccountID(ctx context.Context, accID string) e
 // DeleteOtherSessions signs out every session but the current one once the
 // account owner is verified with the current password (plus a 2FA code when
 // TOTP is on) or a passkey reauth token of purpose sessions_delete.
-func (s *Service) DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error {
+func (s *Service) DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest) error {
 	if _, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
 		AccountId:        accID,
 		TokenType:        auth.TokenTypeReauthSessionsDelete,
 		Password:         req.CurrentPassword,
 		ReauthToken:      req.ReauthToken,
-		Mfa:              mfa,
+		Mfa:              &model.MfaData{OTP: req.OTP},
 		PersistOnConsume: true,
 	}); err != nil {
 		return err

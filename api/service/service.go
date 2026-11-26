@@ -104,7 +104,7 @@ type Servicer interface {
 	PasskeyServicer
 	CredentialServicer
 	dnsstamp.DNSStampServicer
-	DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error
+	DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest) error
 }
 
 type CredentialServicer interface {
@@ -137,7 +137,7 @@ type SessionServicer interface {
 type AccountServicer interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
 	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error
-	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
+	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error
 	PurgeAccountData(ctx context.Context, accountId string) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)
 	MfaCheck(ctx context.Context, acc *model.Account, mfa *model.MfaData) error
@@ -230,8 +230,8 @@ type SubscriptionServicer interface {
 }
 
 // DeleteAccount deletes account with all connected data including sessions
-func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req, mfa); err != nil {
+func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
+	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req); err != nil {
 		return err
 	}
 	return s.DeleteSessionsByAccountID(ctx, accountId)

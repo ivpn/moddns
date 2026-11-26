@@ -844,16 +844,16 @@ func (_c *Servicer_CreateSubscriptionFromPreauth_Call) RunAndReturn(run func(ctx
 }
 
 // DeleteAccount provides a mock function for the type Servicer
-func (_mock *Servicer) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	ret := _mock.Called(ctx, accountId, req, mfa)
+func (_mock *Servicer) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
+	ret := _mock.Called(ctx, accountId, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAccount")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.AccountDeletionRequest, *model.MfaData) error); ok {
-		r0 = returnFunc(ctx, accountId, req, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.AccountDeletionRequest) error); ok {
+		r0 = returnFunc(ctx, accountId, req)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -869,12 +869,11 @@ type Servicer_DeleteAccount_Call struct {
 //   - ctx context.Context
 //   - accountId string
 //   - req requests.AccountDeletionRequest
-//   - mfa *model.MfaData
-func (_e *Servicer_Expecter) DeleteAccount(ctx interface{}, accountId interface{}, req interface{}, mfa interface{}) *Servicer_DeleteAccount_Call {
-	return &Servicer_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, accountId, req, mfa)}
+func (_e *Servicer_Expecter) DeleteAccount(ctx interface{}, accountId interface{}, req interface{}) *Servicer_DeleteAccount_Call {
+	return &Servicer_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, accountId, req)}
 }
 
-func (_c *Servicer_DeleteAccount_Call) Run(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData)) *Servicer_DeleteAccount_Call {
+func (_c *Servicer_DeleteAccount_Call) Run(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest)) *Servicer_DeleteAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -888,15 +887,10 @@ func (_c *Servicer_DeleteAccount_Call) Run(run func(ctx context.Context, account
 		if args[2] != nil {
 			arg2 = args[2].(requests.AccountDeletionRequest)
 		}
-		var arg3 *model.MfaData
-		if args[3] != nil {
-			arg3 = args[3].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -907,7 +901,7 @@ func (_c *Servicer_DeleteAccount_Call) Return(err error) *Servicer_DeleteAccount
 	return _c
 }
 
-func (_c *Servicer_DeleteAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error) *Servicer_DeleteAccount_Call {
+func (_c *Servicer_DeleteAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error) *Servicer_DeleteAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1108,16 +1102,16 @@ func (_c *Servicer_DeleteCustomRule_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // DeleteOtherSessions provides a mock function for the type Servicer
-func (_mock *Servicer) DeleteOtherSessions(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error {
-	ret := _mock.Called(ctx, accID, currentToken, req, mfa)
+func (_mock *Servicer) DeleteOtherSessions(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest) error {
+	ret := _mock.Called(ctx, accID, currentToken, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteOtherSessions")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, requests.SessionsDeleteRequest, *model.MfaData) error); ok {
-		r0 = returnFunc(ctx, accID, currentToken, req, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, requests.SessionsDeleteRequest) error); ok {
+		r0 = returnFunc(ctx, accID, currentToken, req)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1134,12 +1128,11 @@ type Servicer_DeleteOtherSessions_Call struct {
 //   - accID string
 //   - currentToken string
 //   - req requests.SessionsDeleteRequest
-//   - mfa *model.MfaData
-func (_e *Servicer_Expecter) DeleteOtherSessions(ctx interface{}, accID interface{}, currentToken interface{}, req interface{}, mfa interface{}) *Servicer_DeleteOtherSessions_Call {
-	return &Servicer_DeleteOtherSessions_Call{Call: _e.mock.On("DeleteOtherSessions", ctx, accID, currentToken, req, mfa)}
+func (_e *Servicer_Expecter) DeleteOtherSessions(ctx interface{}, accID interface{}, currentToken interface{}, req interface{}) *Servicer_DeleteOtherSessions_Call {
+	return &Servicer_DeleteOtherSessions_Call{Call: _e.mock.On("DeleteOtherSessions", ctx, accID, currentToken, req)}
 }
 
-func (_c *Servicer_DeleteOtherSessions_Call) Run(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData)) *Servicer_DeleteOtherSessions_Call {
+func (_c *Servicer_DeleteOtherSessions_Call) Run(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest)) *Servicer_DeleteOtherSessions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1157,16 +1150,11 @@ func (_c *Servicer_DeleteOtherSessions_Call) Run(run func(ctx context.Context, a
 		if args[3] != nil {
 			arg3 = args[3].(requests.SessionsDeleteRequest)
 		}
-		var arg4 *model.MfaData
-		if args[4] != nil {
-			arg4 = args[4].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -1177,7 +1165,7 @@ func (_c *Servicer_DeleteOtherSessions_Call) Return(err error) *Servicer_DeleteO
 	return _c
 }
 
-func (_c *Servicer_DeleteOtherSessions_Call) RunAndReturn(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest, mfa *model.MfaData) error) *Servicer_DeleteOtherSessions_Call {
+func (_c *Servicer_DeleteOtherSessions_Call) RunAndReturn(run func(ctx context.Context, accID string, currentToken string, req requests.SessionsDeleteRequest) error) *Servicer_DeleteOtherSessions_Call {
 	_c.Call.Return(run)
 	return _c
 }

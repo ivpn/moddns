@@ -609,14 +609,13 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidTOTPCode() {
 	)
 
 	// Mock the service call to return invalid TOTP error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.MatchedBy(func(m *model.MfaData) bool { return m.OTP == "000000" })).
 		Return(account.ErrInvalidTOTPCode)
 
-	// Create request with TOTP header
+	payload.OTP = "000000"
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-mfa-code", "000000")
 	req.AddCookie(&http.Cookie{
 		Name:  auth.AUTH_COOKIE,
 		Value: testSessionToken,
@@ -759,13 +758,12 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_WithValidTOTP() {
 	)
 
 	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.MatchedBy(func(m *model.MfaData) bool { return m.OTP == "123456" })).Return(nil)
 
-	// Create request with TOTP header
+	payload.OTP = "123456"
 	body, _ := json.Marshal(payload)
 	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-mfa-code", "123456")
 	req.AddCookie(&http.Cookie{
 		Name:  auth.AUTH_COOKIE,
 		Value: testSessionToken,
@@ -917,6 +915,7 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
 	payload := requests.AccountDeletionRequest{
 		DeletionCode: "DELETE123",
 		ReauthToken:  &reauth,
+		OTP:          "123456",
 	}
 
 	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
@@ -929,7 +928,6 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
 		mock.Anything,
 		accountID,
 		payload,
-		mock.AnythingOfType("*model.MfaData"),
 	).Return(nil)
 	// Service.DeleteAccount wrapper invokes Store.DeleteSessionsByAccountID after
 	// the inner deletion succeeds.
@@ -968,7 +966,6 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_ServiceError() {
 		mock.Anything,
 		accountID,
 		payload,
-		mock.AnythingOfType("*model.MfaData"),
 	).Return(errors.New("cleanup boom"))
 
 	body, _ := json.Marshal(payload)

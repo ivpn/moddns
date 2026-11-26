@@ -566,7 +566,7 @@ func (suite *EmailVerificationOTPSuite) TestVerifyPasswordResetExpiredTokenSkips
 	}
 	suite.mockAccountRepo.On("GetAccountByToken", context.Background(), "expired-token", "password_reset").Return(acc, nil)
 
-	err := suite.service.VerifyPasswordReset(context.Background(), "expired-token", "NewSecurePass123!", &model.MfaData{OTP: "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5", Methods: []string{"totp"}})
+	err := suite.service.VerifyPasswordReset(context.Background(), "expired-token", "NewSecurePass123!", &model.MfaData{OTP: "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5"})
 	suite.ErrorIs(err, account.ErrTokenExpired)
 	suite.mockAccountRepo.AssertNotCalled(suite.T(), "ConsumeBackupCode", mock.Anything, mock.Anything, mock.Anything)
 	suite.mockCache.AssertExpectations(suite.T())

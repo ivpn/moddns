@@ -7,7 +7,7 @@
 // session cookie. Two credential paths are accepted:
 //
 //  1. current_password — the user's plaintext password. If the account has
-//     TOTP enabled, a valid OTP code (delivered via the x-mfa-code header)
+//     TOTP enabled, a valid OTP code (the otp field of the request body)
 //     is also required.
 //  2. reauth_token — a short-lived (5 min) token issued by the WebAuthn
 //     passkey reauth ceremony in api/service/webauthn.go:FinishReauth. The
@@ -67,7 +67,7 @@ type Params struct {
 	// passkey reauth ceremony. May be nil.
 	ReauthToken *string
 
-	// Mfa carries the x-mfa-code header value. May be nil — Verify substitutes
+	// Mfa carries the otp field of the request body. May be nil - Verify substitutes
 	// an empty struct to keep MfaCheck panic-free.
 	Mfa *model.MfaData
 

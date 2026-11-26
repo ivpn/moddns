@@ -659,10 +659,7 @@ func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Ac
 }
 
 // DeleteAccount deletes account with all connected data
-func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	if mfa == nil {
-		mfa = &model.MfaData{}
-	}
+func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
 	// Get account to verify deletion code
 	account, err := a.AccountRepository.GetAccount(ctx, accountId)
 	if err != nil {
@@ -683,7 +680,7 @@ func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, re
 		TokenType:   auth.TokenTypeReauthAccountDeletion,
 		Password:    req.CurrentPassword,
 		ReauthToken: req.ReauthToken,
-		Mfa:         mfa,
+		Mfa:         &model.MfaData{OTP: req.OTP},
 	}); err != nil {
 		return err
 	}

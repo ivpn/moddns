@@ -116,16 +116,16 @@ func (_c *AccountServicer_CompleteRegistration_Call) RunAndReturn(run func(ctx c
 }
 
 // DeleteAccount provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	ret := _mock.Called(ctx, accountId, req, mfa)
+func (_mock *AccountServicer) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
+	ret := _mock.Called(ctx, accountId, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAccount")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.AccountDeletionRequest, *model.MfaData) error); ok {
-		r0 = returnFunc(ctx, accountId, req, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.AccountDeletionRequest) error); ok {
+		r0 = returnFunc(ctx, accountId, req)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -141,12 +141,11 @@ type AccountServicer_DeleteAccount_Call struct {
 //   - ctx context.Context
 //   - accountId string
 //   - req requests.AccountDeletionRequest
-//   - mfa *model.MfaData
-func (_e *AccountServicer_Expecter) DeleteAccount(ctx interface{}, accountId interface{}, req interface{}, mfa interface{}) *AccountServicer_DeleteAccount_Call {
-	return &AccountServicer_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, accountId, req, mfa)}
+func (_e *AccountServicer_Expecter) DeleteAccount(ctx interface{}, accountId interface{}, req interface{}) *AccountServicer_DeleteAccount_Call {
+	return &AccountServicer_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, accountId, req)}
 }
 
-func (_c *AccountServicer_DeleteAccount_Call) Run(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData)) *AccountServicer_DeleteAccount_Call {
+func (_c *AccountServicer_DeleteAccount_Call) Run(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest)) *AccountServicer_DeleteAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -160,15 +159,10 @@ func (_c *AccountServicer_DeleteAccount_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(requests.AccountDeletionRequest)
 		}
-		var arg3 *model.MfaData
-		if args[3] != nil {
-			arg3 = args[3].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -179,7 +173,7 @@ func (_c *AccountServicer_DeleteAccount_Call) Return(err error) *AccountServicer
 	return _c
 }
 
-func (_c *AccountServicer_DeleteAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error) *AccountServicer_DeleteAccount_Call {
+func (_c *AccountServicer_DeleteAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error) *AccountServicer_DeleteAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

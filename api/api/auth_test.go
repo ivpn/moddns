@@ -19,8 +19,8 @@ import (
 func (suite *AccountsAPITestSuite) TestLoginChecksSessionLimitBeforeTheCode() {
 	acc := &model.Account{ID: primitive.NewObjectID(), Email: "user@example.com", MFA: model.MFASettings{TOTP: model.TotpSettings{Enabled: true}}}
 	suite.Require().NoError(acc.SetPassword("Correct-Passw0rd!"))
-	login := func(headers map[string]string) (int, string) {
-		b, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "Correct-Passw0rd!"})
+	login := func(otp string, headers map[string]string) (int, string) {
+		b, _ := json.Marshal(map[string]string{"email": "user@example.com", "password": "Correct-Passw0rd!", "otp": otp})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/login", bytes.NewReader(b))
 		req.Header.Set("Content-Type", "application/json")
 		for k, v := range headers {
@@ -35,7 +35,15 @@ func (suite *AccountsAPITestSuite) TestLoginChecksSessionLimitBeforeTheCode() {
 	suite.Run("no code: 2FA prompt first, nothing counted", func() {
 		suite.SetupTest()
 		suite.mockDB.On("GetAccountByEmail", mock.Anything, "user@example.com").Return(acc, nil).Once()
-		status, body := login(nil)
+		status, body := login("", nil)
+		suite.Equal(http.StatusUnauthorized, status)
+		suite.JSONEq(`{"error":"TOTP is required"}`, body)
+	})
+
+	suite.Run("the code is read from the body only", func() {
+		suite.SetupTest()
+		suite.mockDB.On("GetAccountByEmail", mock.Anything, "user@example.com").Return(acc, nil).Once()
+		status, body := login("", map[string]string{"x-mfa-code": "123456"})
 		suite.Equal(http.StatusUnauthorized, status)
 		suite.JSONEq(`{"error":"TOTP is required"}`, body)
 	})
@@ -44,7 +52,7 @@ func (suite *AccountsAPITestSuite) TestLoginChecksSessionLimitBeforeTheCode() {
 		suite.SetupTest()
 		suite.mockDB.On("GetAccountByEmail", mock.Anything, "user@example.com").Return(acc, nil).Once()
 		suite.mockDB.On("CountSessionsByAccountID", mock.Anything, acc.ID.Hex()).Return(int64(suite.config.API.SessionLimit), nil).Once()
-		status, _ := login(map[string]string{"x-mfa-code": "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5"})
+		status, _ := login("GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5", nil)
 		suite.Equal(http.StatusTooManyRequests, status)
 		suite.mockService.AssertNotCalled(suite.T(), "MfaCheck", mock.Anything, mock.Anything, mock.Anything)
 	})
@@ -53,7 +61,7 @@ func (suite *AccountsAPITestSuite) TestLoginChecksSessionLimitBeforeTheCode() {
 		suite.SetupTest()
 		suite.mockDB.On("GetAccountByEmail", mock.Anything, "user@example.com").Return(acc, nil).Once()
 		suite.mockService.On("MfaCheck", mock.Anything, acc, mock.Anything).Return(account.ErrInvalidTOTPCode).Once()
-		status, _ := login(map[string]string{"x-mfa-code": "000000", "x-sessions-remove": "true"})
+		status, _ := login("000000", map[string]string{"x-sessions-remove": "true"})
 		suite.Equal(http.StatusUnauthorized, status)
 		suite.mockDB.AssertNotCalled(suite.T(), "DeleteSessionsByAccountID", mock.Anything, mock.Anything)
 	})

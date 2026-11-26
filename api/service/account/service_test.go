@@ -1277,7 +1277,11 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				}
 			}
 
-			err := suite.service.DeleteAccount(context.Background(), tt.accountID, tt.request, tt.mfa)
+			req := tt.request
+			if tt.mfa != nil {
+				req.OTP = tt.mfa.OTP
+			}
+			err := suite.service.DeleteAccount(context.Background(), tt.accountID, req)
 
 			if tt.expectedError != "" {
 				suite.Error(err)
@@ -1352,7 +1356,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
 		DeletionCode: "DELETE123",
 		ReauthToken:  &reauthValue,
-	}, &model.MfaData{})
+	})
 	suite.NoError(err)
 
 	// profile1 must NEVER have been touched on this retry — strict mocks
@@ -1445,7 +1449,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryWithAllProfilesAlreadyGone
 	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
 		DeletionCode: "DELETE123",
 		ReauthToken:  &reauthValue,
-	}, &model.MfaData{})
+	})
 	suite.NoError(err)
 
 	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, mock.Anything)
@@ -1915,7 +1919,7 @@ func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
 				// A TOTP code is valid for one 30 s step; the rows before can outlast it.
 				fresh, err := totp.GenerateCode(testSecret, time.Now())
 				suite.Require().NoError(err)
-				tt.mfa = &model.MfaData{OTP: fresh, Methods: tt.mfa.Methods}
+				tt.mfa = &model.MfaData{OTP: fresh}
 			}
 			// Reset mock expectations
 			suite.mockAccountRepo.ExpectedCalls = nil

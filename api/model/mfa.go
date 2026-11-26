@@ -68,19 +68,8 @@ func (b TOTPBackup) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a)
 }
 
-// MfaData represents the data required for multi-factor authentication sent in HTTP headers.
+// MfaData carries the 2FA code sent with a password: the otp field of the
+// request body.
 type MfaData struct {
-	OTP     string   `json:"otp"`
-	Methods []string `json:"methods"`
-}
-
-// MarshalJSON renders Methods as an empty JSON array ([]) instead of null when
-// nil, so the API always returns a list for this field.
-func (m MfaData) MarshalJSON() ([]byte, error) {
-	type alias MfaData
-	a := alias(m)
-	if a.Methods == nil {
-		a.Methods = []string{}
-	}
-	return json.Marshal(a)
+	OTP string `json:"otp"`
 }

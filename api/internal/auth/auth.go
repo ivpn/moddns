@@ -16,21 +16,6 @@ func GetAccountID(c *fiber.Ctx) string {
 	return ""
 }
 
-func GetMfaCode(c *fiber.Ctx) string {
-	return c.Get("x-mfa-code")
-}
-
-func GetMfaMethods(c *fiber.Ctx) string {
-	return c.Get("x-mfa-methods")
-}
-
-func GetMfaData(c *fiber.Ctx) *model.MfaData {
-	return &model.MfaData{
-		OTP:     GetMfaCode(c),
-		Methods: []string{GetMfaMethods(c)},
-	}
-}
-
 func GetHeaderSessionsRemove(c *fiber.Ctx) bool {
 	remove := c.Get("x-sessions-remove")
 	if remove == "" {
