@@ -27,6 +27,7 @@ from moddns.models.requests_account_deletion_request import RequestsAccountDelet
 from moddns.models.requests_account_updates import RequestsAccountUpdates
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
+from moddns.models.requests_totp_enable_req import RequestsTotpEnableReq
 from moddns.models.requests_totp_regenerate_req import RequestsTotpRegenerateReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from moddns.models.responses_deletion_code_response import ResponsesDeletionCodeResponse
@@ -1698,6 +1699,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_enable_post(
         self,
+        body: Annotated[RequestsTotpEnableReq, Field(description="Enable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1713,8 +1715,10 @@ class AccountApi:
     ) -> ModelTOTPNew:
         """Enable TOTP
 
-        Enable TOTP
+        Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
 
+        :param body: Enable TOTP request (required)
+        :type body: RequestsTotpEnableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1738,6 +1742,7 @@ class AccountApi:
         """ # noqa: E501
 
         _param = self._api_v1_accounts_mfa_totp_enable_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1747,6 +1752,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPNew",
             '400': "ApiErrResponse",
+            '401': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -1763,6 +1769,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_enable_post_with_http_info(
         self,
+        body: Annotated[RequestsTotpEnableReq, Field(description="Enable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1778,8 +1785,10 @@ class AccountApi:
     ) -> ApiResponse[ModelTOTPNew]:
         """Enable TOTP
 
-        Enable TOTP
+        Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
 
+        :param body: Enable TOTP request (required)
+        :type body: RequestsTotpEnableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1803,6 +1812,7 @@ class AccountApi:
         """ # noqa: E501
 
         _param = self._api_v1_accounts_mfa_totp_enable_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1812,6 +1822,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPNew",
             '400': "ApiErrResponse",
+            '401': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -1828,6 +1839,7 @@ class AccountApi:
     @validate_call
     def api_v1_accounts_mfa_totp_enable_post_without_preload_content(
         self,
+        body: Annotated[RequestsTotpEnableReq, Field(description="Enable TOTP request")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1843,8 +1855,10 @@ class AccountApi:
     ) -> RESTResponseType:
         """Enable TOTP
 
-        Enable TOTP
+        Start 2FA set-up and return a new secret. The account owner is verified first with the current password or a passkey reauth token issued for the totp_enable purpose. Set-up completes with enable/confirm.
 
+        :param body: Enable TOTP request (required)
+        :type body: RequestsTotpEnableReq
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1868,6 +1882,7 @@ class AccountApi:
         """ # noqa: E501
 
         _param = self._api_v1_accounts_mfa_totp_enable_post_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1877,6 +1892,7 @@ class AccountApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '200': "ModelTOTPNew",
             '400': "ApiErrResponse",
+            '401': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -1888,6 +1904,7 @@ class AccountApi:
 
     def _api_v1_accounts_mfa_totp_enable_post_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -1913,6 +1930,8 @@ class AccountApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -1923,6 +1942,19 @@ class AccountApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [

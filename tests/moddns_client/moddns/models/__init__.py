@@ -116,6 +116,7 @@ from moddns.models.requests_reorder_profile_custom_rules_body import RequestsReo
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
+from moddns.models.requests_totp_enable_req import RequestsTotpEnableReq
 from moddns.models.requests_totp_regenerate_req import RequestsTotpRegenerateReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from moddns.models.requests_update_profile_custom_rule_body import RequestsUpdateProfileCustomRuleBody

@@ -2,7 +2,7 @@
 
 Drives the real API (enable, confirm, login, disable) and reads the account
 document straight from MongoDB.
-specRef: api-endpoint-behaviour #E2 #E3 #F5 #E4 #E5 #E6 #E7 #E8 #E12 #E13 #E14.
+specRef: api-endpoint-behaviour #E1 #E2 #E3 #F5 #E4 #E5 #E6 #E7 #E8 #E12 #E13 #E14.
 """
 
 import base64
@@ -28,6 +28,7 @@ from moddns.models.requests_account_updates import RequestsAccountUpdates
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
+from moddns.models.requests_totp_enable_req import RequestsTotpEnableReq
 from moddns.models.requests_totp_regenerate_req import RequestsTotpRegenerateReq
 from moddns.models.requests_totp_req import RequestsTotpReq
 from pymongo import MongoClient
@@ -80,10 +81,12 @@ def _api(cookie: str | None = None) -> ApiClient:
     return api_client
 
 
-def _enable_totp(cookie: str) -> tuple[str, list[str]]:
+def _enable_totp(cookie: str, password: str | None = None, reauth_token: str | None = None) -> tuple[str, list[str]]:
     with _api(cookie) as api_client:
         acc_api = AccountApi(api_client)
-        new = acc_api.api_v1_accounts_mfa_totp_enable_post()
+        new = acc_api.api_v1_accounts_mfa_totp_enable_post(
+            RequestsTotpEnableReq(current_password=password, reauth_token=reauth_token)
+        )
         backup = acc_api.api_v1_accounts_mfa_totp_enable_confirm_post(
             RequestsTotpReq(otp=totp_code(new.secret))
         )
@@ -218,7 +221,7 @@ class TestTotpStorage:
     ):
         """specRef: E4, E5."""
         account, cookie, _, _, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         assert len(codes) == 8
@@ -235,7 +238,9 @@ class TestTotpStorage:
         account, cookie, _, _, state = fresh_account
         with _api(cookie) as api_client:
             acc_api = AccountApi(api_client)
-            new = acc_api.api_v1_accounts_mfa_totp_enable_post()
+            new = acc_api.api_v1_accounts_mfa_totp_enable_post(
+                RequestsTotpEnableReq(current_password=state["password"])
+            )
             state["secret"] = new.secret
             code = totp_code(new.secret)
             wrong = f"{(int(code) + 1) % 1_000_000:06d}"
@@ -253,7 +258,7 @@ class TestTotpStorage:
     def test_totp_and_backup_code_login_after_enable(self, mongo_db, fresh_account):
         """specRef: E4, E6."""
         _, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         assert _login(email, password, totp_code(secret)) == 200
@@ -270,7 +275,7 @@ class TestTotpStorage:
     def test_disable_removes_all_totp_material(self, mongo_db, fresh_account):
         """specRef: E7."""
         account, cookie, password, _, state = fresh_account
-        secret, _ = _enable_totp(cookie)
+        secret, _ = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         assert _disable(cookie, totp_code(secret), password) == 200
@@ -283,7 +288,7 @@ class TestTotpStorage:
     def test_disable_with_backup_code(self, mongo_db, fresh_account):
         """A lost authenticator: a backup code turns 2FA off. specRef: E3, E6, E7."""
         account, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         # A used code is refused without ending the session; 2FA stays on.
@@ -299,12 +304,12 @@ class TestTotpStorage:
         assert _strings(doc) == [], f"TOTP material left after disable: {sorted(doc)}"
 
         # A new device can be enrolled afterwards.
-        state["secret"], _ = _enable_totp(cookie)
+        state["secret"], _ = _enable_totp(cookie, state["password"])
 
     def test_password_reset_with_backup_code(self, mongo_db, fresh_account):
         """specRef: C2, E6."""
         account, cookie, _, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         token = _reset_token(mongo_db, account.id, email)
@@ -388,7 +393,7 @@ class TestTotpStorage:
         """A login refused for the session limit does not use the backup code up,
         so the same code signs in once other sessions are removed. specRef: A8a, E6."""
         _, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         # Fill the session limit (API_SESSION_LIMIT, default 10).
         for _ in range(50):
@@ -408,7 +413,7 @@ class TestTotpStorage:
         """Changing the email checks the current password before the 2FA code, so
         a wrong password uses no backup code up and does not lock 2FA. specRef: B3, E6, E12."""
         _, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         def change_email(current: str, otp: str) -> int:
@@ -431,7 +436,7 @@ class TestTotpStorage:
     def test_failed_attempts_lock_out_valid_codes(self, fresh_account, redis_client):
         """After ID_LIMITER_MAX (default 5) failed attempts every code is refused. specRef: E12."""
         account, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
         for _ in range(5):
@@ -448,7 +453,7 @@ class TestBackupCodeRegeneration:
     def test_regenerate_replaces_every_code(self, mongo_db, fresh_account):
         """specRef: E5, E13, E14."""
         account, cookie, password, email, state = fresh_account
-        secret, old_codes = _enable_totp(cookie)
+        secret, old_codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         sealed = _totp_doc(mongo_db, account.id)["secret_sealed"]
 
@@ -480,7 +485,7 @@ class TestBackupCodeRegeneration:
         """Lost authenticator, codes of an earlier format: a backup code
         authorises the new set and the marker goes. specRef: E9, E13, E14."""
         account, cookie, password, _, state = fresh_account
-        secret, old_codes = _enable_totp(cookie)
+        secret, old_codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         mongo_db.accounts.update_one(
             {"_id": ObjectId(account.id)}, {"$set": {"mfa.totp.backup_codes_legacy": True}}
@@ -499,7 +504,7 @@ class TestBackupCodeRegeneration:
     def test_refused_code_keeps_session_and_codes(self, mongo_db, fresh_account):
         """specRef: E13."""
         account, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         before = _totp_doc(mongo_db, account.id)["backup_code_hashes"]
 
@@ -518,7 +523,7 @@ class TestBackupCodeRegeneration:
     def test_locked_account_cannot_regenerate(self, mongo_db, fresh_account, redis_client):
         """specRef: E12, E13."""
         account, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         before = _totp_doc(mongo_db, account.id)["backup_code_hashes"]
 
@@ -537,7 +542,7 @@ class TestBackupCodeRegeneration:
         the current password (or a passkey reauth token) no code is checked,
         used up or counted toward the lockout. specRef: E3, E12, E13."""
         account, cookie, password, email, state = fresh_account
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
         before = _totp_doc(mongo_db, account.id)
 
@@ -558,6 +563,44 @@ class TestBackupCodeRegeneration:
             state["secret"] = None
 
 
+def _start_enable(cookie: str, **reauth) -> tuple[int, str | None]:
+    """Status of the request that starts 2FA set-up, and the secret it issued."""
+    with _api(cookie) as api_client:
+        try:
+            new = AccountApi(api_client).api_v1_accounts_mfa_totp_enable_post(RequestsTotpEnableReq(**reauth))
+            return 200, new.secret
+        except ApiException as e:
+            return e.status, None
+
+
+class TestTotpEnableNeedsReauth:
+    """A session alone cannot start 2FA set-up: the current password or a passkey
+    reauth token of purpose totp_enable comes first. specRef: E1, F5."""
+
+    @pytest.mark.parametrize("reauth", [{}, {"current_password": "Wrong-Passw0rd-123!"}], ids=["none", "wrong-password"])
+    def test_refused_reauth_issues_no_secret(self, mongo_db, fresh_account, reauth):
+        account, cookie, _, _, _ = fresh_account
+        assert _start_enable(cookie, **reauth) == (400, None)
+        with _api(cookie) as api_client, pytest.raises(ApiException) as refused:
+            AccountApi(api_client).api_v1_accounts_mfa_totp_enable_confirm_post(RequestsTotpReq(otp="123456"))
+        assert refused.value.status == 400, "no set-up in progress"
+        assert _totp_doc(mongo_db, account.id).get("enabled") is not True
+
+    def test_enable_with_passkey_reauth(self, mongo_db):
+        user = passkeys.signup()
+        try:
+            cookie = user.session_cookie
+            other = passkeys.reauth_token(user, "totp_disable")
+            assert _start_enable(cookie, reauth_token=other) == (400, None)
+
+            token = passkeys.reauth_token(user, "totp_enable")
+            status, secret = _start_enable(cookie, reauth_token=token)
+            assert status == 200 and secret
+            assert _start_enable(cookie, reauth_token=token) == (400, None), "the token is single-use"
+        finally:
+            passkeys.delete_passkey_account(user)
+
+
 class TestTotpChangesWithPasskeyReauth:
     """A passkey reauth token of the change's own purpose replaces the password;
     the 2FA code is still required. specRef: E3, E13, F5."""
@@ -570,7 +613,7 @@ class TestTotpChangesWithPasskeyReauth:
 
     def test_regenerate_with_passkey_reauth(self, passkey_user):
         cookie = passkey_user.session_cookie
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, reauth_token=passkeys.reauth_token(passkey_user, "totp_enable"))
 
         other = passkeys.reauth_token(passkey_user, "passkey_delete")
         assert _regenerate(cookie, codes[0], reauth_token=other)[0] == 400
@@ -585,7 +628,7 @@ class TestTotpChangesWithPasskeyReauth:
 
     def test_disable_with_passkey_reauth(self, passkey_user):
         cookie = passkey_user.session_cookie
-        secret, codes = _enable_totp(cookie)
+        secret, codes = _enable_totp(cookie, reauth_token=passkeys.reauth_token(passkey_user, "totp_enable"))
 
         other = passkeys.reauth_token(passkey_user, "backup_codes_regenerate")
         assert _disable(cookie, codes[0], reauth_token=other) == 400

@@ -40,6 +40,7 @@ REAUTH_PURPOSES = (
     "passkey_delete",
     "backup_codes_regenerate",
     "totp_disable",
+    "totp_enable",
 )
 
 
