@@ -207,6 +207,7 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 		"passkey_add":             auth.TokenTypeReauthPasskeyAdd,
 		"passkey_delete":          auth.TokenTypeReauthPasskeyDelete,
 		"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
+		"totp_disable":            auth.TokenTypeReauthTotpDisable,
 	}
 	for purpose, want := range tests {
 		got, ok := reauthTokenType(purpose)

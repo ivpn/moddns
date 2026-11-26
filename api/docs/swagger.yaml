@@ -1559,9 +1559,15 @@ definitions:
     type: object
   requests.TotpDisableReq:
     properties:
+      current_password:
+        minLength: 1
+        type: string
       otp:
         maxLength: 64
         minLength: 6
+        type: string
+      reauth_token:
+        minLength: 1
         type: string
     required:
     - otp
@@ -1640,6 +1646,7 @@ definitions:
         - passkey_add
         - passkey_delete
         - backup_codes_regenerate
+        - totp_disable
         type: string
     required:
     - purpose
@@ -2008,7 +2015,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Disable TOTP
+      description: Turn 2FA off. The account owner is verified first with the current
+        password or a passkey reauth token issued for the totp_disable purpose, then
+        the change is authorised by an authenticator code or a backup code.
       parameters:
       - description: Disable TOTP request
         in: body

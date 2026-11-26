@@ -67,7 +67,7 @@ func (s *APIServer) confirm2FA() fiber.Handler {
 }
 
 // @Summary Disable TOTP
-// @Description Disable TOTP
+// @Description Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
 // @Tags Account
 // @Accept json
 // @Produce json
@@ -90,7 +90,7 @@ func (s *APIServer) disable2FA() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 		accountId := auth.GetAccountID(c)
-		acc, err := s.Service.TotpDisable(c.UserContext(), accountId, p.OTP)
+		acc, err := s.Service.TotpDisable(c.UserContext(), accountId, *p)
 		if err != nil {
 			return handleSessionTotpError(c, err, ErrFailedToDisable2FA.Error())
 		}

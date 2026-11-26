@@ -154,9 +154,13 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 	return &model.TOTPBackup{BackupCodes: codes}, nil
 }
 
-// TotpDisable turns 2FA off, authorised by an authenticator or backup code.
-func (a *AccountService) TotpDisable(ctx context.Context, accountId, otp string) (*model.Account, error) {
-	acc, proof, done, err := a.checkTotp(ctx, accountId, otp, "disable")
+// TotpDisable turns 2FA off, authorised by reauth and then an authenticator or
+// backup code.
+func (a *AccountService) TotpDisable(ctx context.Context, accountId string, req requests.TotpDisableReq) (*model.Account, error) {
+	if err := a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthTotpDisable, req.CurrentPassword, req.ReauthToken); err != nil {
+		return nil, err
+	}
+	acc, proof, done, err := a.checkTotp(ctx, accountId, req.OTP, "disable")
 	if err != nil {
 		return nil, err
 	}

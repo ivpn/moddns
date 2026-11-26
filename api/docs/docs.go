@@ -354,7 +354,7 @@ const docTemplate = `{
         },
         "/api/v1/accounts/mfa/totp/disable": {
             "post": {
-                "description": "Disable TOTP",
+                "description": "Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5610,10 +5610,18 @@ const docTemplate = `{
                 "otp"
             ],
             "properties": {
+                "current_password": {
+                    "type": "string",
+                    "minLength": 1
+                },
                 "otp": {
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
+                },
+                "reauth_token": {
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },
@@ -5721,7 +5729,8 @@ const docTemplate = `{
                         "password_set",
                         "passkey_add",
                         "passkey_delete",
-                        "backup_codes_regenerate"
+                        "backup_codes_regenerate",
+                        "totp_disable"
                     ]
                 }
             }

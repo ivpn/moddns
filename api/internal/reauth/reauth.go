@@ -1,7 +1,7 @@
 // Package reauth provides the unified reauthentication primitive used by
 // every privileged operation in the API (account deletion, email change,
 // password set, passkey add and delete, profile export and import, backup-code
-// regeneration).
+// regeneration, turning 2FA off).
 //
 // A privileged operation must prove fresh control of the account beyond the
 // session cookie. Two credential paths are accepted:

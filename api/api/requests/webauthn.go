@@ -1,7 +1,7 @@
 package requests
 
 type WebAuthnReauthBeginRequest struct {
-	Purpose string `json:"purpose" validate:"required,oneof=email_change account_deletion profile_export profile_import password_set passkey_add passkey_delete backup_codes_regenerate"`
+	Purpose string `json:"purpose" validate:"required,oneof=email_change account_deletion profile_export profile_import password_set passkey_add passkey_delete backup_codes_regenerate totp_disable"`
 }
 
 // WebAuthnDeletePasskeyRequest verifies the account owner before a passkey is deleted.
