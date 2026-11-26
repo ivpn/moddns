@@ -270,7 +270,7 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 		// Initialize WebAuthn registration ceremony for additional credential
 		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return HandleError(c, err, "Failed to begin add passkey")
+			return handleSessionTotpError(c, err, "Failed to begin add passkey")
 		}
 
 		// Set temporary session cookie
@@ -487,7 +487,7 @@ func (s *APIServer) deletePasskey() fiber.Handler {
 		// Delete the passkey
 		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return HandleError(c, err, "Failed to delete passkey")
+			return handleSessionTotpError(c, err, "Failed to delete passkey")
 		}
 
 		return c.SendStatus(204)

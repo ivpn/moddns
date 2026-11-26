@@ -55,7 +55,7 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 
 		envelope, err := s.Service.Export(c.UserContext(), accountId, req.Scope, req.ProfileIds, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return HandleError(c, err, err.Error())
+			return handleSessionTotpError(c, err, err.Error())
 		}
 
 		// specRef: E12, E13, E14, E15
@@ -131,7 +131,7 @@ func (s *APIServer) importProfiles() fiber.Handler {
 
 		result, err := s.Service.Import(c.UserContext(), accountId, req.Mode, req.Payload, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
 		if err != nil {
-			return HandleError(c, err, err.Error())
+			return handleSessionTotpError(c, err, err.Error())
 		}
 
 		return c.JSON(result)

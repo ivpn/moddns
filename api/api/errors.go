@@ -336,3 +336,16 @@ func intRange(params any, structField string) (lo, hi string, ok bool) {
 	}
 	return lo, hi, lo != "" && hi != ""
 }
+
+// handleSessionTotpError answers a refused 2FA code on a signed-in request,
+// including the code that goes with the password in a reauth. The session is
+// valid, so a wrong or missing code is a bad request body: 401 would read as an
+// expired session (same rule as the reauth errors above).
+func handleSessionTotpError(c *fiber.Ctx, err error, msg string) error {
+	var totpErr *account.TOTPError
+	if errors.As(err, &totpErr) && !errors.Is(err, account.ErrTOTPTooManyAttempts) {
+		log.Ctx(c.UserContext()).Warn().Err(err).Msg(msg)
+		return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
+	}
+	return HandleError(c, err, msg)
+}

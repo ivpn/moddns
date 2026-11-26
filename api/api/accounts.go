@@ -116,7 +116,7 @@ func (s *APIServer) updateAccount() fiber.Handler {
 		mfa := auth.GetMfaData(c)
 		accountId := auth.GetAccountID(c)
 		if err := s.Service.UpdateAccount(c.UserContext(), accountId, updates.Updates, mfa); err != nil {
-			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
+			return handleSessionTotpError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
 		return c.SendStatus(204)
@@ -153,7 +153,7 @@ func (s *APIServer) deleteAccount() fiber.Handler {
 		mfa := auth.GetMfaData(c)
 		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload, mfa)
 		if err != nil {
-			return HandleError(c, err, ErrFailedToDeleteAccount.Error())
+			return handleSessionTotpError(c, err, ErrFailedToDeleteAccount.Error())
 		}
 
 		ClearCookies(c, auth.AUTH_COOKIE)

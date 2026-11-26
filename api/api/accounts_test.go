@@ -576,7 +576,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_TOTPRequired() {
 
 	// Assertions
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
 
 	var errResp ErrResponse
 	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))
@@ -628,7 +628,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidTOTPCode() {
 
 	// Assertions
 	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
 
 	var errResp ErrResponse
 	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))

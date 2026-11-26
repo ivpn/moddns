@@ -1,14 +1,11 @@
 package api
 
 import (
-	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/service/account"
-	"github.com/rs/zerolog/log"
 )
 
 // @Summary Enable TOTP
@@ -138,16 +135,4 @@ func (s *APIServer) regenerateBackupCodes() fiber.Handler {
 		}
 		return c.Status(200).JSON(backup)
 	}
-}
-
-// handleSessionTotpError answers a refused 2FA code on a signed-in request. The
-// session is valid, so a wrong code is a bad request body: 401 would read as an
-// expired session (same rule as the reauth errors in errors.go).
-func handleSessionTotpError(c *fiber.Ctx, err error, msg string) error {
-	var totpErr *account.TOTPError
-	if errors.As(err, &totpErr) && !errors.Is(err, account.ErrTOTPTooManyAttempts) {
-		log.Ctx(c.UserContext()).Warn().Err(err).Msg(msg)
-		return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
-	}
-	return HandleError(c, err, msg)
 }

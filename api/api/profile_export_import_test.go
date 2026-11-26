@@ -769,10 +769,10 @@ func (s *ProfileExportImportSuite) TestExport_ForwardsMfaCodeHeaderToService() {
 	s.mockProfileSvc.AssertExpectations(s.T())
 }
 
-// TestExport_TOTPRequiredFromService_Returns401 — when the service returns a
-// TOTP-required error (the unified reauth.Verify path when MFA is enabled
-// but the OTP header is absent), HandleError maps it to 401.
-func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns401() {
+// TestExport_TOTPRequiredFromService_Returns400 - a missing 2FA code with the
+// password is a bad request on a valid session, not an expired session.
+// specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns400() {
 	s.mockProfileSvc.On(
 		"Export",
 		mock.Anything, eiAccountID, "all", mock.AnythingOfType("[]string"),
@@ -784,7 +784,7 @@ func (s *ProfileExportImportSuite) TestExport_TOTPRequiredFromService_Returns401
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 }
 
 // TestImport_ForwardsMfaCodeHeaderToService — same as the Export variant
@@ -811,9 +811,10 @@ func (s *ProfileExportImportSuite) TestImport_ForwardsMfaCodeHeaderToService() {
 	s.mockProfileSvc.AssertExpectations(s.T())
 }
 
-// TestImport_InvalidTOTPCodeFromService_Returns401 — wrong OTP returned by
-// the service must produce 401, matching the password-mismatch shape.
-func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns401() {
+// TestImport_InvalidTOTPCodeFromService_Returns400 - a wrong 2FA code is a
+// bad request on a valid session, matching the password-mismatch shape.
+// specRef: api-endpoint-behaviour.md E6
+func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns400() {
 	s.mockProfileSvc.On(
 		"Import",
 		mock.Anything, eiAccountID, "create_new", mock.AnythingOfType("*model.ExportEnvelope"),
@@ -826,7 +827,7 @@ func (s *ProfileExportImportSuite) TestImport_InvalidTOTPCodeFromService_Returns
 
 	resp, err := s.createServer().App.Test(req, -1)
 	require.NoError(s.T(), err)
-	s.Equal(http.StatusUnauthorized, resp.StatusCode)
+	s.Equal(http.StatusBadRequest, resp.StatusCode)
 }
 
 // ---- Friendly validation messages (QA issue #604) -------------------------
