@@ -41,6 +41,7 @@ REAUTH_PURPOSES = (
     "backup_codes_regenerate",
     "totp_disable",
     "totp_enable",
+    "sessions_delete",
 )
 
 

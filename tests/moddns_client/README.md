@@ -252,6 +252,7 @@ Class | Method | HTTP request | Description
  - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
  - [RequestsRotatePASessionReq](docs/RequestsRotatePASessionReq.md)
+ - [RequestsSessionsDeleteRequest](docs/RequestsSessionsDeleteRequest.md)
  - [RequestsTotpDisableReq](docs/RequestsTotpDisableReq.md)
  - [RequestsTotpEnableReq](docs/RequestsTotpEnableReq.md)
  - [RequestsTotpRegenerateReq](docs/RequestsTotpRegenerateReq.md)
