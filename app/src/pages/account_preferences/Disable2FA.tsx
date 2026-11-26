@@ -5,10 +5,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
-import { useState, useEffect } from "react";
+import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
+import { beginTotpDisableReauth } from "@/lib/webauthn";
 import api from "@/api/api";
 import { Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/general";
@@ -20,24 +21,21 @@ interface Disable2FADialogProps {
 }
 
 export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Disable2FADialogProps) {
-    const [otp, setOtp] = useState("");
+    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
     const [loading, setLoading] = useState(false);
+    const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
-    const [otpValid, setOtpValid] = useState(false);
-
-    // Reset OTP every time dialog is opened
-    useEffect(() => {
-        if (open) {
-            setOtp("");
-            setOtpValid(false);
-        }
-    }, [open]);
 
     const handleDisable2FA = async () => {
+        if (!verification?.otp || loading) return;
         setLoading(true);
         try {
-            const body = { otp } as unknown as { otp: string };
-            await api.Client.accountsApi.apiV1AccountsMfaTotpDisablePost(body);
+            await api.Client.accountsApi.apiV1AccountsMfaTotpDisablePost({
+                otp: verification.otp,
+                current_password: verification.currentPassword,
+                reauth_token: verification.reauthToken,
+            });
             toast.success("2FA disabled successfully.");
 
             // Update the global account state with latest 2FA status
@@ -69,17 +67,21 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                 </DialogHeader>
                 <div className="flex flex-col items-start gap-6 p-6">
                     <p className="text-sm font-normal text-[var(--tailwind-colors-slate-50)] leading-5 font-['Roboto_Flex-Regular',Helvetica]">
-                        Enter the 6-digit code from your authenticator app to disable 2FA for your account. If you lost your device, use one of your backup codes instead.
+                        Confirm it's you, then enter the 6-digit code from your authenticator app to disable 2FA for your account. If you lost your device, use one of your backup codes instead.
                     </p>
-                    <TwoFactorCodeInput
-                        id="disable-totp-code"
-                        value={otp}
-                        onChange={(value, valid) => { setOtp(value); setOtpValid(valid); }}
-                        onSubmit={() => { if (!loading) handleDisable2FA(); }}
-                        disabled={loading}
-                        autoFocus
-                        data-testid="disable-2fa-code"
-                    />
+                    <div className="w-full">
+                        <VerifyIdentityFields
+                            account={account ?? null}
+                            open={open}
+                            beginPasskeyReauth={beginTotpDisableReauth}
+                            onChange={onVerificationChange}
+                            requireCode
+                            onSubmit={handleDisable2FA}
+                            codeTestId="disable-2fa-code"
+                            autoFocus
+                            disabled={loading}
+                        />
+                    </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 p-6 pt-0">
                     <Button
@@ -94,7 +96,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                     <Button
                         size="lg"
                         className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] flex items-center justify-center text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-700)]"
-                        disabled={loading || !otpValid}
+                        disabled={loading || !verification}
                         onClick={handleDisable2FA}
                     >
                         {loading ? (

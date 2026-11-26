@@ -2883,7 +2883,19 @@ export interface RequestsTotpDisableReq {
      * @type {string}
      * @memberof RequestsTotpDisableReq
      */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpDisableReq
+     */
     'otp': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsTotpDisableReq
+     */
+    'reauth_token'?: string;
 }
 /**
  * 
@@ -3029,7 +3041,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     PasswordSet: 'password_set',
     PasskeyAdd: 'passkey_add',
     PasskeyDelete: 'passkey_delete',
-    BackupCodesRegenerate: 'backup_codes_regenerate'
+    BackupCodesRegenerate: 'backup_codes_regenerate',
+    TotpDisable: 'totp_disable'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -3443,7 +3456,7 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
-         * Disable TOTP
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3722,7 +3735,7 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Disable TOTP
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3849,7 +3862,7 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
             return localVarFp.apiV1AccountsMfaTotpBackupCodesRegeneratePost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Disable TOTP
+         * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
          * @summary Disable TOTP
          * @param {RequestsTotpDisableReq} body Disable TOTP request
          * @param {*} [options] Override http request option.
@@ -3966,7 +3979,7 @@ export class AccountApi extends BaseAPI {
     }
 
     /**
-     * Disable TOTP
+     * Turn 2FA off. The account owner is verified first with the current password or a passkey reauth token issued for the totp_disable purpose, then the change is authorised by an authenticator code or a backup code.
      * @summary Disable TOTP
      * @param {RequestsTotpDisableReq} body Disable TOTP request
      * @param {*} [options] Override http request option.
