@@ -181,7 +181,7 @@ const ALREADY_HOLDS_PASSKEY =
   "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
 
 /** Request body and MFA header arguments carrying a completed identity verification. */
-function verificationRequest(verification: IdentityVerification) {
+export function verificationRequest(verification: IdentityVerification) {
   const body = verification.reauthToken
     ? { reauth_token: verification.reauthToken }
     : { current_password: verification.currentPassword };
@@ -380,6 +380,14 @@ export async function beginPasskeyDeleteReauth(): Promise<string> {
  */
 export async function beginBackupCodesRegenerateReauth(): Promise<string> {
   return beginReauthForPurpose('backup_codes_regenerate');
+}
+
+/**
+ * Begin and finish passkey-based reauthentication for signing out the other sessions.
+ * Returns a short-lived reauth token consumed by the sessions request.
+ */
+export async function beginSessionsDeleteReauth(): Promise<string> {
+  return beginReauthForPurpose('sessions_delete');
 }
 
 /**

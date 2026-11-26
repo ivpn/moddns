@@ -2875,6 +2875,25 @@ export interface RequestsRotatePASessionReq {
 /**
  * 
  * @export
+ * @interface RequestsSessionsDeleteRequest
+ */
+export interface RequestsSessionsDeleteRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSessionsDeleteRequest
+     */
+    'current_password'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsSessionsDeleteRequest
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface RequestsTotpDisableReq
  */
 export interface RequestsTotpDisableReq {
@@ -3062,7 +3081,8 @@ export const RequestsWebAuthnReauthBeginRequestPurposeEnum = {
     PasskeyDelete: 'passkey_delete',
     BackupCodesRegenerate: 'backup_codes_regenerate',
     TotpDisable: 'totp_disable',
-    TotpEnable: 'totp_enable'
+    TotpEnable: 'totp_enable',
+    SessionsDelete: 'sessions_delete'
 } as const;
 
 export type RequestsWebAuthnReauthBeginRequestPurposeEnum = typeof RequestsWebAuthnReauthBeginRequestPurposeEnum[keyof typeof RequestsWebAuthnReauthBeginRequestPurposeEnum];
@@ -7994,12 +8014,17 @@ export class ServicesApi extends BaseAPI {
 export const SessionsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SessionsDelete: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        apiV1SessionsDelete: async (body: RequestsSessionsDeleteRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1SessionsDelete', 'body', body)
             const localVarPath = `/api/v1/sessions`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -8014,9 +8039,19 @@ export const SessionsApiAxiosParamCreator = function (configuration?: Configurat
 
 
     
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            if (xMfaCode != null) {
+                localVarHeaderParameter['x-mfa-code'] = String(xMfaCode);
+            }
+            if (xMfaMethods) {
+                let mapped = xMfaMethods.map(value => (<any>"Array<string>" !== "Array<string>") ? JSON.stringify(value) : (value || ""));
+                localVarHeaderParameter['x-mfa-methods'] = mapped.join(COLLECTION_FORMATS["csv"]);
+            }
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -8034,13 +8069,16 @@ export const SessionsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = SessionsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1SessionsDelete(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SessionsDelete(options);
+        async apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1SessionsDelete(body, xMfaCode, xMfaMethods, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['SessionsApi.apiV1SessionsDelete']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -8056,13 +8094,16 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
     const localVarFp = SessionsApiFp(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session
+         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
+         * @param {RequestsSessionsDeleteRequest} body Verification
+         * @param {string} [xMfaCode] MFA OTP code
+         * @param {Array<string>} [xMfaMethods] MFA methods
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1SessionsDelete(options?: RawAxiosRequestConfig): AxiosPromise<void> {
-            return localVarFp.apiV1SessionsDelete(options).then((request) => request(axios, basePath));
+        apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.apiV1SessionsDelete(body, xMfaCode, xMfaMethods, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -8075,14 +8116,17 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
  */
 export class SessionsApi extends BaseAPI {
     /**
-     * Delete all sessions for the current account except the current session
+     * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
      * @summary Delete all other sessions
+     * @param {RequestsSessionsDeleteRequest} body Verification
+     * @param {string} [xMfaCode] MFA OTP code
+     * @param {Array<string>} [xMfaMethods] MFA methods
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof SessionsApi
      */
-    public apiV1SessionsDelete(options?: RawAxiosRequestConfig) {
-        return SessionsApiFp(this.configuration).apiV1SessionsDelete(options).then((request) => request(this.axios, this.basePath));
+    public apiV1SessionsDelete(body: RequestsSessionsDeleteRequest, xMfaCode?: string, xMfaMethods?: Array<string>, options?: RawAxiosRequestConfig) {
+        return SessionsApiFp(this.configuration).apiV1SessionsDelete(body, xMfaCode, xMfaMethods, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
