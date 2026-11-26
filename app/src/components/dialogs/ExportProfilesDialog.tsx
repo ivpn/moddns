@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { DialogBody, DialogActions } from '@/components/dialogs/DialogLayout';
 import { MultiSelectProfileList } from '@/components/MultiSelectProfileList';
 import { useAppStore } from '@/store/general';
-import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
+import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { useProfileExport } from '@/hooks/useProfileExport';
 import { beginProfileExportReauth } from '@/lib/webauthn';
 import { cn } from '@/lib/utils';
@@ -29,8 +30,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
 
     const [scope, setScope] = useState<Scope>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
 
     const { exportProfiles, isExporting } = useProfileExport();
 
@@ -70,6 +70,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
             toast.success(`Exported ${count} profile${count === 1 ? '' : 's'}`);
             handleOpenChange(false);
         } catch {
+            requestFailed();
             // The hook surfaces the failure (including a wrong-password 400) as a
             // toast; keep the dialog open so the user can correct and retry.
         }
@@ -164,6 +165,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
                             open={open}
                             beginPasskeyReauth={beginProfileExportReauth}
                             onChange={onVerificationChange}
+                            passkeyResetKey={passkeyResetKey}
                             onSubmit={() => void handleSubmit()}
                             codeTestId="export-code"
                             disabled={isExporting}

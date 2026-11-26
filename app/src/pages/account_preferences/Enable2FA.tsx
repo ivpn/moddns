@@ -7,7 +7,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ClipboardIcon, CheckIcon, Loader2 } from "lucide-react";
-import { useCallback, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import api from "@/api/api";
@@ -15,7 +15,8 @@ import { useAppStore } from "@/store/general";
 import BackupCodesView from "@/components/dialogs/BackupCodesView";
 import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { totpErrorMessage } from "@/lib/authToasts";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { beginTotpEnableReauth } from "@/lib/webauthn";
 
 // API answer to a confirm without a pending secret (api-endpoint-behaviour E2).
@@ -40,8 +41,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
     const [backupCodesConfirmed, setBackupCodesConfirmed] = useState(false);
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
 
     useEffect(() => {
         if (open) {
@@ -72,6 +72,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
             setSecret(res.data.secret || "");
             setUri(res.data.uri || "");
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(axiosErr?.response?.data?.error || "Failed to fetch 2FA setup data.");
         } finally {
@@ -181,6 +182,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
                                     open={open}
                                     beginPasskeyReauth={beginTotpEnableReauth}
                                     onChange={onVerificationChange}
+                                    passkeyResetKey={passkeyResetKey}
                                     autoFocus
                                     disabled={loading}
                                 />

@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import api from '@/api/api';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
+import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import type { ModelAccount } from '@/api/client/api';
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum } from '@/api/client/api';
 import { useAppStore } from '@/store/general';
@@ -34,8 +35,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
         reauth_token: string;
         new_email: string;
     }
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [submitting, setSubmitting] = useState(false);
     const setAccount = useAppStore(s => s.setAccount);
 
@@ -96,6 +96,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
             handleOpenChange(false);
             onChanged();
         } catch (e) {
+            requestFailed();
             const err = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(err.response?.data?.error, 'Failed to update email'));
         } finally {
@@ -139,6 +140,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                         open={open}
                         beginPasskeyReauth={beginEmailChangeReauth}
                         onChange={onVerificationChange}
+                        passkeyResetKey={passkeyResetKey}
                         onSubmit={handleContinue}
                         codeTestId="change-email-code"
                         disabled={submitting}

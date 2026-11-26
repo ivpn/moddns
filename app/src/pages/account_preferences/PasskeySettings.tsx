@@ -58,7 +58,7 @@ export default function PasskeySettings() {
         }
     };
 
-    const handleAddPasskey = async (verification: IdentityVerification) => {
+    const handleAddPasskey = async (verification: IdentityVerification): Promise<boolean> => {
         try {
             setRegistering(true);
             await addPasskeyToAccount(verification);
@@ -67,9 +67,11 @@ export default function PasskeySettings() {
 
             // Reload passkeys list
             await loadPasskeys();
+            return true;
         } catch (err) {
             const e = err as { message?: string };
             toast.error(e?.message || "Failed to add passkey");
+            return false;
         } finally {
             setRegistering(false);
         }

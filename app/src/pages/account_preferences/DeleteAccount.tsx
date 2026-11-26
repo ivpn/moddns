@@ -14,7 +14,8 @@ import { toast } from 'sonner';
 import API from '@/api/api';
 import { AuthContext } from '@/App';
 import { useAppStore } from '@/store/general';
-import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
+import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { beginAccountDeletionReauth, verificationHeaders } from '@/lib/webauthn';
 import { totpErrorMessage } from '@/lib/authToasts';
 import type { RequestsAccountDeletionRequest } from '@/api/client/api';
@@ -31,8 +32,7 @@ export default function DeleteAccountDialog({
     loading = false,
 }: DeleteAccountProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [deletionCode, setDeletionCode] = useState<string>('');
     const [userCode, setUserCode] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -104,6 +104,7 @@ export default function DeleteAccountDialog({
             onOpenChange(false);
             auth?.logout('Account deleted.', 'info');
         } catch (err) {
+            requestFailed();
             const error = err as { response?: { status?: number; data?: { error?: string } } };
             if (error.response?.status === 429) {
                 toast.error('Too many requests, please try again later.');
@@ -162,6 +163,7 @@ export default function DeleteAccountDialog({
                         open={open}
                         beginPasskeyReauth={beginAccountDeletionReauth}
                         onChange={onVerificationChange}
+                        passkeyResetKey={passkeyResetKey}
                         codeTestId="delete-account-code"
                         autoFocus
                         disabled={isDeleting}

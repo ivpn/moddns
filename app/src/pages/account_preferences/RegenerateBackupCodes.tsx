@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/api/api';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import BackupCodesView from '@/components/dialogs/BackupCodesView';
-import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
+import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { totpErrorMessage } from '@/lib/authToasts';
 import { beginBackupCodesRegenerateReauth } from '@/lib/webauthn';
 import { useAppStore } from '@/store/general';
@@ -18,8 +19,7 @@ interface RegenerateBackupCodesDialogProps {
 /** Replaces every backup code with a new set (api-endpoint-behaviour E13), confirmed with the password or a
  *  passkey and a 2FA code. */
 export default function RegenerateBackupCodesDialog({ open, onOpenChange }: RegenerateBackupCodesDialogProps) {
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [submitting, setSubmitting] = useState(false);
     const [codes, setCodes] = useState<string[] | null>(null);
     const account = useAppStore(s => s.account);
@@ -54,6 +54,7 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
             // Update the banner and the 2FA row behind the dialog now; the old set is already gone.
             void refreshAccount();
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, 'Failed to regenerate backup codes.'));
         } finally {
@@ -89,6 +90,7 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
                                 open={open}
                                 beginPasskeyReauth={beginBackupCodesRegenerateReauth}
                                 onChange={onVerificationChange}
+                                passkeyResetKey={passkeyResetKey}
                                 requireCode
                                 onSubmit={regenerate}
                                 codeTestId="regenerate-backup-codes-code"

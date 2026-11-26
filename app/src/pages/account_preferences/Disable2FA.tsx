@@ -5,8 +5,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
-import { useCallback, useState } from "react";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
+import { useState } from "react";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
 import { beginTotpDisableReauth } from "@/lib/webauthn";
@@ -21,8 +22,7 @@ interface Disable2FADialogProps {
 }
 
 export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Disable2FADialogProps) {
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [loading, setLoading] = useState(false);
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
@@ -50,6 +50,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
             if (onDisabled) onDisabled();
             onOpenChange(false);
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to disable 2FA."));
         } finally {
@@ -75,6 +76,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
                             open={open}
                             beginPasskeyReauth={beginTotpDisableReauth}
                             onChange={onVerificationChange}
+                            passkeyResetKey={passkeyResetKey}
                             requireCode
                             onSubmit={handleDisable2FA}
                             codeTestId="disable-2fa-code"

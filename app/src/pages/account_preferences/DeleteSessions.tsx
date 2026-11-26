@@ -7,8 +7,9 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
-import { useCallback, useState, type JSX } from "react";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
+import { useState, type JSX } from "react";
 import api from "@/api/api";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
@@ -25,8 +26,7 @@ export default function DeleteSessionsDialog({
     onOpenChange,
 }: DeleteSessionsProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const [loading, setLoading] = useState(false);
 
     const handleConfirm = async () => {
@@ -38,6 +38,7 @@ export default function DeleteSessionsDialog({
             toast.success("All other sessions have been logged out.");
             onOpenChange(false);
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to log out sessions."));
         } finally {
@@ -62,6 +63,7 @@ export default function DeleteSessionsDialog({
                         open={open}
                         beginPasskeyReauth={beginSessionsDeleteReauth}
                         onChange={onVerificationChange}
+                        passkeyResetKey={passkeyResetKey}
                         onSubmit={handleConfirm}
                         codeTestId="delete-sessions-code"
                         autoFocus

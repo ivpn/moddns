@@ -31,6 +31,9 @@ interface VerifyIdentityFieldsProps {
     onSubmit?: () => void;
     /** Focus the first field of the chosen method when the dialog opens. */
     autoFocus?: boolean;
+    /** Changing it drops a passkey verification whose token a failed request has used up
+     *  (see useIdentityVerification); the password and the 2FA code are kept. */
+    passkeyResetKey?: number;
     /** Test id of the 2FA code field. */
     codeTestId?: string;
     disabled?: boolean;
@@ -53,6 +56,7 @@ export default function VerifyIdentityFields({
     passkeyOnly = false,
     requireCode = false,
     onSubmit,
+    passkeyResetKey = 0,
     codeTestId = 'verify-identity-code',
     autoFocus = false,
     disabled = false,
@@ -79,6 +83,11 @@ export default function VerifyIdentityFields({
     useEffect(() => {
         if (!open) reset();
     }, [open, reset]);
+
+    useEffect(() => {
+        setReauthToken(null);
+        setReauthStatus('idle');
+    }, [passkeyResetKey]);
 
     useEffect(() => {
         if (method === 'passkey') {

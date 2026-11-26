@@ -14,6 +14,7 @@ import FileDropzone from '@/components/FileDropzone';
 import { MultiSelectProfileList } from '@/components/MultiSelectProfileList';
 import { useAppStore } from '@/store/general';
 import VerifyIdentityFields, { type IdentityVerification } from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { useProfileImport } from '@/hooks/useProfileImport';
 import { beginProfileImportReauth } from '@/lib/webauthn';
 import { cn } from '@/lib/utils';
@@ -44,11 +45,11 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
     const [fileError, setFileError] = useState<string | null>(null);
     const [importError, setImportError] = useState<string | null>(null);
 
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
+    const { verification, onChange: setVerification, passkeyResetKey, requestFailed } = useIdentityVerification();
     const onVerificationChange = useCallback((v: IdentityVerification | null) => {
         setVerification(v);
         setImportError(null);
-    }, []);
+    }, [setVerification]);
 
     const { importProfiles, isImporting, result, reset: resetHook } = useProfileImport();
 
@@ -160,6 +161,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
             });
             setStep('results');
         } catch (err) {
+            requestFailed();
             const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
             const status = axiosError.response?.status;
             const serverError = axiosError.response?.data?.error;
@@ -230,6 +232,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
                 open={open}
                 beginPasskeyReauth={beginProfileImportReauth}
                 onChange={onVerificationChange}
+                passkeyResetKey={passkeyResetKey}
                 onSubmit={() => void handleImport()}
                 codeTestId="import-code"
                 disabled={isImporting}

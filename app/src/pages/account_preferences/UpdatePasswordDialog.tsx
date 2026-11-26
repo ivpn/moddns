@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useEffect, useMemo, useState, type JSX } from "react";
 import { useAppStore } from '@/store/general';
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import api from "@/api/api";
 import { ModelAccountUpdateOperationEnum, ModelAccountUpdatePathEnum, type ModelAccountUpdate } from "@/api/client/api";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { beginPasswordSetReauth } from "@/lib/webauthn";
 
@@ -26,8 +27,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const [closing, setClosing] = useState(false);
     const [otp, setOtp] = useState("");
     const [otpValid, setOtpValid] = useState(false);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
     const passwordAvailable = useMemo(() => {
@@ -96,6 +96,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
             toast.success("Password updated successfully.");
             handleClose();
         } catch (e: unknown) {
+            requestFailed();
             const axiosErr = e as { response?: { data?: { error?: string } } };
             let errorMessage = axiosErr.response?.data?.error || "Failed to update password.";
             if (axiosErr.response?.data?.error === "password does not meet complexity requirements") {
@@ -144,6 +145,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
                             open={open}
                             beginPasskeyReauth={beginPasswordSetReauth}
                             onChange={onVerificationChange}
+                            passkeyResetKey={passkeyResetKey}
                             passkeyOnly
                             disabled={loading}
                         />

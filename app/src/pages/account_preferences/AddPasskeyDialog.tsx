@@ -1,4 +1,4 @@
-import { useCallback, useState, type JSX } from "react";
+import { type JSX } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -9,20 +9,25 @@ import {
 } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
 import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from "@/hooks/useIdentityVerification";
 import { beginPasskeyAddReauth } from "@/lib/webauthn";
 import { useAppStore } from "@/store/general";
 
 interface AddPasskeyDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onConfirm: (verification: IdentityVerification) => void;
+    /** Resolves to whether the passkey was added. */
+    onConfirm: (verification: IdentityVerification) => Promise<boolean>;
     loading?: boolean;
 }
 
 export default function AddPasskeyDialog({ open, onOpenChange, onConfirm, loading = false }: AddPasskeyDialogProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+
+    const confirm = async () => {
+        if (verification && !(await onConfirm(verification))) requestFailed();
+    };
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,6 +47,7 @@ export default function AddPasskeyDialog({ open, onOpenChange, onConfirm, loadin
                         open={open}
                         beginPasskeyReauth={beginPasskeyAddReauth}
                         onChange={onVerificationChange}
+                        passkeyResetKey={passkeyResetKey}
                         disabled={loading}
                     />
                 </div>
@@ -60,7 +66,7 @@ export default function AddPasskeyDialog({ open, onOpenChange, onConfirm, loadin
                         variant="default"
                         size="lg"
                         className="flex-1 min-w-32 bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:!bg-[var(--tailwind-colors-rdns-800)]"
-                        onClick={() => verification && onConfirm(verification)}
+                        onClick={() => void confirm()}
                         disabled={loading || !verification}
                     >
                         {loading ? "Adding..." : "Continue"}

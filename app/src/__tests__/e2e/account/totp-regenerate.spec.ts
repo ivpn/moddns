@@ -155,6 +155,38 @@ test.describe('backup codes row', () => {
     await expect(dialog.getByTestId('backup-code')).toHaveCount(8);
   });
 
+  // The server uses the passkey token up with the first try, right or wrong code.
+  test('after a refused code, the passkey is asked for again and the code is kept', { tag: '@desktop' }, async ({ page }) => {
+    await installWebAuthnSuccessStub(page);
+    await openAccount(page, { enabled: true, backup_codes_remaining: 5 }, undefined, [{ id: 'p1', created_at: '2026-01-01T00:00:00Z' }]);
+    let issued = 0;
+    const sent: RegenerateBody[] = [];
+    await page.route('**/api/v1/webauthn/passkey/reauth/finish', route =>
+      route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ reauth_token: `reauth-token-${++issued}`, expires_at: '2027-01-01T00:00:00Z' }) }));
+    await page.route('**/api/v1/accounts/mfa/totp/backup-codes/regenerate', route => {
+      sent.push(route.request().postDataJSON() as RegenerateBody);
+      return sent.length === 1
+        ? route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'invalid 2FA code' }) })
+        : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ backup_codes: NEW_CODES }) });
+    });
+
+    await page.getByTestId('btn-regenerate-backup-codes').click({ timeout: 10_000 });
+    const dialog = page.getByTestId('regenerate-backup-codes-dialog');
+    await dialog.getByRole('button', { name: 'Verify with passkey' }).click();
+    await dialog.getByLabel('2FA code').fill('111111');
+    await dialog.getByTestId('regenerate-backup-codes-submit').click();
+    await expect(page.getByText('invalid 2FA code')).toBeVisible();
+
+    await expect(dialog.getByRole('button', { name: 'Verify with passkey' })).toBeEnabled();
+    await expect(dialog.getByTestId('regenerate-backup-codes-submit')).toBeDisabled();
+    await expect(dialog.getByLabel('2FA code')).toHaveValue('111111');
+    await dialog.getByLabel('2FA code').fill('123456');
+    await dialog.getByRole('button', { name: 'Verify with passkey' }).click();
+    await dialog.getByTestId('regenerate-backup-codes-submit').click();
+    await expect(dialog.getByTestId('backup-code')).toHaveCount(8);
+    expect(sent).toEqual([{ otp: '111111', reauth_token: 'reauth-token-1' }, { otp: '123456', reauth_token: 'reauth-token-2' }]);
+  });
+
   test('a malformed code is caught before it is sent', async ({ page }) => {
     const state = await openAccount(page, { enabled: true, backup_codes_remaining: 5 });
     await page.getByTestId('btn-regenerate-backup-codes').click({ timeout: 10_000 });
