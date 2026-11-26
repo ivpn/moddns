@@ -30,9 +30,10 @@ class RequestsImportRequest(BaseModel):
     """ # noqa: E501
     current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     mode: StrictStr
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     payload: ModelExportEnvelope
     reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
-    __properties: ClassVar[List[str]] = ["current_password", "mode", "payload", "reauth_token"]
+    __properties: ClassVar[List[str]] = ["current_password", "mode", "otp", "payload", "reauth_token"]
 
     @field_validator('mode')
     def mode_validate_enum(cls, value):
@@ -97,6 +98,7 @@ class RequestsImportRequest(BaseModel):
         _obj = cls.model_validate({
             "current_password": obj.get("current_password"),
             "mode": obj.get("mode"),
+            "otp": obj.get("otp"),
             "payload": ModelExportEnvelope.from_dict(obj["payload"]) if obj.get("payload") is not None else None,
             "reauth_token": obj.get("reauth_token")
         })

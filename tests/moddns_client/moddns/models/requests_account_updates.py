@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from moddns.models.model_account_update import ModelAccountUpdate
 from typing import Optional, Set
 from typing_extensions import Self
@@ -27,8 +28,9 @@ class RequestsAccountUpdates(BaseModel):
     """
     RequestsAccountUpdates
     """ # noqa: E501
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="OTP is the 2FA code that goes with a current password, when 2FA is on.")
     updates: List[ModelAccountUpdate]
-    __properties: ClassVar[List[str]] = ["updates"]
+    __properties: ClassVar[List[str]] = ["otp", "updates"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -88,6 +90,7 @@ class RequestsAccountUpdates(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "otp": obj.get("otp"),
             "updates": [ModelAccountUpdate.from_dict(_item) for _item in obj["updates"]] if obj.get("updates") is not None else None
         })
         return _obj

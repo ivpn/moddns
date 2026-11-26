@@ -103,9 +103,7 @@ def _login_error(email: str, password: str, otp: str) -> tuple[int, str | None]:
     with _api() as api_client:
         try:
             resp = AuthenticationApi(api_client).api_v1_login_post_with_http_info(
-                RequestsLoginBody(email=email, password=password),
-                x_mfa_code=otp,
-                x_mfa_methods=["totp"],
+                RequestsLoginBody(email=email, password=password, otp=otp),
             )
             return resp.status_code, None
         except ApiException as e:
@@ -120,9 +118,7 @@ def _login_session(email: str, password: str, otp: str) -> tuple[int, str | None
     with _api() as api_client:
         try:
             resp = AuthenticationApi(api_client).api_v1_login_post_with_http_info(
-                RequestsLoginBody(email=email, password=password),
-                x_mfa_code=otp,
-                x_mfa_methods=["totp"],
+                RequestsLoginBody(email=email, password=password, otp=otp),
             )
             return resp.status_code, resp.headers.get("Set-Cookie")
         except ApiException as e:
@@ -133,9 +129,7 @@ def _login_removing_sessions(email: str, password: str, otp: str) -> int:
     with _api() as api_client:
         try:
             return AuthenticationApi(api_client).api_v1_login_post_with_http_info(
-                RequestsLoginBody(email=email, password=password),
-                x_mfa_code=otp,
-                x_mfa_methods=["totp"],
+                RequestsLoginBody(email=email, password=password, otp=otp),
                 x_sessions_remove="true",
             ).status_code
         except ApiException as e:
@@ -187,9 +181,7 @@ def _confirm_reset(token: str, new_password: str, otp: str) -> int:
     with _api() as api_client:
         try:
             return VerificationApi(api_client).api_v1_verify_reset_password_post_with_http_info(
-                RequestsConfirmResetPasswordBody(token=token, new_password=new_password),
-                x_mfa_code=otp,
-                x_mfa_methods=["totp"],
+                RequestsConfirmResetPasswordBody(token=token, new_password=new_password, otp=otp),
             ).status_code
         except ApiException as e:
             return e.status
@@ -418,15 +410,13 @@ class TestTotpStorage:
         state["secret"] = secret
 
         def change_email(current: str, otp: str) -> int:
-            body = RequestsAccountUpdates(updates=[ModelAccountUpdate(
+            body = RequestsAccountUpdates(otp=otp, updates=[ModelAccountUpdate(
                 operation="replace", path="/email",
                 value={"current_password": current, "new_email": f"new-{email}"},
             )])
             with _api(cookie) as api_client:
                 try:
-                    return AccountApi(api_client).api_v1_accounts_patch_with_http_info(
-                        body, x_mfa_code=otp, x_mfa_methods=["totp"]
-                    ).status_code
+                    return AccountApi(api_client).api_v1_accounts_patch_with_http_info(body).status_code
                 except ApiException as e:
                     return e.status
 
@@ -602,10 +592,10 @@ class TestTotpEnableNeedsReauth:
             passkeys.delete_passkey_account(user)
 
 
-def _reauth_request(method: str, path: str, cookie: str, body: dict, otp: str) -> int:
-    resp = requests.request(method, f"{get_settings().DNS_API_ADDR}{path}", json=body, timeout=30,
-                            headers={"Cookie": cookie, "x-mfa-code": otp, "x-mfa-methods": "totp"})
-    return resp.status_code
+def _reauth_request(method: str, path: str, cookie: str, body: dict, otp: str) -> tuple[int, str | None]:
+    resp = requests.request(method, f"{get_settings().DNS_API_ADDR}{path}", json={**body, "otp": otp},
+                            headers={"Cookie": cookie}, timeout=30)
+    return resp.status_code, resp.json().get("error")
 
 
 def _signed_in(cookie: str) -> bool:
@@ -637,7 +627,8 @@ def test_wrong_code_in_reauth_keeps_the_session(fresh_account, operation):
     code = totp_code(state["secret"])
     wrong = f"{(int(code) + 1) % 1_000_000:06d}"
     method, path, body = REAUTH_OPERATIONS[operation]
-    assert _reauth_request(method, path, cookie, body(state["password"], cookie), wrong) == 400
+    # "invalid 2FA code", not "TOTP is required": the code in the body was read and checked.
+    assert _reauth_request(method, path, cookie, body(state["password"], cookie), wrong) == (400, "invalid 2FA code")
     assert _signed_in(cookie)
 
 

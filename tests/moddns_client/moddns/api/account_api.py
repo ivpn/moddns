@@ -16,8 +16,7 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
-from typing import List, Optional
+from pydantic import Field
 from typing_extensions import Annotated
 from moddns.models.api_register_account_body import ApiRegisterAccountBody
 from moddns.models.model_account import ModelAccount
@@ -1982,8 +1981,6 @@ class AccountApi:
     def api_v1_accounts_patch(
         self,
         body: Annotated[RequestsAccountUpdates, Field(description="Update account request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2003,10 +2000,6 @@ class AccountApi:
 
         :param body: Update account request (required)
         :type body: RequestsAccountUpdates
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2031,8 +2024,6 @@ class AccountApi:
 
         _param = self._api_v1_accounts_patch_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2060,8 +2051,6 @@ class AccountApi:
     def api_v1_accounts_patch_with_http_info(
         self,
         body: Annotated[RequestsAccountUpdates, Field(description="Update account request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2081,10 +2070,6 @@ class AccountApi:
 
         :param body: Update account request (required)
         :type body: RequestsAccountUpdates
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2109,8 +2094,6 @@ class AccountApi:
 
         _param = self._api_v1_accounts_patch_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2138,8 +2121,6 @@ class AccountApi:
     def api_v1_accounts_patch_without_preload_content(
         self,
         body: Annotated[RequestsAccountUpdates, Field(description="Update account request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -2159,10 +2140,6 @@ class AccountApi:
 
         :param body: Update account request (required)
         :type body: RequestsAccountUpdates
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -2187,8 +2164,6 @@ class AccountApi:
 
         _param = self._api_v1_accounts_patch_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2211,8 +2186,6 @@ class AccountApi:
     def _api_v1_accounts_patch_serialize(
         self,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         _request_auth,
         _content_type,
         _headers,
@@ -2222,7 +2195,6 @@ class AccountApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -2237,10 +2209,6 @@ class AccountApi:
         # process the path parameters
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         # process the form parameters
         # process the body parameter
         if body is not None:

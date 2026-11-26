@@ -16,8 +16,7 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
-from pydantic import Field, StrictStr
-from typing import List, Optional
+from pydantic import Field
 from typing_extensions import Annotated
 from moddns.models.requests_sessions_delete_request import RequestsSessionsDeleteRequest
 
@@ -43,8 +42,6 @@ class SessionsApi:
     def api_v1_sessions_delete(
         self,
         body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -60,14 +57,10 @@ class SessionsApi:
     ) -> None:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
 
         :param body: Verification (required)
         :type body: RequestsSessionsDeleteRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -92,8 +85,6 @@ class SessionsApi:
 
         _param = self._api_v1_sessions_delete_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -122,8 +113,6 @@ class SessionsApi:
     def api_v1_sessions_delete_with_http_info(
         self,
         body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -139,14 +128,10 @@ class SessionsApi:
     ) -> ApiResponse[None]:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
 
         :param body: Verification (required)
         :type body: RequestsSessionsDeleteRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -171,8 +156,6 @@ class SessionsApi:
 
         _param = self._api_v1_sessions_delete_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -201,8 +184,6 @@ class SessionsApi:
     def api_v1_sessions_delete_without_preload_content(
         self,
         body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -218,14 +199,10 @@ class SessionsApi:
     ) -> RESTResponseType:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+        Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
 
         :param body: Verification (required)
         :type body: RequestsSessionsDeleteRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -250,8 +227,6 @@ class SessionsApi:
 
         _param = self._api_v1_sessions_delete_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -275,8 +250,6 @@ class SessionsApi:
     def _api_v1_sessions_delete_serialize(
         self,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         _request_auth,
         _content_type,
         _headers,
@@ -286,7 +259,6 @@ class SessionsApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -301,10 +273,6 @@ class SessionsApi:
         # process the path parameters
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         # process the form parameters
         # process the body parameter
         if body is not None:

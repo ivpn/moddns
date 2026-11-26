@@ -303,8 +303,6 @@ class AuthenticationApi:
     def api_v1_login_post(
         self,
         body: Annotated[RequestsLoginBody, Field(description="Login request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all active sessions before logging in")] = None,
         _request_timeout: Union[
             None,
@@ -325,10 +323,6 @@ class AuthenticationApi:
 
         :param body: Login request (required)
         :type body: RequestsLoginBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param x_sessions_remove: Remove all active sessions before logging in
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -355,8 +349,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_login_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -385,8 +377,6 @@ class AuthenticationApi:
     def api_v1_login_post_with_http_info(
         self,
         body: Annotated[RequestsLoginBody, Field(description="Login request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all active sessions before logging in")] = None,
         _request_timeout: Union[
             None,
@@ -407,10 +397,6 @@ class AuthenticationApi:
 
         :param body: Login request (required)
         :type body: RequestsLoginBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param x_sessions_remove: Remove all active sessions before logging in
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -437,8 +423,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_login_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -467,8 +451,6 @@ class AuthenticationApi:
     def api_v1_login_post_without_preload_content(
         self,
         body: Annotated[RequestsLoginBody, Field(description="Login request")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         x_sessions_remove: Annotated[Optional[StrictStr], Field(description="Remove all active sessions before logging in")] = None,
         _request_timeout: Union[
             None,
@@ -489,10 +471,6 @@ class AuthenticationApi:
 
         :param body: Login request (required)
         :type body: RequestsLoginBody
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param x_sessions_remove: Remove all active sessions before logging in
         :type x_sessions_remove: str
         :param _request_timeout: timeout setting for this request. If one
@@ -519,8 +497,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_login_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             x_sessions_remove=x_sessions_remove,
             _request_auth=_request_auth,
             _content_type=_content_type,
@@ -544,8 +520,6 @@ class AuthenticationApi:
     def _api_v1_login_post_serialize(
         self,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         x_sessions_remove,
         _request_auth,
         _content_type,
@@ -556,7 +530,6 @@ class AuthenticationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -571,10 +544,6 @@ class AuthenticationApi:
         # process the path parameters
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         if x_sessions_remove is not None:
             _header_params['x-sessions-remove'] = x_sessions_remove
         # process the form parameters
@@ -1201,8 +1170,6 @@ class AuthenticationApi:
     def api_v1_webauthn_passkey_add_begin_post(
         self,
         body: Annotated[RequestsWebAuthnAddPasskeyBeginRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1218,14 +1185,10 @@ class AuthenticationApi:
     ) -> object:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1250,8 +1213,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_webauthn_passkey_add_begin_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1277,8 +1238,6 @@ class AuthenticationApi:
     def api_v1_webauthn_passkey_add_begin_post_with_http_info(
         self,
         body: Annotated[RequestsWebAuthnAddPasskeyBeginRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1294,14 +1253,10 @@ class AuthenticationApi:
     ) -> ApiResponse[object]:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1326,8 +1281,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_webauthn_passkey_add_begin_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1353,8 +1306,6 @@ class AuthenticationApi:
     def api_v1_webauthn_passkey_add_begin_post_without_preload_content(
         self,
         body: Annotated[RequestsWebAuthnAddPasskeyBeginRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1370,14 +1321,10 @@ class AuthenticationApi:
     ) -> RESTResponseType:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1402,8 +1349,6 @@ class AuthenticationApi:
 
         _param = self._api_v1_webauthn_passkey_add_begin_post_serialize(
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1424,8 +1369,6 @@ class AuthenticationApi:
     def _api_v1_webauthn_passkey_add_begin_post_serialize(
         self,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         _request_auth,
         _content_type,
         _headers,
@@ -1435,7 +1378,6 @@ class AuthenticationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -1450,10 +1392,6 @@ class AuthenticationApi:
         # process the path parameters
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         # process the form parameters
         # process the body parameter
         if body is not None:
@@ -1785,8 +1723,6 @@ class AuthenticationApi:
         self,
         id: Annotated[StrictStr, Field(description="Credential ID")],
         body: Annotated[RequestsWebAuthnDeletePasskeyRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1802,16 +1738,12 @@ class AuthenticationApi:
     ) -> None:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
         :param body: Verification (required)
         :type body: RequestsWebAuthnDeletePasskeyRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1837,8 +1769,6 @@ class AuthenticationApi:
         _param = self._api_v1_webauthn_passkey_id_delete_serialize(
             id=id,
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1865,8 +1795,6 @@ class AuthenticationApi:
         self,
         id: Annotated[StrictStr, Field(description="Credential ID")],
         body: Annotated[RequestsWebAuthnDeletePasskeyRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1882,16 +1810,12 @@ class AuthenticationApi:
     ) -> ApiResponse[None]:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
         :param body: Verification (required)
         :type body: RequestsWebAuthnDeletePasskeyRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1917,8 +1841,6 @@ class AuthenticationApi:
         _param = self._api_v1_webauthn_passkey_id_delete_serialize(
             id=id,
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1945,8 +1867,6 @@ class AuthenticationApi:
         self,
         id: Annotated[StrictStr, Field(description="Credential ID")],
         body: Annotated[RequestsWebAuthnDeletePasskeyRequest, Field(description="Verification")],
-        x_mfa_code: Annotated[Optional[StrictStr], Field(description="MFA OTP code")] = None,
-        x_mfa_methods: Annotated[Optional[List[StrictStr]], Field(description="MFA methods")] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1962,16 +1882,12 @@ class AuthenticationApi:
     ) -> RESTResponseType:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
         :param body: Verification (required)
         :type body: RequestsWebAuthnDeletePasskeyRequest
-        :param x_mfa_code: MFA OTP code
-        :type x_mfa_code: str
-        :param x_mfa_methods: MFA methods
-        :type x_mfa_methods: List[str]
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1997,8 +1913,6 @@ class AuthenticationApi:
         _param = self._api_v1_webauthn_passkey_id_delete_serialize(
             id=id,
             body=body,
-            x_mfa_code=x_mfa_code,
-            x_mfa_methods=x_mfa_methods,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -2020,8 +1934,6 @@ class AuthenticationApi:
         self,
         id,
         body,
-        x_mfa_code,
-        x_mfa_methods,
         _request_auth,
         _content_type,
         _headers,
@@ -2031,7 +1943,6 @@ class AuthenticationApi:
         _host = None
 
         _collection_formats: Dict[str, str] = {
-            'x-mfa-methods': 'csv',
         }
 
         _path_params: Dict[str, str] = {}
@@ -2048,10 +1959,6 @@ class AuthenticationApi:
             _path_params['id'] = id
         # process the query parameters
         # process the header parameters
-        if x_mfa_code is not None:
-            _header_params['x-mfa-code'] = x_mfa_code
-        if x_mfa_methods is not None:
-            _header_params['x-mfa-methods'] = x_mfa_methods
         # process the form parameters
         # process the body parameter
         if body is not None:
