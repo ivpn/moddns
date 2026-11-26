@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -155,8 +156,8 @@ func HandleError(c *fiber.Ctx, err error, errMsg string, details ...string) erro
 	if len(details) > 0 {
 		resp.Details = details
 	}
-	if errors.Is(err, strconv.ErrSyntax) {
-		resp.Error = err.Error()
+	if msg, ok := unreadableRequest(err); ok {
+		resp.Error = msg
 		return c.Status(400).JSON(resp)
 	}
 	if errors.Is(err, account.ErrTOTPTooManyAttempts) {
@@ -348,4 +349,22 @@ func handleSessionTotpError(c *fiber.Ctx, err error, msg string) error {
 		return c.Status(fiber.StatusBadRequest).JSON(ErrResponse{Error: err.Error()})
 	}
 	return HandleError(c, err, msg)
+}
+
+// unreadableRequest returns the 400 message for a request the handler could not
+// read: a number that does not parse, or a body BodyParser could not decode (a
+// missing or unsupported Content-Type, which fiber answers with 422, or JSON
+// that is malformed or does not fit the request type).
+func unreadableRequest(err error) (string, bool) {
+	if errors.Is(err, strconv.ErrSyntax) {
+		return err.Error(), true
+	}
+	var fiberErr *fiber.Error
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if (errors.As(err, &fiberErr) && fiberErr.Code == fiber.StatusUnprocessableEntity) ||
+		errors.As(err, &syntaxErr) || errors.As(err, &typeErr) || errors.Is(err, io.ErrUnexpectedEOF) {
+		return ErrInvalidRequestBody.Error(), true
+	}
+	return "", false
 }

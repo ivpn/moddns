@@ -61,7 +61,7 @@ func TestGenerateDNSStampsHandler_Table(t *testing.T) {
 			name:       "body parse error",
 			body:       `{not json`,
 			mockSetup:  func(profile *mocks.ProfileServicer, stamp *mocks.DNSStampServicerdnsstamp) {},
-			statusCode: http.StatusInternalServerError,
+			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "missing profile_id fails validation",
