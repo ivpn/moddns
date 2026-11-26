@@ -859,7 +859,7 @@ class AccountApi:
     ) -> ModelTOTPBackup:
         """Regenerate TOTP backup codes
 
-        Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+        Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
 
         :param body: Regenerate backup codes request (required)
         :type body: RequestsTotpRegenerateReq
@@ -930,7 +930,7 @@ class AccountApi:
     ) -> ApiResponse[ModelTOTPBackup]:
         """Regenerate TOTP backup codes
 
-        Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+        Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
 
         :param body: Regenerate backup codes request (required)
         :type body: RequestsTotpRegenerateReq
@@ -1001,7 +1001,7 @@ class AccountApi:
     ) -> RESTResponseType:
         """Regenerate TOTP backup codes
 
-        Replace every backup code with a new set, authorised by an authenticator code or a backup code. The new codes are returned only in this response.
+        Replace every backup code with a new set. The account owner is verified first with the current password or a passkey reauth token issued for the backup_codes_regenerate purpose, then the change is authorised by an authenticator code or a backup code. The new codes are returned only in this response.
 
         :param body: Regenerate backup codes request (required)
         :type body: RequestsTotpRegenerateReq
