@@ -7,10 +7,8 @@ import { importErrorMessage } from '@/lib/importExportErrors';
 
 export interface ImportProfilesInput {
   payload: ModelExportEnvelope;
-  currentPassword?: string;
-  reauthToken?: string;
-  /** 6-digit TOTP code — forwarded only when password method is used and 2FA is enabled. */
-  otp?: string;
+  /** Returns the reauth token for profile_import (see useIdentityVerification). */
+  reauthToken: () => Promise<string>;
 }
 
 export interface ImportResult {
@@ -34,22 +32,14 @@ export function useProfileImport(): {
     setIsImporting(true);
     setResult(null);
     try {
-      // Forward OTP as x-mfa-code header only when password method is active and a code is provided.
-      // Passkey reauth already satisfies the second factor — no OTP needed in that path.
-      const axiosOptions: import('axios').RawAxiosRequestConfig = {};
-      if (input.currentPassword !== undefined && input.otp) {
-        axiosOptions.headers = { 'x-mfa-code': input.otp };
-      }
-
+      const token = await input.reauthToken();
       const response = await API.Client.profilesApi.apiV1ProfilesImportPost(
         'confirm',
         {
           mode: RequestsImportRequestModeEnum.CreateNew,
           payload: input.payload,
-          ...(input.currentPassword !== undefined && { current_password: input.currentPassword }),
-          ...(input.reauthToken !== undefined && { reauth_token: input.reauthToken }),
+          reauth_token: token,
         },
-        axiosOptions,
       );
 
       const importResult: ImportResult = {

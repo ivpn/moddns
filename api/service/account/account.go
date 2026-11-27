@@ -403,9 +403,8 @@ func (p *AccountService) GetAccount(ctx context.Context, accountId string) (*mod
 	return account, nil
 }
 
-// verifyPasswordSetReauth consumes the passkey reauth token carried by a password test
-// operation on an account that has no password yet.
-func (a *AccountService) verifyPasswordSetReauth(ctx context.Context, acc *model.Account, value any) error {
+// verifyPasswordSetReauth consumes the reauth token carried by a password test operation.
+func (a *AccountService) verifyPasswordSetReauth(acc *model.Account, value any) error {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return ErrMissingAuthMethod
@@ -414,7 +413,7 @@ func (a *AccountService) verifyPasswordSetReauth(ctx context.Context, acc *model
 	if err := json.Unmarshal(b, &verification); err != nil || verification.ReauthToken == nil || *verification.ReauthToken == "" {
 		return ErrMissingAuthMethod
 	}
-	return reauth.VerifyOnAccount(ctx, acc, a, reauth.Params{
+	return reauth.VerifyOnAccount(acc, reauth.Params{
 		TokenType:   auth.TokenTypeReauthPasswordSet,
 		ReauthToken: verification.ReauthToken,
 	})
@@ -440,7 +439,7 @@ func (a *AccountService) populateAuthMethods(ctx context.Context, acc *model.Acc
 }
 
 // UpdateAccount updates account data
-func (a *AccountService) UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error {
+func (a *AccountService) UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate) error {
 	var profileUpdates []model.AccountUpdate
 	var otherUpdates []model.AccountUpdate
 
@@ -479,8 +478,8 @@ func (a *AccountService) UpdateAccount(ctx context.Context, accountId string, up
 			}
 			switch update.Path {
 			case "/email":
-				// Email change requires current password (provided in update.Value as {current_password,new_email})
-				if err = a.handleEmailUpdate(ctx, acc, update, mfa); err != nil {
+				// Email change requires a reauth token (update.Value is {reauth_token,new_email})
+				if err = a.handleEmailUpdate(ctx, acc, update); err != nil {
 					return err
 				}
 			case "/error_reports_consent":
@@ -489,7 +488,7 @@ func (a *AccountService) UpdateAccount(ctx context.Context, accountId string, up
 		}
 		// After iterating, handle collected password updates (enforce test->replace sequence inside handler)
 		if len(passwordUpdates) > 0 {
-			if err := a.handlePasswordUpdate(ctx, acc, passwordUpdates, mfa); err != nil {
+			if err := a.handlePasswordUpdate(acc, passwordUpdates); err != nil {
 				return err
 			}
 		}
@@ -520,7 +519,7 @@ func (a *AccountService) handleProfilesUpdateAtomic(ctx context.Context, account
 	}
 }
 
-func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Account, update model.AccountUpdate, mfa *model.MfaData) error {
+func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Account, update model.AccountUpdate) error {
 	// Validate email update payload
 	// Marshal then unmarshal to structured type (supports map or raw interface value)
 	b, err := json.Marshal(update.Value)
@@ -540,14 +539,11 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 			return err
 		}
 	}
-	// Reauth via the unified helper. The account is already loaded by the
-	// outer UpdateAccount flow; VerifyOnAccount mutates acc.Tokens in place
-	// and leaves persistence to the outer flow.
-	if err := reauth.VerifyOnAccount(ctx, acc, a, reauth.Params{
+	// The account is already loaded by the outer UpdateAccount flow;
+	// VerifyOnAccount mutates acc.Tokens in place and leaves persistence to it.
+	if err := reauth.VerifyOnAccount(acc, reauth.Params{
 		TokenType:   auth.TokenTypeReauthEmailChange,
-		Password:    emailUpd.CurrentPassword,
 		ReauthToken: emailUpd.ReauthToken,
-		Mfa:         mfa,
 	}); err != nil {
 		return err
 	}
@@ -586,45 +582,37 @@ func (a *AccountService) handleEmailUpdate(ctx context.Context, acc *model.Accou
 }
 
 // handlePasswordUpdate applies JSON-Patch password operations; every replace must follow a
-// successful test. An account with a password tests it (after the MFA check). An account
-// without one tests a passkey reauth token issued for setting a password, so a session
-// alone cannot add a second sign-in method.
-func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Account, updates []model.AccountUpdate, mfa *model.MfaData) error {
-	hasPassword := acc.Password != nil
-	if hasPassword {
-		if err := a.MfaCheck(ctx, acc, mfa); err != nil {
+// successful test. The test carries a reauth token issued for password_set, so a session
+// alone can neither change the password nor add one to a passkey-only account.
+func (a *AccountService) handlePasswordUpdate(acc *model.Account, updates []model.AccountUpdate) error {
+	// New passwords are checked before the reauth token is used up.
+	for _, upd := range updates {
+		if upd.Operation != model.UpdateOperationReplace {
+			continue
+		}
+		pass, err := cast.ToStringE(upd.Value)
+		if err != nil {
 			return err
+		}
+		if !validator.ValidatePassword(pass) {
+			return ErrPasswordTooSimple
 		}
 	}
 	verified := false
 	for _, upd := range updates {
 		switch upd.Operation {
 		case model.UpdateOperationTest:
-			if hasPassword {
-				currPass, err := cast.ToStringE(upd.Value)
-				if err != nil {
-					return err
-				}
-				if !auth.CheckPasswordHash(currPass, *acc.Password) {
-					return ErrInvalidCurrentPassword
-				}
-			} else if err := a.verifyPasswordSetReauth(ctx, acc, upd.Value); err != nil {
+			if err := a.verifyPasswordSetReauth(acc, upd.Value); err != nil {
 				return err
 			}
 			verified = true
 		case model.UpdateOperationReplace:
 			if !verified {
-				if !hasPassword {
-					return ErrMissingAuthMethod
-				}
 				return ErrPasswordTestRequired
 			}
 			pass, err := cast.ToStringE(upd.Value)
 			if err != nil {
 				return err
-			}
-			if ok := validator.ValidatePassword(pass); !ok {
-				return ErrPasswordTooSimple
 			}
 			if err := acc.SetPassword(pass); err != nil {
 				return err
@@ -639,10 +627,7 @@ func (a *AccountService) handlePasswordUpdate(ctx context.Context, acc *model.Ac
 }
 
 // DeleteAccount deletes account with all connected data
-func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	if mfa == nil {
-		mfa = &model.MfaData{}
-	}
+func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
 	// Get account to verify deletion code
 	account, err := a.AccountRepository.GetAccount(ctx, accountId)
 	if err != nil {
@@ -659,11 +644,9 @@ func (a *AccountService) DeleteAccount(ctx context.Context, accountId string, re
 		return ErrDeletionCodeExpired
 	}
 
-	if err := reauth.VerifyOnAccount(ctx, account, a, reauth.Params{
+	if err := reauth.VerifyOnAccount(account, reauth.Params{
 		TokenType:   auth.TokenTypeReauthAccountDeletion,
-		Password:    req.CurrentPassword,
 		ReauthToken: req.ReauthToken,
-		Mfa:         mfa,
 	}); err != nil {
 		return err
 	}
@@ -736,7 +719,7 @@ func (a *AccountService) MfaCheck(ctx context.Context, acc *model.Account, mfa *
 	}
 
 	if acc.MFA.TOTP.Enabled && mfa.OTP != "" {
-		_, err := a.VerifyTotp(ctx, acc.ID.Hex(), mfa.OTP, "login")
+		_, err := a.VerifyTotp(ctx, acc.ID.Hex(), mfa.OTP)
 		if err != nil {
 			return err
 		}

@@ -117,15 +117,12 @@ func (p *ProfileService) Import(
 	ctx context.Context,
 	accountId, mode string,
 	payload *model.ExportEnvelope,
-	currentPassword, reauthToken *string,
-	mfa *model.MfaData,
+	reauthToken *string,
 ) (*ImportResult, error) {
-	if _, err := reauth.Verify(ctx, p.AccountRepository, p.MfaVerifier, reauth.Params{
+	if _, err := reauth.Verify(ctx, p.AccountRepository, reauth.Params{
 		AccountId:        accountId,
 		TokenType:        auth.TokenTypeReauthProfileImport,
-		Password:         currentPassword,
 		ReauthToken:      reauthToken,
-		Mfa:              mfa,
 		PersistOnConsume: true,
 	}); err != nil {
 		return nil, err

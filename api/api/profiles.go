@@ -51,7 +51,7 @@ func (s *APIServer) createProfile() fiber.Handler {
 			Path:      "/profiles",
 			Value:     prof.ProfileId,
 		}
-		if err = s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}, nil); err != nil {
+		if err = s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
@@ -138,7 +138,7 @@ func (s *APIServer) deleteProfile() fiber.Handler {
 			Path:      "/profiles",
 			Value:     profileId,
 		}
-		if err := s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}, nil); err != nil {
+		if err := s.Service.UpdateAccount(c.UserContext(), accountId, []model.AccountUpdate{update}); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 

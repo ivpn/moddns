@@ -102,6 +102,75 @@ func (_c *AccountRepository_AddProfileToAccount_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// AddReauthToken provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) AddReauthToken(ctx context.Context, accountId string, token model.Token, now time.Time) error {
+	ret := _mock.Called(ctx, accountId, token, now)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddReauthToken")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Token, time.Time) error); ok {
+		r0 = returnFunc(ctx, accountId, token, now)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// AccountRepository_AddReauthToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddReauthToken'
+type AccountRepository_AddReauthToken_Call struct {
+	*mock.Call
+}
+
+// AddReauthToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - token model.Token
+//   - now time.Time
+func (_e *AccountRepository_Expecter) AddReauthToken(ctx interface{}, accountId interface{}, token interface{}, now interface{}) *AccountRepository_AddReauthToken_Call {
+	return &AccountRepository_AddReauthToken_Call{Call: _e.mock.On("AddReauthToken", ctx, accountId, token, now)}
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) Run(run func(ctx context.Context, accountId string, token model.Token, now time.Time)) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Token
+		if args[2] != nil {
+			arg2 = args[2].(model.Token)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) Return(err error) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) RunAndReturn(run func(ctx context.Context, accountId string, token model.Token, now time.Time) error) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ConsumeBackupCode provides a mock function for the type AccountRepository
 func (_mock *AccountRepository) ConsumeBackupCode(ctx context.Context, accountId string, backupCodeHash string) (bool, error) {
 	ret := _mock.Called(ctx, accountId, backupCodeHash)
@@ -390,16 +459,16 @@ func (_c *AccountRepository_DeleteAccountById_Call) RunAndReturn(run func(ctx co
 }
 
 // DisableTOTP provides a mock function for the type AccountRepository
-func (_mock *AccountRepository) DisableTOTP(ctx context.Context, accountId string) error {
-	ret := _mock.Called(ctx, accountId)
+func (_mock *AccountRepository) DisableTOTP(ctx context.Context, accountId string, proof model.TOTPProof) error {
+	ret := _mock.Called(ctx, accountId, proof)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DisableTOTP")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, accountId)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.TOTPProof) error); ok {
+		r0 = returnFunc(ctx, accountId, proof)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -414,11 +483,12 @@ type AccountRepository_DisableTOTP_Call struct {
 // DisableTOTP is a helper method to define mock.On call
 //   - ctx context.Context
 //   - accountId string
-func (_e *AccountRepository_Expecter) DisableTOTP(ctx interface{}, accountId interface{}) *AccountRepository_DisableTOTP_Call {
-	return &AccountRepository_DisableTOTP_Call{Call: _e.mock.On("DisableTOTP", ctx, accountId)}
+//   - proof model.TOTPProof
+func (_e *AccountRepository_Expecter) DisableTOTP(ctx interface{}, accountId interface{}, proof interface{}) *AccountRepository_DisableTOTP_Call {
+	return &AccountRepository_DisableTOTP_Call{Call: _e.mock.On("DisableTOTP", ctx, accountId, proof)}
 }
 
-func (_c *AccountRepository_DisableTOTP_Call) Run(run func(ctx context.Context, accountId string)) *AccountRepository_DisableTOTP_Call {
+func (_c *AccountRepository_DisableTOTP_Call) Run(run func(ctx context.Context, accountId string, proof model.TOTPProof)) *AccountRepository_DisableTOTP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -428,9 +498,14 @@ func (_c *AccountRepository_DisableTOTP_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 model.TOTPProof
+		if args[2] != nil {
+			arg2 = args[2].(model.TOTPProof)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -441,7 +516,7 @@ func (_c *AccountRepository_DisableTOTP_Call) Return(err error) *AccountReposito
 	return _c
 }
 
-func (_c *AccountRepository_DisableTOTP_Call) RunAndReturn(run func(ctx context.Context, accountId string) error) *AccountRepository_DisableTOTP_Call {
+func (_c *AccountRepository_DisableTOTP_Call) RunAndReturn(run func(ctx context.Context, accountId string, proof model.TOTPProof) error) *AccountRepository_DisableTOTP_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -852,6 +927,75 @@ func (_c *AccountRepository_RemoveProfileFromAccount_Call) Return(err error) *Ac
 }
 
 func (_c *AccountRepository_RemoveProfileFromAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, profileId string) error) *AccountRepository_RemoveProfileFromAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReplaceBackupCodes provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) ReplaceBackupCodes(ctx context.Context, accountId string, proof model.TOTPProof, backupCodeHashes []string) error {
+	ret := _mock.Called(ctx, accountId, proof, backupCodeHashes)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReplaceBackupCodes")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.TOTPProof, []string) error); ok {
+		r0 = returnFunc(ctx, accountId, proof, backupCodeHashes)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// AccountRepository_ReplaceBackupCodes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReplaceBackupCodes'
+type AccountRepository_ReplaceBackupCodes_Call struct {
+	*mock.Call
+}
+
+// ReplaceBackupCodes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - proof model.TOTPProof
+//   - backupCodeHashes []string
+func (_e *AccountRepository_Expecter) ReplaceBackupCodes(ctx interface{}, accountId interface{}, proof interface{}, backupCodeHashes interface{}) *AccountRepository_ReplaceBackupCodes_Call {
+	return &AccountRepository_ReplaceBackupCodes_Call{Call: _e.mock.On("ReplaceBackupCodes", ctx, accountId, proof, backupCodeHashes)}
+}
+
+func (_c *AccountRepository_ReplaceBackupCodes_Call) Run(run func(ctx context.Context, accountId string, proof model.TOTPProof, backupCodeHashes []string)) *AccountRepository_ReplaceBackupCodes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.TOTPProof
+		if args[2] != nil {
+			arg2 = args[2].(model.TOTPProof)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_ReplaceBackupCodes_Call) Return(err error) *AccountRepository_ReplaceBackupCodes_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *AccountRepository_ReplaceBackupCodes_Call) RunAndReturn(run func(ctx context.Context, accountId string, proof model.TOTPProof, backupCodeHashes []string) error) *AccountRepository_ReplaceBackupCodes_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -238,13 +238,11 @@ func (s *APIServer) finishLogin() fiber.Handler {
 }
 
 // @Summary Add new passkey
-// @Description Add a new passkey to authenticated account. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+// @Description Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
 // @Tags Authentication
 // @Accept json
 // @Produce json
 // @Param body body requests.WebAuthnAddPasskeyBeginRequest true "Verification"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 200 {object} interface{}
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/add/begin [post]
@@ -268,7 +266,7 @@ func (s *APIServer) beginAddPasskey() fiber.Handler {
 		}
 
 		// Initialize WebAuthn registration ceremony for additional credential
-		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
+		options, token, err := s.Service.BeginAddPasskey(c.UserContext(), accountId, req.ReauthToken)
 		if err != nil {
 			return HandleError(c, err, "Failed to begin add passkey")
 		}
@@ -337,7 +335,7 @@ func (s *APIServer) beginReauth() fiber.Handler {
 // @Accept json
 // @Param body body object true "Assertion returned by navigator.credentials.get() (PublicKeyCredential JSON, W3C WebAuthn L3 §5.1)"
 // @Produce json
-// @Success 201 {object} responses.WebAuthnReauthFinishResponse
+// @Success 201 {object} responses.ReauthTokenResponse
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/reauth/finish [post]
 func (s *APIServer) finishReauth() fiber.Handler {
@@ -361,7 +359,7 @@ func (s *APIServer) finishReauth() fiber.Handler {
 		}
 
 		return c.Status(201).JSON(
-			responses.WebAuthnReauthFinishResponse{
+			responses.ReauthTokenResponse{
 				ReauthToken: reauthToken.Value,
 				ExpiresAt:   reauthToken.ExpiresAt,
 			},
@@ -439,13 +437,11 @@ func (s *APIServer) getPasskeys() fiber.Handler {
 }
 
 // @Summary Delete passkey
-// @Description Delete a specific passkey. The account owner is verified first with the current password (plus x-mfa-code when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+// @Description Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
 // @Tags Authentication
 // @Accept json
 // @Param id path string true "Credential ID"
 // @Param body body requests.WebAuthnDeletePasskeyRequest true "Verification"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 204
 // @Failure 400 {object} ErrResponse
 // @Router /api/v1/webauthn/passkey/{id} [delete]
@@ -485,7 +481,7 @@ func (s *APIServer) deletePasskey() fiber.Handler {
 		}
 
 		// Delete the passkey
-		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive, req.CurrentPassword, req.ReauthToken, auth.GetMfaData(c))
+		err = s.Service.DeletePasskeyByID(c.UserContext(), credIDPrimitive, accIDPrimitive, req.ReauthToken)
 		if err != nil {
 			return HandleError(c, err, "Failed to delete passkey")
 		}

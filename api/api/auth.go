@@ -20,8 +20,6 @@ import (
 // @Accept json
 // @Produce json
 // @Param body body requests.LoginBody true "Login request"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Param x-sessions-remove header string false "Remove all active sessions before logging in"
 // @Success 200
 // @Failure 400 {object} ErrResponse
@@ -58,19 +56,15 @@ func (s *APIServer) login() fiber.Handler {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
-		mfa := auth.GetMfaData(c)
-		if err := s.Service.MfaCheck(c.UserContext(), acc, mfa); err != nil {
-			return HandleError(c, err, account.ErrTOTPRequired.Error())
+		mfa := &model.MfaData{OTP: p.OTP}
+		if acc.MFA.TOTP.Enabled && mfa.OTP == "" {
+			return HandleError(c, account.ErrTOTPRequired, account.ErrTOTPRequired.Error())
 		}
 
-		// Check if sessions should be removed
-		if auth.GetHeaderSessionsRemove(c) {
-			if err := s.Service.DeleteSessionsByAccountID(c.UserContext(), acc.ID.Hex()); err != nil {
-				log.Ctx(c.UserContext()).Err(err).Msg("Failed to remove existing sessions")
-				return c.SendStatus(fiber.StatusInternalServerError)
-			}
-		} else {
-			// Only check session limit if we're not removing existing sessions
+		// Every other refusal comes before the 2FA check, so a refused login never
+		// uses a backup code up. Sessions are removed only once the code has passed.
+		removeSessions := auth.GetHeaderSessionsRemove(c)
+		if !removeSessions {
 			count, err := s.Service.CountSessionsByAccountID(c.UserContext(), acc.ID.Hex())
 			if err != nil {
 				log.Ctx(c.UserContext()).Err(err).Msg("Failed to count sessions")
@@ -78,6 +72,17 @@ func (s *APIServer) login() fiber.Handler {
 			}
 			if count >= s.Config.API.SessionLimit {
 				return HandleError(c, ErrSessionsLimitReached, ErrSessionsLimitReached.Error())
+			}
+		}
+
+		if err := s.Service.MfaCheck(c.UserContext(), acc, mfa); err != nil {
+			return HandleError(c, err, account.ErrTOTPRequired.Error())
+		}
+
+		if removeSessions {
+			if err := s.Service.DeleteSessionsByAccountID(c.UserContext(), acc.ID.Hex()); err != nil {
+				log.Ctx(c.UserContext()).Err(err).Msg("Failed to remove existing sessions")
+				return c.SendStatus(fiber.StatusInternalServerError)
 			}
 		}
 

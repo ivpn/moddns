@@ -21,6 +21,8 @@ import DeleteSessionsDialog from "@/pages/account_preferences/DeleteSessions";
 import DeleteAccountDialog from "@/pages/account_preferences/DeleteAccount";
 import Enable2FADialog from "@/pages/account_preferences/Enable2FA";
 import Disable2FADialog from "@/pages/account_preferences/Disable2FA";
+import RegenerateBackupCodesDialog from "@/pages/account_preferences/RegenerateBackupCodes";
+import { BACKUP_CODES_LOW, BACKUP_CODE_SET_SIZE } from "@/lib/twoFactorCode";
 import PasskeySettings from "@/pages/account_preferences/PasskeySettings";
 import VerifyEmailDialog from "@/pages/account_preferences/VerifyEmailDialog";
 import ChangeEmailDialog from "@/pages/account_preferences/ChangeEmailDialog";
@@ -29,6 +31,7 @@ import AccountSubscription from "@/components/AccountSubscription";
 import { useSubscriptionGuard } from "@/hooks/useSubscriptionGuard";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import CutOffDataCollection from "@/components/data-collection/CutOffDataCollection";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import BackupRestoreSection from "@/components/BackupRestoreSection";
@@ -59,6 +62,15 @@ interface SectionDef {
     items: SectionItem[];
 }
 
+/** The backup codes row text: how many are left, and when a new set is advisable. */
+function backupCodesDescription(remaining: number | undefined, legacy: boolean): string {
+    if (legacy) return "Your backup codes are of an older format. We strongly advise regenerating them.";
+    if (remaining === undefined) return "Use a backup code to sign in if you lose access to your authenticator app.";
+    if (remaining === 0) return "No backup codes left. Regenerate them so you can still sign in if you lose access to your authenticator app.";
+    if (remaining <= BACKUP_CODES_LOW) return `Only ${remaining} of ${BACKUP_CODE_SET_SIZE} backup codes left. Regenerate them to get a fresh set.`;
+    return `${remaining} of ${BACKUP_CODE_SET_SIZE} backup codes left. Use one to sign in if you lose access to your authenticator app.`;
+}
+
 const RESYNC_URL = import.meta.env.VITE_RESYNC_URL || "https://www.ivpn.net/en/account/";
 
 const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element => {
@@ -78,6 +90,9 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
     const [showDeleteAccount, setShowDeleteAccount] = useState(false);
     const [showEnable2FA, setShowEnable2FA] = useState(false);
     const [showDisable2FA, setShowDisable2FA] = useState(false);
+    const [showRegenerateCodes, setShowRegenerateCodes] = useState(false);
+    // Read from the store so the row follows a regeneration made from the banner or the dialog.
+    const totpStatus = useAppStore(s => s.account?.mfa?.totp);
     const [showVerifyEmail, setShowVerifyEmail] = useState(false);
     const [showChangeEmail, setShowChangeEmail] = useState(false);
     const isEmailVerified = currentAccount?.email_verified;
@@ -170,6 +185,12 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                     ],
                     toggleValue: is2FAEnabled ? "enable" : "disable",
                 } as ToggleItem,
+                ...(is2FAEnabled ? [{
+                    name: "Backup codes",
+                    description: backupCodesDescription(totpStatus?.backup_codes_remaining, !!totpStatus?.backup_codes_legacy),
+                    hasToggle: false,
+                    action: "Regenerate codes",
+                } as ActionItem] : []),
                 {
                     name: "Email verification",
                     description: isEmailVerified ? "Your email is verified." : "Verify your email to enable account recovery and critical notifications.",
@@ -234,6 +255,7 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                 <BetaEndingBanner />
                 <LimitedAccessBanner />
                 <PasskeyVerificationBanner />
+                <LegacyBackupCodesBanner />
 
                 {isCutOff && (
                     <div className="flex items-center gap-3 rounded-lg border border-[var(--tailwind-colors-red-400)] bg-[var(--danger-zone-bg)] px-4 py-3">
@@ -369,6 +391,14 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                                                         <UpdatePasswordDialog open={showUpdatePassword} onOpenChange={setShowUpdatePassword} />
                                                     )}
                                                 </>
+                                            ) : item.action === "Regenerate codes" ? (
+                                                <Button
+                                                    data-testid="btn-regenerate-backup-codes"
+                                                    className="h-auto min-h-11 lg:min-h-0 bg-[var(--tailwind-colors-rdns-600)] hover:bg-[var(--tailwind-colors-slate-800)] text-[var(--tailwind-colors-slate-800)] hover:text-[var(--tailwind-colors-rdns-600)] w-full sm:w-auto"
+                                                    onClick={() => setShowRegenerateCodes(true)}
+                                                >
+                                                    <span className="text-sm break-words">{item.action}</span>
+                                                </Button>
                                             ) : item.action === "Log out web sessions" ? (
                                                 <>
                                                     <Button
@@ -436,6 +466,9 @@ const PreferencesSection = ({ account }: PreferencesSectionProps): JSX.Element =
                     </CardContent>
                 </Card>
 
+                {showRegenerateCodes && (
+                    <RegenerateBackupCodesDialog open={showRegenerateCodes} onOpenChange={setShowRegenerateCodes} />
+                )}
                 <Enable2FADialog
                     open={showEnable2FA}
                     onOpenChange={open => setShowEnable2FA(open)}

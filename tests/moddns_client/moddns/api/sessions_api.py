@@ -16,6 +16,9 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
+from pydantic import Field
+from typing_extensions import Annotated
+from moddns.models.requests_sessions_delete_request import RequestsSessionsDeleteRequest
 
 from moddns.api_client import ApiClient, RequestSerialized
 from moddns.api_response import ApiResponse
@@ -38,6 +41,7 @@ class SessionsApi:
     @validate_call
     def api_v1_sessions_delete(
         self,
+        body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -53,8 +57,10 @@ class SessionsApi:
     ) -> None:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session
+        Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
 
+        :param body: Verification (required)
+        :type body: RequestsSessionsDeleteRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -78,6 +84,7 @@ class SessionsApi:
         """ # noqa: E501
 
         _param = self._api_v1_sessions_delete_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -87,7 +94,8 @@ class SessionsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
             '400': "ApiErrResponse",
-            '404': "ApiErrResponse",
+            '401': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -104,6 +112,7 @@ class SessionsApi:
     @validate_call
     def api_v1_sessions_delete_with_http_info(
         self,
+        body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -119,8 +128,10 @@ class SessionsApi:
     ) -> ApiResponse[None]:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session
+        Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
 
+        :param body: Verification (required)
+        :type body: RequestsSessionsDeleteRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -144,6 +155,7 @@ class SessionsApi:
         """ # noqa: E501
 
         _param = self._api_v1_sessions_delete_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -153,7 +165,8 @@ class SessionsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
             '400': "ApiErrResponse",
-            '404': "ApiErrResponse",
+            '401': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -170,6 +183,7 @@ class SessionsApi:
     @validate_call
     def api_v1_sessions_delete_without_preload_content(
         self,
+        body: Annotated[RequestsSessionsDeleteRequest, Field(description="Verification")],
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -185,8 +199,10 @@ class SessionsApi:
     ) -> RESTResponseType:
         """Delete all other sessions
 
-        Delete all sessions for the current account except the current session
+        Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
 
+        :param body: Verification (required)
+        :type body: RequestsSessionsDeleteRequest
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -210,6 +226,7 @@ class SessionsApi:
         """ # noqa: E501
 
         _param = self._api_v1_sessions_delete_serialize(
+            body=body,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -219,7 +236,8 @@ class SessionsApi:
         _response_types_map: Dict[str, Optional[str]] = {
             '204': None,
             '400': "ApiErrResponse",
-            '404': "ApiErrResponse",
+            '401': "ApiErrResponse",
+            '429': "ApiErrResponse",
             '500': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -231,6 +249,7 @@ class SessionsApi:
 
     def _api_v1_sessions_delete_serialize(
         self,
+        body,
         _request_auth,
         _content_type,
         _headers,
@@ -256,6 +275,8 @@ class SessionsApi:
         # process the header parameters
         # process the form parameters
         # process the body parameter
+        if body is not None:
+            _body_params = body
 
 
         # set the HTTP header `Accept`
@@ -266,6 +287,19 @@ class SessionsApi:
                 ]
             )
 
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
 
         # authentication setting
         _auth_settings: List[str] = [

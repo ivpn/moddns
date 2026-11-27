@@ -38,6 +38,9 @@ interface AppState {
   // Sorted ids of the unverified passkeys whose verification banner was closed; account-scoped.
   passkeyBannerDismissedKey: string | null;
   setPasskeyBannerDismissedKey: (key: string | null) => void;
+  // The legacy backup-codes banner was closed; account-scoped, so it shows again after the next sign-in.
+  legacyBackupCodesBannerDismissed: boolean;
+  setLegacyBackupCodesBannerDismissed: (dismissed: boolean) => void;
   subscriptionStatus: string | null;
   setSubscriptionStatus: (status: string | null) => void;
   // Legacy pre-0.1.8 enum surfaced from the API; "Managed" gates the
@@ -78,6 +81,7 @@ const partialize = (state: AppState) => ({
   customRulesCollapsed: state.customRulesCollapsed,
   logsExpandHintDismissed: state.logsExpandHintDismissed,
   passkeyBannerDismissedKey: state.passkeyBannerDismissedKey,
+  legacyBackupCodesBannerDismissed: state.legacyBackupCodesBannerDismissed,
 });
 type PersistedState = ReturnType<typeof partialize>;
 
@@ -88,6 +92,7 @@ const accountState = {
   account: null,
   passkeys: [],
   passkeyBannerDismissedKey: null,
+  legacyBackupCodesBannerDismissed: false,
   subscriptionStatus: null,
   subscriptionType: null,
   subscriptionDeletionScheduled: false,
@@ -140,6 +145,7 @@ export const useAppStore = create<AppState>()(
       setLogsExpandHintDismissed: (dismissed) => set({ logsExpandHintDismissed: dismissed }),
       setPasskeys: (passkeys) => set({ passkeys }),
       setPasskeyBannerDismissedKey: (key) => set({ passkeyBannerDismissedKey: key }),
+      setLegacyBackupCodesBannerDismissed: (dismissed) => set({ legacyBackupCodesBannerDismissed: dismissed }),
       setSubscriptionStatus: (status) => set({ subscriptionStatus: status }),
       setSubscriptionType: (type) => set({ subscriptionType: type }),
       setSubscriptionDeletionScheduled: (scheduled) => set({ subscriptionDeletionScheduled: scheduled }),

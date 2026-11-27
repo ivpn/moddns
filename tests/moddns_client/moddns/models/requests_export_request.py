@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,11 +26,10 @@ class RequestsExportRequest(BaseModel):
     """
     RequestsExportRequest
     """ # noqa: E501
-    current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     profile_ids: Optional[List[StrictStr]] = None
-    reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
+    reauth_token: Optional[StrictStr] = None
     scope: StrictStr
-    __properties: ClassVar[List[str]] = ["current_password", "profile_ids", "reauth_token", "scope"]
+    __properties: ClassVar[List[str]] = ["profile_ids", "reauth_token", "scope"]
 
     @field_validator('scope')
     def scope_validate_enum(cls, value):
@@ -91,7 +89,6 @@ class RequestsExportRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "current_password": obj.get("current_password"),
             "profile_ids": obj.get("profile_ids"),
             "reauth_token": obj.get("reauth_token"),
             "scope": obj.get("scope")

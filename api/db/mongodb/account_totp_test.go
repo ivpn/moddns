@@ -2,10 +2,12 @@ package mongodb
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
 	dberrors "github.com/ivpn/dns/api/db/errors"
+	"github.com/ivpn/dns/api/model"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -72,9 +74,92 @@ func (s *AccountRepositorySuite) TestDisableTOTPRemovesAllMaterial() {
 		"secret": "LEGACY", "backup_codes": bson.A{"c1"}, "backup_codes_used": bson.A{"c0"},
 	})
 
-	s.Require().NoError(s.repo.DisableTOTP(ctx, accountID))
+	s.Require().NoError(s.repo.DisableTOTP(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x", BackupCodeHash: "h1"}))
 
 	s.Equal(bson.M{"enabled": false}, s.rawTOTP(accountID))
+}
+
+// The code that authorised turning 2FA off is checked in the same update, so
+// a code used up meanwhile leaves 2FA on.
+// specRef: api-endpoint-behaviour.md E3, E7
+func (s *AccountRepositorySuite) TestDisableTOTPRequiresTheVerifiedState() {
+	ctx := context.Background()
+	accountID := s.newTOTPAccount()
+	s.Require().NoError(s.repo.EnableTOTP(ctx, accountID, "v1.kid.x", []string{"h1", "h2"}))
+
+	for name, proof := range map[string]model.TOTPProof{
+		"used backup code":   {SecretSealed: "v1.kid.x", BackupCodeHash: "h9"},
+		"secret replaced":    {SecretSealed: "v1.kid.old"},
+		"no secret in proof": {},
+	} {
+		s.Error(s.repo.DisableTOTP(ctx, accountID, proof), name)
+		s.Equal(true, s.rawTOTP(accountID)["enabled"], name)
+	}
+	s.ErrorIs(s.repo.DisableTOTP(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x", BackupCodeHash: "h9"}), dberrors.ErrTOTPStateChanged)
+
+	s.Require().NoError(s.repo.DisableTOTP(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x"}))
+	s.Equal(bson.M{"enabled": false}, s.rawTOTP(accountID))
+	s.ErrorIs(s.repo.DisableTOTP(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x"}), dberrors.ErrTOTPStateChanged)
+}
+
+// specRef: api-endpoint-behaviour.md E13
+func (s *AccountRepositorySuite) TestReplaceBackupCodesReplacesTheWholeSet() {
+	ctx := context.Background()
+	accountID := s.newTOTPAccount()
+	s.setRawTOTP(accountID, bson.M{
+		"enabled": true, "secret_sealed": "v1.kid.x", "backup_code_hashes": bson.A{"h1", "h2"},
+		"backup_codes_legacy": true, "backup_code_hashes_used": bson.A{"h0"},
+	})
+
+	s.Require().NoError(s.repo.ReplaceBackupCodes(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x", BackupCodeHash: "h1"}, []string{"n1", "n2", "n3"}))
+
+	s.Equal(bson.M{"enabled": true, "secret_sealed": "v1.kid.x", "backup_code_hashes": bson.A{"n1", "n2", "n3"}}, s.rawTOTP(accountID))
+}
+
+// specRef: api-endpoint-behaviour.md E13
+func (s *AccountRepositorySuite) TestReplaceBackupCodesRequiresTheVerifiedState() {
+	ctx := context.Background()
+	accountID := s.newTOTPAccount()
+	s.Require().NoError(s.repo.EnableTOTP(ctx, accountID, "v1.kid.x", []string{"h1"}))
+
+	for name, proof := range map[string]model.TOTPProof{
+		"used backup code":   {SecretSealed: "v1.kid.x", BackupCodeHash: "h9"},
+		"secret replaced":    {SecretSealed: "v1.kid.old"},
+		"no secret in proof": {},
+	} {
+		s.Error(s.repo.ReplaceBackupCodes(ctx, accountID, proof, []string{"n1"}), name)
+	}
+	s.ErrorIs(s.repo.ReplaceBackupCodes(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.old"}, []string{"n1"}), dberrors.ErrTOTPStateChanged)
+	s.Equal(bson.A{"h1"}, s.rawTOTP(accountID)["backup_code_hashes"])
+
+	s.Require().NoError(s.repo.DisableTOTP(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x"}))
+	s.ErrorIs(s.repo.ReplaceBackupCodes(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x"}, []string{"n1"}), dberrors.ErrTOTPStateChanged)
+	s.Equal(bson.M{"enabled": false}, s.rawTOTP(accountID))
+}
+
+// Two requests authorised by the same backup code: only one replaces the set.
+// specRef: api-endpoint-behaviour.md E13
+func (s *AccountRepositorySuite) TestReplaceBackupCodesConcurrentUseOfOneCodeSucceedsOnce() {
+	ctx := context.Background()
+	accountID := s.newTOTPAccount()
+	s.Require().NoError(s.repo.EnableTOTP(ctx, accountID, "v1.kid.x", []string{"h1", "h2"}))
+
+	var wins atomic.Int32
+	var wg sync.WaitGroup
+	for i := range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := s.repo.ReplaceBackupCodes(ctx, accountID, model.TOTPProof{SecretSealed: "v1.kid.x", BackupCodeHash: "h1"}, []string{fmt.Sprintf("n%d", i)})
+			if err == nil {
+				wins.Add(1)
+				return
+			}
+			s.ErrorIs(err, dberrors.ErrTOTPStateChanged)
+		}()
+	}
+	wg.Wait()
+	s.Equal(int32(1), wins.Load())
 }
 
 // specRef: api-endpoint-behaviour.md E6

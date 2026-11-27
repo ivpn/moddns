@@ -69,9 +69,6 @@ func New(cfg config.Config, store db.Db, cache cache.Cache, idGen idgen.Generato
 	httpClient := webhookClient.New(*cfg.API)
 	subSrv := subscription.NewSubscriptionService(store, store, cache, *cfg.Service, *cfg.API, *httpClient)
 	accSrv := account.NewAccountService(*cfg.Service, store, profSrv, statsSrv, subSrv, store, cache, mailer, idGen, apiValidator.Validator, *httpClient)
-	// AccountService satisfies reauth.MfaVerifier via its MfaCheck method.
-	// Wired post-construction because profSrv is built before accSrv.
-	profSrv.SetMfaVerifier(accSrv)
 	geo := geoip.New(geoip.Config{ASNFile: cfg.Service.GeoIPASNFile, CountryFile: cfg.Service.GeoIPCountryFile, ReloadEvery: cfg.Service.GeoIPReloadEvery})
 	geo.Start(context.Background())
 	profSrv.SetClientEnricher(geo)
@@ -104,6 +101,7 @@ type Servicer interface {
 	PasskeyServicer
 	CredentialServicer
 	dnsstamp.DNSStampServicer
+	DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest) error
 }
 
 type CredentialServicer interface {
@@ -135,8 +133,9 @@ type SessionServicer interface {
 
 type AccountServicer interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
-	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error
-	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error
+	UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate) error
+	Reauthenticate(ctx context.Context, accountId string, req requests.ReauthRequest) (*model.Token, error)
+	DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error
 	PurgeAccountData(ctx context.Context, accountId string) error
 	GenerateDeletionCode(ctx context.Context, accountId string) (*responses.DeletionCodeResponse, error)
 	MfaCheck(ctx context.Context, acc *model.Account, mfa *model.MfaData) error
@@ -144,10 +143,11 @@ type AccountServicer interface {
 	GetUnfinishedSignupOrPostAccount(ctx context.Context, email, password string, subscriptionID string, sessionID string) (*model.Account, error)
 	SendResetPasswordEmail(ctx context.Context, email string) error
 	VerifyPasswordReset(ctx context.Context, tokenValue, newPassword string, mfa *model.MfaData) error
-	TotpEnable(ctx context.Context, accountId string) (*model.TOTPNew, error)
+	TotpEnable(ctx context.Context, accountId string, req requests.TotpEnableReq) (*model.TOTPNew, error)
 	TotpConfirm(ctx context.Context, accountId, otp string) (*model.TOTPBackup, error)
-	TotpDisable(ctx context.Context, accountId, otp string) (*model.Account, error)
-	VerifyTotp(ctx context.Context, accountId, otp, action string) (*model.Account, error)
+	TotpDisable(ctx context.Context, accountId string, req requests.TotpDisableReq) (*model.Account, error)
+	TotpRegenerateBackupCodes(ctx context.Context, accountId string, req requests.TotpRegenerateReq) (*model.TOTPBackup, error)
+	VerifyTotp(ctx context.Context, accountId, otp string) (*model.Account, error)
 	RequestEmailVerificationOTP(ctx context.Context, accountId string) error
 	VerifyEmailOTP(ctx context.Context, accountId, otp string) error
 }
@@ -191,8 +191,8 @@ type ProfileServicer interface {
 	DisableServices(ctx context.Context, accountId, profileId string, serviceIds []string) error
 
 	// Export / Import
-	Export(ctx context.Context, accountId, scope string, profileIds []string, currentPassword, reauthToken *string, mfa *model.MfaData) (*model.ExportEnvelope, error)
-	Import(ctx context.Context, accountId, mode string, payload *model.ExportEnvelope, currentPassword, reauthToken *string, mfa *model.MfaData) (*profile.ImportResult, error)
+	Export(ctx context.Context, accountId, scope string, profileIds []string, reauthToken *string) (*model.ExportEnvelope, error)
+	Import(ctx context.Context, accountId, mode string, payload *model.ExportEnvelope, reauthToken *string) (*profile.ImportResult, error)
 }
 
 // QueryLogsServicer defines the interface for managing query logs
@@ -228,8 +228,8 @@ type SubscriptionServicer interface {
 }
 
 // DeleteAccount deletes account with all connected data including sessions
-func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest, mfa *model.MfaData) error {
-	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req, mfa); err != nil {
+func (s *Service) DeleteAccount(ctx context.Context, accountId string, req requests.AccountDeletionRequest) error {
+	if err := s.AccountServicer.DeleteAccount(ctx, accountId, req); err != nil {
 		return err
 	}
 	return s.DeleteSessionsByAccountID(ctx, accountId)

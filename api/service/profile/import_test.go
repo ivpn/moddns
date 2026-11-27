@@ -15,9 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ivpn/dns/api/config"
+	"github.com/ivpn/dns/api/internal/auth"
 	intvldtr "github.com/ivpn/dns/api/internal/validator"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
@@ -69,9 +69,9 @@ type importTestEnv struct {
 	idGen         *mocks.Generatoridgen
 }
 
-// newImportTestEnv builds a fully-wired ProfileService. The given password is
-// bcrypt-hashed and placed in the account mock so that verifyReauth succeeds.
-func newImportTestEnv(t *testing.T, password string, maxProfiles int) *importTestEnv {
+// newImportTestEnv builds a fully-wired ProfileService whose account holds a profile_import
+// reauth token of the given value on every load.
+func newImportTestEnv(t *testing.T, token string, maxProfiles int) *importTestEnv {
 	t.Helper()
 
 	// Env vars required by config.New().
@@ -94,13 +94,13 @@ func newImportTestEnv(t *testing.T, password string, maxProfiles int) *importTes
 	require.NoError(t, vErr)
 	vld := apiValidator.Validator
 
-	// Pre-configure the account mock so verifyReauth always succeeds.
-	hash, hErr := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	require.NoError(t, hErr)
-	hashStr := string(hash)
-	acc := &model.Account{Password: &hashStr}
-	accountRepo.On("GetAccountById", mock.Anything, mock.AnythingOfType("string")).
-		Return(acc, nil).Maybe()
+	accountRepo.EXPECT().GetAccountById(mock.Anything, mock.AnythingOfType("string")).
+		RunAndReturn(func(context.Context, string) (*model.Account, error) {
+			return &model.Account{Tokens: []model.Token{
+				{Type: auth.TokenTypeReauthProfileImport, Value: token, ExpiresAt: time.Now().Add(5 * time.Minute)},
+			}}, nil
+		}).Maybe()
+	accountRepo.On("UpdateAccount", mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	blocklistSvc := blocklist.NewBlocklistService(blocklistRepo, cacheM)
 	queryLogsSvc := querylogs.NewQueryLogsService(queryLogsRepo)
@@ -189,7 +189,7 @@ func TestImport_ModeCreateNew_Accepted(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		minimalEnvelope(1),
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"fresh-id-1"}, result.CreatedProfileIds)
@@ -242,7 +242,7 @@ func TestImport_RebindingProtection_RoundTrips(t *testing.T) {
 				context.Background(), "acct1",
 				profile.ImportModeCreateNew,
 				envelope,
-				ptr("secret"), nil, nil,
+				ptr("secret"),
 			)
 			require.NoError(t, err)
 			require.NotNil(t, capturedSettings)
@@ -297,7 +297,7 @@ func TestImport_CustomRuleMetadata_RoundTrips(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		envelope,
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	require.NoError(t, err)
 	require.Len(t, result.CreatedProfileIds, 1)
@@ -352,7 +352,7 @@ func TestImport_GroupsCappedPerList(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		envelope,
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, capturedSettings)
@@ -400,7 +400,7 @@ func TestImport_PreservesGroupOrder(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		envelope,
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	require.NoError(t, err)
 	require.Len(t, result.CreatedProfileIds, 1)
@@ -423,7 +423,7 @@ func TestImport_ModeUnknown_Rejected(t *testing.T) {
 		context.Background(), "acct1",
 		"merge",
 		minimalEnvelope(1),
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrUnsupportedImportMode)
@@ -441,7 +441,7 @@ func TestImport_SchemaVersionMismatch_Rejected(t *testing.T) {
 	envelope.SchemaVersion = 2
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrUnsupportedSchemaVersion)
 }
@@ -454,7 +454,7 @@ func TestImport_InvalidKind_Rejected(t *testing.T) {
 	envelope.Kind = "other"
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrInvalidExportKind)
 }
@@ -464,7 +464,7 @@ func TestImport_EmptyPayload_Rejected(t *testing.T) {
 	env := newImportTestEnv(t, "secret", 100)
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(0), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(0), ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrEmptyImportPayload)
 }
@@ -482,7 +482,7 @@ func TestImport_FreshExport_NoStaleWarning(t *testing.T) {
 	envelope.ExportedAt = time.Now() // definitely fresh
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	for _, w := range result.Warnings {
@@ -500,7 +500,7 @@ func TestImport_StaleExport_AddsWarning(t *testing.T) {
 	envelope.ExportedAt = time.Now().Add(-100 * 24 * time.Hour) // 100 days ago
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	found := false
@@ -536,7 +536,7 @@ func TestImport_ProfileCount_WithinCap(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(5), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(5), ptr("secret"))
 	require.NoError(t, err)
 	assert.Len(t, result.CreatedProfileIds, 5)
 }
@@ -551,7 +551,7 @@ func TestImport_ProfileCount_WouldExceedCap(t *testing.T) {
 		Return(existing, nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(5), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(5), ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrMaxProfilesExceeded)
 }
@@ -566,7 +566,7 @@ func TestImport_ProfileCount_AlreadyAtCap(t *testing.T) {
 		Return(existing, nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrMaxProfilesExceeded)
 }
@@ -599,7 +599,7 @@ func TestImport_MissingBlocklistId_AddsWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	found := false
@@ -631,7 +631,7 @@ func TestImport_InvalidRuleAction_SkipsWithWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 	assert.Len(t, result.CreatedProfileIds, 1, "profile must still be created")
 
@@ -659,7 +659,7 @@ func TestImport_InvalidRuleSyntax_SkipsWithWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 	assert.Len(t, result.CreatedProfileIds, 1)
 
@@ -683,7 +683,7 @@ func TestImport_Response_CreatedIdsAreFresh(t *testing.T) {
 	expectOneSuccessfulCreate(env, "acct1", []model.Profile{}, "server-generated-id")
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"))
 	require.NoError(t, err)
 	require.Len(t, result.CreatedProfileIds, 1)
 	assert.Equal(t, "server-generated-id", result.CreatedProfileIds[0])
@@ -695,7 +695,7 @@ func TestImport_Response_WarningsArrayPresent(t *testing.T) {
 	expectOneSuccessfulCreate(env, "acct1", []model.Profile{}, "fresh-id-1")
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"))
 	require.NoError(t, err)
 	// Warnings must be a non-nil empty slice (JSON: []) not nil (JSON: null).
 	assert.NotNil(t, result.Warnings)
@@ -719,7 +719,7 @@ func TestImport_AllowlistDTO_RejectsAccountFields(t *testing.T) {
 	// here, failing compilation. The assertion is that Import succeeds and the
 	// profile ID returned is the server-generated one (not some injected value).
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"))
 	require.NoError(t, err)
 	assert.Equal(t, []string{"fresh-id-1"}, result.CreatedProfileIds)
 }
@@ -738,7 +738,7 @@ func TestImport_AllIdsRegenerated(t *testing.T) {
 	expectOneSuccessfulCreate(env, "acct-a", []model.Profile{}, freshId)
 
 	result, err := env.svc.Import(context.Background(), "acct-a",
-		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(1), ptr("secret"))
 	require.NoError(t, err)
 	require.Len(t, result.CreatedProfileIds, 1)
 	assert.Equal(t, freshId, result.CreatedProfileIds[0])
@@ -773,7 +773,7 @@ func TestImport_PunycodeRule_AddsIDNWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	foundIDN := false
@@ -809,7 +809,7 @@ func TestImport_PlainAsciiRule_NoIDNWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	for _, w := range result.Warnings {
@@ -856,7 +856,7 @@ func TestImport_CustomRules_WouldExceedAccountCap(t *testing.T) {
 	envelope.Profiles[1].Settings = &model.ExportedSettings{CustomRules: exportedRules(1)}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, profile.ErrMaxCustomRulesExceeded)
 	env.profileRepo.AssertNotCalled(t, "CreateProfile", mock.Anything, mock.Anything)
@@ -882,7 +882,7 @@ func TestImport_CustomRules_ReachesAccountCapExactly(t *testing.T) {
 	envelope.Profiles[0].Settings = &model.ExportedSettings{CustomRules: exportedRules(1000)}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 	assert.Len(t, result.CreatedProfileIds, 1)
 }
@@ -916,7 +916,7 @@ func TestImport_MissingServiceId_AddsWarning(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	found := false
@@ -972,7 +972,7 @@ func TestImport_NameCollision_RenamesAgainstExisting(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"))
 	require.NoError(t, err)
 
 	assert.Equal(t, "Home (imported)", persistedName)
@@ -997,7 +997,7 @@ func TestImport_NameCollision_WithinSameBatch(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Times(2)
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames("Work", "Work"), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames("Work", "Work"), ptr("secret"))
 	require.NoError(t, err)
 
 	require.Len(t, persisted, 2)
@@ -1028,7 +1028,7 @@ func TestImport_NameCollision_CascadeAcrossSuffixes(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"))
 	require.NoError(t, err)
 
 	assert.Equal(t, "Home (imported 3)", persistedName)
@@ -1055,7 +1055,7 @@ func TestImport_NameCollision_TruncatesToMaxLength(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames(original), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames(original), ptr("secret"))
 	require.NoError(t, err)
 
 	assert.LessOrEqual(t, len(persistedName), 50, "resolved name must fit in max=50; got %d chars", len(persistedName))
@@ -1089,7 +1089,7 @@ func TestImport_AdvancedSection_SilentlyIgnored(t *testing.T) {
 	}
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelope, ptr("secret"))
 	require.NoError(t, err)
 
 	require.NotNil(t, persistedSettings)
@@ -1116,7 +1116,7 @@ func TestImport_Response_CreatedNamesParallelToIds(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Times(2)
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames("Alpha", "Beta"), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames("Alpha", "Beta"), ptr("secret"))
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"id-a", "id-b"}, result.CreatedProfileIds)
@@ -1137,7 +1137,7 @@ func TestImport_Response_CreatedNamesReflectI24Rename(t *testing.T) {
 		mock.AnythingOfType("*model.ProfileSettings")).Return(nil).Once()
 
 	result, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, envelopeWithNames("Home"), ptr("secret"))
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"Home (imported)"}, result.CreatedProfileNames,
@@ -1186,7 +1186,7 @@ func TestImport_Rollback_EvictsCacheForCreatedProfiles(t *testing.T) {
 	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(2), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(2), ptr("secret"))
 	require.Error(t, err)
 
 	// AssertExpectations on the cache mock catches both directions:
@@ -1231,7 +1231,7 @@ func TestImport_Rollback_CacheError_DoesNotAbortLoop(t *testing.T) {
 	env.cache.On("Del", mock.Anything, mock.AnythingOfType("string")).Return(nil).Maybe()
 
 	_, err := env.svc.Import(context.Background(), "acct1",
-		profile.ImportModeCreateNew, minimalEnvelope(3), ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, minimalEnvelope(3), ptr("secret"))
 	require.Error(t, err)
 
 	env.cache.AssertExpectations(t)
@@ -1261,7 +1261,7 @@ func TestImport_LongName_TruncatedNotRejected(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		envelope,
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -1311,7 +1311,7 @@ func TestImport_StatisticsEnabledAt(t *testing.T) {
 			envelope.Profiles[0].Settings = &model.ExportedSettings{Statistics: &model.ExportedStatistics{Enabled: tc.enabled}}
 
 			start := time.Now()
-			_, err := env.svc.Import(context.Background(), "acct1", profile.ImportModeCreateNew, envelope, ptr("secret"), nil, nil)
+			_, err := env.svc.Import(context.Background(), "acct1", profile.ImportModeCreateNew, envelope, ptr("secret"))
 			require.NoError(t, err)
 			require.NotNil(t, captured)
 			assert.Equal(t, tc.enabled, captured.Statistics.Enabled)
@@ -1342,7 +1342,7 @@ func TestImport_CacheWriteFailure_RollsBackInsertedProfile(t *testing.T) {
 		context.Background(), "acct1",
 		profile.ImportModeCreateNew,
 		minimalEnvelope(1),
-		ptr("secret"), nil, nil,
+		ptr("secret"),
 	)
 
 	require.ErrorIs(t, err, cacheErr)

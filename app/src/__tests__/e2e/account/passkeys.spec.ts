@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { mockPasswordReauth, PASSWORD_REAUTH_TOKEN, registerMocks, type PasswordReauthMock } from '../../mocks/registerMocks';
 import { installWebAuthnCreateExcludedStub, installWebAuthnCreateNotAllowedStub, installWebAuthnCreateStub, installWebAuthnSuccessStub } from '../utils/webauthn';
 
 // The navigator.credentials stubs only take effect in Chromium, hence @desktop like the login specs.
@@ -8,17 +8,17 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
   const creationOptions = { publicKey: { challenge: 'abc', rp: { id: 'localhost', name: 'modDNS' }, user: { id: 'dXNlcg', name: 'user@example.com', displayName: 'user@example.com' }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }], timeout: 60000 } };
   const requestOptions = { publicKey: { challenge: 'abc', rpId: 'localhost', timeout: 60000, userVerification: 'preferred', allowCredentials: [] } };
 
-  type Captured = { addBegin: { body: unknown; mfaCode?: string } | null; reauthPurpose: string | null; addFinished: boolean; deleted: { id: string; body: unknown; mfaCode?: string } | null };
+  type Captured = { addBegin: { body: unknown; mfaCode?: string } | null; reauthPurpose: string | null; addFinished: boolean; deleted: { id: string; body: unknown; mfaCode?: string } | null; passwordReauth: PasswordReauthMock };
 
   type Page = import('@playwright/test').Page;
 
   const onePasskey = [{ id: 'p1', created_at: '2026-01-01T00:00:00Z', user_verified: true }];
 
   async function setup(page: Page, account: Record<string, unknown>, installCreateStub: (page: Page) => Promise<void> = installWebAuthnCreateStub, passkeys: Record<string, unknown>[] = onePasskey): Promise<Captured> {
-    const captured: Captured = { addBegin: null, reauthPurpose: null, addFinished: false, deleted: null };
     await installWebAuthnSuccessStub(page);
     await installCreateStub(page);
     await registerMocks(page, { authenticated: true });
+    const captured: Captured = { addBegin: null, reauthPurpose: null, addFinished: false, deleted: null, passwordReauth: await mockPasswordReauth(page) };
     // Registered after registerMocks: its /api/v1/ catch-all would otherwise answer first.
     await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
@@ -62,7 +62,8 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     await dialog.getByRole('button', { name: 'Continue' }).click();
 
     await expect.poll(() => captured.addFinished).toBe(true);
-    expect(captured.addBegin?.body).toEqual({ current_password: 'CurrentPass123!' });
+    expect(captured.passwordReauth.sent).toEqual([{ purpose: 'passkey_add', current_password: 'CurrentPass123!' }]);
+    expect(captured.addBegin?.body).toEqual({ reauth_token: PASSWORD_REAUTH_TOKEN });
   });
 
   // specRef: F3
@@ -94,7 +95,8 @@ test.describe('Passkey management', { tag: '@desktop' }, () => {
     await dialog.getByRole('button', { name: 'Delete passkey' }).click();
 
     await expect.poll(() => captured.deleted).not.toBeNull();
-    expect(captured.deleted).toEqual({ id: 'p1', body: { current_password: 'CurrentPass123!' }, mfaCode: '123456' });
+    expect(captured.passwordReauth.sent).toEqual([{ purpose: 'passkey_delete', current_password: 'CurrentPass123!', otp: '123456' }]);
+    expect(captured.deleted).toEqual({ id: 'p1', body: { reauth_token: PASSWORD_REAUTH_TOKEN }, mfaCode: undefined });
   });
 
   // specRef: F8

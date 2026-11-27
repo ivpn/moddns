@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { mockPasswordReauth, PASSWORD_REAUTH_TOKEN, registerMocks, type PasswordReauthMock } from '../../mocks/registerMocks';
 
 const mockAccount = {
   account_id: 'abc',
@@ -12,7 +12,7 @@ const mockAccount = {
 const setupRoutes = async (
   page: import('@playwright/test').Page,
   onPatch: (body: string | null) => void,
-) => {
+): Promise<PasswordReauthMock> => {
   await registerMocks(page, { authenticated: true, accountOverride: mockAccount });
   // Registered after registerMocks so these win over its catch-all.
   await page.route('**/api/v1/accounts', async route => {
@@ -26,13 +26,14 @@ const setupRoutes = async (
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
   await page.route('**/api/v1/webauthn/passkeys', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  return mockPasswordReauth(page);
 };
 
 // Happy path: two-step flow shows the lockout warning, tolerates a
 // casing/whitespace variant in the confirm entry, and sends the PATCH.
 test('email change requires confirm step and sends patch on match', async ({ page }) => {
   let patchBody: string | null = null;
-  await setupRoutes(page, body => { patchBody = body; });
+  const reauth = await setupRoutes(page, body => { patchBody = body; });
   await page.goto('/account-preferences');
 
   const changeBtn = page.getByRole('button', { name: /Change email/i });
@@ -40,7 +41,7 @@ test('email change requires confirm step and sends patch on match', async ({ pag
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');
-  await page.getByPlaceholder('••••••••').fill('Password123!');
+  await page.getByLabel('Current password').fill('Password123!');
   await page.getByRole('button', { name: /^Continue$/ }).click();
 
   // Confirm step: warning about non-deliverable address is visible, no PATCH yet.
@@ -55,7 +56,9 @@ test('email change requires confirm step and sends patch on match', async ({ pag
   const payload = JSON.parse(patchBody!) as { updates: { operation: string; path: string; value: { new_email: string } }[] };
   expect(payload.updates).toHaveLength(1);
   expect(payload.updates[0].path).toBe('/email');
-  expect(payload.updates[0].value.new_email).toBe('new@example.com');
+  // The password is exchanged for a token first; the update carries only the token.
+  expect(payload.updates[0].value).toEqual({ reauth_token: PASSWORD_REAUTH_TOKEN, new_email: 'new@example.com' });
+  expect(reauth.sent).toEqual([{ purpose: 'email_change', current_password: 'Password123!' }]);
 });
 
 // Negative flow: mismatching confirm entry blocks submit and no PATCH is sent.
@@ -69,7 +72,7 @@ test('email change blocked while confirm entry mismatches', async ({ page }) => 
   await changeBtn.click();
 
   await page.getByPlaceholder('new@example.com').fill('new@example.com');
-  await page.getByPlaceholder('••••••••').fill('Password123!');
+  await page.getByLabel('Current password').fill('Password123!');
   await page.getByRole('button', { name: /^Continue$/ }).click();
 
   await page.getByTestId('input-confirm-email').fill('wrong@example.com');

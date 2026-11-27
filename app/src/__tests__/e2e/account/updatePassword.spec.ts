@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { mockPasswordReauth, PASSWORD_REAUTH_TOKEN, registerMocks, type PasswordReauthMock } from '../../mocks/registerMocks';
 import { installWebAuthnSuccessStub } from '../utils/webauthn';
 
 const mockAccount = { account_id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: false } } };
 
 /** Base mocks for the account page plus a PATCH /accounts interceptor. */
-async function setupRoutes(page: import('@playwright/test').Page, onPatch: (body: string | null) => void) {
+async function setupRoutes(page: import('@playwright/test').Page, onPatch: (body: string | null) => void): Promise<PasswordReauthMock> {
   await registerMocks(page, { authenticated: true, accountOverride: mockAccount });
   // Registered after registerMocks so these win over its catch-all.
   await page.route('**/api/v1/accounts', async route => {
@@ -19,6 +19,7 @@ async function setupRoutes(page: import('@playwright/test').Page, onPatch: (body
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
   await page.route('**/api/v1/webauthn/passkeys', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+  return mockPasswordReauth(page);
 }
 
 async function openUpdatePassword(page: import('@playwright/test').Page) {
@@ -30,8 +31,8 @@ async function openUpdatePassword(page: import('@playwright/test').Page) {
 
 // Intercepts account patch + current get to assert JSON Patch sequence
 test('password update sends test+replace operations', async ({ page }) => {
-  let patchPayload: { updates: { operation: string; path: string; value?: string }[] } | null = null;
-  await setupRoutes(page, body => { patchPayload = body ? JSON.parse(body) : null; });
+  let patchPayload: { updates: { operation: string; path: string; value?: unknown }[] } | null = null;
+  const reauth = await setupRoutes(page, body => { patchPayload = body ? JSON.parse(body) : null; });
   await openUpdatePassword(page);
 
   // Fill fields
@@ -51,6 +52,9 @@ test('password update sends test+replace operations', async ({ page }) => {
   expect(payload.updates[0].path).toBe('/password');
   expect(payload.updates[1].operation).toBe('replace');
   expect(payload.updates[1].path).toBe('/password');
+  // The old password is exchanged for a token first; the test operation carries only the token.
+  expect(reauth.sent).toEqual([{ purpose: 'password_set', current_password: 'OldPassword123!' }]);
+  expect(payload.updates[0].value).toEqual({ reauth_token: PASSWORD_REAUTH_TOKEN });
 });
 
 // Negative flow: missing old password should not send patch

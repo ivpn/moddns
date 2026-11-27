@@ -7,9 +7,16 @@ export const TOTP_TOO_MANY_ATTEMPTS_MESSAGE = 'Too many wrong 2FA codes. Please 
 export const isTotpLockoutError = (apiErr?: string): boolean =>
     !!apiErr?.startsWith('too many failed 2FA attempts');
 
-/** The message for a refused 2FA code: the lockout in plain words, otherwise the API's own text. */
-export const totpErrorMessage = (apiErr: string | undefined, fallback: string): string =>
-    isTotpLockoutError(apiErr) ? TOTP_TOO_MANY_ATTEMPTS_MESSAGE : (apiErr || fallback);
+export const REAUTH_TOO_MANY_ATTEMPTS_MESSAGE = 'Too many attempts to confirm it\'s you. Please try again later.';
+export const REAUTH_AGAIN_MESSAGE = 'Your verification has expired. Confirm it\'s you again.';
+
+/** The message for a refused identity check: a lockout in plain words, otherwise the API's own text. */
+export const totpErrorMessage = (apiErr: string | undefined, fallback: string): string => {
+    if (isTotpLockoutError(apiErr)) return TOTP_TOO_MANY_ATTEMPTS_MESSAGE;
+    if (apiErr === 'reauth rate limited') return REAUTH_TOO_MANY_ATTEMPTS_MESSAGE;
+    if (apiErr === 'invalid reauth token' || apiErr === 'reauth token expired') return REAUTH_AGAIN_MESSAGE;
+    return apiErr || fallback;
+};
 
 export const AUTH_TOAST_IDS = {
     loginSuccess: 'toast-login-success',
@@ -21,6 +28,7 @@ export const AUTH_TOAST_IDS = {
     loginTotpTooManyAttempts: 'toast-login-totp-rate-limit',
     loginUnexpectedError: 'toast-login-error',
     loginTOTPRequired: 'toast-login-totp-required',
+    loginTotpRetry: 'toast-login-totp-retry',
     passkeyError: 'toast-passkey-error',
     passwordResetSuccess: 'toast-password-reset-success',
     accountDeletedSuccess: 'toast-account-deleted-success',
@@ -47,6 +55,7 @@ export const authToasts = {
     totpTooManyAttempts: () => toast.error(span(AUTH_TOAST_IDS.loginTotpTooManyAttempts, TOTP_TOO_MANY_ATTEMPTS_MESSAGE)),
     unexpectedError: (msg?: string) => toast.error(span(AUTH_TOAST_IDS.loginUnexpectedError, msg || 'An unexpected error occurred.')),
     totpRequired: () => toast.info(span(AUTH_TOAST_IDS.loginTOTPRequired, 'Two-factor authentication required. Please enter your code.')),
+    totpRetry: () => toast.error(span(AUTH_TOAST_IDS.loginTotpRetry, 'Your 2FA code expired or was mistyped. Enter a new code.')),
     passkeyError: (msg?: string) => toast.error(span(AUTH_TOAST_IDS.passkeyError, msg || 'Passkey authentication failed')),
     passwordResetSuccess: () => toast.success(span(AUTH_TOAST_IDS.passwordResetSuccess, 'Password reset successful. You can now log in.')),
     accountDeletedSuccess: () => toast.success(span(AUTH_TOAST_IDS.accountDeletedSuccess, 'Account deleted successfully.')),

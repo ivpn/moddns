@@ -108,8 +108,8 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulEmailUpdate() {
 			Operation: "replace",
 			Path:      "/email",
 			Value: map[string]any{
-				"current_password": "currentPass123!",
-				"new_email":        "new@example.com",
+				"reauth_token": "reauth-token",
+				"new_email":    "new@example.com",
 			},
 		},
 	}
@@ -126,7 +126,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulEmailUpdate() {
 	)
 
 	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).Return(nil)
 
 	// Create request with session cookie
 	body, _ := json.Marshal(payload)
@@ -150,7 +150,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulEmailUpdate() {
 func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulPasswordUpdate() {
 	accountID := testAccountID
 	updates := []model.AccountUpdate{
-		{Operation: "test", Path: "/password", Value: "CurrentPassword123!@#"},
+		{Operation: "test", Path: "/password", Value: map[string]any{"reauth_token": "reauth-token"}},
 		{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!@#"},
 	}
 
@@ -168,7 +168,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulPasswordUpdate() 
 	)
 
 	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).Return(nil)
 
 	// Create request
 	body, _ := json.Marshal(payload)
@@ -215,7 +215,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SuccessfulErrorReportsConse
 	)
 
 	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).Return(nil)
 
 	// Create request
 	body, _ := json.Marshal(payload)
@@ -245,8 +245,8 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SameEmailAddress() {
 			Operation: "replace",
 			Path:      "/email",
 			Value: map[string]any{
-				"current_password": "currentPass123!",
-				"new_email":        "old@example.com",
+				"reauth_token": "reauth-token",
+				"new_email":    "old@example.com",
 			},
 		},
 	}
@@ -263,7 +263,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SameEmailAddress() {
 	)
 
 	// Mock the service call to return error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).
 		Return(account.ErrSameEmailAddress)
 
 	// Create request
@@ -290,16 +290,16 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_SameEmailAddress() {
 	assert.Contains(suite.T(), errResp.Error, "new email address is the same as the current one")
 }
 
-// TestUpdateAccount_InvalidCurrentPassword tests error when current password is wrong
-func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidCurrentPassword() {
+// TestUpdateAccount_InvalidReauthToken tests error when the reauth token is refused
+func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidReauthToken() {
 	accountID := testAccountID
 	updates := []model.AccountUpdate{
 		{
 			Operation: "replace",
 			Path:      "/email",
 			Value: map[string]any{
-				"current_password": "wrongpassword",
-				"new_email":        "new@example.com",
+				"reauth_token": "wrong-token",
+				"new_email":    "new@example.com",
 			},
 		},
 	}
@@ -316,8 +316,8 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidCurrentPassword() {
 	)
 
 	// Mock the service call to return error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
-		Return(account.ErrInvalidCurrentPassword)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).
+		Return(account.ErrInvalidReauthToken)
 
 	// Create request
 	body, _ := json.Marshal(payload)
@@ -334,15 +334,13 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidCurrentPassword() {
 	server := suite.createTestServer()
 	resp, err := server.App.Test(req, -1)
 
-	// Assertions — unified reauth maps bad password to 400 (preserves the
-	// pre-unification mapping for this endpoint and keeps the global axios
-	// 401-interceptor from misfiring as session-expiry).
+	// A refused reauth token is a bad request body, not an expired session.
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusBadRequest, resp.StatusCode)
 
 	var errResp ErrResponse
 	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))
-	assert.Contains(suite.T(), errResp.Error, "invalid current password")
+	assert.Contains(suite.T(), errResp.Error, "invalid reauth token")
 }
 
 // TestUpdateAccount_InvalidNewEmail tests error when new email format is invalid
@@ -353,8 +351,8 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidNewEmail() {
 			Operation: "replace",
 			Path:      "/email",
 			Value: map[string]any{
-				"current_password": "currentPass123!",
-				"new_email":        "invalid-email",
+				"reauth_token": "reauth-token",
+				"new_email":    "invalid-email",
 			},
 		},
 	}
@@ -371,7 +369,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidNewEmail() {
 	)
 
 	// Mock the service call to return error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).
 		Return(account.ErrInvalidNewEmail)
 
 	// Create request
@@ -407,7 +405,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_MissingEmailUpdateFields() 
 			Path:      "/email",
 			Value: map[string]any{
 				"new_email": "new@example.com",
-				// missing current_password
+				// missing reauth_token
 			},
 		},
 	}
@@ -424,7 +422,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_MissingEmailUpdateFields() 
 	)
 
 	// Mock the service call to return error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).
 		Return(account.ErrMissingEmailUpdateFields)
 
 	// Create request
@@ -448,7 +446,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_MissingEmailUpdateFields() 
 
 	var errResp ErrResponse
 	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))
-	assert.Contains(suite.T(), errResp.Error, "missing current_password")
+	assert.Contains(suite.T(), errResp.Error, "missing reauth_token")
 }
 
 // TestUpdateAccount_InvalidRequestBody tests error when request body is malformed
@@ -508,7 +506,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_EmptyUpdates() {
 	)
 
 	// Mock the UpdateAccount service call - empty updates are allowed
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).Return(nil)
 
 	// Create request
 	body, _ := json.Marshal(payload)
@@ -528,111 +526,6 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_EmptyUpdates() {
 	// Assertions
 	assert.NoError(suite.T(), err)
 	assert.Equal(suite.T(), http.StatusNoContent, resp.StatusCode)
-}
-
-// TestUpdateAccount_TOTPRequired tests error when TOTP is required but not provided
-func (suite *AccountsAPITestSuite) TestUpdateAccount_TOTPRequired() {
-	accountID := testAccountID
-	updates := []model.AccountUpdate{
-		{
-			Operation: "replace",
-			Path:      "/email",
-			Value: map[string]any{
-				"current_password": "currentPass123!",
-				"new_email":        "new@example.com",
-			},
-		},
-	}
-
-	payload := requests.AccountUpdates{
-		Updates: updates,
-	}
-
-	// Mock GetSession at DB level (auth middleware needs this)
-	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
-		model.Session{AccountID: accountID},
-		true,
-		nil,
-	)
-
-	// Mock the service call to return TOTP required error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
-		Return(account.ErrTOTPRequired)
-
-	// Create request without TOTP header
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-
-	// Execute request
-	req.AddCookie(&http.Cookie{
-		Name:  auth.AUTH_COOKIE,
-		Value: testSessionToken,
-	})
-
-	// Create production server and execute request
-	server := suite.createTestServer()
-	resp, err := server.App.Test(req, -1)
-
-	// Assertions
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), http.StatusUnauthorized, resp.StatusCode)
-
-	var errResp ErrResponse
-	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))
-	assert.Contains(suite.T(), errResp.Error, "TOTP is required")
-}
-
-// TestUpdateAccount_InvalidTOTPCode tests error when TOTP code is invalid
-func (suite *AccountsAPITestSuite) TestUpdateAccount_InvalidTOTPCode() {
-	accountID := testAccountID
-	updates := []model.AccountUpdate{
-		{
-			Operation: "replace",
-			Path:      "/email",
-			Value: map[string]any{
-				"current_password": "currentPass123!",
-				"new_email":        "new@example.com",
-			},
-		},
-	}
-
-	payload := requests.AccountUpdates{
-		Updates: updates,
-	}
-
-	// Mock GetSession at DB level (auth middleware needs this)
-	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
-		model.Session{AccountID: accountID},
-		true,
-		nil,
-	)
-
-	// Mock the service call to return invalid TOTP error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
-		Return(account.ErrInvalidTOTPCode)
-
-	// Create request with TOTP header
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-mfa-code", "000000")
-	req.AddCookie(&http.Cookie{
-		Name:  auth.AUTH_COOKIE,
-		Value: testSessionToken,
-	})
-
-	// Execute request
-	server := suite.createTestServer()
-	resp, err := server.App.Test(req, -1)
-
-	// Assertions
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), http.StatusUnauthorized, resp.StatusCode)
-
-	var errResp ErrResponse
-	assert.NoError(suite.T(), json.NewDecoder(resp.Body).Decode(&errResp))
-	assert.Contains(suite.T(), errResp.Error, "invalid 2FA code")
 }
 
 // TestUpdateAccount_ServiceError tests generic service error handling
@@ -658,7 +551,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_ServiceError() {
 	)
 
 	// Mock the service call to return generic error
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).
 		Return(errors.New("database connection failed"))
 
 	// Create request
@@ -715,7 +608,7 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_MultipleUpdates() {
 	)
 
 	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
+	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates).Return(nil)
 
 	// Create request
 	body, _ := json.Marshal(payload)
@@ -729,49 +622,6 @@ func (suite *AccountsAPITestSuite) TestUpdateAccount_MultipleUpdates() {
 	})
 
 	// Create production server and execute request
-	server := suite.createTestServer()
-	resp, err := server.App.Test(req, -1)
-
-	// Assertions
-	assert.NoError(suite.T(), err)
-	assert.Equal(suite.T(), http.StatusNoContent, resp.StatusCode)
-}
-
-// TestUpdateAccount_WithValidTOTP tests successful update with valid TOTP
-func (suite *AccountsAPITestSuite) TestUpdateAccount_WithValidTOTP() {
-	accountID := testAccountID
-	updates := []model.AccountUpdate{
-		{Operation: "test", Path: "/password", Value: "CurrentPassword123!@#"},
-		{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!@#"},
-	}
-
-	payload := requests.AccountUpdates{
-		Updates: updates,
-	}
-
-	// Mock session validation (required by auth middleware)
-	// Create mockDB and mock GetSession at DB level (auth middleware needs this)
-
-	suite.mockDB.On("GetSession", mock.Anything, testSessionToken).Return(
-		model.Session{AccountID: accountID},
-		true,
-		nil,
-	)
-
-	// Mock the UpdateAccount service call
-	suite.mockService.On("UpdateAccount", mock.Anything, accountID, updates, mock.AnythingOfType("*model.MfaData")).Return(nil)
-
-	// Create request with TOTP header
-	body, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPatch, "/api/v1/accounts", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-mfa-code", "123456")
-	req.AddCookie(&http.Cookie{
-		Name:  auth.AUTH_COOKIE,
-		Value: testSessionToken,
-	})
-
-	// Execute request
 	server := suite.createTestServer()
 	resp, err := server.App.Test(req, -1)
 
@@ -929,7 +779,6 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_Success() {
 		mock.Anything,
 		accountID,
 		payload,
-		mock.AnythingOfType("*model.MfaData"),
 	).Return(nil)
 	// Service.DeleteAccount wrapper invokes Store.DeleteSessionsByAccountID after
 	// the inner deletion succeeds.
@@ -968,7 +817,6 @@ func (suite *AccountsAPITestSuite) TestDeleteAccount_ServiceError() {
 		mock.Anything,
 		accountID,
 		payload,
-		mock.AnythingOfType("*model.MfaData"),
 	).Return(errors.New("cleanup boom"))
 
 	body, _ := json.Marshal(payload)

@@ -13,10 +13,11 @@ import { type JSX, useState, useEffect, useContext, useCallback } from 'react';
 import { toast } from 'sonner';
 import API from '@/api/api';
 import { AuthContext } from '@/App';
-import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/general';
-import { useAccountVerificationMethod } from '@/hooks/useAccountVerificationMethod';
+import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
+import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import { beginAccountDeletionReauth } from '@/lib/webauthn';
+import { totpErrorMessage } from '@/lib/authToasts';
 import type { RequestsAccountDeletionRequest } from '@/api/client/api';
 
 interface DeleteAccountProps {
@@ -31,10 +32,7 @@ export default function DeleteAccountDialog({
     loading = false,
 }: DeleteAccountProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [otp, setOtp] = useState('');
-    const [reauthToken, setReauthToken] = useState<string | null>(null);
-    const [reauthStatus, setReauthStatus] = useState<'idle' | 'in-progress' | 'verified' | 'error'>('idle');
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [deletionCode, setDeletionCode] = useState<string>('');
     const [userCode, setUserCode] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -69,45 +67,15 @@ export default function DeleteAccountDialog({
         }
     }, []);
 
-    const handleMethodChange = useCallback(() => {
-        setCurrentPassword('');
-        setOtp('');
-        setReauthToken(null);
-        setReauthStatus('idle');
-        setDeletionCode('');
-        setUserCode('');
-        setIsCopied(false);
-        setIsGenerating(false);
-        setHasAttemptedGeneration(false);
-    }, []);
-
-    const {
-        method,
-        hasPasskeys,
-        passwordAvailable,
-        showOtp,
-        switchMethod,
-        resetMethod,
-    } = useAccountVerificationMethod({
-        account: account ?? null,
-        open,
-        onMethodChange: handleMethodChange,
-    });
-
     useEffect(() => {
         if (!open) {
             setDeletionCode('');
             setUserCode('');
             setIsCopied(false);
-            setCurrentPassword('');
-            setOtp('');
-            setReauthToken(null);
-            setReauthStatus('idle');
             setHasAttemptedGeneration(false);
             setIsGenerating(false);
-            resetMethod();
         }
-    }, [open, resetMethod]);
+    }, [open]);
 
     useEffect(() => {
         if (!open || deletionCode || isGenerating || hasAttemptedGeneration) {
@@ -122,125 +90,30 @@ export default function DeleteAccountDialog({
             return;
         }
 
-        if (method === 'password') {
-            if (!passwordAvailable) {
-                toast.error('Password verification is not available.');
-                return;
-            }
-            if (!currentPassword.trim()) {
-                toast.error('Current password is required.');
-                return;
-            }
-            if (showOtp && !otp.trim()) {
-                toast.error('2FA code is required.');
-                return;
-            }
-        }
-
-        if (method === 'passkey') {
-            if (!hasPasskeys) {
-                toast.error('Passkey verification is not available.');
-                return;
-            }
-            if (!reauthToken) {
-                toast.error('Passkey verification is required.');
-                return;
-            }
-        }
-
-        const payload: RequestsAccountDeletionRequest = {
-            deletion_code: userCode.trim(),
-        };
-
-        if (method === 'password') {
-            payload.current_password = currentPassword.trim();
-        }
-        if (method === 'passkey' && reauthToken) {
-            payload.reauth_token = reauthToken;
-        }
+        if (!verification) return;
 
         setIsDeleting(true);
         try {
-            const headers: Record<string, string> = {};
-            if (method === 'password' && showOtp && otp.trim()) {
-                headers['x-mfa-code'] = otp.trim();
-                headers['x-mfa-methods'] = 'totp';
-            }
-
-            await API.Client.accountsApi.apiV1AccountsCurrentDelete(payload, { headers });
+            const payload: RequestsAccountDeletionRequest = {
+                deletion_code: userCode.trim(),
+                reauth_token: await reauthToken('account_deletion'),
+            };
+            await API.Client.accountsApi.apiV1AccountsCurrentDelete(payload);
             onOpenChange(false);
             auth?.logout('Account deleted.', 'info');
         } catch (err) {
+            requestFailed(err);
             const error = err as { response?: { status?: number; data?: { error?: string } } };
             if (error.response?.status === 429) {
                 toast.error('Too many requests, please try again later.');
             } else if (error.response?.status === 400 && error.response?.data?.error === 'invalid deletion code') {
                 toast.error('Failed to delete account - invalid or expired deletion code.');
-            } else if (error.response?.data?.error) {
-                toast.error(error.response.data.error);
             } else {
-                toast.error('Unknown error, please try again later.');
+                toast.error(totpErrorMessage(error.response?.data?.error, 'Unknown error, please try again later.'));
             }
         } finally {
             setIsDeleting(false);
         }
-    };
-
-    const beginPasskeyReauth = async () => {
-        try {
-            setReauthStatus('in-progress');
-            const token = await beginAccountDeletionReauth();
-            setReauthToken(token);
-            setReauthStatus('verified');
-            toast.success('Identity verified via passkey');
-        } catch (err) {
-            const error = err as { message?: string };
-            const message = error?.message || 'Passkey verification failed';
-            setReauthStatus('error');
-            toast.error(message);
-        }
-    };
-
-    const renderVerification = () => {
-        return (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="inline-flex text-[11px] rounded-md bg-[var(--tailwind-colors-slate-800)] p-1 shadow-sm w-full sm:w-auto">
-                    <Button
-                        type="button"
-                        variant={method === 'password' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => switchMethod('password')}
-                        disabled={!passwordAvailable}
-                        className={cn(
-                            'flex-1 px-4 py-2 rounded-sm',
-                            method === 'password'
-                                ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-600)]'
-                                : 'text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)]',
-                            !passwordAvailable && 'opacity-50 cursor-not-allowed'
-                        )}
-                    >
-                        Password
-                    </Button>
-                    <Button
-                        type="button"
-                        variant={method === 'passkey' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => switchMethod('passkey')}
-                        disabled={!hasPasskeys}
-                        className={cn(
-                            'flex-1 px-4 py-2 rounded-sm',
-                            method === 'passkey'
-                                ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-600)]'
-                                : 'text-[var(--tailwind-colors-slate-400)] hover:text-[var(--tailwind-colors-slate-200)]',
-                            !hasPasskeys && 'opacity-50 cursor-not-allowed'
-                        )}
-                    >
-                        Passkey
-                    </Button>
-                </div>
-                <span className="text-[11px] text-[var(--tailwind-colors-slate-400)]">Choose verification method</span>
-            </div>
-        );
     };
 
     const handleCopy = async () => {
@@ -264,13 +137,8 @@ export default function DeleteAccountDialog({
             setDeletionCode('');
             setUserCode('');
             setIsCopied(false);
-            setCurrentPassword('');
-            setOtp('');
-            setReauthToken(null);
-            setReauthStatus('idle');
             setHasAttemptedGeneration(false);
             setIsGenerating(false);
-            resetMethod();
         }
         onOpenChange(open);
     };
@@ -288,71 +156,16 @@ export default function DeleteAccountDialog({
                 </DialogHeader>
 
                 <div className="px-6 pb-4 space-y-4">
-                    {renderVerification()}
-
-                    {method === 'password' && (
-                        <div className="space-y-2">
-                            <Label htmlFor="current-password" className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]">
-                                Current password
-                            </Label>
-                            <Input
-                                id="current-password"
-                                type="password"
-                                value={currentPassword}
-                                onChange={e => setCurrentPassword(e.target.value)}
-                                placeholder="••••••••"
-                                className="bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)]"
-                            />
-                        </div>
-                    )}
-
-                    {method === 'passkey' && (
-                        <div className="space-y-5">
-                            <Label className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]">
-                                Passkey verification
-                            </Label>
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    type="button"
-                                    variant={reauthStatus === 'verified' ? 'default' : 'cancel'}
-                                    size="lg"
-                                    className={cn(
-                                        'flex-1 min-h-11 font-medium transition-colors',
-                                        reauthStatus === 'verified'
-                                            ? 'bg-[var(--tailwind-colors-rdns-600)] text-[var(--tailwind-colors-slate-900)] hover:bg-[var(--tailwind-colors-rdns-800)]'
-                                            : 'border-[var(--tailwind-colors-slate-600)] text-[var(--tailwind-colors-rdns-600)] hover:border-[var(--tailwind-colors-slate-400)]'
-                                    )}
-                                    onClick={beginPasskeyReauth}
-                                    disabled={reauthStatus === 'in-progress' || reauthStatus === 'verified'}
-                                >
-                                    {reauthStatus === 'idle' && 'Verify with passkey'}
-                                    {reauthStatus === 'in-progress' && 'Verifying...'}
-                                    {reauthStatus === 'verified' && 'Passkey verified'}
-                                    {reauthStatus === 'error' && 'Retry passkey'}
-                                </Button>
-                            </div>
-                            {reauthStatus !== 'verified' && (
-                                <p className="text-xs text-[var(--tailwind-colors-slate-400)]">Authenticate with a stored passkey to confirm identity.</p>
-                            )}
-                        </div>
-                    )}
-
-                    {showOtp && (
-                        <div className="space-y-2">
-                            <Label htmlFor="otp" className="text-sm font-medium text-[var(--tailwind-colors-slate-50)]">
-                                2FA code
-                            </Label>
-                            <Input
-                                id="otp"
-                                type="text"
-                                value={otp}
-                                onChange={e => setOtp(e.target.value)}
-                                placeholder="6-digit code"
-                                className="bg-[var(--tailwind-colors-slate-800)] border-[var(--tailwind-colors-slate-700)] text-[var(--tailwind-colors-slate-50)]"
-                            />
-                            <p className="text-xs text-[var(--tailwind-colors-slate-400)]">Required for password verification when 2FA is enabled.</p>
-                        </div>
-                    )}
+                    <VerifyIdentityFields
+                        account={account ?? null}
+                        open={open}
+                        beginPasskeyReauth={beginAccountDeletionReauth}
+                        onChange={onVerificationChange}
+                        passkeyResetKey={passkeyResetKey}
+                        codeTestId="delete-account-code"
+                        autoFocus
+                        disabled={isDeleting}
+                    />
 
                     {isGenerating ? (
                         <div className="space-y-2">
@@ -442,11 +255,10 @@ export default function DeleteAccountDialog({
                             isDeleting ||
                             !deletionCode ||
                             !userCode.trim() ||
-                            (method === 'password' && (!currentPassword.trim() || (showOtp && !otp.trim()))) ||
-                            (method === 'passkey' && reauthStatus !== 'verified')
+                            !verification
                         }
                     >
-                        {isDeleting ? 'Deleting...' : method === 'passkey' && reauthStatus !== 'verified' ? 'Verify passkey first' : 'Delete account'}
+                        {isDeleting ? 'Deleting...' : 'Delete account'}
                     </Button>
                 </DialogActions>
             </DialogContent>

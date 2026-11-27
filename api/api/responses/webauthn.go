@@ -6,7 +6,8 @@ import (
 	"github.com/ivpn/dns/api/model"
 )
 
-type WebAuthnReauthFinishResponse struct {
+// ReauthTokenResponse carries a reauth token issued for the password or a passkey.
+type ReauthTokenResponse struct {
 	ReauthToken string    `json:"reauth_token"`
 	ExpiresAt   time.Time `json:"expires_at"`
 }

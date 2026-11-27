@@ -17,8 +17,9 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, StrictStr
-from typing import Any, ClassVar, Dict, List
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List, Optional
+from typing_extensions import Annotated
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -27,8 +28,9 @@ class RequestsLoginBody(BaseModel):
     RequestsLoginBody
     """ # noqa: E501
     email: StrictStr
+    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = Field(default=None, description="OTP is the 2FA code, required when the account has 2FA on.")
     password: StrictStr
-    __properties: ClassVar[List[str]] = ["email", "password"]
+    __properties: ClassVar[List[str]] = ["email", "otp", "password"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,6 +84,7 @@ class RequestsLoginBody(BaseModel):
 
         _obj = cls.model_validate({
             "email": obj.get("email"),
+            "otp": obj.get("otp"),
             "password": obj.get("password")
         })
         return _obj

@@ -12,6 +12,7 @@ vi.mock('@/api/api', () => {
         default: {
             Client: {
                 accountsApi: {
+                    apiV1AccountsReauthPost: vi.fn(),
                     apiV1AccountsPatch: vi.fn().mockResolvedValue({}),
                     apiV1AccountsCurrentGet: vi.fn().mockResolvedValue({ data: { email: 'new@example.com', email_verified: false } })
                 }
@@ -27,13 +28,16 @@ const getAccount = () => useAppStore.getState().account;
 const fillDetailsAndContinue = () => {
     fireEvent.click(screen.getByText('Password'));
     fireEvent.change(screen.getByPlaceholderText('new@example.com'), { target: { value: 'new@example.com' } });
-    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByText('Continue'));
 };
 
 describe('ChangeEmailDialog', () => {
     beforeEach(() => {
-        vi.mocked(api.Client.accountsApi.apiV1AccountsPatch).mockClear();
+        vi.mocked(api.Client.accountsApi.apiV1AccountsPatch).mockReset().mockResolvedValue({} as never);
+        let issued = 0;
+        vi.mocked(api.Client.accountsApi.apiV1AccountsReauthPost).mockReset().mockImplementation(() =>
+            Promise.resolve({ data: { reauth_token: `issued-${++issued}`, expires_at: new Date(Date.now() + 300_000).toISOString() } } as never));
         useAppStore.getState().setAccount({ email: 'old@example.com', email_verified: true } as ModelAccount);
         useAppStore.getState().setPasskeys([]);
     });
@@ -73,6 +77,52 @@ describe('ChangeEmailDialog', () => {
         expect(api.Client.accountsApi.apiV1AccountsPatch).toHaveBeenCalledTimes(1);
         expect(getAccount()?.email).toBe('new@example.com');
         expect(getAccount()?.email_verified).toBe(false);
+    });
+
+    // specRef: api-endpoint-behaviour B3, B15
+    it('with 2FA on, exchanges the password and code for a token and sends only the token', async () => {
+        useAppStore.getState().setAccount({ email: 'old@example.com', email_verified: true, mfa: { totp: { enabled: true } } } as ModelAccount);
+        const onChanged = vi.fn();
+        render(<ChangeEmailDialog open account={getAccount()} onOpenChange={() => { }} onChanged={onChanged} />);
+        fireEvent.change(screen.getByPlaceholderText('new@example.com'), { target: { value: 'new@example.com' } });
+        fireEvent.change(screen.getByLabelText('Current password'), { target: { value: 'password123' } });
+        fireEvent.change(screen.getByLabelText('2FA code'), { target: { value: '123456' } });
+        await waitFor(() => expect(screen.getByText('Continue')).toBeEnabled());
+        fireEvent.click(screen.getByText('Continue'));
+        fireEvent.change(screen.getByTestId('input-confirm-email'), { target: { value: 'new@example.com' } });
+        fireEvent.click(screen.getByText('Update email'));
+
+        await waitFor(() => expect(onChanged).toHaveBeenCalled());
+        expect(vi.mocked(api.Client.accountsApi.apiV1AccountsReauthPost).mock.calls).toEqual([
+            [{ purpose: 'email_change', current_password: 'password123', otp: '123456' }],
+        ]);
+        expect(vi.mocked(api.Client.accountsApi.apiV1AccountsPatch).mock.calls).toEqual([
+            [{ updates: [{ operation: 'replace', path: '/email', value: { reauth_token: 'issued-1', new_email: 'new@example.com' } }] }],
+        ]);
+    });
+
+    // A retry after a refusal that left the token unused does not ask the server for
+    // another token (which would use up another 2FA code); a refused token is dropped.
+    it('reuses the issued token on retry until the server refuses it', async () => {
+        const patch = vi.mocked(api.Client.accountsApi.apiV1AccountsPatch);
+        const refusal = (error: string) => Object.assign(new Error('Request failed'), {
+            isAxiosError: true, response: { status: 400, data: { error } },
+        });
+        patch.mockRejectedValueOnce(refusal('Unable to complete your request. Please try a different email address.'))
+            .mockRejectedValueOnce(refusal('invalid reauth token'));
+        const onChanged = vi.fn();
+        render(<ChangeEmailDialog open account={getAccount()} onOpenChange={() => { }} onChanged={onChanged} />);
+        fillDetailsAndContinue();
+        fireEvent.change(screen.getByTestId('input-confirm-email'), { target: { value: 'new@example.com' } });
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            fireEvent.click(screen.getByText('Update email'));
+            await waitFor(() => expect(patch).toHaveBeenCalledTimes(attempt));
+        }
+        await waitFor(() => expect(onChanged).toHaveBeenCalled());
+        const tokens = patch.mock.calls.map(([req]) => (req.updates[0].value as { reauth_token: string }).reauth_token);
+        expect(tokens).toEqual(['issued-1', 'issued-1', 'issued-2']);
+        expect(api.Client.accountsApi.apiV1AccountsReauthPost).toHaveBeenCalledTimes(2);
     });
 
     it('blocks submit and shows an error while the confirm entry mismatches', () => {

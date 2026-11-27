@@ -7,7 +7,6 @@ import (
 
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/mocks"
-	"github.com/ivpn/dns/api/model"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -23,16 +22,15 @@ func TestServiceDeleteAccount_InnerErrorShortCircuitsSessions(t *testing.T) {
 	ctx := context.Background()
 	accountID := "507f1f77bcf86cd799439011"
 	req := requests.AccountDeletionRequest{DeletionCode: "DELETE123"}
-	mfa := &model.MfaData{}
 	innerErr := errors.New("inner failure")
 
 	accountSrv := mocks.NewAccountServicer(t)
 	store := mocks.NewDb(t)
 	svc := &Service{Store: store, AccountServicer: accountSrv}
 
-	accountSrv.On("DeleteAccount", ctx, accountID, req, mfa).Return(innerErr).Once()
+	accountSrv.On("DeleteAccount", ctx, accountID, req).Return(innerErr).Once()
 
-	err := svc.DeleteAccount(ctx, accountID, req, mfa)
+	err := svc.DeleteAccount(ctx, accountID, req)
 	require.ErrorIs(t, err, innerErr)
 	store.AssertNotCalled(t, "DeleteSessionsByAccountID", mock.Anything, mock.Anything)
 }
@@ -43,16 +41,15 @@ func TestServiceDeleteAccount_SuccessDeletesSessions(t *testing.T) {
 	ctx := context.Background()
 	accountID := "507f1f77bcf86cd799439011"
 	req := requests.AccountDeletionRequest{DeletionCode: "DELETE123"}
-	mfa := &model.MfaData{}
 
 	accountSrv := mocks.NewAccountServicer(t)
 	store := mocks.NewDb(t)
 	svc := &Service{Store: store, AccountServicer: accountSrv}
 
-	accountSrv.On("DeleteAccount", ctx, accountID, req, mfa).Return(nil).Once()
+	accountSrv.On("DeleteAccount", ctx, accountID, req).Return(nil).Once()
 	store.On("DeleteSessionsByAccountID", ctx, accountID).Return(nil).Once()
 
-	err := svc.DeleteAccount(ctx, accountID, req, mfa)
+	err := svc.DeleteAccount(ctx, accountID, req)
 	require.NoError(t, err)
 }
 
@@ -62,17 +59,16 @@ func TestServiceDeleteAccount_PropagatesSessionDeleteError(t *testing.T) {
 	ctx := context.Background()
 	accountID := "507f1f77bcf86cd799439011"
 	req := requests.AccountDeletionRequest{DeletionCode: "DELETE123"}
-	mfa := &model.MfaData{}
 	sessionErr := errors.New("session cleanup failed")
 
 	accountSrv := mocks.NewAccountServicer(t)
 	store := mocks.NewDb(t)
 	svc := &Service{Store: store, AccountServicer: accountSrv}
 
-	accountSrv.On("DeleteAccount", ctx, accountID, req, mfa).Return(nil).Once()
+	accountSrv.On("DeleteAccount", ctx, accountID, req).Return(nil).Once()
 	store.On("DeleteSessionsByAccountID", ctx, accountID).Return(sessionErr).Once()
 
 	// Service.DeleteSessionsByAccountID wraps the store error as ErrDeleteSession.
-	err := svc.DeleteAccount(ctx, accountID, req, mfa)
+	err := svc.DeleteAccount(ctx, accountID, req)
 	require.ErrorIs(t, err, ErrDeleteSession)
 }

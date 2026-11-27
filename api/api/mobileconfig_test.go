@@ -56,7 +56,7 @@ func TestGenerateMobileConfigHandler_Table(t *testing.T) {
 			name:       "body parse error",
 			body:       `{bad json`,
 			mockSetup:  func(profile *mocks.ProfileServicer, appleSrv *mocks.AppleServicer) {},
-			statusCode: http.StatusInternalServerError,
+			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "validation error",
@@ -145,7 +145,7 @@ func TestGenerateMobileConfigShortLinkHandler_Table(t *testing.T) {
 			name:       "body parse error",
 			body:       `{bad json`,
 			mockSetup:  func(profile *mocks.ProfileServicer, appleSrv *mocks.AppleServicer) {},
-			statusCode: http.StatusInternalServerError,
+			statusCode: http.StatusBadRequest,
 		},
 		{
 			name:       "validation error",

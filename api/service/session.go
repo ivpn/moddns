@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ivpn/dns/api/api/requests"
+	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/model"
 )
 
@@ -55,6 +58,20 @@ func (s *Service) DeleteSessionsByAccountID(ctx context.Context, accID string) e
 	}
 
 	return nil
+}
+
+// DeleteOtherSessions signs out every session but the current one once the
+// account owner presents a reauth token of purpose sessions_delete.
+func (s *Service) DeleteOtherSessions(ctx context.Context, accID, currentToken string, req requests.SessionsDeleteRequest) error {
+	if _, err := reauth.Verify(ctx, s.Store, reauth.Params{
+		AccountId:        accID,
+		TokenType:        auth.TokenTypeReauthSessionsDelete,
+		ReauthToken:      req.ReauthToken,
+		PersistOnConsume: true,
+	}); err != nil {
+		return err
+	}
+	return s.DeleteSessionsByAccountIDExceptCurrent(ctx, accID, currentToken)
 }
 
 func (s *Service) DeleteSessionsByAccountIDExceptCurrent(ctx context.Context, accID, currentToken string) error {

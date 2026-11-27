@@ -8,6 +8,7 @@
  * The app server must be running on localhost:5173 (started by playwright.config.ts).
  */
 import { test, expect } from '@playwright/test';
+import { mockPasswordReauth } from '../../mocks/registerMocks';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -57,6 +58,8 @@ async function setupBaseMocks(page: import('@playwright/test').Page, opts: { sub
             body: JSON.stringify({ status, plan: 'plus', active_until: '2027-01-01T00:00:00Z' }),
         })
     );
+
+    await mockPasswordReauth(page);
 
     // Passkeys list — empty so password method is shown by default
     await page.route('**/api/v1/webauthn/passkeys', route =>
@@ -395,20 +398,18 @@ test.describe('Backup & Restore — Import', { tag: '@desktop' }, () => {
         await expect(exportBtn).toBeEnabled();
     });
 
-    // F1 — 400 "invalid current password" on export surfaces an error toast (session not killed)
-    // NOTE: requires live stack to run (mocking responseType:'blob' errors in Playwright is
-    // straightforward but the download event requires the full service worker path).
+    // F1 - a wrong password at POST /accounts/reauth surfaces an error toast (session not killed)
+    // and no export request is sent.
     test('400 wrong-password on export shows error toast and keeps session alive', async ({ page }) => {
         await setupBaseMocks(page);
 
         // The backend returns 400 (not 401) for wrong password so the session is not killed.
-        await page.route('**/api/v1/profiles/export', route =>
-            route.fulfill({
-                status: 400,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'invalid current password' }),
-            })
-        );
+        await mockPasswordReauth(page, { status: 400, error: 'invalid current password' });
+        let exported = false;
+        await page.route('**/api/v1/profiles/export', route => {
+            exported = true;
+            return route.fulfill({ status: 500, body: '' });
+        });
 
         await gotoAccount(page);
 
@@ -423,19 +424,20 @@ test.describe('Backup & Restore — Import', { tag: '@desktop' }, () => {
 
         // Error toast shows the server message ("invalid current password")
         await expect(page.locator('[data-sonner-toast]')).toContainText(/password/i);
+        expect(exported).toBe(false);
     });
 
-    // F1 — 400 "invalid current password" on import surfaces an error toast (session not killed)
+    // F1 - a wrong password at POST /accounts/reauth surfaces an error toast (session not killed)
+    // and no import request is sent.
     test('400 wrong-password on import shows error toast and session stays alive', async ({ page }) => {
         await setupBaseMocks(page);
 
-        await page.route('**/api/v1/profiles/import', route =>
-            route.fulfill({
-                status: 400,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'invalid current password' }),
-            })
-        );
+        await mockPasswordReauth(page, { status: 400, error: 'invalid current password' });
+        let imported = false;
+        await page.route('**/api/v1/profiles/import', route => {
+            imported = true;
+            return route.fulfill({ status: 500, body: '' });
+        });
 
         await gotoAccount(page);
 
@@ -452,6 +454,7 @@ test.describe('Backup & Restore — Import', { tag: '@desktop' }, () => {
 
         // Error toast shows the server message ("invalid current password")
         await expect(page.locator('[data-sonner-toast]')).toContainText(/password/i);
+        expect(imported).toBe(false);
     });
 
     // F3 — many warnings are capped at MAX_VISIBLE_WARNINGS with a "+N more" summary

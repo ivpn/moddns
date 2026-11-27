@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
+	"github.com/ivpn/dns/api/api/responses"
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
 	"github.com/ivpn/dns/api/service/account"
@@ -94,8 +95,6 @@ func (s *APIServer) getAccount() fiber.Handler {
 // @Accept json
 // @Produce json
 // @Param body body requests.AccountUpdates true "Update account request"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 204
 // @Failure 400 {object} ErrResponse
 // @Failure 404 {object} ErrResponse
@@ -113,13 +112,51 @@ func (s *APIServer) updateAccount() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		mfa := auth.GetMfaData(c)
 		accountId := auth.GetAccountID(c)
-		if err := s.Service.UpdateAccount(c.UserContext(), accountId, updates.Updates, mfa); err != nil {
+		if err := s.Service.UpdateAccount(c.UserContext(), accountId, updates.Updates); err != nil {
 			return HandleError(c, err, ErrFailedToUpdateAccount.Error())
 		}
 
 		return c.SendStatus(204)
+	}
+	return handler
+}
+
+// @Summary Reauthenticate with the current password
+// @Description Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.
+// @Tags Account
+// @Accept json
+// @Produce json
+// @Param body body requests.ReauthRequest true "Reauth request"
+// @Success 201 {object} responses.ReauthTokenResponse
+// @Failure 400 {object} ErrResponse
+// @Failure 429 {object} ErrResponse
+// @Router /api/v1/accounts/reauth [post]
+func (s *APIServer) reauthenticate() fiber.Handler {
+	handler := func(c *fiber.Ctx) error {
+		accountId := auth.GetAccountID(c)
+		if accountId == "" {
+			return HandleError(c, ErrUnauthorized, "unauthorized")
+		}
+
+		req := new(requests.ReauthRequest)
+		if err := c.BodyParser(req); err != nil {
+			return HandleError(c, err, ErrInvalidRequestBody.Error())
+		}
+		errMsgs := s.Validator.ValidateRequest(c, req, ErrInvalidRequestBody.Error())
+		if len(errMsgs) > 0 {
+			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
+		}
+
+		token, err := s.Service.Reauthenticate(c.UserContext(), accountId, *req)
+		if err != nil {
+			return handleSessionTotpError(c, err, "Failed to reauthenticate")
+		}
+
+		return c.Status(201).JSON(responses.ReauthTokenResponse{
+			ReauthToken: token.Value,
+			ExpiresAt:   token.ExpiresAt,
+		})
 	}
 	return handler
 }
@@ -150,8 +187,7 @@ func (s *APIServer) deleteAccount() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		mfa := auth.GetMfaData(c)
-		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload, mfa)
+		err := s.Service.DeleteAccount(c.UserContext(), accountId, *payload)
 		if err != nil {
 			return HandleError(c, err, ErrFailedToDeleteAccount.Error())
 		}

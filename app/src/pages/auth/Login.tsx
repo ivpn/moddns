@@ -18,8 +18,11 @@ export default function Login() {
 
     // 2FA state
     const [showOtp, setShowOtp] = useState(false);
+    const [otpResetKey, setOtpResetKey] = useState(0);
     const [pendingEmail, setPendingEmail] = useState("");
     const [pendingPassword, setPendingPassword] = useState("");
+    // The 2FA code of a login refused for the session limit; the API has not used it up yet.
+    const [pendingOtp, setPendingOtp] = useState<string | undefined>(undefined);
 
     // Session limit dialog state
     const [showSessionLimitDialog, setShowSessionLimitDialog] = useState(false);
@@ -85,14 +88,13 @@ export default function Login() {
                 // Regular login - use existing logic
                 const data = {
                     email: pendingEmail,
-                    password: pendingPassword
+                    password: pendingPassword,
+                    otp: pendingOtp,
                 };
 
                 // Try login again with session removal header set to "true"
                 const response = await api.Client.authApi.apiV1LoginPost(
                     data,
-                    undefined, // otp
-                    undefined, // mfaMethods  
                     "true"     // xRemoveSessions
                 );
 
@@ -104,20 +106,43 @@ export default function Login() {
             }
             // Always redirect to home page after successful login
             navigate("/home", { replace: true });
-        } catch {
-            setError("Failed to login. Please try again.");
-        } finally {
+        } catch (err: unknown) {
+            const response = (err as { response?: { status?: number; data?: { error?: string } } })?.response;
+            const apiErr = response?.data?.error;
             setShowSessionLimitDialog(false);
+            setPendingOtp(undefined);
+            setSessionLimitLoading(false);
+            // The code entered before the dialog can expire while it is open: ask for a new one
+            // and keep the email and password, so the next attempt reaches the dialog again.
+            if (response?.status === 401 && pendingOtp && apiErr === "invalid 2FA code") {
+                setShowOtp(true);
+                setOtpResetKey(k => k + 1);
+                authToasts.totpRetry();
+                return;
+            }
+            if (response?.status === 429 && isTotpLockoutError(apiErr)) {
+                setError(TOTP_TOO_MANY_ATTEMPTS_MESSAGE);
+                authToasts.totpTooManyAttempts();
+            } else {
+                setError("Failed to login. Please try again.");
+                authToasts.unexpectedError("Failed to login. Please try again.");
+            }
             setPendingEmail("");
             setPendingPassword("");
-            setSessionLimitLoading(false);
+            return;
         }
+        setShowSessionLimitDialog(false);
+        setPendingEmail("");
+        setPendingPassword("");
+        setPendingOtp(undefined);
+        setSessionLimitLoading(false);
     };
 
     const handleCancelSessionLimit = () => {
         setShowSessionLimitDialog(false);
         setPendingEmail("");
         setPendingPassword("");
+        setPendingOtp(undefined);
     };
 
     // Handles login with or without OTP
@@ -125,15 +150,12 @@ export default function Login() {
         setLoading(true);
         setError(null);
 
-        const data = { email, password };
-        const mfaMethods = ["totp"];
+        const data = { email, password, otp };
         const xRemoveSessions = "false";
 
         try {
             const response = await api.Client.authApi.apiV1LoginPost(
                 data,
-                otp,
-                mfaMethods,
                 xRemoveSessions
             );
 
@@ -170,6 +192,7 @@ export default function Login() {
                     setShowSessionLimitDialog(true);
                     setPendingEmail(email);
                     setPendingPassword(password);
+                    setPendingOtp(otp);
                 } else if (isTotpLockoutError(apiErr)) {
                     setError(TOTP_TOO_MANY_ATTEMPTS_MESSAGE);
                     authToasts.totpTooManyAttempts();
@@ -245,6 +268,7 @@ export default function Login() {
                         onPasskeyLogin={handlePasskeyLogin}
                         loading={loading}
                         showOtp={showOtp}
+                        otpResetKey={otpResetKey}
                         initialPasskeyMode={webAuthnSupported}
                     />
                 </div>

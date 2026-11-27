@@ -125,6 +125,35 @@ export async function registerMocks(page: Page, opts: RegisterMocksOptions = {})
   });
 }
 
+/** The token mockPasswordReauth issues. */
+export const PASSWORD_REAUTH_TOKEN = 'password-token';
+
+export interface PasswordReauthMock {
+  /** Bodies of the POST /accounts/reauth requests, in order. */
+  sent: { purpose: string; current_password: string; otp?: string }[];
+}
+
+/**
+ * Answers POST /accounts/reauth (the password + 2FA code exchange for a reauth token) with
+ * PASSWORD_REAUTH_TOKEN, or with `refusal` when given. Call AFTER registerMocks.
+ */
+export async function mockPasswordReauth(page: Page, refusal?: { status: number; error: string }): Promise<PasswordReauthMock> {
+  const mock: PasswordReauthMock = { sent: [] };
+  await page.route(/\/api\/v1\/accounts\/reauth(\/?|\?.*)$/i, (r: Route) => {
+    if (r.request().method() !== 'POST') return r.fallback();
+    mock.sent.push(r.request().postDataJSON());
+    if (refusal) {
+      return r.fulfill({ status: refusal.status, contentType: 'application/json', body: JSON.stringify({ error: refusal.error }) });
+    }
+    return r.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ reauth_token: PASSWORD_REAUTH_TOKEN, expires_at: new Date(Date.now() + 300_000).toISOString() }),
+    });
+  });
+  return mock;
+}
+
 export interface StatisticsMockOptions {
   /** Response for GET /profiles/{id}/statistics; omit for a statistics-off answer. */
   statistics?: unknown;

@@ -412,6 +412,21 @@ def test_add_passkey_with_the_current_password():
         delete_account(cookie, password, account_id=account.id)
 
 
+def test_passkey_issues_no_password_set_token_to_an_account_with_a_password():
+    """Changing an existing password takes the current password and its 2FA code, not a passkey.
+    tableRef: api-endpoint-behaviour #B3a #F5 #F6"""
+    account, cookie, password, email = create_account()
+    try:
+        user = PasskeyUser(email=email, authenticator=new_authenticator(), session=cookie_value(cookie, AUTH_COOKIE))
+        add_passkey(user, current_password=password)
+        begin = reauth_begin(user.session_cookie, "password_set")
+        assert begin.status == 400, begin.body
+        assert begin.body["error"] == "confirm a password change with the current password"
+        assert reauth(user, "email_change").status == 201, "other purposes are unaffected"
+    finally:
+        delete_account(cookie, password, account_id=account.id)
+
+
 def test_delete_passkey_with_a_reauth_token(passkey_user: PasskeyUser):
     """tableRef: api-endpoint-behaviour #F8"""
     first = passkey_user.credential_id

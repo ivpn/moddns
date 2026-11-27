@@ -21,7 +21,7 @@ import moddns.api_client as client
 import moddns.configuration as api_config
 from pymongo import MongoClient
 
-from libs.accounts import create_temp_subscription, random_email
+from libs.accounts import create_temp_subscription, password_reauth_token, random_email
 from libs.settings import get_settings
 from libs.webauthn_authenticator import SoftAuthenticator
 
@@ -38,6 +38,10 @@ REAUTH_PURPOSES = (
     "password_set",
     "passkey_add",
     "passkey_delete",
+    "backup_codes_regenerate",
+    "totp_disable",
+    "totp_enable",
+    "sessions_delete",
 )
 
 
@@ -227,7 +231,10 @@ def reauth_token(user: PasskeyUser, purpose: str) -> str:
 # ----------------------------------------------------------------------
 def add_passkey_begin(session_cookie: str, *, reauth_token: Optional[str] = None,
                       current_password: Optional[str] = None) -> Response:
-    body = {k: v for k, v in {"reauth_token": reauth_token, "current_password": current_password}.items() if v}
+    """A ``current_password`` is exchanged for a passkey_add token first."""
+    if current_password:
+        reauth_token = password_reauth_token(session_cookie, current_password, "passkey_add")
+    body = {"reauth_token": reauth_token} if reauth_token else {}
     with auth_api(session_cookie) as a:
         return call(a.api_v1_webauthn_passkey_add_begin_post_without_preload_content, body=body)
 

@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -26,8 +26,10 @@ class ModelTotpSettings(BaseModel):
     """
     ModelTotpSettings
     """ # noqa: E501
+    backup_codes_legacy: Optional[StrictBool] = Field(default=None, description="BackupCodesLegacy marks a code set of an earlier format, which the account holder should replace.")
+    backup_codes_remaining: Optional[StrictInt] = Field(default=None, description="BackupCodesRemaining is the number of unused backup codes; derived, not stored.")
     enabled: Optional[StrictBool] = Field(default=None, description="Indicates if TOTP is enabled.")
-    __properties: ClassVar[List[str]] = ["enabled"]
+    __properties: ClassVar[List[str]] = ["backup_codes_legacy", "backup_codes_remaining", "enabled"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -80,6 +82,8 @@ class ModelTotpSettings(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "backup_codes_legacy": obj.get("backup_codes_legacy"),
+            "backup_codes_remaining": obj.get("backup_codes_remaining"),
             "enabled": obj.get("enabled")
         })
         return _obj

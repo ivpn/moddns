@@ -529,22 +529,18 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 	dbErr := errors.New("db error")
 	updateFailedErr := errors.New("update failed")
 	accountNotFoundErr := errors.New("account not found")
-	mfaCheckFailedErr := errors.New("mfa check failed")
 	profileUpdateFailedErr := errors.New("profile update failed")
 
 	tests := []struct {
 		name                string
 		accountID           string
 		updates             []model.AccountUpdate
-		mfa                 *model.MfaData
 		account             *model.Account
 		getAccountError     error
 		updateAccountError  error
-		mfaError            error
 		profileUpdateError  error
 		expectedErr         error
 		expectValidationErr bool
-		skipReason          string
 	}{
 		{
 			name:      "Successful error reports consent update",
@@ -565,14 +561,12 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			name:      "Successful password update",
 			accountID: "507f1f77bcf86cd799439011",
 			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
+				{Operation: "test", Path: "/password", Value: map[string]any{"reauth_token": "tok-password"}},
 				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!@#"},
 			},
-			mfa: &model.MfaData{},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "test@example.com", Password: &h}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "test@example.com", Password: &h, Tokens: []model.Token{passwordSetToken()}}
 			}(),
 		},
 		{
@@ -581,12 +575,11 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			updates: []model.AccountUpdate{
 				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!@#"},
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:    primitive.NewObjectID(),
 				Email: "nopass@example.com",
 			},
-			expectedErr: account.ErrMissingAuthMethod,
+			expectedErr: account.ErrPasswordTestRequired,
 		},
 		{
 			name:      "Password update without test fails when current password exists",
@@ -594,10 +587,8 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			updates: []model.AccountUpdate{
 				{Operation: "replace", Path: "/password", Value: "AnotherStrongPassword123!"},
 			},
-			mfa: &model.MfaData{},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
+				h := "$2a$10$hash"
 				return &model.Account{ID: primitive.NewObjectID(), Email: "test@example.com", Password: &h}
 			}(),
 			expectedErr: account.ErrPasswordTestRequired,
@@ -622,111 +613,86 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			name:      "Successful email update resets verification and sends OTP",
 			accountID: "507f1f77bcf86cd799439011",
 			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
+				{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "new@example.com"}},
 			},
-			mfa: &model.MfaData{},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 		},
 		{
-			name:      "Email update wrong current password",
+			name:      "Email update with the current password instead of a token",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "wrong", "new_email": "new@example.com"}}},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
-			expectedErr: account.ErrInvalidCurrentPassword,
+			expectedErr: account.ErrMissingAuthMethod,
 		},
 		{
 			name:      "Email update missing fields",
 			accountID: "507f1f77bcf86cd799439011",
 			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "missing@example.com"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 			expectedErr: account.ErrMissingAuthMethod,
 		},
 		{
 			name:      "Email update invalid format",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "invalid"}}},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "invalid"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 			expectValidationErr: true,
 		},
 		{
 			name:      "Email update with same email address",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "old@example.com"}}},
-			mfa:       &model.MfaData{},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "old@example.com"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 			expectedErr: account.ErrSameEmailAddress,
 		},
 		{
 			name:      "Email update with same email address case insensitive",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "OLD@EXAMPLE.COM"}}},
-			mfa:       &model.MfaData{},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "OLD@EXAMPLE.COM"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 			expectedErr: account.ErrSameEmailAddress,
 		},
 		{
-			name:      "Email update requires TOTP when enabled and OTP missing",
+			name:      "Email update with 2FA on needs only the token",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}}},
-			mfa:       &model.MfaData{OTP: ""},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "new@example.com"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, MFA: model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}, MFA: model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}}
 			}(),
-			expectedErr: account.ErrTOTPRequired,
-		},
-		{
-			name:      "Email update wrong TOTP code",
-			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}}},
-			mfa:       &model.MfaData{OTP: "000000"},
-			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, MFA: model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}}
-			}(),
-			expectedErr: account.ErrInvalidTOTPCode,
 		},
 		{
 			name:            "Email update account fetch error",
 			accountID:       "507f1f77bcf86cd799439011",
-			updates:         []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}}},
+			updates:         []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "new@example.com"}}},
 			getAccountError: dbErr,
 			expectedErr:     dbErr,
 		},
 		{
 			name:      "Email update persistence error",
 			accountID: "507f1f77bcf86cd799439011",
-			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}}},
+			updates:   []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"reauth_token": "tok-email", "new_email": "new@example.com"}}},
 			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true}
+				h := "$2a$10$hash"
+				return &model.Account{ID: primitive.NewObjectID(), Email: "old@example.com", Password: &h, EmailVerified: true, Tokens: []model.Token{emailToken()}}
 			}(),
 			updateAccountError: updateFailedErr,
 			expectedErr:        updateFailedErr,
@@ -743,22 +709,6 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			},
 			getAccountError: accountNotFoundErr,
 			expectedErr:     accountNotFoundErr,
-		},
-		{
-			name:      "MFA check fails for password update",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "newpassword123"},
-			},
-			mfa: &model.MfaData{},
-			account: func() *model.Account {
-				b, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-				h := string(b)
-				return &model.Account{ID: primitive.NewObjectID(), Email: "test@example.com", Password: &h}
-			}(),
-			mfaError:   mfaCheckFailedErr,
-			skipReason: "MFA check testing requires more complex mocking",
 		},
 		{
 			name:      "Update account fails",
@@ -840,26 +790,6 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 						}
 					}
 
-					if tt.expectedErr == account.ErrInvalidTOTPCode && tt.account != nil {
-						key := "totp_fails:" + tt.account.ID.Hex()
-						suite.mockCache.On("Incr", mock.Anything, key, suite.serviceConfig.IdLimiterExpiration).Return(int64(1), nil)
-						suite.mockCache.On("Get", mock.Anything, key).Return("1", nil)
-					}
-
-					// Check if password update is involved
-					hasPasswordUpdate := false
-					for _, update := range tt.updates {
-						if update.Path == "/password" {
-							hasPasswordUpdate = true
-							break
-						}
-					}
-
-					if hasPasswordUpdate && tt.mfaError != nil {
-						// TODO(mfa-mock): Implement MFA failure path mocking; capture error reference to avoid empty branch
-						_ = tt.mfaError
-					}
-
 					if tt.updateAccountError != nil {
 						suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(nil, tt.updateAccountError)
 					} else if tt.expectedErr == nil {
@@ -869,11 +799,7 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 			}
 
 			// Execute the method
-			err := suite.service.UpdateAccount(context.Background(), tt.accountID, tt.updates, tt.mfa)
-
-			if tt.skipReason != "" {
-				suite.T().Skip(tt.skipReason)
-			}
+			err := suite.service.UpdateAccount(context.Background(), tt.accountID, tt.updates)
 
 			switch {
 			case tt.expectValidationErr:
@@ -891,63 +817,35 @@ func (suite *AccountTestSuite) TestUpdateAccount() {
 	}
 }
 
+func emailToken() model.Token {
+	return model.Token{Type: auth.TokenTypeReauthEmailChange, Value: "tok-email", ExpiresAt: time.Now().Add(time.Minute)}
+}
+
+func passwordSetToken() model.Token {
+	return model.Token{Type: auth.TokenTypeReauthPasswordSet, Value: "tok-password", ExpiresAt: time.Now().Add(time.Minute)}
+}
+
 // TestDeleteAccount tests the DeleteAccount method
 func (suite *AccountTestSuite) TestDeleteAccount() {
 	validExpires := time.Now().Add(10 * time.Minute)
 	expiredExpires := time.Now().Add(-10 * time.Minute)
 	strPtr := func(s string) *string { return &s }
 	reauthValue := "reauth-token"
-	passwordValue := "CurrentPassword123!"
-	backupCode := "backup-code-123"
-
-	totpRequireID := primitive.NewObjectID()
-	totpRequireAccount := &model.Account{
-		ID:                  totpRequireID,
+	totpID := primitive.NewObjectID()
+	totpAccount := &model.Account{
+		ID:                  totpID,
 		Email:               "test@example.com",
 		DeletionCode:        "DELETE123",
 		DeletionCodeExpires: &validExpires,
-		MFA: model.MFASettings{
-			TOTP: model.TotpSettings{
-				Enabled: true,
-			},
-		},
-	}
-
-	totpSuccessID := primitive.NewObjectID()
-	totpSuccessAccount := &model.Account{
-		ID:                  totpSuccessID,
-		Email:               "test@example.com",
-		DeletionCode:        "DELETE123",
-		DeletionCodeExpires: &validExpires,
-		Profiles:            []string{"profile1", "profile2"},
-		MFA: model.MFASettings{
-			TOTP: model.TotpSettings{
-				Enabled:     true,
-				Secret:      "JBSWY3DPEHPK3PXP",
-				BackupCodes: []string{backupCode},
-			},
-		},
-	}
-
-	totpVerifyAccount := &model.Account{
-		ID:                  totpSuccessID,
-		Email:               "test@example.com",
-		DeletionCode:        "DELETE123",
-		DeletionCodeExpires: &validExpires,
-		MFA: model.MFASettings{
-			TOTP: model.TotpSettings{
-				Enabled:     true,
-				Secret:      "JBSWY3DPEHPK3PXP",
-				BackupCodes: []string{backupCode},
-			},
-		},
+		Profiles:            []string{},
+		MFA:                 model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "JBSWY3DPEHPK3PXP"}},
+		Tokens:              []model.Token{{Type: auth.TokenTypeReauthAccountDeletion, Value: reauthValue, ExpiresAt: validExpires}},
 	}
 
 	tests := []struct {
 		name                   string
 		accountID              string
 		request                requests.AccountDeletionRequest
-		mfa                    *model.MfaData
 		account                *model.Account
 		getAccountError        error
 		deleteProfileError     error
@@ -956,7 +854,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 		deleteAccountError     error
 		expectedError          string
 		setupDeleteAccount     bool
-		verifyTotpAccount      *model.Account
 	}{
 		{
 			name:      "Successful deletion",
@@ -965,7 +862,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -987,7 +883,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa:             &model.MfaData{},
 			getAccountError: dbErrors.ErrAccountNotFound,
 			expectedError:   "account not found",
 		},
@@ -998,7 +893,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "WRONG123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1019,7 +913,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1040,7 +933,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1055,29 +947,26 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			expectedError: "deletion code expired",
 		},
 		{
-			name:      "Password auth requires TOTP",
-			accountID: totpRequireID.Hex(),
+			name:      "2FA account deletes with the token alone",
+			accountID: totpID.Hex(),
 			request: requests.AccountDeletionRequest{
-				DeletionCode:    "DELETE123",
-				CurrentPassword: strPtr(passwordValue),
+				DeletionCode: "DELETE123",
+				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa:           &model.MfaData{},
-			account:       totpRequireAccount,
-			expectedError: account.ErrTOTPRequired.Error(),
+			account:            totpAccount,
+			setupDeleteAccount: true,
 		},
 		{
-			name:      "Password auth with TOTP backup code",
-			accountID: totpSuccessID.Hex(),
-			request: requests.AccountDeletionRequest{
-				DeletionCode:    "DELETE123",
-				CurrentPassword: strPtr(passwordValue),
+			name:      "No reauth token",
+			accountID: "507f1f77bcf86cd799439011",
+			request:   requests.AccountDeletionRequest{DeletionCode: "DELETE123"},
+			account: &model.Account{
+				ID:                  primitive.NewObjectID(),
+				Email:               "test@example.com",
+				DeletionCode:        "DELETE123",
+				DeletionCodeExpires: &validExpires,
 			},
-			mfa: &model.MfaData{
-				OTP: backupCode,
-			},
-			account:            totpSuccessAccount,
-			setupDeleteAccount: true,
-			verifyTotpAccount:  totpVerifyAccount,
+			expectedError: account.ErrMissingAuthMethod.Error(),
 		},
 		{
 			// Profile deletion fails after credentials succeeded; the account doc
@@ -1088,7 +977,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1112,7 +1000,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1139,7 +1026,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1165,7 +1051,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				DeletionCode: "DELETE123",
 				ReauthToken:  strPtr(reauthValue),
 			},
-			mfa: &model.MfaData{},
 			account: &model.Account{
 				ID:                  primitive.NewObjectID(),
 				Email:               "test@example.com",
@@ -1192,16 +1077,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 			suite.mockCredentialRepo.ExpectedCalls = nil
 			suite.mockSubscriptionRepo.ExpectedCalls = nil
 
-			// Prepare account state when password verification is required
-			if tt.account != nil && tt.request.CurrentPassword != nil {
-				err := tt.account.SetPassword(*tt.request.CurrentPassword)
-				suite.Require().NoError(err)
-			}
-			if tt.verifyTotpAccount != nil && tt.request.CurrentPassword != nil && tt.verifyTotpAccount.Password == nil {
-				err := tt.verifyTotpAccount.SetPassword(*tt.request.CurrentPassword)
-				suite.Require().NoError(err)
-			}
-
 			// Mock GetAccount
 			if tt.getAccountError != nil {
 				suite.mockAccountRepo.On("GetAccount", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
@@ -1209,13 +1084,6 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				suite.mockAccountRepo.On("GetAccount", context.Background(), tt.accountID).Return(tt.account, nil)
 
 				shouldProcess := tt.account != nil && tt.account.DeletionCode == tt.request.DeletionCode && tt.account.DeletionCodeExpires != nil && time.Now().Before(*tt.account.DeletionCodeExpires)
-				if shouldProcess && tt.verifyTotpAccount != nil {
-					lookupID := tt.account.ID.Hex()
-					suite.mockAccountRepo.On("GetAccountById", context.Background(), lookupID).Return(tt.verifyTotpAccount, nil)
-					suite.mockAccountRepo.On("ConsumeLegacyBackupCode", context.Background(), lookupID, mock.AnythingOfType("string")).Return(true, nil).Maybe()
-					suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
-					suite.mockCache.On("Del", context.Background(), mock.AnythingOfType("string")).Return(nil).Maybe()
-				}
 
 				// Cleanup order (PurgeAccountData): credentials → profile loop →
 				// account doc → subscription (LAST — the cron's retry anchor). Each
@@ -1277,7 +1145,7 @@ func (suite *AccountTestSuite) TestDeleteAccount() {
 				}
 			}
 
-			err := suite.service.DeleteAccount(context.Background(), tt.accountID, tt.request, tt.mfa)
+			err := suite.service.DeleteAccount(context.Background(), tt.accountID, tt.request)
 
 			if tt.expectedError != "" {
 				suite.Error(err)
@@ -1352,7 +1220,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryAfterPartialProfileLoop() 
 	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
 		DeletionCode: "DELETE123",
 		ReauthToken:  &reauthValue,
-	}, &model.MfaData{})
+	})
 	suite.NoError(err)
 
 	// profile1 must NEVER have been touched on this retry — strict mocks
@@ -1445,7 +1313,7 @@ func (suite *AccountTestSuite) TestDeleteAccount_RetryWithAllProfilesAlreadyGone
 	err = suite.service.DeleteAccount(context.Background(), accountID, requests.AccountDeletionRequest{
 		DeletionCode: "DELETE123",
 		ReauthToken:  &reauthValue,
-	}, &model.MfaData{})
+	})
 	suite.NoError(err)
 
 	suite.mockProfileRepo.AssertNotCalled(suite.T(), "GetProfileById", mock.Anything, mock.Anything)
@@ -1634,411 +1502,6 @@ func (suite *AccountTestSuite) TestMfaCheck() {
 			} else {
 				suite.NoError(err)
 			}
-		})
-	}
-}
-
-// TestUpdateAccountWith2FA tests UpdateAccount integration with 2FA requirements
-func (suite *AccountTestSuite) TestUpdateAccountWith2FA() {
-	testSecret := "JBSWY3DPEHPK3PXP"
-	validOTP, _ := totp.GenerateCode(testSecret, time.Now())
-	validBackupCode := "BACKUP123456CODE"
-	bp, _ := bcrypt.GenerateFromPassword([]byte("currentPass123!"), 14)
-	hashedPassword := string(bp)
-
-	tests := []struct {
-		name               string
-		accountID          string
-		updates            []model.AccountUpdate
-		mfa                *model.MfaData
-		account            *model.Account
-		getAccountError    error
-		updateAccountError error
-		expectedError      string
-		expectSuccess      bool
-	}{
-		{
-			name:      "Success - Password update with valid TOTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{OTP: validOTP},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Error - Password update missing test op",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{OTP: validOTP},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA:      model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: testSecret}},
-			},
-			expectedError: "password test operation required",
-		},
-		{
-			name:      "Success - Email update with valid TOTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
-			},
-			mfa: &model.MfaData{OTP: validOTP},
-			account: &model.Account{
-				ID:            primitive.NewObjectID(),
-				Email:         "old@example.com",
-				Password:      &hashedPassword,
-				EmailVerified: true,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Password update without TOTP when not enabled",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Email update without TOTP when not enabled",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
-			},
-			mfa: &model.MfaData{},
-			account: &model.Account{
-				ID:            primitive.NewObjectID(),
-				Email:         "old@example.com",
-				Password:      &hashedPassword,
-				EmailVerified: true,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: false,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Password update with valid backup code",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{OTP: validBackupCode},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{validBackupCode, "CODE2"},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Success - Multiple updates with TOTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-				{Operation: "replace", Path: "/error_reports_consent", Value: true},
-			},
-			mfa: &model.MfaData{OTP: validOTP},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name:      "Error - Password update with TOTP enabled but no OTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{OTP: ""},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "TOTP is required",
-		},
-		{
-			name:      "Error - Email update with TOTP enabled but no OTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
-			},
-			mfa: &model.MfaData{OTP: ""},
-			account: &model.Account{
-				ID:            primitive.NewObjectID(),
-				Email:         "old@example.com",
-				Password:      &hashedPassword,
-				EmailVerified: true,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "TOTP is required",
-		},
-		{
-			name:      "Error - Password update with invalid TOTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "test", Path: "/password", Value: "currentPass123!"},
-				{Operation: "replace", Path: "/password", Value: "NewStrongPassword123!"},
-			},
-			mfa: &model.MfaData{OTP: "000000"},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "test@example.com",
-				Password: &hashedPassword,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "invalid 2FA code",
-		},
-		{
-			name:      "Error - Email update with invalid TOTP",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
-			},
-			mfa: &model.MfaData{OTP: "000000"},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "old@example.com",
-				Password: &hashedPassword,
-
-				EmailVerified: true,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled: true,
-						Secret:  testSecret,
-					},
-				},
-			},
-			expectedError: "invalid 2FA code",
-		},
-		{
-			name:      "Error - Email update with a used backup code",
-			accountID: "507f1f77bcf86cd799439011",
-			updates: []model.AccountUpdate{
-				{Operation: "replace", Path: "/email", Value: map[string]any{"current_password": "currentPass123!", "new_email": "new@example.com"}},
-			},
-			mfa: &model.MfaData{OTP: validBackupCode},
-			account: &model.Account{
-				ID:       primitive.NewObjectID(),
-				Email:    "old@example.com",
-				Password: &hashedPassword,
-
-				EmailVerified: true,
-				MFA: model.MFASettings{
-					TOTP: model.TotpSettings{
-						Enabled:     true,
-						Secret:      testSecret,
-						BackupCodes: []string{"CODE2"},
-					},
-				},
-			},
-			// A used code is no longer in the list and is refused like a wrong one.
-			expectedError: "invalid 2FA code",
-		},
-	}
-
-	for _, tt := range tests {
-		suite.Run(tt.name, func() {
-			if tt.mfa != nil && tt.mfa.OTP == validOTP {
-				// A TOTP code is valid for one 30 s step; the rows before can outlast it.
-				fresh, err := totp.GenerateCode(testSecret, time.Now())
-				suite.Require().NoError(err)
-				tt.mfa = &model.MfaData{OTP: fresh, Methods: tt.mfa.Methods}
-			}
-			// Reset mock expectations
-			suite.mockAccountRepo.ExpectedCalls = nil
-			suite.mockCache.ExpectedCalls = nil
-			suite.mockMailer.ExpectedCalls = nil
-			suite.mockIDGenerator.ExpectedCalls = nil
-
-			// Separate profile updates from other updates
-			hasProfileUpdates := false
-			hasOtherUpdates := false
-			for _, update := range tt.updates {
-				if update.Path == "/profiles" {
-					hasProfileUpdates = true
-				} else {
-					hasOtherUpdates = true
-				}
-			}
-
-			// Mock profile updates if needed
-			if hasProfileUpdates {
-				for _, update := range tt.updates {
-					if update.Path == "/profiles" {
-						switch update.Operation {
-						case "add":
-							suite.mockAccountRepo.On("AddProfileToAccount", context.Background(), tt.accountID, mock.AnythingOfType("string")).Return(nil)
-						case "remove":
-							suite.mockAccountRepo.On("RemoveProfileFromAccount", context.Background(), tt.accountID, mock.AnythingOfType("string")).Return(nil)
-						}
-					}
-				}
-			}
-
-			// Mock other updates if needed
-			if hasOtherUpdates {
-				if tt.getAccountError != nil {
-					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(nil, tt.getAccountError)
-				} else {
-					// First GetAccountById for the main update
-					suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.accountID).Return(tt.account, nil).Once()
-
-					// Email-change duplicate pre-check: address is free
-					for _, update := range tt.updates {
-						if update.Path == "/email" {
-							suite.mockAccountRepo.On("GetAccountByEmail", context.Background(), mock.AnythingOfType("string")).Return(nil, dbErrors.ErrAccountNotFound).Maybe()
-							break
-						}
-					}
-
-					// Setup mocks for MFA verification if account has TOTP enabled
-					if tt.account.MFA.TOTP.Enabled && tt.mfa != nil && tt.mfa.OTP != "" {
-						// Mock GetAccountById for VerifyTotp
-						suite.mockAccountRepo.On("GetAccountById", context.Background(), tt.account.ID.Hex()).Return(tt.account, nil).Maybe()
-
-						// Mock cache for rate limiting
-						suite.mockCache.On("Get", context.Background(), mock.AnythingOfType("string")).Return("0", nil).Maybe()
-						suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(nil).Maybe()
-						suite.mockCache.On("Increment", context.Background(), mock.AnythingOfType("string")).Return(int64(1), nil).Maybe()
-						suite.mockCache.On("Incr", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(int64(1), nil).Maybe()
-						suite.mockCache.On("Del", context.Background(), mock.AnythingOfType("string")).Return(nil).Maybe()
-
-						// Check if it's a valid backup code
-						isValidBackup := false
-						for _, code := range tt.account.MFA.TOTP.BackupCodes {
-							if code == tt.mfa.OTP {
-								isValidBackup = true
-								break
-							}
-						}
-
-						suite.mockAccountRepo.On("ConsumeLegacyBackupCode", context.Background(), tt.account.ID.Hex(), tt.mfa.OTP).Return(isValidBackup, nil).Maybe()
-						suite.mockAccountRepo.On("ConsumeBackupCode", context.Background(), tt.account.ID.Hex(), mock.AnythingOfType("string")).Return(false, nil).Maybe()
-					}
-
-					// Mock UpdateAccount for the actual account update (if MFA check passes)
-					shouldUpdateSucceed := true
-					if tt.account.MFA.TOTP.Enabled {
-						if tt.mfa == nil || tt.mfa.OTP == "" {
-							shouldUpdateSucceed = false
-						} else if !totp.Validate(tt.mfa.OTP, tt.account.MFA.TOTP.Secret) {
-							// Check backup codes
-							isValidBackup := false
-							for _, code := range tt.account.MFA.TOTP.BackupCodes {
-								if code == tt.mfa.OTP {
-									isValidBackup = true
-									break
-								}
-							}
-							shouldUpdateSucceed = isValidBackup
-						}
-					}
-
-					if shouldUpdateSucceed {
-						// Mock for email updates that require additional operations
-						for _, update := range tt.updates {
-							if update.Path == "/email" {
-								suite.mockIDGenerator.On("Generate").Return("verification-token-123", nil)
-								suite.mockCache.On("Set", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("time.Duration")).Return(nil)
-								suite.mockMailer.On("SendEmailVerificationOTP", context.Background(), mock.AnythingOfType("string"), mock.AnythingOfType("string")).Return(nil)
-							}
-						}
-
-						if tt.updateAccountError != nil {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(nil, tt.updateAccountError)
-						} else {
-							suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(tt.account, nil)
-						}
-					}
-				}
-			}
-
-			// Execute the method
-			err := suite.service.UpdateAccount(context.Background(), tt.accountID, tt.updates, tt.mfa)
-
-			// Verify results
-			if tt.expectedError != "" {
-				suite.Error(err)
-				suite.Contains(err.Error(), tt.expectedError)
-			} else {
-				suite.NoError(err)
-			}
-
-			// Verify mock expectations
-			suite.mockAccountRepo.AssertExpectations(suite.T())
 		})
 	}
 }
@@ -2282,7 +1745,7 @@ func (suite *AccountTestSuite) TestSetFirstPasswordRequiresPasskeyReauth() {
 		{name: "token issued for another purpose", tokens: []model.Token{valid(auth.TokenTypeReauthEmailChange)}, updates: setOps(map[string]any{"reauth_token": "reauth-token"}), expectedErr: account.ErrInvalidReauthToken},
 		{name: "expired token", tokens: []model.Token{expired}, updates: setOps(map[string]any{"reauth_token": "reauth-token"}), expectedErr: account.ErrReauthTokenExpired},
 		{name: "password string instead of token", updates: setOps("anything"), expectedErr: account.ErrMissingAuthMethod},
-		{name: "replace without test", updates: setOps(nil)[1:], expectedErr: account.ErrMissingAuthMethod},
+		{name: "replace without test", updates: setOps(nil)[1:], expectedErr: account.ErrPasswordTestRequired},
 	}
 
 	for _, tt := range tests {
@@ -2297,7 +1760,7 @@ func (suite *AccountTestSuite) TestSetFirstPasswordRequiresPasskeyReauth() {
 				suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil).Once()
 			}
 
-			err := suite.service.UpdateAccount(context.Background(), accountID, tt.updates, &model.MfaData{})
+			err := suite.service.UpdateAccount(context.Background(), accountID, tt.updates)
 
 			if tt.expectedErr != nil {
 				suite.Require().ErrorIs(err, tt.expectedErr)

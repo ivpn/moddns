@@ -56,8 +56,8 @@ func (suite *ReauthTokenSuite) newAccount(email string) *model.Account {
 	return &model.Account{ID: primitive.NewObjectID(), Email: email, Password: &pw, Tokens: []model.Token{}, EmailVerified: true}
 }
 
-// NOTE: The actual issuance of reauth tokens occurs in API layer via WebAuthn finish; here we test consumption logic inside handleEmailUpdate indirectly via UpdateAccount
-// We will simulate an account having a valid reauth token and perform an email change.
+// Token issuance is covered by the Reauthenticate tests and the WebAuthn harness; here an
+// account holds a token and the email change consumes it.
 func (suite *ReauthTokenSuite) TestEmailChangeWithReauthToken() {
 	acc := suite.newAccount("user@example.com")
 	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
@@ -73,7 +73,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeWithReauthToken() {
 	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com", "reauth_token": tok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().NoError(err)
 
 	suite.Contains(acc.Email, "new@example.com")
@@ -92,7 +92,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeNormalizesNewEmail() {
 	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": " New.Address@Example.COM ", "reauth_token": tok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().NoError(err)
 
 	suite.Equal("new.address@example.com", acc.Email, "stored email must be canonical lowercase")
@@ -108,7 +108,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeSameEmailDifferentCase() {
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "USER@Example.com", "reauth_token": tok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrSameEmailAddress)
 }
@@ -127,7 +127,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeToAddressAlreadyInUse() {
 	// No UpdateAccount call expected: the duplicate is rejected before persistence.
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "taken@example.com", "reauth_token": tok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrEmailAlreadyInUse)
 	suite.Equal("user@example.com", acc.Email, "email must remain unchanged on duplicate rejection")
@@ -147,7 +147,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeInvalidatesPasswordResetTokens() {
 	suite.mockAccountRepo.On("UpdateAccount", context.Background(), mock.AnythingOfType("*model.Account")).Return(acc, nil)
 
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "fresh@example.com", "reauth_token": reauthTok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().NoError(err)
 
 	types := make([]string, 0, len(acc.Tokens))
@@ -166,7 +166,7 @@ func (suite *ReauthTokenSuite) TestEmailChangeWithExpiredReauthToken() {
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
 	// No UpdateAccount call expected on failure
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com", "reauth_token": tok.Value}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrReauthTokenExpired)
 }
@@ -180,27 +180,9 @@ func (suite *ReauthTokenSuite) TestEmailChangeWithInvalidReauthToken() {
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
 	// No UpdateAccount call expected on failure
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com", "reauth_token": "wrong"}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrInvalidReauthToken)
-}
-
-func (suite *ReauthTokenSuite) TestEmailChangeWithBothPasswordAndReauth() {
-	acc := suite.newAccount("user@example.com")
-	acc.MFA = model.MFASettings{TOTP: model.TotpSettings{Enabled: true, Secret: "SECRET"}}
-	tok := model.Token{Type: "reauth_email_change", Value: "tok", ExpiresAt: time.Now().Add(2 * time.Minute)}
-	acc.Tokens = []model.Token{tok}
-	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
-	// No UpdateAccount call expected on failure
-	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com", "reauth_token": "tok", "current_password": "pw"}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
-	suite.Require().Error(err)
-	var valErr validatorv10.ValidationErrors
-	suite.ErrorAs(err, &valErr)
-	suite.NotEmpty(valErr)
-	if len(valErr) > 0 {
-		suite.Equal("excluded_with", valErr[0].Tag())
-	}
 }
 
 func (suite *ReauthTokenSuite) TestEmailChangeMissingAuthMethod() {
@@ -208,23 +190,21 @@ func (suite *ReauthTokenSuite) TestEmailChangeMissingAuthMethod() {
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
 	// No UpdateAccount call expected on failure
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com"}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
 	suite.ErrorIs(err, account.ErrMissingAuthMethod)
 }
 
-// NOTE: Password path unchanged; covered by existing tests (if any). We could add one here quickly.
-func (suite *ReauthTokenSuite) TestEmailChangePasswordPathInvalidPassword() {
+// specRef: api-endpoint-behaviour.md B3
+func (suite *ReauthTokenSuite) TestEmailChangeRejectsCurrentPassword() {
 	acc := suite.newAccount("user@example.com")
-	// Provide a different bcrypt hash (hash for "different") so checking "pw" fails
-	pw := "$2a$10$CjwKkmG4F.Yh2lYpQeK1OegX1PpH2qJfJzqSxVhJx7Xy8d9kQOZs2"
-	acc.Password = &pw
 	suite.mockAccountRepo.On("GetAccountById", context.Background(), acc.ID.Hex()).Return(acc, nil)
-	// No UpdateAccount call expected on failure
+	// A password is no longer a credential here: it gets a token from POST /accounts/reauth first.
 	updates := []model.AccountUpdate{{Operation: "replace", Path: "/email", Value: map[string]any{"new_email": "new@example.com", "current_password": "pw"}}}
-	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates, nil)
+	err := suite.service.UpdateAccount(context.Background(), acc.ID.Hex(), updates)
 	suite.Require().Error(err)
-	suite.ErrorIs(err, account.ErrInvalidCurrentPassword)
+	suite.ErrorIs(err, account.ErrMissingAuthMethod)
+	suite.Equal("user@example.com", acc.Email)
 }
 
 func TestReauthTokenSuite(t *testing.T) { suite.Run(t, new(ReauthTokenSuite)) }

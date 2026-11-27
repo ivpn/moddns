@@ -8,6 +8,7 @@ catalog degradation, and the profile-count cap.
 
 import pytest
 from libs.dns_lib import DNSLib, assert_blocked, is_blocked
+from libs.accounts import password_reauth_token
 from libs.settings import get_settings
 from libs.profile_helpers import (
     ProfileHelpers,
@@ -442,7 +443,7 @@ class TestProfileCountCap:
             export_request_body(
                 scope="selected",
                 profile_ids=["x"] * 101,
-                current_password=password,
+                reauth_token=password_reauth_token(cookie, password, "profile_export"),
             ),
         )
         assert resp.status_code == 400, resp.text
@@ -477,7 +478,9 @@ class TestCustomRulesExportLimits(ProfileHelpers):
         export_resp = raw_export(
             cookie,
             export_request_body(
-                scope="selected", profile_ids=[src_id], current_password=password
+                scope="selected",
+                profile_ids=[src_id],
+                reauth_token=password_reauth_token(cookie, password, "profile_export"),
             ),
         )
         assert export_resp.status_code == 200, export_resp.text

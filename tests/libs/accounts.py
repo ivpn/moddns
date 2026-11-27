@@ -25,6 +25,7 @@ from moddns.models.requests_account_deletion_request import (
     RequestsAccountDeletionRequest,
 )
 from moddns.models.requests_pa_session_req import RequestsPASessionReq
+from moddns.models.requests_reauth_request import RequestsReauthRequest
 from moddns.models.requests_rotate_pa_session_req import RequestsRotatePASessionReq
 
 from libs.settings import get_settings
@@ -175,6 +176,20 @@ def create_account(
         return account, cookie, password, email
 
 
+def password_reauth_token(cookie: str, password: str, purpose: str, otp: Optional[str] = None) -> str:
+    """Exchange the current password (plus the 2FA code when 2FA is on) for a reauth token of
+    ``purpose`` through POST /accounts/reauth."""
+    config = get_settings()
+    api_conf = api_config.Configuration(host=config.DNS_API_ADDR)
+    with client.ApiClient(api_conf) as api_client:
+        account_api = api.AccountApi(api_client)
+        account_api.api_client.default_headers["Cookie"] = cookie
+        resp = account_api.api_v1_accounts_reauth_post(
+            body=RequestsReauthRequest(purpose=purpose, current_password=password, otp=otp)
+        )
+        return resp.reauth_token
+
+
 def delete_account(cookie: str, password: str, *, account_id: str = "?") -> None:
     """Best-effort account deletion via the deletion-code + password-reauth flow.
 
@@ -191,7 +206,8 @@ def delete_account(cookie: str, password: str, *, account_id: str = "?") -> None
             code_resp = account_api.api_v1_accounts_current_deletion_code_post()
             resp = account_api.api_v1_accounts_current_delete_with_http_info(
                 body=RequestsAccountDeletionRequest(
-                    deletion_code=code_resp.code, current_password=password
+                    deletion_code=code_resp.code,
+                    reauth_token=password_reauth_token(cookie, password, "account_deletion"),
                 )
             )
             assert resp.status_code in (200, 204), (

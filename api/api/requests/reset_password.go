@@ -7,5 +7,5 @@ type ResetPasswordBody struct {
 type ConfirmResetPasswordBody struct {
 	Token       string `json:"token" validate:"required"`
 	NewPassword string `json:"new_password" validate:"required,password"`
-	OTP         string `json:"otp"`
+	OTP         string `json:"otp,omitempty" validate:"omitempty,max=64"`
 }

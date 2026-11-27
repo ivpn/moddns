@@ -28,11 +28,12 @@ export function importErrorMessage(status?: number, serverError?: string): strin
 }
 
 /**
- * Return true when a server error string looks like a reauth / password
+ * Return true when a server error string looks like a reauth / password / 2FA
  * failure rather than a generic data-validation 400.
  */
 export function isReauthError(serverError?: string): boolean {
     if (!serverError) return false;
     const lower = serverError.toLowerCase();
-    return lower.includes('password') || lower.includes('reauth') || lower.includes('token');
+    return lower.includes('password') || lower.includes('reauth') || lower.includes('token')
+        || lower.includes('2fa') || lower.includes('totp');
 }

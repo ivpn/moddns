@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
-	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/model"
 	"github.com/ivpn/dns/api/service/account"
 )
 
@@ -47,8 +47,6 @@ func (s *APIServer) sendResetPasswordEmail() fiber.Handler {
 // @Accept json
 // @Produce json
 // @Param body body requests.ConfirmResetPasswordBody true "Confirm password reset request"
-// @Param x-mfa-code header string false "MFA OTP code"
-// @Param x-mfa-methods header []string false "MFA methods"
 // @Success 204
 // @Failure 400 {object} ErrResponse
 // @Failure 401 {object} ErrResponse
@@ -66,7 +64,7 @@ func (s *APIServer) verifyPasswordReset() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, ErrInvalidRequestBody.Error(), errMsgs...)
 		}
 
-		mfa := auth.GetMfaData(c)
+		mfa := &model.MfaData{OTP: p.OTP}
 		if err := s.Service.VerifyPasswordReset(c.UserContext(), p.Token, p.NewPassword, mfa); err != nil {
 			return HandleError(c, err, account.ErrFailedToResetPassword.Error())
 		}

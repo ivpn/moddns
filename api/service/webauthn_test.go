@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
@@ -54,7 +55,7 @@ func TestDeletePasskeyByIDKeepsASignInMethod(t *testing.T) {
 			}
 
 			reauthToken := "reauth-token"
-			err := svc.DeletePasskeyByID(ctx, credentialID, accountID, nil, &reauthToken, &model.MfaData{})
+			err := svc.DeletePasskeyByID(ctx, credentialID, accountID, &reauthToken)
 
 			if tt.expectedErr != nil {
 				require.ErrorIs(t, err, tt.expectedErr)
@@ -139,7 +140,7 @@ func TestBeginCeremoniesKeepStateOutOfSessions(t *testing.T) {
 			},
 			begin: func(svc *Service) (string, error) {
 				reauthToken := "reauth-token"
-				_, token, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+				_, token, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), &reauthToken)
 				return token, err
 			},
 			match: ceremonyFor(webauthn.CeremonyAddPasskey, account.ID, "", ""),
@@ -199,16 +200,20 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]string{
-		"email_change":     auth.TokenTypeReauthEmailChange,
-		"account_deletion": auth.TokenTypeReauthAccountDeletion,
-		"profile_export":   auth.TokenTypeReauthProfileExport,
-		"profile_import":   auth.TokenTypeReauthProfileImport,
-		"password_set":     auth.TokenTypeReauthPasswordSet,
-		"passkey_add":      auth.TokenTypeReauthPasskeyAdd,
-		"passkey_delete":   auth.TokenTypeReauthPasskeyDelete,
+		"email_change":            auth.TokenTypeReauthEmailChange,
+		"account_deletion":        auth.TokenTypeReauthAccountDeletion,
+		"profile_export":          auth.TokenTypeReauthProfileExport,
+		"profile_import":          auth.TokenTypeReauthProfileImport,
+		"password_set":            auth.TokenTypeReauthPasswordSet,
+		"passkey_add":             auth.TokenTypeReauthPasskeyAdd,
+		"passkey_delete":          auth.TokenTypeReauthPasskeyDelete,
+		"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
+		"totp_disable":            auth.TokenTypeReauthTotpDisable,
+		"totp_enable":             auth.TokenTypeReauthTotpEnable,
+		"sessions_delete":         auth.TokenTypeReauthSessionsDelete,
 	}
 	for purpose, want := range tests {
-		got, ok := reauthTokenType(purpose)
+		got, ok := reauth.TokenType(purpose)
 		require.True(t, ok, purpose)
 		require.Equal(t, want, got, purpose)
 
@@ -217,7 +222,7 @@ func TestReauthPurposesIssueTheirOwnTokenType(t *testing.T) {
 		require.WithinDuration(t, time.Now().Add(5*time.Minute), token.ExpiresAt, 5*time.Second, purpose)
 	}
 
-	_, ok := reauthTokenType("unknown")
+	_, ok := reauth.TokenType("unknown")
 	require.False(t, ok)
 }
 
@@ -243,7 +248,7 @@ func TestBeginAddPasskeyExcludesExistingCredentials(t *testing.T) {
 	c.On("SaveCeremony", mock.Anything, mock.AnythingOfType("string"), mock.Anything, webauthn.CeremonyTimeout).Return(nil).Once()
 
 	reauthToken := "reauth-token"
-	creation, _, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+	creation, _, err := svc.BeginAddPasskey(ctx, account.ID.Hex(), &reauthToken)
 	require.NoError(t, err)
 
 	raw, err := json.Marshal(creation)

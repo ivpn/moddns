@@ -2,6 +2,7 @@ import { type JSX } from "react";
 import SetupScreen from "@/pages/setup/SetupScreen";
 import LimitedAccessBanner from "@/components/LimitedAccessBanner";
 import PasskeyVerificationBanner from "@/components/PasskeyVerificationBanner";
+import LegacyBackupCodesBanner from "@/components/LegacyBackupCodesBanner";
 import BetaEndingBanner from "@/components/BetaEndingBanner";
 import type { ModelAccount, ModelProfile } from "@/api/client/api";
 
@@ -19,6 +20,7 @@ export default function FrameScreen({ profiles }: SettingsProps): JSX.Element {
                 <BetaEndingBanner />
                 <LimitedAccessBanner />
                 <PasskeyVerificationBanner />
+                <LegacyBackupCodesBanner />
             </div>
             <SetupScreen profiles={profiles} />
         </div>

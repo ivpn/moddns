@@ -4,7 +4,7 @@
  * The export API request uses responseType:'blob', so axios delivers error
  * bodies as Blobs. We verify the hook parses them correctly and:
  *   - parses the Blob body and surfaces the server message via a toast
- *     (including wrong-password 400 and 401 reauth failures)
+ *     (including a refused reauth token and 401 failures)
  *   - falls back to a generic message when the Blob is not JSON
  *
  * jsdom does not implement Blob.text() — polyfill it before importing the hook.
@@ -75,7 +75,7 @@ function makeAxiosError(status: number, body: object | string) {
 
 const baseInput = {
     scope: 'all' as const,
-    currentPassword: 'secret',
+    reauthToken: () => Promise.resolve('reauth-token'),
 };
 
 // ---------------------------------------------------------------------------
@@ -87,9 +87,9 @@ describe('useProfileExport — blob error parsing', () => {
         vi.clearAllMocks();
     });
 
-    it('parses JSON blob on a wrong-password 400 and toasts the server message', async () => {
+    it('parses JSON blob on a refused reauth token and toasts the server message', async () => {
         mockPost.mockRejectedValueOnce(
-            makeAxiosError(400, { error: 'invalid current password' })
+            makeAxiosError(400, { error: 'invalid reauth token' })
         );
 
         const { result } = renderHook(() => useProfileExport());
@@ -104,7 +104,7 @@ describe('useProfileExport — blob error parsing', () => {
         });
 
         expect(caught).not.toBeNull();
-        expect(mockToastError).toHaveBeenCalledWith('invalid current password');
+        expect(mockToastError).toHaveBeenCalledWith('invalid reauth token');
     });
 
     it('toasts the parsed server message on a 401 reauth failure', async () => {
@@ -164,5 +164,36 @@ describe('useProfileExport — blob error parsing', () => {
         });
 
         expect(mockToastError).toHaveBeenCalledWith('Export failed. Please try again.');
+    });
+});
+
+// The request carries only the reauth token; the password and the 2FA code are
+// exchanged for it first. specRef: api-endpoint-behaviour E6
+describe('useProfileExport - reauth token', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPost.mockResolvedValue({ data: new Blob(['{}']), headers: {} } as never);
+        // The hook downloads through a link click, which jsdom cannot navigate.
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    });
+
+    it('sends the reauth token in the body', async () => {
+        const { result } = renderHook(() => useProfileExport());
+        await act(async () => {
+            await result.current.exportProfiles(baseInput);
+        });
+        const [body, options] = mockPost.mock.calls[0];
+        expect(body).toEqual({ scope: 'all', reauth_token: 'reauth-token' });
+        expect(options).toEqual({ responseType: 'blob' });
+    });
+
+    it('toasts a refused password and sends no export request', async () => {
+        const refused = Object.assign(new Error('Request failed'), { response: { status: 400, data: { error: 'invalid current password' } } });
+        const { result } = renderHook(() => useProfileExport());
+        await act(async () => {
+            await expect(result.current.exportProfiles({ scope: 'all', reauthToken: () => Promise.reject(refused) })).rejects.toBe(refused);
+        });
+        expect(mockPost).not.toHaveBeenCalled();
+        expect(mockToastError).toHaveBeenCalledWith('invalid current password');
     });
 });
