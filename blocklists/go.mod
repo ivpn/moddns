@@ -4,7 +4,7 @@ go 1.26.11
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.50.0
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/go-co-op/gocron/v2 v2.20.0
 	github.com/google/uuid v1.6.0
