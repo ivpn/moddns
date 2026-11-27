@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldCheck, EyeOff, ChevronRight } from 'lucide-react';
 import CodeBlock from '@/components/setup/CodeBlock';
 import { buildDnscryptProxyToml } from '@/components/setup/dnscryptProxy';
+import { buildMikrotikCommands, buildOpenWrtCommands, type RouterCommandDeps } from '@/components/setup/routerCommands';
 import api from '@/api/api';
 import type { ResponsesDNSStampResponse } from '@/api/client';
 
@@ -13,11 +14,7 @@ export const routersBadges = [
 
 ];
 
-export interface RoutersGuideDeps {
-    dohEndpoint: string;      // https://<dnsServerDomain>/dns-query/<profileId>
-    anycastIpv4: string;      // primary IPv4 from env list
-    anycastIpv6?: string;     // anycast IPv6 from env list; shown only when configured
-    dnsServerDomain: string;  // e.g. dns.moddns.net (from env)
+export interface RoutersGuideDeps extends RouterCommandDeps {
     dotHostname: string;      // <profileId>.<dnsServerDomain>
     profileId: string;        // active profile id — required by the DNS Stamps tab
 }
@@ -49,31 +46,6 @@ const StepBlock = ({ number, text }: { number: number; text: React.ReactNode }) 
             {text}
         </div>
     </div>
-);
-
-const buildMikrotikCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6, dnsServerDomain }: RoutersGuideDeps) => (
-    `/ip dns set servers=""\n` +
-    `/ip dns static add name=${dnsServerDomain} address=${anycastIpv4} type=A\n` +
-    (anycastIpv6 ? `/ip dns static add name=${dnsServerDomain} address=${anycastIpv6} type=AAAA\n` : ``) +
-    `/ip dns set use-doh-server="${dohEndpoint}" verify-doh-cert=yes\n` +
-    `/ip dns set allow-remote-requests=yes`
-);
-
-const buildOpenWrtCommands = ({ dohEndpoint, anycastIpv4, anycastIpv6 }: RoutersGuideDeps) => (
-    `# OpenWrt 24.10 and older use opkg package manager\n` +
-    `opkg update\n` +
-    `opkg install https-dns-proxy\n\n` +
-    `# OpenWrt 25.12 and newer use apk package manager\n` +
-    `apk update\n` +
-    `apk add https-dns-proxy\n\n` +
-    `while uci -q delete https-dns-proxy.@https-dns-proxy[0]; do :; done\n` +
-    `uci set https-dns-proxy.dns="https-dns-proxy"\n` +
-    `uci set https-dns-proxy.dns.bootstrap_dns="${anycastIpv6 ? `${anycastIpv4},${anycastIpv6}` : anycastIpv4}"\n` +
-    `uci set https-dns-proxy.dns.resolver_url="${dohEndpoint}"\n` +
-    `uci set https-dns-proxy.dns.listen_addr="127.0.0.1"\n` +
-    `uci set https-dns-proxy.dns.listen_port="5053"\n` +
-    `uci commit https-dns-proxy\n` +
-    `service https-dns-proxy restart`
 );
 
 const StampsCrossLink = () => (
@@ -396,6 +368,9 @@ const buildRouterTabs = (deps: RoutersGuideDeps): RouterTabDef[] => [
                 <StepBlock number={1} text={<span>Access the command line:</span>} />
                 <div>
                     <CodeBlock value={buildOpenWrtCommands(deps)} />
+                </div>
+                <div className="text-xs text-[var(--tailwind-colors-slate-400)] leading-relaxed">
+                    The system log may show <code className="font-mono">possible DNS-rebind attack detected</code> for domains modDNS blocks. This is expected and harmless: blocked domains are answered with <code className="font-mono">0.0.0.0</code>, which OpenWrt's rebind protection filters out.
                 </div>
                 <StampsCrossLink />
             </div>
