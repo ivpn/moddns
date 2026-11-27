@@ -121,7 +121,7 @@ function FAQSection({ title, children, globalToggleSignal, globalToggleState }: 
     );
 }
 
-const FAQ_LAST_UPDATED = 'November 19, 2026';
+const FAQ_LAST_UPDATED = 'November 27, 2026';
 
 // The base stylesheet colours every <a>; only an important utility overrides it.
 const LINK_CLASS = "!underline !text-[var(--tailwind-colors-rdns-600)] hover:!text-[var(--tailwind-colors-rdns-700)]";
@@ -524,7 +524,7 @@ export default function FAQ(): JSX.Element {
             <p>Almost all stamp-aware clients accept the <strong>DoH stamp</strong>. The DoT and DoQ stamps are part of the <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">sdns://</code> specification but are far less widely adopted - at the time of writing, only AdGuard's ecosystem parses them.</p>
             <ul className="list-disc pl-5 space-y-1">
                 <li><strong>DoH stamp</strong> - works with <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code>, AdGuard Home, AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code>, UniFi Network DNS Shield, Intra (Android), and Pi-hole via an embedded dnscrypt-proxy</li>
-                <li><strong>DoT stamp</strong> - AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only. Everything else (Stubby, Unbound, systemd-resolved, MikroTik, OpenWrt's <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">https-dns-proxy</code>) configures DoT by hostname + port directly, not via a stamp.</li>
+                <li><strong>DoT stamp</strong> - AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only. Everything else (Stubby, Unbound, systemd-resolved, MikroTik) configures DoT by hostname + port directly, not via a stamp.</li>
                 <li><strong>DoQ stamp</strong> - same as DoT: AdGuard Home and AdGuard <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnsproxy</code> only.</li>
             </ul>
             <p>A common point of confusion: <code className="bg-[var(--shadcn-ui-app-muted)] text-[var(--shadcn-ui-app-foreground)] px-2 py-0.5 rounded text-sm font-mono border border-[var(--shadcn-ui-app-border)]">dnscrypt-proxy</code> accepts only DoH, DNSCrypt, and ODoH stamps - feeding it a DoT or DoQ stamp returns an "Unsupported protocol" error.</p>
