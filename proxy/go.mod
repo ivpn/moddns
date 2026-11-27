@@ -6,7 +6,7 @@ require (
 	github.com/AdguardTeam/dnsproxy v0.83.2
 	github.com/AdguardTeam/golibs v0.35.13
 	github.com/Shopify/toxiproxy/v2 v2.12.0
-	github.com/getsentry/sentry-go/zerolog v0.31.1
+	github.com/getsentry/sentry-go/zerolog v0.50.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/ivpn/dns/libs v0.0.0
 	github.com/miekg/dns v1.1.72
@@ -101,9 +101,9 @@ require (
 	github.com/bluele/gcache v0.0.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/getsentry/sentry-go v0.45.1
+	github.com/getsentry/sentry-go v0.50.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/crypto v0.58.0 // indirect

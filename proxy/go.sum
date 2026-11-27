@@ -61,10 +61,10 @@ github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
 github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
-github.com/getsentry/sentry-go v0.45.1 h1:9rfzJtGiJG+MGIaWZXidDGHcH5GU1Z5y0WVJGf9nysw=
-github.com/getsentry/sentry-go v0.45.1/go.mod h1:XDotiNZbgf5U8bPDUAfvcFmOnMQQceESxyKaObSssW0=
-github.com/getsentry/sentry-go/zerolog v0.31.1 h1:i6aJFsWGL021KCPzB/WhBcyg8NcNsUM/AuFq1Y3dANc=
-github.com/getsentry/sentry-go/zerolog v0.31.1/go.mod h1:4bpkgp9HcbX/kZ9hHolRKKSRmgGMy1bqmMWJ4SO1iqI=
+github.com/getsentry/sentry-go v0.50.0 h1:gkO59rn/i0RCAXUUTflC5QVbTQGPXbaFabs2olVzc9g=
+github.com/getsentry/sentry-go v0.50.0/go.mod h1:+xsDuN+SoRN/xfs1hdq78wnrE3omIZf+FCuh9FOW1C8=
+github.com/getsentry/sentry-go/zerolog v0.50.0 h1:+BDYdPW1a6gVHCWPWAD46cZ2FoLK/cAUWLVAl/puRGY=
+github.com/getsentry/sentry-go/zerolog v0.50.0/go.mod h1:uMNVBjOpyEcpMZsqq62qUr3PuuztFgT2oTbNU+if7kg=
 github.com/go-errors/errors v1.4.2 h1:J6MZopCL4uSllY1OfXM374weqZFFItUbrImctkmUxIA=
 github.com/go-errors/errors v1.4.2/go.mod h1:sIVyrIiJhuEF+Pj9Ebtd6P/rEYROXFi3BopGUQ5a5Og=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
@@ -112,8 +112,8 @@ github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHP
 github.com/mattn/go-colorable v0.1.14/go.mod h1:6LmQG8QLFO4G5z1gPvYEzlUgJ2wF+stgPZH1UqBm1s8=
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
 github.com/mattn/go-isatty v0.0.19/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
-github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
-github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-isatty v0.0.22 h1:j8l17JJ9i6VGPUFUYoTUKPSgKe/83EYU2zBC7YNKMw4=
+github.com/mattn/go-isatty v0.0.22/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/miekg/dns v1.1.72 h1:vhmr+TF2A3tuoGNkLDFK9zi36F2LS+hKTRW0Uf8kbzI=

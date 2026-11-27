@@ -6,9 +6,9 @@ require (
 	github.com/AfterShip/email-verifier v1.4.0
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/descope/virtualwebauthn v1.0.3 // v1.0.4+ require go-webauthn >= v0.15; bump together with go-webauthn
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.50.0
 	github.com/getsentry/sentry-go/fiber v0.31.1
-	github.com/getsentry/sentry-go/zerolog v0.31.1
+	github.com/getsentry/sentry-go/zerolog v0.50.0
 	github.com/go-co-op/gocron/v2 v2.20.0
 	github.com/go-playground/validator/v10 v10.20.0
 	github.com/gofiber/fiber/v2 v2.52.12
@@ -121,7 +121,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.12.1
