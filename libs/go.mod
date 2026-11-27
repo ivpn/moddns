@@ -4,8 +4,8 @@ go 1.26.11
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/getsentry/sentry-go v0.31.1
-	github.com/getsentry/sentry-go/zerolog v0.31.1
+	github.com/getsentry/sentry-go v0.50.0
+	github.com/getsentry/sentry-go/zerolog v0.50.0
 	github.com/oschwald/geoip2-golang/v2 v2.4.0
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/rs/zerolog v1.34.0
@@ -40,7 +40,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	go.mongodb.org/mongo-driver v1.17.3
 	golang.org/x/sys v0.49.0 // indirect
 )
