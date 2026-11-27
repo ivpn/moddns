@@ -19,6 +19,10 @@ type AccountRepository interface {
 	GetAccount(ctx context.Context, accountId string) (*model.Account, error)
 	AddProfileToAccount(ctx context.Context, accountId string, profileId string) error
 	RemoveProfileFromAccount(ctx context.Context, accountId string, profileId string) error
+	// AddReauthToken adds a reauth token in one update that also removes the expired
+	// reauth tokens, so a concurrent write neither loses it nor restores another token;
+	// errors.ErrAccountNotFound when there is no such account.
+	AddReauthToken(ctx context.Context, accountId string, token model.Token, now time.Time) error
 
 	// EnableTOTP stores the sealed secret and backup-code digests and enables
 	// TOTP; errors.ErrTOTPStateChanged when TOTP is already enabled.

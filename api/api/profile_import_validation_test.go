@@ -12,14 +12,14 @@ import (
 
 // wrapFixtureAsImportBody turns a downloaded export file (a bare envelope, which
 // is what the user uploads) into the import request body the frontend sends:
-// {mode, payload: <envelope>, current_password}.
+// {mode, payload: <envelope>, reauth_token}.
 func wrapFixtureAsImportBody(t require.TestingT, file string) []byte {
 	raw, err := os.ReadFile(filepath.Join(importFixturesDir, file))
 	require.NoError(t, err)
 	return mustJSON(t, map[string]any{
-		"mode":             "create_new",
-		"current_password": "secret",
-		"payload":          json.RawMessage(raw),
+		"mode":         "create_new",
+		"reauth_token": "secret",
+		"payload":      json.RawMessage(raw),
 	})
 }
 

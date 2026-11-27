@@ -970,8 +970,8 @@ func (_c *ProfileServicer_EnableServices_Call) RunAndReturn(run func(ctx context
 }
 
 // Export provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) Export(ctx context.Context, accountId string, scope string, profileIds []string, currentPassword *string, reauthToken *string, mfa *model.MfaData) (*model.ExportEnvelope, error) {
-	ret := _mock.Called(ctx, accountId, scope, profileIds, currentPassword, reauthToken, mfa)
+func (_mock *ProfileServicer) Export(ctx context.Context, accountId string, scope string, profileIds []string, reauthToken *string) (*model.ExportEnvelope, error) {
+	ret := _mock.Called(ctx, accountId, scope, profileIds, reauthToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Export")
@@ -979,18 +979,18 @@ func (_mock *ProfileServicer) Export(ctx context.Context, accountId string, scop
 
 	var r0 *model.ExportEnvelope
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string, *string, *string, *model.MfaData) (*model.ExportEnvelope, error)); ok {
-		return returnFunc(ctx, accountId, scope, profileIds, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string, *string) (*model.ExportEnvelope, error)); ok {
+		return returnFunc(ctx, accountId, scope, profileIds, reauthToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string, *string, *string, *model.MfaData) *model.ExportEnvelope); ok {
-		r0 = returnFunc(ctx, accountId, scope, profileIds, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, []string, *string) *model.ExportEnvelope); ok {
+		r0 = returnFunc(ctx, accountId, scope, profileIds, reauthToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ExportEnvelope)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, []string, *string, *string, *model.MfaData) error); ok {
-		r1 = returnFunc(ctx, accountId, scope, profileIds, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, []string, *string) error); ok {
+		r1 = returnFunc(ctx, accountId, scope, profileIds, reauthToken)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1007,14 +1007,12 @@ type ProfileServicer_Export_Call struct {
 //   - accountId string
 //   - scope string
 //   - profileIds []string
-//   - currentPassword *string
 //   - reauthToken *string
-//   - mfa *model.MfaData
-func (_e *ProfileServicer_Expecter) Export(ctx interface{}, accountId interface{}, scope interface{}, profileIds interface{}, currentPassword interface{}, reauthToken interface{}, mfa interface{}) *ProfileServicer_Export_Call {
-	return &ProfileServicer_Export_Call{Call: _e.mock.On("Export", ctx, accountId, scope, profileIds, currentPassword, reauthToken, mfa)}
+func (_e *ProfileServicer_Expecter) Export(ctx interface{}, accountId interface{}, scope interface{}, profileIds interface{}, reauthToken interface{}) *ProfileServicer_Export_Call {
+	return &ProfileServicer_Export_Call{Call: _e.mock.On("Export", ctx, accountId, scope, profileIds, reauthToken)}
 }
 
-func (_c *ProfileServicer_Export_Call) Run(run func(ctx context.Context, accountId string, scope string, profileIds []string, currentPassword *string, reauthToken *string, mfa *model.MfaData)) *ProfileServicer_Export_Call {
+func (_c *ProfileServicer_Export_Call) Run(run func(ctx context.Context, accountId string, scope string, profileIds []string, reauthToken *string)) *ProfileServicer_Export_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1036,22 +1034,12 @@ func (_c *ProfileServicer_Export_Call) Run(run func(ctx context.Context, account
 		if args[4] != nil {
 			arg4 = args[4].(*string)
 		}
-		var arg5 *string
-		if args[5] != nil {
-			arg5 = args[5].(*string)
-		}
-		var arg6 *model.MfaData
-		if args[6] != nil {
-			arg6 = args[6].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
-			arg5,
-			arg6,
 		)
 	})
 	return _c
@@ -1062,7 +1050,7 @@ func (_c *ProfileServicer_Export_Call) Return(exportEnvelope *model.ExportEnvelo
 	return _c
 }
 
-func (_c *ProfileServicer_Export_Call) RunAndReturn(run func(ctx context.Context, accountId string, scope string, profileIds []string, currentPassword *string, reauthToken *string, mfa *model.MfaData) (*model.ExportEnvelope, error)) *ProfileServicer_Export_Call {
+func (_c *ProfileServicer_Export_Call) RunAndReturn(run func(ctx context.Context, accountId string, scope string, profileIds []string, reauthToken *string) (*model.ExportEnvelope, error)) *ProfileServicer_Export_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1744,8 +1732,8 @@ func (_c *ProfileServicer_GetStatistics_Call) RunAndReturn(run func(ctx context.
 }
 
 // Import provides a mock function for the type ProfileServicer
-func (_mock *ProfileServicer) Import(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, currentPassword *string, reauthToken *string, mfa *model.MfaData) (*profile.ImportResult, error) {
-	ret := _mock.Called(ctx, accountId, mode, payload, currentPassword, reauthToken, mfa)
+func (_mock *ProfileServicer) Import(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, reauthToken *string) (*profile.ImportResult, error) {
+	ret := _mock.Called(ctx, accountId, mode, payload, reauthToken)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Import")
@@ -1753,18 +1741,18 @@ func (_mock *ProfileServicer) Import(ctx context.Context, accountId string, mode
 
 	var r0 *profile.ImportResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *model.ExportEnvelope, *string, *string, *model.MfaData) (*profile.ImportResult, error)); ok {
-		return returnFunc(ctx, accountId, mode, payload, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *model.ExportEnvelope, *string) (*profile.ImportResult, error)); ok {
+		return returnFunc(ctx, accountId, mode, payload, reauthToken)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *model.ExportEnvelope, *string, *string, *model.MfaData) *profile.ImportResult); ok {
-		r0 = returnFunc(ctx, accountId, mode, payload, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *model.ExportEnvelope, *string) *profile.ImportResult); ok {
+		r0 = returnFunc(ctx, accountId, mode, payload, reauthToken)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*profile.ImportResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, *model.ExportEnvelope, *string, *string, *model.MfaData) error); ok {
-		r1 = returnFunc(ctx, accountId, mode, payload, currentPassword, reauthToken, mfa)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, *model.ExportEnvelope, *string) error); ok {
+		r1 = returnFunc(ctx, accountId, mode, payload, reauthToken)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1781,14 +1769,12 @@ type ProfileServicer_Import_Call struct {
 //   - accountId string
 //   - mode string
 //   - payload *model.ExportEnvelope
-//   - currentPassword *string
 //   - reauthToken *string
-//   - mfa *model.MfaData
-func (_e *ProfileServicer_Expecter) Import(ctx interface{}, accountId interface{}, mode interface{}, payload interface{}, currentPassword interface{}, reauthToken interface{}, mfa interface{}) *ProfileServicer_Import_Call {
-	return &ProfileServicer_Import_Call{Call: _e.mock.On("Import", ctx, accountId, mode, payload, currentPassword, reauthToken, mfa)}
+func (_e *ProfileServicer_Expecter) Import(ctx interface{}, accountId interface{}, mode interface{}, payload interface{}, reauthToken interface{}) *ProfileServicer_Import_Call {
+	return &ProfileServicer_Import_Call{Call: _e.mock.On("Import", ctx, accountId, mode, payload, reauthToken)}
 }
 
-func (_c *ProfileServicer_Import_Call) Run(run func(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, currentPassword *string, reauthToken *string, mfa *model.MfaData)) *ProfileServicer_Import_Call {
+func (_c *ProfileServicer_Import_Call) Run(run func(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, reauthToken *string)) *ProfileServicer_Import_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1810,22 +1796,12 @@ func (_c *ProfileServicer_Import_Call) Run(run func(ctx context.Context, account
 		if args[4] != nil {
 			arg4 = args[4].(*string)
 		}
-		var arg5 *string
-		if args[5] != nil {
-			arg5 = args[5].(*string)
-		}
-		var arg6 *model.MfaData
-		if args[6] != nil {
-			arg6 = args[6].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
-			arg5,
-			arg6,
 		)
 	})
 	return _c
@@ -1836,7 +1812,7 @@ func (_c *ProfileServicer_Import_Call) Return(importResult *profile.ImportResult
 	return _c
 }
 
-func (_c *ProfileServicer_Import_Call) RunAndReturn(run func(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, currentPassword *string, reauthToken *string, mfa *model.MfaData) (*profile.ImportResult, error)) *ProfileServicer_Import_Call {
+func (_c *ProfileServicer_Import_Call) RunAndReturn(run func(ctx context.Context, accountId string, mode string, payload *model.ExportEnvelope, reauthToken *string) (*profile.ImportResult, error)) *ProfileServicer_Import_Call {
 	_c.Call.Return(run)
 	return _c
 }

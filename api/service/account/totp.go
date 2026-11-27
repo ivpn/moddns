@@ -67,17 +67,14 @@ func (a *AccountService) TotpEnable(ctx context.Context, accountId string, req r
 	if acc.MFA.TOTP.Enabled {
 		return nil, ErrTOTPAlreadyConfigured
 	}
-	if err = reauth.VerifyOnAccount(ctx, acc, nil, reauth.Params{
+	if err = reauth.VerifyOnAccount(acc, reauth.Params{
 		TokenType:   auth.TokenTypeReauthTotpEnable,
-		Password:    req.CurrentPassword,
 		ReauthToken: req.ReauthToken,
 	}); err != nil {
 		return nil, err
 	}
-	if req.ReauthToken != nil {
-		if _, err = a.AccountRepository.UpdateAccount(ctx, acc); err != nil {
-			return nil, err
-		}
+	if _, err = a.AccountRepository.UpdateAccount(ctx, acc); err != nil {
+		return nil, err
 	}
 	key, err := totp.Generate(totp.GenerateOpts{
 		Issuer:      "modDNS",
@@ -181,7 +178,7 @@ func (a *AccountService) TotpConfirm(ctx context.Context, accountId, otp string)
 // TotpDisable turns 2FA off, authorised by reauth and then an authenticator or
 // backup code.
 func (a *AccountService) TotpDisable(ctx context.Context, accountId string, req requests.TotpDisableReq) (*model.Account, error) {
-	if err := a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthTotpDisable, req.CurrentPassword, req.ReauthToken); err != nil {
+	if err := a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthTotpDisable, req.ReauthToken); err != nil {
 		return nil, err
 	}
 	acc, proof, done, err := a.checkTotp(ctx, accountId, req.OTP, "disable")
@@ -209,7 +206,7 @@ func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountI
 	if err != nil {
 		return nil, err
 	}
-	if err = a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthBackupCodesRegen, req.CurrentPassword, req.ReauthToken); err != nil {
+	if err = a.reauthTotpChange(ctx, accountId, auth.TokenTypeReauthBackupCodesRegen, req.ReauthToken); err != nil {
 		return nil, err
 	}
 	acc, proof, done, err := a.checkTotp(ctx, accountId, req.OTP, "regenerate")
@@ -233,15 +230,14 @@ func (a *AccountService) TotpRegenerateBackupCodes(ctx context.Context, accountI
 }
 
 // reauthTotpChange proves fresh control of the account before a change to its
-// second factor: the current password, or a single-use passkey reauth token of
-// the change's own type (NIST SP 800-63B-4 §4). It runs before the 2FA code
+// second factor: a single-use reauth token of the change's own type (NIST SP
+// 800-63B-4 §4), issued for the password alone or for a passkey. It runs before the 2FA code
 // is checked, so a session alone neither tests codes nor counts toward the E12
 // lockout. The code itself is checked by the caller and used up in its write.
-func (a *AccountService) reauthTotpChange(ctx context.Context, accountId, tokenType string, password, token *string) error {
-	_, err := reauth.Verify(ctx, a.AccountRepository, nil, reauth.Params{
+func (a *AccountService) reauthTotpChange(ctx context.Context, accountId, tokenType string, token *string) error {
+	_, err := reauth.Verify(ctx, a.AccountRepository, reauth.Params{
 		AccountId:        accountId,
 		TokenType:        tokenType,
-		Password:         password,
 		ReauthToken:      token,
 		PersistOnConsume: true,
 	})

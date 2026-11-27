@@ -9,7 +9,7 @@ import (
 )
 
 // @Summary Delete all other sessions
-// @Description Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+// @Description Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
 // @Tags Sessions
 // @Accept json
 // @Produce json
@@ -42,7 +42,7 @@ func (s *APIServer) deleteAllOtherSessions() fiber.Handler {
 		}
 
 		if err := s.Service.DeleteOtherSessions(c.UserContext(), accountID, currentToken, *req); err != nil {
-			return handleSessionTotpError(c, err, ErrFailedToDeleteSessions.Error())
+			return HandleError(c, err, ErrFailedToDeleteSessions.Error())
 		}
 		return c.SendStatus(fiber.StatusNoContent)
 	}

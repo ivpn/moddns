@@ -10,7 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/ivpn/dns/api/api/requests"
 	"github.com/ivpn/dns/api/internal/auth"
-	"github.com/ivpn/dns/api/model"
 )
 
 // @Summary Export profiles
@@ -50,13 +49,9 @@ func (s *APIServer) exportProfiles() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, err.Error())
 		}
 
-		if req.CurrentPassword != nil && req.ReauthToken != nil {
-			return HandleError(c, ErrInvalidRequestBody, "provide only one of current_password or reauth_token")
-		}
-
-		envelope, err := s.Service.Export(c.UserContext(), accountId, req.Scope, req.ProfileIds, req.CurrentPassword, req.ReauthToken, &model.MfaData{OTP: req.OTP})
+		envelope, err := s.Service.Export(c.UserContext(), accountId, req.Scope, req.ProfileIds, req.ReauthToken)
 		if err != nil {
-			return handleSessionTotpError(c, err, err.Error())
+			return HandleError(c, err, err.Error())
 		}
 
 		// specRef: E12, E13, E14, E15
@@ -126,13 +121,9 @@ func (s *APIServer) importProfiles() fiber.Handler {
 			return HandleError(c, ErrInvalidRequestBody, strings.Join(errMsgs, " and "))
 		}
 
-		if req.CurrentPassword != nil && req.ReauthToken != nil {
-			return HandleError(c, ErrInvalidRequestBody, "provide only one of current_password or reauth_token")
-		}
-
-		result, err := s.Service.Import(c.UserContext(), accountId, req.Mode, req.Payload, req.CurrentPassword, req.ReauthToken, &model.MfaData{OTP: req.OTP})
+		result, err := s.Service.Import(c.UserContext(), accountId, req.Mode, req.Payload, req.ReauthToken)
 		if err != nil {
-			return handleSessionTotpError(c, err, err.Error())
+			return HandleError(c, err, err.Error())
 		}
 
 		return c.JSON(result)

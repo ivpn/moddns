@@ -29,40 +29,22 @@ func (suite *AccountsAPITestSuite) postTotp(path, otp string) int {
 
 const enablePath = "/api/v1/accounts/mfa/totp/enable"
 
-// Set-up takes the current password or a passkey reauth token, not both.
-// specRef: api-endpoint-behaviour.md E1
+// Set-up takes a reauth token. specRef: api-endpoint-behaviour.md E1
 func (suite *AccountsAPITestSuite) TestEnableNeedsReauth() {
-	password, token := "Curr3nt-Passw0rd!", "reauth-token"
-	accepted := map[string]struct {
-		body map[string]string
-		req  requests.TotpEnableReq
-	}{
-		"password": {map[string]string{"current_password": password}, requests.TotpEnableReq{CurrentPassword: &password}},
-		"token":    {map[string]string{"reauth_token": token}, requests.TotpEnableReq{ReauthToken: &token}},
-	}
-	for name, tc := range accepted {
-		suite.Run(name, func() {
-			suite.SetupTest()
-			suite.mockService.On("TotpEnable", mock.Anything, testAccountID, tc.req).Return(&model.TOTPNew{Secret: "S"}, nil).Once()
-			suite.Equal(http.StatusOK, suite.postJSON(enablePath, tc.body))
-		})
-	}
-	suite.Run("password + token", func() {
-		suite.SetupTest()
-		suite.Equal(http.StatusBadRequest, suite.postJSON(enablePath, map[string]string{"current_password": "p", "reauth_token": "t"}))
-	})
+	token := "reauth-token"
+	suite.mockService.On("TotpEnable", mock.Anything, testAccountID, requests.TotpEnableReq{ReauthToken: &token}).Return(&model.TOTPNew{Secret: "S"}, nil).Once()
+	suite.Equal(http.StatusOK, suite.postJSON(enablePath, map[string]string{"reauth_token": token}))
 }
 
 // A refused reauth is a bad request on a valid session, not an expired
 // session. specRef: api-endpoint-behaviour.md E1
 func (suite *AccountsAPITestSuite) TestEnableRefusals() {
-	password := "Curr3nt-Passw0rd!"
+	token := "reauth-token"
 	cases := map[string]struct {
 		err    error
 		status int
 	}{
 		"no reauth":          {reauth.ErrMissingAuthMethod, http.StatusBadRequest},
-		"wrong password":     {reauth.ErrInvalidPassword, http.StatusBadRequest},
 		"wrong token":        {reauth.ErrInvalidReauthToken, http.StatusBadRequest},
 		"expired token":      {reauth.ErrReauthTokenExpired, http.StatusBadRequest},
 		"already configured": {account.ErrTOTPAlreadyConfigured, http.StatusBadRequest},
@@ -71,8 +53,8 @@ func (suite *AccountsAPITestSuite) TestEnableRefusals() {
 	for name, tc := range cases {
 		suite.Run(name, func() {
 			suite.SetupTest()
-			suite.mockService.On("TotpEnable", mock.Anything, testAccountID, requests.TotpEnableReq{CurrentPassword: &password}).Return(nil, tc.err).Once()
-			suite.Equal(tc.status, suite.postJSON(enablePath, map[string]string{"current_password": password}))
+			suite.mockService.On("TotpEnable", mock.Anything, testAccountID, requests.TotpEnableReq{ReauthToken: &token}).Return(nil, tc.err).Once()
+			suite.Equal(tc.status, suite.postJSON(enablePath, map[string]string{"reauth_token": token}))
 		})
 	}
 }
@@ -80,8 +62,8 @@ func (suite *AccountsAPITestSuite) TestEnableRefusals() {
 const disablePath = "/api/v1/accounts/mfa/totp/disable"
 
 func disableReq(otp string) requests.TotpDisableReq {
-	password := "Curr3nt-Passw0rd!"
-	return requests.TotpDisableReq{OTP: otp, CurrentPassword: &password}
+	token := "reauth-token"
+	return requests.TotpDisableReq{OTP: otp, ReauthToken: &token}
 }
 
 // Disable takes an authenticator code or a backup code as displayed, with the
@@ -96,19 +78,10 @@ func (suite *AccountsAPITestSuite) TestDisableAcceptsBackupCode() {
 	}
 }
 
-// The passkey reauth token is passed on instead of the password.
-// specRef: api-endpoint-behaviour.md E3
-func (suite *AccountsAPITestSuite) TestDisableAcceptsReauthToken() {
-	token := "reauth-token"
-	suite.mockService.On("TotpDisable", mock.Anything, testAccountID, requests.TotpDisableReq{OTP: "123456", ReauthToken: &token}).Return(&model.Account{}, nil).Once()
-	suite.Equal(http.StatusOK, suite.postJSON(disablePath, map[string]string{"otp": "123456", "reauth_token": token}))
-}
-
 // specRef: api-endpoint-behaviour.md E3
 func (suite *AccountsAPITestSuite) TestDisableRejectsMalformedRequest() {
 	cases := map[string]map[string]string{
-		"long code":        reauthBody(strings.Repeat("A", 65)),
-		"password + token": {"otp": "123456", "current_password": "p", "reauth_token": "t"},
+		"long code": reauthBody(strings.Repeat("A", 65)),
 	}
 	for name, body := range cases {
 		suite.Run(name, func() {
@@ -131,12 +104,11 @@ func (suite *AccountsAPITestSuite) TestDisableRefusals() {
 		err    error
 		status int
 	}{
-		"no reauth":      {reauth.ErrMissingAuthMethod, http.StatusBadRequest},
-		"wrong password": {reauth.ErrInvalidPassword, http.StatusBadRequest},
-		"wrong token":    {reauth.ErrInvalidReauthToken, http.StatusBadRequest},
-		"expired token":  {reauth.ErrReauthTokenExpired, http.StatusBadRequest},
-		"invalid code":   {account.ErrInvalidTOTPCode, http.StatusBadRequest},
-		"lockout":        {account.ErrTOTPTooManyAttempts, http.StatusTooManyRequests},
+		"no reauth":     {reauth.ErrMissingAuthMethod, http.StatusBadRequest},
+		"wrong token":   {reauth.ErrInvalidReauthToken, http.StatusBadRequest},
+		"expired token": {reauth.ErrReauthTokenExpired, http.StatusBadRequest},
+		"invalid code":  {account.ErrInvalidTOTPCode, http.StatusBadRequest},
+		"lockout":       {account.ErrTOTPTooManyAttempts, http.StatusTooManyRequests},
 	}
 	for name, tc := range cases {
 		suite.Run(name, func() {
@@ -194,14 +166,14 @@ func (suite *AccountsAPITestSuite) postJSON(path string, body any) int {
 	return resp.StatusCode
 }
 
-// reauthBody is a disable or regenerate body verified with the current password.
+// reauthBody is a disable or regenerate body with a reauth token.
 func reauthBody(otp string) map[string]string {
-	return map[string]string{"otp": otp, "current_password": "Curr3nt-Passw0rd!"}
+	return map[string]string{"otp": otp, "reauth_token": "reauth-token"}
 }
 
 func regenerateReq(otp string) requests.TotpRegenerateReq {
-	password := "Curr3nt-Passw0rd!"
-	return requests.TotpRegenerateReq{OTP: otp, CurrentPassword: &password}
+	token := "reauth-token"
+	return requests.TotpRegenerateReq{OTP: otp, ReauthToken: &token}
 }
 
 // Regenerating takes an authenticator code or a backup code as displayed, with
@@ -216,21 +188,12 @@ func (suite *AccountsAPITestSuite) TestRegenerateAcceptsEitherCode() {
 	}
 }
 
-// The passkey reauth token is passed on instead of the password.
-// specRef: api-endpoint-behaviour.md E13
-func (suite *AccountsAPITestSuite) TestRegenerateAcceptsReauthToken() {
-	token := "reauth-token"
-	suite.mockService.On("TotpRegenerateBackupCodes", mock.Anything, testAccountID, requests.TotpRegenerateReq{OTP: "123456", ReauthToken: &token}).Return(&model.TOTPBackup{BackupCodes: []string{"NEW"}}, nil).Once()
-	suite.Equal(http.StatusOK, suite.postJSON(regeneratePath, map[string]string{"otp": "123456", "reauth_token": token}))
-}
-
 // specRef: api-endpoint-behaviour.md E13
 func (suite *AccountsAPITestSuite) TestRegenerateRejectsMalformedRequest() {
 	cases := map[string]map[string]string{
-		"empty code":       reauthBody(""),
-		"short code":       reauthBody("12345"),
-		"long code":        reauthBody(strings.Repeat("A", 65)),
-		"password + token": {"otp": "123456", "current_password": "p", "reauth_token": "t"},
+		"empty code": reauthBody(""),
+		"short code": reauthBody("12345"),
+		"long code":  reauthBody(strings.Repeat("A", 65)),
 	}
 	for name, body := range cases {
 		suite.Run(name, func() {
@@ -248,7 +211,6 @@ func (suite *AccountsAPITestSuite) TestRegenerateRefusals() {
 		status int
 	}{
 		"no reauth":      {reauth.ErrMissingAuthMethod, http.StatusBadRequest},
-		"wrong password": {reauth.ErrInvalidPassword, http.StatusBadRequest},
 		"wrong token":    {reauth.ErrInvalidReauthToken, http.StatusBadRequest},
 		"expired token":  {reauth.ErrReauthTokenExpired, http.StatusBadRequest},
 		"invalid code":   {account.ErrInvalidTOTPCode, http.StatusBadRequest},

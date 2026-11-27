@@ -37,15 +37,12 @@ func (p *ProfileService) Export(
 	ctx context.Context,
 	accountId, scope string,
 	profileIds []string,
-	currentPassword, reauthToken *string,
-	mfa *model.MfaData,
+	reauthToken *string,
 ) (*model.ExportEnvelope, error) {
-	if _, err := reauth.Verify(ctx, p.AccountRepository, p.MfaVerifier, reauth.Params{
+	if _, err := reauth.Verify(ctx, p.AccountRepository, reauth.Params{
 		AccountId:        accountId,
 		TokenType:        auth.TokenTypeReauthProfileExport,
-		Password:         currentPassword,
 		ReauthToken:      reauthToken,
-		Mfa:              mfa,
 		PersistOnConsume: true,
 	}); err != nil {
 		return nil, err

@@ -18,12 +18,13 @@ func (suite *AccountsAPITestSuite) TestUnreadableBodyIsBadRequest() {
 		{http.MethodDelete, "/api/v1/sessions"},
 		{http.MethodPost, "/api/v1/accounts/mfa/totp/enable"},
 		{http.MethodDelete, "/api/v1/accounts/current"},
+		{http.MethodPost, "/api/v1/accounts/reauth"},
 	}
 	bodies := map[string]struct{ contentType, body string }{
 		"no body":        {"", ""},
 		"text body":      {"text/plain", "x"},
 		"malformed JSON": {"application/json", "{"},
-		"mistyped JSON":  {"application/json", `{"current_password": 1}`},
+		"mistyped JSON":  {"application/json", `{"reauth_token": 1, "current_password": 1}`},
 	}
 	for _, r := range routes {
 		for name, b := range bodies {

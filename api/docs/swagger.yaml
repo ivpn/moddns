@@ -1295,27 +1295,15 @@ definitions:
     - VerificationDiscouraged
   requests.AccountDeletionRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
       deletion_code:
         type: string
-      otp:
-        maxLength: 64
-        type: string
       reauth_token:
-        minLength: 1
         type: string
     required:
     - deletion_code
     type: object
   requests.AccountUpdates:
     properties:
-      otp:
-        description: OTP is the 2FA code that goes with a current password, when 2FA
-          is on.
-        maxLength: 64
-        type: string
       updates:
         items:
           $ref: '#/definitions/model.AccountUpdate'
@@ -1440,18 +1428,11 @@ definitions:
     type: object
   requests.ExportRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
-      otp:
-        maxLength: 64
-        type: string
       profile_ids:
         items:
           type: string
         type: array
       reauth_token:
-        minLength: 1
         type: string
       scope:
         enum:
@@ -1463,20 +1444,13 @@ definitions:
     type: object
   requests.ImportRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
       mode:
         enum:
         - create_new
         type: string
-      otp:
-        maxLength: 64
-        type: string
       payload:
         $ref: '#/definitions/model.ExportEnvelope'
       reauth_token:
-        minLength: 1
         type: string
     required:
     - mode
@@ -1535,6 +1509,31 @@ definitions:
     required:
     - updates
     type: object
+  requests.ReauthRequest:
+    properties:
+      current_password:
+        type: string
+      otp:
+        maxLength: 64
+        type: string
+      purpose:
+        enum:
+        - email_change
+        - account_deletion
+        - profile_export
+        - profile_import
+        - password_set
+        - passkey_add
+        - passkey_delete
+        - backup_codes_regenerate
+        - totp_disable
+        - totp_enable
+        - sessions_delete
+        type: string
+    required:
+    - current_password
+    - purpose
+    type: object
   requests.ReorderProfileCustomRuleGroupsBody:
     properties:
       action:
@@ -1578,51 +1577,32 @@ definitions:
     type: object
   requests.SessionsDeleteRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
-      otp:
-        maxLength: 64
-        type: string
       reauth_token:
-        minLength: 1
         type: string
     type: object
   requests.TotpDisableReq:
     properties:
-      current_password:
-        minLength: 1
-        type: string
       otp:
         maxLength: 64
         minLength: 6
         type: string
       reauth_token:
-        minLength: 1
         type: string
     required:
     - otp
     type: object
   requests.TotpEnableReq:
     properties:
-      current_password:
-        minLength: 1
-        type: string
       reauth_token:
-        minLength: 1
         type: string
     type: object
   requests.TotpRegenerateReq:
     properties:
-      current_password:
-        minLength: 1
-        type: string
       otp:
         maxLength: 64
         minLength: 6
         type: string
       reauth_token:
-        minLength: 1
         type: string
     required:
     - otp
@@ -1658,26 +1638,12 @@ definitions:
     type: object
   requests.WebAuthnAddPasskeyBeginRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
-      otp:
-        maxLength: 64
-        type: string
       reauth_token:
-        minLength: 1
         type: string
     type: object
   requests.WebAuthnDeletePasskeyRequest:
     properties:
-      current_password:
-        minLength: 1
-        type: string
-      otp:
-        maxLength: 64
-        type: string
       reauth_token:
-        minLength: 1
         type: string
     type: object
   requests.WebAuthnReauthBeginRequest:
@@ -1757,6 +1723,13 @@ definitions:
           verified the user.
         type: boolean
     type: object
+  responses.ReauthTokenResponse:
+    properties:
+      expires_at:
+        type: string
+      reauth_token:
+        type: string
+    type: object
   responses.RegistrationSuccessResponse:
     properties:
       message:
@@ -1766,13 +1739,6 @@ definitions:
   responses.ShortLinkResponse:
     properties:
       link:
-        type: string
-    type: object
-  responses.WebAuthnReauthFinishResponse:
-    properties:
-      expires_at:
-        type: string
-      reauth_token:
         type: string
     type: object
   servicescatalog.Catalog:
@@ -2160,6 +2126,40 @@ paths:
           schema:
             $ref: '#/definitions/api.ErrResponse'
       summary: Confirm TOTP
+      tags:
+      - Account
+  /api/v1/accounts/reauth:
+    post:
+      consumes:
+      - application/json
+      description: Check the current password, plus the 2FA code when 2FA is on, and
+        issue a short-lived, single-use reauth token for one privileged operation
+        (the purpose). For totp_disable and backup_codes_regenerate the operation
+        asks for the 2FA code itself, so it is not checked here. A passkey issues
+        the same token through /webauthn/passkey/reauth.
+      parameters:
+      - description: Reauth request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/requests.ReauthRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.ReauthTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/api.ErrResponse'
+      summary: Reauthenticate with the current password
       tags:
       - Account
   /api/v1/accounts/reset-password:
@@ -3609,9 +3609,8 @@ paths:
       consumes:
       - application/json
       description: Delete all sessions for the current account except the current
-        session. The account owner is verified first with the current password (plus
-        otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete
-        purpose.
+        session. The account owner is verified first with a reauth token issued for
+        the sessions_delete purpose.
       parameters:
       - description: Verification
         in: body
@@ -3901,8 +3900,7 @@ paths:
       consumes:
       - application/json
       description: Delete a specific passkey. The account owner is verified first
-        with the current password (plus otp when TOTP is enabled) or a passkey reauth
-        token issued for the passkey_delete purpose.
+        with a reauth token issued for the passkey_delete purpose.
       parameters:
       - description: Credential ID
         in: path
@@ -3930,8 +3928,7 @@ paths:
       consumes:
       - application/json
       description: Add a new passkey to authenticated account. The account owner is
-        verified first with the current password (plus otp when TOTP is enabled) or
-        a passkey reauth token issued for the passkey_add purpose.
+        verified first with a reauth token issued for the passkey_add purpose.
       parameters:
       - description: Verification
         in: body
@@ -4027,7 +4024,7 @@ paths:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/responses.WebAuthnReauthFinishResponse'
+            $ref: '#/definitions/responses.ReauthTokenResponse'
         "400":
           description: Bad Request
           schema:

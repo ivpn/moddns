@@ -71,6 +71,36 @@ func (r *AccountRepository) UpdateAccount(ctx context.Context, account *model.Ac
 	return account, nil
 }
 
+// AddReauthToken implements repository.AccountRepository. The update is an
+// aggregation pipeline, so filtering and appending happen in one atomic write.
+func (r *AccountRepository) AddReauthToken(ctx context.Context, accountId string, token model.Token, now time.Time) error {
+	accId, err := primitive.ObjectIDFromHex(accountId)
+	if err != nil {
+		return err
+	}
+	live := bson.D{{Key: "$filter", Value: bson.D{
+		{Key: "input", Value: bson.D{{Key: "$ifNull", Value: bson.A{"$tokens", bson.A{}}}}},
+		{Key: "cond", Value: bson.D{{Key: "$not", Value: bson.A{bson.D{{Key: "$and", Value: bson.A{
+			bson.D{{Key: "$eq", Value: bson.A{bson.D{{Key: "$substrCP", Value: bson.A{"$$this.type", 0, len(reauthTokenPrefix)}}}, reauthTokenPrefix}}},
+			bson.D{{Key: "$lte", Value: bson.A{"$$this.expires_at", now}}},
+		}}}}}}},
+	}}}
+	update := mongo.Pipeline{{{Key: "$set", Value: bson.D{{Key: "tokens", Value: bson.D{
+		{Key: "$concatArrays", Value: bson.A{live, bson.A{token}}},
+	}}}}}}
+	res, err := r.accountsCollection.UpdateByID(ctx, accId, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.ErrAccountNotFound
+	}
+	return nil
+}
+
+// reauthTokenPrefix starts the type of every reauth token (auth.TokenTypeReauth*).
+const reauthTokenPrefix = "reauth_"
+
 func (r *AccountRepository) GetAccountById(ctx context.Context, accountId string) (*model.Account, error) {
 	accId, err := primitive.ObjectIDFromHex(accountId)
 	if err != nil {

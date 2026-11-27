@@ -520,6 +520,80 @@ func (_c *AccountServicer_PurgeAccountData_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// Reauthenticate provides a mock function for the type AccountServicer
+func (_mock *AccountServicer) Reauthenticate(ctx context.Context, accountId string, req requests.ReauthRequest) (*model.Token, error) {
+	ret := _mock.Called(ctx, accountId, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Reauthenticate")
+	}
+
+	var r0 *model.Token
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.ReauthRequest) (*model.Token, error)); ok {
+		return returnFunc(ctx, accountId, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, requests.ReauthRequest) *model.Token); ok {
+		r0 = returnFunc(ctx, accountId, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Token)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, requests.ReauthRequest) error); ok {
+		r1 = returnFunc(ctx, accountId, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// AccountServicer_Reauthenticate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Reauthenticate'
+type AccountServicer_Reauthenticate_Call struct {
+	*mock.Call
+}
+
+// Reauthenticate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - req requests.ReauthRequest
+func (_e *AccountServicer_Expecter) Reauthenticate(ctx interface{}, accountId interface{}, req interface{}) *AccountServicer_Reauthenticate_Call {
+	return &AccountServicer_Reauthenticate_Call{Call: _e.mock.On("Reauthenticate", ctx, accountId, req)}
+}
+
+func (_c *AccountServicer_Reauthenticate_Call) Run(run func(ctx context.Context, accountId string, req requests.ReauthRequest)) *AccountServicer_Reauthenticate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 requests.ReauthRequest
+		if args[2] != nil {
+			arg2 = args[2].(requests.ReauthRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountServicer_Reauthenticate_Call) Return(token *model.Token, err error) *AccountServicer_Reauthenticate_Call {
+	_c.Call.Return(token, err)
+	return _c
+}
+
+func (_c *AccountServicer_Reauthenticate_Call) RunAndReturn(run func(ctx context.Context, accountId string, req requests.ReauthRequest) (*model.Token, error)) *AccountServicer_Reauthenticate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RequestEmailVerificationOTP provides a mock function for the type AccountServicer
 func (_mock *AccountServicer) RequestEmailVerificationOTP(ctx context.Context, accountId string) error {
 	ret := _mock.Called(ctx, accountId)
@@ -931,16 +1005,16 @@ func (_c *AccountServicer_TotpRegenerateBackupCodes_Call) RunAndReturn(run func(
 }
 
 // UpdateAccount provides a mock function for the type AccountServicer
-func (_mock *AccountServicer) UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error {
-	ret := _mock.Called(ctx, accountId, updates, mfa)
+func (_mock *AccountServicer) UpdateAccount(ctx context.Context, accountId string, updates []model.AccountUpdate) error {
+	ret := _mock.Called(ctx, accountId, updates)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateAccount")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []model.AccountUpdate, *model.MfaData) error); ok {
-		r0 = returnFunc(ctx, accountId, updates, mfa)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []model.AccountUpdate) error); ok {
+		r0 = returnFunc(ctx, accountId, updates)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -956,12 +1030,11 @@ type AccountServicer_UpdateAccount_Call struct {
 //   - ctx context.Context
 //   - accountId string
 //   - updates []model.AccountUpdate
-//   - mfa *model.MfaData
-func (_e *AccountServicer_Expecter) UpdateAccount(ctx interface{}, accountId interface{}, updates interface{}, mfa interface{}) *AccountServicer_UpdateAccount_Call {
-	return &AccountServicer_UpdateAccount_Call{Call: _e.mock.On("UpdateAccount", ctx, accountId, updates, mfa)}
+func (_e *AccountServicer_Expecter) UpdateAccount(ctx interface{}, accountId interface{}, updates interface{}) *AccountServicer_UpdateAccount_Call {
+	return &AccountServicer_UpdateAccount_Call{Call: _e.mock.On("UpdateAccount", ctx, accountId, updates)}
 }
 
-func (_c *AccountServicer_UpdateAccount_Call) Run(run func(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData)) *AccountServicer_UpdateAccount_Call {
+func (_c *AccountServicer_UpdateAccount_Call) Run(run func(ctx context.Context, accountId string, updates []model.AccountUpdate)) *AccountServicer_UpdateAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -975,15 +1048,10 @@ func (_c *AccountServicer_UpdateAccount_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].([]model.AccountUpdate)
 		}
-		var arg3 *model.MfaData
-		if args[3] != nil {
-			arg3 = args[3].(*model.MfaData)
-		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -994,7 +1062,7 @@ func (_c *AccountServicer_UpdateAccount_Call) Return(err error) *AccountServicer
 	return _c
 }
 
-func (_c *AccountServicer_UpdateAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, updates []model.AccountUpdate, mfa *model.MfaData) error) *AccountServicer_UpdateAccount_Call {
+func (_c *AccountServicer_UpdateAccount_Call) RunAndReturn(run func(ctx context.Context, accountId string, updates []model.AccountUpdate) error) *AccountServicer_UpdateAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

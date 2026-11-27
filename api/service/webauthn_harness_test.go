@@ -25,9 +25,11 @@ import (
 	"github.com/ivpn/dns/api/cache"
 	"github.com/ivpn/dns/api/config"
 	"github.com/ivpn/dns/api/internal/auth"
+	"github.com/ivpn/dns/api/internal/reauth"
 	"github.com/ivpn/dns/api/internal/webauthn"
 	"github.com/ivpn/dns/api/mocks"
 	"github.com/ivpn/dns/api/model"
+	"github.com/ivpn/dns/api/service/account"
 	"github.com/ivpn/dns/api/service/passkey"
 )
 
@@ -83,6 +85,24 @@ func (s *passkeyStore) UpdateAccount(_ context.Context, acc *model.Account) (*mo
 	defer s.mu.Unlock()
 	s.accounts[acc.ID.Hex()] = acc
 	return acc, nil
+}
+
+// AddReauthToken appends token and drops expired reauth tokens, like the MongoDB store.
+func (s *passkeyStore) AddReauthToken(_ context.Context, accountID string, token model.Token, now time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	acc, ok := s.accounts[accountID]
+	if !ok {
+		return errors.New("account not found")
+	}
+	kept := make([]model.Token, 0, len(acc.Tokens)+1)
+	for _, t := range acc.Tokens {
+		if !strings.HasPrefix(t.Type, "reauth_") || t.ExpiresAt.After(now) {
+			kept = append(kept, t)
+		}
+	}
+	acc.Tokens = append(kept, token)
+	return nil
 }
 
 func (s *passkeyStore) GetCredentials(_ context.Context, accountID primitive.ObjectID) ([]model.Credential, error) {
@@ -313,7 +333,7 @@ func (h *passkeyHarness) reauth(acc *model.Account, purpose string, authenticato
 
 // addPasskey runs the add-passkey ceremony, verified by a passkey_add reauth token.
 func (h *passkeyHarness) addPasskey(acc *model.Account, reauthToken string, authenticator virtualwebauthn.Authenticator, cred virtualwebauthn.Credential) error {
-	options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+	options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauthToken)
 	require.NoError(h.t, err)
 	return h.svc.FinishAddPasskey(h.ctx, acc.ID.Hex(), token, browserRequest(h.attest(options, authenticator, cred)))
 }
@@ -365,7 +385,7 @@ func TestPasskeyHarnessCreationRequiresUserVerification(t *testing.T) {
 	acc, authenticator, cred := h.registered("add-uv@example.com")
 	reauth, err := h.reauth(acc, "passkey_add", authenticator, cred)
 	require.NoError(t, err)
-	options, _, err = h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauth.Value, &model.MfaData{})
+	options, _, err = h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauth.Value)
 	require.NoError(t, err)
 	require.Equal(t, protocol.VerificationRequired, options.Response.AuthenticatorSelection.UserVerification)
 	err = h.addPasskey(acc, h.grantReauthToken(acc, auth.TokenTypeReauthPasskeyAdd), unverified(acc), virtualwebauthn.NewCredential(virtualwebauthn.KeyTypeEC2))
@@ -510,7 +530,7 @@ func TestPasskeyHarnessReauth(t *testing.T) {
 	h := newPasskeyHarness(t)
 	acc, authenticator, cred := h.registered("reauth@example.com")
 
-	for purpose, tokenType := range reauthTokenTypes {
+	for purpose, tokenType := range reauth.Purposes {
 		token, err := h.reauth(acc, purpose, authenticator, cred)
 		require.NoError(t, err, purpose)
 		require.Equal(t, tokenType, token.Type, purpose)
@@ -605,7 +625,7 @@ func TestPasskeyHarnessAddPasskey(t *testing.T) {
 	reauth, err := h.reauth(acc, "passkey_add", authenticator, cred)
 	require.NoError(t, err)
 
-	options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauth.Value, &model.MfaData{})
+	options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauth.Value)
 	require.NoError(t, err)
 	parsed, err := virtualwebauthn.ParseAttestationOptions(toJSON(t, options))
 	require.NoError(t, err)
@@ -630,7 +650,7 @@ func TestPasskeyHarnessAddPasskeyNeedsVerification(t *testing.T) {
 	acc, _, _ := h.registered("add-unverified@example.com")
 
 	wrong := "not-a-token"
-	_, _, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &wrong, &model.MfaData{})
+	_, _, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &wrong)
 	require.Error(t, err)
 	require.Empty(t, h.ceremonyKeys(), "no ceremony is started")
 }
@@ -648,7 +668,7 @@ func TestPasskeyHarnessDeletePasskey(t *testing.T) {
 	reauth, err := h.reauth(acc, "passkey_delete", authenticator, second)
 	require.NoError(t, err)
 	firstID := h.storedCredential(acc, first).ID
-	require.NoError(t, h.svc.DeletePasskeyByID(h.ctx, firstID, acc.ID, nil, &reauth.Value, &model.MfaData{}))
+	require.NoError(t, h.svc.DeletePasskeyByID(h.ctx, firstID, acc.ID, &reauth.Value))
 	require.Len(t, h.credentials(acc), 1)
 
 	_, _, err = h.login(acc, authenticator, first)
@@ -658,7 +678,7 @@ func TestPasskeyHarnessDeletePasskey(t *testing.T) {
 
 	reauth, err = h.reauth(acc, "passkey_delete", authenticator, second)
 	require.NoError(t, err)
-	err = h.svc.DeletePasskeyByID(h.ctx, h.storedCredential(acc, second).ID, acc.ID, nil, &reauth.Value, &model.MfaData{})
+	err = h.svc.DeletePasskeyByID(h.ctx, h.storedCredential(acc, second).ID, acc.ID, &reauth.Value)
 	require.ErrorIs(t, err, passkey.ErrLastSignInMethod)
 	require.Len(t, h.credentials(acc), 1)
 }
@@ -671,7 +691,7 @@ func TestPasskeyHarnessDeleteOtherAccountsPasskey(t *testing.T) {
 	other, _, _ := h.registered("other@example.com")
 
 	token := h.grantReauthToken(other, auth.TokenTypeReauthPasskeyDelete)
-	err := h.svc.DeletePasskeyByID(h.ctx, h.storedCredential(owner, cred).ID, other.ID, nil, &token, &model.MfaData{})
+	err := h.svc.DeletePasskeyByID(h.ctx, h.storedCredential(owner, cred).ID, other.ID, &token)
 	require.ErrorContains(t, err, "credential does not belong to account")
 	require.Len(t, h.credentials(owner), 1)
 	require.Len(t, other.Tokens, 1, "the reauth token is not consumed")
@@ -734,7 +754,7 @@ func TestPasskeyHarnessCeremonyBinding(t *testing.T) {
 			name: "add passkey state finished by another account",
 			begin: func(h *passkeyHarness, acc *model.Account) (any, string) {
 				reauthToken := h.grantReauthToken(acc, auth.TokenTypeReauthPasskeyAdd)
-				options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+				options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauthToken)
 				require.NoError(h.t, err)
 				return options, token
 			},
@@ -748,7 +768,7 @@ func TestPasskeyHarnessCeremonyBinding(t *testing.T) {
 			name: "add passkey state finished as signup",
 			begin: func(h *passkeyHarness, acc *model.Account) (any, string) {
 				reauthToken := h.grantReauthToken(acc, auth.TokenTypeReauthPasskeyAdd)
-				options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+				options, token, err := h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauthToken)
 				require.NoError(h.t, err)
 				return options, token
 			},
@@ -936,7 +956,7 @@ func TestPasskeyHarnessWireFormats(t *testing.T) {
 	record("login_session", h.store.sessions[sessionToken].Data)
 
 	reauthToken := h.grantReauthToken(acc, auth.TokenTypeReauthPasskeyAdd)
-	options, token, err = h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), nil, &reauthToken, &model.MfaData{})
+	options, token, err = h.svc.BeginAddPasskey(h.ctx, acc.ID.Hex(), &reauthToken)
 	require.NoError(t, err)
 	recordCeremony("add_passkey", options, token)
 
@@ -959,4 +979,44 @@ func TestPasskeyHarnessWireFormats(t *testing.T) {
 	want, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.JSONEq(t, string(want), string(got))
+}
+
+// A passkey issues no password_set token to an account that has a password: changing it
+// takes the current password and its 2FA code. Refused at begin, and at finish when a
+// password was set after begin. specRef: B3a, F5
+func TestPasskeyHarnessReauthPasswordSetNeedsNoPassword(t *testing.T) {
+	t.Parallel()
+	h := newPasskeyHarness(t)
+	acc, authenticator, cred := h.registered("reauth-password-set@example.com")
+
+	options, ceremony, err := h.svc.BeginReauth(h.ctx, "password_set", acc.ID.Hex())
+	require.NoError(t, err)
+	password := "$2a$10$hash"
+	acc.Password = &password
+	_, err = h.svc.FinishReauth(h.ctx, acc.ID.Hex(), ceremony, browserRequest(h.assert(options, authenticator, cred)))
+	require.ErrorIs(t, err, account.ErrPasswordChangeNeedsPassword)
+	require.Empty(t, acc.Tokens, "no token issued")
+
+	_, _, err = h.svc.BeginReauth(h.ctx, "password_set", acc.ID.Hex())
+	require.ErrorIs(t, err, account.ErrPasswordChangeNeedsPassword)
+
+	token, err := h.reauth(acc, "email_change", authenticator, cred)
+	require.NoError(t, err, "other purposes are unaffected")
+	require.Equal(t, auth.TokenTypeReauthEmailChange, token.Type)
+}
+
+// Issuing a token removes the account's expired reauth tokens and keeps the rest.
+// specRef: F6
+func TestPasskeyHarnessReauthPrunesExpiredTokens(t *testing.T) {
+	t.Parallel()
+	h := newPasskeyHarness(t)
+	acc, authenticator, cred := h.registered("reauth-prune@example.com")
+	expired := model.Token{Type: auth.TokenTypeReauthProfileExport, Value: "expired", ExpiresAt: time.Now().Add(-time.Minute)}
+	live := model.Token{Type: auth.TokenTypeReauthProfileImport, Value: "live", ExpiresAt: time.Now().Add(time.Minute)}
+	reset := model.Token{Type: auth.TokenTypePasswordReset, Value: "reset", ExpiresAt: time.Now().Add(-time.Minute)}
+	acc.Tokens = []model.Token{expired, live, reset}
+
+	token, err := h.reauth(acc, "account_deletion", authenticator, cred)
+	require.NoError(t, err)
+	require.Equal(t, []model.Token{live, reset, *token}, acc.Tokens)
 }

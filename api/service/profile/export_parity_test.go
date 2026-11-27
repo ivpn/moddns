@@ -221,7 +221,7 @@ func TestExport_Import_Export_RoundTripEquality(t *testing.T) {
 	exportAccounts.On("GetAccountById", context.Background(), accountId).Return(authorisedAccount(t), nil)
 	exportSvc := newExportSvc(t, exportRepo, exportAccounts, config.ServiceConfig{MaxProfiles: 100})
 
-	env1, err := exportSvc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
+	env1, err := exportSvc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"))
 	require.NoError(t, err)
 	require.Len(t, env1.Profiles, 1)
 
@@ -254,7 +254,7 @@ func TestExport_Import_Export_RoundTripEquality(t *testing.T) {
 	}
 
 	result, err := imp.svc.Import(context.Background(), "acct-b",
-		profile.ImportModeCreateNew, env1, ptr("secret"), nil, nil)
+		profile.ImportModeCreateNew, env1, ptr("secret"))
 	require.NoError(t, err)
 	require.Empty(t, result.Warnings, "round-trip import must be warning-free")
 	require.NotNil(t, capturedProfile)
@@ -270,7 +270,7 @@ func TestExport_Import_Export_RoundTripEquality(t *testing.T) {
 	reexportAccounts.On("GetAccountById", context.Background(), "acct-b").Return(authorisedAccount(t), nil)
 	reexportSvc := newExportSvc(t, reexportRepo, reexportAccounts, config.ServiceConfig{MaxProfiles: 100})
 
-	env2, err := reexportSvc.Export(context.Background(), "acct-b", profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
+	env2, err := reexportSvc.Export(context.Background(), "acct-b", profile.ExportScopeAll, nil, ptrStr("testpw"))
 	require.NoError(t, err)
 	require.Len(t, env2.Profiles, 1)
 

@@ -49,7 +49,7 @@ func TestExport_GoldenEnvelope(t *testing.T) {
 
 	svc := newExportSvc(t, profileRepo, accountRepo, config.ServiceConfig{MaxProfiles: 100})
 
-	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"), nil, nil)
+	env, err := svc.Export(context.Background(), accountId, profile.ExportScopeAll, nil, ptrStr("testpw"))
 	require.NoError(t, err)
 	require.NotNil(t, env)
 

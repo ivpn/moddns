@@ -504,6 +504,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/accounts/reauth": {
+            "post": {
+                "description": "Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Reauthenticate with the current password",
+                "parameters": [
+                    {
+                        "description": "Reauth request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.ReauthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ReauthTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/api.ErrResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/accounts/reset-password": {
             "post": {
                 "description": "Send reset password email",
@@ -2673,7 +2719,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.",
+                "description": "Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3109,7 +3155,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/add/begin": {
             "post": {
-                "description": "Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.",
+                "description": "Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3256,7 +3302,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/responses.WebAuthnReauthFinishResponse"
+                            "$ref": "#/definitions/responses.ReauthTokenResponse"
                         }
                     },
                     "400": {
@@ -3270,7 +3316,7 @@ const docTemplate = `{
         },
         "/api/v1/webauthn/passkey/{id}": {
             "delete": {
-                "description": "Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.",
+                "description": "Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.",
                 "consumes": [
                     "application/json"
                 ],
@@ -5198,20 +5244,11 @@ const docTemplate = `{
                 "deletion_code"
             ],
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "deletion_code": {
                     "type": "string"
                 },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5221,11 +5258,6 @@ const docTemplate = `{
                 "updates"
             ],
             "properties": {
-                "otp": {
-                    "description": "OTP is the 2FA code that goes with a current password, when 2FA is on.",
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "updates": {
                     "type": "array",
                     "items": {
@@ -5395,14 +5427,6 @@ const docTemplate = `{
                 "scope"
             ],
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "profile_ids": {
                     "type": "array",
                     "items": {
@@ -5410,8 +5434,7 @@ const docTemplate = `{
                     }
                 },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 },
                 "scope": {
                     "type": "string",
@@ -5429,26 +5452,17 @@ const docTemplate = `{
                 "payload"
             ],
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "mode": {
                     "type": "string",
                     "enum": [
                         "create_new"
                     ]
                 },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "payload": {
                     "$ref": "#/definitions/model.ExportEnvelope"
                 },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5523,6 +5537,38 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.ReauthRequest": {
+            "type": "object",
+            "required": [
+                "current_password",
+                "purpose"
+            ],
+            "properties": {
+                "current_password": {
+                    "type": "string"
+                },
+                "otp": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "purpose": {
+                    "type": "string",
+                    "enum": [
+                        "email_change",
+                        "account_deletion",
+                        "profile_export",
+                        "profile_import",
+                        "password_set",
+                        "passkey_add",
+                        "passkey_delete",
+                        "backup_codes_regenerate",
+                        "totp_disable",
+                        "totp_enable",
+                        "sessions_delete"
+                    ]
+                }
+            }
+        },
         "requests.ReorderProfileCustomRuleGroupsBody": {
             "type": "object",
             "required": [
@@ -5587,17 +5633,8 @@ const docTemplate = `{
         "requests.SessionsDeleteRequest": {
             "type": "object",
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5607,31 +5644,21 @@ const docTemplate = `{
                 "otp"
             ],
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "otp": {
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
                 },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
         "requests.TotpEnableReq": {
             "type": "object",
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5641,18 +5668,13 @@ const docTemplate = `{
                 "otp"
             ],
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "otp": {
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
                 },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5700,34 +5722,16 @@ const docTemplate = `{
         "requests.WebAuthnAddPasskeyBeginRequest": {
             "type": "object",
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
         "requests.WebAuthnDeletePasskeyRequest": {
             "type": "object",
             "properties": {
-                "current_password": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "otp": {
-                    "type": "string",
-                    "maxLength": 64
-                },
                 "reauth_token": {
-                    "type": "string",
-                    "minLength": 1
+                    "type": "string"
                 }
             }
         },
@@ -5843,6 +5847,17 @@ const docTemplate = `{
                 }
             }
         },
+        "responses.ReauthTokenResponse": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "reauth_token": {
+                    "type": "string"
+                }
+            }
+        },
         "responses.RegistrationSuccessResponse": {
             "type": "object",
             "properties": {
@@ -5856,17 +5871,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "link": {
-                    "type": "string"
-                }
-            }
-        },
-        "responses.WebAuthnReauthFinishResponse": {
-            "type": "object",
-            "properties": {
-                "expires_at": {
-                    "type": "string"
-                },
-                "reauth_token": {
                     "type": "string"
                 }
             }

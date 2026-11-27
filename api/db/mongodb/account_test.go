@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/model"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -242,6 +243,55 @@ func (s *AccountRepositorySuite) TestGetByEmailAndToken() {
 	gotByToken, err := s.repo.GetAccountByToken(ctx, "tok123", "api")
 	s.Require().NoError(err, "GetAccountByToken")
 	s.Equal(acc.ID, gotByToken.ID, "token lookup mismatch")
+}
+
+// AddReauthToken appends the token and drops expired reauth tokens in one update,
+// leaving other tokens and other fields (e.g. a password changed meanwhile) alone.
+// specRef: api-endpoint-behaviour.md B15, F6
+func (s *AccountRepositorySuite) TestAddReauthToken() {
+	if s.client == nil {
+		s.T().Skip("client unavailable")
+	}
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+
+	accountID := primitive.NewObjectID().Hex()
+	acc, err := s.repo.CreateAccount(ctx, "reauth-token@example.com", "secret", accountID, "profile-R")
+	s.Require().NoError(err)
+
+	expired := model.Token{Type: "reauth_profile_export", Value: "expired", ExpiresAt: now.Add(-time.Minute)}
+	live := model.Token{Type: "reauth_profile_import", Value: "live", ExpiresAt: now.Add(time.Minute)}
+	reset := model.Token{Type: "password_reset", Value: "reset", ExpiresAt: now.Add(-time.Minute)}
+	acc.Tokens = []model.Token{expired, live, reset}
+	_, err = s.repo.UpdateAccount(ctx, acc)
+	s.Require().NoError(err)
+
+	// A write the issuer never read (here: a new password hash) must survive.
+	changed := "changed-hash"
+	acc.Password = &changed
+	_, err = s.repo.UpdateAccount(ctx, acc)
+	s.Require().NoError(err)
+
+	issued := model.Token{Type: "reauth_account_deletion", Value: "issued", ExpiresAt: now.Add(5 * time.Minute)}
+	s.Require().NoError(s.repo.AddReauthToken(ctx, acc.ID.Hex(), issued, now))
+
+	got, err := s.repo.GetAccountById(ctx, acc.ID.Hex())
+	s.Require().NoError(err)
+	s.Equal([]model.Token{live, reset, issued}, normaliseTokens(got.Tokens))
+	s.Require().NotNil(got.Password)
+	s.Equal(changed, *got.Password)
+
+	s.ErrorIs(s.repo.AddReauthToken(ctx, primitive.NewObjectID().Hex(), issued, now), dbErrors.ErrAccountNotFound)
+}
+
+// normaliseTokens puts stored expiry times in UTC so they compare with the inputs.
+func normaliseTokens(tokens []model.Token) []model.Token {
+	out := make([]model.Token, len(tokens))
+	for i, t := range tokens {
+		t.ExpiresAt = t.ExpiresAt.UTC()
+		out[i] = t
+	}
+	return out
 }
 
 // TestEmailCaseInsensitiveRoundTrip validates that emails are stored in

@@ -129,8 +129,11 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 		return nil, "", err
 	}
 
-	if _, ok := reauthTokenType(purpose); !ok {
+	if _, ok := reauth.TokenType(purpose); !ok {
 		return nil, "", fmt.Errorf("unsupported reauth purpose: %s", purpose)
+	}
+	if err := passkeyMaySetPassword(acc, purpose); err != nil {
+		return nil, "", err
 	}
 
 	credentials, err := s.GetCredentials(ctx, acc.ID)
@@ -144,25 +147,14 @@ func (s *Service) BeginReauth(ctx context.Context, purpose, accountId string) (*
 	return s.Webauthn.BeginReauth(ctx, passkeyUser(acc, credentials), purpose)
 }
 
-// reauthTokenTypes maps each passkey reauth purpose to the token type that the
-// operation it protects consumes.
-var reauthTokenTypes = map[string]string{
-	"email_change":            auth.TokenTypeReauthEmailChange,
-	"account_deletion":        auth.TokenTypeReauthAccountDeletion,
-	"profile_export":          auth.TokenTypeReauthProfileExport,
-	"profile_import":          auth.TokenTypeReauthProfileImport,
-	"password_set":            auth.TokenTypeReauthPasswordSet,
-	"passkey_add":             auth.TokenTypeReauthPasskeyAdd,
-	"passkey_delete":          auth.TokenTypeReauthPasskeyDelete,
-	"backup_codes_regenerate": auth.TokenTypeReauthBackupCodesRegen,
-	"totp_disable":            auth.TokenTypeReauthTotpDisable,
-	"totp_enable":             auth.TokenTypeReauthTotpEnable,
-	"sessions_delete":         auth.TokenTypeReauthSessionsDelete,
-}
-
-func reauthTokenType(purpose string) (string, bool) {
-	tokenType, ok := reauthTokenTypes[purpose]
-	return tokenType, ok
+// passkeyMaySetPassword refuses a passkey password_set token for an account that has a
+// password: changing it takes the current password and its 2FA code (POST /accounts/reauth).
+// Checked at begin and again at finish, in case a password was set in between.
+func passkeyMaySetPassword(acc *model.Account, purpose string) error {
+	if purpose == "password_set" && acc.Password != nil {
+		return account.ErrPasswordChangeNeedsPassword
+	}
+	return nil
 }
 
 // FinishReauth completes the WebAuthn reauthentication process and issues a reauth token
@@ -173,17 +165,14 @@ func (s *Service) FinishReauth(ctx context.Context, accountID, tmpToken string, 
 		return nil, err
 	}
 
-	tokenType, ok := reauthTokenType(result.Purpose)
-	if !ok {
-		return nil, account.ErrInvalidReauthToken
+	if err := passkeyMaySetPassword(acc, result.Purpose); err != nil {
+		return nil, err
 	}
-
-	reauthTok, err := auth.NewToken(tokenType)
+	reauthTok, err := reauth.New(result.Purpose)
 	if err != nil {
 		return nil, err
 	}
-	acc.Tokens = append(acc.Tokens, *reauthTok)
-	if _, err = s.Store.UpdateAccount(ctx, acc); err != nil {
+	if err = s.Store.AddReauthToken(ctx, acc.ID.Hex(), *reauthTok, time.Now()); err != nil {
 		return nil, err
 	}
 	return reauthTok, nil
@@ -233,15 +222,13 @@ func (s *Service) recordAssertion(ctx context.Context, account *model.Account, r
 }
 
 // BeginAddPasskey starts the process of adding a new passkey to an existing account
-// The account owner must first verify with the current password (plus TOTP when enabled)
-// or a passkey reauth token issued for passkey_add, so a session alone cannot add a credential.
-func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, currentPassword, reauthToken *string, mfa *model.MfaData) (*webauthn.CredentialCreation, string, error) {
-	account, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+// The account owner must first present a reauth token issued for passkey_add, so a session
+// alone cannot add a credential.
+func (s *Service) BeginAddPasskey(ctx context.Context, accountID string, reauthToken *string) (*webauthn.CredentialCreation, string, error) {
+	account, err := reauth.Verify(ctx, s.Store, reauth.Params{
 		AccountId:        accountID,
 		TokenType:        auth.TokenTypeReauthPasskeyAdd,
-		Password:         currentPassword,
 		ReauthToken:      reauthToken,
-		Mfa:              mfa,
 		PersistOnConsume: true,
 	})
 	if err != nil {
@@ -280,10 +267,9 @@ func (s *Service) GetPasskeysForAccount(ctx context.Context, accountID primitive
 }
 
 // DeletePasskeyByID deletes a passkey by its ID, ensuring it belongs to the account
-// The account owner must verify with the current password (plus TOTP when enabled) or a
-// passkey reauth token issued for passkey_delete. Ownership is checked first so a token is
-// not consumed by a request that cannot succeed.
-func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID, currentPassword, reauthToken *string, mfa *model.MfaData) error {
+// The account owner must present a reauth token issued for passkey_delete. Ownership is
+// checked first so a token is not consumed by a request that cannot succeed.
+func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.ObjectID, accountID primitive.ObjectID, reauthToken *string) error {
 	// Verify the credential belongs to the account before deletion
 	credential, err := s.Store.GetCredentialByID(ctx, credentialID)
 	if err != nil {
@@ -298,12 +284,10 @@ func (s *Service) DeletePasskeyByID(ctx context.Context, credentialID primitive.
 		return err
 	}
 
-	if _, err := reauth.Verify(ctx, s.Store, s.AccountServicer, reauth.Params{
+	if _, err := reauth.Verify(ctx, s.Store, reauth.Params{
 		AccountId:        accountID.Hex(),
 		TokenType:        auth.TokenTypeReauthPasskeyDelete,
-		Password:         currentPassword,
 		ReauthToken:      reauthToken,
-		Mfa:              mfa,
 		PersistOnConsume: true,
 	}); err != nil {
 		return err

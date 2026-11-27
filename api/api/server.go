@@ -240,6 +240,7 @@ func (s *APIServer) RegisterRoutes() {
 	accounts.Post("/logout", middleware.NewLimit(20, 1*time.Minute), s.logout())
 	accounts.Get("/current", middleware.NewLimit(40, 1*time.Minute), s.getAccount())
 	accounts.Patch("", middleware.NewLimit(20, 1*time.Minute), s.updateAccount())
+	accounts.Post("/reauth", middleware.NewLimit(10, 1*time.Minute), s.reauthenticate())
 	accounts.Post("/current/deletion-code", middleware.NewLimit(10, 1*time.Minute), s.generateDeletionCode())
 	accounts.Delete("/current", middleware.NewLimit(5, 10*time.Minute), s.deleteAccount())
 

@@ -102,6 +102,75 @@ func (_c *AccountRepository_AddProfileToAccount_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// AddReauthToken provides a mock function for the type AccountRepository
+func (_mock *AccountRepository) AddReauthToken(ctx context.Context, accountId string, token model.Token, now time.Time) error {
+	ret := _mock.Called(ctx, accountId, token, now)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddReauthToken")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, model.Token, time.Time) error); ok {
+		r0 = returnFunc(ctx, accountId, token, now)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// AccountRepository_AddReauthToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddReauthToken'
+type AccountRepository_AddReauthToken_Call struct {
+	*mock.Call
+}
+
+// AddReauthToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountId string
+//   - token model.Token
+//   - now time.Time
+func (_e *AccountRepository_Expecter) AddReauthToken(ctx interface{}, accountId interface{}, token interface{}, now interface{}) *AccountRepository_AddReauthToken_Call {
+	return &AccountRepository_AddReauthToken_Call{Call: _e.mock.On("AddReauthToken", ctx, accountId, token, now)}
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) Run(run func(ctx context.Context, accountId string, token model.Token, now time.Time)) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 model.Token
+		if args[2] != nil {
+			arg2 = args[2].(model.Token)
+		}
+		var arg3 time.Time
+		if args[3] != nil {
+			arg3 = args[3].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) Return(err error) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *AccountRepository_AddReauthToken_Call) RunAndReturn(run func(ctx context.Context, accountId string, token model.Token, now time.Time) error) *AccountRepository_AddReauthToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ConsumeBackupCode provides a mock function for the type AccountRepository
 func (_mock *AccountRepository) ConsumeBackupCode(ctx context.Context, accountId string, backupCodeHash string) (bool, error) {
 	ret := _mock.Called(ctx, accountId, backupCodeHash)

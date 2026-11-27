@@ -3,12 +3,12 @@ package reauth_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/crypto/bcrypt"
 
 	dbErrors "github.com/ivpn/dns/api/db/errors"
 	"github.com/ivpn/dns/api/internal/auth"
@@ -21,13 +21,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func ptr(s string) *string { return &s }
-
-func bcryptHash(t *testing.T, password string) string {
-	t.Helper()
-	b, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	require.NoError(t, err)
-	return string(b)
-}
 
 // fakeStore is a hand-written test double for reauth.Store. It records every
 // UpdateAccount call so tests can assert persistence behaviour.
@@ -54,28 +47,6 @@ func (s *fakeStore) UpdateAccount(_ context.Context, account *model.Account) (*m
 	return account, nil
 }
 
-// fakeMfa is a hand-written MfaVerifier double. mfaErr is returned verbatim;
-// nil means MFA passes.
-type fakeMfa struct {
-	mfaErr error
-	calls  int
-}
-
-func (m *fakeMfa) MfaCheck(_ context.Context, _ *model.Account, _ *model.MfaData) error {
-	m.calls++
-	return m.mfaErr
-}
-
-// totpEnabledAccount builds an account record with TOTP on.
-func totpEnabledAccount(hashed string) *model.Account {
-	return &model.Account{
-		Password: &hashed,
-		MFA: model.MFASettings{
-			TOTP: model.TotpSettings{Enabled: true},
-		},
-	}
-}
-
 // tokenAccount builds an account with a single reauth token of the given
 // type, value, and expiry.
 func tokenAccount(tokenType, value string, expiresAt time.Time) *model.Account {
@@ -87,170 +58,44 @@ func tokenAccount(tokenType, value string, expiresAt time.Time) *model.Account {
 }
 
 // ---------------------------------------------------------------------------
-// Validation of credential combinations
+// Missing token and account lookup
 // ---------------------------------------------------------------------------
 
-func TestVerify_NoCredentials_ReturnsMissingAuthMethod(t *testing.T) {
-	store := &fakeStore{}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		TokenType: auth.TokenTypeReauthAccountDeletion,
-	})
-	assert.ErrorIs(t, err, reauth.ErrMissingAuthMethod)
-	assert.Equal(t, 0, store.updateCalls)
+func TestVerify_NoToken_ReturnsMissingAuthMethod(t *testing.T) {
+	for name, tok := range map[string]*string{"nil": nil, "empty": ptr("")} {
+		t.Run(name, func(t *testing.T) {
+			store := &fakeStore{}
+			_, err := reauth.Verify(context.Background(), store, reauth.Params{
+				AccountId:   "acct",
+				TokenType:   auth.TokenTypeReauthAccountDeletion,
+				ReauthToken: tok,
+			})
+			assert.ErrorIs(t, err, reauth.ErrMissingAuthMethod)
+			assert.Equal(t, 0, store.updateCalls)
+		})
+	}
 }
 
-func TestVerify_BothCredentials_ReturnsMultipleAuthMethods(t *testing.T) {
-	store := &fakeStore{}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+func TestVerify_AccountNotFound_ReturnsInvalidToken(t *testing.T) {
+	// Conflated with a wrong token so the response does not reveal whether the account exists.
+	store := &fakeStore{getErr: dbErrors.ErrAccountNotFound}
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:   "acct",
-		TokenType:   auth.TokenTypeReauthAccountDeletion,
-		Password:    ptr("hunter2"),
+		TokenType:   auth.TokenTypeReauthProfileExport,
 		ReauthToken: ptr("tok"),
 	})
-	assert.ErrorIs(t, err, reauth.ErrMultipleAuthMethods)
-	assert.Equal(t, 0, store.updateCalls)
+	assert.ErrorIs(t, err, reauth.ErrInvalidReauthToken)
 }
 
-// ---------------------------------------------------------------------------
-// Password path
-// ---------------------------------------------------------------------------
-
-func TestVerify_Password_AccountNotFound_ReturnsInvalidPassword(t *testing.T) {
-	// Account-not-found is conflated with bad password so the response does
-	// not leak whether a given accountId exists.
-	store := &fakeStore{getErr: dbErrors.ErrAccountNotFound}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("anything"),
-	})
-	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
-}
-
-func TestVerify_Password_StoreError_BubblesUp(t *testing.T) {
+func TestVerify_StoreError_BubblesUp(t *testing.T) {
 	sentinel := errors.New("db down")
 	store := &fakeStore{getErr: sentinel}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("anything"),
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
+		AccountId:   "acct",
+		TokenType:   auth.TokenTypeReauthProfileExport,
+		ReauthToken: ptr("tok"),
 	})
 	assert.ErrorIs(t, err, sentinel)
-}
-
-func TestVerify_Password_NoPasswordOnAccount_ReturnsInvalidPassword(t *testing.T) {
-	// Passkey-only account (no password set).
-	store := &fakeStore{account: &model.Account{Password: nil}}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("anything"),
-	})
-	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
-}
-
-func TestVerify_Password_Wrong_ReturnsInvalidPassword(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: &model.Account{Password: &hashed}}
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("wrong"),
-	})
-	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
-}
-
-func TestVerify_Password_NoMfaVerifier_MfaSkipped(t *testing.T) {
-	// nil verifier → MFA check is skipped even if account has TOTP enabled.
-	// This preserves pre-unification behaviour for callers that haven't yet
-	// wired the verifier.
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: totpEnabledAccount(hashed)}
-	acc, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("correct"),
-	})
-	require.NoError(t, err)
-	assert.NotNil(t, acc)
-}
-
-func TestVerify_Password_MfaDisabled_VerifierNotInvokedOnSuccess(t *testing.T) {
-	// MfaCheck is still called when verifier != nil, but its short-circuit
-	// (TOTP disabled → nil) means the call succeeds. We invoke it
-	// unconditionally to keep the path uniform.
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: &model.Account{Password: &hashed}}
-	verifier := &fakeMfa{mfaErr: nil}
-	_, err := reauth.Verify(context.Background(), store, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("correct"),
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, verifier.calls, "verifier is invoked once on password path")
-}
-
-func TestVerify_Password_MfaFails_PropagatesError(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: totpEnabledAccount(hashed)}
-	sentinel := errors.New("totp required")
-	verifier := &fakeMfa{mfaErr: sentinel}
-
-	_, err := reauth.Verify(context.Background(), store, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("correct"),
-		Mfa:       &model.MfaData{},
-	})
-	assert.ErrorIs(t, err, sentinel)
-}
-
-// Without a code the 2FA prompt comes first, whatever the password, so the
-// dialog can ask for the code.
-func TestVerify_Password_MissingCodePromptsFirst(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: totpEnabledAccount(hashed)}
-	mfaErr := errors.New("totp required")
-	verifier := &fakeMfa{mfaErr: mfaErr}
-
-	_, err := reauth.Verify(context.Background(), store, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("wrong-password"),
-	})
-	assert.ErrorIs(t, err, mfaErr)
-}
-
-// A code is checked only after the password, so a wrong password neither uses
-// up a backup code nor counts as a failed 2FA attempt.
-func TestVerify_Password_CodeCheckedAfterPassword(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	verifier := &fakeMfa{}
-
-	_, err := reauth.Verify(context.Background(), &fakeStore{account: totpEnabledAccount(hashed)}, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("wrong-password"),
-		Mfa:       &model.MfaData{OTP: "GFUKS-Z7KZB-VPNDN-TMWMS-HAKR5"},
-	})
-	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
-	assert.Equal(t, 0, verifier.calls, "no code is checked after a wrong password")
-
-	_, err = reauth.Verify(context.Background(), &fakeStore{account: totpEnabledAccount(hashed)}, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("correct"),
-		Mfa:       &model.MfaData{OTP: "123456"},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, verifier.calls)
-}
-
-func TestVerify_Password_NilMfa_PassesEmptyToVerifier(t *testing.T) {
-	// MfaCheck must never receive a nil *MfaData — Verify substitutes an
-	// empty struct.
-	hashed := bcryptHash(t, "correct")
-	store := &fakeStore{account: &model.Account{Password: &hashed}}
-	verifier := &fakeMfa{mfaErr: nil}
-	_, err := reauth.Verify(context.Background(), store, verifier, reauth.Params{
-		AccountId: "acct",
-		Password:  ptr("correct"),
-		Mfa:       nil,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, verifier.calls)
 }
 
 // ---------------------------------------------------------------------------
@@ -261,7 +106,7 @@ func TestVerify_Token_NoMatch_ReturnsInvalid(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthProfileExport, "real-token", time.Now().Add(5*time.Minute))
 	store := &fakeStore{account: acc}
 
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:   "acct",
 		TokenType:   auth.TokenTypeReauthProfileExport,
 		ReauthToken: ptr("wrong-token"),
@@ -277,7 +122,7 @@ func TestVerify_Token_WrongType_ReturnsInvalid(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthAccountDeletion, "tok", time.Now().Add(5*time.Minute))
 	store := &fakeStore{account: acc}
 
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:   "acct",
 		TokenType:   auth.TokenTypeReauthProfileExport,
 		ReauthToken: ptr("tok"),
@@ -289,7 +134,7 @@ func TestVerify_Token_Expired_ReturnsExpired_NotConsumed(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthProfileExport, "tok", time.Now().Add(-1*time.Minute))
 	store := &fakeStore{account: acc}
 
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthProfileExport,
 		ReauthToken:      ptr("tok"),
@@ -305,7 +150,7 @@ func TestVerify_Token_Match_PersistOff_NoUpdate(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthAccountDeletion, "tok", time.Now().Add(5*time.Minute))
 	store := &fakeStore{account: acc}
 
-	got, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	got, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthAccountDeletion,
 		ReauthToken:      ptr("tok"),
@@ -324,7 +169,7 @@ func TestVerify_Token_Match_PersistOn_OneUpdate(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthProfileExport, "tok", time.Now().Add(5*time.Minute))
 	store := &fakeStore{account: acc}
 
-	got, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	got, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthProfileExport,
 		ReauthToken:      ptr("tok"),
@@ -342,7 +187,7 @@ func TestVerify_Token_SingleUse(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthProfileImport, "tok", time.Now().Add(5*time.Minute))
 	store := &fakeStore{account: acc}
 
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthProfileImport,
 		ReauthToken:      ptr("tok"),
@@ -352,7 +197,7 @@ func TestVerify_Token_SingleUse(t *testing.T) {
 	require.Equal(t, 1, store.updateCalls)
 
 	// Second attempt — store.account now has the consumed-token state.
-	_, err = reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err = reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthProfileImport,
 		ReauthToken:      ptr("tok"),
@@ -374,7 +219,7 @@ func TestVerify_Token_PreservesOtherTokens(t *testing.T) {
 	}
 	store := &fakeStore{account: acc}
 
-	got, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	got, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthEmailChange,
 		ReauthToken:      ptr("ec"),
@@ -392,37 +237,12 @@ func TestVerify_Token_PreservesOtherTokens(t *testing.T) {
 	assert.False(t, remainingValues["ec"], "consumed email-change token must be gone")
 }
 
-func TestVerify_Token_MfaVerifierIgnoredOnTokenPath(t *testing.T) {
-	// The passkey ceremony that issued the token already proved MFA. Even
-	// if a verifier is supplied AND the account has TOTP enabled AND no OTP
-	// is provided, the token path succeeds. Matches DeleteAccount /
-	// handleEmailUpdate behaviour.
-	hashed := bcryptHash(t, "doesntmatter")
-	acc := totpEnabledAccount(hashed)
-	acc.Tokens = []model.Token{
-		{Type: auth.TokenTypeReauthAccountDeletion, Value: "tok", ExpiresAt: time.Now().Add(5 * time.Minute)},
-	}
-	store := &fakeStore{account: acc}
-
-	mfaSentinel := errors.New("totp required")
-	verifier := &fakeMfa{mfaErr: mfaSentinel}
-
-	_, err := reauth.Verify(context.Background(), store, verifier, reauth.Params{
-		AccountId:        "acct",
-		TokenType:        auth.TokenTypeReauthAccountDeletion,
-		ReauthToken:      ptr("tok"),
-		PersistOnConsume: true,
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 0, verifier.calls, "MFA verifier must not be invoked on token path")
-}
-
 func TestVerify_Token_PersistFailure_PropagatesError(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthProfileExport, "tok", time.Now().Add(5*time.Minute))
 	sentinel := errors.New("update failed")
 	store := &fakeStore{account: acc, updateErr: sentinel}
 
-	_, err := reauth.Verify(context.Background(), store, nil, reauth.Params{
+	_, err := reauth.Verify(context.Background(), store, reauth.Params{
 		AccountId:        "acct",
 		TokenType:        auth.TokenTypeReauthProfileExport,
 		ReauthToken:      ptr("tok"),
@@ -433,41 +253,25 @@ func TestVerify_Token_PersistFailure_PropagatesError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// VerifyOnAccount — operates on a pre-loaded account, never touches the store
+// VerifyOnAccount - operates on a pre-loaded account, never touches the store
 // ---------------------------------------------------------------------------
 
-func TestVerifyOnAccount_NilAccount_ReturnsInvalidPassword(t *testing.T) {
-	err := reauth.VerifyOnAccount(context.Background(), nil, nil, reauth.Params{
-		Password: ptr("anything"),
-	})
-	assert.ErrorIs(t, err, reauth.ErrInvalidPassword)
+func TestVerifyOnAccount_NilAccount_ReturnsInvalidToken(t *testing.T) {
+	err := reauth.VerifyOnAccount(nil, reauth.Params{ReauthToken: ptr("tok")})
+	assert.ErrorIs(t, err, reauth.ErrInvalidReauthToken)
 }
 
-func TestVerifyOnAccount_BothCredentials_ReturnsMultipleAuthMethods(t *testing.T) {
-	err := reauth.VerifyOnAccount(context.Background(), &model.Account{}, nil, reauth.Params{
-		Password:    ptr("p"),
-		ReauthToken: ptr("t"),
-	})
-	assert.ErrorIs(t, err, reauth.ErrMultipleAuthMethods)
-}
-
-func TestVerifyOnAccount_Password_Correct_MutatesNothing(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	acc := &model.Account{
-		Password: &hashed,
-		Tokens:   []model.Token{{Type: "x", Value: "y"}},
-	}
-	err := reauth.VerifyOnAccount(context.Background(), acc, nil, reauth.Params{
-		Password: ptr("correct"),
-	})
-	require.NoError(t, err)
-	assert.Len(t, acc.Tokens, 1, "password path must not touch tokens")
+func TestVerifyOnAccount_NoToken_ReturnsMissingAuthMethod(t *testing.T) {
+	acc := tokenAccount(auth.TokenTypeReauthEmailChange, "tok", time.Now().Add(5*time.Minute))
+	err := reauth.VerifyOnAccount(acc, reauth.Params{TokenType: auth.TokenTypeReauthEmailChange})
+	assert.ErrorIs(t, err, reauth.ErrMissingAuthMethod)
+	assert.Len(t, acc.Tokens, 1)
 }
 
 func TestVerifyOnAccount_Token_Match_ConsumesInPlace_NoPersist(t *testing.T) {
 	// The whole point of VerifyOnAccount: caller owns persistence.
 	acc := tokenAccount(auth.TokenTypeReauthEmailChange, "tok", time.Now().Add(5*time.Minute))
-	err := reauth.VerifyOnAccount(context.Background(), acc, nil, reauth.Params{
+	err := reauth.VerifyOnAccount(acc, reauth.Params{
 		TokenType:        auth.TokenTypeReauthEmailChange,
 		ReauthToken:      ptr("tok"),
 		PersistOnConsume: true, // must be ignored
@@ -478,7 +282,7 @@ func TestVerifyOnAccount_Token_Match_ConsumesInPlace_NoPersist(t *testing.T) {
 
 func TestVerifyOnAccount_Token_Expired_ReturnsExpired(t *testing.T) {
 	acc := tokenAccount(auth.TokenTypeReauthAccountDeletion, "tok", time.Now().Add(-1*time.Minute))
-	err := reauth.VerifyOnAccount(context.Background(), acc, nil, reauth.Params{
+	err := reauth.VerifyOnAccount(acc, reauth.Params{
 		TokenType:   auth.TokenTypeReauthAccountDeletion,
 		ReauthToken: ptr("tok"),
 	})
@@ -486,12 +290,44 @@ func TestVerifyOnAccount_Token_Expired_ReturnsExpired(t *testing.T) {
 	assert.Len(t, acc.Tokens, 1, "expired token must not be consumed")
 }
 
-func TestVerifyOnAccount_Password_MfaFails_PropagatesError(t *testing.T) {
-	hashed := bcryptHash(t, "correct")
-	acc := totpEnabledAccount(hashed)
-	mfaErr := errors.New("totp required")
-	err := reauth.VerifyOnAccount(context.Background(), acc, &fakeMfa{mfaErr: mfaErr}, reauth.Params{
-		Password: ptr("correct"),
-	})
-	assert.ErrorIs(t, err, mfaErr)
+// ---------------------------------------------------------------------------
+// Purposes and issuance
+// ---------------------------------------------------------------------------
+
+func TestTokenType_EveryPurposeHasAReauthTokenType(t *testing.T) {
+	for purpose, tokenType := range reauth.Purposes {
+		got, ok := reauth.TokenType(purpose)
+		require.True(t, ok, purpose)
+		assert.Equal(t, tokenType, got)
+		_, err := auth.NewToken(got)
+		assert.NoError(t, err, "auth.NewToken must know %s", got)
+	}
+	_, ok := reauth.TokenType("login")
+	assert.False(t, ok)
+}
+
+func TestNew_TokenOfThePurposeThatVerifyConsumes(t *testing.T) {
+	tok, err := reauth.New("profile_export")
+	require.NoError(t, err)
+	assert.Equal(t, auth.TokenTypeReauthProfileExport, tok.Type)
+	assert.NotEmpty(t, tok.Value)
+	assert.WithinDuration(t, time.Now().Add(5*time.Minute), tok.ExpiresAt, 5*time.Second)
+
+	acc := &model.Account{Tokens: []model.Token{{Type: auth.TokenTypePasswordReset, Value: "pr", ExpiresAt: time.Now().Add(time.Hour)}, *tok}}
+	require.NoError(t, reauth.VerifyOnAccount(acc, reauth.Params{TokenType: auth.TokenTypeReauthProfileExport, ReauthToken: &tok.Value}))
+	require.Len(t, acc.Tokens, 1)
+	assert.Equal(t, "pr", acc.Tokens[0].Value)
+}
+
+// AccountRepository.AddReauthToken prunes expired tokens by this type prefix.
+func TestNew_EveryReauthTokenTypeHasTheReauthPrefix(t *testing.T) {
+	for purpose, tokenType := range reauth.Purposes {
+		assert.True(t, strings.HasPrefix(tokenType, "reauth_"), purpose)
+	}
+	assert.False(t, strings.HasPrefix(auth.TokenTypePasswordReset, "reauth_"))
+}
+
+func TestNew_UnknownPurpose(t *testing.T) {
+	_, err := reauth.New("login")
+	assert.ErrorIs(t, err, reauth.ErrUnknownPurpose)
 }
