@@ -27,15 +27,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
     const [step, setStep] = useState<'details' | 'confirm'>('details');
     const [newEmail, setNewEmail] = useState('');
     const [confirmEmail, setConfirmEmail] = useState('');
-    interface EmailChangeValuePassword {
-        current_password: string;
-        new_email: string;
-    }
-    interface EmailChangeValueReauth {
-        reauth_token: string;
-        new_email: string;
-    }
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [submitting, setSubmitting] = useState(false);
     const setAccount = useAppStore(s => s.setAccount);
 
@@ -71,9 +63,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
 
         setSubmitting(true);
         try {
-            const value: EmailChangeValuePassword | EmailChangeValueReauth = verification.reauthToken
-                ? { reauth_token: verification.reauthToken, new_email: newEmail }
-                : { current_password: verification.currentPassword ?? '', new_email: newEmail };
+            const value = { reauth_token: await reauthToken('email_change'), new_email: newEmail };
             const req = {
                 updates: [
                     {
@@ -84,7 +74,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
                 ]
             };
 
-            await api.Client.accountsApi.apiV1AccountsPatch({ ...req, otp: verification.otp });
+            await api.Client.accountsApi.apiV1AccountsPatch(req);
 
             const refreshed = await api.Client.accountsApi.apiV1AccountsCurrentGet();
             setAccount(refreshed.data);
@@ -92,7 +82,7 @@ export default function ChangeEmailDialog({ open, onOpenChange, account, onChang
             handleOpenChange(false);
             onChanged();
         } catch (e) {
-            requestFailed();
+            requestFailed(e);
             const err = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(err.response?.data?.error, 'Failed to update email'));
         } finally {

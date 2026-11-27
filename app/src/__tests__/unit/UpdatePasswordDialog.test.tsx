@@ -12,12 +12,14 @@ vi.mock('sonner', () => ({
 }));
 
 const patchMock = vi.fn().mockResolvedValue({});
+const reauthMock = vi.fn();
 const currentGetMock = vi.fn().mockResolvedValue({ data: { account_id: 'abc', mfa: { totp: { enabled: false } } } });
 vi.mock('@/api/api', () => ({
     default: {
         Client: {
             accountsApi: {
                 apiV1AccountsPatch: (...args: unknown[]) => patchMock(...args),
+                apiV1AccountsReauthPost: (...args: unknown[]) => reauthMock(...args),
                 apiV1AccountsCurrentGet: () => currentGetMock()
             }
         }
@@ -39,6 +41,7 @@ describe('UpdatePasswordDialog', () => {
     beforeEach(async () => {
         patchMock.mockReset();
         currentGetMock.mockReset();
+        reauthMock.mockReset().mockResolvedValue({ data: { reauth_token: 'password-token', expires_at: new Date(Date.now() + 300_000).toISOString() } });
         const { toast } = await import('sonner');
         (toast.error as unknown as { mockReset?: () => void }).mockReset?.();
         (toast.success as unknown as { mockReset?: () => void }).mockReset?.();
@@ -59,7 +62,8 @@ describe('UpdatePasswordDialog', () => {
         });
     });
 
-    it('submits test + replace operations in correct order', async () => {
+    // specRef: api-endpoint-behaviour B3a, B15
+    it('exchanges the old password for a token and submits test + replace', async () => {
         render(<UpdatePasswordDialog open={true} onOpenChange={() => { }} />);
 
         fireEvent.change(screen.getByLabelText('Old password'), { target: { value: 'OldPassword123!' } });
@@ -69,16 +73,18 @@ describe('UpdatePasswordDialog', () => {
 
         await waitFor(() => {
             expect(patchMock).toHaveBeenCalledTimes(1);
-            const [arg] = patchMock.mock.calls[0];
-            expect(arg.updates).toHaveLength(2);
-            expect(arg.updates[0].operation).toBe('test');
-            expect(arg.updates[0].path).toBe('/password');
-            expect(arg.updates[1].operation).toBe('replace');
-            expect(arg.updates[1].path).toBe('/password');
+            expect(reauthMock.mock.calls).toEqual([[{ purpose: 'password_set', current_password: 'OldPassword123!' }]]);
+            expect(patchMock.mock.calls[0]).toEqual([{
+                updates: [
+                    { operation: 'test', path: '/password', value: { reauth_token: 'password-token' } },
+                    { operation: 'replace', path: '/password', value: 'NewPassword123!' },
+                ],
+            }]);
         });
     });
 
-    it('requires OTP when 2FA enabled and passes it', async () => {
+    // specRef: api-endpoint-behaviour B3a, B15
+    it('requires OTP when 2FA enabled and sends it with the old password for the token', async () => {
         // Enable 2FA in store
         setAccountState({ account_id: 'abc', mfa: { totp: { enabled: true } } });
         render(<UpdatePasswordDialog open={true} onOpenChange={() => { }} />);
@@ -91,10 +97,8 @@ describe('UpdatePasswordDialog', () => {
 
         await waitFor(() => {
             expect(patchMock).toHaveBeenCalledTimes(1);
-            const call = patchMock.mock.calls[0];
-            // With 2FA enabled, the code goes in the body next to the updates.
-            expect(call[0].otp).toBe('654321');
-            expect(call).toHaveLength(1);
+            expect(reauthMock.mock.calls).toEqual([[{ purpose: 'password_set', current_password: 'OldPassword123!', otp: '654321' }]]);
+            expect(patchMock.mock.calls[0][0]).not.toHaveProperty('otp');
         });
     });
 
@@ -131,6 +135,7 @@ describe('UpdatePasswordDialog', () => {
 
             await waitFor(() => {
                 expect(beginPasswordSetReauthMock).toHaveBeenCalledTimes(1);
+                expect(reauthMock).not.toHaveBeenCalled();
                 expect(patchMock).toHaveBeenCalledTimes(1);
                 const call = patchMock.mock.calls[0];
                 expect(call[0].updates).toEqual([

@@ -8,10 +8,8 @@ export type ExportScope = 'all' | 'selected';
 export interface ExportProfilesInput {
   scope: ExportScope;
   profileIds?: string[];
-  currentPassword?: string;
-  reauthToken?: string;
-  /** 2FA code that goes with the current password when 2FA is on. */
-  otp?: string;
+  /** Returns the reauth token for profile_export (see useIdentityVerification). */
+  reauthToken: () => Promise<string>;
 }
 
 export function useProfileExport(): {
@@ -26,9 +24,7 @@ export function useProfileExport(): {
       const body: RequestsExportRequest = {
         scope: input.scope as RequestsExportRequestScopeEnum,
         ...(input.profileIds !== undefined && { profile_ids: input.profileIds }),
-        ...(input.currentPassword !== undefined && { current_password: input.currentPassword }),
-        ...(input.reauthToken !== undefined && { reauth_token: input.reauthToken }),
-        ...(input.currentPassword !== undefined && input.otp && { otp: input.otp }),
+        reauth_token: await input.reauthToken(),
       };
 
       const response = await API.Client.profilesApi.apiV1ProfilesExportPost(body, { responseType: 'blob' });

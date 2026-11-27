@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { mockPasswordReauth, PASSWORD_REAUTH_TOKEN, registerMocks, type PasswordReauthMock } from '../../mocks/registerMocks';
 import { formatBackupCode } from '../../../lib/backupCodes';
 import { TOTP_TOO_MANY_ATTEMPTS_MESSAGE } from '../../../lib/authToasts';
 import { installWebAuthnSuccessStub } from '../utils/webauthn';
@@ -34,15 +34,17 @@ type EnableOptions = {
   confirm?: { status: number; body: object };
   enable?: { status: number; body: object };
   passkeys?: object[];
+  reauthRefusal?: { status: number; error: string };
 };
 
-/** The account page for an account with 2FA off; records what the enable step sends. */
-async function mockEnable2FA(page: Page, { confirm, enable, passkeys = [] }: EnableOptions = {}) {
-  const state = { enableBody: undefined as object | undefined, reauthPurpose: undefined as string | undefined };
+/** The account page for an account with 2FA off; records what the enable step sends. A password
+ *  reauth is refused with `reauthRefusal` when given. */
+async function mockEnable2FA(page: Page, { confirm, enable, passkeys = [], reauthRefusal }: EnableOptions = {}) {
   await registerMocks(page, {
     authenticated: true,
     accountOverride: { id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: { enabled: false } } },
   });
+  const state = { enableBody: undefined as object | undefined, reauthPurpose: undefined as string | undefined, passwordReauth: await mockPasswordReauth(page, reauthRefusal) as PasswordReauthMock };
   await page.route('**/api/v1/sub', route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
   await page.route('**/api/v1/webauthn/passkeys', route =>
@@ -102,14 +104,16 @@ test.describe('enable 2FA asks who you are first', { tag: '@desktop' }, () => {
     await page.getByLabel('Current password').fill(PASSWORD);
     await page.getByRole('button', { name: /^Continue$/ }).click();
     await expect(page.getByText(SECRET)).toBeVisible();
-    expect(state.enableBody).toEqual({ current_password: PASSWORD });
+    expect(state.passwordReauth.sent).toEqual([{ purpose: 'totp_enable', current_password: PASSWORD }]);
+    expect(state.enableBody).toEqual({ reauth_token: PASSWORD_REAUTH_TOKEN });
   });
 
   test('a refused password keeps the identity step', async ({ page }) => {
-    await mockEnable2FA(page, { enable: { status: 400, body: { error: 'invalid current password' } } });
+    const state = await mockEnable2FA(page, { reauthRefusal: { status: 400, error: 'invalid current password' } });
     await page.getByLabel('Current password').fill('wrong');
     await page.getByRole('button', { name: /^Continue$/ }).click();
     await expect(page.getByText('invalid current password')).toBeVisible();
+    expect(state.enableBody).toBeUndefined();
     await expect(page.getByLabel('Current password')).toBeVisible();
     await expect(page.locator('#totp-code')).toHaveCount(0);
   });
@@ -126,7 +130,8 @@ test.describe('enable 2FA asks who you are first', { tag: '@desktop' }, () => {
     await page.getByLabel('Current password').fill(PASSWORD);
     await page.getByRole('button', { name: /^Continue$/ }).click();
     await expect(page.getByText(SECRET)).toBeVisible();
-    expect(state.enableBody).toEqual({ current_password: PASSWORD });
+    expect(state.enableBody).toEqual({ reauth_token: PASSWORD_REAUTH_TOKEN });
+    expect(state.passwordReauth.sent).toHaveLength(2);
   });
 
   test('a passkey replaces the password', async ({ page }) => {
@@ -186,6 +191,7 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'active', plan: 'plus', active_until: '2027-01-01T00:00:00Z' }) }));
     await page.route('**/api/v1/webauthn/passkeys', route =>
       route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
+    const reauth = await mockPasswordReauth(page);
     await page.route('**/api/v1/accounts/mfa/totp/disable', route => {
       sent = route.request().postDataJSON();
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'abc', mfa: { totp: { enabled: false } } }) });
@@ -212,7 +218,9 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
     await expect(submit).toBeDisabled();
     await page.getByLabel('Current password').fill(PASSWORD);
     await submit.click();
-    await expect.poll(() => sent).toEqual({ otp: grouped, current_password: PASSWORD });
+    // The token is issued for the password alone; the code goes only to the disable request.
+    await expect.poll(() => sent).toEqual({ otp: grouped, reauth_token: PASSWORD_REAUTH_TOKEN });
+    expect(reauth.sent).toEqual([{ purpose: 'totp_disable', current_password: PASSWORD }]);
   });
 
   test('disable 2FA with a passkey still asks for the code', async ({ page }) => {
@@ -255,6 +263,7 @@ test.describe('backup code recovery', { tag: '@desktop' }, () => {
     await registerMocks(page, { authenticated: true, accountOverride: account });
     await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
+    await mockPasswordReauth(page);
     await page.route('**/api/v1/accounts/mfa/totp/disable', route =>
       route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'invalid 2FA code' }) }));
 
@@ -339,6 +348,7 @@ test.describe('refused 2FA codes', { tag: '@desktop' }, () => {
     await registerMocks(page, { authenticated: true, accountOverride: account });
     await page.route(/\/api\/v1\/accounts\/current(\/?|\?.*)$/i, route =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(account) }));
+    await mockPasswordReauth(page);
     await page.route('**/api/v1/accounts/mfa/totp/disable', route =>
       route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify(LOCKOUT) }));
 

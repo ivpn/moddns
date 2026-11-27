@@ -16,7 +16,7 @@ import { AuthContext } from '@/App';
 import { useAppStore } from '@/store/general';
 import VerifyIdentityFields from '@/components/dialogs/VerifyIdentityFields';
 import { useIdentityVerification } from '@/hooks/useIdentityVerification';
-import { beginAccountDeletionReauth, verificationBody } from '@/lib/webauthn';
+import { beginAccountDeletionReauth } from '@/lib/webauthn';
 import { totpErrorMessage } from '@/lib/authToasts';
 import type { RequestsAccountDeletionRequest } from '@/api/client/api';
 
@@ -32,7 +32,7 @@ export default function DeleteAccountDialog({
     loading = false,
 }: DeleteAccountProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [deletionCode, setDeletionCode] = useState<string>('');
     const [userCode, setUserCode] = useState<string>('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -92,18 +92,17 @@ export default function DeleteAccountDialog({
 
         if (!verification) return;
 
-        const payload: RequestsAccountDeletionRequest = {
-            deletion_code: userCode.trim(),
-            ...verificationBody(verification),
-        };
-
         setIsDeleting(true);
         try {
+            const payload: RequestsAccountDeletionRequest = {
+                deletion_code: userCode.trim(),
+                reauth_token: await reauthToken('account_deletion'),
+            };
             await API.Client.accountsApi.apiV1AccountsCurrentDelete(payload);
             onOpenChange(false);
             auth?.logout('Account deleted.', 'info');
         } catch (err) {
-            requestFailed();
+            requestFailed(err);
             const error = err as { response?: { status?: number; data?: { error?: string } } };
             if (error.response?.status === 429) {
                 toast.error('Too many requests, please try again later.');

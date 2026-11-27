@@ -7,9 +7,16 @@ export const TOTP_TOO_MANY_ATTEMPTS_MESSAGE = 'Too many wrong 2FA codes. Please 
 export const isTotpLockoutError = (apiErr?: string): boolean =>
     !!apiErr?.startsWith('too many failed 2FA attempts');
 
-/** The message for a refused 2FA code: the lockout in plain words, otherwise the API's own text. */
-export const totpErrorMessage = (apiErr: string | undefined, fallback: string): string =>
-    isTotpLockoutError(apiErr) ? TOTP_TOO_MANY_ATTEMPTS_MESSAGE : (apiErr || fallback);
+export const REAUTH_TOO_MANY_ATTEMPTS_MESSAGE = 'Too many attempts to confirm it\'s you. Please try again later.';
+export const REAUTH_AGAIN_MESSAGE = 'Your verification has expired. Confirm it\'s you again.';
+
+/** The message for a refused identity check: a lockout in plain words, otherwise the API's own text. */
+export const totpErrorMessage = (apiErr: string | undefined, fallback: string): string => {
+    if (isTotpLockoutError(apiErr)) return TOTP_TOO_MANY_ATTEMPTS_MESSAGE;
+    if (apiErr === 'reauth rate limited') return REAUTH_TOO_MANY_ATTEMPTS_MESSAGE;
+    if (apiErr === 'invalid reauth token' || apiErr === 'reauth token expired') return REAUTH_AGAIN_MESSAGE;
+    return apiErr || fallback;
+};
 
 export const AUTH_TOAST_IDS = {
     loginSuccess: 'toast-login-success',

@@ -45,7 +45,7 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
     const [fileError, setFileError] = useState<string | null>(null);
     const [importError, setImportError] = useState<string | null>(null);
 
-    const { verification, onChange: setVerification, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: setVerification, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const onVerificationChange = useCallback((v: IdentityVerification | null) => {
         setVerification(v);
         setImportError(null);
@@ -155,13 +155,11 @@ export default function ImportProfilesDialog({ open, onOpenChange }: ImportProfi
         try {
             await importProfiles({
                 payload: filteredPayload,
-                currentPassword: verification.currentPassword,
-                reauthToken: verification.reauthToken,
-                otp: verification.otp,
+                reauthToken: () => reauthToken('profile_import'),
             });
             setStep('results');
         } catch (err) {
-            requestFailed();
+            requestFailed(err);
             const axiosError = err as { response?: { status?: number; data?: { error?: string } } };
             const status = axiosError.response?.status;
             const serverError = axiosError.response?.data?.error;

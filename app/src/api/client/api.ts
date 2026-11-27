@@ -2427,19 +2427,7 @@ export interface RequestsAccountDeletionRequest {
      * @type {string}
      * @memberof RequestsAccountDeletionRequest
      */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsAccountDeletionRequest
-     */
     'deletion_code': string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsAccountDeletionRequest
-     */
-    'otp'?: string;
     /**
      * 
      * @type {string}
@@ -2453,12 +2441,6 @@ export interface RequestsAccountDeletionRequest {
  * @interface RequestsAccountUpdates
  */
 export interface RequestsAccountUpdates {
-    /**
-     * OTP is the 2FA code that goes with a current password, when 2FA is on.
-     * @type {string}
-     * @memberof RequestsAccountUpdates
-     */
-    'otp'?: string;
     /**
      * 
      * @type {Array<ModelAccountUpdate>}
@@ -2667,18 +2649,6 @@ export interface RequestsDNSStampReq {
 export interface RequestsExportRequest {
     /**
      * 
-     * @type {string}
-     * @memberof RequestsExportRequest
-     */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsExportRequest
-     */
-    'otp'?: string;
-    /**
-     * 
      * @type {Array<string>}
      * @memberof RequestsExportRequest
      */
@@ -2715,19 +2685,7 @@ export interface RequestsImportRequest {
      * @type {string}
      * @memberof RequestsImportRequest
      */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportRequest
-     */
     'mode': RequestsImportRequestModeEnum;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsImportRequest
-     */
-    'otp'?: string;
     /**
      * 
      * @type {ModelExportEnvelope}
@@ -2839,6 +2797,48 @@ export interface RequestsProfileUpdates {
 /**
  * 
  * @export
+ * @interface RequestsReauthRequest
+ */
+export interface RequestsReauthRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsReauthRequest
+     */
+    'current_password': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsReauthRequest
+     */
+    'otp'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RequestsReauthRequest
+     */
+    'purpose': RequestsReauthRequestPurposeEnum;
+}
+
+export const RequestsReauthRequestPurposeEnum = {
+    EmailChange: 'email_change',
+    AccountDeletion: 'account_deletion',
+    ProfileExport: 'profile_export',
+    ProfileImport: 'profile_import',
+    PasswordSet: 'password_set',
+    PasskeyAdd: 'passkey_add',
+    PasskeyDelete: 'passkey_delete',
+    BackupCodesRegenerate: 'backup_codes_regenerate',
+    TotpDisable: 'totp_disable',
+    TotpEnable: 'totp_enable',
+    SessionsDelete: 'sessions_delete'
+} as const;
+
+export type RequestsReauthRequestPurposeEnum = typeof RequestsReauthRequestPurposeEnum[keyof typeof RequestsReauthRequestPurposeEnum];
+
+/**
+ * 
+ * @export
  * @interface RequestsReorderProfileCustomRuleGroupsBody
  */
 export interface RequestsReorderProfileCustomRuleGroupsBody {
@@ -2913,18 +2913,6 @@ export interface RequestsSessionsDeleteRequest {
      * @type {string}
      * @memberof RequestsSessionsDeleteRequest
      */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsSessionsDeleteRequest
-     */
-    'otp'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsSessionsDeleteRequest
-     */
     'reauth_token'?: string;
 }
 /**
@@ -2933,12 +2921,6 @@ export interface RequestsSessionsDeleteRequest {
  * @interface RequestsTotpDisableReq
  */
 export interface RequestsTotpDisableReq {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsTotpDisableReq
-     */
-    'current_password'?: string;
     /**
      * 
      * @type {string}
@@ -2963,12 +2945,6 @@ export interface RequestsTotpEnableReq {
      * @type {string}
      * @memberof RequestsTotpEnableReq
      */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsTotpEnableReq
-     */
     'reauth_token'?: string;
 }
 /**
@@ -2977,12 +2953,6 @@ export interface RequestsTotpEnableReq {
  * @interface RequestsTotpRegenerateReq
  */
 export interface RequestsTotpRegenerateReq {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsTotpRegenerateReq
-     */
-    'current_password'?: string;
     /**
      * 
      * @type {string}
@@ -3066,18 +3036,6 @@ export interface RequestsWebAuthnAddPasskeyBeginRequest {
      * @type {string}
      * @memberof RequestsWebAuthnAddPasskeyBeginRequest
      */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsWebAuthnAddPasskeyBeginRequest
-     */
-    'otp'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsWebAuthnAddPasskeyBeginRequest
-     */
     'reauth_token'?: string;
 }
 /**
@@ -3086,18 +3044,6 @@ export interface RequestsWebAuthnAddPasskeyBeginRequest {
  * @interface RequestsWebAuthnDeletePasskeyRequest
  */
 export interface RequestsWebAuthnDeletePasskeyRequest {
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsWebAuthnDeletePasskeyRequest
-     */
-    'current_password'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof RequestsWebAuthnDeletePasskeyRequest
-     */
-    'otp'?: string;
     /**
      * 
      * @type {string}
@@ -3282,6 +3228,25 @@ export interface ResponsesPasskey {
 /**
  * 
  * @export
+ * @interface ResponsesReauthTokenResponse
+ */
+export interface ResponsesReauthTokenResponse {
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesReauthTokenResponse
+     */
+    'expires_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ResponsesReauthTokenResponse
+     */
+    'reauth_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ResponsesRegistrationSuccessResponse
  */
 export interface ResponsesRegistrationSuccessResponse {
@@ -3304,25 +3269,6 @@ export interface ResponsesShortLinkResponse {
      * @memberof ResponsesShortLinkResponse
      */
     'link'?: string;
-}
-/**
- * 
- * @export
- * @interface ResponsesWebAuthnReauthFinishResponse
- */
-export interface ResponsesWebAuthnReauthFinishResponse {
-    /**
-     * 
-     * @type {string}
-     * @memberof ResponsesWebAuthnReauthFinishResponse
-     */
-    'expires_at'?: string;
-    /**
-     * 
-     * @type {string}
-     * @memberof ResponsesWebAuthnReauthFinishResponse
-     */
-    'reauth_token'?: string;
 }
 /**
  * 
@@ -3724,6 +3670,42 @@ export const AccountApiAxiosParamCreator = function (configuration?: Configurati
             };
         },
         /**
+         * Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.
+         * @summary Reauthenticate with the current password
+         * @param {RequestsReauthRequest} body Reauth request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsReauthPost: async (body: RequestsReauthRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('apiV1AccountsReauthPost', 'body', body)
+            const localVarPath = `/api/v1/accounts/reauth`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Send reset password email
          * @summary Send reset password email
          * @param {RequestsResetPasswordBody} body Send reset password email request
@@ -3885,6 +3867,19 @@ export const AccountApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.
+         * @summary Reauthenticate with the current password
+         * @param {RequestsReauthRequest} body Reauth request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiV1AccountsReauthPost(body: RequestsReauthRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesReauthTokenResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1AccountsReauthPost(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AccountApi.apiV1AccountsReauthPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Send reset password email
          * @summary Send reset password email
          * @param {RequestsResetPasswordBody} body Send reset password email request
@@ -3994,6 +3989,16 @@ export const AccountApiFactory = function (configuration?: Configuration, basePa
          */
         apiV1AccountsPost(body: ApiRegisterAccountBody, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesRegistrationSuccessResponse> {
             return localVarFp.apiV1AccountsPost(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.
+         * @summary Reauthenticate with the current password
+         * @param {RequestsReauthRequest} body Reauth request
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiV1AccountsReauthPost(body: RequestsReauthRequest, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesReauthTokenResponse> {
+            return localVarFp.apiV1AccountsReauthPost(body, options).then((request) => request(axios, basePath));
         },
         /**
          * Send reset password email
@@ -4119,6 +4124,18 @@ export class AccountApi extends BaseAPI {
      */
     public apiV1AccountsPost(body: ApiRegisterAccountBody, options?: RawAxiosRequestConfig) {
         return AccountApiFp(this.configuration).apiV1AccountsPost(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Check the current password, plus the 2FA code when 2FA is on, and issue a short-lived, single-use reauth token for one privileged operation (the purpose). For totp_disable and backup_codes_regenerate the operation asks for the 2FA code itself, so it is not checked here. A passkey issues the same token through /webauthn/passkey/reauth.
+     * @summary Reauthenticate with the current password
+     * @param {RequestsReauthRequest} body Reauth request
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof AccountApi
+     */
+    public apiV1AccountsReauthPost(body: RequestsReauthRequest, options?: RawAxiosRequestConfig) {
+        return AccountApiFp(this.configuration).apiV1AccountsReauthPost(body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -4640,7 +4657,7 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
             };
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -4712,7 +4729,7 @@ export const AuthenticationApiAxiosParamCreator = function (configuration?: Conf
             };
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
@@ -4989,7 +5006,7 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -5015,7 +5032,7 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
@@ -5048,7 +5065,7 @@ export const AuthenticationApiFp = function(configuration?: Configuration) {
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesWebAuthnReauthFinishResponse>> {
+        async apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ResponsesReauthTokenResponse>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.apiV1WebauthnPasskeyReauthFinishPost(body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AuthenticationApi.apiV1WebauthnPasskeyReauthFinishPost']?.[localVarOperationServerIndex]?.url;
@@ -5144,7 +5161,7 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
             return localVarFp.apiV1WebauthnLoginFinishPost(body, xSessionsRemove, options).then((request) => request(axios, basePath));
         },
         /**
-         * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+         * Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
          * @summary Add new passkey
          * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -5164,7 +5181,7 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
             return localVarFp.apiV1WebauthnPasskeyAddFinishPost(body, options).then((request) => request(axios, basePath));
         },
         /**
-         * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+         * Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
          * @summary Delete passkey
          * @param {string} id Credential ID
          * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
@@ -5191,7 +5208,7 @@ export const AuthenticationApiFactory = function (configuration?: Configuration,
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesWebAuthnReauthFinishResponse> {
+        apiV1WebauthnPasskeyReauthFinishPost(body: object, options?: RawAxiosRequestConfig): AxiosPromise<ResponsesReauthTokenResponse> {
             return localVarFp.apiV1WebauthnPasskeyReauthFinishPost(body, options).then((request) => request(axios, basePath));
         },
         /**
@@ -5283,7 +5300,7 @@ export class AuthenticationApi extends BaseAPI {
     }
 
     /**
-     * Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+     * Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
      * @summary Add new passkey
      * @param {RequestsWebAuthnAddPasskeyBeginRequest} body Verification
      * @param {*} [options] Override http request option.
@@ -5307,7 +5324,7 @@ export class AuthenticationApi extends BaseAPI {
     }
 
     /**
-     * Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+     * Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
      * @summary Delete passkey
      * @param {string} id Credential ID
      * @param {RequestsWebAuthnDeletePasskeyRequest} body Verification
@@ -8002,7 +8019,7 @@ export class ServicesApi extends BaseAPI {
 export const SessionsApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
-         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+         * Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
          * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -8048,7 +8065,7 @@ export const SessionsApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = SessionsApiAxiosParamCreator(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+         * Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
          * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -8071,7 +8088,7 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
     const localVarFp = SessionsApiFp(configuration)
     return {
         /**
-         * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+         * Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
          * @summary Delete all other sessions
          * @param {RequestsSessionsDeleteRequest} body Verification
          * @param {*} [options] Override http request option.
@@ -8091,7 +8108,7 @@ export const SessionsApiFactory = function (configuration?: Configuration, baseP
  */
 export class SessionsApi extends BaseAPI {
     /**
-     * Delete all sessions for the current account except the current session. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the sessions_delete purpose.
+     * Delete all sessions for the current account except the current session. The account owner is verified first with a reauth token issued for the sessions_delete purpose.
      * @summary Delete all other sessions
      * @param {RequestsSessionsDeleteRequest} body Verification
      * @param {*} [options] Override http request option.

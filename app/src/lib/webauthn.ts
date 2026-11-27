@@ -13,7 +13,6 @@ import type {
 import api from "@/api/api";
 import type { ApiWebAuthnRegisterBeginRequest, ApiWebAuthnLoginBeginRequest, RequestsWebAuthnReauthBeginRequestPurposeEnum } from "@/api/client";
 import axios from "axios";
-import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 
 /** Shared shape for WebAuthn errors with name, message, and optional Axios-like response */
 interface WebAuthnError extends Error {
@@ -180,27 +179,16 @@ export async function authenticateWithPasskey(
 const ALREADY_HOLDS_PASSKEY =
   "This device or password manager already has a passkey for your account (passkeys sync across your devices). To add another one, use a different authenticator, such as a security key.";
 
-/** The request body fields of a completed identity verification: a passkey reauth token, or the
- *  current password with the 2FA code when 2FA is on. */
-export function verificationBody(verification: IdentityVerification): { reauth_token?: string; current_password?: string; otp?: string } {
-  return verification.reauthToken
-    ? { reauth_token: verification.reauthToken }
-    : { current_password: verification.currentPassword, otp: verification.otp };
+/** Delete a passkey with a reauth token issued for passkey_delete. */
+export async function deletePasskey(id: string, reauthToken: string): Promise<void> {
+  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, { reauth_token: reauthToken });
 }
 
 /**
- * Delete a passkey after the owner has verified with the current password (plus 2FA code)
- * or a passkey reauth token for passkey_delete.
+ * Add a new passkey to an authenticated user's account. `reauthToken` returns a token issued
+ * for passkey_add; a refused request throws an Error with the API's message.
  */
-export async function deletePasskey(id: string, verification: IdentityVerification): Promise<void> {
-  await api.Client.authApi.apiV1WebauthnPasskeyIdDelete(id, verificationBody(verification));
-}
-
-/**
- * Add a new passkey to an authenticated user's account, after the owner has verified
- * with the current password (plus 2FA code) or a passkey reauth token for passkey_add.
- */
-export async function addPasskeyToAccount(verification: IdentityVerification): Promise<void> {
+export async function addPasskeyToAccount(reauthToken: () => Promise<string>): Promise<void> {
   try {
     // Check WebAuthn support
     if (!browserSupportsWebAuthn()) {
@@ -208,7 +196,7 @@ export async function addPasskeyToAccount(verification: IdentityVerification): P
     }
 
     // Begin WebAuthn add passkey process
-    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost(verificationBody(verification));
+    const beginResponse = await api.Client.authApi.apiV1WebauthnPasskeyAddBeginPost({ reauth_token: await reauthToken() });
     
     const options = beginResponse.data;
 

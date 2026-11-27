@@ -22,7 +22,7 @@ interface Disable2FADialogProps {
 }
 
 export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Disable2FADialogProps) {
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [loading, setLoading] = useState(false);
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
@@ -33,8 +33,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
         try {
             await api.Client.accountsApi.apiV1AccountsMfaTotpDisablePost({
                 otp: verification.otp,
-                current_password: verification.currentPassword,
-                reauth_token: verification.reauthToken,
+                reauth_token: await reauthToken('totp_disable'),
             });
             toast.success("2FA disabled successfully.");
 
@@ -50,7 +49,7 @@ export default function Disable2FADialog({ open, onOpenChange, onDisabled }: Dis
             if (onDisabled) onDisabled();
             onOpenChange(false);
         } catch (e: unknown) {
-            requestFailed();
+            requestFailed(e);
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to disable 2FA."));
         } finally {

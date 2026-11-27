@@ -9,7 +9,6 @@ import api from "@/api/api";
 import { addPasskeyToAccount, deletePasskey, isWebAuthnSupported } from "@/lib/webauthn";
 import DeletePasskeyDialog from "./DeletePasskeyDialog";
 import AddPasskeyDialog from "./AddPasskeyDialog";
-import type { IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
 import { useAppStore } from "@/store/general";
 import type { ResponsesPasskey } from "@/api/client/api";
 
@@ -58,20 +57,20 @@ export default function PasskeySettings() {
         }
     };
 
-    const handleAddPasskey = async (verification: IdentityVerification): Promise<boolean> => {
+    /** Throws when the passkey was not added, after telling the user why. */
+    const handleAddPasskey = async (reauthToken: () => Promise<string>): Promise<void> => {
         try {
             setRegistering(true);
-            await addPasskeyToAccount(verification);
+            await addPasskeyToAccount(reauthToken);
             setAddDialogOpen(false);
             toast.success("Passkey added successfully.");
 
             // Reload passkeys list
             await loadPasskeys();
-            return true;
         } catch (err) {
             const e = err as { message?: string };
             toast.error(e?.message || "Failed to add passkey");
-            return false;
+            throw err;
         } finally {
             setRegistering(false);
         }
@@ -86,12 +85,12 @@ export default function PasskeySettings() {
         setDeleteDialogOpen(true);
     };
 
-    const confirmDeletePasskey = async (verification: IdentityVerification) => {
+    const confirmDeletePasskey = async (reauthToken: () => Promise<string>) => {
         if (!passkeyToDelete) return;
 
         try {
             setDeletingId(passkeyToDelete.id);
-            await deletePasskey(passkeyToDelete.id, verification);
+            await deletePasskey(passkeyToDelete.id, await reauthToken());
             toast.success("Passkey deleted successfully");
 
             // Reload passkeys list

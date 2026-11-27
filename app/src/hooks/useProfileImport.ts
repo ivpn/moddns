@@ -7,10 +7,8 @@ import { importErrorMessage } from '@/lib/importExportErrors';
 
 export interface ImportProfilesInput {
   payload: ModelExportEnvelope;
-  currentPassword?: string;
-  reauthToken?: string;
-  /** 2FA code that goes with the current password when 2FA is on. */
-  otp?: string;
+  /** Returns the reauth token for profile_import (see useIdentityVerification). */
+  reauthToken: () => Promise<string>;
 }
 
 export interface ImportResult {
@@ -34,14 +32,13 @@ export function useProfileImport(): {
     setIsImporting(true);
     setResult(null);
     try {
+      const token = await input.reauthToken();
       const response = await API.Client.profilesApi.apiV1ProfilesImportPost(
         'confirm',
         {
           mode: RequestsImportRequestModeEnum.CreateNew,
           payload: input.payload,
-          ...(input.currentPassword !== undefined && { current_password: input.currentPassword }),
-          ...(input.reauthToken !== undefined && { reauth_token: input.reauthToken }),
-          ...(input.currentPassword !== undefined && input.otp && { otp: input.otp }),
+          reauth_token: token,
         },
       );
 

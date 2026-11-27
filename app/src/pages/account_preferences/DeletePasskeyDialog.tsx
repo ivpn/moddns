@@ -7,15 +7,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
+import { useIdentityVerification } from "@/hooks/useIdentityVerification";
 import { beginPasskeyDeleteReauth } from "@/lib/webauthn";
 import { useAppStore } from "@/store/general";
-import { useCallback, useState, type JSX } from "react";
+import { type JSX } from "react";
 
 interface DeletePasskeyDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onConfirm: (verification: IdentityVerification) => void;
+    onConfirm: (reauthToken: () => Promise<string>) => void;
     loading?: boolean;
     passkeyName?: string;
 }
@@ -28,10 +29,9 @@ export default function DeletePasskeyDialog({
     passkeyName = "passkey",
 }: DeletePasskeyDialogProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const [verification, setVerification] = useState<IdentityVerification | null>(null);
-    const onVerificationChange = useCallback((v: IdentityVerification | null) => setVerification(v), []);
+    const { verification, onChange: onVerificationChange, reauthToken } = useIdentityVerification();
     const handleConfirm = () => {
-        if (verification) onConfirm(verification);
+        if (verification) onConfirm(() => reauthToken('passkey_delete'));
     };
 
     return (

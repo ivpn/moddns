@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { registerMocks } from '../../mocks/registerMocks';
+import { mockPasswordReauth, PASSWORD_REAUTH_TOKEN, registerMocks, type PasswordReauthMock } from '../../mocks/registerMocks';
 import { formatBackupCode } from '../../../lib/backupCodes';
 import { installWebAuthnSuccessStub } from '../utils/webauthn';
 
@@ -12,11 +12,11 @@ const LEGACY_CODE = 'LegacyCodeAAAAA1';
 const PASSWORD = 'Curr3nt-Passw0rd!';
 
 type Totp = { enabled: boolean; backup_codes_remaining?: number; backup_codes_legacy?: boolean };
-type RegenerateBody = { otp: string; current_password?: string; reauth_token?: string };
+type RegenerateBody = { otp: string; reauth_token: string };
 
 /** The account page for an account with 2FA on; /accounts/current answers with the latest `totp`. */
 async function openAccount(page: Page, initial: Totp, regenerate?: { status: number; body: object }, passkeys: object[] = []) {
-  const state = { totp: initial, sentCode: undefined as string | undefined, sent: undefined as RegenerateBody | undefined, reauthPurpose: undefined as string | undefined };
+  const state = { totp: initial, sentCode: undefined as string | undefined, sent: undefined as RegenerateBody | undefined, reauthPurpose: undefined as string | undefined, passwordReauth: undefined as unknown as PasswordReauthMock };
   const account = () => ({ id: 'abc', email: 'user@example.com', email_verified: true, auth_methods: ['password'], mfa: { totp: state.totp } });
   await registerMocks(page, { authenticated: true, accountOverride: account() });
   // registerMocks' catch-all answers /accounts/current itself; register the account after it.
@@ -32,6 +32,7 @@ async function openAccount(page: Page, initial: Totp, regenerate?: { status: num
   });
   await page.route('**/api/v1/webauthn/passkey/reauth/finish', route =>
     route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ reauth_token: 'reauth-token', expires_at: '2027-01-01T00:00:00Z' }) }));
+  state.passwordReauth = await mockPasswordReauth(page);
   await page.route('**/api/v1/accounts/mfa/totp/backup-codes/regenerate', route => {
     state.sent = route.request().postDataJSON() as RegenerateBody;
     state.sentCode = state.sent.otp;
@@ -58,12 +59,14 @@ test.describe('legacy backup codes', () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByTestId('regenerate-backup-codes-submit')).toBeDisabled();
 
-    // Lost authenticator: the password and a legacy backup code authorise the new set.
+    // Lost authenticator: the password and a legacy backup code authorise the new set. The token
+    // is issued for the password alone; the code goes only to the regenerate request.
     await dialog.getByLabel('Current password').fill(PASSWORD);
     await dialog.getByTestId('regenerate-backup-codes-code-mode-toggle').click();
     await dialog.getByLabel('Backup code').fill(LEGACY_CODE);
     await dialog.getByTestId('regenerate-backup-codes-submit').click();
-    await expect.poll(() => state.sent).toEqual({ otp: LEGACY_CODE, current_password: PASSWORD });
+    await expect.poll(() => state.sent).toEqual({ otp: LEGACY_CODE, reauth_token: PASSWORD_REAUTH_TOKEN });
+    expect(state.passwordReauth.sent).toEqual([{ purpose: 'backup_codes_regenerate', current_password: PASSWORD }]);
 
     await expect(dialog.getByTestId('backup-code')).toHaveText(NEW_CODES.map(formatBackupCode));
     // The codes are shown only once: Escape does not close the dialog before Done.
@@ -136,7 +139,8 @@ test.describe('backup codes row', () => {
     await dialog.getByLabel('Current password').fill(PASSWORD);
     await expect(submit).toBeEnabled();
     await submit.click();
-    await expect.poll(() => state.sent).toEqual({ otp: '123456', current_password: PASSWORD });
+    await expect.poll(() => state.sent).toEqual({ otp: '123456', reauth_token: PASSWORD_REAUTH_TOKEN });
+    expect(state.passwordReauth.sent).toEqual([{ purpose: 'backup_codes_regenerate', current_password: PASSWORD }]);
   });
 
   // The navigator.credentials stub only takes effect in Chromium.

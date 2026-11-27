@@ -18,6 +18,7 @@ import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
 import { useIdentityVerification } from '@/hooks/useIdentityVerification';
 import TwoFactorCodeInput from "@/components/TwoFactorCodeInput";
 import { beginPasswordSetReauth } from "@/lib/webauthn";
+import { totpErrorMessage } from "@/lib/authToasts";
 
 export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void; }): JSX.Element {
     const [oldPassword, setOldPassword] = useState("");
@@ -27,7 +28,7 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
     const [closing, setClosing] = useState(false);
     const [otp, setOtp] = useState("");
     const [otpValid, setOtpValid] = useState(false);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
     const passwordAvailable = useMemo(() => {
@@ -68,32 +69,32 @@ export default function UpdatePasswordDialog({ open, onOpenChange }: { open: boo
         }
 
         setLoading(true);
-        const updates: ModelAccountUpdate[] = [];
-        updates.push({
-            operation: ModelAccountUpdateOperationEnum.Test,
-            path: ModelAccountUpdatePathEnum.Password,
-            value: passwordAvailable
-                ? oldPassword as unknown as object
-                : { reauth_token: verification!.reauthToken },
-        });
-        updates.push({
-            operation: ModelAccountUpdateOperationEnum.Replace,
-            path: ModelAccountUpdatePathEnum.Password,
-            value: newPassword as unknown as object,
-        });
-        const req: { updates: ModelAccountUpdate[] } = {
-            updates,
-        };
         try {
-            await api.Client.accountsApi.apiV1AccountsPatch({ ...req, otp: is2FAEnabled ? otp : undefined });
+            // An account with a password confirms with it (plus its 2FA code), one without with a passkey.
+            const token = await reauthToken('password_set', passwordAvailable
+                ? { currentPassword: oldPassword, otp: is2FAEnabled ? otp : undefined }
+                : undefined);
+            const updates: ModelAccountUpdate[] = [
+                {
+                    operation: ModelAccountUpdateOperationEnum.Test,
+                    path: ModelAccountUpdatePathEnum.Password,
+                    value: { reauth_token: token },
+                },
+                {
+                    operation: ModelAccountUpdateOperationEnum.Replace,
+                    path: ModelAccountUpdatePathEnum.Password,
+                    value: newPassword as unknown as object,
+                },
+            ];
+            await api.Client.accountsApi.apiV1AccountsPatch({ updates });
             const refreshed = await api.Client.accountsApi.apiV1AccountsCurrentGet();
             setAccount(refreshed.data);
             toast.success("Password updated successfully.");
             handleClose();
         } catch (e: unknown) {
-            requestFailed();
+            requestFailed(e);
             const axiosErr = e as { response?: { data?: { error?: string } } };
-            let errorMessage = axiosErr.response?.data?.error || "Failed to update password.";
+            let errorMessage = totpErrorMessage(axiosErr.response?.data?.error, "Failed to update password.");
             if (axiosErr.response?.data?.error === "password does not meet complexity requirements") {
                 errorMessage = "Password must be 12-64 characters, contain at least one uppercase letter, one lowercase letter, one number, and one special character.";
             }

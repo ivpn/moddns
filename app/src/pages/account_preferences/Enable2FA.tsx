@@ -41,7 +41,7 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
     const [backupCodesConfirmed, setBackupCodesConfirmed] = useState(false);
     const account = useAppStore(s => s.account);
     const setAccount = useAppStore(s => s.setAccount);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
 
     useEffect(() => {
         if (open) {
@@ -66,15 +66,14 @@ export default function TwoFactorAuthDialog({ open, onOpenChange, onEnabled }: T
         setLoading(true);
         try {
             const res = await api.Client.accountsApi.apiV1AccountsMfaTotpEnablePost({
-                current_password: verification.currentPassword,
-                reauth_token: verification.reauthToken,
+                reauth_token: await reauthToken('totp_enable'),
             });
             setSecret(res.data.secret || "");
             setUri(res.data.uri || "");
         } catch (e: unknown) {
-            requestFailed();
+            requestFailed(e);
             const axiosErr = e as { response?: { data?: { error?: string } } };
-            toast.error(axiosErr?.response?.data?.error || "Failed to fetch 2FA setup data.");
+            toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to fetch 2FA setup data."));
         } finally {
             setLoading(false);
         }

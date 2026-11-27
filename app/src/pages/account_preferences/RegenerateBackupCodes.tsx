@@ -19,7 +19,7 @@ interface RegenerateBackupCodesDialogProps {
 /** Replaces every backup code with a new set (api-endpoint-behaviour E13), confirmed with the password or a
  *  passkey and a 2FA code. */
 export default function RegenerateBackupCodesDialog({ open, onOpenChange }: RegenerateBackupCodesDialogProps) {
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [submitting, setSubmitting] = useState(false);
     const [codes, setCodes] = useState<string[] | null>(null);
     const account = useAppStore(s => s.account);
@@ -46,15 +46,14 @@ export default function RegenerateBackupCodesDialog({ open, onOpenChange }: Rege
         try {
             const res = await api.Client.accountsApi.apiV1AccountsMfaTotpBackupCodesRegeneratePost({
                 otp: verification.otp,
-                current_password: verification.currentPassword,
-                reauth_token: verification.reauthToken,
+                reauth_token: await reauthToken('backup_codes_regenerate'),
             });
             setCodes(res.data.backup_codes ?? []);
             toast.success('New backup codes created. Your old codes no longer work.');
             // Update the banner and the 2FA row behind the dialog now; the old set is already gone.
             void refreshAccount();
         } catch (e: unknown) {
-            requestFailed();
+            requestFailed(e);
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, 'Failed to regenerate backup codes.'));
         } finally {

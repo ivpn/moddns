@@ -24,6 +24,7 @@ vi.mock('@/api/api', () => {
                 accountsApi: {
                     apiV1AccountsCurrentDeletionCodePost: vi.fn(),
                     apiV1AccountsCurrentDelete: vi.fn(),
+                    apiV1AccountsReauthPost: vi.fn(),
                 },
             },
         },
@@ -39,6 +40,7 @@ type GenericMock = ReturnType<typeof vi.fn>;
 
 const deletionCodeMock = api.Client.accountsApi.apiV1AccountsCurrentDeletionCodePost as unknown as GenericMock;
 const deleteAccountMock = api.Client.accountsApi.apiV1AccountsCurrentDelete as unknown as GenericMock;
+const reauthMock = api.Client.accountsApi.apiV1AccountsReauthPost as unknown as GenericMock;
 
 const mockedBeginReauth = beginAccountDeletionReauth as unknown as GenericMock;
 
@@ -66,11 +68,13 @@ describe('DeleteAccountDialog', () => {
     beforeEach(() => {
         deletionCodeMock.mockReset();
         deleteAccountMock.mockReset();
+        reauthMock.mockReset();
         mockedBeginReauth.mockReset();
         useAppStore.setState({ account: null, passkeys: [] });
     });
 
-    it('requires password + OTP before confirming deletion and forwards headers', async () => {
+    // specRef: api-endpoint-behaviour B5, B15
+    it('exchanges the password and OTP for a token before deleting', async () => {
         const user = userEvent.setup();
 
         const account = {
@@ -82,6 +86,7 @@ describe('DeleteAccountDialog', () => {
 
         deletionCodeMock.mockResolvedValue({ data: { code: 'DELETE123' } });
         deleteAccountMock.mockResolvedValue({});
+        reauthMock.mockResolvedValue({ data: { reauth_token: 'password-token', expires_at: new Date(Date.now() + 300_000).toISOString() } });
 
         const { logout } = renderDialog();
 
@@ -101,10 +106,10 @@ describe('DeleteAccountDialog', () => {
 
         await waitFor(() => expect(deleteAccountMock).toHaveBeenCalledTimes(1));
         const [payload, options] = deleteAccountMock.mock.calls[0];
+        expect(reauthMock.mock.calls).toEqual([[{ purpose: 'account_deletion', current_password: 'Password123!', otp: '123456' }]]);
         expect(payload).toEqual({
             deletion_code: 'DELETE123',
-            current_password: 'Password123!',
-            otp: '123456',
+            reauth_token: 'password-token',
         });
         expect(options).toBeUndefined();
         expect(logout).toHaveBeenCalledWith('Account deleted.', 'info');

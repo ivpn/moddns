@@ -30,7 +30,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
 
     const [scope, setScope] = useState<Scope>('all');
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
 
     const { exportProfiles, isExporting } = useProfileExport();
 
@@ -59,9 +59,7 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
         const input = {
             scope,
             profileIds: scope === 'selected' ? selectedIds : undefined,
-            currentPassword: verification.currentPassword,
-            reauthToken: verification.reauthToken,
-            otp: verification.otp,
+            reauthToken: () => reauthToken('profile_export'),
         };
 
         try {
@@ -69,8 +67,8 @@ export default function ExportProfilesDialog({ open, onOpenChange }: ExportProfi
             const count = scope === 'selected' ? selectedIds.length : profiles.length;
             toast.success(`Exported ${count} profile${count === 1 ? '' : 's'}`);
             handleOpenChange(false);
-        } catch {
-            requestFailed();
+        } catch (err) {
+            requestFailed(err);
             // The hook surfaces the failure (including a wrong-password 400) as a
             // toast; keep the dialog open so the user can correct and retry.
         }

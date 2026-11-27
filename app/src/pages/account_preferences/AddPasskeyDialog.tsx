@@ -8,7 +8,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { DialogActions } from "@/components/dialogs/DialogLayout";
-import VerifyIdentityFields, { type IdentityVerification } from "@/components/dialogs/VerifyIdentityFields";
+import VerifyIdentityFields from "@/components/dialogs/VerifyIdentityFields";
 import { useIdentityVerification } from "@/hooks/useIdentityVerification";
 import { beginPasskeyAddReauth } from "@/lib/webauthn";
 import { useAppStore } from "@/store/general";
@@ -17,16 +17,22 @@ interface AddPasskeyDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     /** Resolves to whether the passkey was added. */
-    onConfirm: (verification: IdentityVerification) => Promise<boolean>;
+    /** Adds the passkey with a token from `reauthToken`; throws when it was not added. */
+    onConfirm: (reauthToken: () => Promise<string>) => Promise<void>;
     loading?: boolean;
 }
 
 export default function AddPasskeyDialog({ open, onOpenChange, onConfirm, loading = false }: AddPasskeyDialogProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
 
     const confirm = async () => {
-        if (verification && !(await onConfirm(verification))) requestFailed();
+        if (!verification) return;
+        try {
+            await onConfirm(() => reauthToken('passkey_add'));
+        } catch (err) {
+            requestFailed(err);
+        }
     };
 
     return (

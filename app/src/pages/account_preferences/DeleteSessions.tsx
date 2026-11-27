@@ -13,7 +13,7 @@ import { useState, type JSX } from "react";
 import api from "@/api/api";
 import { toast } from "sonner";
 import { totpErrorMessage } from "@/lib/authToasts";
-import { beginSessionsDeleteReauth, verificationBody } from "@/lib/webauthn";
+import { beginSessionsDeleteReauth } from "@/lib/webauthn";
 import { useAppStore } from "@/store/general";
 
 interface DeleteSessionsProps {
@@ -26,18 +26,18 @@ export default function DeleteSessionsDialog({
     onOpenChange,
 }: DeleteSessionsProps): JSX.Element {
     const account = useAppStore(s => s.account);
-    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed } = useIdentityVerification();
+    const { verification, onChange: onVerificationChange, passkeyResetKey, requestFailed, reauthToken } = useIdentityVerification();
     const [loading, setLoading] = useState(false);
 
     const handleConfirm = async () => {
         if (!verification || loading) return;
         setLoading(true);
         try {
-            await api.Client.sessionsApi.apiV1SessionsDelete(verificationBody(verification));
+            await api.Client.sessionsApi.apiV1SessionsDelete({ reauth_token: await reauthToken('sessions_delete') });
             toast.success("All other sessions have been logged out.");
             onOpenChange(false);
         } catch (e: unknown) {
-            requestFailed();
+            requestFailed(e);
             const axiosErr = e as { response?: { data?: { error?: string } } };
             toast.error(totpErrorMessage(axiosErr?.response?.data?.error, "Failed to log out sessions."));
         } finally {
