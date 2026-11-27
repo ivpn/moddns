@@ -23,6 +23,10 @@ rules:
       # nothing a poisoned cache entry could get published from.
       - go.yml
       - frontend.yml
+      # integration_tests.yml:26 (setup-node v4.4.0, no `cache:` input):
+      # v4 has no package-manager auto-cache, so nothing is cached at all;
+      # the job only runs tests with `permissions: read-all`.
+      - integration_tests.yml:26
 
   artipacked:
     ignore:
