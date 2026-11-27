@@ -318,9 +318,9 @@ services:
       - dnsproxy
       - knot
     ports:
-      - "5390:53/udp"
-      - "5390:53/tcp"
-      - "5391:3000" # /control API
+      - "127.0.0.1:5390:53/udp"
+      - "127.0.0.1:5390:53/tcp"
+      - "127.0.0.1:5391:3000" # /control API
     volumes:
       - ./config/adguardhome.yaml:/seed/AdGuardHome.yaml:ro
       - ../dev/certs/moddns_dev_development_CA.crt:/certs/dev-ca.crt:ro
@@ -344,8 +344,8 @@ services:
     depends_on:
       - dnsproxy
     ports:
-      - "5392:53/udp"
-      - "5392:53/tcp"
+      - "127.0.0.1:5392:53/udp"
+      - "127.0.0.1:5392:53/tcp"
     volumes:
       - ../dev/certs/moddns_dev_development_CA.crt:/certs/dev-ca.crt:ro
     environment:
@@ -360,6 +360,57 @@ services:
       FTLCONF_webserver_api_password: ""
       FTLCONF_misc_check_load: false
       TZ: UTC
+
+  # OpenWrt routers that run the Setup > Routers > OpenWrt commands
+  # (dns_tests/test_openwrt.py): 24.10 installs with opkg, 25.12 with apk.
+  openwrt-24:
+    build:
+      context: ./openwrt
+      args:
+        OPENWRT_IMAGE: openwrt/rootfs:x86-64-24.10.8
+    container_name: openwrt-24
+    <<: &openwrt
+      networks:
+        dnsnetwork:
+          ipv4_address: 10.5.0.30
+      depends_on:
+        - dnsproxy
+        - knot
+      # procd starts dnsmasq in ujail (namespaces: SYS_ADMIN, seccomp and
+      # AppArmor unconfined); fw4 and the entrypoint program nftables (NET_ADMIN).
+      cap_add:
+        - SYS_ADMIN
+        - NET_ADMIN
+      security_opt:
+        - seccomp=unconfined
+        - apparmor=unconfined
+      volumes:
+        - ../dev/certs/moddns_dev_development_CA.crt:/certs/dev-ca.crt:ro
+      environment: &openwrt-env
+        LAN_IPADDR: 10.5.0.30
+        LAN_GATEWAY: 10.5.0.1
+        PUBLIC_DNS: 10.5.0.6 # knot
+        STACK_SUBNET: 10.5.0.0/16
+    ports:
+      - "127.0.0.1:5393:53/udp"
+      - "127.0.0.1:5393:53/tcp"
+
+  openwrt-25:
+    build:
+      context: ./openwrt
+      args:
+        OPENWRT_IMAGE: openwrt/rootfs:x86-64-25.12.6
+    container_name: openwrt-25
+    <<: *openwrt
+    networks:
+      dnsnetwork:
+        ipv4_address: 10.5.0.31
+    environment:
+      <<: *openwrt-env
+      LAN_IPADDR: 10.5.0.31
+    ports:
+      - "127.0.0.1:5394:53/udp"
+      - "127.0.0.1:5394:53/tcp"
 
 networks:
   dnsnetwork:
