@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings
 
 
@@ -30,6 +31,9 @@ class Settings(BaseSettings):
     ADGUARD_HOME_API_ADDR: str = "http://localhost:5391"
     ADGUARD_HOME_DNS_ADDR: str = "localhost:5390"
     PIHOLE_DNS_ADDR: str = "localhost:5392"
+    # OpenWrt routers (test_openwrt.py): dnsmasq on the router's port 53.
+    OPENWRT_24_DNS_ADDR: str = "localhost:5393"
+    OPENWRT_25_DNS_ADDR: str = "localhost:5394"
     # Fixed compose address of the proxy (docker-compose.yml). A client *container*
     # dials this; the API's stamps encode the host loopback (config/api.env), so
     # stamps handed to a container are re-addressed to it (libs/stamps.py).
@@ -39,7 +43,7 @@ class Settings(BaseSettings):
     BOOTSTRAP_DNS_ADDR: str = "10.5.0.6"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Gets the application settings."""
     return Settings()
