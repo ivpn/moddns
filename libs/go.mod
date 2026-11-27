@@ -4,7 +4,7 @@ go 1.26.11
 
 require (
 	github.com/alicebob/miniredis/v2 v2.38.0
-	github.com/getsentry/sentry-go v0.31.1
+	github.com/getsentry/sentry-go v0.50.0
 	github.com/getsentry/sentry-go/zerolog v0.31.1
 	github.com/oschwald/geoip2-golang/v2 v2.4.0
 	github.com/redis/go-redis/v9 v9.7.3
