@@ -3,7 +3,7 @@ module github.com/ivpn/dns/api
 go 1.26.11
 
 require (
-	github.com/AfterShip/email-verifier v1.4.0
+	github.com/AfterShip/email-verifier v1.5.0
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/descope/virtualwebauthn v1.0.3 // v1.0.4+ require go-webauthn >= v0.15; bump together with go-webauthn
 	github.com/getsentry/sentry-go v0.31.1
@@ -65,7 +65,7 @@ require (
 	github.com/google/go-tpm v0.9.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	github.com/hbollon/go-edlib v1.6.0 // indirect
+	github.com/hbollon/go-edlib v1.7.0 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
