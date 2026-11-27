@@ -28,7 +28,7 @@ from moddns.models.requests_web_authn_add_passkey_begin_request import RequestsW
 from moddns.models.requests_web_authn_delete_passkey_request import RequestsWebAuthnDeletePasskeyRequest
 from moddns.models.requests_web_authn_reauth_begin_request import RequestsWebAuthnReauthBeginRequest
 from moddns.models.responses_passkey import ResponsesPasskey
-from moddns.models.responses_web_authn_reauth_finish_response import ResponsesWebAuthnReauthFinishResponse
+from moddns.models.responses_reauth_token_response import ResponsesReauthTokenResponse
 
 from moddns.api_client import ApiClient, RequestSerialized
 from moddns.api_response import ApiResponse
@@ -1185,7 +1185,7 @@ class AuthenticationApi:
     ) -> object:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
@@ -1253,7 +1253,7 @@ class AuthenticationApi:
     ) -> ApiResponse[object]:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
@@ -1321,7 +1321,7 @@ class AuthenticationApi:
     ) -> RESTResponseType:
         """Add new passkey
 
-        Add a new passkey to authenticated account. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_add purpose.
+        Add a new passkey to authenticated account. The account owner is verified first with a reauth token issued for the passkey_add purpose.
 
         :param body: Verification (required)
         :type body: RequestsWebAuthnAddPasskeyBeginRequest
@@ -1738,7 +1738,7 @@ class AuthenticationApi:
     ) -> None:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
@@ -1810,7 +1810,7 @@ class AuthenticationApi:
     ) -> ApiResponse[None]:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
@@ -1882,7 +1882,7 @@ class AuthenticationApi:
     ) -> RESTResponseType:
         """Delete passkey
 
-        Delete a specific passkey. The account owner is verified first with the current password (plus otp when TOTP is enabled) or a passkey reauth token issued for the passkey_delete purpose.
+        Delete a specific passkey. The account owner is verified first with a reauth token issued for the passkey_delete purpose.
 
         :param id: Credential ID (required)
         :type id: str
@@ -2304,7 +2304,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ResponsesWebAuthnReauthFinishResponse:
+    ) -> ResponsesReauthTokenResponse:
         """Finish reauthentication via passkey
 
         Complete WebAuthn assertion and issue a short-lived reauth token
@@ -2342,7 +2342,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "ResponsesWebAuthnReauthFinishResponse",
+            '201': "ResponsesReauthTokenResponse",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2372,7 +2372,7 @@ class AuthenticationApi:
         _content_type: Optional[StrictStr] = None,
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
-    ) -> ApiResponse[ResponsesWebAuthnReauthFinishResponse]:
+    ) -> ApiResponse[ResponsesReauthTokenResponse]:
         """Finish reauthentication via passkey
 
         Complete WebAuthn assertion and issue a short-lived reauth token
@@ -2410,7 +2410,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "ResponsesWebAuthnReauthFinishResponse",
+            '201': "ResponsesReauthTokenResponse",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(
@@ -2478,7 +2478,7 @@ class AuthenticationApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
-            '201': "ResponsesWebAuthnReauthFinishResponse",
+            '201': "ResponsesReauthTokenResponse",
             '400': "ApiErrResponse",
         }
         response_data = self.api_client.call_api(

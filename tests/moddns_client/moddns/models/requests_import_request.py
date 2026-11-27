@@ -17,9 +17,8 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from typing_extensions import Annotated
 from moddns.models.model_export_envelope import ModelExportEnvelope
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,12 +27,10 @@ class RequestsImportRequest(BaseModel):
     """
     RequestsImportRequest
     """ # noqa: E501
-    current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     mode: StrictStr
-    otp: Optional[Annotated[str, Field(strict=True, max_length=64)]] = None
     payload: ModelExportEnvelope
-    reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
-    __properties: ClassVar[List[str]] = ["current_password", "mode", "otp", "payload", "reauth_token"]
+    reauth_token: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["mode", "payload", "reauth_token"]
 
     @field_validator('mode')
     def mode_validate_enum(cls, value):
@@ -96,9 +93,7 @@ class RequestsImportRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "current_password": obj.get("current_password"),
             "mode": obj.get("mode"),
-            "otp": obj.get("otp"),
             "payload": ModelExportEnvelope.from_dict(obj["payload"]) if obj.get("payload") is not None else None,
             "reauth_token": obj.get("reauth_token")
         })

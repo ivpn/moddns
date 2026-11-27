@@ -14,18 +14,12 @@ docs/specs/account-export-import-behaviour.md
 
 from __future__ import annotations
 
-import random
-import string
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 import requests as http_requests
 
-import moddns.api as api
-import moddns.api_client as client
-import moddns.configuration as api_config
-from moddns import RequestsLoginBody
-from libs.accounts import create_account
+from libs.accounts import create_account, password_reauth_token
 from libs.settings import get_settings
 
 
@@ -213,15 +207,12 @@ def export_request_body(
     *,
     scope: str = "all",
     profile_ids: Optional[list[str]] = None,
-    current_password: Optional[str] = None,
     reauth_token: Optional[str] = None,
 ) -> dict:
     """Build the export request body. Snake-case per the request DTO."""
     body: dict[str, Any] = {"scope": scope}
     if profile_ids is not None:
         body["profile_ids"] = profile_ids
-    if current_password is not None:
-        body["current_password"] = current_password
     if reauth_token is not None:
         body["reauth_token"] = reauth_token
     return body
@@ -231,7 +222,6 @@ def import_request_body(
     *,
     mode: Optional[str] = "create_new",
     payload: Optional[dict] = None,
-    current_password: Optional[str] = None,
     reauth_token: Optional[str] = None,
     extra: Optional[dict] = None,
 ) -> dict:
@@ -242,8 +232,6 @@ def import_request_body(
         body["mode"] = mode
     if payload is not None:
         body["payload"] = payload
-    if current_password is not None:
-        body["current_password"] = current_password
     if reauth_token is not None:
         body["reauth_token"] = reauth_token
     if extra:
@@ -259,7 +247,9 @@ def do_export(
     return raw_export(
         cookie,
         export_request_body(
-            scope=scope, profile_ids=profile_ids, current_password=password
+            scope=scope,
+            profile_ids=profile_ids,
+            reauth_token=password_reauth_token(cookie, password, "profile_export"),
         ),
     )
 
@@ -276,7 +266,11 @@ def do_import(
     """Happy-path import through raw HTTP."""
     return raw_import(
         cookie,
-        import_request_body(mode=mode, payload=payload, current_password=password),
+        import_request_body(
+            mode=mode,
+            payload=payload,
+            reauth_token=password_reauth_token(cookie, password, "profile_import"),
+        ),
         headers=headers,
         include_csrf=include_csrf,
     )

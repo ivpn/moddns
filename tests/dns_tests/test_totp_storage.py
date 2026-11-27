@@ -24,8 +24,6 @@ from moddns.exceptions import ApiException
 from moddns.models.requests_confirm_reset_password_body import (
     RequestsConfirmResetPasswordBody,
 )
-from moddns.models.model_account_update import ModelAccountUpdate
-from moddns.models.requests_account_updates import RequestsAccountUpdates
 from moddns.models.requests_login_body import RequestsLoginBody
 from moddns.models.requests_reset_password_body import RequestsResetPasswordBody
 from moddns.models.requests_totp_disable_req import RequestsTotpDisableReq
@@ -35,7 +33,7 @@ from moddns.models.requests_totp_req import RequestsTotpReq
 from pymongo import MongoClient
 
 from libs import passkeys
-from libs.accounts import create_account, delete_account, generate_complex_password
+from libs.accounts import create_account, delete_account, generate_complex_password, password_reauth_token
 from libs.settings import get_settings
 
 LEGACY_SECRET = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP"
@@ -70,7 +68,10 @@ def fresh_account():
     if state["secret"]:
         with _api(state["cookie"]) as api_client, contextlib.suppress(ApiException):
             AccountApi(api_client).api_v1_accounts_mfa_totp_disable_post(
-                RequestsTotpDisableReq(otp=totp_code(state["secret"]), current_password=state["password"])
+                RequestsTotpDisableReq(
+                    otp=totp_code(state["secret"]),
+                    reauth_token=password_reauth_token(state["cookie"], state["password"], "totp_disable"),
+                )
             )
     delete_account(state["cookie"], state["password"], account_id=account.id)
 
@@ -82,11 +83,19 @@ def _api(cookie: str | None = None) -> ApiClient:
     return api_client
 
 
+def _token(cookie: str, password: str | None, reauth_token: str | None, purpose: str) -> str | None:
+    """The reauth token a TOTP change carries: ``reauth_token``, or one issued for ``password``.
+    Raises ApiException when the password is refused."""
+    if password is None:
+        return reauth_token
+    return password_reauth_token(cookie, password, purpose)
+
+
 def _enable_totp(cookie: str, password: str | None = None, reauth_token: str | None = None) -> tuple[str, list[str]]:
     with _api(cookie) as api_client:
         acc_api = AccountApi(api_client)
         new = acc_api.api_v1_accounts_mfa_totp_enable_post(
-            RequestsTotpEnableReq(current_password=password, reauth_token=reauth_token)
+            RequestsTotpEnableReq(reauth_token=_token(cookie, password, reauth_token, "totp_enable"))
         )
         backup = acc_api.api_v1_accounts_mfa_totp_enable_confirm_post(
             RequestsTotpReq(otp=totp_code(new.secret))
@@ -140,8 +149,9 @@ def _disable(cookie: str, otp: str, password: str | None = None,
              reauth_token: str | None = None) -> int:
     with _api(cookie) as api_client:
         try:
+            token = _token(cookie, password, reauth_token, "totp_disable")
             return AccountApi(api_client).api_v1_accounts_mfa_totp_disable_post_with_http_info(
-                RequestsTotpDisableReq(otp=otp, current_password=password, reauth_token=reauth_token)
+                RequestsTotpDisableReq(otp=otp, reauth_token=token)
             ).status_code
         except ApiException as e:
             return e.status
@@ -151,8 +161,9 @@ def _regenerate(cookie: str, otp: str, password: str | None = None,
                 reauth_token: str | None = None) -> tuple[int, list[str]]:
     with _api(cookie) as api_client:
         try:
+            token = _token(cookie, password, reauth_token, "backup_codes_regenerate")
             resp = AccountApi(api_client).api_v1_accounts_mfa_totp_backup_codes_regenerate_post_with_http_info(
-                RequestsTotpRegenerateReq(otp=otp, current_password=password, reauth_token=reauth_token)
+                RequestsTotpRegenerateReq(otp=otp, reauth_token=token)
             )
             return resp.status_code, resp.data.backup_codes
         except ApiException as e:
@@ -232,7 +243,7 @@ class TestTotpStorage:
         with _api(cookie) as api_client:
             acc_api = AccountApi(api_client)
             new = acc_api.api_v1_accounts_mfa_totp_enable_post(
-                RequestsTotpEnableReq(current_password=state["password"])
+                RequestsTotpEnableReq(reauth_token=password_reauth_token(cookie, state["password"], "totp_enable"))
             )
             state["secret"] = new.secret
             code = totp_code(new.secret)
@@ -402,27 +413,21 @@ class TestTotpStorage:
         assert status == 200 and new_cookie
         state["cookie"] = new_cookie
 
-    def test_wrong_password_leaves_backup_code_unused(self, fresh_account):
-        """Changing the email checks the current password before the 2FA code, so
-        a wrong password uses no backup code up and does not lock 2FA. specRef: B3, E6, E12."""
-        _, cookie, password, email, state = fresh_account
+    def test_wrong_password_leaves_backup_code_unused(self, fresh_account, redis_client):
+        """POST /accounts/reauth checks the current password before the 2FA code, so a wrong
+        password uses no backup code up and does not lock 2FA. Past ID_LIMITER_MAX (5) failed
+        passwords the reauth itself is refused, still without touching the code.
+        specRef: B15, E6, E12."""
+        account, cookie, password, email, state = fresh_account
         secret, codes = _enable_totp(cookie, state["password"])
         state["secret"] = secret
 
-        def change_email(current: str, otp: str) -> int:
-            body = RequestsAccountUpdates(otp=otp, updates=[ModelAccountUpdate(
-                operation="replace", path="/email",
-                value={"current_password": current, "new_email": f"new-{email}"},
-            )])
-            with _api(cookie) as api_client:
-                try:
-                    return AccountApi(api_client).api_v1_accounts_patch_with_http_info(body).status_code
-                except ApiException as e:
-                    return e.status
-
-        for _ in range(6):  # past ID_LIMITER_MAX
-            assert change_email("wrong-password", codes[0]) == 400
+        for _ in range(5):
+            assert _password_reauth(cookie, "email_change", "wrong-password", codes[0]) == (400, "invalid current password")
+        assert _password_reauth(cookie, "email_change", password, codes[0]) == (429, "reauth rate limited")
         assert _login(email, password, codes[0]) == 200, "code still unused, 2FA not locked"
+        # Let the fixture clean up with a password reauth.
+        redis_client.delete(f"reauth_password_fails:{account.id}")
 
     def test_failed_attempts_lock_out_valid_codes(self, fresh_account, redis_client):
         """After ID_LIMITER_MAX (default 5) failed attempts every code is refused. specRef: E12."""
@@ -530,7 +535,7 @@ class TestBackupCodeRegeneration:
     @pytest.mark.parametrize("change", ["disable", "regenerate"])
     def test_totp_change_needs_reauth(self, mongo_db, fresh_account, change):
         """A session alone cannot turn 2FA off or regenerate the codes: without
-        the current password (or a passkey reauth token) no code is checked,
+        a reauth token (issued for the password or a passkey) no code is checked,
         used up or counted toward the lockout. specRef: E3, E12, E13."""
         account, cookie, password, email, state = fresh_account
         secret, codes = _enable_totp(cookie, state["password"])
@@ -544,8 +549,9 @@ class TestBackupCodeRegeneration:
 
         for _ in range(6):  # past ID_LIMITER_MAX
             assert run(codes[0]) == 400
-            assert run(codes[0], "wrong-password") == 400
             assert run(codes[0], reauth_token="not-a-token") == 400
+        for _ in range(4):  # below ID_LIMITER_MAX: failed passwords have their own limit
+            assert run(codes[0], "wrong-password") == 400
         assert _totp_doc(mongo_db, account.id) == before
         assert _login(email, password, codes[0]) == 200, "code unused, 2FA not locked"
 
@@ -565,10 +571,10 @@ def _start_enable(cookie: str, **reauth) -> tuple[int, str | None]:
 
 
 class TestTotpEnableNeedsReauth:
-    """A session alone cannot start 2FA set-up: the current password or a passkey
-    reauth token of purpose totp_enable comes first. specRef: E1, F5."""
+    """A session alone cannot start 2FA set-up: a reauth token of purpose totp_enable,
+    issued for the password or a passkey, comes first. specRef: E1, F5."""
 
-    @pytest.mark.parametrize("reauth", [{}, {"current_password": "Wrong-Passw0rd-123!"}], ids=["none", "wrong-password"])
+    @pytest.mark.parametrize("reauth", [{}, {"reauth_token": "not-a-token"}], ids=["none", "unknown-token"])
     def test_refused_reauth_issues_no_secret(self, mongo_db, fresh_account, reauth):
         account, cookie, _, _, _ = fresh_account
         assert _start_enable(cookie, **reauth) == (400, None)
@@ -592,9 +598,11 @@ class TestTotpEnableNeedsReauth:
             passkeys.delete_passkey_account(user)
 
 
-def _reauth_request(method: str, path: str, cookie: str, body: dict, otp: str) -> tuple[int, str | None]:
-    resp = requests.request(method, f"{get_settings().DNS_API_ADDR}{path}", json={**body, "otp": otp},
-                            headers={"Cookie": cookie}, timeout=30)
+def _password_reauth(cookie: str, purpose: str, password: str, otp: str | None = None) -> tuple[int, str | None]:
+    """Status and error text of POST /accounts/reauth."""
+    body = {"purpose": purpose, "current_password": password, **({"otp": otp} if otp else {})}
+    resp = requests.post(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/reauth", json=body,
+                         headers={"Cookie": cookie}, timeout=30)
     return resp.status_code, resp.json().get("error")
 
 
@@ -603,33 +611,80 @@ def _signed_in(cookie: str) -> bool:
     return resp.status_code == 200
 
 
-def _deletion_code(cookie: str) -> str:
-    resp = requests.post(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/current/deletion-code", json={},
-                         headers={"Cookie": cookie}, timeout=30)
-    return resp.json()["code"]
+CODE_CHECKED_AT_REAUTH = ["email_change", "account_deletion", "profile_export", "profile_import",
+                          "password_set", "passkey_add", "passkey_delete", "sessions_delete"]
 
 
-REAUTH_OPERATIONS = {
-    "profile export": ("POST", "/api/v1/profiles/export", lambda pw, _: {"scope": "all", "current_password": pw}),
-    "email change": ("PATCH", "/api/v1/accounts", lambda pw, _: {"updates": [{"operation": "replace", "path": "/email", "value": {"current_password": pw, "new_email": "changed@example.com"}}]}),
-    "passkey add": ("POST", "/api/v1/webauthn/passkey/add/begin", lambda pw, _: {"current_password": pw}),
-    "account deletion": ("DELETE", "/api/v1/accounts/current", lambda pw, cookie: {"deletion_code": _deletion_code(cookie), "current_password": pw}),
-    "sessions": ("DELETE", "/api/v1/sessions", lambda pw, _: {"current_password": pw}),
-}
-
-
-@pytest.mark.parametrize("operation", REAUTH_OPERATIONS)
-def test_wrong_code_in_reauth_keeps_the_session(fresh_account, operation):
-    """A wrong 2FA code with the right password is a refused request on a valid
-    session: 400, and the session still works. specRef: E6, F5."""
-    _, cookie, _, _, state = fresh_account
+@pytest.mark.parametrize("purpose", CODE_CHECKED_AT_REAUTH)
+def test_reauth_with_2fa_needs_the_code(fresh_account, purpose):
+    """With 2FA on, a password reauth needs the code: without it the prompt comes first, a wrong
+    one is a refused request on a valid session (400, the session still works), the right one
+    issues the token. specRef: B15, E6."""
+    _, cookie, password, _, state = fresh_account
     state["secret"], _ = _enable_totp(cookie, state["password"])
     code = totp_code(state["secret"])
     wrong = f"{(int(code) + 1) % 1_000_000:06d}"
-    method, path, body = REAUTH_OPERATIONS[operation]
+    assert _password_reauth(cookie, purpose, password) == (400, "TOTP is required")
     # "invalid 2FA code", not "TOTP is required": the code in the body was read and checked.
-    assert _reauth_request(method, path, cookie, body(state["password"], cookie), wrong) == (400, "invalid 2FA code")
+    assert _password_reauth(cookie, purpose, password, wrong) == (400, "invalid 2FA code")
     assert _signed_in(cookie)
+    assert _password_reauth(cookie, purpose, password, code) == (201, None)
+
+
+@pytest.mark.parametrize("purpose", ["totp_disable", "backup_codes_regenerate"])
+def test_reauth_for_a_2fa_change_takes_the_password_alone(fresh_account, purpose):
+    """2FA disable and backup-code regeneration ask for the code themselves, so their token is
+    issued for the password alone. specRef: B15, E3, E13."""
+    _, cookie, password, _, state = fresh_account
+    state["secret"], _ = _enable_totp(cookie, state["password"])
+    assert _password_reauth(cookie, purpose, password) == (201, None)
+    assert _password_reauth(cookie, purpose, "wrong-password") == (400, "invalid current password")
+
+
+class TestPasswordReauth:
+    """POST /accounts/reauth: the password (plus the 2FA code) for a single-use reauth token of
+    one purpose. specRef: B15."""
+
+    def test_token_is_single_use_and_bound_to_its_purpose(self, fresh_account):
+        _, cookie, password, _, _ = fresh_account
+        other = password_reauth_token(cookie, password, "profile_export")
+        resp = requests.delete(f"{get_settings().DNS_API_ADDR}/api/v1/sessions", json={"reauth_token": other},
+                               headers={"Cookie": cookie}, timeout=30)
+        assert resp.status_code == 400 and resp.json()["error"] == "invalid reauth token"
+
+        token = password_reauth_token(cookie, password, "sessions_delete")
+        for expected in (204, 400):
+            resp = requests.delete(f"{get_settings().DNS_API_ADDR}/api/v1/sessions", json={"reauth_token": token},
+                                   headers={"Cookie": cookie}, timeout=30)
+            assert resp.status_code == expected, resp.text
+        assert _signed_in(cookie)
+
+    def test_refusals(self, fresh_account):
+        _, cookie, password, _, _ = fresh_account
+        assert _password_reauth(cookie, "profile_export", "wrong-password") == (400, "invalid current password")
+        assert _password_reauth(cookie, "login", password)[0] == 400
+        resp = requests.post(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/reauth",
+                             json={"purpose": "profile_export"}, headers={"Cookie": cookie}, timeout=30)
+        assert resp.status_code == 400
+        resp = requests.post(f"{get_settings().DNS_API_ADDR}/api/v1/accounts/reauth",
+                             json={"purpose": "profile_export", "current_password": password}, timeout=30)
+        assert resp.status_code == 401, "a session is required"
+        assert _signed_in(cookie)
+
+    def test_failed_passwords_are_limited_per_account(self, fresh_account, redis_client):
+        """Past ID_LIMITER_MAX (5) failed passwords even the right one is refused, for every
+        purpose; a success before the limit clears the count. specRef: B15."""
+        account, cookie, password, _, _ = fresh_account
+        for _ in range(4):
+            assert _password_reauth(cookie, "profile_export", "wrong-password")[0] == 400
+        assert _password_reauth(cookie, "profile_export", password) == (201, None)
+        for _ in range(5):
+            assert _password_reauth(cookie, "profile_export", "wrong-password")[0] == 400
+        assert _password_reauth(cookie, "profile_export", password) == (429, "reauth rate limited")
+        assert _password_reauth(cookie, "sessions_delete", password) == (429, "reauth rate limited")
+        assert _signed_in(cookie)
+        # Let the fixture clean up with a password reauth.
+        redis_client.delete(f"reauth_password_fails:{account.id}")
 
 
 class TestTotpChangesWithPasskeyReauth:

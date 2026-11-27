@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
 from typing import Optional, Set
@@ -27,10 +27,9 @@ class RequestsTotpDisableReq(BaseModel):
     """
     RequestsTotpDisableReq
     """ # noqa: E501
-    current_password: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
     otp: Annotated[str, Field(min_length=6, strict=True, max_length=64)]
-    reauth_token: Optional[Annotated[str, Field(min_length=1, strict=True)]] = None
-    __properties: ClassVar[List[str]] = ["current_password", "otp", "reauth_token"]
+    reauth_token: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["otp", "reauth_token"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,7 +82,6 @@ class RequestsTotpDisableReq(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "current_password": obj.get("current_password"),
             "otp": obj.get("otp"),
             "reauth_token": obj.get("reauth_token")
         })

@@ -10,7 +10,7 @@ from moddns.api.authentication_api import AuthenticationApi
 from moddns.models.requests_login_body import RequestsLoginBody
 
 from libs import passkeys
-from libs.accounts import create_account, delete_account
+from libs.accounts import create_account, delete_account, password_reauth_token
 from libs.settings import get_settings
 
 
@@ -41,19 +41,23 @@ def two_sessions():
     delete_account(cookie, password, account_id=account.id)
 
 
-@pytest.mark.parametrize("body", [{}, {"current_password": "Wrong-Passw0rd-123!"}], ids=["none", "wrong-password"])
+@pytest.mark.parametrize("body", [{}, {"current_password": "Wrong-Passw0rd-123!"}, {"reauth_token": "made-up"}],
+                         ids=["none", "password", "unknown-token"])
 def test_refused_reauth_signs_nothing_out(two_sessions, body):
-    """A session alone cannot sign out the other sessions."""
+    """A session alone cannot sign out the other sessions; the password is not a credential here."""
     current, other, _ = two_sessions
     assert _delete_other_sessions(current, body) == 400
     assert _signed_in(current) and _signed_in(other)
 
 
-def test_password_signs_out_the_other_sessions(two_sessions):
+def test_password_token_signs_out_the_other_sessions(two_sessions):
+    """specRef: api-endpoint-behaviour #A3 #B15"""
     current, other, password = two_sessions
-    assert _delete_other_sessions(current, {"current_password": password}) == 204
+    token = password_reauth_token(current, password, "sessions_delete")
+    assert _delete_other_sessions(current, {"reauth_token": token}) == 204
     assert _signed_in(current)
     assert not _signed_in(other)
+    assert _delete_other_sessions(current, {"reauth_token": token}) == 400, "the token is single-use"
 
 
 def test_passkey_reauth_signs_out_the_other_sessions():

@@ -14,6 +14,7 @@ import moddns.api_client as client
 import moddns.configuration as api_config
 from moddns import RequestsLoginBody, ApiCreateProfileBody
 
+from libs.accounts import password_reauth_token
 from libs.settings import get_settings
 from libs.export_import_helpers import (
     build_envelope,
@@ -80,7 +81,7 @@ class TestExportEndpoint:
         _, cookie, password, _ = create_account_with_password()
         resp = raw_export(
             cookie,
-            export_request_body(scope="all", profile_ids=["x"], current_password=password),
+            export_request_body(scope="all", profile_ids=["x"], reauth_token=password_reauth_token(cookie, password, "profile_export")),
         )
         assert resp.status_code == 400, resp.text
 
@@ -89,7 +90,7 @@ class TestExportEndpoint:
         _, cookie, password, _ = create_account_with_password()
         resp = raw_export(
             cookie,
-            export_request_body(scope="selected", current_password=password),
+            export_request_body(scope="selected", reauth_token=password_reauth_token(cookie, password, "profile_export")),
         )
         assert resp.status_code == 400, resp.text
 
@@ -103,7 +104,7 @@ class TestExportEndpoint:
             export_request_body(
                 scope="selected",
                 profile_ids=[foreign_profile_id],
-                current_password=password_a,
+                reauth_token=password_reauth_token(cookie_a, password_a, "profile_export"),
             ),
         )
         assert resp.status_code == 404, resp.text
@@ -111,7 +112,7 @@ class TestExportEndpoint:
     def test_export_unknown_scope_rejected(self):
         """Unknown scope value is rejected. specRef: E11."""
         _, cookie, password, _ = create_account_with_password()
-        resp = raw_export(cookie, {"scope": "weird", "current_password": password})
+        resp = raw_export(cookie, {"scope": "weird", "reauth_token": password_reauth_token(cookie, password, "profile_export")})
         assert resp.status_code == 400, resp.text
 
     def test_export_without_reauth_returns_400(self):
@@ -120,14 +121,17 @@ class TestExportEndpoint:
         resp = raw_export(cookie, {"scope": "all"})
         assert resp.status_code == 400, resp.text
 
-    def test_export_with_wrong_password_returns_400(self):
-        """Wrong current_password is rejected with 400 (not 401, to avoid client logout flow). specRef: M6."""
-        _, cookie, _, _ = create_account_with_password()
-        resp = raw_export(
-            cookie,
-            export_request_body(scope="all", current_password="WrongPassw0rd!"),
-        )
-        assert resp.status_code == 400, resp.text
+    def test_export_takes_only_a_reauth_token(self):
+        """The password and the 2FA code are unknown fields here; a token of another purpose, or one
+        already used, is refused. All with 400 (not 401, to avoid client logout flow). specRef: E3, M4, M6, B15."""
+        _, cookie, password, _ = create_account_with_password()
+        assert raw_export(cookie, {"scope": "all", "current_password": password}).status_code == 400
+        assert raw_export(cookie, {"scope": "all", "otp": "123456"}).status_code == 400
+        other = password_reauth_token(cookie, password, "profile_import")
+        assert raw_export(cookie, export_request_body(scope="all", reauth_token=other)).status_code == 400
+        token = password_reauth_token(cookie, password, "profile_export")
+        assert raw_export(cookie, export_request_body(scope="all", reauth_token=token)).status_code == 200
+        assert raw_export(cookie, export_request_body(scope="all", reauth_token=token)).status_code == 400
 
 
 class TestImportEndpoint:
@@ -176,7 +180,9 @@ class TestImportEndpoint:
         """application/x-www-form-urlencoded Content-Type is rejected with 415. specRef: I7."""
         _, cookie, password, _ = create_account_with_password()
         body = import_request_body(
-            mode="create_new", payload=build_envelope(), current_password=password
+            mode="create_new",
+            payload=build_envelope(),
+            reauth_token=password_reauth_token(cookie, password, "profile_import"),
         )
         resp = raw_import(
             cookie,
@@ -191,7 +197,7 @@ class TestImportEndpoint:
         body = {
             "mode": "replace",
             "payload": build_envelope(),
-            "current_password": password,
+            "reauth_token": password_reauth_token(cookie, password, "profile_import"),
         }
         resp = raw_import(cookie, body)
         assert resp.status_code == 400, resp.text
@@ -202,7 +208,7 @@ class TestImportEndpoint:
         body = {
             "mode": "merge",
             "payload": build_envelope(),
-            "current_password": password,
+            "reauth_token": password_reauth_token(cookie, password, "profile_import"),
         }
         resp = raw_import(cookie, body)
         assert resp.status_code == 400, resp.text
@@ -210,7 +216,7 @@ class TestImportEndpoint:
     def test_import_mode_absent_rejected(self):
         """Missing mode field is rejected. specRef: I11."""
         _, cookie, password, _ = create_account_with_password()
-        body = {"payload": build_envelope(), "current_password": password}
+        body = {"payload": build_envelope(), "reauth_token": password_reauth_token(cookie, password, "profile_import")}
         resp = raw_import(cookie, body)
         assert resp.status_code == 400, resp.text
 
@@ -221,16 +227,14 @@ class TestImportEndpoint:
         resp = raw_import(cookie, body)
         assert resp.status_code == 400, resp.text
 
-    def test_import_wrong_password_returns_400(self):
-        """Wrong current_password is rejected with 400 (not 401, to avoid client logout flow). specRef: M6."""
-        _, cookie, _, _ = create_account_with_password()
-        body = import_request_body(
-            mode="create_new",
-            payload=build_envelope(),
-            current_password="WrongPassw0rd!",
-        )
-        resp = raw_import(cookie, body)
-        assert resp.status_code == 400, resp.text
+    def test_import_takes_only_a_reauth_token(self):
+        """The password is an unknown field here, and a made-up token is refused, both with 400
+        (not 401, to avoid client logout flow). specRef: I2, M4, M6, B15."""
+        _, cookie, password, _ = create_account_with_password()
+        body = {"mode": "create_new", "payload": build_envelope(), "current_password": password}
+        assert raw_import(cookie, body).status_code == 400
+        body = import_request_body(mode="create_new", payload=build_envelope(), reauth_token="made-up")
+        assert raw_import(cookie, body).status_code == 400
 
     def test_import_unknown_root_field_rejected(self):
         """Unknown root field in envelope is rejected. specRef: V6, S2."""

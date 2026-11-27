@@ -123,6 +123,7 @@ moddns/models/requests_login_body.py
 moddns/models/requests_mobile_config_req.py
 moddns/models/requests_pa_session_req.py
 moddns/models/requests_profile_updates.py
+moddns/models/requests_reauth_request.py
 moddns/models/requests_reorder_profile_custom_rule_groups_body.py
 moddns/models/requests_reorder_profile_custom_rules_body.py
 moddns/models/requests_reset_password_body.py
@@ -142,9 +143,9 @@ moddns/models/responses_custom_rule_batch_skipped.py
 moddns/models/responses_deletion_code_response.py
 moddns/models/responses_dns_stamp_response.py
 moddns/models/responses_passkey.py
+moddns/models/responses_reauth_token_response.py
 moddns/models/responses_registration_success_response.py
 moddns/models/responses_short_link_response.py
-moddns/models/responses_web_authn_reauth_finish_response.py
 moddns/models/servicescatalog_catalog.py
 moddns/models/servicescatalog_service.py
 moddns/models/webauthncose_cose_algorithm_identifier.py

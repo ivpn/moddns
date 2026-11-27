@@ -92,6 +92,7 @@ Class | Method | HTTP request | Description
 *AccountApi* | [**api_v1_accounts_mfa_totp_enable_post**](docs/AccountApi.md#api_v1_accounts_mfa_totp_enable_post) | **POST** /api/v1/accounts/mfa/totp/enable | Enable TOTP
 *AccountApi* | [**api_v1_accounts_patch**](docs/AccountApi.md#api_v1_accounts_patch) | **PATCH** /api/v1/accounts | Update account
 *AccountApi* | [**api_v1_accounts_post**](docs/AccountApi.md#api_v1_accounts_post) | **POST** /api/v1/accounts | Register account
+*AccountApi* | [**api_v1_accounts_reauth_post**](docs/AccountApi.md#api_v1_accounts_reauth_post) | **POST** /api/v1/accounts/reauth | Reauthenticate with the current password
 *AccountApi* | [**api_v1_accounts_reset_password_post**](docs/AccountApi.md#api_v1_accounts_reset_password_post) | **POST** /api/v1/accounts/reset-password | Send reset password email
 *AnnouncementsApi* | [**api_v1_announcements_get**](docs/AnnouncementsApi.md#api_v1_announcements_get) | **GET** /api/v1/announcements | Get announcements
 *AppleMobileconfigApi* | [**api_v1_mobileconfig_post**](docs/AppleMobileconfigApi.md#api_v1_mobileconfig_post) | **POST** /api/v1/mobileconfig | Generate configuration profile for Apple devices
@@ -248,6 +249,7 @@ Class | Method | HTTP request | Description
  - [RequestsMobileConfigReq](docs/RequestsMobileConfigReq.md)
  - [RequestsPASessionReq](docs/RequestsPASessionReq.md)
  - [RequestsProfileUpdates](docs/RequestsProfileUpdates.md)
+ - [RequestsReauthRequest](docs/RequestsReauthRequest.md)
  - [RequestsReorderProfileCustomRuleGroupsBody](docs/RequestsReorderProfileCustomRuleGroupsBody.md)
  - [RequestsReorderProfileCustomRulesBody](docs/RequestsReorderProfileCustomRulesBody.md)
  - [RequestsResetPasswordBody](docs/RequestsResetPasswordBody.md)
@@ -267,9 +269,9 @@ Class | Method | HTTP request | Description
  - [ResponsesDNSStampResponse](docs/ResponsesDNSStampResponse.md)
  - [ResponsesDeletionCodeResponse](docs/ResponsesDeletionCodeResponse.md)
  - [ResponsesPasskey](docs/ResponsesPasskey.md)
+ - [ResponsesReauthTokenResponse](docs/ResponsesReauthTokenResponse.md)
  - [ResponsesRegistrationSuccessResponse](docs/ResponsesRegistrationSuccessResponse.md)
  - [ResponsesShortLinkResponse](docs/ResponsesShortLinkResponse.md)
- - [ResponsesWebAuthnReauthFinishResponse](docs/ResponsesWebAuthnReauthFinishResponse.md)
  - [ServicescatalogCatalog](docs/ServicescatalogCatalog.md)
  - [ServicescatalogService](docs/ServicescatalogService.md)
  - [WebauthncoseCOSEAlgorithmIdentifier](docs/WebauthncoseCOSEAlgorithmIdentifier.md)
